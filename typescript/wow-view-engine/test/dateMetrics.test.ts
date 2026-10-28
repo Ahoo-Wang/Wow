@@ -14,6 +14,13 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  TimeUnit,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -78,25 +85,32 @@ function dated(
   });
 }
 
-const warehouse = { type: 'TERMS', field: 'warehouse', alias: 'wh' } as const;
-const count: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const warehouse = {
+  type: AggregationGroupType.TERMS,
+  field: 'warehouse',
+  alias: 'wh',
+} as const;
+const count: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const total: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const latest: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'latest',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 };
 const earliest: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'earliest',
-  function: 'MIN',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  function: AggregationFunction.MIN,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 };
 
 function config(
@@ -138,21 +152,36 @@ describe('a date is summarised by its earliest and its latest', () => {
       MAX,
     ]);
     expect(
-      aggregationFunctionsOf({ kind: 'date' }, ['SUM', 'AVG', 'MIN', 'MAX']),
-    ).toEqual(['MIN', 'MAX']);
-    expect(aggregationFunctionsOf(undefined, ['SUM'])).toEqual(['SUM']);
+      aggregationFunctionsOf({ kind: 'date' }, [
+        AggregationFunction.SUM,
+        AggregationFunction.AVG,
+        AggregationFunction.MIN,
+        AggregationFunction.MAX,
+      ]),
+    ).toEqual([AggregationFunction.MIN, AggregationFunction.MAX]);
+    expect(
+      aggregationFunctionsOf(undefined, [AggregationFunction.SUM]),
+    ).toEqual([AggregationFunction.SUM]);
   });
 
   it('refuses the sum and the average of a date, as a record column does', () => {
-    for (const fn of ['SUM', 'AVG', 'STDDEV', 'VARIANCE'] as const)
+    for (const fn of [
+      AggregationFunction.SUM,
+      AggregationFunction.AVG,
+      AggregationFunction.STDDEV,
+      AggregationFunction.VARIANCE,
+    ] as const)
       expect(
         errors(
           config([
             {
-              type: 'NUMERIC',
+              type: AggregationMetricType.NUMERIC,
               alias: 'bad',
               function: fn,
-              expression: { type: 'FIELD', field: 'createdAt' },
+              expression: {
+                type: AggregationExpressionType.FIELD,
+                field: 'createdAt',
+              },
             },
           ]),
         ),
@@ -171,10 +200,13 @@ describe('a date is summarised by its earliest and its latest', () => {
     const start = defaultAnalysisConfig(onlyDates);
     expect(start.metrics).toEqual([
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'createdAt_max',
-        function: 'MAX',
-        expression: { type: 'FIELD', field: 'createdAt' },
+        function: AggregationFunction.MAX,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'createdAt',
+        },
       },
     ]);
     // The latest is read, not drawn: the view starts as its table, and the
@@ -205,7 +237,10 @@ describe('a moment kept in epoch seconds', () => {
       ...base,
       fields: base.fields.map(field =>
         field.name === 'createdAt'
-          ? { ...field, temporal: { type: 'epoch', timeUnit: 'SECONDS' } }
+          ? {
+              ...field,
+              temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
+            }
           : field,
       ),
     };
@@ -214,7 +249,7 @@ describe('a moment kept in epoch seconds', () => {
     ]);
     expect(
       view.columns.find(column => column.alias === 'latest'),
-    ).toMatchObject({ cell: 'datetime', timeUnit: 'SECONDS' });
+    ).toMatchObject({ cell: 'datetime', timeUnit: TimeUnit.SECONDS });
     // Milliseconds, the default, say nothing.
     const ms = projectAnalysis(dated(), config([latest]), [
       { wh: 'CN', latest: 1_790_115_665_000 },
@@ -231,17 +266,23 @@ describe('a metric that is one of its field’s values reads as the field', () =
       latest,
       earliest,
       {
-        type: 'PERCENTILE',
+        type: AggregationMetricType.PERCENTILE,
         alias: 'p50',
         percentile: 50,
-        expression: { type: 'FIELD', field: 'createdAt' },
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'createdAt',
+        },
       },
-      { type: 'ANY', alias: 'some', field: 'createdAt' },
+      { type: AggregationMetricType.ANY, alias: 'some', field: 'createdAt' },
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'delivered',
-        function: 'MAX',
-        expression: { type: 'FIELD', field: 'deliveredOn' },
+        function: AggregationFunction.MAX,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'deliveredOn',
+        },
       },
       total,
       count,
@@ -283,12 +324,15 @@ describe('a metric that is one of its field’s values reads as the field', () =
         total,
         count,
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'least',
-          function: 'MIN',
-          expression: { type: 'FIELD', field: 'amount' },
+          function: AggregationFunction.MIN,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
-        { type: 'ANY', alias: 'some', field: 'createdAt' },
+        { type: AggregationMetricType.ANY, alias: 'some', field: 'createdAt' },
       ],
       fields,
     );
@@ -418,7 +462,7 @@ describe('a moment is read, never measured by a mark', () => {
     const split = splitBy(
       ran,
       [],
-      { type: 'TERMS', field: 'status', alias: 'st' },
+      { type: AggregationGroupType.TERMS, field: 'status', alias: 'st' },
       moments,
     );
     expect(split.chart.cartesian?.series).toEqual([{ metric: 'orders' }]);
@@ -431,14 +475,17 @@ describe('a moment is no operand', () => {
       errors(
         config([
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'span',
-            function: 'AVG',
+            function: AggregationFunction.AVG,
             expression: {
-              type: 'BINARY',
-              operator: 'SUBTRACT',
-              left: { type: 'FIELD', field: 'createdAt' },
-              right: { type: 'FIELD', field: 'amount' },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.SUBTRACT,
+              left: {
+                type: AggregationExpressionType.FIELD,
+                field: 'createdAt',
+              },
+              right: { type: AggregationExpressionType.FIELD, field: 'amount' },
             },
           },
         ]),
@@ -453,13 +500,19 @@ describe('a moment is no operand', () => {
           latest,
           earliest,
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'span',
             expression: {
-              type: 'BINARY',
-              operator: 'SUBTRACT',
-              left: { type: 'METRIC_REF', metric: 'latest' },
-              right: { type: 'METRIC_REF', metric: 'earliest' },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.SUBTRACT,
+              left: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: 'latest',
+              },
+              right: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: 'earliest',
+              },
             },
           },
         ]),
@@ -472,9 +525,9 @@ describe('a moment is no operand', () => {
       errors(
         config([count, latest], {
           having: {
-            type: 'CONDITION',
+            type: HavingExpressionType.CONDITION,
             metric: 'latest',
-            operator: 'GT',
+            operator: ComparisonOperator.GT,
             value: 0,
           },
         }),

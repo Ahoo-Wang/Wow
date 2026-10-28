@@ -25,6 +25,11 @@ import type {
   FilterTree,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A group of an analysis over expanded elements, followed back to the
@@ -55,16 +60,20 @@ const FIELDS: FieldDefinition[] = [
 ];
 const context = { timeZone: 'Asia/Shanghai' };
 
-const SKU: AnalysisGroup = { alias: 'sku', field: 'items.sku', type: 'TERMS' };
+const SKU: AnalysisGroup = {
+  alias: 'sku',
+  field: 'items.sku',
+  type: AggregationGroupType.TERMS,
+};
 const QTY: AnalysisGroup = {
   alias: 'qty',
   field: 'items.qty',
-  type: 'HISTOGRAM',
+  type: AggregationGroupType.HISTOGRAM,
   interval: 10,
 };
 const GATE: FilterTree = {
   op: 'and',
-  children: [{ field: 'items.qty', operator: 'GTE', value: 2 }],
+  children: [{ field: 'items.qty', operator: FilterOperator.GTE, value: 2 }],
 };
 
 describe('a group counted over one level of elements', () => {
@@ -85,14 +94,14 @@ describe('a group counted over one level of elements', () => {
     expect(conditions).toEqual([
       {
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
           children: [
             GATE,
-            { field: 'items.sku', operator: 'EQ', value: 'A-1' },
-            { field: 'items.qty', operator: 'GTE', value: 20 },
-            { field: 'items.qty', operator: 'LT', value: 30 },
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
+            { field: 'items.qty', operator: FilterOperator.GTE, value: 20 },
+            { field: 'items.qty', operator: FilterOperator.LT, value: 30 },
           ],
         },
       },
@@ -113,7 +122,11 @@ describe('a group counted over one level of elements', () => {
       analysisConfig({
         elements: [{ path: 'items' }],
         groups: [
-          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+          {
+            alias: 'warehouse',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
           SKU,
         ],
       }),
@@ -123,13 +136,15 @@ describe('a group counted over one level of elements', () => {
       context,
     );
     expect(conditions).toEqual([
-      { field: 'warehouse', operator: 'EQ', value: 'WH-1' },
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'WH-1' },
       {
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
-          children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+          children: [
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
+          ],
         },
       },
     ]);
@@ -157,12 +172,12 @@ describe('a group counted over one level of elements', () => {
     ).toEqual([
       {
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
           children: [
-            { field: 'items.qty', operator: 'GTE', value: 2 },
-            { field: 'items.sku', operator: 'EQ', value: 'A-1' },
+            { field: 'items.qty', operator: FilterOperator.GTE, value: 2 },
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
           ],
         },
       },
@@ -180,7 +195,10 @@ describe('a group counted over one level of elements', () => {
     expect(
       drilled?.map(entry => [entry.group.alias, entry.conditions]),
     ).toEqual([
-      ['sku', [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }]],
+      [
+        'sku',
+        [{ field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' }],
+      ],
     ]);
   });
 
@@ -196,10 +214,16 @@ describe('a group counted over one level of elements', () => {
     ).toEqual([
       {
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
-          children: [{ field: 'items.sku', operator: 'IS_NULL', value: null }],
+          children: [
+            {
+              field: 'items.sku',
+              operator: FilterOperator.IS_NULL,
+              value: null,
+            },
+          ],
         },
       },
     ]);
@@ -209,8 +233,8 @@ describe('a group counted over one level of elements', () => {
     const DAYS: AnalysisGroup = {
       alias: 'day',
       field: 'items.placedAt',
-      type: 'DATE_HISTOGRAM',
-      unit: 'DAY',
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      unit: AggregationDateUnit.DAY,
     };
     const first = Date.parse('2026-09-01T00:00:00+08:00');
     const last = Date.parse('2026-09-03T00:00:00+08:00');
@@ -225,7 +249,7 @@ describe('a group counted over one level of elements', () => {
     expect(drilled?.[0]?.conditions).toEqual([
       {
         field: 'items.placedAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: {
           type: 'absolute',
           from: '2026-08-31T16:00:00.000Z',
@@ -251,7 +275,7 @@ describe('a group counted over one level of elements', () => {
     expect(
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }], groups: [SKU] }),
-        [{ ...ITEMS, operators: ['IS_EMPTY'] }],
+        [{ ...ITEMS, operators: [FilterOperator.IS_EMPTY] }],
         builtinFieldKinds,
         { sku: 'A-1' },
         context,
@@ -263,7 +287,13 @@ describe('a group counted over one level of elements', () => {
 describe('a group counted over elements of elements', () => {
   const config = analysisConfig({
     elements: [{ path: 'items' }, { path: 'batches' }],
-    groups: [{ alias: 'lot', field: 'items.batches.lot', type: 'TERMS' }],
+    groups: [
+      {
+        alias: 'lot',
+        field: 'items.batches.lot',
+        type: AggregationGroupType.TERMS,
+      },
+    ],
   });
 
   it('is not followed to records, and says why', () => {
@@ -288,7 +318,9 @@ describe('a group counted over elements of elements', () => {
         { lot: 'L-7' },
         context,
       )?.flatMap(entry => entry.conditions),
-    ).toEqual([{ field: 'items.batches.lot', operator: 'EQ', value: 'L-7' }]);
+    ).toEqual([
+      { field: 'items.batches.lot', operator: FilterOperator.EQ, value: 'L-7' },
+    ]);
   });
 
   it('has no gap over one level, or none', () => {

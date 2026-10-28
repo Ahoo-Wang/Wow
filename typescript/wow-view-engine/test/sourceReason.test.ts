@@ -16,6 +16,7 @@ import {
   sourceFailure,
   sourceReason,
 } from '../src/runtime/failure/sourceReason.js';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A rejection shaped like fetcher's `ExchangeError`: the engine reads an
@@ -70,7 +71,11 @@ describe('sourceReason', () => {
       detail: 'The query failed admission.',
       violations: [
         { path: 'x', code: '', message: 'no code' },
-        { path: 'state.sku', code: 'UNKNOWN_FIELD', message: ' ' },
+        {
+          path: 'state.sku',
+          code: QueryErrorCodes.UNKNOWN_FIELD,
+          message: ' ',
+        },
       ],
     };
     await expect(
@@ -83,7 +88,7 @@ describe('sourceReason', () => {
     ).resolves.toEqual({
       reason: 'The query failed admission.',
       violation: {
-        code: 'UNKNOWN_FIELD',
+        code: QueryErrorCodes.UNKNOWN_FIELD,
         path: 'state.sku',
         message: 'The query failed admission.',
       },

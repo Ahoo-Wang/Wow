@@ -44,6 +44,7 @@ import {
   dealsKanban,
   kanbanConfig,
 } from './fixtures/kanban.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -221,7 +222,7 @@ describe('RecordKanban in the workbench', () => {
       ...dealsKanban,
       config: kanbanConfig({
         pageSize: 2,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
     });
     const lead = await lane('Lead, 3 records');

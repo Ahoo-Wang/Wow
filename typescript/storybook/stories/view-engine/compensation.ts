@@ -18,6 +18,12 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  SortDirection,
+  AggregationMetricType,
+  SearchMode,
+  FilterOperator,
+  QueryValueKind,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -74,7 +80,7 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'eventTime', direction: 'DESC' }],
+    sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -109,8 +115,8 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [{ alias: 'count', type: AggregationMetricType.COUNT }],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -176,11 +182,11 @@ export const executionFailedDefinition: DataViewDefinition = {
       label: '搜索错误',
       kind: 'search',
       searchFields: ['state.error.errorMsg'],
-      searchMode: 'PHRASE',
+      searchMode: SearchMode.PHRASE,
     },
     {
       name: 'state.id',
-      label: 'ID',
+      label: FilterOperator.ID,
       kind: 'string',
       sortable: true,
       cell: 'copyable',
@@ -205,7 +211,7 @@ export const executionFailedDefinition: DataViewDefinition = {
       options: [
         { value: 'RECOVERABLE', label: '可恢复' },
         { value: 'UNRECOVERABLE', label: '不可恢复' },
-        { value: 'UNKNOWN', label: '未知' },
+        { value: QueryValueKind.UNKNOWN, label: '未知' },
       ],
     },
     {
@@ -245,14 +251,18 @@ export const executionFailedDefinition: DataViewDefinition = {
       label: '错误信息',
       kind: 'string',
       cell: 'text',
-      operators: ['IS_NULL', 'IS_NOT_NULL'],
+      operators: [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL],
     },
     {
       name: 'state.retryState.retries',
       label: '已重试次数',
       kind: 'number',
       sortable: true,
-      summary: ['SUM', 'AVG', 'MAX'],
+      summary: [
+        AggregationFunction.SUM,
+        AggregationFunction.AVG,
+        AggregationFunction.MAX,
+      ],
     },
     {
       name: 'firstEventTime',
@@ -307,8 +317,12 @@ export const executionFailedDefinition: DataViewDefinition = {
       id: 'active',
       title: '活动中',
       config: recordView(
-        [{ field: 'state.status', operator: 'IN', value: ACTIVE }],
-        { summaries: [{ field: 'state.retryState.retries', fn: 'SUM' }] },
+        [{ field: 'state.status', operator: FilterOperator.IN, value: ACTIVE }],
+        {
+          summaries: [
+            { field: 'state.retryState.retries', fn: AggregationFunction.SUM },
+          ],
+        },
       ),
     },
     {
@@ -317,11 +331,15 @@ export const executionFailedDefinition: DataViewDefinition = {
       config: recordView([
         {
           field: 'state.recoverable',
-          operator: 'IN',
-          value: ['RECOVERABLE', 'UNKNOWN'],
+          operator: FilterOperator.IN,
+          value: ['RECOVERABLE', QueryValueKind.UNKNOWN],
         },
-        { field: 'state.status', operator: 'IN', value: ACTIVE },
-        { field: 'state.isBelowRetryThreshold', operator: 'EQ', value: false },
+        { field: 'state.status', operator: FilterOperator.IN, value: ACTIVE },
+        {
+          field: 'state.isBelowRetryThreshold',
+          operator: FilterOperator.EQ,
+          value: false,
+        },
       ]),
     },
     {
@@ -330,17 +348,21 @@ export const executionFailedDefinition: DataViewDefinition = {
       config: recordView([
         {
           field: 'state.recoverable',
-          operator: 'IN',
+          operator: FilterOperator.IN,
           value: ['UNRECOVERABLE'],
         },
-        { field: 'state.status', operator: 'IN', value: ACTIVE },
+        { field: 'state.status', operator: FilterOperator.IN, value: ACTIVE },
       ]),
     },
     {
       id: 'succeeded',
       title: '已成功',
       config: recordView([
-        { field: 'state.status', operator: 'IN', value: ['SUCCEEDED'] },
+        {
+          field: 'state.status',
+          operator: FilterOperator.IN,
+          value: ['SUCCEEDED'],
+        },
       ]),
     },
     { id: 'all', title: '全部', config: recordView([]) },
@@ -348,7 +370,13 @@ export const executionFailedDefinition: DataViewDefinition = {
       id: 'by-status',
       title: '按状态分布',
       config: analysisView({
-        groups: [{ type: 'TERMS', field: 'state.status', alias: 'status' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'state.status',
+            alias: 'status',
+          },
+        ],
         layout: 'chart',
       }),
     },
@@ -358,22 +386,31 @@ export const executionFailedDefinition: DataViewDefinition = {
       config: analysisView({
         filter: {
           op: 'and',
-          children: [{ field: 'state.status', operator: 'IN', value: ACTIVE }],
+          children: [
+            {
+              field: 'state.status',
+              operator: FilterOperator.IN,
+              value: ACTIVE,
+            },
+          ],
         },
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.function.processorName',
             alias: 'processor',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT' },
+          { alias: 'count', type: AggregationMetricType.COUNT },
           {
             alias: 'retries',
-            type: 'NUMERIC',
-            function: 'AVG',
-            expression: { type: 'FIELD', field: 'state.retryState.retries' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.AVG,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.retryState.retries',
+            },
           },
         ],
       }),
@@ -384,13 +421,13 @@ export const executionFailedDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'firstEventTime',
             alias: 'day',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
           },
         ],
-        sort: [{ alias: 'day', direction: 'DESC' }],
+        sort: [{ alias: 'day', direction: SortDirection.DESC }],
         limit: 30,
       }),
     },
@@ -430,7 +467,7 @@ export function compensationFetcher(host: string): Fetcher {
 export const RecoverableType = {
   RECOVERABLE: 'RECOVERABLE',
   UNRECOVERABLE: 'UNRECOVERABLE',
-  UNKNOWN: 'UNKNOWN',
+  [QueryValueKind.UNKNOWN]: QueryValueKind.UNKNOWN,
 } as const;
 
 /** A {@link RecoverableType} value. */

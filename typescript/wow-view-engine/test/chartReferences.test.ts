@@ -35,6 +35,14 @@ import {
   seriesExtremes,
   statistic,
 } from '../src/analysis/references.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What a cartesian chart draws over its marks (D33 batch B), all computed
@@ -48,20 +56,27 @@ import {
 const day = (n: number) => Date.UTC(2026, 8, n);
 
 const daily: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
-const region: AnalysisGroup = { type: 'TERMS', field: 'region', alias: 'wh' };
+const region: AnalysisGroup = {
+  type: AggregationGroupType.TERMS,
+  field: 'region',
+  alias: 'wh',
+};
 
-const count: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const count: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const average: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'avg',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 function config(
@@ -307,12 +322,12 @@ describe('derived series', () => {
     expect(movingWindow(config(), { window: 5 })).toBe(5);
     const monthly = config(
       {},
-      { groups: [{ ...daily, unit: 'MONTH' as const }] },
+      { groups: [{ ...daily, unit: AggregationDateUnit.MONTH as const }] },
     );
     expect(movingWindow(monthly, {})).toBe(3);
     const yearly = config(
       {},
-      { groups: [{ ...daily, unit: 'YEAR' as const }] },
+      { groups: [{ ...daily, unit: AggregationDateUnit.YEAR as const }] },
     );
     expect(movingWindow(yearly, {})).toBe(3);
   });
@@ -361,7 +376,9 @@ describe('derived series', () => {
         {
           having: {
             op: 'and',
-            children: [{ field: 'orders', operator: 'GT', value: 1 }],
+            children: [
+              { field: 'orders', operator: FilterOperator.GT, value: 1 },
+            ],
           } as unknown as AnalysisViewConfig['having'],
         },
       );

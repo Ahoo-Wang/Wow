@@ -40,6 +40,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 const views: ViewInstance[] = [
   {
@@ -96,7 +97,10 @@ function board(): DashboardViewConfig {
         default: ['PENDING'],
       },
     ],
-    timeGrouping: { units: ['DAY', 'WEEK'], default: 'DAY' },
+    timeGrouping: {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+      default: AggregationDateUnit.DAY,
+    },
     refresh: { interval: 30 },
     panels: [
       view('chart', 'by-warehouse', {
@@ -208,11 +212,14 @@ describe('holdFilters', () => {
   it('keeps the reader off what the page holds: a value, 「清空」 and the grouping', async () => {
     const { runtime } = await harness();
     expect(
-      runtime.holdFilters({ values: { region: ['CN'] }, unit: 'WEEK' }),
+      runtime.holdFilters({
+        values: { region: ['CN'] },
+        unit: AggregationDateUnit.WEEK,
+      }),
     ).toEqual([]);
     expect(runtime.getSnapshot().filters).toEqual({
       values: { region: ['CN'], status: ['PENDING'] },
-      unit: 'WEEK',
+      unit: AggregationDateUnit.WEEK,
     });
 
     expect(runtime.setFilterValue('region', ['EU'])).toEqual([
@@ -222,8 +229,8 @@ describe('holdFilters', () => {
       }),
     ]);
     expect(runtime.getSnapshot().filters.values.region).toEqual(['CN']);
-    runtime.setGroupingUnit('DAY');
-    expect(runtime.getSnapshot().filters.unit).toBe('WEEK');
+    runtime.setGroupingUnit(AggregationDateUnit.DAY);
+    expect(runtime.getSnapshot().filters.unit).toBe(AggregationDateUnit.WEEK);
 
     // 「清空」 clears what the reader holds — a required one to its default
     // — and leaves what the page holds as it stands.
@@ -231,7 +238,7 @@ describe('holdFilters', () => {
     runtime.clearFilters();
     expect(runtime.getSnapshot().filters).toEqual({
       values: { region: ['CN'], status: ['PENDING'] },
-      unit: 'WEEK',
+      unit: AggregationDateUnit.WEEK,
     });
   });
 
@@ -276,7 +283,7 @@ describe('holdFilters', () => {
     expect(runtime.getSnapshot().filters.values.region).toEqual(['CN']);
     // The grouping was never held: the reader's.
     runtime.clearFilters();
-    expect(runtime.getSnapshot().filters.unit).toBe('DAY');
+    expect(runtime.getSnapshot().filters.unit).toBe(AggregationDateUnit.DAY);
   });
 
   it('answers what the board refuses of the page, every time it is asked, and takes the rest', async () => {

@@ -23,7 +23,11 @@
  *   「新客：是」, not a legend of 「是」「否」 that says nothing of what.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  AggregationDateUnit,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -116,7 +120,12 @@ describe('the bucket of records with no value', () => {
   const byWarehouse = (missingKey: string) =>
     analysisConfig({
       groups: [
-        { alias: 'warehouse', field: 'warehouse', type: 'TERMS', missingKey },
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+          missingKey,
+        },
       ],
       layout: 'chart',
     });
@@ -164,8 +173,12 @@ describe('the bucket of records with no value', () => {
 describe('a split by a yes/no field', () => {
   const split = analysisConfig({
     groups: [
-      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-      { alias: 'isNew', field: 'isNew', type: 'TERMS' },
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+      { alias: 'isNew', field: 'isNew', type: AggregationGroupType.TERMS },
     ],
     layout: 'chart',
     chart: {
@@ -193,7 +206,9 @@ describe('a split by a yes/no field', () => {
   it('names a pie’s slices the same way', () => {
     chartOf(
       analysisConfig({
-        groups: [{ alias: 'isNew', field: 'isNew', type: 'TERMS' }],
+        groups: [
+          { alias: 'isNew', field: 'isNew', type: AggregationGroupType.TERMS },
+        ],
         layout: 'chart',
         chart: { type: 'pie', pie: { category: 'isNew', value: 'orders' } },
       }),
@@ -251,8 +266,12 @@ describe('a split by a yes/no field', () => {
     chartOf(
       analysisConfig({
         groups: [
-          { alias: 'isNew', field: 'isNew', type: 'TERMS' },
-          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+          { alias: 'isNew', field: 'isNew', type: AggregationGroupType.TERMS },
+          {
+            alias: 'warehouse',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
         ],
         layout: 'chart',
         chart: {
@@ -284,8 +303,8 @@ describe('the records with no date', () => {
         {
           alias: 'month',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'MONTH',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.MONTH,
           timeZone: 'UTC',
         },
       ],
@@ -308,17 +327,13 @@ describe('the records with no date', () => {
         row => row.month,
       );
     expect(project(byMonth())).toEqual([month, Date.UTC(2026, 7, 1), null]);
-    expect(project(byMonth([{ alias: 'month', direction: 'DESC' }]))).toEqual([
-      month,
-      Date.UTC(2026, 7, 1),
-      null,
-    ]);
+    expect(
+      project(byMonth([{ alias: 'month', direction: SortDirection.DESC }])),
+    ).toEqual([month, Date.UTC(2026, 7, 1), null]);
     // Ordered by a metric, the bucket stands where its number puts it.
-    expect(project(byMonth([{ alias: 'orders', direction: 'DESC' }]))).toEqual([
-      month,
-      null,
-      Date.UTC(2026, 7, 1),
-    ]);
+    expect(
+      project(byMonth([{ alias: 'orders', direction: SortDirection.DESC }])),
+    ).toEqual([month, null, Date.UTC(2026, 7, 1)]);
   });
 
   it('read as 「（空）」 on the axis, in the reading and in the sentence', () => {

@@ -53,6 +53,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -471,7 +472,7 @@ describe('taking the board’s conditions off again (D26 Q30)', () => {
           op: 'and',
           children: [
             ...draft.filter.children,
-            { field: 'warehouse', operator: 'EQ', value: 'EU' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'EU' },
           ],
         },
       });

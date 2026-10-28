@@ -22,6 +22,8 @@ import {
   AggregationDateUnit,
   DerivedExpressionType,
   type DerivedAggregationMetric,
+  WindowFunction,
+  AggregationGroupType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -50,16 +52,24 @@ import {
 } from './fixtures/analysis.js';
 
 const previousWindow = analysisDefinition({
-  analysis: { ...analysisCapability, windows: ['PREVIOUS'] },
+  analysis: { ...analysisCapability, windows: [WindowFunction.PREVIOUS] },
 });
 
 function timeline(
   derived: DerivedSeries[],
-  unit: 'DAY' | 'WEEK' | 'MONTH' = 'MONTH',
+  unit:
+    | `${AggregationDateUnit.DAY}`
+    | `${AggregationDateUnit.WEEK}`
+    | `${AggregationDateUnit.MONTH}` = AggregationDateUnit.MONTH,
 ): AnalysisViewConfig {
   return analysisKernelConfig({
     groups: [
-      { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'month', unit },
+      {
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        field: 'createdAt',
+        alias: 'month',
+        unit,
+      },
     ],
     sort: [],
     chart: {
@@ -111,10 +121,20 @@ describe('the previous period and the same period last year', () => {
       ),
     ).toEqual([]);
     expect(
-      hidden(timeline([{ kind: 'previous-year', metric: 'orders' }], 'WEEK')),
+      hidden(
+        timeline(
+          [{ kind: 'previous-year', metric: 'orders' }],
+          AggregationDateUnit.WEEK,
+        ),
+      ),
     ).toEqual([]);
     expect(
-      hidden(timeline([{ kind: 'previous', metric: 'orders' }], 'WEEK')),
+      hidden(
+        timeline(
+          [{ kind: 'previous', metric: 'orders' }],
+          AggregationDateUnit.WEEK,
+        ),
+      ),
     ).toHaveLength(1);
   });
 
@@ -221,11 +241,11 @@ describe('the options page', () => {
     const previous = { kind: 'previous' as const, metric: 'orders' };
     expect(draftGap(config, data, cumulative, true, [])).toBe('cut-short');
     expect(
-      draftGap(config, data, cumulative, true, ['RUNNING']),
+      draftGap(config, data, cumulative, true, [WindowFunction.RUNNING]),
     ).toBeUndefined();
     expect(draftGap(config, data, previous, false, [])).toBe('unsupported');
     expect(
-      draftGap(config, data, previous, false, ['PREVIOUS']),
+      draftGap(config, data, previous, false, [WindowFunction.PREVIOUS]),
     ).toBeUndefined();
   });
 });

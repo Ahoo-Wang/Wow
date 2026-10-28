@@ -39,12 +39,13 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
 const CN: FilterTree = {
   op: 'and',
-  children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+  children: [{ field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' }],
 };
 
 function open(

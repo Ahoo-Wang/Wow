@@ -40,6 +40,10 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A metric card's 「最后一期」 is a statement about a moment (2026-09-23
@@ -52,10 +56,10 @@ import {
  */
 
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 };
 
 const day = (n: number) => Date.UTC(2026, 8, n);

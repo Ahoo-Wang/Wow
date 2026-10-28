@@ -14,6 +14,8 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -52,25 +54,28 @@ afterEach(cleanup);
 const WAREHOUSE: AnalysisGroup = {
   alias: 'warehouse',
   field: 'warehouse',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
 const STATUS: AnalysisGroup = {
   alias: 'status',
   field: 'status',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
-const ORDERS: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const ORDERS: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 const TOTAL: AnalysisMetric = {
   alias: 'total',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
   alias: 'average',
-  type: 'NUMERIC',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const ROWS: RecordData[] = [
@@ -126,7 +131,7 @@ async function open(
         name: 'amount',
         label: 'Amount',
         kind: 'number',
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
         // Money: what tells a sum of it from a count of orders.
         numberFormat: { style: 'currency', currency: 'CNY' },
       },

@@ -14,6 +14,10 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationDateUnit,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -256,12 +260,15 @@ describe('useAnalysisResult', () => {
       id: 'orders-totals',
       config: analysisConfig({
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'total',
-            type: 'NUMERIC',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         layout: 'chart',
@@ -309,8 +316,8 @@ describe('useAnalysisResult', () => {
           {
             alias: 'month',
             field: 'createdAt',
-            type: 'DATE_HISTOGRAM',
-            unit: 'MONTH',
+            type: AggregationGroupType.DATE_HISTOGRAM,
+            unit: AggregationDateUnit.MONTH,
           },
         ],
         layout: 'chart',
@@ -400,12 +407,15 @@ describe('useAnalysisResult', () => {
     const funnelOf = (value: string, order: string[]) =>
       analysisConfig({
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'avg',
-            type: 'NUMERIC',
-            function: 'AVG',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.AVG,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         layout: 'chart',
@@ -565,10 +575,14 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
                 {
                   alias: 'day',
                   field: 'createdAt',
-                  type: 'DATE_HISTOGRAM',
-                  unit: 'DAY',
+                  type: AggregationGroupType.DATE_HISTOGRAM,
+                  unit: AggregationDateUnit.DAY,
                 },
-                { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+                {
+                  alias: 'warehouse',
+                  field: 'warehouse',
+                  type: AggregationGroupType.TERMS,
+                },
               ],
             }),
           },
@@ -597,7 +611,7 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
 
   const span = {
     field: 'createdAt',
-    operator: 'BETWEEN',
+    operator: FilterOperator.BETWEEN,
     value: {
       type: 'absolute',
       from: new Date(first).toISOString(),
@@ -615,7 +629,11 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
     expect(followUp?.groups[0].conditions).toMatchObject([
       {
         field: 'createdAt',
-        value: { kind: 'periods', unit: 'DAY', timeZone: 'UTC' },
+        value: {
+          kind: 'periods',
+          unit: AggregationDateUnit.DAY,
+          timeZone: 'UTC',
+        },
       },
     ]);
     // The same menu a group gets; every groupable field is grouped already,

@@ -17,6 +17,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  SortDirection,
+  AggregationMetricType,
+  FilterOperator,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -90,7 +94,7 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -124,8 +128,10 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT', label: '客户数' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: '客户数' },
+    ],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -143,7 +149,7 @@ function analysisView(
 /** A customer nobody owns sits in the public pool, 公海 in the CRM's words. */
 const IN_POOL: FilterNode = {
   field: 'state.ownerId',
-  operator: 'IS_NULL',
+  operator: FilterOperator.IS_NULL,
   value: null,
 };
 
@@ -414,7 +420,11 @@ export const customerDefinition: DataViewDefinition = {
       label: '员工人数',
       kind: 'number',
       sortable: true,
-      summary: ['SUM', 'AVG', 'MAX'],
+      summary: [
+        AggregationFunction.SUM,
+        AggregationFunction.AVG,
+        AggregationFunction.MAX,
+      ],
     },
     {
       // A DECIMAL the schema gives no unit; shown whole, grouped.
@@ -423,7 +433,11 @@ export const customerDefinition: DataViewDefinition = {
       kind: 'number',
       sortable: true,
       numberFormat: { maximumFractionDigits: 0 },
-      summary: ['SUM', 'AVG', 'MAX'],
+      summary: [
+        AggregationFunction.SUM,
+        AggregationFunction.AVG,
+        AggregationFunction.MAX,
+      ],
     },
     {
       name: 'state.basicInfo.description',
@@ -608,17 +622,24 @@ export const customerDefinition: DataViewDefinition = {
       // What changed since it was created, the latest change first.
       id: 'recent',
       title: '最近变更',
-      config: recordView([{ field: 'version', operator: 'GT', value: 1 }], {
-        sort: [{ field: 'eventTime', direction: 'DESC' }],
-        table: { columns: columns('eventTime') },
-      }),
+      config: recordView(
+        [{ field: 'version', operator: FilterOperator.GT, value: 1 }],
+        {
+          sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
+          table: { columns: columns('eventTime') },
+        },
+      ),
     },
     { id: 'pool', title: '公海客户', config: recordView([IN_POOL]) },
     {
       id: 'disabled',
       title: '已禁用',
       config: recordView([
-        { field: 'state.status', operator: 'IN', value: ['DISABLED'] },
+        {
+          field: 'state.status',
+          operator: FilterOperator.IN,
+          value: ['DISABLED'],
+        },
       ]),
     },
     {
@@ -627,7 +648,7 @@ export const customerDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.ownerId',
             alias: 'owner',
             // The customers nobody owns are the pool, counted as one.
@@ -647,36 +668,43 @@ export const customerDefinition: DataViewDefinition = {
           children: [
             {
               field: 'state.basicInfo.industry',
-              operator: 'IS_NOT_NULL',
+              operator: FilterOperator.IS_NOT_NULL,
               value: null,
             },
           ],
         },
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.basicInfo.industry',
             alias: 'industry',
             label: '所属行业',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '客户数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '客户数',
+          },
           {
             alias: 'revenue',
-            type: 'NUMERIC',
-            function: 'SUM',
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'FIELD',
+              type: AggregationExpressionType.FIELD,
               field: 'state.basicInfo.annualRevenue',
             },
             label: '年营业额合计',
           },
           {
             alias: 'staff',
-            type: 'NUMERIC',
-            function: 'AVG',
-            expression: { type: 'FIELD', field: 'state.basicInfo.staffNum' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.AVG,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.basicInfo.staffNum',
+            },
             label: '平均员工人数',
           },
         ],
@@ -687,7 +715,12 @@ export const customerDefinition: DataViewDefinition = {
       title: '按租户分布',
       config: analysisView({
         groups: [
-          { type: 'TERMS', field: 'tenantId', alias: 'tenant', label: '租户' },
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'tenantId',
+            alias: 'tenant',
+            label: '租户',
+          },
         ],
         layout: 'chart',
       }),
@@ -699,13 +732,19 @@ export const customerDefinition: DataViewDefinition = {
         elements: [{ path: 'state.contacts' }],
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.contacts.role',
             alias: 'role',
             label: '决策角色',
           },
         ],
-        metrics: [{ alias: 'count', type: 'COUNT', label: '联系人数' }],
+        metrics: [
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '联系人数',
+          },
+        ],
         layout: 'chart',
       }),
     },
@@ -715,14 +754,14 @@ export const customerDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'firstEventTime',
             alias: 'day',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
             label: '日期',
           },
         ],
-        sort: [{ alias: 'day', direction: 'DESC' }],
+        sort: [{ alias: 'day', direction: SortDirection.DESC }],
         limit: 30,
       }),
     },

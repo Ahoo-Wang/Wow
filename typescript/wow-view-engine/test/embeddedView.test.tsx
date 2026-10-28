@@ -50,6 +50,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -265,7 +266,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );
@@ -359,7 +362,9 @@ describe('EmbeddedView', () => {
     const { engine, source } = setup();
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const { rerender } = render(
       <EmbeddedView
@@ -378,7 +383,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -402,7 +409,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -428,11 +437,13 @@ describe('EmbeddedView', () => {
     const { engine, source } = setup();
     const refused: FilterTree = {
       op: 'and',
-      children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+      children: [{ field: 'nope', operator: FilterOperator.EQ, value: 'x' }],
     };
     const accepted: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const embed = (scope: FilterTree) => (
       <EmbeddedView engine={engine} instanceId="orders-1" scopeFilter={scope} />
@@ -454,7 +465,7 @@ describe('EmbeddedView', () => {
     rerender(
       embed({
         op: 'and',
-        children: [{ field: 'gone', operator: 'EQ', value: 'y' }],
+        children: [{ field: 'gone', operator: FilterOperator.EQ, value: 'y' }],
       }),
     );
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
@@ -482,7 +493,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -519,7 +532,7 @@ describe('EmbeddedView', () => {
     const { rerender } = render(
       embed({
         op: 'and',
-        children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        children: [{ field: 'nope', operator: FilterOperator.EQ, value: 'x' }],
       }),
     );
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
@@ -528,7 +541,9 @@ describe('EmbeddedView', () => {
     rerender(
       embed({
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       }),
     );
     await waitFor(() => expect(pending).toHaveLength(2));
@@ -606,7 +621,13 @@ describe('EmbeddedView', () => {
               filterMode: 'simple',
               filter: {
                 op: 'or',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.EQ,
+                    value: 'CN',
+                  },
+                ],
               },
               // Blocks: the page size must be positive.
               pageSize: 0,
@@ -642,7 +663,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );
@@ -672,7 +695,13 @@ describe('EmbeddedView', () => {
             config: recordConfig({
               filter: {
                 op: 'and',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.EQ,
+                    value: 'CN',
+                  },
+                ],
               },
             }),
           },
@@ -792,7 +821,7 @@ describe('EmbeddedView tiers and switches', () => {
     );
     await waitFor(() =>
       expect(engine.openRuntimes()[0].getSnapshot().applied).toMatchObject({
-        sort: [{ field: 'amount', direction: 'ASC' }],
+        sort: [{ field: 'amount', direction: SortDirection.ASC }],
       }),
     );
     expect(
@@ -904,7 +933,9 @@ describe('EmbeddedView tiers and switches', () => {
     const onNavigate = vi.fn();
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const engine = engineOf(recordConfig());
     const { rerender } = render(
@@ -993,7 +1024,9 @@ describe('EmbeddedView tiers and switches', () => {
     const engine = engineOf(analysisConfig({ layout: 'table' }));
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     };
     render(
       <EmbeddedView

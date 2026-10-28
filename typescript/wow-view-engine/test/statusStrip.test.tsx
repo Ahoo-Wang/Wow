@@ -36,6 +36,7 @@ import {
   WarningStrip,
 } from '../src/ui/index.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -195,10 +196,10 @@ describe('dedupeIssues', () => {
       code: 'record.summary.unsupported',
       severity: 'warning',
       path: ['summaries', 0],
-      params: { field: 'Amount', fn: 'AVG' },
+      params: { field: 'Amount', fn: AggregationFunction.AVG },
     };
     const sum: Issue = { ...avg, path: ['summaries', 1] };
-    sum.params = { field: 'Amount', fn: 'SUM' };
+    sum.params = { field: 'Amount', fn: AggregationFunction.SUM };
 
     expect(dedupeIssues([avg, sum, { ...avg, path: [] }])).toEqual([avg, sum]);
   });
@@ -273,13 +274,13 @@ describe('WarningStrip', () => {
             code: 'record.summary.unsupported',
             severity: 'warning',
             path: ['summaries', 0],
-            params: { field: 'Amount', fn: 'AVG' },
+            params: { field: 'Amount', fn: AggregationFunction.AVG },
           },
           {
             code: 'record.summary.unsupported',
             severity: 'warning',
             path: ['summaries', 1],
-            params: { field: 'Amount', fn: 'SUM' },
+            params: { field: 'Amount', fn: AggregationFunction.SUM },
           },
         ]}
       />,
@@ -303,8 +304,8 @@ describe('ErrorStrip', () => {
   const twoConditions: FilterTree = {
     op: 'and',
     children: [
-      { field: 'warehouse', operator: 'EQ', value: 'CN' },
-      { field: 'status', operator: 'EQ', value: 'PENDING' },
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
     ],
   };
 
@@ -493,12 +494,12 @@ describe('ErrorStrip', () => {
         children: [
           {
             field: 'lines',
-            operator: 'ELEMENT_MATCH',
+            operator: FilterOperator.ELEMENT_MATCH,
             value: {
               op: 'and',
               children: [
-                { field: 'sku', operator: 'EQ', value: 'a' },
-                { field: 'qty', operator: 'EQ', value: 1 },
+                { field: 'sku', operator: FilterOperator.EQ, value: 'a' },
+                { field: 'qty', operator: FilterOperator.EQ, value: 1 },
               ],
             } as unknown as FilterValue,
           },

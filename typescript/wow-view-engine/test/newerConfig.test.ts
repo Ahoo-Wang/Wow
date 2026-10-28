@@ -38,6 +38,7 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 function engineOver(store: MemoryViewStore): ViewEngine {
   return new ViewEngine({
@@ -79,7 +80,9 @@ describe('a view a newer engine saved', () => {
     expect(runtime.getSnapshot().issues).toEqual([]);
     expect(runtime.getSnapshot().dirty).toBe(false);
 
-    runtime.edit({ sort: [{ field: 'amount', direction: 'DESC' }] });
+    runtime.edit({
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
+    });
     runtime.apply();
     await engine.save(runtime);
 
@@ -87,7 +90,9 @@ describe('a view a newer engine saved', () => {
       string,
       unknown
     >;
-    expect(written.sort).toEqual([{ field: 'amount', direction: 'DESC' }]);
+    expect(written.sort).toEqual([
+      { field: 'amount', direction: SortDirection.DESC },
+    ]);
     expect(written.grouping).toEqual({ field: 'status', collapsed: true });
     expect(written.table).toEqual({
       columns: [{ field: 'id', wrap: 'never' }, { field: 'amount' }],

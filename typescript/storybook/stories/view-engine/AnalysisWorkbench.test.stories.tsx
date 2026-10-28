@@ -67,6 +67,10 @@ import {
   typeBox,
   valueLabels,
 } from './chartDom.js';
+import {
+  AggregationDateUnit,
+  AggregationFunction,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** Whether no two of these texts are drawn over each other (`typeBox`). */
 const apart = (texts: readonly SVGTextElement[]) => {
@@ -99,7 +103,7 @@ type Story = StoryObj<typeof displayMeta>;
  */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /** A count of records is named by what it counts, in one word. */
@@ -616,7 +620,9 @@ export const TimeRunsForward: Story = {
     // (2026-09-23 audit) — a column of dates does not say it alone.
     const listed = readColumn(
       table,
-      formatMessage(zhCN, 'label.analysis.dated.DAY', { field: '创建时间' }),
+      formatMessage(zhCN, `label.analysis.dated.${AggregationDateUnit.DAY}`, {
+        field: '创建时间',
+      }),
     ).map(dayOf);
     await expect(listed.length).toBeGreaterThan(10);
     await expect(runsForward([...listed].reverse())).toBe(true);
@@ -698,7 +704,7 @@ export const TrendCardReadsLastPeriod: Story = {
     // trend's unit.
     const change = cardSlot(canvasElement, 'metric-change')!;
     await expect(change).toHaveTextContent(
-      zhCN['label.chart.change.against.DAY'],
+      zhCN[`label.chart.change.against.${AggregationDateUnit.DAY}`],
     );
     const direction = change.getAttribute('data-direction');
     const tone = change
@@ -2179,7 +2185,9 @@ export const TrayEdits: Story = {
     );
     await userEvent.click(summary);
     await userEvent.click(
-      await screen.findByRole('option', { name: zhCN['label.summary.fn.AVG'] }),
+      await screen.findByRole('option', {
+        name: zhCN[`label.summary.fn.${AggregationFunction.AVG}`],
+      }),
     );
     await waitFor(() => expect(summary).toHaveTextContent('平均'));
 
@@ -2241,7 +2249,7 @@ export const MenuHandBackKeepsMovedFocus: Story = {
 /** 「成本的总和」: the metric the regression below adds. */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /**

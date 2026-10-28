@@ -14,6 +14,7 @@
 import {
   FilterOperator,
   type FilterPagedQuery,
+  AggregationFunction,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -67,7 +68,7 @@ const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
  */
 const REGION_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'NE', value: 'CN' }],
+  children: [{ field: 'region', operator: FilterOperator.NE, value: 'CN' }],
 };
 
 function pending(overrides: Partial<ViewInstance> = {}): ViewInstance {
@@ -218,7 +219,9 @@ describe('DashboardViewRuntime panels', () => {
       boundConfig({
         fixed: {
           op: 'or',
-          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'region', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
       }),
     );
@@ -231,7 +234,9 @@ describe('DashboardViewRuntime panels', () => {
       children: [
         {
           op: 'or',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
       ],
     });
@@ -265,7 +270,9 @@ describe('DashboardViewRuntime panels', () => {
       children: [
         {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.NE, value: 'CN' },
+          ],
         },
       ],
     });
@@ -331,7 +338,13 @@ describe('DashboardViewRuntime unavailable references', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.NE,
+                  value: 'CN',
+                },
+              ],
             },
           }),
         }),
@@ -365,8 +378,8 @@ describe('DashboardViewRuntime unavailable references', () => {
   it('reports a warning the dashboard and the child both raise once', async () => {
     const rounded: FieldKind = {
       id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => null,
       validate: ({ value, path }) =>
         typeof value === 'number' && !Number.isInteger(value)
@@ -402,7 +415,9 @@ describe('DashboardViewRuntime unavailable references', () => {
         fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+          children: [
+            { field: 'weight', operator: FilterOperator.EQ, value: 2.5 },
+          ],
         },
         panels: [
           panel({
@@ -435,7 +450,9 @@ describe('DashboardViewRuntime unavailable references', () => {
       filterMode: 'simple',
       filter: {
         op: 'or',
-        children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.NE, value: 'CN' },
+        ],
       },
     });
 
@@ -576,7 +593,9 @@ describe('DashboardViewRuntime child results', () => {
     const board = await harness({
       instances: [
         pending({
-          config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+          config: recordConfig({
+            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+          }),
         }),
       ],
       source: testSource({
@@ -629,7 +648,7 @@ describe('DashboardViewRuntime editing', () => {
 
     const next: FilterTree = {
       op: 'and',
-      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+      children: [{ field: 'region', operator: FilterOperator.NE, value: 'EU' }],
     };
     runtime.edit({ fixed: next });
     expect(runtime.getSnapshot().dirty).toBe(true);
@@ -855,7 +874,7 @@ describe('DashboardViewRuntime child refusal', () => {
 
   const stateFilter: FilterTree = {
     op: 'and',
-    children: [{ field: 'state', operator: 'NE', value: 'PAID' }],
+    children: [{ field: 'state', operator: FilterOperator.NE, value: 'PAID' }],
   };
 
   it('reports a refused scope on the panel and does not run it', async () => {
@@ -1184,7 +1203,7 @@ describe('DashboardViewRuntime saving', () => {
 
 const EU_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+  children: [{ field: 'region', operator: FilterOperator.NE, value: 'EU' }],
 };
 
 /**
@@ -1288,7 +1307,11 @@ describe('DashboardViewRuntime a panel in error', () => {
               filter: {
                 op: 'and',
                 children: [
-                  { field: 'warehouse', operator: 'CONTAINS', value: 'CN' },
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.CONTAINS,
+                    value: 'CN',
+                  },
                 ],
               },
             }),
@@ -1312,7 +1335,7 @@ describe('DashboardViewRuntime a panel in error', () => {
       expect.objectContaining({
         code: 'filter.operator.unsupported',
         path: ['panels', 1, 'filter', 'children', 0],
-        params: { field: 'warehouse', operator: 'CONTAINS' },
+        params: { field: 'warehouse', operator: FilterOperator.CONTAINS },
       }),
     ]);
     // And the fields its finding is named by, though it has no runtime.

@@ -18,7 +18,11 @@
  * was written in, and a calendar day standing for the whole day.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  ComparisonOperator,
+  AggregationDateUnit,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import type { FilterOperatorName } from '../src/model/index.js';
 import {
@@ -198,7 +202,7 @@ describe('relative and preset dates', () => {
       fields,
       tree({
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'absolute', from: '2026-01-01T00:00:00.000Z' },
       }),
       builtinFieldKinds,
@@ -210,7 +214,7 @@ describe('relative and preset dates', () => {
       fields,
       tree({
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'preset', preset: 'today' },
       }),
       builtinFieldKinds,
@@ -420,7 +424,10 @@ describe('a relative value as a single bound', () => {
   // The far edge of the window in whole days (D39).
   const weekAgo = '2026-09-10T00:00:00.000Z';
   const weekAhead = '2026-09-22T23:59:59.999Z';
-  const bound = (operator: 'GTE' | 'LTE', value: unknown) =>
+  const bound = (
+    operator: `${FilterOperator.GTE}` | `${FilterOperator.LTE}`,
+    value: unknown,
+  ) =>
     (
       compileFilter(
         fields,
@@ -437,37 +444,57 @@ describe('a relative value as a single bound', () => {
     )[0].text;
 
   it('stands on the edge that is not now', () => {
-    expect(bound('GTE', last)).toBe(weekAgo);
-    expect(bound('LTE', last)).toBe(weekAgo);
-    expect(bound('GTE', next)).toBe(weekAhead);
-    expect(bound('LTE', next)).toBe(weekAhead);
+    expect(bound(ComparisonOperator.GTE, last)).toBe(weekAgo);
+    expect(bound(ComparisonOperator.LTE, last)).toBe(weekAgo);
+    expect(bound(ComparisonOperator.GTE, next)).toBe(weekAhead);
+    expect(bound(ComparisonOperator.LTE, next)).toBe(weekAhead);
     expect(resolveDateTimeBound(last as never, context.now, 'UTC', 'end')).toBe(
       weekAgo,
     );
   });
 
   it('keeps a preset on the edge asked for', () => {
-    expect(bound('GTE', today)).toBe('2026-09-16T00:00:00.000Z');
-    expect(bound('LTE', today)).toBe('2026-09-16T23:59:59.999Z');
+    expect(bound(ComparisonOperator.GTE, today)).toBe(
+      '2026-09-16T00:00:00.000Z',
+    );
+    expect(bound(ComparisonOperator.LTE, today)).toBe(
+      '2026-09-16T23:59:59.999Z',
+    );
   });
 
   it('says which instant it compares against', () => {
-    expect(text('GTE', last)).toBe('Created on or after 7 days ago');
-    expect(text('LTE', last)).toBe('Created on or before 7 days ago');
-    expect(text('GTE', next)).toBe('Created on or after 7 days ahead');
-    expect(text('LTE', next)).toBe('Created on or before 7 days ahead');
-    expect(text('GTE', today)).toBe('Created on or after today');
-    expect(text('LTE', today)).toBe('Created on or before today');
-    expect(text('BETWEEN', last)).toBe('Created last 7 days');
+    expect(text(FilterOperator.GTE, last)).toBe(
+      'Created on or after 7 days ago',
+    );
+    expect(text(FilterOperator.LTE, last)).toBe(
+      'Created on or before 7 days ago',
+    );
+    expect(text(FilterOperator.GTE, next)).toBe(
+      'Created on or after 7 days ahead',
+    );
+    expect(text(FilterOperator.LTE, next)).toBe(
+      'Created on or before 7 days ahead',
+    );
+    expect(text(FilterOperator.GTE, today)).toBe('Created on or after today');
+    expect(text(FilterOperator.LTE, today)).toBe('Created on or before today');
+    expect(text(FilterOperator.BETWEEN, last)).toBe('Created last 7 days');
   });
 
   it('names the bound an absolute value stands on', () => {
     const day = { type: 'absolute', from: '2026-01-01' };
     const range = { ...day, to: '2026-01-31' };
-    expect(text('GTE', day)).toBe('Created on or after 2026-01-01');
-    expect(text('LTE', day)).toBe('Created on or before 2026-01-01');
-    expect(text('GTE', range)).toBe('Created on or after 2026-01-01');
-    expect(text('LTE', range)).toBe('Created on or before 2026-01-31');
+    expect(text(FilterOperator.GTE, day)).toBe(
+      'Created on or after 2026-01-01',
+    );
+    expect(text(FilterOperator.LTE, day)).toBe(
+      'Created on or before 2026-01-01',
+    );
+    expect(text(FilterOperator.GTE, range)).toBe(
+      'Created on or after 2026-01-01',
+    );
+    expect(text(FilterOperator.LTE, range)).toBe(
+      'Created on or before 2026-01-31',
+    );
   });
 });
 
@@ -484,7 +511,11 @@ describe('an unbounded relative amount', () => {
 
   it('is refused by validation, with the bound it crossed', () => {
     expect(
-      validateFilter(fields, at('BETWEEN', huge), builtinFieldKinds),
+      validateFilter(
+        fields,
+        at(FilterOperator.BETWEEN, huge),
+        builtinFieldKinds,
+      ),
     ).toEqual([
       {
         code: 'filter.value.relative-too-large',
@@ -505,7 +536,11 @@ describe('an unbounded relative amount', () => {
           direction,
         };
         expect(
-          validateFilter(fields, at('BETWEEN', value), builtinFieldKinds),
+          validateFilter(
+            fields,
+            at(FilterOperator.BETWEEN, value),
+            builtinFieldKinds,
+          ),
         ).toEqual([]);
         const range = resolveDateTimeRange(value as never, context.now, 'UTC');
         expect(Number.isNaN(Date.parse(range.from))).toBe(false);
@@ -518,10 +553,20 @@ describe('an unbounded relative amount', () => {
     const latest = new Date(8.64e15).toISOString();
 
     expect(() =>
-      compileFilter(fields, at('BETWEEN', huge), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        at(FilterOperator.BETWEEN, huge),
+        builtinFieldKinds,
+        context,
+      ),
     ).not.toThrow();
     expect(() =>
-      compileFilter(fields, at('LTE', ahead), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        at(FilterOperator.LTE, ahead),
+        builtinFieldKinds,
+        context,
+      ),
     ).not.toThrow();
     // Whole days (D39): today's first and last moments on the near edge.
     expect(resolveDateTimeRange(huge, context.now, 'UTC')).toEqual({
@@ -633,7 +678,10 @@ describe('a calendar day as a bound', () => {
 
   it('runs a range through the last millisecond of its final day', () => {
     expect(
-      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31' }),
+      compileDay(FilterOperator.BETWEEN, {
+        from: '2026-01-01',
+        to: '2026-01-31',
+      }),
     ).toEqual({
       op: FilterOperator.BETWEEN,
       field: 'orderedOn',
@@ -643,11 +691,15 @@ describe('a calendar day as a bound', () => {
   });
 
   it('takes "on or before a day" to the end of it, and "on or after" to its start', () => {
-    expect(compileDay('LTE', { from: '2026-01-31' })).toMatchObject({
+    expect(
+      compileDay(FilterOperator.LTE, { from: '2026-01-31' }),
+    ).toMatchObject({
       op: FilterOperator.LTE,
       value: '2026-01-31T15:59:59.999Z',
     });
-    expect(compileDay('GTE', { from: '2026-01-31' })).toMatchObject({
+    expect(
+      compileDay(FilterOperator.GTE, { from: '2026-01-31' }),
+    ).toMatchObject({
       op: FilterOperator.GTE,
       value: '2026-01-30T16:00:00.000Z',
     });
@@ -655,22 +707,27 @@ describe('a calendar day as a bound', () => {
 
   it('keeps a bound with a time of day at that time', () => {
     expect(
-      compileDay('BETWEEN', { from: '2026-01-01', to: '2026-01-31T09:00' }),
+      compileDay(FilterOperator.BETWEEN, {
+        from: '2026-01-01',
+        to: '2026-01-31T09:00',
+      }),
     ).toMatchObject({ upperBound: '2026-01-31T01:00:00.000Z' });
-    expect(compileDay('LTE', { from: '2026-01-31T09:00' })).toMatchObject({
+    expect(
+      compileDay(FilterOperator.LTE, { from: '2026-01-31T09:00' }),
+    ).toMatchObject({
       value: '2026-01-31T01:00:00.000Z',
     });
   });
 
   it('leaves a bound that names its own offset untouched', () => {
     expect(
-      compileDay('BETWEEN', {
+      compileDay(FilterOperator.BETWEEN, {
         from: '2026-01-01',
         to: '2026-01-31T00:00:00+08:00',
       }),
     ).toMatchObject({ upperBound: '2026-01-31T00:00:00+08:00' });
     expect(
-      compileDay('LTE', { from: '2026-01-31T00:00:00-05:00' }),
+      compileDay(FilterOperator.LTE, { from: '2026-01-31T00:00:00-05:00' }),
     ).toMatchObject({ value: '2026-01-31T00:00:00-05:00' });
   });
 
@@ -688,7 +745,7 @@ describe('a calendar day as a bound', () => {
 
   it("still lets the condition's own zone win over the runtime's", () => {
     expect(
-      compileDay('BETWEEN', {
+      compileDay(FilterOperator.BETWEEN, {
         from: '2026-01-01',
         to: '2026-01-31',
         timeZone: 'Asia/Tokyo',
@@ -744,7 +801,7 @@ describe('a bound with a time of day', () => {
   const firstInstant = Date.parse('2026-01-01T00:00:00+08:00');
 
   it('runs an empty end time through the last millisecond of its day', () => {
-    const { upperBound } = at('BETWEEN', {
+    const { upperBound } = at(FilterOperator.BETWEEN, {
       from: '2026-01-01',
       to: '2026-01-31',
     });
@@ -757,7 +814,7 @@ describe('a bound with a time of day', () => {
   });
 
   it('starts an empty start time at the first millisecond of its day', () => {
-    const { lowerBound } = at('BETWEEN', {
+    const { lowerBound } = at(FilterOperator.BETWEEN, {
       from: '2026-01-01',
       to: '2026-01-31',
     });
@@ -770,10 +827,10 @@ describe('a bound with a time of day', () => {
   });
 
   it('gives a single bound the same two edges', () => {
-    expect(at('GTE', { from: '2026-01-01' }).value).toBe(
+    expect(at(FilterOperator.GTE, { from: '2026-01-01' }).value).toBe(
       '2025-12-31T16:00:00.000Z',
     );
-    expect(at('LTE', { from: '2026-01-31' }).value).toBe(
+    expect(at(FilterOperator.LTE, { from: '2026-01-31' }).value).toBe(
       '2026-01-31T15:59:59.999Z',
     );
   });
@@ -785,12 +842,15 @@ describe('a bound with a time of day', () => {
    */
   it('stands an explicit time of day on that instant, either edge', () => {
     expect(
-      at('BETWEEN', { from: '2026-01-01T09:00:00', to: '2026-01-31T15:30:00' }),
+      at(FilterOperator.BETWEEN, {
+        from: '2026-01-01T09:00:00',
+        to: '2026-01-31T15:30:00',
+      }),
     ).toMatchObject({
       lowerBound: '2026-01-01T01:00:00.000Z',
       upperBound: '2026-01-31T07:30:00.000Z',
     });
-    expect(at('LTE', { from: '2026-01-31T15:30:00' }).value).toBe(
+    expect(at(FilterOperator.LTE, { from: '2026-01-31T15:30:00' }).value).toBe(
       '2026-01-31T07:30:00.000Z',
     );
   });
@@ -805,15 +865,15 @@ describe('a bound with a time of day', () => {
     const stored = { from: '2026-01-01', to: '2026-01-31' };
     const midnight = { from: '2026-01-01T00:00:00', to: '2026-01-31T00:00:00' };
 
-    expect(at('BETWEEN', stored).lowerBound).toBe(
-      at('BETWEEN', midnight).lowerBound,
+    expect(at(FilterOperator.BETWEEN, stored).lowerBound).toBe(
+      at(FilterOperator.BETWEEN, midnight).lowerBound,
     );
-    expect(at('BETWEEN', stored).upperBound).not.toBe(
-      at('BETWEEN', midnight).upperBound,
+    expect(at(FilterOperator.BETWEEN, stored).upperBound).not.toBe(
+      at(FilterOperator.BETWEEN, midnight).upperBound,
     );
-    expect(Date.parse(at('BETWEEN', midnight).upperBound)).toBeLessThan(
-      lastSecond,
-    );
+    expect(
+      Date.parse(at(FilterOperator.BETWEEN, midnight).upperBound),
+    ).toBeLessThan(lastSecond);
   });
 
   /** The summary reads the time back where one was given, and only there. */
@@ -823,7 +883,7 @@ describe('a bound with a time of day', () => {
         fields,
         tree({
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'absolute', ...value },
         }),
         builtinFieldKinds,
@@ -854,13 +914,41 @@ describe('periodOf', () => {
 
   it('names each calendar unit a bucket can be, in the zone given', () => {
     const cases = [
-      ['2026-09-22T00:00:00+08:00', '2026-09-23T00:00:00+08:00', 'DAY'],
-      ['2026-09-01T00:00:00+08:00', '2026-10-01T00:00:00+08:00', 'MONTH'],
-      ['2026-07-01T00:00:00+08:00', '2026-10-01T00:00:00+08:00', 'QUARTER'],
-      ['2026-01-01T00:00:00+08:00', '2027-01-01T00:00:00+08:00', 'YEAR'],
-      ['2026-09-22T14:00:00+08:00', '2026-09-22T15:00:00+08:00', 'HOUR'],
-      ['2026-09-22T14:05:00+08:00', '2026-09-22T14:06:00+08:00', 'MINUTE'],
-      ['2026-09-22T14:05:09+08:00', '2026-09-22T14:05:10+08:00', 'SECOND'],
+      [
+        '2026-09-22T00:00:00+08:00',
+        '2026-09-23T00:00:00+08:00',
+        AggregationDateUnit.DAY,
+      ],
+      [
+        '2026-09-01T00:00:00+08:00',
+        '2026-10-01T00:00:00+08:00',
+        AggregationDateUnit.MONTH,
+      ],
+      [
+        '2026-07-01T00:00:00+08:00',
+        '2026-10-01T00:00:00+08:00',
+        AggregationDateUnit.QUARTER,
+      ],
+      [
+        '2026-01-01T00:00:00+08:00',
+        '2027-01-01T00:00:00+08:00',
+        AggregationDateUnit.YEAR,
+      ],
+      [
+        '2026-09-22T14:00:00+08:00',
+        '2026-09-22T15:00:00+08:00',
+        AggregationDateUnit.HOUR,
+      ],
+      [
+        '2026-09-22T14:05:00+08:00',
+        '2026-09-22T14:06:00+08:00',
+        AggregationDateUnit.MINUTE,
+      ],
+      [
+        '2026-09-22T14:05:09+08:00',
+        '2026-09-22T14:05:10+08:00',
+        AggregationDateUnit.SECOND,
+      ],
     ] as const;
     for (const [from, next, unit] of cases)
       expect(periodOf(...range(from, next), SHANGHAI)).toBe(unit);
@@ -873,13 +961,13 @@ describe('periodOf', () => {
         ...range('2026-09-21T00:00:00+08:00', '2026-09-28T00:00:00+08:00'),
         SHANGHAI,
       ),
-    ).toBe('WEEK');
+    ).toBe(AggregationDateUnit.WEEK);
     expect(
       periodOf(
         ...range('2026-09-20T00:00:00+08:00', '2026-09-27T00:00:00+08:00'),
         SHANGHAI,
       ),
-    ).toBe('WEEK');
+    ).toBe(AggregationDateUnit.WEEK);
   });
 
   it('follows the zone’s calendar across a clock change', () => {
@@ -889,7 +977,7 @@ describe('periodOf', () => {
         ...range('2026-11-01T00:00:00-04:00', '2026-11-02T00:00:00-05:00'),
         'America/New_York',
       ),
-    ).toBe('DAY');
+    ).toBe(AggregationDateUnit.DAY);
   });
 
   it('is no period a millisecond out, on another clock, or unreadable', () => {
@@ -912,6 +1000,8 @@ describe('periodOf', () => {
         SHANGHAI,
       ),
     ).toBeNull();
-    expect(periodOf('2026-09-22', '2026-09-22', SHANGHAI)).toBe('DAY');
+    expect(periodOf('2026-09-22', '2026-09-22', SHANGHAI)).toBe(
+      AggregationDateUnit.DAY,
+    );
   });
 });

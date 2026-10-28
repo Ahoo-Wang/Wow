@@ -15,6 +15,8 @@ import {
   AggregationGroupType,
   SearchMode,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -54,7 +56,7 @@ function store(
     fields: [
       describedField('id'),
       describedField('amount', {
-        types: ['DECIMAL'],
+        types: [QueryValueTypes.DECIMAL],
         aggregate: {
           ...describedField('amount').aggregate!,
           groups: amountGroups,
@@ -63,7 +65,7 @@ function store(
       describedField('noted', {
         sort: { paged: options.sortsNoted ?? false, cursor: false },
       }),
-      describedField('lines', { types: ['OBJECT'] }),
+      describedField('lines', { types: [QueryValueTypes.OBJECT] }),
       describedField('lines.sku', { scope: 'lines' }),
       describedField('lines.title', { scope: 'lines' }),
     ],
@@ -123,7 +125,7 @@ describe('a definition built from one store’s snapshot', () => {
     expect(field(orders, 'noted')?.sortable).toBeUndefined();
     expect(
       orders.analysis?.fields.find(entry => entry.field === 'amount')?.groups,
-    ).toEqual(['TERMS']);
+    ).toEqual([AggregationGroupType.TERMS]);
   });
 
   it('offers a search inside the entries where the store searches them, and not where it does not', () => {
@@ -138,7 +140,7 @@ describe('a definition built from one store’s snapshot', () => {
     expect(field(elastic, 'noted')?.sortable).toBe(true);
     expect(
       elastic.analysis?.fields.find(entry => entry.field === 'amount')?.groups,
-    ).toEqual(['TERMS', 'HISTOGRAM']);
+    ).toEqual([AggregationGroupType.TERMS, AggregationGroupType.HISTOGRAM]);
     expect(field(narrowed(MONGO), 'noted')?.sortable).toBeUndefined();
   });
 
@@ -163,7 +165,7 @@ describe('a definition built from one store’s snapshot', () => {
     expect(field(elastic, 'noted')?.sortable).toBeUndefined();
     expect(
       elastic.analysis?.fields.find(entry => entry.field === 'amount')?.groups,
-    ).toEqual(['TERMS']);
+    ).toEqual([AggregationGroupType.TERMS]);
   });
 
   it('is what an engine runs a view on, over each source’s descriptor', async () => {
@@ -204,7 +206,12 @@ describe('a definition built from one store’s snapshot', () => {
   });
 
   describe('comparisons left open', () => {
-    const PRESENCE = ['EXISTS', 'NOT_EXISTS', 'IS_NULL', 'IS_NOT_NULL'];
+    const PRESENCE = [
+      FilterOperator.EXISTS,
+      FilterOperator.NOT_EXISTS,
+      FilterOperator.IS_NULL,
+      FilterOperator.IS_NOT_NULL,
+    ];
     const snapshot = ordersDescriptor({
       fields: [
         describedField('id'),
@@ -219,7 +226,10 @@ describe('a definition built from one store’s snapshot', () => {
       fields: {
         id: 'Order',
         remark: 'Remark',
-        title: { label: 'Title', operators: ['EQ', 'CONTAINS'] },
+        title: {
+          label: 'Title',
+          operators: [FilterOperator.EQ, FilterOperator.CONTAINS],
+        },
       },
     });
     /** A store that grants `remark` presence alone, or nothing at all, and `title` what is given. */
@@ -235,18 +245,26 @@ describe('a definition built from one store’s snapshot', () => {
     });
 
     it('follow a store that grants fewer, and say nothing of it', () => {
-      const descriptor = runtime(PRESENCE, ['EQ', 'CONTAINS']);
+      const descriptor = runtime(PRESENCE, [
+        FilterOperator.EQ,
+        FilterOperator.CONTAINS,
+      ]);
       expect(admit([remarks], { orders: descriptor })).toEqual([]);
       const operators = field(
         narrowDefinition(remarks, descriptor, builtinFieldKinds).definition,
         'remark',
       )?.operators;
       expect(operators?.length).toBeGreaterThan(0);
-      expect(operators?.every(one => PRESENCE.includes(one))).toBe(true);
+      expect(
+        operators?.every(one => (PRESENCE as readonly string[]).includes(one)),
+      ).toBe(true);
     });
 
     it('follow a store that grants none, and say nothing of it', () => {
-      const descriptor = runtime([], ['EQ', 'CONTAINS']);
+      const descriptor = runtime(
+        [],
+        [FilterOperator.EQ, FilterOperator.CONTAINS],
+      );
       expect(admit([remarks], { orders: descriptor })).toEqual([]);
       expect(
         field(
@@ -258,7 +276,7 @@ describe('a definition built from one store’s snapshot', () => {
 
     it('are not the host’s written ones, which are still said where the store grants fewer', () => {
       const findings = admit([remarks], {
-        orders: runtime(PRESENCE, ['EQ']),
+        orders: runtime(PRESENCE, [FilterOperator.EQ]),
       });
       expect(findings.map(one => [one.code, one.params?.field])).toEqual([
         ['capability.field.operators-narrowed', 'title'],

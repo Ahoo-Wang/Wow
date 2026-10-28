@@ -25,6 +25,7 @@ import { sparklineOption } from '../src/ui/charts/sparklineOption.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { zhCN } from '../src/ui/index.js';
 import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A 0 the chart filled in — a day the rows lack, a split combination they
@@ -86,7 +87,7 @@ const context = (spec: ChartSpec): CartesianContext => ({
   locale: 'zh-CN',
   animate: false,
   pickable: false,
-  filled: note('DAY'),
+  filled: note(AggregationDateUnit.DAY),
 });
 
 const split = (stack?: string): ChartSpec => ({
@@ -163,7 +164,7 @@ describe('what the reading table says of a filled-in 0', () => {
       label: (_alias, value) => String(value),
       column: () => undefined,
       locale: 'en',
-      filled: note('DAY'),
+      filled: note(AggregationDateUnit.DAY),
     });
     expect(reading.rows[1]).toEqual([
       'd2',
@@ -202,7 +203,7 @@ describe('a metric card’s trend', () => {
         label: (_alias, value) => String(value),
         name: 'Trend',
         animate: false,
-        filled: note('MONTH'),
+        filled: note(AggregationDateUnit.MONTH),
       },
       theme,
     ) as Loose;
@@ -218,14 +219,14 @@ describe('a metric card’s trend', () => {
 describe('the words, in both catalogues', () => {
   it('has a phrase for every unit, and for a group', () => {
     for (const unit of [
-      'YEAR',
-      'QUARTER',
-      'MONTH',
-      'WEEK',
-      'DAY',
-      'HOUR',
-      'MINUTE',
-      'SECOND',
+      AggregationDateUnit.YEAR,
+      AggregationDateUnit.QUARTER,
+      AggregationDateUnit.MONTH,
+      AggregationDateUnit.WEEK,
+      AggregationDateUnit.DAY,
+      AggregationDateUnit.HOUR,
+      AggregationDateUnit.MINUTE,
+      AggregationDateUnit.SECOND,
       'group',
     ]) {
       const key = `label.chart.filled.${unit}` as const;
@@ -233,7 +234,11 @@ describe('the words, in both catalogues', () => {
       expect(defaultMessages[key]).toContain('{value}');
     }
     expect(
-      formatMessage(defaultMessages, 'label.chart.filled.WEEK', { value: '0' }),
+      formatMessage(
+        defaultMessages,
+        `label.chart.filled.${AggregationDateUnit.WEEK}`,
+        { value: '0' },
+      ),
     ).toBe('0 (no records this week)');
   });
 });

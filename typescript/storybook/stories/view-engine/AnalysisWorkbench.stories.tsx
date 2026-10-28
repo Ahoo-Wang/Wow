@@ -11,7 +11,17 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { AggregationGroupType, SortDirection } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  SortDirection,
+  HavingExpressionType,
+  ComparisonOperator,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  AggregationDateUnit,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   fitChartSlots,
   type AnalysisViewConfig,
@@ -158,9 +168,9 @@ function AnalysisWorkbenchDemo({
       ? {}
       : {
           having: {
-            type: 'CONDITION' as const,
+            type: HavingExpressionType.CONDITION as const,
             metric: 'amount',
-            operator: 'GT' as const,
+            operator: ComparisonOperator.GT as const,
             value: kept,
           },
         }),
@@ -322,10 +332,10 @@ function AnalysisWorkbenchDemo({
 /** Orders by status, as a pie whose slices wear the options' tones. */
 function statusPieConfig(layout: 'table' | 'chart') {
   const groups = [
-    { alias: 'status', field: 'status', type: 'TERMS' },
+    { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
   ] satisfies AnalysisViewConfig['groups'];
   const metrics = [
-    { alias: 'orders', type: 'COUNT' },
+    { alias: 'orders', type: AggregationMetricType.COUNT },
   ] satisfies AnalysisViewConfig['metrics'];
   return analysisConfig({
     layout,
@@ -340,16 +350,20 @@ function statusPieConfig(layout: 'table' | 'chart') {
 /** Orders by warehouse and status, as a heatmap. */
 function heatmapConfig(layout: 'table' | 'chart', labels: boolean) {
   const groups = [
-    { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-    { alias: 'status', field: 'status', type: 'TERMS' },
+    {
+      alias: 'warehouse',
+      field: 'warehouse',
+      type: AggregationGroupType.TERMS,
+    },
+    { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
   ] satisfies AnalysisViewConfig['groups'];
   // The amounts differ cell to cell where the counts are all one.
   const metrics = [
     {
       alias: 'amount',
-      type: 'NUMERIC',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'amount' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     },
   ] satisfies AnalysisViewConfig['metrics'];
   return analysisConfig({
@@ -368,12 +382,12 @@ function heatmapConfig(layout: 'table' | 'chart', labels: boolean) {
 function latestConfig(layout: 'table' | 'chart') {
   const { groups } = analysisConfig();
   const metrics = [
-    { alias: 'orders', type: 'COUNT' },
+    { alias: 'orders', type: AggregationMetricType.COUNT },
     {
       alias: 'latest',
-      type: 'NUMERIC',
-      function: 'MAX',
-      expression: { type: 'FIELD', field: 'createdAt' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MAX,
+      expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
     },
   ] satisfies AnalysisViewConfig['metrics'];
   return analysisConfig({
@@ -401,15 +415,26 @@ function failuresScene(scene: FailuresScene): AnalysisViewConfig {
   const byProcessor = scene === 'processor';
   const groups = [
     byProcessor
-      ? { type: 'TERMS', field: 'processor', alias: 'processor' }
-      : { type: 'TERMS', field: 'aggregateId', alias: 'aggregate' },
+      ? {
+          type: AggregationGroupType.TERMS,
+          field: 'processor',
+          alias: 'processor',
+        }
+      : {
+          type: AggregationGroupType.TERMS,
+          field: 'aggregateId',
+          alias: 'aggregate',
+        },
   ] satisfies AnalysisViewConfig['groups'];
-  const failures = { alias: 'failures', type: 'COUNT' } as const;
+  const failures = {
+    alias: 'failures',
+    type: AggregationMetricType.COUNT,
+  } as const;
   const retries = {
     alias: 'retries',
-    type: 'NUMERIC',
-    function: 'SUM',
-    expression: { type: 'FIELD', field: 'retries' },
+    type: AggregationMetricType.NUMERIC,
+    function: AggregationFunction.SUM,
+    expression: { type: AggregationExpressionType.FIELD, field: 'retries' },
   } as const;
   const metrics: AnalysisViewConfig['metrics'] = byProcessor
     ? [failures, retries]
@@ -469,12 +494,12 @@ function waybillScene(
 ): AnalysisViewConfig {
   if (scene === 'three-way') {
     const groups = [
-      { type: 'TERMS', field: 'destination', alias: 'city' },
-      { type: 'TERMS', field: 'carrier', alias: 'carrier' },
-      { type: 'TERMS', field: 'channel', alias: 'channel' },
+      { type: AggregationGroupType.TERMS, field: 'destination', alias: 'city' },
+      { type: AggregationGroupType.TERMS, field: 'carrier', alias: 'carrier' },
+      { type: AggregationGroupType.TERMS, field: 'channel', alias: 'channel' },
     ] satisfies AnalysisViewConfig['groups'];
     const metrics = [
-      { alias: 'waybills', type: 'COUNT' },
+      { alias: 'waybills', type: AggregationMetricType.COUNT },
     ] satisfies AnalysisViewConfig['metrics'];
     return analysisConfig({
       layout,
@@ -490,10 +515,15 @@ function waybillScene(
   }
   if (scene === 'bands') {
     const groups = [
-      { type: 'HISTOGRAM', field: 'amount', alias: 'band', interval: 500 },
+      {
+        type: AggregationGroupType.HISTOGRAM,
+        field: 'amount',
+        alias: 'band',
+        interval: 500,
+      },
     ] satisfies AnalysisViewConfig['groups'];
     const metrics = [
-      { alias: 'waybills', type: 'COUNT' },
+      { alias: 'waybills', type: AggregationMetricType.COUNT },
     ] satisfies AnalysisViewConfig['metrics'];
     return analysisConfig({
       layout,
@@ -506,14 +536,14 @@ function waybillScene(
   }
   if (scene === 'cities') {
     const groups = [
-      { type: 'TERMS', field: 'destination', alias: 'city' },
+      { type: AggregationGroupType.TERMS, field: 'destination', alias: 'city' },
     ] satisfies AnalysisViewConfig['groups'];
     const metrics = [
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ] satisfies AnalysisViewConfig['metrics'];
     return analysisConfig({
@@ -526,10 +556,15 @@ function waybillScene(
     });
   }
   const groups = [
-    { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'day', unit: 'DAY' },
+    {
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      field: 'createdAt',
+      alias: 'day',
+      unit: AggregationDateUnit.DAY,
+    },
   ] satisfies AnalysisViewConfig['groups'];
   const metrics = [
-    { alias: 'waybills', type: 'COUNT' },
+    { alias: 'waybills', type: AggregationMetricType.COUNT },
   ] satisfies AnalysisViewConfig['metrics'];
   const quiet: Partial<AnalysisViewConfig> =
     scene === 'daily-quiet'
@@ -539,7 +574,7 @@ function waybillScene(
             children: [
               {
                 field: 'destination',
-                operator: 'IN',
+                operator: FilterOperator.IN,
                 value: ['杭州', '上海'],
               },
             ],

@@ -36,6 +36,10 @@ import { revealCell } from '../src/ui/record/useOffscreenColumns.js';
 import type { TablePins } from '../src/ui/record/columns.js';
 import type { StickyPin } from '../src/ui/record/sticky.js';
 import { twoColumnTable } from './fixtures/ui.js';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * D51: a summary row names the summarised columns it holds out of view, as a
@@ -63,7 +67,7 @@ const row = (...fields: string[]): SummaryRow => ({
   cells: fields.map(field => ({
     field,
     label: field.toUpperCase(),
-    fn: 'SUM',
+    fn: AggregationFunction.SUM,
     value: 1,
   })),
 });
@@ -125,7 +129,10 @@ describe('which rows word whose number it is', () => {
     offscreenHint(summary, COLUMNS, where);
   const averaged = (summary: SummaryRow): SummaryRow => ({
     ...summary,
-    cells: summary.cells.map(cell => ({ ...cell, fn: 'AVG' })),
+    cells: summary.cells.map(cell => ({
+      ...cell,
+      fn: AggregationFunction.AVG,
+    })),
   });
 
   it('says it once over two rows naming the same number', () => {
@@ -278,7 +285,7 @@ describe('the hint in a record table', () => {
           {
             field: 'amount',
             label: 'Amount',
-            fn: 'SUM',
+            fn: AggregationFunction.SUM,
             value: 900,
             numberFormat: { style: 'currency', currency: 'CNY' },
           },
@@ -331,8 +338,18 @@ describe('the hint in a record table', () => {
           summaries: {
             scope: 'total',
             cells: [
-              { field: 'amount', label: 'Amount', fn: 'SUM', value: 900 },
-              { field: 'warehouse', label: 'Warehouse', fn: 'COUNT', value: 2 },
+              {
+                field: 'amount',
+                label: 'Amount',
+                fn: AggregationFunction.SUM,
+                value: 900,
+              },
+              {
+                field: 'warehouse',
+                label: 'Warehouse',
+                fn: AggregationMetricType.COUNT,
+                value: 2,
+              },
             ],
           },
         })}
@@ -404,8 +421,18 @@ describe('the hint in a record table', () => {
             summaries: {
               scope: 'total',
               cells: [
-                { field: 'amount', label: 'Amount', fn: 'SUM', value: 900 },
-                { field: 'warehouse', label: '仓库', fn: 'COUNT', value: 2 },
+                {
+                  field: 'amount',
+                  label: 'Amount',
+                  fn: AggregationFunction.SUM,
+                  value: 900,
+                },
+                {
+                  field: 'warehouse',
+                  label: '仓库',
+                  fn: AggregationMetricType.COUNT,
+                  value: 2,
+                },
               ],
             },
           })}

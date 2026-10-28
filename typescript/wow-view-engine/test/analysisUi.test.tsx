@@ -47,6 +47,13 @@ import {
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 import { landed, tracked } from './fixtures/writes.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -91,12 +98,15 @@ describe('useAnalysisEditor', () => {
     expect(result.current.countable).toBe(false);
     expect(() => {
       result.current.addGroup({
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         field: 'warehouse',
         alias: 'w',
       });
       result.current.removeGroup(0);
-      result.current.addMetric({ type: 'COUNT', alias: 'c' });
+      result.current.addMetric({
+        type: AggregationMetricType.COUNT,
+        alias: 'c',
+      });
       result.current.removeMetric(0);
       result.current.updateGroup(0, {});
       result.current.updateMetric(0, {});
@@ -120,8 +130,8 @@ describe('useAnalysisEditor', () => {
     const amount = result.current.analysis.fields.find(
       field => field.field === 'amount',
     );
-    expect(warehouse?.groups).toEqual(['TERMS']);
-    expect(amount?.functions).toEqual(['SUM']);
+    expect(warehouse?.groups).toEqual([AggregationGroupType.TERMS]);
+    expect(amount?.functions).toEqual([AggregationFunction.SUM]);
     expect(result.current.analysis.countable).toBe(true);
   });
 
@@ -130,7 +140,7 @@ describe('useAnalysisEditor', () => {
 
     act(() =>
       result.current.analysis.addGroup({
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         field: 'amount',
         alias: 'amount_2',
       }),
@@ -138,9 +148,13 @@ describe('useAnalysisEditor', () => {
     expect(result.current.analysis.groups).toHaveLength(2);
 
     act(() =>
-      result.current.analysis.updateGroup(1, { type: 'HISTOGRAM' } as never),
+      result.current.analysis.updateGroup(1, {
+        type: AggregationGroupType.HISTOGRAM,
+      } as never),
     );
-    expect(result.current.analysis.groups[1].type).toBe('HISTOGRAM');
+    expect(result.current.analysis.groups[1].type).toBe(
+      AggregationGroupType.HISTOGRAM,
+    );
 
     act(() => result.current.analysis.removeGroup(1));
     expect(result.current.analysis.groups).toHaveLength(1);
@@ -195,10 +209,10 @@ describe('useAnalysisEditor', () => {
 
     act(() => {
       result.current.analysis.addMetric({
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'total',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       });
       result.current.analysis.updateChart({
         cartesian: { x: 'warehouse', series: [{ metric: 'total' }] },
@@ -242,10 +256,10 @@ describe('useAnalysisEditor', () => {
 
     act(() =>
       analysis().addGroup({
-        type: 'DATE_HISTOGRAM',
+        type: AggregationGroupType.DATE_HISTOGRAM,
         field: 'createdAt',
         alias: 'month',
-        unit: 'MONTH',
+        unit: AggregationDateUnit.MONTH,
       }),
     );
     // Two dimensions: the second is the split, and a pivot draws one metric.
@@ -502,8 +516,8 @@ describe('DataWorkbench', () => {
                   {
                     alias: 'month',
                     field: 'createdAt',
-                    type: 'DATE_HISTOGRAM',
-                    unit: 'MONTH',
+                    type: AggregationGroupType.DATE_HISTOGRAM,
+                    unit: AggregationDateUnit.MONTH,
                   },
                 ],
                 chart: {
@@ -575,7 +589,11 @@ describe('DataWorkbench', () => {
       runtime.edit({
         groups: [
           ...draft.groups,
-          { type: 'TERMS', field: 'status', alias: 'status_1' },
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'status',
+            alias: 'status_1',
+          },
         ],
         chart: {
           type: 'bar',

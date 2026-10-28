@@ -29,6 +29,7 @@ import {
 } from '../src/dashboard/index.js';
 import type { DashboardField } from '../src/index.js';
 import { dashboardConfig } from './fixtures.js';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 
 const area: DashboardField = { name: 'area', label: 'Area', kind: 'string' };
 const region: DashboardField = {
@@ -37,7 +38,7 @@ const region: DashboardField = {
   kind: 'string',
 };
 const sources: MappingSources = {
-  groups: [{ field: 'warehouse', type: 'TERMS' }],
+  groups: [{ field: 'warehouse', type: AggregationGroupType.TERMS }],
   fields: [{ name: 'warehouse', label: 'Warehouse', kind: 'string' }],
   own: [region],
 };

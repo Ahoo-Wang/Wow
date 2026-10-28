@@ -21,6 +21,11 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  SortDirection,
+  FilterOperator,
+  AggregationGroupScope,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -75,7 +80,9 @@ const onItems = (
 ): AnalysisViewConfig =>
   config({
     elements: [{ path: 'items' }],
-    groups: [{ type: 'TERMS', field: 'items.sku', alias: 'sku' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'items.sku', alias: 'sku' },
+    ],
     chart: {
       type: 'bar',
       cartesian: { x: 'sku', series: [{ metric: 'orders' }] },
@@ -153,21 +160,24 @@ describe('the expansion chain', () => {
     elements: [{ path: 'state.orders' }, { path: 'lines' }],
     groups: [
       {
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         field: 'state.orders.lines.productId',
         alias: 'product',
       },
     ],
     metrics: [
-      { type: 'COUNT', alias: 'orders' },
+      { type: AggregationMetricType.COUNT, alias: 'orders' },
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'total',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'state.orders.lines.amount' },
+        function: AggregationFunction.SUM,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'state.orders.lines.amount',
+        },
       },
     ],
-    sort: [{ alias: 'total', direction: 'DESC' }],
+    sort: [{ alias: 'total', direction: SortDirection.DESC }],
     chart: {
       type: 'bar',
       cartesian: { x: 'product', series: [{ metric: 'total' }] },
@@ -193,14 +203,18 @@ describe('the expansion chain', () => {
       { path: 'lines' },
     ]);
     expect(query.groupBy).toEqual([
-      { type: 'TERMS', field: 'productId', alias: 'product' },
+      {
+        type: AggregationGroupType.TERMS,
+        field: 'productId',
+        alias: 'product',
+      },
     ]);
     expect(query.metrics).toEqual([
-      { type: 'COUNT', alias: 'orders' },
+      { type: AggregationMetricType.COUNT, alias: 'orders' },
       {
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
         alias: 'total',
       },
     ]);
@@ -210,7 +224,11 @@ describe('the expansion chain', () => {
     const outer = config({
       elements: [{ path: 'state.orders' }],
       groups: [
-        { type: 'TERMS', field: 'state.orders.status', alias: 'status' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.orders.status',
+          alias: 'status',
+        },
       ],
       chart: {
         type: 'bar',
@@ -223,7 +241,9 @@ describe('the expansion chain', () => {
     );
     expect(
       compileAnalysis(orders, outer, builtinFieldKinds, context).groupBy,
-    ).toEqual([{ type: 'TERMS', field: 'status', alias: 'status' }]);
+    ).toEqual([
+      { type: AggregationGroupType.TERMS, field: 'status', alias: 'status' },
+    ]);
   });
 
   it('refuses an inner level expanded without the one that holds it', () => {
@@ -304,7 +324,9 @@ describe('element scope', () => {
             path: 'items',
             filter: {
               op: 'and',
-              children: [{ field: 'items.sku', operator: 'EQ', value: '' }],
+              children: [
+                { field: 'items.sku', operator: FilterOperator.EQ, value: '' },
+              ],
             },
           },
         ],
@@ -330,7 +352,13 @@ describe('element scope', () => {
             path: 'items',
             filter: {
               op: 'and',
-              children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+              children: [
+                {
+                  field: 'items.sku',
+                  operator: FilterOperator.EQ,
+                  value: 'A-1',
+                },
+              ],
             },
           },
         ],
@@ -348,7 +376,13 @@ describe('element scope', () => {
             path: 'items',
             filter: {
               op: 'and',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'WH-1' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'WH-1',
+                },
+              ],
             },
           },
         ],
@@ -365,7 +399,13 @@ describe('element scope', () => {
             path: 'items',
             filter: {
               op: 'and',
-              children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+              children: [
+                {
+                  field: 'items.sku',
+                  operator: FilterOperator.EQ,
+                  value: 'A-1',
+                },
+              ],
             },
           },
         ],
@@ -375,7 +415,10 @@ describe('element scope', () => {
     );
 
     expect(query.elements).toEqual([
-      { path: 'items', filter: { field: 'sku', value: 'A-1', op: 'EQ' } },
+      {
+        path: 'items',
+        filter: { field: 'sku', value: 'A-1', op: FilterOperator.EQ },
+      },
     ]);
   });
 
@@ -415,13 +458,13 @@ describe('element scope', () => {
               children: [
                 {
                   field: 'items.tags',
-                  operator: 'ELEMENT_MATCH',
+                  operator: FilterOperator.ELEMENT_MATCH,
                   value: {
                     op: 'and',
                     children: [
                       {
                         field: 'items.tags.name',
-                        operator: 'EQ',
+                        operator: FilterOperator.EQ,
                         value: 'red',
                       },
                     ],
@@ -440,9 +483,9 @@ describe('element scope', () => {
       {
         path: 'items',
         filter: {
-          op: 'ELEMENT_MATCH',
+          op: FilterOperator.ELEMENT_MATCH,
           field: 'tags',
-          predicate: { op: 'EQ', field: 'name', value: 'red' },
+          predicate: { op: FilterOperator.EQ, field: 'name', value: 'red' },
         },
       },
     ]);
@@ -494,7 +537,9 @@ describe('element scope', () => {
     });
     const onTags: FilterTree = {
       op: 'and',
-      children: [{ field: 'items.tags', operator: 'IN', value: ['red'] }],
+      children: [
+        { field: 'items.tags', operator: FilterOperator.IN, value: ['red'] },
+      ],
     };
 
     expect(
@@ -504,7 +549,13 @@ describe('element scope', () => {
       check(
         {
           elements: [{ path: 'items' }],
-          metrics: [{ type: 'COUNT', alias: 'orders', filter: onTags }],
+          metrics: [
+            {
+              type: AggregationMetricType.COUNT,
+              alias: 'orders',
+              filter: onTags,
+            },
+          ],
         },
         nested,
       ),
@@ -518,7 +569,9 @@ describe('element scope', () => {
       depth <= 1
         ? {
             op: 'and',
-            children: [{ field: 'items.sku', operator: 'EQ', value: 'x' }],
+            children: [
+              { field: 'items.sku', operator: FilterOperator.EQ, value: 'x' },
+            ],
           }
         : { op: 'and', children: [deep(depth - 1)] };
     const overrides = { elements: [{ path: 'items', filter: deep(12) }] };
@@ -583,21 +636,34 @@ describe('element scope', () => {
     // Each of these is the same mistake in a different place, and Wow refuses
     // all four: the range is what root fields are for.
     expect(
-      check({ groups: [{ type: 'TERMS', field: 'warehouse', alias: 'sku' }] }),
+      check({
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: 'sku',
+          },
+        ],
+      }),
     ).toEqual(['analysis.field.outside-scope']);
     expect(
       check({
-        metrics: [{ type: 'ANY', alias: 'orders', field: 'amount' }],
+        metrics: [
+          { type: AggregationMetricType.ANY, alias: 'orders', field: 'amount' },
+        ],
       }),
     ).toEqual(['analysis.field.outside-scope']);
     expect(
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       }),
@@ -606,11 +672,17 @@ describe('element scope', () => {
       check({
         metrics: [
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'orders',
             filter: {
               op: 'and',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'WH-1' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'WH-1',
+                },
+              ],
             },
           },
         ],
@@ -626,8 +698,12 @@ describe('element scope', () => {
     const byWarehouse = (overrides: Partial<AnalysisViewConfig> = {}) =>
       onItems({
         groups: [
-          { type: 'TERMS', field: 'items.sku', alias: 'sku' },
-          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'items.sku',
+            alias: 'sku',
+          },
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
         ],
         chart: {
           type: 'bar',
@@ -648,15 +724,22 @@ describe('element scope', () => {
       compileAnalysis(withRoot, byWarehouse(), builtinFieldKinds, context)
         .groupBy,
     ).toEqual([
-      { type: 'TERMS', field: 'warehouse', alias: 'wh', scope: 'ROOT' },
-      { type: 'TERMS', field: 'sku', alias: 'sku' },
+      {
+        type: AggregationGroupType.TERMS,
+        field: 'warehouse',
+        alias: 'wh',
+        scope: AggregationGroupScope.ROOT,
+      },
+      { type: AggregationGroupType.TERMS, field: 'sku', alias: 'sku' },
     ]);
     // An explicit sort may not put the element dimension first.
     expect(
       codes(
         validateAnalysis(
           withRoot,
-          byWarehouse({ sort: [{ alias: 'sku', direction: 'ASC' }] }),
+          byWarehouse({
+            sort: [{ alias: 'sku', direction: SortDirection.ASC }],
+          }),
           builtinFieldKinds,
         ),
       ),
@@ -667,8 +750,8 @@ describe('element scope', () => {
           withRoot,
           byWarehouse({
             sort: [
-              { alias: 'wh', direction: 'DESC' },
-              { alias: 'sku', direction: 'ASC' },
+              { alias: 'wh', direction: SortDirection.DESC },
+              { alias: 'sku', direction: SortDirection.ASC },
             ],
           }),
           builtinFieldKinds,
@@ -678,7 +761,15 @@ describe('element scope', () => {
     // A metric still reads the innermost element only.
     expect(
       check(
-        { metrics: [{ type: 'ANY', alias: 'orders', field: 'amount' }] },
+        {
+          metrics: [
+            {
+              type: AggregationMetricType.ANY,
+              alias: 'orders',
+              field: 'amount',
+            },
+          ],
+        },
         withRoot,
       ),
     ).toEqual(['analysis.field.outside-scope']);
@@ -688,7 +779,7 @@ describe('element scope', () => {
       builtinFieldKinds,
     );
     expect(options.find(option => option.field === 'warehouse')).toMatchObject({
-      groups: ['TERMS'],
+      groups: [AggregationGroupType.TERMS],
       functions: [],
       expressionInput: false,
     });
@@ -712,7 +803,9 @@ describe('element scope', () => {
       check({
         filter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'WH-1' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'WH-1' },
+          ],
         },
       }),
     ).toEqual([]);
@@ -720,7 +813,9 @@ describe('element scope', () => {
       check({
         filter: {
           op: 'and',
-          children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+          children: [
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
+          ],
         },
       }),
     ).toEqual(['filter.field.unknown']);

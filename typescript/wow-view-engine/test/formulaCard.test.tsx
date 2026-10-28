@@ -14,6 +14,11 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -104,14 +109,14 @@ function writingConfig(
   return analysisConfig({
     layout: 'table',
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
-      { alias: 'sample', type: 'ANY', field: 'amount' },
+      { alias: 'sample', type: AggregationMetricType.ANY, field: 'amount' },
     ],
     chart: {
       type: 'bar',
@@ -161,7 +166,7 @@ const label = (key: keyof typeof defaultMessages, name: string) =>
 const summed = (of: string) =>
   formatMessage(defaultMessages, 'label.summary.of', {
     field: of,
-    fn: defaultMessages['label.summary.fn.SUM'],
+    fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
   });
 
 /** Picks an item out of one of the tray's two "+ Add …" menus. */
@@ -275,13 +280,13 @@ describe('a metric written as a formula', () => {
 
     await waitFor(() => expect(cardNames()).toContain('Amount − Cost'));
     expect(draft(engine).metrics[3]).toMatchObject({
-      type: 'NUMERIC',
-      function: 'SUM',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
       expression: {
-        type: 'BINARY',
-        operator: 'SUBTRACT',
-        left: { type: 'FIELD', field: 'amount' },
-        right: { type: 'FIELD', field: 'cost' },
+        type: AggregationExpressionType.BINARY,
+        operator: AggregationExpressionOperator.SUBTRACT,
+        left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+        right: { type: AggregationExpressionType.FIELD, field: 'cost' },
       },
     });
 
@@ -338,7 +343,9 @@ describe('a metric written as a formula', () => {
 
     await waitFor(() =>
       expect(draft(engine).metrics[3]).toMatchObject({
-        expression: { right: { type: 'CONSTANT', value: 0 } },
+        expression: {
+          right: { type: AggregationExpressionType.CONSTANT, value: 0 },
+        },
       }),
     );
     const box = screen.getByLabelText(
@@ -347,7 +354,9 @@ describe('a metric written as a formula', () => {
     fireEvent.change(box, { target: { value: '12' } });
     await waitFor(() =>
       expect(draft(engine).metrics[3]).toMatchObject({
-        expression: { right: { type: 'CONSTANT', value: 12 } },
+        expression: {
+          right: { type: AggregationExpressionType.CONSTANT, value: 12 },
+        },
       }),
     );
   });
@@ -369,7 +378,7 @@ describe('a metric written as a formula', () => {
     await user.click(await screen.findByRole('option', { name: '÷' }));
     await waitFor(() =>
       expect(draft(engine).metrics[3]).toMatchObject({
-        expression: { operator: 'DIVIDE' },
+        expression: { operator: AggregationExpressionOperator.DIVIDE },
       }),
     );
 
@@ -380,11 +389,13 @@ describe('a metric written as a formula', () => {
     );
     await user.click(
       await screen.findByRole('option', {
-        name: defaultMessages['label.summary.fn.AVG'],
+        name: defaultMessages[`label.summary.fn.${AggregationFunction.AVG}`],
       }),
     );
     await waitFor(() =>
-      expect(draft(engine).metrics[3]).toMatchObject({ function: 'AVG' }),
+      expect(draft(engine).metrics[3]).toMatchObject({
+        function: AggregationFunction.AVG,
+      }),
     );
   });
 
@@ -405,13 +416,13 @@ describe('a metric written as a formula', () => {
 
     await waitFor(() =>
       expect(lastMetric(source)).toMatchObject({
-        type: 'NUMERIC',
-        function: 'SUM',
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
         expression: {
-          type: 'BINARY',
-          operator: 'SUBTRACT',
-          left: { type: 'FIELD', field: 'amount' },
-          right: { type: 'FIELD', field: 'cost' },
+          type: AggregationExpressionType.BINARY,
+          operator: AggregationExpressionOperator.SUBTRACT,
+          left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+          right: { type: AggregationExpressionType.FIELD, field: 'cost' },
         },
       }),
     );
@@ -419,7 +430,7 @@ describe('a metric written as a formula', () => {
       expect(headers()).toContain(
         formatMessage(defaultMessages, 'label.summary.of', {
           field: '(Amount − Cost)',
-          fn: defaultMessages['label.summary.fn.SUM'],
+          fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
         }),
       ),
     );
@@ -438,21 +449,21 @@ describe('a formula deeper than the card edits', () => {
   it('shows the nested operand as text, and says it cannot be edited', async () => {
     await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'margin',
-          type: 'NUMERIC',
-          function: 'SUM',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
           expression: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
             left: {
-              type: 'BINARY',
-              operator: 'MULTIPLY',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'CONSTANT', value: 2 },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.MULTIPLY,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: { type: AggregationExpressionType.CONSTANT, value: 2 },
             },
-            right: { type: 'FIELD', field: 'cost' },
+            right: { type: AggregationExpressionType.FIELD, field: 'cost' },
           },
         },
       ],
@@ -505,12 +516,12 @@ describe('a metric derived from other metrics', () => {
       expect(cardNames()).toContain('Record count ÷ Sum of Amount'),
     );
     expect(draft(engine).metrics[3]).toMatchObject({
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       expression: {
-        type: 'BINARY',
-        operator: 'DIVIDE',
-        left: { type: 'METRIC_REF', metric: 'orders' },
-        right: { type: 'METRIC_REF', metric: 'amount' },
+        type: DerivedExpressionType.BINARY,
+        operator: AggregationExpressionOperator.DIVIDE,
+        left: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+        right: { type: DerivedExpressionType.METRIC_REF, metric: 'amount' },
       },
     });
 
@@ -566,7 +577,9 @@ describe('a metric derived from other metrics', () => {
     );
     await waitFor(() =>
       expect(draft(engine).metrics[3]).toMatchObject({
-        expression: { left: { type: 'CONSTANT', value: 0 } },
+        expression: {
+          left: { type: DerivedExpressionType.CONSTANT, value: 0 },
+        },
       }),
     );
     await waitFor(() => expect(cardNames()).toContain('0 ÷ Sum of Amount'));
@@ -592,12 +605,15 @@ describe('a metric derived from other metrics', () => {
     // own to fall back on.
     const { source } = await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT', label: 'Orders' },
+        { alias: 'orders', type: AggregationMetricType.COUNT, label: 'Orders' },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
           label: 'Takings',
         },
       ],
@@ -612,7 +628,7 @@ describe('a metric derived from other metrics', () => {
 
     await waitFor(() =>
       expect(lastMetric(source)).toMatchObject({
-        type: 'DERIVED',
+        type: AggregationMetricType.DERIVED,
       }),
     );
     // No summary appended, unlike a formula's 「Sum of Amount − Cost」:
@@ -748,16 +764,19 @@ describe('ordering the groups', () => {
     // tell apart; the sample value carries a name of its own on top of that.
     const { engine, source } = await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
           alias: 'sample',
-          type: 'ANY',
+          type: AggregationMetricType.ANY,
           field: 'amount',
           label: 'One of the amounts',
         },
@@ -781,7 +800,7 @@ describe('ordering the groups', () => {
     );
     await waitFor(() =>
       expect(draft(engine).sort).toEqual([
-        { alias: 'amount', direction: 'ASC' },
+        { alias: 'amount', direction: SortDirection.ASC },
       ]),
     );
 
@@ -797,8 +816,8 @@ describe('ordering the groups', () => {
     );
     await waitFor(() =>
       expect(draft(engine).sort).toEqual([
-        { alias: 'amount', direction: 'ASC' },
-        { alias: 'orders', direction: 'ASC' },
+        { alias: 'amount', direction: SortDirection.ASC },
+        { alias: 'orders', direction: SortDirection.ASC },
       ]),
     );
 
@@ -813,8 +832,8 @@ describe('ordering the groups', () => {
     fireEvent.click(applyButton());
     await waitFor(() =>
       expect(lastQuery(source)?.sort).toEqual([
-        { field: 'amount', direction: 'ASC' },
-        { field: 'orders', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.ASC },
+        { field: 'orders', direction: SortDirection.ASC },
       ]),
     );
   });

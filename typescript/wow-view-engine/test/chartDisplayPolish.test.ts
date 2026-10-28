@@ -44,6 +44,7 @@ import { tooltipHtml } from '../src/ui/charts/tooltip.js';
 import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { analysisConfig } from './fixtures.js';
+import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * ECharts batch E, display polish (D33): a log scale on value axes and a
@@ -163,7 +164,7 @@ describe('a log scale', () => {
 
   it('is a scale this package knows, or a finding', () => {
     const config = analysisConfig({
-      metrics: [{ alias: 'orders', type: 'COUNT' }],
+      metrics: [{ alias: 'orders', type: AggregationMetricType.COUNT }],
       chart: {
         type: 'bar',
         cartesian: {

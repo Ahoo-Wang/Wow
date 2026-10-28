@@ -52,6 +52,7 @@ import {
 import { tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { settle } from './fixtures/ui.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -306,7 +307,9 @@ describe('DashboardGrid', () => {
   it('keeps the summary scope readable without the selection column', async () => {
     const summarised: ViewInstance = {
       ...pending,
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
     };
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
@@ -666,7 +669,11 @@ describe('DashboardGrid', () => {
             filter: {
               op: 'and',
               children: [
-                { field: 'amount', operator: 'CONTAINS', value: 'CN' },
+                {
+                  field: 'amount',
+                  operator: FilterOperator.CONTAINS,
+                  value: 'CN',
+                },
               ],
             },
           }),
@@ -690,7 +697,11 @@ describe('DashboardGrid', () => {
                   filter: {
                     op: 'and',
                     children: [
-                      { field: 'amount', operator: 'CONTAINS', value: '1' },
+                      {
+                        field: 'amount',
+                        operator: FilterOperator.CONTAINS,
+                        value: '1',
+                      },
                     ],
                   },
                 }),
@@ -743,7 +754,13 @@ describe('DashboardGrid', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'CN',
+                },
+              ],
             },
           }),
         },
@@ -778,7 +795,13 @@ describe('DashboardGrid', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'CN',
+                },
+              ],
             },
             pageSize: 0,
           }),

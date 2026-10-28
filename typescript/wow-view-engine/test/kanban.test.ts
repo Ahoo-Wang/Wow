@@ -33,6 +33,7 @@ import {
 import { deprecatedUses } from '../src/runtime/deprecated.js';
 import { NOW, ordersDefinition, recordConfig } from './fixtures.js';
 import { dealsDefinition, kanbanConfig } from './fixtures/kanban.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const kinds = builtinFieldKinds;
 const at = { now: NOW, timeZone: 'UTC' };
@@ -83,7 +84,7 @@ describe('laneConfig', () => {
   const config = kanbanConfig({
     filter: {
       op: 'and',
-      children: [{ field: 'amount', operator: 'GT', value: 10 }],
+      children: [{ field: 'amount', operator: FilterOperator.GT, value: 10 }],
     },
   });
 
@@ -92,10 +93,12 @@ describe('laneConfig', () => {
     expect(laneConfig(definition, config, lead!).filter).toEqual({
       op: 'and',
       children: [
-        { field: 'amount', operator: 'GT', value: 10 },
+        { field: 'amount', operator: FilterOperator.GT, value: 10 },
         {
           op: 'and',
-          children: [{ field: 'stage', operator: 'IN', value: ['LEAD'] }],
+          children: [
+            { field: 'stage', operator: FilterOperator.IN, value: ['LEAD'] },
+          ],
         },
       ],
     });
@@ -130,7 +133,7 @@ describe('compileKanbanCounts', () => {
       dealsDefinition(),
       kanbanConfig({
         kanban: { lane: 'stage', hidden: ['LOST'] },
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
       kinds,
       at,
@@ -162,7 +165,9 @@ describe('compileKanbanCounts', () => {
 
 describe('projectKanban', () => {
   const definition = dealsDefinition();
-  const config = kanbanConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] });
+  const config = kanbanConfig({
+    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+  });
   const lanes = kanbanLanes(definition, config);
   const pages = [
     {

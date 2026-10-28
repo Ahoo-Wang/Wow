@@ -30,6 +30,7 @@ import {
   positionOf,
   say,
 } from './recordWorkbenchTest.js';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The column settings, the sort, column widths and the card settings. One of
@@ -315,7 +316,7 @@ export const TableSettings: Story = {
     );
     await userEvent.click(
       await popover.findByRole('option', {
-        name: zhCN['label.summary.fn.AVG'],
+        name: zhCN[`label.summary.fn.${AggregationFunction.AVG}`],
       }),
     );
     await userEvent.keyboard('{Escape}');
@@ -370,8 +371,8 @@ export const TableSettings: Story = {
             { field: 'amount' },
           ],
         },
-        summaries: [{ field: 'amount', fn: 'AVG' }],
-        sort: [{ field: 'amount', direction: 'ASC' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.AVG }],
+        sort: [{ field: 'amount', direction: SortDirection.ASC }],
       });
     });
   },

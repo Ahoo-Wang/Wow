@@ -23,6 +23,7 @@ import type { AnalysisColumnView } from '../src/index.js';
 import { analysisCellText } from '../src/ui/analysis/tableColumns.js';
 import { zhCN } from '../src/ui/index.js';
 import { formattersFor } from './fixtures/columns.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 const zh = formattersFor(zhCN);
 const ZH = { locale: 'zh-CN', timeZone: 'UTC' };
@@ -33,7 +34,7 @@ const month: AnalysisColumnView = {
   label: '月份',
   role: 'group',
   kind: 'datetime',
-  dateUnit: 'MONTH',
+  dateUnit: AggregationDateUnit.MONTH,
   timeZone: 'UTC',
   ongoing: september,
 };

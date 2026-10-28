@@ -23,6 +23,8 @@ import {
   AggregationGroupType,
   DateDiffUnit,
   type QueryModelDescriptor,
+  AggregationExpressionType,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -101,19 +103,19 @@ function definition(
 }
 
 const HOURS: AnalysisExpression = {
-  type: 'DATE_DIFF',
+  type: AggregationExpressionType.DATE_DIFF,
   from: 'paidAt',
   to: 'shippedAt',
-  unit: 'HOUR',
+  unit: DateDiffUnit.HOUR,
 };
 const average: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'hours',
-  function: 'AVG',
+  function: AggregationFunction.AVG,
   expression: HOURS,
 };
 const bands: AnalysisGroup = {
-  type: 'HISTOGRAM',
+  type: AggregationGroupType.HISTOGRAM,
   alias: 'band',
   expression: HOURS,
   interval: 4,
@@ -123,7 +125,9 @@ const durationConfig = (
   overrides: Partial<AnalysisViewConfig> = {},
 ): AnalysisViewConfig =>
   config({
-    groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+    ],
     metrics: [average],
     sort: [],
     chart: {
@@ -141,14 +145,14 @@ const check = (
 describe('the units a duration is measured in', () => {
   it('are every one where computed expressions are on, and none where they are off', () => {
     expect(dateDiffUnitsOf(capability)).toEqual([
-      'HOUR',
-      'DAY',
-      'MINUTE',
-      'SECOND',
+      DateDiffUnit.HOUR,
+      DateDiffUnit.DAY,
+      DateDiffUnit.MINUTE,
+      DateDiffUnit.SECOND,
     ]);
-    expect(dateDiffUnitsOf({ ...capability, dateDiffUnits: ['DAY'] })).toEqual([
-      'DAY',
-    ]);
+    expect(
+      dateDiffUnitsOf({ ...capability, dateDiffUnits: [DateDiffUnit.DAY] }),
+    ).toEqual([DateDiffUnit.DAY]);
     expect(dateDiffUnitsOf({ ...capability, expressions: false })).toEqual([]);
     expect(dateDiffUnitsOf(undefined)).toEqual([]);
   });
@@ -156,18 +160,26 @@ describe('the units a duration is measured in', () => {
 
 describe('a duration as a metric', () => {
   it('is built from two times and a unit, and read back as a duration', () => {
-    const built = durationMetric('paidAt', 'shippedAt', 'HOUR', ['duration']);
+    const built = durationMetric('paidAt', 'shippedAt', DateDiffUnit.HOUR, [
+      'duration',
+    ]);
     expect(built).toEqual({
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'duration_1',
-      function: 'AVG',
+      function: AggregationFunction.AVG,
       expression: HOURS,
     });
     expect(isDuration(built)).toBe(true);
     expect(
-      isDuration({ ...built, type: 'PERCENTILE', percentile: 90 } as never),
+      isDuration({
+        ...built,
+        type: AggregationMetricType.PERCENTILE,
+        percentile: 90,
+      } as never),
     ).toBe(true);
-    expect(isDuration({ type: 'COUNT', alias: 'n' })).toBe(false);
+    expect(isDuration({ type: AggregationMetricType.COUNT, alias: 'n' })).toBe(
+      false,
+    );
     expect(expressionFieldsOf(HOURS)).toEqual(['paidAt', 'shippedAt']);
     expect(expressionText(HOURS, name => name.toUpperCase())).toBe(
       'PAIDAT → SHIPPEDAT',
@@ -179,9 +191,9 @@ describe('a duration as a metric', () => {
     expect(check({}, definition({ expressions: false }))).toEqual([
       'analysis.expressions.undeclared',
     ]);
-    expect(check({}, definition({ dateDiffUnits: ['DAY'] }))).toEqual([
-      'analysis.date-diff.unit-unsupported',
-    ]);
+    expect(
+      check({}, definition({ dateDiffUnits: [DateDiffUnit.DAY] })),
+    ).toEqual(['analysis.date-diff.unit-unsupported']);
   });
 
   it('runs between two times the unit holds and takes into arithmetic', () => {
@@ -190,7 +202,12 @@ describe('a duration as a metric', () => {
         metrics: [
           {
             ...average,
-            expression: { type: 'DATE_DIFF', from, to, unit: 'HOUR' },
+            expression: {
+              type: AggregationExpressionType.DATE_DIFF,
+              from,
+              to,
+              unit: DateDiffUnit.HOUR,
+            },
           },
         ],
       });
@@ -215,7 +232,11 @@ describe('a duration as a metric', () => {
         metrics: [
           {
             ...average,
-            expression: { type: 'DATE_DIFF', from: 1, to: 'paidAt' } as never,
+            expression: {
+              type: AggregationExpressionType.DATE_DIFF,
+              from: 1,
+              to: 'paidAt',
+            } as never,
           },
         ],
       }),
@@ -229,7 +250,7 @@ describe('a duration as a metric', () => {
         metrics: [
           average,
           {
-            type: 'PERCENTILE',
+            type: AggregationMetricType.PERCENTILE,
             alias: 'p90',
             percentile: 90,
             expression: HOURS,
@@ -240,9 +261,9 @@ describe('a duration as a metric', () => {
       context,
     );
     expect(query.metrics[0]).toMatchObject({
-      function: 'AVG',
+      function: AggregationFunction.AVG,
       expression: {
-        type: 'DATE_DIFF',
+        type: AggregationExpressionType.DATE_DIFF,
         from: 'paidAt',
         to: 'shippedAt',
         unit: DateDiffUnit.HOUR,
@@ -254,7 +275,7 @@ describe('a duration as a metric', () => {
         metrics: [
           average,
           {
-            type: 'PERCENTILE',
+            type: AggregationMetricType.PERCENTILE,
             alias: 'p90',
             percentile: 90,
             expression: HOURS,
@@ -278,7 +299,7 @@ describe('a duration as a band dimension', () => {
   const banded = (overrides: Partial<AnalysisViewConfig> = {}) =>
     durationConfig({
       groups: [bands],
-      metrics: [{ type: 'COUNT', alias: 'orders' }],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
       chart: {
         type: 'bar',
         cartesian: { x: 'band', series: [{ metric: 'orders' }] },
@@ -289,7 +310,11 @@ describe('a duration as a band dimension', () => {
   it('names the fields it reads, compiles its expression and its width', () => {
     expect(groupFieldsOf(bands)).toEqual(['paidAt', 'shippedAt']);
     expect(
-      groupFieldsOf({ type: 'TERMS', field: 'warehouse', alias: 'w' }),
+      groupFieldsOf({
+        type: AggregationGroupType.TERMS,
+        field: 'warehouse',
+        alias: 'w',
+      }),
     ).toEqual(['warehouse']);
     expect(
       compileAnalysis(definition(), banded(), builtinFieldKinds, context)
@@ -298,10 +323,10 @@ describe('a duration as a band dimension', () => {
       {
         type: AggregationGroupType.HISTOGRAM,
         expression: {
-          type: 'DATE_DIFF',
+          type: AggregationExpressionType.DATE_DIFF,
           from: 'paidAt',
           to: 'shippedAt',
-          unit: 'HOUR',
+          unit: DateDiffUnit.HOUR,
         },
         alias: 'band',
         interval: 4,
@@ -337,7 +362,11 @@ describe('a duration as a band dimension', () => {
           definition(),
           banded({
             groups: [
-              { type: 'HISTOGRAM', alias: 'band', interval: 4 } as never,
+              {
+                type: AggregationGroupType.HISTOGRAM,
+                alias: 'band',
+                interval: 4,
+              } as never,
             ],
           }),
           builtinFieldKinds,
@@ -400,7 +429,10 @@ describe('narrowing by the descriptor', () => {
       described([DateDiffUnit.HOUR, DateDiffUnit.DAY]),
       builtinFieldKinds,
     );
-    expect(narrowed.analysis?.dateDiffUnits).toEqual(['HOUR', 'DAY']);
+    expect(narrowed.analysis?.dateDiffUnits).toEqual([
+      DateDiffUnit.HOUR,
+      DateDiffUnit.DAY,
+    ]);
   });
 
   it('takes durations away where the entry turns computed expressions off', () => {

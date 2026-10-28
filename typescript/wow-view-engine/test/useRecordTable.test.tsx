@@ -37,6 +37,11 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -80,14 +85,16 @@ describe('useRecordTable', () => {
     expect(result.current.isSelected('o-1')).toBe(false);
     expect(() => {
       result.current.toggleSort('id');
-      result.current.setSort([{ field: 'amount', direction: 'ASC' }]);
+      result.current.setSort([
+        { field: 'amount', direction: SortDirection.ASC },
+      ]);
       result.current.toggle('o-1');
       result.current.toggleAll();
       result.current.clearSelection();
       result.current.setColumns(['id']);
       result.current.setColumnOrder(['id']);
       result.current.setPinned('id', true);
-      result.current.setSummary('amount', 'SUM');
+      result.current.setSummary('amount', AggregationFunction.SUM);
       result.current.setLayout('card');
       result.current.setPageSize(10);
       result.current.goTo(2);
@@ -204,8 +211,8 @@ describe('useRecordTable', () => {
     act(() => result.current.table.toggleSort('amount'));
 
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
   });
 
@@ -226,7 +233,9 @@ describe('useRecordTable', () => {
       runtime().edit({
         filter: {
           op: 'and',
-          children: [{ field: 'nowhere', operator: 'EQ', value: 1 }],
+          children: [
+            { field: 'nowhere', operator: FilterOperator.EQ, value: 1 },
+          ],
         },
       }),
     );
@@ -238,7 +247,7 @@ describe('useRecordTable', () => {
 
     // The draft moved, the applied config did not, and the report says so:
     // the refused condition and the sort, one each.
-    expect(result.current.table.sortOf('amount')).toBe('ASC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.ASC);
     expect(snapshot().applied.sort).toEqual([]);
     expect(report()).toEqual({ pending: true, count: 2, conditions: true });
   });
@@ -264,10 +273,10 @@ describe('useRecordTable', () => {
     const result = await openTable();
 
     act(() => result.current.table.toggleSort('amount'));
-    expect(result.current.table.sortOf('amount')).toBe('ASC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.ASC);
 
     act(() => result.current.table.toggleSort('amount'));
-    expect(result.current.table.sortOf('amount')).toBe('DESC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.DESC);
 
     act(() => result.current.table.toggleSort('amount'));
     expect(result.current.table.sort).toEqual([]);

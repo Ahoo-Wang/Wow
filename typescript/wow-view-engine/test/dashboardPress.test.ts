@@ -22,6 +22,7 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -93,8 +94,8 @@ const views: ViewInstance[] = [
         {
           alias: 'createdAt',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'DAY',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
         },
       ],
       chart: {
@@ -144,7 +145,9 @@ const views: ViewInstance[] = [
     config: preCDashboardConfig(
       {
         op: 'and',
-        children: [{ field: 'stage', operator: 'IN', value: ['OPEN'] }],
+        children: [
+          { field: 'stage', operator: FilterOperator.IN, value: ['OPEN'] },
+        ],
       },
       {
         fields: [
@@ -390,7 +393,9 @@ describe('a custom destination (D22 I)', () => {
         scopeFilter: null,
         filter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
         from: expect.objectContaining({ title: 'Board' }),
       },
@@ -411,11 +416,15 @@ describe('a custom destination (D22 I)', () => {
       kind: 'view',
       scopeFilter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'IN', value: ['CN'] }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.IN, value: ['CN'] },
+        ],
       },
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     });
 
@@ -429,8 +438,8 @@ describe('a custom destination (D22 I)', () => {
       filter: {
         op: 'and',
         children: [
-          { field: 'warehouse', operator: 'IN', value: ['EU'] },
-          { field: 'warehouse', operator: 'EQ', value: 'EU' },
+          { field: 'warehouse', operator: FilterOperator.IN, value: ['EU'] },
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'EU' },
         ],
       },
     });

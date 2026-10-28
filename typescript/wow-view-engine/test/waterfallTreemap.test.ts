@@ -32,35 +32,45 @@ import { treemapOption } from '../src/ui/charts/treemapOption.js';
 import { waterfallOption } from '../src/ui/charts/waterfallOption.js';
 import { formatMessage, zhCN } from '../src/ui/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 const warehouse: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'warehouse',
 };
 const region: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'region',
   alias: 'region',
 };
 const month: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 };
-const count: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const count: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const sum: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'amount',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const average: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'avg',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const theme: ChartTheme = {

@@ -24,6 +24,8 @@ import {
   QueryValueKind,
   type FieldDescriptor,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QueryModels,
 } from '@ahoo-wang/wow-client/dsl';
 
 /** Every operator Wow has: a field listing these admits whatever a kind offers. */
@@ -43,7 +45,7 @@ export function describedField(
 ): FieldDescriptor {
   return {
     path,
-    types: ['STRING'],
+    types: [QueryValueTypes.STRING],
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,
@@ -74,7 +76,7 @@ export function ordersDescriptor(
   overrides: Partial<QueryModelDescriptor> = {},
 ): QueryModelDescriptor {
   return {
-    model: 'SNAPSHOT',
+    model: QueryModels.SNAPSHOT,
     version: 'sha256:orders-1',
     timeZone: 'UTC',
     record: {

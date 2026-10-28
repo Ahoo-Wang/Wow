@@ -15,6 +15,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -79,13 +81,16 @@ const THEME: ChartTheme = {
 const day = (n: number) => Date.UTC(2026, 8, n);
 
 const DAILY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
-const ORDERS: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const ORDERS: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 
 /** Five days, the third one known empty. */
 const ROWS: RecordData[] = [
@@ -212,10 +217,10 @@ describe('the option over the marks', () => {
 
   it('does not mark a segment of a stack of more than one', () => {
     const TOTAL: AnalysisMetric = {
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'total',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'amount' },
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     };
     const cfg: AnalysisViewConfig = {
       ...config({}, 'bar'),
@@ -382,7 +387,10 @@ describe('the chart as the reader meets it', () => {
           { axis: 'left', statistic: 'median', metric: 'orders' },
         ],
       }),
-      groups: [DAILY, { type: 'TERMS', field: 'warehouse', alias: 'wh' }],
+      groups: [
+        DAILY,
+        { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+      ],
     };
     const data = shapeChart(
       split,
@@ -451,7 +459,12 @@ describe('the display page', () => {
         { name: 'id', label: 'Order', kind: 'string', sortable: true },
         { name: 'createdAt', label: 'Created', kind: 'datetime' },
         { name: 'warehouse', label: 'Warehouse', kind: 'string' },
-        { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
+        {
+          name: 'amount',
+          label: 'Amount',
+          kind: 'number',
+          summary: [AggregationFunction.SUM],
+        },
       ],
       analysis: {
         count: true,
@@ -574,7 +587,10 @@ describe('the display page', () => {
         },
       },
       {
-        groups: [DAILY, { type: 'TERMS', field: 'warehouse', alias: 'wh' }],
+        groups: [
+          DAILY,
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+        ],
       },
       [
         { day: day(1), wh: 'CN', orders: 1 },

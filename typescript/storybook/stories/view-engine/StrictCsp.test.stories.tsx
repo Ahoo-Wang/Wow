@@ -54,6 +54,7 @@ import {
   underStrictPolicy,
 } from './strictCsp.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 /*
  * The engine under the strict Content Security Policy of its README
@@ -312,7 +313,10 @@ export const RecordWorkbench: Story = {
     const summary = within(document.body).getAllByRole('combobox', {
       name: /的汇总$/,
     })[0]!;
-    await pickOption(summary, zhCN['label.summary.fn.MAX']);
+    await pickOption(
+      summary,
+      zhCN[`label.summary.fn.${AggregationFunction.MAX}`],
+    );
     await expectNoViolations('a summary picked');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

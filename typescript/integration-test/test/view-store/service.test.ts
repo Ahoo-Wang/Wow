@@ -20,7 +20,13 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { asc, desc, filter } from '@ahoo-wang/wow-client/dsl';
+import {
+  asc,
+  desc,
+  filter,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewConfig, ViewInstance } from '@ahoo-wang/wow-view-engine';
 import {
@@ -155,8 +161,14 @@ describe('viewSourceOf over a query route', () => {
 
     const rows = await source.aggregate({
       filter: mine,
-      groupBy: [{ type: 'TERMS', field: 'state.kind', alias: 'kind' }],
-      metrics: [{ type: 'COUNT', alias: 'views' }],
+      groupBy: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.kind',
+          alias: 'kind',
+        },
+      ],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'views' }],
     } as Parameters<typeof source.aggregate>[0]);
     expect(rows).toEqual([{ kind: 'record', views: 3 }]);
 

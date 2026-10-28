@@ -15,6 +15,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -52,25 +54,28 @@ afterEach(cleanup);
 const WAREHOUSE: AnalysisGroup = {
   alias: 'warehouse',
   field: 'warehouse',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
 const STATUS: AnalysisGroup = {
   alias: 'status',
   field: 'status',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
-const ORDERS: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const ORDERS: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 const TOTAL: AnalysisMetric = {
   alias: 'total',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
   alias: 'average',
-  type: 'NUMERIC',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 /** Every row answers any metric the query names with a number of its own. */
@@ -134,7 +139,12 @@ async function open(
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'status', label: 'Status', kind: 'string' },
       { name: 'placedAt', label: 'Placed', kind: 'datetime' },
-      { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
+      {
+        name: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        summary: [AggregationFunction.SUM],
+      },
     ],
     analysis: {
       count: true,
@@ -412,8 +422,8 @@ describe('the sunburst in the workbench (D41)', () => {
 const DAY: AnalysisGroup = {
   alias: 'day',
   field: 'placedAt',
-  type: 'DATE_HISTOGRAM',
-  unit: 'DAY',
+  type: AggregationGroupType.DATE_HISTOGRAM,
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
 

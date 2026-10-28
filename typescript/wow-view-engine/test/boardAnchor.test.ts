@@ -21,6 +21,13 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
+  SortDirection,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -75,7 +82,7 @@ function orders(): DataViewDefinition {
 
 const since = (value: unknown): FilterNode => ({
   field: 'createdAt',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: value as never,
 });
 
@@ -87,11 +94,11 @@ function card(own: FilterNode[] = [], headline?: 'whole'): AnalysisViewConfig {
       {
         alias: 'day',
         field: 'createdAt',
-        type: 'DATE_HISTOGRAM',
-        unit: 'DAY',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.DAY,
       },
     ],
-    sort: [{ alias: 'day', direction: 'ASC' }],
+    sort: [{ alias: 'day', direction: SortDirection.ASC }],
     chart: {
       type: 'metric',
       metric: {
@@ -356,21 +363,24 @@ describe('a ratio of sums on a board card (D38 on a board)', () => {
       ...card(),
       metrics: [
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'gmv',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
-        { type: 'COUNT', alias: 'orders' },
+        { type: AggregationMetricType.COUNT, alias: 'orders' },
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'aov',
           format: { style: 'currency', currency: 'CNY' },
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'gmv' },
-            right: { type: 'METRIC_REF', metric: 'orders' },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'gmv' },
+            right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
           },
         },
       ],

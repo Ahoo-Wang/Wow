@@ -42,13 +42,19 @@ import { columnDragAccessibility, columnDrop } from '../src/ui/columns/drag.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
 import { formattersFor, tableController } from './fixtures/columns.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
 const FIELDS: FieldDefinition[] = [
   { name: 'id', label: 'Order', kind: 'string' },
   { name: 'warehouse', label: 'Warehouse', kind: 'string' },
-  { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM', 'AVG'] },
+  {
+    name: 'amount',
+    label: 'Amount',
+    kind: 'number',
+    summary: [AggregationFunction.SUM, AggregationFunction.AVG],
+  },
   // A field-less kind addresses an editor rather than something a row
   // holds, so it can never be a column and is never offered as one.
   { name: 'q', label: 'Search', kind: 'search' },
@@ -511,7 +517,10 @@ describe('the column settings popover', () => {
       screen.getByRole('combobox', { name: 'Summary under Amount' }),
     );
     await user.click(await screen.findByRole('option', { name: 'Average' }));
-    expect(table.setSummary).toHaveBeenCalledWith('amount', 'AVG');
+    expect(table.setSummary).toHaveBeenCalledWith(
+      'amount',
+      AggregationFunction.AVG,
+    );
   });
 
   /**
@@ -530,7 +539,11 @@ describe('the column settings popover', () => {
         name: 'createdAt',
         label: 'Created',
         kind: 'datetime',
-        summary: ['MIN', 'MAX', 'SUM'],
+        summary: [
+          AggregationFunction.MIN,
+          AggregationFunction.MAX,
+          AggregationFunction.SUM,
+        ],
       },
     ];
     const table = open(
@@ -547,22 +560,28 @@ describe('the column settings popover', () => {
     );
     expect(offered).toEqual([
       defaultMessages['label.summary.fn.none'],
-      defaultMessages['label.summary.fn.date.MIN'],
-      defaultMessages['label.summary.fn.date.MAX'],
+      defaultMessages[`label.summary.fn.date.${AggregationFunction.MIN}`],
+      defaultMessages[`label.summary.fn.date.${AggregationFunction.MAX}`],
     ]);
 
     await user.click(
       screen.getByRole('option', {
-        name: defaultMessages['label.summary.fn.date.MIN'],
+        name: defaultMessages[
+          `label.summary.fn.date.${AggregationFunction.MIN}`
+        ],
       }),
     );
-    expect(table.setSummary).toHaveBeenCalledWith('createdAt', 'MIN');
+    expect(table.setSummary).toHaveBeenCalledWith(
+      'createdAt',
+      AggregationFunction.MIN,
+    );
   });
 
   it('takes a summary off again', async () => {
     const user = userEvent.setup();
     const table = open({
-      summaryOf: (field: string) => (field === 'amount' ? 'SUM' : null),
+      summaryOf: (field: string) =>
+        field === 'amount' ? AggregationFunction.SUM : null,
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
@@ -608,7 +627,7 @@ describe('the column settings popover', () => {
     const table = open({
       columnFields: ['id', 'warehouse'],
       summaryOf: (field: string) =>
-        field === 'warehouse' ? ('SUM' as const) : null,
+        field === 'warehouse' ? (AggregationFunction.SUM as const) : null,
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
@@ -1060,7 +1079,7 @@ describe('a summary on a field that is not a column', () => {
       columnFields: ['id', 'amount'],
       summaryFields: ['gone'],
       summaryOf: (field: string) =>
-        field === 'gone' ? ('SUM' as const) : null,
+        field === 'gone' ? (AggregationFunction.SUM as const) : null,
       ...overrides,
     });
     render(<ColumnSettings table={table} fields={FIELDS} rowKey="id" />);
@@ -1115,7 +1134,11 @@ describe('a summary on a field that is not a column', () => {
       );
 
     expect(
-      codes(recordConfig({ summaries: [{ field: 'gone', fn: 'SUM' }] })),
+      codes(
+        recordConfig({
+          summaries: [{ field: 'gone', fn: AggregationFunction.SUM }],
+        }),
+      ),
     ).toEqual(['record.field.unknown']);
     // What `setSummary(field, null)` writes: that field's summaries gone,
     // and `table.columns` byte for byte what it was.
@@ -1132,7 +1155,7 @@ describe('a summary on a field that is not a column', () => {
     openOrphan({
       summaryFields: ['warehouse'],
       summaryOf: (field: string) =>
-        field === 'warehouse' ? ('SUM' as const) : null,
+        field === 'warehouse' ? (AggregationFunction.SUM as const) : null,
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));

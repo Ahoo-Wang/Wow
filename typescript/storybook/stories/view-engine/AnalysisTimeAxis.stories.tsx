@@ -27,6 +27,15 @@ import { tradeOrderDefinition } from './retail/definitions.js';
 import { RETAIL_DATA_NOTE, retailShell } from './retail/scene.js';
 import { createRetailEngine } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 零售的交易订单，分析上限放到一万组：订单定义自己的上限是 1000（25 个月
@@ -57,14 +66,14 @@ export type TimeAxisScene = 'days' | 'days-bars' | 'hours';
 /** 截至昨日：今天才过了 10 个小时，放进来就是最后一个「最低点」。 */
 const UNTIL_YESTERDAY: FilterLeaf = {
   field: 'firstEventTime',
-  operator: 'LTE',
+  operator: FilterOperator.LTE,
   value: { type: 'preset', preset: 'yesterday' },
 };
 
 /** 近 400 天：逐时约 9600 组，在一万组以内。 */
 const LAST_400_DAYS: FilterLeaf = {
   field: 'firstEventTime',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'relative', amount: 400, unit: 'day' },
 };
 
@@ -81,23 +90,23 @@ function timeAxisConfig(
         : undefined;
   const groups: AnalysisViewConfig['groups'] = [
     {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'firstEventTime',
       alias: 'time',
-      unit: hourly ? 'HOUR' : 'DAY',
+      unit: hourly ? AggregationDateUnit.HOUR : AggregationDateUnit.DAY,
       label: hourly ? '时段' : '日期',
       // 逐时里没有单的钟点是 0，不是断开的线。
       ...(split ? {} : { dense: true }),
     },
-    ...(split ? [{ type: 'TERMS' as const, ...split }] : []),
+    ...(split ? [{ type: AggregationGroupType.TERMS as const, ...split }] : []),
   ];
   const metrics = [
     {
       alias: 'gmv',
-      type: 'NUMERIC',
-      function: 'SUM',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
       label: 'GMV',
-      expression: { type: 'FIELD', field: GMV },
+      expression: { type: AggregationExpressionType.FIELD, field: GMV },
     },
   ] satisfies AnalysisViewConfig['metrics'];
   const fitted = fitChartSlots({ type }, groups, metrics);
@@ -112,7 +121,7 @@ function timeAxisConfig(
     layout: 'chart',
     groups,
     metrics,
-    sort: [{ alias: 'time', direction: 'ASC' }],
+    sort: [{ alias: 'time', direction: SortDirection.ASC }],
     limit: 10_000,
     table: { columns: [] },
     chart:

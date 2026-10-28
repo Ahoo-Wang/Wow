@@ -31,6 +31,7 @@ import {
 } from '../src/ui/record/sticky.js';
 import { recordTableController } from './fixtures/ui.js';
 import { pagedPaging } from '../src/record/index.js';
+import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -906,7 +907,14 @@ function controller(
     // that carries a summary (review P1-3).
     summaries: {
       scope: 'page',
-      cells: [{ field: columns[0].field, label: '', fn: 'COUNT', value: 1 }],
+      cells: [
+        {
+          field: columns[0].field,
+          label: '',
+          fn: AggregationMetricType.COUNT,
+          value: 1,
+        },
+      ],
     },
     columnFields: columns.map(entry => entry.field),
     ...overrides,

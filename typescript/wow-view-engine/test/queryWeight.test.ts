@@ -12,7 +12,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { filter, type AggregationQuery } from '@ahoo-wang/wow-client/dsl';
+import {
+  filter,
+  type AggregationQuery,
+  FilterOperator,
+  AggregationMetricType,
+  HavingExpressionType,
+  ComparisonOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   DEFAULT_RUNTIME_LIMITS,
@@ -41,7 +48,7 @@ describe('the weight of a compiled query, as the guard counts it', () => {
         filter.and([
           filter.eq('a', 1),
           filter.or([
-            { op: 'IN', field: 'b', values: [1, 2, 3] } as never,
+            { op: FilterOperator.IN, field: 'b', values: [1, 2, 3] } as never,
             filter.ids(['x', 'y']),
           ]),
         ]),
@@ -60,18 +67,31 @@ describe('the weight of a compiled query, as the guard counts it', () => {
       filter: filter.eq('a', 1),
       elements: [{ path: 'items' }],
       metrics: [
-        { type: 'COUNT', alias: 'all', filter: { op: 'MATCH_ALL' } },
         {
-          type: 'COUNT',
+          type: AggregationMetricType.COUNT,
+          alias: 'all',
+          filter: { op: FilterOperator.MATCH_ALL },
+        },
+        {
+          type: AggregationMetricType.COUNT,
           alias: 'some',
-          filter: { op: 'IN', field: 'b', values: [1, 2] },
+          filter: { op: FilterOperator.IN, field: 'b', values: [1, 2] },
         },
       ],
       having: {
-        type: 'AND',
+        type: HavingExpressionType.AND,
         operands: [
-          { type: 'IN', metric: 'some', values: [1, 2, 3, 4] },
-          { type: 'BETWEEN', metric: 'all', low: 1, high: 2 },
+          {
+            type: HavingExpressionType.IN,
+            metric: 'some',
+            values: [1, 2, 3, 4],
+          },
+          {
+            type: HavingExpressionType.BETWEEN,
+            metric: 'all',
+            low: 1,
+            high: 2,
+          },
         ],
       },
     } as unknown as AggregationQuery;
@@ -90,8 +110,16 @@ function conditions(count: number): FilterNode[] {
   return Array.from({ length: count }, (_, index) => ({
     op: 'and' as const,
     children: [
-      { field: 'warehouse', operator: 'EQ' as const, value: `W${index}` },
-      { field: 'status', operator: 'EQ' as const, value: `S${index}` },
+      {
+        field: 'warehouse',
+        operator: ComparisonOperator.EQ as const,
+        value: `W${index}`,
+      },
+      {
+        field: 'status',
+        operator: ComparisonOperator.EQ as const,
+        value: `S${index}`,
+      },
     ],
   }));
 }
@@ -134,7 +162,7 @@ describe('admission weighs the compiled query (C3)', () => {
           children: [
             {
               field: 'warehouse',
-              operator: 'IN',
+              operator: FilterOperator.IN,
               value: Array.from({ length: count }, (_, i) => `W${i}`),
             },
           ],
@@ -154,7 +182,7 @@ describe('admission weighs the compiled query (C3)', () => {
       filter: { op: 'or', children: conditions(40) },
       metrics: [
         {
-          type: 'COUNT',
+          type: AggregationMetricType.COUNT,
           alias: 'orders',
           filter: { op: 'or', children: conditions(4) },
         },

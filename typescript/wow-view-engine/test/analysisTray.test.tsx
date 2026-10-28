@@ -16,6 +16,7 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -695,8 +696,8 @@ describe('the tray’s dimension cards', () => {
 
     await waitFor(() =>
       expect(draft(engine).groups[1]).toMatchObject({
-        type: 'DATE_HISTOGRAM',
-        unit: 'DAY',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.DAY,
       }),
     );
   });
@@ -712,10 +713,10 @@ describe('the tray’s dimension cards', () => {
       config: {
         groups: [
           {
-            type: 'DATE_PART',
+            type: AggregationGroupType.DATE_PART,
             field: 'createdAt',
             alias: 'created',
-            part: 'DAY_OF_WEEK',
+            part: AggregationDatePart.DAY_OF_WEEK,
           },
         ],
         sort: [],
@@ -744,8 +745,8 @@ describe('the tray’s dimension cards', () => {
     );
     await waitFor(() =>
       expect(draft(engine).groups[0]).toMatchObject({
-        type: 'DATE_PART',
-        part: 'HOUR_OF_DAY',
+        type: AggregationGroupType.DATE_PART,
+        part: AggregationDatePart.HOUR_OF_DAY,
       }),
     );
 
@@ -775,9 +776,9 @@ describe('the tray’s dimension cards', () => {
     );
     await waitFor(() =>
       expect(draft(engine).groups[1]).toMatchObject({
-        type: 'DATE_PART',
+        type: AggregationGroupType.DATE_PART,
         field: 'createdAt',
-        part: 'DAY_OF_WEEK',
+        part: AggregationDatePart.DAY_OF_WEEK,
       }),
     );
   });
@@ -793,7 +794,7 @@ describe('the tray’s dimension cards', () => {
 
     await waitFor(() =>
       expect(draft(engine).groups[1]).toMatchObject({
-        type: 'HISTOGRAM',
+        type: AggregationGroupType.HISTOGRAM,
         interval: 250,
       }),
     );
@@ -883,15 +884,20 @@ describe('the tray’s metric cards', () => {
     // only a sample value, start as exactly that.
     await add('Add metric', 'Customer');
     await screen.findByRole('button', {
-      name: `Remove metric ${summarised('Customer', 'DISTINCT_COUNT')}`,
+      name: `Remove metric ${summarised('Customer', AggregationMetricType.DISTINCT_COUNT)}`,
     });
-    expect(metrics()[2]).toMatchObject({ type: 'DISTINCT_COUNT' });
+    expect(metrics()[2]).toMatchObject({
+      type: AggregationMetricType.DISTINCT_COUNT,
+    });
 
     await add('Add metric', 'Note');
     await screen.findByRole('button', {
-      name: `Remove metric ${summarised('Note', 'ANY')}`,
+      name: `Remove metric ${summarised('Note', AggregationMetricType.ANY)}`,
     });
-    expect(metrics()[3]).toMatchObject({ type: 'ANY', field: 'note' });
+    expect(metrics()[3]).toMatchObject({
+      type: AggregationMetricType.ANY,
+      field: 'note',
+    });
     expect(engine.openRuntimes()[0].getSnapshot().issues).toEqual([]);
   });
 
@@ -913,7 +919,7 @@ describe('the tray’s metric cards', () => {
 
     await add('Add metric', 'Note');
     await screen.findByRole('button', {
-      name: `Remove metric ${summarised('Note', 'ANY')}`,
+      name: `Remove metric ${summarised('Note', AggregationMetricType.ANY)}`,
     });
 
     expect(notes()).toEqual([
@@ -969,15 +975,19 @@ describe('the tray’s metric cards', () => {
     };
 
     await add('Add metric', 'Amount');
-    await waitFor(() => expect(metric().type).toBe('NUMERIC'));
-    expect(metric().function).toBe('SUM');
+    await waitFor(() =>
+      expect(metric().type).toBe(AggregationMetricType.NUMERIC),
+    );
+    expect(metric().function).toBe(AggregationFunction.SUM);
 
     await choose('Distinct count');
-    await waitFor(() => expect(metric().type).toBe('DISTINCT_COUNT'));
+    await waitFor(() =>
+      expect(metric().type).toBe(AggregationMetricType.DISTINCT_COUNT),
+    );
     expect(metric().function).toBeUndefined();
 
     await choose('Any value (not stable)');
-    await waitFor(() => expect(metric().type).toBe('ANY'));
+    await waitFor(() => expect(metric().type).toBe(AggregationMetricType.ANY));
     expect(metric().expression).toBeUndefined();
     expect(metric().field).toBe('amount');
     // The alias the row was added under survives every swap: it names the
@@ -1001,13 +1011,13 @@ describe('the tray’s metric cards', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: `Remove metric ${summarised('Amount', 'AVG')}`,
+        name: `Remove metric ${summarised('Amount', AggregationFunction.AVG)}`,
       }),
     );
     await waitFor(() =>
       expect(
         screen.queryByRole('button', {
-          name: `Remove metric ${summarised('Amount', 'AVG')}`,
+          name: `Remove metric ${summarised('Amount', AggregationFunction.AVG)}`,
         }),
       ).toBeNull(),
     );
@@ -1036,7 +1046,7 @@ describe('the tray’s metric cards', () => {
     await open();
     const removals = () =>
       screen.queryAllByRole('button', {
-        name: `Remove metric ${summarised('Amount', 'SUM')}`,
+        name: `Remove metric ${summarised('Amount', AggregationFunction.SUM)}`,
       });
 
     await add('Add metric', 'Amount');

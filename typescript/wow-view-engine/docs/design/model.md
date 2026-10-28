@@ -7,6 +7,7 @@
 ## 定义
 
 ```ts
+// wire spelling (D352b): the stored JSON shape, as a host or a store writes it
 // ---- 定义 ----
 export type ViewDefinition =
   | {
@@ -203,6 +204,7 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 ## 配置
 
 ```ts
+// wire spelling (D352b): the stored JSON shape, as a host or a store writes it
 // ---- 配置 ----
 export type ViewConfig =
   RecordViewConfig | AnalysisViewConfig | DashboardViewConfig;

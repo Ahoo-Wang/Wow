@@ -23,6 +23,7 @@ import {
   AggregationDateUnit,
   AggregationGroupType,
   type QueryModelDescriptor,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -94,16 +95,16 @@ function definition(
 }
 
 const weekday: AnalysisGroup = {
-  type: 'DATE_PART',
+  type: AggregationGroupType.DATE_PART,
   field: 'placedAt',
   alias: 'weekday',
-  part: 'DAY_OF_WEEK',
+  part: AggregationDatePart.DAY_OF_WEEK,
 };
 const hour: AnalysisGroup = {
-  type: 'DATE_PART',
+  type: AggregationGroupType.DATE_PART,
   field: 'placedAt',
   alias: 'hour',
-  part: 'HOUR_OF_DAY',
+  part: AggregationDatePart.HOUR_OF_DAY,
 };
 
 const check = (groups: AnalysisGroup[]) =>
@@ -138,10 +139,10 @@ const check = (groups: AnalysisGroup[]) =>
 describe('the parts a field offers', () => {
   it('lists every part in the offered order when the field names none', () => {
     expect(datePartsOf(capability.fields[0])).toEqual([
-      'DAY_OF_WEEK',
-      'HOUR_OF_DAY',
-      'DAY_OF_MONTH',
-      'MONTH_OF_YEAR',
+      AggregationDatePart.DAY_OF_WEEK,
+      AggregationDatePart.HOUR_OF_DAY,
+      AggregationDatePart.DAY_OF_MONTH,
+      AggregationDatePart.MONTH_OF_YEAR,
     ]);
     expect(ANALYSIS_DATE_PARTS).toEqual(
       expect.arrayContaining(Object.values(AggregationDatePart)),
@@ -152,7 +153,9 @@ describe('the parts a field offers', () => {
   });
 
   it('keeps to the declared parts, and offers none without DATE_PART', () => {
-    expect(datePartsOf(capability.fields[1])).toEqual(['HOUR_OF_DAY']);
+    expect(datePartsOf(capability.fields[1])).toEqual([
+      AggregationDatePart.HOUR_OF_DAY,
+    ]);
     expect(
       datePartsOf({ groups: [AggregationGroupType.DATE_HISTOGRAM] }),
     ).toEqual([]);
@@ -164,22 +167,22 @@ describe('the parts a field offers', () => {
     expect(
       groupOfType(
         groupFacts(placed!, [], undefined, capability.fields[0]),
-        'DATE_PART',
+        AggregationGroupType.DATE_PART,
         'p',
       ),
     ).toEqual({
-      type: 'DATE_PART',
+      type: AggregationGroupType.DATE_PART,
       field: 'placedAt',
       alias: 'p',
-      part: 'DAY_OF_WEEK',
+      part: AggregationDatePart.DAY_OF_WEEK,
     });
     expect(
       groupOfType(
         groupFacts(shipped!, [], undefined, capability.fields[1]),
-        'DATE_PART',
+        AggregationGroupType.DATE_PART,
         's',
       ),
-    ).toMatchObject({ part: 'HOUR_OF_DAY' });
+    ).toMatchObject({ part: AggregationDatePart.HOUR_OF_DAY });
   });
 });
 
@@ -255,8 +258,11 @@ describe('narrowing by the descriptor', () => {
       builtinFieldKinds,
     );
     expect(narrowed.analysis?.fields[0]).toMatchObject({
-      groups: ['DATE_HISTOGRAM', 'DATE_PART'],
-      dateParts: ['DAY_OF_WEEK'],
+      groups: [
+        AggregationGroupType.DATE_HISTOGRAM,
+        AggregationGroupType.DATE_PART,
+      ],
+      dateParts: [AggregationDatePart.DAY_OF_WEEK],
     });
     expect(findings).toEqual(
       expect.arrayContaining([
@@ -284,7 +290,7 @@ describe('narrowing by the descriptor', () => {
     );
     expect(narrowed.analysis?.fields[0]).not.toHaveProperty('dateParts');
     expect(narrowed.analysis?.fields[1]).toMatchObject({
-      dateParts: ['HOUR_OF_DAY'],
+      dateParts: [AggregationDatePart.HOUR_OF_DAY],
     });
   });
 
@@ -310,7 +316,9 @@ describe('narrowing by the descriptor', () => {
       descriptor,
       builtinFieldKinds,
     );
-    expect(narrowed.analysis?.fields[0]?.groups).toEqual(['DATE_HISTOGRAM']);
+    expect(narrowed.analysis?.fields[0]?.groups).toEqual([
+      AggregationGroupType.DATE_HISTOGRAM,
+    ]);
     expect(narrowed.analysis?.fields.map(entry => entry.field)).not.toContain(
       'shippedAt',
     );
@@ -330,7 +338,9 @@ describe('narrowing by the descriptor', () => {
       described([]),
       builtinFieldKinds,
     );
-    expect(narrowed.analysis?.fields[0]?.groups).toEqual(['DATE_HISTOGRAM']);
+    expect(narrowed.analysis?.fields[0]?.groups).toEqual([
+      AggregationGroupType.DATE_HISTOGRAM,
+    ]);
   });
 });
 
@@ -343,10 +353,10 @@ describe('config admission', () => {
     expect(
       check([
         {
-          type: 'DATE_PART',
+          type: AggregationGroupType.DATE_PART,
           field: 'shippedAt',
           alias: 'd',
-          part: 'DAY_OF_WEEK',
+          part: AggregationDatePart.DAY_OF_WEEK,
         },
       ]),
     ).toEqual(['analysis.group.part-unsupported']);
@@ -376,17 +386,17 @@ describe('compileAnalysis', () => {
     );
     expect(query.groupBy).toEqual([
       {
-        type: 'DATE_PART',
+        type: AggregationGroupType.DATE_PART,
         field: 'placedAt',
         alias: 'weekday',
-        part: 'DAY_OF_WEEK',
+        part: AggregationDatePart.DAY_OF_WEEK,
         timeZone: 'Europe/Berlin',
       },
       {
-        type: 'DATE_PART',
+        type: AggregationGroupType.DATE_PART,
         field: 'placedAt',
         alias: 'hour',
-        part: 'HOUR_OF_DAY',
+        part: AggregationDatePart.HOUR_OF_DAY,
         timeZone: 'Asia/Shanghai',
         dense: false,
       },
@@ -400,7 +410,7 @@ describe('a part key on screen', () => {
     const en = { locale: 'en-US' };
     const read = (
       value: unknown,
-      part: AnalysisGroup & { type: 'DATE_PART' },
+      part: AnalysisGroup & { type: `${AggregationGroupType.DATE_PART}` },
     ) => [
       displayValue(value, { datePart: part.part }, zh),
       displayValue(value, { datePart: part.part }, en),
@@ -408,20 +418,38 @@ describe('a part key on screen', () => {
     expect(read(1, weekday as never)).toEqual(['周一', 'Mon']);
     expect(read(7, weekday as never)).toEqual(['周日', 'Sun']);
     expect(read('20', hour as never)).toEqual(['20时', '20:00']);
-    expect(displayValue(0, { datePart: 'HOUR_OF_DAY' }, zh)).toBe('0时');
-    expect(displayValue(9, { datePart: 'MONTH_OF_YEAR' }, zh)).toBe('9月');
-    expect(displayValue(3, { datePart: 'DAY_OF_MONTH' }, zh)).toBe('3日');
+    expect(
+      displayValue(0, { datePart: AggregationDatePart.HOUR_OF_DAY }, zh),
+    ).toBe('0时');
+    expect(
+      displayValue(9, { datePart: AggregationDatePart.MONTH_OF_YEAR }, zh),
+    ).toBe('9月');
+    expect(
+      displayValue(3, { datePart: AggregationDatePart.DAY_OF_MONTH }, zh),
+    ).toBe('3日');
   });
 
   it('leaves a key outside the cycle, and a missing one, to the caller', () => {
     expect(
-      displayValue(8, { datePart: 'DAY_OF_WEEK' }, { locale: 'zh-CN' }),
+      displayValue(
+        8,
+        { datePart: AggregationDatePart.DAY_OF_WEEK },
+        { locale: 'zh-CN' },
+      ),
     ).toBeUndefined();
     expect(
-      displayValue('x', { datePart: 'DAY_OF_WEEK' }, { locale: 'zh-CN' }),
+      displayValue(
+        'x',
+        { datePart: AggregationDatePart.DAY_OF_WEEK },
+        { locale: 'zh-CN' },
+      ),
     ).toBeUndefined();
     expect(
-      displayValue(null, { datePart: 'DAY_OF_WEEK' }, { locale: 'zh-CN' }),
+      displayValue(
+        null,
+        { datePart: AggregationDatePart.DAY_OF_WEEK },
+        { locale: 'zh-CN' },
+      ),
     ).toBeUndefined();
   });
 
@@ -435,13 +463,13 @@ describe('a part key on screen', () => {
     });
     expect(
       columnTitle(
-        { label: '下单时间', datePart: 'DAY_OF_WEEK' },
+        { label: '下单时间', datePart: AggregationDatePart.DAY_OF_WEEK },
         messages(zhCNMessages as never) as never,
       ),
     ).toBe('下单时间（星期）');
     expect(
       columnTitle(
-        { label: 'Placed', datePart: 'HOUR_OF_DAY' },
+        { label: 'Placed', datePart: AggregationDatePart.HOUR_OF_DAY },
         messages(enMessages as never) as never,
       ),
     ).toBe('Placed (hour of day)');
@@ -454,7 +482,10 @@ describe('a part key on screen', () => {
       [{ weekday: 1, orders: 3 }],
     );
     const column = view.columns.find(entry => entry.alias === 'weekday');
-    expect(column).toMatchObject({ datePart: 'DAY_OF_WEEK', role: 'group' });
+    expect(column).toMatchObject({
+      datePart: AggregationDatePart.DAY_OF_WEEK,
+      role: 'group',
+    });
     expect(column).not.toHaveProperty('cell');
     expect(column).not.toHaveProperty('dateUnit');
   });
@@ -491,7 +522,7 @@ describe('a chart along a cycle', () => {
     const data = shapeChart(
       config({
         groups: [weekday],
-        sort: [{ alias: 'orders', direction: 'DESC' }],
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
         chart: {
           type: 'bar',
           cartesian: { x: 'weekday', series: [{ metric: 'orders' }] },
@@ -516,7 +547,10 @@ describe('a chart along a cycle', () => {
   it('orders a weekday legend Monday first, and keeps a stray key last', () => {
     const data = shapeChart(
       config({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }, weekday],
+        groups: [
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+          weekday,
+        ],
         sort: [],
         chart: {
           type: 'bar',
@@ -539,10 +573,10 @@ describe('a chart along a cycle', () => {
 
   it('knows the domain of every part', () => {
     expect(DATE_PART_DOMAINS).toEqual({
-      DAY_OF_WEEK: [1, 7],
-      HOUR_OF_DAY: [0, 23],
-      DAY_OF_MONTH: [1, 31],
-      MONTH_OF_YEAR: [1, 12],
+      [AggregationDatePart.DAY_OF_WEEK]: [1, 7],
+      [AggregationDatePart.HOUR_OF_DAY]: [0, 23],
+      [AggregationDatePart.DAY_OF_MONTH]: [1, 31],
+      [AggregationDatePart.MONTH_OF_YEAR]: [1, 12],
     });
   });
 });

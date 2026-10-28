@@ -15,6 +15,8 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisViewConfig,
@@ -143,16 +145,28 @@ const citySalesDefinition: DataViewDefinition = {
   },
 };
 
-const CITY = { type: 'TERMS', field: 'city', alias: 'city' } as const;
-const CHANNEL = { type: 'TERMS', field: 'channel', alias: 'channel' } as const;
+const CITY = {
+  type: AggregationGroupType.TERMS,
+  field: 'city',
+  alias: 'city',
+} as const;
+const CHANNEL = {
+  type: AggregationGroupType.TERMS,
+  field: 'channel',
+  alias: 'channel',
+} as const;
 const SUM = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 } as const;
-const AVG = { ...SUM, alias: 'average', function: 'AVG' } as const;
-const COUNT = { alias: 'orders', type: 'COUNT' } as const;
+const AVG = {
+  ...SUM,
+  alias: 'average',
+  function: AggregationFunction.AVG,
+} as const;
+const COUNT = { alias: 'orders', type: AggregationMetricType.COUNT } as const;
 
 /** The analysis a scene opens on. */
 function displayConfig(scene: DisplayScene): AnalysisViewConfig {

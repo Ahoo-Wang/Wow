@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  HavingExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
@@ -75,9 +78,9 @@ function compile(
 
 describe('the array kind', () => {
   it.each([
-    ['IN', FilterOperator.IN],
-    ['NOT_IN', FilterOperator.NOT_IN],
-    ['CONTAINS_ALL', FilterOperator.CONTAINS_ALL],
+    [FilterOperator.IN, FilterOperator.IN],
+    [FilterOperator.NOT_IN, FilterOperator.NOT_IN],
+    [FilterOperator.CONTAINS_ALL, FilterOperator.CONTAINS_ALL],
   ] as [FilterOperatorName, FilterOperator][])(
     'compiles %s over the entries',
     (operator, op) => {
@@ -100,11 +103,11 @@ describe('the array kind', () => {
       { op: FilterOperator.IS_EMPTY, field: 'tags' },
       { op: FilterOperator.IS_NULL, field: 'tags' },
     ];
-    expect(compile('tags', 'IS_EMPTY', null)).toEqual({
+    expect(compile('tags', FilterOperator.IS_EMPTY, null)).toEqual({
       op: FilterOperator.OR,
       operands: none,
     });
-    expect(compile('tags', 'IS_NOT_NULL', null)).toEqual({
+    expect(compile('tags', FilterOperator.IS_NOT_NULL, null)).toEqual({
       op: FilterOperator.NOR,
       operands: none,
     });
@@ -113,22 +116,26 @@ describe('the array kind', () => {
   it('offers no other question of presence', () => {
     const kind = builtinFieldKinds.get('array')!;
     expect(kind.operators).toEqual([
-      'IN',
-      'NOT_IN',
-      'CONTAINS_ALL',
-      'IS_EMPTY',
-      'IS_NOT_NULL',
+      FilterOperator.IN,
+      FilterOperator.NOT_IN,
+      FilterOperator.CONTAINS_ALL,
+      FilterOperator.IS_EMPTY,
+      FilterOperator.IS_NOT_NULL,
     ]);
     // Offered only where the service answers both of what it is sent as.
-    expect(kind.compiledOperators?.('IS_NOT_NULL')).toEqual([
-      'IS_EMPTY',
-      'IS_NULL',
+    expect(kind.compiledOperators?.(FilterOperator.IS_NOT_NULL)).toEqual([
+      FilterOperator.IS_EMPTY,
+      FilterOperator.IS_NULL,
     ]);
-    expect(kind.compiledOperators?.('IN')).toEqual(['IN']);
+    expect(kind.compiledOperators?.(FilterOperator.IN)).toEqual([
+      HavingExpressionType.IN,
+    ]);
   });
 
   it('takes numbers as well as text', () => {
-    expect(compile('tags', 'IN', [1, 2])).toMatchObject({ values: [1, 2] });
+    expect(compile('tags', FilterOperator.IN, [1, 2])).toMatchObject({
+      values: [1, 2],
+    });
   });
 
   it('refuses entries that are neither', () => {
@@ -136,7 +143,7 @@ describe('the array kind', () => {
       errors(
         validateFilter(
           fields,
-          tree('tags', 'IN', [{}] as never),
+          tree('tags', FilterOperator.IN, [{}] as never),
           builtinFieldKinds,
         ),
       ),
@@ -148,7 +155,7 @@ describe('the array kind', () => {
       errors(
         validateFilter(
           fields,
-          tree('categories', 'IN', ['a']),
+          tree('categories', FilterOperator.IN, ['a']),
           builtinFieldKinds,
         ),
       ),
@@ -157,7 +164,7 @@ describe('the array kind', () => {
       errors(
         validateFilter(
           fields,
-          tree('categories', 'IN', ['zz']),
+          tree('categories', FilterOperator.IN, ['zz']),
           builtinFieldKinds,
         ),
       ),
@@ -169,7 +176,7 @@ describe('the array kind', () => {
       errors(
         validateFilter(
           fields,
-          tree('tags', 'IN', ['anything']),
+          tree('tags', FilterOperator.IN, ['anything']),
           builtinFieldKinds,
         ),
       ),
@@ -180,9 +187,17 @@ describe('the array kind', () => {
     // Consistent with every other kind since unfinished conditions landed:
     // an empty list is not an error and does not reach the query.
     expect(
-      errors(validateFilter(fields, tree('tags', 'IN', []), builtinFieldKinds)),
+      errors(
+        validateFilter(
+          fields,
+          tree('tags', FilterOperator.IN, []),
+          builtinFieldKinds,
+        ),
+      ),
     ).toEqual([]);
-    expect(compile('tags', 'IN', [])).toEqual({ op: FilterOperator.MATCH_ALL });
+    expect(compile('tags', FilterOperator.IN, [])).toEqual({
+      op: FilterOperator.MATCH_ALL,
+    });
   });
 
   it.each([
@@ -202,26 +217,34 @@ describe('the array kind', () => {
   ])('offers the editor %s has candidates for', (name, want) => {
     const field = fields.find(entry => entry.name === name)!;
 
-    expect(builtinFieldKinds.get('array')!.editor('IN', field)).toEqual(want);
+    expect(
+      builtinFieldKinds.get('array')!.editor(FilterOperator.IN, field),
+    ).toEqual(want);
   });
 
   it('starts with no entries chosen', () => {
     const field = fields[0];
 
-    expect(builtinFieldKinds.get('array')!.emptyValue('IN', field)).toEqual([]);
+    expect(
+      builtinFieldKinds.get('array')!.emptyValue(FilterOperator.IN, field),
+    ).toEqual([]);
   });
 
   it('needs no input for the emptiness questions', () => {
     const field = fields[0];
     const kind = builtinFieldKinds.get('array')!;
 
-    expect(kind.editor('IS_EMPTY', field)).toEqual({ input: 'none' });
-    expect(kind.editor('IS_NOT_NULL', field)).toEqual({ input: 'none' });
+    expect(kind.editor(FilterOperator.IS_EMPTY, field)).toEqual({
+      input: 'none',
+    });
+    expect(kind.editor(FilterOperator.IS_NOT_NULL, field)).toEqual({
+      input: 'none',
+    });
   });
 
   it.each([
-    ['IS_EMPTY', 'has-no-entries', 'Categories has no entries'],
-    ['IS_NOT_NULL', 'has-entries', 'Categories has entries'],
+    [FilterOperator.IS_EMPTY, 'has-no-entries', 'Categories has no entries'],
+    [FilterOperator.IS_NOT_NULL, 'has-entries', 'Categories has entries'],
   ] as [FilterOperatorName, string, string][])(
     'says %s as a question of entries',
     (operator, relation, want) => {
@@ -236,9 +259,9 @@ describe('the array kind', () => {
   );
 
   it.each([
-    ['IN', 'Categories has any of Apparel'],
-    ['NOT_IN', 'Categories has none of Apparel'],
-    ['CONTAINS_ALL', 'Categories has all of Apparel'],
+    [FilterOperator.IN, 'Categories has any of Apparel'],
+    [FilterOperator.NOT_IN, 'Categories has none of Apparel'],
+    [FilterOperator.CONTAINS_ALL, 'Categories has all of Apparel'],
   ] as [FilterOperatorName, string][])('summarises %s', (operator, want) => {
     // Declared candidates are summarised by their label, not their value.
     expect(
@@ -254,7 +277,7 @@ describe('the array kind', () => {
     expect(
       describeFilter(
         fields,
-        tree('tags', 'IS_EMPTY', null),
+        tree('tags', FilterOperator.IS_EMPTY, null),
         builtinFieldKinds,
       )[0].text,
     ).toBe('Tags has no entries');

@@ -24,6 +24,10 @@ import {
   SearchMode,
   type FieldDescriptor,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QueryModels,
+  QueryConstraintTypes,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import type {
@@ -58,7 +62,7 @@ const searchableOrders: DataViewDefinition = {
       label: '搜索备注',
       kind: 'search',
       searchFields: ['note'],
-      searchMode: 'PHRASE',
+      searchMode: SearchMode.PHRASE,
     },
   ],
 };
@@ -67,7 +71,7 @@ const searchableOrders: DataViewDefinition = {
 function described(path: string): FieldDescriptor {
   return {
     path,
-    types: ['STRING'],
+    types: [QueryValueTypes.STRING],
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,
@@ -103,7 +107,7 @@ function ordersDescriptor(store: Store, counts = false): QueryModelDescriptor {
       : described(field.name),
   );
   return {
-    model: 'SNAPSHOT',
+    model: QueryModels.SNAPSHOT,
     version: `sha256:orders-${store}`,
     timeZone: 'Asia/Shanghai',
     record: {
@@ -151,7 +155,9 @@ function ordersDescriptor(store: Store, counts = false): QueryModelDescriptor {
     elements: [],
     dynamic: [],
     // A store that counts only what a condition narrows (Q3).
-    constraints: counts ? [{ type: 'COUNT_REQUIRES_FILTER' }] : [],
+    constraints: counts
+      ? [{ type: QueryConstraintTypes.COUNT_REQUIRES_FILTER }]
+      : [],
   };
 }
 
@@ -183,11 +189,11 @@ const rushNotes: ViewInstance = {
     filter: {
       op: 'and',
       children: [
-        { field: 'note', operator: 'CONTAINS', value: '加急' },
-        { field: 'warehouse', operator: 'IN', value: ['CN-EAST'] },
+        { field: 'note', operator: FilterOperator.CONTAINS, value: '加急' },
+        { field: 'warehouse', operator: FilterOperator.IN, value: ['CN-EAST'] },
       ],
     },
-    sort: [{ field: 'amount', direction: 'DESC' }],
+    sort: [{ field: 'amount', direction: SortDirection.DESC }],
   }),
 };
 

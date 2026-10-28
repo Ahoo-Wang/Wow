@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { filter as wow, FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  filter as wow,
+  FilterOperator,
+  TimeUnit,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   FIELDLESS_FIELD_KIND_IDS,
@@ -95,18 +99,18 @@ const LIST_KINDS = ['array', 'elementMatch'];
 describe('presence operators', () => {
   it('compile and describe without reading a value', () => {
     for (const operator of [
-      'IS_NULL',
-      'IS_NOT_NULL',
-      'EXISTS',
-      'NOT_EXISTS',
+      FilterOperator.IS_NULL,
+      FilterOperator.IS_NOT_NULL,
+      FilterOperator.EXISTS,
+      FilterOperator.NOT_EXISTS,
     ] as FilterOperatorName[]) {
       expect(compilePresence('value', operator)).toMatchObject({
         field: 'value',
       });
       expect(describePresence(operator)).toBeTruthy();
     }
-    expect(compilePresence('value', 'EQ')).toBeNull();
-    expect(describePresence('EQ')).toBeNull();
+    expect(compilePresence('value', FilterOperator.EQ)).toBeNull();
+    expect(describePresence(FilterOperator.EQ)).toBeNull();
   });
 
   /**
@@ -118,9 +122,16 @@ describe('presence operators', () => {
     for (const id of LIST_KINDS) {
       const kind = builtinFieldKinds.get(id)!;
       expect(kind.operators, id).toEqual(
-        expect.arrayContaining(['IS_EMPTY', 'IS_NOT_NULL']),
+        expect.arrayContaining([
+          FilterOperator.IS_EMPTY,
+          FilterOperator.IS_NOT_NULL,
+        ]),
       );
-      for (const operator of ['IS_NULL', 'EXISTS', 'NOT_EXISTS'])
+      for (const operator of [
+        FilterOperator.IS_NULL,
+        FilterOperator.EXISTS,
+        FilterOperator.NOT_EXISTS,
+      ])
         expect(kind.operators, id).not.toContain(operator);
       expect(kind.relations?.IS_NOT_NULL, id).toBe('has-entries');
     }
@@ -131,7 +142,7 @@ describe('presence operators', () => {
     // and these kinds' names are handles for the editor. Search joined them
     // for the same reason, which is why the list says what it means.
     const without = [...builtinFieldKinds.values()]
-      .filter(kind => !kind.operators.includes('IS_NULL'))
+      .filter(kind => !kind.operators.includes(FilterOperator.IS_NULL))
       .map(kind => kind.id)
       .sort();
 
@@ -161,20 +172,22 @@ describe('presence operators', () => {
       // would mean two different things depending on its operator.
       if (FIELDLESS_FIELD_KIND_IDS.includes(kind.id)) continue;
       if (LIST_KINDS.includes(kind.id)) continue;
-      expect(kind.operators).toContain('IS_NULL');
+      expect(kind.operators).toContain(FilterOperator.IS_NULL);
       expect(
         kind.validate({
           value: null,
-          operator: 'IS_NULL',
+          operator: FilterOperator.IS_NULL,
           field: field(),
           kinds: builtinFieldKinds,
           path: [],
         }),
       ).toEqual([]);
-      expect(kind.editor('IS_NULL', field())).toEqual({ input: 'none' });
+      expect(kind.editor(FilterOperator.IS_NULL, field())).toEqual({
+        input: 'none',
+      });
       expect(
         kind.describe({
-          leaf: leaf('IS_NULL', null),
+          leaf: leaf(FilterOperator.IS_NULL, null),
           field: field(),
           kinds: builtinFieldKinds,
         }).text,
@@ -189,33 +202,41 @@ describe('string kind', () => {
   it('starts unfilled, whatever the operator', () => {
     // A row the user has only just added has not asked anything yet, so its
     // starting value must not narrow the list.
-    expect(kind.emptyValue('EQ', field())).toBe('');
-    expect(kind.emptyValue('IN', field())).toEqual([]);
+    expect(kind.emptyValue(FilterOperator.EQ, field())).toBe('');
+    expect(kind.emptyValue(FilterOperator.IN, field())).toEqual([]);
   });
 
   it('accepts a string, a list, and the emptiness operators', () => {
-    expect(codes(kind, 'A', 'EQ')).toEqual([]);
-    expect(codes(kind, ['A', 'B'], 'IN')).toEqual([]);
-    expect(codes(kind, null, 'IS_EMPTY_STRING')).toEqual([]);
-    expect(codes(kind, 7, 'EQ')).toEqual(['filter.value.expected-string']);
-    expect(codes(kind, [7], 'IN')).toEqual([
+    expect(codes(kind, 'A', FilterOperator.EQ)).toEqual([]);
+    expect(codes(kind, ['A', 'B'], FilterOperator.IN)).toEqual([]);
+    expect(codes(kind, null, FilterOperator.IS_EMPTY_STRING)).toEqual([]);
+    expect(codes(kind, 7, FilterOperator.EQ)).toEqual([
+      'filter.value.expected-string',
+    ]);
+    expect(codes(kind, [7], FilterOperator.IN)).toEqual([
       'filter.value.expected-string-list',
     ]);
-    expect(codes(kind, [], 'IN')).toEqual(['filter.value.required']);
+    expect(codes(kind, [], FilterOperator.IN)).toEqual([
+      'filter.value.required',
+    ]);
   });
 
   it('maps every operator onto Wow', () => {
     const expected: [FilterOperatorName, FilterOperator, unknown][] = [
-      ['EQ', FilterOperator.EQ, 'A'],
-      ['NE', FilterOperator.NE, 'A'],
-      ['CONTAINS', FilterOperator.CONTAINS, 'A'],
-      ['STARTS_WITH', FilterOperator.STARTS_WITH, 'A'],
-      ['ENDS_WITH', FilterOperator.ENDS_WITH, 'A'],
-      ['IN', FilterOperator.IN, ['A']],
-      ['NOT_IN', FilterOperator.NOT_IN, ['A']],
-      ['IS_EMPTY_STRING', FilterOperator.IS_EMPTY_STRING, null],
-      ['IS_NOT_EMPTY_STRING', FilterOperator.IS_NOT_EMPTY_STRING, null],
-      ['IS_NULL', FilterOperator.IS_NULL, null],
+      [FilterOperator.EQ, FilterOperator.EQ, 'A'],
+      [FilterOperator.NE, FilterOperator.NE, 'A'],
+      [FilterOperator.CONTAINS, FilterOperator.CONTAINS, 'A'],
+      [FilterOperator.STARTS_WITH, FilterOperator.STARTS_WITH, 'A'],
+      [FilterOperator.ENDS_WITH, FilterOperator.ENDS_WITH, 'A'],
+      [FilterOperator.IN, FilterOperator.IN, ['A']],
+      [FilterOperator.NOT_IN, FilterOperator.NOT_IN, ['A']],
+      [FilterOperator.IS_EMPTY_STRING, FilterOperator.IS_EMPTY_STRING, null],
+      [
+        FilterOperator.IS_NOT_EMPTY_STRING,
+        FilterOperator.IS_NOT_EMPTY_STRING,
+        null,
+      ],
+      [FilterOperator.IS_NULL, FilterOperator.IS_NULL, null],
     ];
     for (const [operator, op, value] of expected) {
       expect(compile(kind, leaf(operator, value))).toMatchObject({ op });
@@ -223,25 +244,27 @@ describe('string kind', () => {
   });
 
   it('describes text and list inputs', () => {
-    expect(kind.editor('EQ', field())).toEqual({
+    expect(kind.editor(FilterOperator.EQ, field())).toEqual({
       input: 'text',
       multiple: false,
     });
-    expect(kind.editor('IN', field())).toEqual({
+    expect(kind.editor(FilterOperator.IN, field())).toEqual({
       input: 'text',
       multiple: true,
     });
-    expect(kind.editor('IS_EMPTY_STRING', field())).toEqual({ input: 'none' });
+    expect(kind.editor(FilterOperator.IS_EMPTY_STRING, field())).toEqual({
+      input: 'none',
+    });
     expect(
       kind.describe({
-        leaf: leaf('IN', ['A', 'B']),
+        leaf: leaf(FilterOperator.IN, ['A', 'B']),
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
     ).toBe('Value IN A, B');
     expect(
       kind.describe({
-        leaf: leaf('EQ', 'A'),
+        leaf: leaf(FilterOperator.EQ, 'A'),
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
@@ -256,43 +279,45 @@ describe('number kind', () => {
   it('starts unfilled rather than at zero', () => {
     // `0` and `[0, 0]` are conditions in their own right; seeding either
     // would filter the list to them the moment the row appeared.
-    expect(kind.emptyValue('EQ', def)).toBeNull();
-    expect(kind.emptyValue('BETWEEN', def)).toBeNull();
-    expect(kind.emptyValue('IN', def)).toEqual([]);
+    expect(kind.emptyValue(FilterOperator.EQ, def)).toBeNull();
+    expect(kind.emptyValue(FilterOperator.BETWEEN, def)).toBeNull();
+    expect(kind.emptyValue(FilterOperator.IN, def)).toEqual([]);
   });
 
   it('rejects an inverted range, a non-number and an empty list', () => {
-    expect(codes(kind, [1, 2], 'BETWEEN', def)).toEqual([]);
+    expect(codes(kind, [1, 2], FilterOperator.BETWEEN, def)).toEqual([]);
     // Two numbers the wrong way round is a range that starts after it ends —
     // the same finding a date range reports, under the same code. Reading
     // "enter a range of two numbers" beside two numbers said nothing.
-    expect(codes(kind, [2, 1], 'BETWEEN', def)).toEqual([
+    expect(codes(kind, [2, 1], FilterOperator.BETWEEN, def)).toEqual([
       'filter.value.inverted-range',
     ]);
-    expect(codes(kind, ['x', 'y'], 'BETWEEN', def)).toEqual([
+    expect(codes(kind, ['x', 'y'], FilterOperator.BETWEEN, def)).toEqual([
       'filter.value.expected-number-range',
     ]);
-    expect(codes(kind, 'x', 'EQ', def)).toEqual([
+    expect(codes(kind, 'x', FilterOperator.EQ, def)).toEqual([
       'filter.value.expected-number',
     ]);
-    expect(codes(kind, ['x'], 'IN', def)).toEqual([
+    expect(codes(kind, ['x'], FilterOperator.IN, def)).toEqual([
       'filter.value.expected-number-list',
     ]);
-    expect(codes(kind, [], 'IN', def)).toEqual(['filter.value.required']);
+    expect(codes(kind, [], FilterOperator.IN, def)).toEqual([
+      'filter.value.required',
+    ]);
   });
 
   it('maps every comparison onto Wow', () => {
     const expected: [FilterOperatorName, FilterOperator, unknown][] = [
-      ['EQ', FilterOperator.EQ, 1],
-      ['NE', FilterOperator.NE, 1],
-      ['GT', FilterOperator.GT, 1],
-      ['GTE', FilterOperator.GTE, 1],
-      ['LT', FilterOperator.LT, 1],
-      ['LTE', FilterOperator.LTE, 1],
-      ['BETWEEN', FilterOperator.BETWEEN, [1, 2]],
-      ['IN', FilterOperator.IN, [1]],
-      ['NOT_IN', FilterOperator.NOT_IN, [1]],
-      ['EXISTS', FilterOperator.EXISTS, null],
+      [FilterOperator.EQ, FilterOperator.EQ, 1],
+      [FilterOperator.NE, FilterOperator.NE, 1],
+      [FilterOperator.GT, FilterOperator.GT, 1],
+      [FilterOperator.GTE, FilterOperator.GTE, 1],
+      [FilterOperator.LT, FilterOperator.LT, 1],
+      [FilterOperator.LTE, FilterOperator.LTE, 1],
+      [FilterOperator.BETWEEN, FilterOperator.BETWEEN, [1, 2]],
+      [FilterOperator.IN, FilterOperator.IN, [1]],
+      [FilterOperator.NOT_IN, FilterOperator.NOT_IN, [1]],
+      [FilterOperator.EXISTS, FilterOperator.EXISTS, null],
     ];
     for (const [operator, op, value] of expected) {
       expect(compile(kind, leaf(operator, value), def)).toMatchObject({ op });
@@ -300,28 +325,31 @@ describe('number kind', () => {
   });
 
   it('describes a range, a list and a single value', () => {
-    expect(kind.editor('BETWEEN', def)).toEqual({
+    expect(kind.editor(FilterOperator.BETWEEN, def)).toEqual({
       input: 'number',
       range: true,
     });
-    expect(kind.editor('IN', def)).toEqual({ input: 'number', multiple: true });
+    expect(kind.editor(FilterOperator.IN, def)).toEqual({
+      input: 'number',
+      multiple: true,
+    });
     expect(
       kind.describe({
-        leaf: leaf('BETWEEN', [1, 2]),
+        leaf: leaf(FilterOperator.BETWEEN, [1, 2]),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
     ).toBe('Value 1 ~ 2');
     expect(
       kind.describe({
-        leaf: leaf('IN', [1, 2]),
+        leaf: leaf(FilterOperator.IN, [1, 2]),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
     ).toBe('Value IN 1, 2');
     expect(
       kind.describe({
-        leaf: leaf('GT', 1),
+        leaf: leaf(FilterOperator.GT, 1),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
@@ -334,25 +362,25 @@ describe('boolean kind', () => {
   const def = field({ kind: 'boolean' });
 
   it('accepts only a boolean', () => {
-    expect(kind.emptyValue('EQ', def)).toBeNull();
-    expect(codes(kind, true, 'EQ', def)).toEqual([]);
-    expect(codes(kind, 'true', 'EQ', def)).toEqual([
+    expect(kind.emptyValue(FilterOperator.EQ, def)).toBeNull();
+    expect(codes(kind, true, FilterOperator.EQ, def)).toEqual([]);
+    expect(codes(kind, 'true', FilterOperator.EQ, def)).toEqual([
       'filter.value.expected-boolean',
     ]);
   });
 
   it('compiles, describes and asks for a boolean input', () => {
-    expect(compile(kind, leaf('EQ', true), def)).toMatchObject({
+    expect(compile(kind, leaf(FilterOperator.EQ, true), def)).toMatchObject({
       op: FilterOperator.EQ,
       value: true,
     });
-    expect(compile(kind, leaf('NE', false), def)).toMatchObject({
+    expect(compile(kind, leaf(FilterOperator.NE, false), def)).toMatchObject({
       op: FilterOperator.NE,
     });
-    expect(kind.editor('EQ', def)).toEqual({ input: 'boolean' });
+    expect(kind.editor(FilterOperator.EQ, def)).toEqual({ input: 'boolean' });
     expect(
       kind.describe({
-        leaf: leaf('EQ', true),
+        leaf: leaf(FilterOperator.EQ, true),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
@@ -371,34 +399,40 @@ describe('enum kind', () => {
   });
 
   it('checks the selection against the declared options', () => {
-    expect(kind.emptyValue('IN', def)).toEqual([]);
-    expect(codes(kind, ['A', 2], 'IN', def)).toEqual([]);
-    expect(codes(kind, ['Z'], 'IN', def)).toEqual([
+    expect(kind.emptyValue(FilterOperator.IN, def)).toEqual([]);
+    expect(codes(kind, ['A', 2], FilterOperator.IN, def)).toEqual([]);
+    expect(codes(kind, ['Z'], FilterOperator.IN, def)).toEqual([
       'filter.value.unknown-option',
     ]);
-    expect(codes(kind, [], 'IN', def)).toEqual(['filter.value.required']);
-    expect(codes(kind, 'A', 'IN', def)).toEqual([
+    expect(codes(kind, [], FilterOperator.IN, def)).toEqual([
+      'filter.value.required',
+    ]);
+    expect(codes(kind, 'A', FilterOperator.IN, def)).toEqual([
       'filter.value.expected-option-list',
     ]);
     // A field without declared options accepts any scalar.
-    expect(codes(kind, ['Z'], 'IN', field({ kind: 'enum' }))).toEqual([]);
+    expect(
+      codes(kind, ['Z'], FilterOperator.IN, field({ kind: 'enum' })),
+    ).toEqual([]);
   });
 
   it('compiles both directions and labels the description', () => {
-    expect(compile(kind, leaf('IN', ['A']), def)).toMatchObject({
+    expect(compile(kind, leaf(FilterOperator.IN, ['A']), def)).toMatchObject({
       op: FilterOperator.IN,
     });
-    expect(compile(kind, leaf('NOT_IN', ['A']), def)).toMatchObject({
+    expect(
+      compile(kind, leaf(FilterOperator.NOT_IN, ['A']), def),
+    ).toMatchObject({
       op: FilterOperator.NOT_IN,
     });
-    expect(kind.editor('IN', def)).toMatchObject({
+    expect(kind.editor(FilterOperator.IN, def)).toMatchObject({
       input: 'select',
       multiple: true,
       options: def.options,
     });
     expect(
       kind.describe({
-        leaf: leaf('IN', ['A', 2, 'Z']),
+        leaf: leaf(FilterOperator.IN, ['A', 2, 'Z']),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
@@ -412,34 +446,36 @@ describe('reference kind', () => {
   const value = { items: [{ id: 7, label: 'ACME' }] };
 
   it('requires well-formed items and a candidate source', () => {
-    expect(kind.emptyValue('IN', def)).toEqual({ items: [] });
-    expect(codes(kind, value, 'IN', def)).toEqual([]);
-    expect(codes(kind, { items: [] }, 'IN', def)).toEqual([
+    expect(kind.emptyValue(FilterOperator.IN, def)).toEqual({ items: [] });
+    expect(codes(kind, value, FilterOperator.IN, def)).toEqual([]);
+    expect(codes(kind, { items: [] }, FilterOperator.IN, def)).toEqual([
       'filter.value.required',
     ]);
-    expect(codes(kind, { items: [{ id: 7 }] }, 'IN', def)).toEqual([
-      'filter.value.expected-reference-list',
-    ]);
-    expect(codes(kind, value, 'IN', field({ kind: 'reference' }))).toEqual([
-      'filter.field.reference-without-source',
-    ]);
+    expect(codes(kind, { items: [{ id: 7 }] }, FilterOperator.IN, def)).toEqual(
+      ['filter.value.expected-reference-list'],
+    );
+    expect(
+      codes(kind, value, FilterOperator.IN, field({ kind: 'reference' })),
+    ).toEqual(['filter.field.reference-without-source']);
   });
 
   it('compiles to the ids and describes with the snapshot labels', () => {
-    expect(compile(kind, leaf('IN', value), def)).toMatchObject({
+    expect(compile(kind, leaf(FilterOperator.IN, value), def)).toMatchObject({
       op: FilterOperator.IN,
       values: [7],
     });
-    expect(compile(kind, leaf('NOT_IN', value), def)).toMatchObject({
+    expect(
+      compile(kind, leaf(FilterOperator.NOT_IN, value), def),
+    ).toMatchObject({
       op: FilterOperator.NOT_IN,
     });
-    expect(kind.editor('IN', def)).toMatchObject({
+    expect(kind.editor(FilterOperator.IN, def)).toMatchObject({
       input: 'remote',
       remote: 'customers',
     });
     expect(
       kind.describe({
-        leaf: leaf('IN', value),
+        leaf: leaf(FilterOperator.IN, value),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
@@ -453,18 +489,25 @@ describe('date kinds', () => {
   it('start unfilled rather than at today', () => {
     // Seeding a window would cut the list to a single day as soon as a date
     // field was picked, which nobody asked for.
-    expect(dateTimeFieldKind.emptyValue('BETWEEN', def)).toBeNull();
+    expect(
+      dateTimeFieldKind.emptyValue(FilterOperator.BETWEEN, def),
+    ).toBeNull();
   });
 
   it('rejects an unparsable or inverted absolute range', () => {
     expect(
-      codes(dateTimeFieldKind, { type: 'absolute', from: 'x' }, 'BETWEEN', def),
+      codes(
+        dateTimeFieldKind,
+        { type: 'absolute', from: 'x' },
+        FilterOperator.BETWEEN,
+        def,
+      ),
     ).toEqual(['filter.value.unparsable-date']);
     expect(
       codes(
         dateTimeFieldKind,
         { type: 'absolute', from: '2026-01-01', to: 'x' },
-        'BETWEEN',
+        FilterOperator.BETWEEN,
         def,
       ),
     ).toEqual(['filter.value.unparsable-date']);
@@ -472,7 +515,7 @@ describe('date kinds', () => {
       codes(
         dateTimeFieldKind,
         { type: 'absolute', from: '2026-02-01', to: '2026-01-01' },
-        'BETWEEN',
+        FilterOperator.BETWEEN,
         def,
       ),
     ).toEqual(['filter.value.inverted-range']);
@@ -480,7 +523,7 @@ describe('date kinds', () => {
       codes(
         dateTimeFieldKind,
         { type: 'relative', amount: 0, unit: 'day' },
-        'BETWEEN',
+        FilterOperator.BETWEEN,
         def,
       ),
     ).toEqual(['filter.value.expected-date']);
@@ -489,17 +532,20 @@ describe('date kinds', () => {
   it('compiles GTE and LTE from the resolved window', () => {
     // A field that declares no `temporal` keeps epoch milliseconds, as a Wow
     // snapshot does, so each bound is the integer the store compares with.
-    const preset = leaf('GTE', { type: 'preset', preset: 'today' });
+    const preset = leaf(FilterOperator.GTE, {
+      type: 'preset',
+      preset: 'today',
+    });
     expect(compile(dateTimeFieldKind, preset, def)).toMatchObject({
       op: FilterOperator.GTE,
       value: Date.parse('2026-09-16T00:00:00.000Z'),
     });
-    const upper = leaf('LTE', { type: 'preset', preset: 'today' });
+    const upper = leaf(FilterOperator.LTE, { type: 'preset', preset: 'today' });
     expect(compile(dateTimeFieldKind, upper, def)).toMatchObject({
       op: FilterOperator.LTE,
       value: Date.parse('2026-09-16T23:59:59.999Z'),
     });
-    const open = leaf('LTE', {
+    const open = leaf(FilterOperator.LTE, {
       type: 'absolute',
       from: '2026-01-01T00:00:00.000Z',
     });
@@ -518,19 +564,27 @@ describe('date kinds', () => {
     const weekAgo = Date.parse('2026-09-10T00:00:00.000Z');
     const weekAhead = Date.parse('2026-09-22T23:59:59.999Z');
 
-    expect(compile(dateTimeFieldKind, leaf('GTE', last), def)).toMatchObject({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.GTE, last), def),
+    ).toMatchObject({
       op: FilterOperator.GTE,
       value: weekAgo,
     });
-    expect(compile(dateTimeFieldKind, leaf('LTE', last), def)).toMatchObject({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.LTE, last), def),
+    ).toMatchObject({
       op: FilterOperator.LTE,
       value: weekAgo,
     });
-    expect(compile(dateTimeFieldKind, leaf('GTE', next), def)).toMatchObject({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.GTE, next), def),
+    ).toMatchObject({
       op: FilterOperator.GTE,
       value: weekAhead,
     });
-    expect(compile(dateTimeFieldKind, leaf('LTE', next), def)).toMatchObject({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.LTE, next), def),
+    ).toMatchObject({
       op: FilterOperator.LTE,
       value: weekAhead,
     });
@@ -539,20 +593,24 @@ describe('date kinds', () => {
   it('refuses a relative amount past the bound, and never throws past it', () => {
     const huge = { type: 'relative', amount: 1e15, unit: 'hour' };
 
-    expect(codes(dateTimeFieldKind, huge, 'BETWEEN', def)).toEqual([
+    expect(codes(dateTimeFieldKind, huge, FilterOperator.BETWEEN, def)).toEqual(
+      ['filter.value.relative-too-large'],
+    );
+    expect(codes(dateTimeFieldKind, huge, FilterOperator.LTE, def)).toEqual([
       'filter.value.relative-too-large',
     ]);
-    expect(codes(dateTimeFieldKind, huge, 'LTE', def)).toEqual([
-      'filter.value.relative-too-large',
-    ]);
-    for (const operator of ['BETWEEN', 'GTE', 'LTE'] as const)
+    for (const operator of [
+      FilterOperator.BETWEEN,
+      FilterOperator.GTE,
+      FilterOperator.LTE,
+    ] as const)
       expect(() =>
         compile(dateTimeFieldKind, leaf(operator, huge), def),
       ).not.toThrow();
   });
 
   it('lets a condition override the runtime zone', () => {
-    const shanghai = leaf('BETWEEN', {
+    const shanghai = leaf(FilterOperator.BETWEEN, {
       type: 'absolute',
       from: '2026-01-01T00:00:00.000Z',
       to: '2026-01-02T00:00:00.000Z',
@@ -566,7 +624,10 @@ describe('date kinds', () => {
   it("compares with the service's clock, before or after now", () => {
     // No value and no `ctx.now`: the service reads its own clock, so the
     // operator is the whole condition and a saved one never goes stale.
-    for (const operator of ['BEFORE_NOW', 'AFTER_NOW'] as const) {
+    for (const operator of [
+      FilterOperator.BEFORE_NOW,
+      FilterOperator.AFTER_NOW,
+    ] as const) {
       expect(dateTimeFieldKind.operators).toContain(operator);
       expect(dateFieldKind.operators).toContain(operator);
       expect(codes(dateTimeFieldKind, null, operator, def)).toEqual([]);
@@ -574,36 +635,47 @@ describe('date kinds', () => {
         input: 'none',
       });
     }
-    expect(compile(dateTimeFieldKind, leaf('BEFORE_NOW', null), def)).toEqual({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.BEFORE_NOW, null), def),
+    ).toEqual({
       op: FilterOperator.BEFORE_NOW,
       field: 'value',
       offset: 'PT0S',
-      timeUnit: 'MILLISECONDS',
+      timeUnit: TimeUnit.MILLISECONDS,
     });
-    expect(compile(dateTimeFieldKind, leaf('AFTER_NOW', null), def)).toEqual({
+    expect(
+      compile(dateTimeFieldKind, leaf(FilterOperator.AFTER_NOW, null), def),
+    ).toEqual({
       op: FilterOperator.AFTER_NOW,
       field: 'value',
       offset: 'PT0S',
-      timeUnit: 'MILLISECONDS',
+      timeUnit: TimeUnit.MILLISECONDS,
     });
     // A time kept in seconds is compared in seconds.
     const seconds = field({
       kind: 'datetime',
-      temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+      temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
     });
     expect(
-      compile(dateTimeFieldKind, leaf('BEFORE_NOW', null), seconds),
-    ).toMatchObject({ op: FilterOperator.BEFORE_NOW, timeUnit: 'SECONDS' });
+      compile(
+        dateTimeFieldKind,
+        leaf(FilterOperator.BEFORE_NOW, null),
+        seconds,
+      ),
+    ).toMatchObject({
+      op: FilterOperator.BEFORE_NOW,
+      timeUnit: TimeUnit.SECONDS,
+    });
     expect(
       dateTimeFieldKind.describe({
-        leaf: leaf('BEFORE_NOW', null),
+        leaf: leaf(FilterOperator.BEFORE_NOW, null),
         field: def,
         kinds: builtinFieldKinds,
       }),
     ).toEqual({ text: 'Value before now', value: { kind: 'none' } });
     expect(
       dateTimeFieldKind.describe({
-        leaf: leaf('AFTER_NOW', null),
+        leaf: leaf(FilterOperator.AFTER_NOW, null),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
@@ -621,11 +693,15 @@ describe('date kinds', () => {
     const tree: FilterTree = {
       op: 'and',
       children: [
-        { field: 'status', operator: 'EQ', value: 'PREPARED' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'PREPARED' },
         {
           op: 'nor',
           children: [
-            { field: 'timeoutAt', operator: 'BEFORE_NOW', value: null },
+            {
+              field: 'timeoutAt',
+              operator: FilterOperator.BEFORE_NOW,
+              value: null,
+            },
           ],
         },
       ],
@@ -643,24 +719,24 @@ describe('date kinds', () => {
   });
 
   it('picks the editor from the operator and the value variant', () => {
-    expect(dateTimeFieldKind.editor('BETWEEN', def)).toEqual({
+    expect(dateTimeFieldKind.editor(FilterOperator.BETWEEN, def)).toEqual({
       input: 'dateRange',
       range: true,
       withTime: true,
     });
-    expect(dateFieldKind.editor('GTE', def)).toEqual({
+    expect(dateFieldKind.editor(FilterOperator.GTE, def)).toEqual({
       input: 'date',
       withTime: false,
     });
     expect(
-      dateTimeFieldKind.editor('BETWEEN', def, {
+      dateTimeFieldKind.editor(FilterOperator.BETWEEN, def, {
         type: 'relative',
         amount: 7,
         unit: 'day',
       }),
     ).toEqual({ input: 'relativeDate', range: true, withTime: true });
     expect(
-      dateTimeFieldKind.editor('GTE', def, {
+      dateTimeFieldKind.editor(FilterOperator.GTE, def, {
         type: 'relative',
         amount: 7,
         unit: 'day',
@@ -671,7 +747,7 @@ describe('date kinds', () => {
   it('describes each value variant', () => {
     const describe_ = (value: unknown) =>
       dateTimeFieldKind.describe({
-        leaf: leaf('BETWEEN', value),
+        leaf: leaf(FilterOperator.BETWEEN, value),
         field: def,
         kinds: builtinFieldKinds,
       }).text;
@@ -694,16 +770,18 @@ describe('date kinds', () => {
       }).text;
     const last = { type: 'relative', amount: 7, unit: 'day' };
 
-    expect(describe_('GTE', last)).toBe('Value on or after 7 days ago');
-    expect(describe_('LTE', { ...last, direction: 'future' })).toBe(
-      'Value on or before 7 days ahead',
+    expect(describe_(FilterOperator.GTE, last)).toBe(
+      'Value on or after 7 days ago',
     );
-    expect(describe_('LTE', { type: 'preset', preset: 'lastMonth' })).toBe(
-      'Value on or before last month',
-    );
-    expect(describe_('LTE', { type: 'absolute', from: 'a', to: 'b' })).toBe(
-      'Value on or before b',
-    );
+    expect(
+      describe_(FilterOperator.LTE, { ...last, direction: 'future' }),
+    ).toBe('Value on or before 7 days ahead');
+    expect(
+      describe_(FilterOperator.LTE, { type: 'preset', preset: 'lastMonth' }),
+    ).toBe('Value on or before last month');
+    expect(
+      describe_(FilterOperator.LTE, { type: 'absolute', from: 'a', to: 'b' }),
+    ).toBe('Value on or before b');
   });
 });
 
@@ -711,8 +789,11 @@ describe('tree helpers', () => {
   const tree: FilterTree = {
     op: 'and',
     children: [
-      { field: 'a', operator: 'EQ', value: 1 },
-      { op: 'or', children: [{ field: 'b', operator: 'EQ', value: 2 }] },
+      { field: 'a', operator: FilterOperator.EQ, value: 1 },
+      {
+        op: 'or',
+        children: [{ field: 'b', operator: FilterOperator.EQ, value: 2 }],
+      },
     ],
   };
 
@@ -756,8 +837,11 @@ describe('registry helpers', () => {
       stringFieldKind.operators,
     );
     expect(
-      operatorsOf(field({ operators: ['EQ', 'BETWEEN'] }), stringFieldKind),
-    ).toEqual(['EQ']);
+      operatorsOf(
+        field({ operators: [FilterOperator.EQ, FilterOperator.BETWEEN] }),
+        stringFieldKind,
+      ),
+    ).toEqual([FilterOperator.EQ]);
   });
 
   it('flags a malformed group operator', () => {
@@ -774,7 +858,9 @@ describe('registry helpers', () => {
         fields,
         {
           op: 'and',
-          children: [{ field: 'value', operator: 'EQ', value: 'A' }],
+          children: [
+            { field: 'value', operator: FilterOperator.EQ, value: 'A' },
+          ],
         },
         builtinFieldKinds,
       ),
@@ -784,7 +870,9 @@ describe('registry helpers', () => {
         fields,
         {
           op: 'and',
-          children: [{ field: 'gone', operator: 'EQ', value: 'A' }],
+          children: [
+            { field: 'gone', operator: FilterOperator.EQ, value: 'A' },
+          ],
         },
         builtinFieldKinds,
       ),
@@ -801,17 +889,17 @@ describe('registry helpers', () => {
 describe('describing a value a kind cannot read', () => {
   const junk = { nope: true } as unknown;
   const cases: [string, FilterOperatorName, unknown][] = [
-    ['string', 'EQ', junk],
-    ['number', 'EQ', junk],
-    ['number', 'BETWEEN', 'not a range'],
-    ['boolean', 'EQ', junk],
-    ['enum', 'IN', junk],
-    ['array', 'IN', junk],
-    ['reference', 'IN', junk],
-    ['date', 'BETWEEN', junk],
-    ['datetime', 'GTE', junk],
-    ['search', 'SEARCH', junk],
-    ['elementMatch', 'ELEMENT_MATCH', junk],
+    ['string', FilterOperator.EQ, junk],
+    ['number', FilterOperator.EQ, junk],
+    ['number', FilterOperator.BETWEEN, 'not a range'],
+    ['boolean', FilterOperator.EQ, junk],
+    ['enum', FilterOperator.IN, junk],
+    ['array', FilterOperator.IN, junk],
+    ['reference', FilterOperator.IN, junk],
+    ['date', FilterOperator.BETWEEN, junk],
+    ['datetime', FilterOperator.GTE, junk],
+    ['search', FilterOperator.SEARCH, junk],
+    ['elementMatch', FilterOperator.ELEMENT_MATCH, junk],
   ];
 
   it.each(cases)('falls back to the label for %s %s', (id, operator, value) => {

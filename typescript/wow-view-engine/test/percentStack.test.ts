@@ -35,6 +35,12 @@ import { readChart } from '../src/ui/charts/reading.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
 import { analysisKernelConfig } from './fixtures/analysis.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 「百分比堆叠」 (audit P1-10): a composition over several groups that a pie
@@ -43,23 +49,30 @@ import { analysisKernelConfig } from './fixtures/analysis.js';
  */
 
 const WAREHOUSE: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'wh',
 };
-const STATUS: AnalysisGroup = { type: 'TERMS', field: 'status', alias: 'st' };
-const COUNT: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const STATUS: AnalysisGroup = {
+  type: AggregationGroupType.TERMS,
+  field: 'status',
+  alias: 'st',
+};
+const COUNT: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const TOTAL: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'average',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const ADDITIVE = new Set(['orders', 'total']);

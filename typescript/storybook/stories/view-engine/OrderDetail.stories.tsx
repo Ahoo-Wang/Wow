@@ -47,6 +47,7 @@ import sceneSource from './OrderDetail.stories.tsx?raw';
 import { hostSource } from './hostSource.js';
 import { BOARD_FIXTURE } from './retail/scene.js';
 import { OVERDUE_ORDERS } from './retail/goldens.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The order the page opens on: one of the eleven the East China sorting
@@ -87,11 +88,15 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
   const { state } = order;
   const byOrder: FilterTree = {
     op: 'and',
-    children: [{ field: 'state.orderNo', operator: 'EQ', value: orderNo }],
+    children: [
+      { field: 'state.orderNo', operator: FilterOperator.EQ, value: orderNo },
+    ],
   };
   const byStream: FilterTree = {
     op: 'and',
-    children: [{ field: 'aggregateId', operator: 'EQ', value: orderNo }],
+    children: [
+      { field: 'aggregateId', operator: FilterOperator.EQ, value: orderNo },
+    ],
   };
   const overdue = state.status === 'PAID' && state.shipSlaBreached;
   const facts: [string, string][] = [

@@ -18,6 +18,10 @@ import displayMeta, {
   TableWithTotals as DisplayTableWithTotals,
 } from './AnalysisWorkbench.stories.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
+import {
+  AggregationFunction,
+  ComparisonOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -82,7 +86,7 @@ const groupRows = (table: HTMLElement) =>
  */
 const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /**
@@ -91,7 +95,7 @@ const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
  */
 const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '(金额 − 成本)',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /** The result's first row: what the numbers below are. */
@@ -106,7 +110,7 @@ const KEPT_READING = formatMessage(zhCN, 'label.analysis.reading-kept', {
   }),
   conditions: formatMessage(zhCN, 'label.analysis.reading-kept-row', {
     metric: AMOUNT_METRIC,
-    operator: zhCN['label.having.op.GT'],
+    operator: zhCN[`label.having.op.${ComparisonOperator.GT}`],
     value: new Intl.NumberFormat('zh-CN', {
       style: 'currency',
       currency: 'CNY',
@@ -393,7 +397,7 @@ export const TopNField: Story = {
 /** 「成本的总和」：关掉开关之后那次编辑要带出来的那一列。 */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /** The tray's auto-run checkbox, wherever the actions footer puts it. */
@@ -542,7 +546,7 @@ export const RunsAsEdited: Story = {
 /** 「创建时间的最晚」: a moment's own word, not 「最大」. */
 const LATEST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '创建时间',
-  fn: zhCN['label.summary.fn.date.MAX'],
+  fn: zhCN[`label.summary.fn.date.${AggregationFunction.MAX}`],
 });
 
 /**

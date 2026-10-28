@@ -35,6 +35,7 @@ import {
 } from '../fixtures.js';
 import { tracked } from './writes.js';
 import { pagedPaging } from '../../src/record/index.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 export { mine };
 
@@ -82,7 +83,9 @@ export const mixed: ViewInstance = {
     filterMode: 'simple',
     filter: {
       op: 'or',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     },
   }),
 };

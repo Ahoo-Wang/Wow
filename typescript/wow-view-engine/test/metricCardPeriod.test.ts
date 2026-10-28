@@ -22,6 +22,16 @@ import {
   type MetricCardSpec,
   type RecordData,
 } from '../src/index.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  FilterOperator,
+  HavingExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A metric card over a trend reads as its last period (user ruling
@@ -32,18 +42,21 @@ import {
  */
 
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 };
 
-const ORDERS: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const ORDERS: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const TOTAL: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const day = (n: number) => Date.UTC(2026, 8, n);
@@ -89,7 +102,7 @@ describe('a metric card over a trend, read as its last period', () => {
     expect(data.value).toBe(12);
     expect(data.period).toEqual({
       at: day(22),
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
       previous: { at: day(21), value: 10 },
       change: { delta: 2, ratio: 0.2 },
     });
@@ -138,7 +151,11 @@ describe('a metric card over a trend, read as its last period', () => {
       now: new Date(Date.UTC(2026, 8, 22, 9)),
     });
     expect(data.value).toBe(3);
-    expect(data.period).toEqual({ at: day(22), unit: 'DAY', partial: true });
+    expect(data.period).toEqual({
+      at: day(22),
+      unit: AggregationDateUnit.DAY,
+      partial: true,
+    });
   });
 
   it('decides whether a period is over on the engine’s clock', () => {
@@ -161,7 +178,10 @@ describe('a metric card over a trend, read as its last period', () => {
   it('says when there is no period before, or no number in it', () => {
     // The range starts at the headline: nothing to compare.
     const first = shape(card(), [{ day: day(22), orders: 12 }]);
-    expect(first.period).toEqual({ at: day(22), unit: 'DAY' });
+    expect(first.period).toEqual({
+      at: day(22),
+      unit: AggregationDateUnit.DAY,
+    });
 
     // A day before with no number: the change is unknown, not zero.
     const blank = shape(card(), [
@@ -194,7 +214,7 @@ describe('a metric card over a trend, read as its last period', () => {
       { day: day(22), orders: 12 },
       { day: day(19), orders: 8 },
     ]);
-    expect(data.period).toEqual({ at: day(22), unit: 'DAY' });
+    expect(data.period).toEqual({ at: day(22), unit: AggregationDateUnit.DAY });
   });
 
   it('compares with another metric and aims at a target over the same period', () => {
@@ -219,7 +239,7 @@ describe('a metric card over a trend, read as its last period', () => {
     const month: AnalysisGroup = {
       ...DAY,
       alias: 'month',
-      unit: 'MONTH' as const,
+      unit: AggregationDateUnit.MONTH as const,
     };
     const data = shape(card({}, month), [
       { month: Date.UTC(2026, 7, 1), orders: 40 },
@@ -227,7 +247,7 @@ describe('a metric card over a trend, read as its last period', () => {
     ]);
     expect(data.period).toMatchObject({
       at: Date.UTC(2026, 8, 1),
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
       previous: { at: Date.UTC(2026, 7, 1), value: 40 },
     });
   });
@@ -282,7 +302,7 @@ describe('a metric card over a trend, read as the whole', () => {
     const average: AnalysisMetric = {
       ...TOTAL,
       alias: 'average',
-      function: 'AVG',
+      function: AggregationFunction.AVG,
     };
     const data = shapeChart(
       {
@@ -307,11 +327,17 @@ describe('a metric card over a trend, read as the whole', () => {
 });
 
 describe('a metric card over its own window (D39)', () => {
-  const MAX: AnalysisMetric = { ...TOTAL, alias: 'largest', function: 'MAX' };
+  const MAX: AnalysisMetric = {
+    ...TOTAL,
+    alias: 'largest',
+    function: AggregationFunction.MAX,
+  };
 
   const between = (value: object): AnalysisViewConfig['filter'] => ({
     op: 'and',
-    children: [{ field: 'createdAt', operator: 'BETWEEN', value } as never],
+    children: [
+      { field: 'createdAt', operator: FilterOperator.BETWEEN, value } as never,
+    ],
   });
 
   /** 「近 7 天」 of its own on the axis's field, over COUNT, SUM and MAX. */
@@ -341,7 +367,7 @@ describe('a metric card over its own window (D39)', () => {
     expect(data.value).toBe(3);
     expect(data.period).toEqual({
       at: day(22),
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
       skipped: day(23),
       previous: { at: day(21), value: 0 },
       change: { delta: 3, ratio: null },
@@ -441,9 +467,9 @@ describe('a metric card over its own window (D39)', () => {
     // 「只保留」 may have dropped a day by its numbers.
     const kept = windowed({
       having: {
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 0,
       },
     });
@@ -459,7 +485,7 @@ describe('a metric card over its own window (D39)', () => {
         children: [
           {
             field: 'createdAt',
-            operator: 'LTE',
+            operator: FilterOperator.LTE,
             value: { type: 'absolute', from: '2026-09-22' },
           } as never,
         ],

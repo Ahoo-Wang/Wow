@@ -47,10 +47,13 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
-const SUMMED = recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] });
+const SUMMED = recordConfig({
+  summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+});
 
 /** The sentence a catalogue gives a finding, with its values filled in. */
 function said(key: keyof typeof defaultMessages, limit?: number): string {
@@ -178,7 +181,7 @@ describe('the findings a result carries', () => {
     const ranking = await ran(
       analysisConfig({
         limit: 2,
-        sort: [{ alias: 'orders', direction: 'DESC' }],
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       }),
       grouped(4),
     );
@@ -187,7 +190,7 @@ describe('the findings a result carries', () => {
     const byName = await ran(
       analysisConfig({
         limit: 2,
-        sort: [{ alias: 'warehouse', direction: 'ASC' }],
+        sort: [{ alias: 'warehouse', direction: SortDirection.ASC }],
       }),
       grouped(4),
     );
@@ -201,7 +204,7 @@ describe('the findings a result carries', () => {
     const data = await ran(
       analysisConfig({
         limit: 2,
-        sort: [{ alias: 'orders', direction: 'DESC' }],
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
         layout: 'chart',
         chart: { type: 'pie', pie: { category: 'warehouse', value: 'orders' } },
       }),
@@ -515,7 +518,7 @@ describe('what the screen says about an analysis cut short', () => {
     const ranking = analysisConfig({
       limit: 2,
       layout: 'chart',
-      sort: [{ alias: 'orders', direction: 'DESC' }],
+      sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },

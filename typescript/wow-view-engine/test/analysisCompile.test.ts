@@ -24,6 +24,12 @@ import {
   DerivedExpressionType,
   FilterOperator,
   SortDirection,
+  HavingExpressionType,
+  ComparisonOperator,
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -73,12 +79,14 @@ describe('compileAnalysis', () => {
       config({
         filter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+          ],
         },
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'orders',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 10,
         },
       }),
@@ -109,11 +117,17 @@ describe('compileAnalysis', () => {
       config({
         metrics: [
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'orders',
             filter: {
               op: 'and',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'SH',
+                },
+              ],
             },
           },
         ],
@@ -132,47 +146,58 @@ describe('compileAnalysis', () => {
       config({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'month',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
             timeZone: 'UTC',
             dense: true,
           },
-          { type: 'HISTOGRAM', field: 'amount', alias: 'bucket', interval: 10 },
+          {
+            type: AggregationGroupType.HISTOGRAM,
+            field: 'amount',
+            alias: 'bucket',
+            interval: 10,
+          },
         ],
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'total',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'MULTIPLY',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'CONSTANT', value: 2 },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.MULTIPLY,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: { type: AggregationExpressionType.CONSTANT, value: 2 },
             },
           },
-          { type: 'ANY', alias: 'first', field: 'amount' },
+          { type: AggregationMetricType.ANY, alias: 'first', field: 'amount' },
           {
-            type: 'DISTINCT_COUNT',
+            type: AggregationMetricType.DISTINCT_COUNT,
             alias: 'skus',
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
           {
-            type: 'PERCENTILE',
+            type: AggregationMetricType.PERCENTILE,
             alias: 'p95',
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
             percentile: 95,
           },
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'ratio',
             expression: {
-              type: 'BINARY',
-              operator: 'DIVIDE',
-              left: { type: 'METRIC_REF', metric: 'total' },
-              right: { type: 'CONSTANT', value: 2 },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.DIVIDE,
+              left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+              right: { type: DerivedExpressionType.CONSTANT, value: 2 },
             },
           },
         ],
@@ -217,10 +242,10 @@ describe('compileAnalysis', () => {
     // Its headline is the whole; the buckets are only the groups that fit
     // the limit. No totals row is drawn, and the whole is still asked.
     const day = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     } as const;
     const card = config({
       groups: [day],
@@ -406,7 +431,11 @@ describe('metric filters', () => {
   const withFilter = (filter: FilterTree) =>
     validateAnalysis(
       wide(),
-      config({ metrics: [{ type: 'COUNT', alias: 'orders', filter }] }),
+      config({
+        metrics: [
+          { type: AggregationMetricType.COUNT, alias: 'orders', filter },
+        ],
+      }),
       builtinFieldKinds,
     );
 
@@ -417,21 +446,23 @@ describe('metric filters', () => {
   ): FilterTree => ({ op: 'and', children: [{ field, operator, value }] });
 
   it('admits a filter that names a real field', () => {
-    expect(codes(withFilter(leaf('warehouse', 'EQ', 'WH-1')))).toEqual([]);
+    expect(
+      codes(withFilter(leaf('warehouse', FilterOperator.EQ, 'WH-1'))),
+    ).toEqual([]);
   });
 
   it('reports a field that does not exist', () => {
     // This used to reach compileFilter, which answers an unknown field by
     // throwing rather than by reporting it.
-    expect(codes(withFilter(leaf('ghost', 'EQ', 'x')))).toEqual([
+    expect(codes(withFilter(leaf('ghost', FilterOperator.EQ, 'x')))).toEqual([
       'filter.field.unknown',
     ]);
   });
 
   it('reports a value the field cannot take', () => {
-    expect(codes(withFilter(leaf('amount', 'EQ', 'not-a-number')))).toEqual([
-      'filter.value.expected-number',
-    ]);
+    expect(
+      codes(withFilter(leaf('amount', FilterOperator.EQ, 'not-a-number'))),
+    ).toEqual(['filter.value.expected-number']);
   });
 
   it('paths an issue under the metric that carries the filter', () => {
@@ -439,11 +470,11 @@ describe('metric filters', () => {
       wide(),
       config({
         metrics: [
-          { type: 'COUNT', alias: 'orders' },
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'other',
-            filter: leaf('ghost', 'EQ', 'x'),
+            filter: leaf('ghost', FilterOperator.EQ, 'x'),
           },
         ],
         sort: [],
@@ -465,8 +496,12 @@ describe('metric filters', () => {
   });
 
   it.each([
-    ['items', 'IN', ['a'] as FilterValue],
-    ['lines', 'ELEMENT_MATCH', { op: 'and', children: [] } as FilterValue],
+    ['items', FilterOperator.IN, ['a'] as FilterValue],
+    [
+      'lines',
+      FilterOperator.ELEMENT_MATCH,
+      { op: 'and', children: [] } as FilterValue,
+    ],
   ])('refuses %s, which holds several values', (field, operator, value) => {
     // No single value to test, so the question is "does some entry match",
     // which is an element question rather than a whole-record one.
@@ -476,9 +511,9 @@ describe('metric filters', () => {
   });
 
   it('refuses a search, which matches text rather than a value', () => {
-    expect(codes(withFilter(leaf('@search', 'SEARCH', 'premium')))).toEqual([
-      'analysis.metricFilter.not-scalar',
-    ]);
+    expect(
+      codes(withFilter(leaf('@search', FilterOperator.SEARCH, 'premium'))),
+    ).toEqual(['analysis.metricFilter.not-scalar']);
   });
 
   it('asks the registry rather than the kind id', () => {
@@ -495,9 +530,9 @@ describe('metric filters', () => {
           config({
             metrics: [
               {
-                type: 'COUNT',
+                type: AggregationMetricType.COUNT,
                 alias: 'orders',
-                filter: leaf('@search', 'SEARCH', 'premium'),
+                filter: leaf('@search', FilterOperator.SEARCH, 'premium'),
               },
             ],
           }),
@@ -519,9 +554,9 @@ describe('metric filters', () => {
           config({
             metrics: [
               {
-                type: 'COUNT',
+                type: AggregationMetricType.COUNT,
                 alias: 'orders',
-                filter: leaf('warehouse', 'EQ', 'WH-1'),
+                filter: leaf('warehouse', FilterOperator.EQ, 'WH-1'),
               },
             ],
           }),
@@ -537,13 +572,19 @@ describe('metric filters', () => {
       depth <= 1
         ? {
             op: 'and',
-            children: [{ field: 'warehouse', operator: 'EQ', value: 'x' }],
+            children: [
+              { field: 'warehouse', operator: FilterOperator.EQ, value: 'x' },
+            ],
           }
         : { op: 'and', children: [deep(depth - 1)] };
 
     const overrides = {
       metrics: [
-        { type: 'COUNT' as const, alias: 'orders', filter: deep(12) },
+        {
+          type: AggregationMetricType.COUNT as const,
+          alias: 'orders',
+          filter: deep(12),
+        },
       ] as AnalysisViewConfig['metrics'],
     };
 
@@ -562,16 +603,18 @@ describe('metric filters', () => {
   it('admits a metadata filter, unlike an element predicate', () => {
     // An element has no owner, but a metric filter is looking at a whole
     // record and that is exactly what OWNER_ID asks about.
-    expect(codes(withFilter(leaf('@ownerId', 'OWNER_ID', 'u-1')))).toEqual([]);
+    expect(
+      codes(withFilter(leaf('@ownerId', FilterOperator.OWNER_ID, 'u-1'))),
+    ).toEqual([]);
   });
 
   it('refuses a condition with no value', () => {
     // Not the rule the filter panel follows. An empty condition is dropped at
     // compile, so the metric would silently count every record instead of the
     // subset the filter was meant to name.
-    expect(codes(withFilter(leaf('warehouse', 'EQ', '')))).toEqual([
-      'analysis.metricFilter.incomplete',
-    ]);
+    expect(codes(withFilter(leaf('warehouse', FilterOperator.EQ, '')))).toEqual(
+      ['analysis.metricFilter.incomplete'],
+    );
   });
 
   it.each([
@@ -595,7 +638,7 @@ describe('metric filters', () => {
       config({
         metrics: [
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'orders',
             filter: { op: 'and', children: [] },
           },
@@ -613,11 +656,13 @@ describe('metric filters', () => {
 
   it('says nothing about a value the operator does not take', () => {
     // IS_NULL carries no value, so there is nothing to fill in.
-    expect(codes(withFilter(leaf('warehouse', 'IS_NULL', null)))).toEqual([]);
+    expect(
+      codes(withFilter(leaf('warehouse', FilterOperator.IS_NULL, null))),
+    ).toEqual([]);
   });
 
   it('reports the kind before the empty value, never both', () => {
-    expect(codes(withFilter(leaf('items', 'IN', [])))).toEqual([
+    expect(codes(withFilter(leaf('items', FilterOperator.IN, [])))).toEqual([
       'analysis.metricFilter.not-scalar',
     ]);
   });
@@ -626,17 +671,22 @@ describe('metric filters', () => {
     // `compileMetric` never emits one, so refusing the config would block it
     // over a property that changes nothing.
     const stale = {
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       alias: 'share',
-      expression: { type: 'METRIC_REF', metric: 'orders' },
-      filter: leaf('ghost', 'EQ', 'x'),
+      expression: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+      filter: leaf('ghost', FilterOperator.EQ, 'x'),
     } as unknown as AnalysisViewConfig['metrics'][number];
 
     expect(
       codes(
         validateAnalysis(
           wide(),
-          config({ metrics: [{ type: 'COUNT', alias: 'orders' }, stale] }),
+          config({
+            metrics: [
+              { type: AggregationMetricType.COUNT, alias: 'orders' },
+              stale,
+            ],
+          }),
           builtinFieldKinds,
         ),
       ),
@@ -648,15 +698,20 @@ describe('metric filters', () => {
     // compilation must not turn around and compile it: the field it names is
     // gone, and `compileFilter` answers that by throwing.
     const stale = {
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       alias: 'share',
-      expression: { type: 'METRIC_REF', metric: 'orders' },
-      filter: leaf('ghost', 'EQ', 'x'),
+      expression: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+      filter: leaf('ghost', FilterOperator.EQ, 'x'),
     } as unknown as AnalysisViewConfig['metrics'][number];
 
     const query = compileAnalysis(
       wide(),
-      config({ metrics: [{ type: 'COUNT', alias: 'orders' }, stale] }),
+      config({
+        metrics: [
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
+          stale,
+        ],
+      }),
       builtinFieldKinds,
       context,
     );
@@ -674,7 +729,7 @@ describe('metric filters', () => {
       op: 'and',
       children: Array.from({ length: leaves }, () => ({
         field: 'items',
-        operator: 'IN' as FilterOperatorName,
+        operator: FilterOperator.IN as FilterOperatorName,
         value: [] as FilterValue,
       })),
     });

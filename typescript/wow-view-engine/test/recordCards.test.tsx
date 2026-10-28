@@ -18,6 +18,7 @@ import { defaultMessages } from '../src/ui/kit/messages.js';
 import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { INSTANT, ZONE, inZone } from './fixtures.js';
 import { recordTableController, twoColumnTable } from './fixtures/ui.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -99,7 +100,14 @@ describe('RecordCards outside the rows', () => {
     cards({
       summaries: {
         scope: 'total',
-        cells: [{ field: 'amount', label: 'Amount', fn: 'SUM', value: 42 }],
+        cells: [
+          {
+            field: 'amount',
+            label: 'Amount',
+            fn: AggregationFunction.SUM,
+            value: 42,
+          },
+        ],
       },
     });
     const summaries = document.querySelector(
@@ -136,7 +144,7 @@ describe('RecordCards outside the rows', () => {
           {
             field: 'createdAt',
             label: 'Created',
-            fn: 'MAX',
+            fn: AggregationFunction.MAX,
             value: INSTANT,
             cell: 'datetime',
           },
@@ -158,7 +166,7 @@ describe('RecordCards outside the rows', () => {
       ].map(node => node.textContent),
     ).toEqual([inZone(INSTANT), inZone(INSTANT)]);
     expect(summaries?.textContent).toContain(
-      defaultMessages['label.summary.fn.date.MAX'],
+      defaultMessages[`label.summary.fn.date.${AggregationFunction.MAX}`],
     );
   });
 });

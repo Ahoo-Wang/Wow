@@ -38,63 +38,111 @@ import {
 import { FAMILY_RULES } from '../src/analysis/familyRules.js';
 import { FAMILY_VIEWS } from '../src/ui/charts/familyViews.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 const terms = (alias: string): AnalysisGroup => ({
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: alias,
   alias,
 });
 const month: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 };
-const count: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const count: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const sum: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'sum',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const average: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'avg',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 /** The latest of a date: a moment, which no mark measures. */
 const latest: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'latest',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 };
 const MOMENTS: ReadonlySet<string> = new Set([latest.alias]);
 /** A field's five numbers: what a boxplot draws (D41). */
-const amount = { type: 'FIELD', field: 'amount' } as const;
+const amount = {
+  type: AggregationExpressionType.FIELD,
+  field: 'amount',
+} as const;
 const five: AnalysisMetric[] = [
-  { type: 'NUMERIC', alias: 'low', function: 'MIN', expression: amount },
-  { type: 'PERCENTILE', alias: 'p25', expression: amount, percentile: 25 },
-  { type: 'PERCENTILE', alias: 'p50', expression: amount, percentile: 50 },
-  { type: 'PERCENTILE', alias: 'p75', expression: amount, percentile: 75 },
-  { type: 'NUMERIC', alias: 'high', function: 'MAX', expression: amount },
+  {
+    type: AggregationMetricType.NUMERIC,
+    alias: 'low',
+    function: AggregationFunction.MIN,
+    expression: amount,
+  },
+  {
+    type: AggregationMetricType.PERCENTILE,
+    alias: 'p25',
+    expression: amount,
+    percentile: 25,
+  },
+  {
+    type: AggregationMetricType.PERCENTILE,
+    alias: 'p50',
+    expression: amount,
+    percentile: 50,
+  },
+  {
+    type: AggregationMetricType.PERCENTILE,
+    alias: 'p75',
+    expression: amount,
+    percentile: 75,
+  },
+  {
+    type: AggregationMetricType.NUMERIC,
+    alias: 'high',
+    function: AggregationFunction.MAX,
+    expression: amount,
+  },
 ];
 
 /** A field's four numbers: what a candlestick draws (N1). */
 const four: AnalysisMetric[] = [
-  { type: 'FIRST', alias: 'open', field: 'amount' },
-  { type: 'NUMERIC', alias: 'top', function: 'MAX', expression: amount },
-  { type: 'NUMERIC', alias: 'bottom', function: 'MIN', expression: amount },
-  { type: 'LAST', alias: 'close', field: 'amount' },
+  { type: AggregationMetricType.FIRST, alias: 'open', field: 'amount' },
+  {
+    type: AggregationMetricType.NUMERIC,
+    alias: 'top',
+    function: AggregationFunction.MAX,
+    expression: amount,
+  },
+  {
+    type: AggregationMetricType.NUMERIC,
+    alias: 'bottom',
+    function: AggregationFunction.MIN,
+    expression: amount,
+  },
+  { type: AggregationMetricType.LAST, alias: 'close', field: 'amount' },
 ];
 
 /** A day bucket: what a calendar lays out (D41). */
 const day: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 };
 
 const GROUPS: AnalysisGroup[][] = [
@@ -138,7 +186,9 @@ function rowsOf(groups: AnalysisGroup[], values: readonly string[]) {
     Object.fromEntries(
       groups.map(group => [
         group.alias,
-        group.type === 'TERMS' ? value : Date.UTC(2026, index, 1),
+        group.type === AggregationGroupType.TERMS
+          ? value
+          : Date.UTC(2026, index, 1),
       ]),
     ),
   );

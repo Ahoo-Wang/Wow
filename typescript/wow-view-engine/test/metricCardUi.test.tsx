@@ -42,6 +42,11 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -63,7 +68,12 @@ const ROWS: RecordData[] = [
 function daily(spec: Partial<MetricCardSpec> = {}): AnalysisViewConfig {
   return analysisConfig({
     groups: [
-      { alias: 'day', field: 'createdAt', type: 'DATE_HISTOGRAM', unit: 'DAY' },
+      {
+        alias: 'day',
+        field: 'createdAt',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.DAY,
+      },
     ],
     layout: 'chart',
     chart: {
@@ -229,8 +239,8 @@ describe('a trend card read as its last period', () => {
         {
           alias: 'day',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'WEEK',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.WEEK,
         },
       ],
     });
@@ -402,9 +412,14 @@ describe('the trend card’s options', () => {
 describe('the change against the period before, by its unit', () => {
   it.each([
     // Two Mondays in a row, and two month starts.
-    ['WEEK', Date.UTC(2026, 8, 7), Date.UTC(2026, 8, 14), 'vs the week before'],
     [
-      'MONTH',
+      AggregationDateUnit.WEEK,
+      Date.UTC(2026, 8, 7),
+      Date.UTC(2026, 8, 14),
+      'vs the week before',
+    ],
+    [
+      AggregationDateUnit.MONTH,
       Date.UTC(2026, 7, 1),
       Date.UTC(2026, 8, 1),
       'vs the month before',
@@ -457,8 +472,12 @@ describe('a card compared with another metric', () => {
     analysisConfig({
       groups: [],
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
-        { alias: 'before', type: 'COUNT', label: 'Last month' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
+        {
+          alias: 'before',
+          type: AggregationMetricType.COUNT,
+          label: 'Last month',
+        },
       ],
       layout: 'chart',
       chart: {
@@ -513,7 +532,7 @@ describe('a rate’s change against the period before', () => {
             value: 0.656,
             period: {
               at: day(22),
-              unit: 'DAY',
+              unit: AggregationDateUnit.DAY,
               change: { delta: -0.144, ratio: -0.18 },
             },
           }}
@@ -556,7 +575,7 @@ describe('a rate’s change against the period before', () => {
             value: 0.4,
             period: {
               at: day(22),
-              unit: 'DAY',
+              unit: AggregationDateUnit.DAY,
               change: { delta: 0.0001, ratio: 0.0003 },
             },
           }}

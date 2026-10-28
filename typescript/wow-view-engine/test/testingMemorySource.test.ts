@@ -30,6 +30,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type FilterExpression,
+  DeletionState,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
@@ -270,7 +271,7 @@ describe('memorySource', () => {
       const { list } = await indexed.paged({
         filter: {
           op: FilterOperator.DELETION,
-          state: 'ALL',
+          state: DeletionState.ALL,
         } as FilterExpression,
         pagination: { index: 1, size: 5000 },
       });
@@ -1090,7 +1091,7 @@ describe('memorySource', () => {
       const source = memorySource([{ amount: 1 }], { remember: true });
       const refused = query([count()], {
         filter: {
-          op: 'TENANT_ID',
+          op: FilterOperator.TENANT_ID,
           value: 'north',
         } as unknown as FilterExpression,
       });

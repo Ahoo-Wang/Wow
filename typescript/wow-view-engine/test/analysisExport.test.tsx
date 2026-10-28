@@ -57,6 +57,11 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -104,12 +109,12 @@ function definition(): DataViewDefinition {
 const config = (overrides: Partial<AnalysisViewConfig> = {}) =>
   analysisConfig({
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount_sum',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
     table: {

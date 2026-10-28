@@ -46,6 +46,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator, SearchMode } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -233,9 +234,9 @@ describe('a search filter on the board', () => {
     );
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.lastCall?.[0].filter).toEqual({
-        op: 'SEARCH',
+        op: FilterOperator.SEARCH,
         query: 'SO-1',
-        mode: 'TERMS',
+        mode: SearchMode.TERMS,
         fields: ['id', 'status'],
       }),
     );

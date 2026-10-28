@@ -39,6 +39,7 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * How the source answers a read of **one** record — the detail's own query
@@ -176,7 +177,7 @@ function hostSections(
             children: [
               {
                 field: 'warehouse',
-                operator: 'IN',
+                operator: FilterOperator.IN,
                 value: [String(row.data.warehouse)],
               },
             ],

@@ -30,6 +30,7 @@ import { HOST_LANGUAGE, recordConfig } from './fixtures.js';
 import { rowSource } from './rowSource.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Opportunities moving through their stages, and requirements through
@@ -64,7 +65,7 @@ const opportunities: DataViewDefinition = {
       name: 'amount',
       label: '预计金额',
       kind: 'number',
-      summary: ['SUM'],
+      summary: [AggregationFunction.SUM],
       sortable: true,
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
@@ -171,8 +172,8 @@ const pipeline: ViewInstance = {
   config: recordConfig({
     layout: 'kanban',
     pageSize: 3,
-    sort: [{ field: 'amount', direction: 'DESC' }],
-    summaries: [{ field: 'amount', fn: 'SUM' }],
+    sort: [{ field: 'amount', direction: SortDirection.DESC }],
+    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
     table: {
       columns: [
         { field: 'id', pinned: true },

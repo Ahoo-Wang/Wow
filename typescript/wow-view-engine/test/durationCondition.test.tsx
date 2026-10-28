@@ -25,6 +25,7 @@ import {
   filter as wow,
   FilterOperator,
   type QueryModelDescriptor,
+  HavingExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -88,8 +89,13 @@ const FIELDS: FieldDefinition[] = [
 
 const LATE: FilterLeaf = {
   field: 'shippedAt',
-  operator: 'EXPRESSION',
-  value: { from: 'paidAt', comparison: 'GT', value: 48, unit: 'HOUR' },
+  operator: FilterOperator.EXPRESSION,
+  value: {
+    from: 'paidAt',
+    comparison: ComparisonOperator.GT,
+    value: 48,
+    unit: DateDiffUnit.HOUR,
+  },
 };
 const tree = (...children: FilterTree['children']): FilterTree => ({
   op: 'and',
@@ -101,9 +107,11 @@ const codes = (tree: FilterTree, fields = FIELDS) =>
 describe('a time since another moment, in the kernel', () => {
   it('is a time kind’s condition, whole only once its earlier time is picked', () => {
     expect(builtinFieldKinds.get('datetime')!.operators).toContain(
-      'EXPRESSION',
+      FilterOperator.EXPRESSION,
     );
-    expect(builtinFieldKinds.get('date')!.operators).toContain('EXPRESSION');
+    expect(builtinFieldKinds.get('date')!.operators).toContain(
+      FilterOperator.EXPRESSION,
+    );
     expect(isDurationFilterValue(LATE.value)).toBe(true);
     expect(isDurationFilterValue({ ...(LATE.value as object), from: '' })).toBe(
       false,
@@ -113,7 +121,10 @@ describe('a time since another moment, in the kernel', () => {
     expect(
       compileFilter(
         FIELDS,
-        tree({ ...LATE, value: { from: '', comparison: 'GT' } }),
+        tree({
+          ...LATE,
+          value: { from: '', comparison: ComparisonOperator.GT },
+        }),
         builtinFieldKinds,
         { now: new Date(0), timeZone: 'UTC' },
       ),
@@ -147,7 +158,7 @@ describe('a time since another moment, in the kernel', () => {
       codes(
         tree(LATE, {
           field: 'shippedAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset: 'thisMonth' },
         }),
       ),
@@ -159,15 +170,15 @@ describe('a time since another moment, in the kernel', () => {
       codes(
         tree({
           field: 'lines',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: tree({
             field: 'lines.done',
-            operator: 'EXPRESSION',
+            operator: FilterOperator.EXPRESSION,
             value: {
               from: 'lines.at',
-              comparison: 'GT',
+              comparison: ComparisonOperator.GT,
               value: 1,
-              unit: 'DAY',
+              unit: DateDiffUnit.DAY,
             },
           }) as never,
         }),
@@ -205,9 +216,9 @@ describe('a time since another moment, in the kernel', () => {
       value: {
         kind: 'duration',
         from: 'Paid',
-        comparison: 'GT',
+        comparison: ComparisonOperator.GT,
         amount: 48,
-        unit: 'HOUR',
+        unit: DateDiffUnit.HOUR,
       },
     });
     expect(item!.text).toBe('Shipped since Paid GT 48 hour');
@@ -216,7 +227,9 @@ describe('a time since another moment, in the kernel', () => {
   it('names its earlier time wherever a tree’s fields are read or renamed', () => {
     expect(filterFields(tree(LATE))).toEqual(['shippedAt', 'paidAt']);
     expect(durationFrom(LATE)).toBe('paidAt');
-    expect(durationFrom({ ...LATE, operator: 'GT' })).toBeUndefined();
+    expect(
+      durationFrom({ ...LATE, operator: FilterOperator.GT }),
+    ).toBeUndefined();
     const relative = relativeTree(
       tree({
         ...LATE,
@@ -275,11 +288,14 @@ describe('narrowing by the descriptor', () => {
     ).definition.fields.find(field => field.name === 'shippedAt')?.operators;
 
   it('keeps it where the entry lists EXPRESSION among its root operators', () => {
-    expect(operators(true)).toEqual(['BETWEEN', 'EXPRESSION']);
+    expect(operators(true)).toEqual([
+      FilterOperator.BETWEEN,
+      FilterOperator.EXPRESSION,
+    ]);
   });
 
   it('takes it away where the entry keeps expensive operators off', () => {
-    expect(operators(false)).toEqual(['BETWEEN']);
+    expect(operators(false)).toEqual([HavingExpressionType.BETWEEN]);
   });
 });
 
@@ -320,7 +336,13 @@ describe('a time since another moment, in the condition editor', () => {
     const user = userEvent.setup();
     const { engine, runtime, source } = await open(FIELDS.slice(0, 2), {
       op: 'and',
-      children: [{ field: 'shippedAt', operator: 'EXPRESSION', value: null }],
+      children: [
+        {
+          field: 'shippedAt',
+          operator: FilterOperator.EXPRESSION,
+          value: null,
+        },
+      ],
     });
     function Panel() {
       const filter = useFilterEditor(runtime);
@@ -345,7 +367,12 @@ describe('a time since another moment, in the condition editor', () => {
           (runtime.getSnapshot().draft as { filter: FilterTree }).filter
             .children[0] as FilterLeaf
         ).value,
-      ).toEqual({ from: 'paidAt', comparison: 'GT', value: 0, unit: 'HOUR' }),
+      ).toEqual({
+        from: 'paidAt',
+        comparison: ComparisonOperator.GT,
+        value: 0,
+        unit: DateDiffUnit.HOUR,
+      }),
     );
     fireEvent.change(within(pill).getByRole('textbox', { name: /Amount$/ }), {
       target: { value: '48' },
@@ -362,7 +389,12 @@ describe('a time since another moment, in the condition editor', () => {
           (runtime.getSnapshot().draft as { filter: FilterTree }).filter
             .children[0] as FilterLeaf
         ).value,
-      ).toEqual({ from: 'paidAt', comparison: 'GTE', value: 48, unit: 'DAY' }),
+      ).toEqual({
+        from: 'paidAt',
+        comparison: ComparisonOperator.GTE,
+        value: 48,
+        unit: DateDiffUnit.DAY,
+      }),
     );
 
     runtime.apply();
@@ -405,7 +437,7 @@ describe('a time since another moment, in the condition editor', () => {
     render(<Operators />);
     await waitFor(() =>
       expect(screen.getByRole('status').textContent).not.toContain(
-        'EXPRESSION',
+        FilterOperator.EXPRESSION,
       ),
     );
     engine.dispose();
@@ -418,7 +450,9 @@ describe('a time since another moment, in the condition editor', () => {
     cleanup();
     render(<Both />);
     await waitFor(() =>
-      expect(screen.getByRole('status').textContent).toContain('EXPRESSION'),
+      expect(screen.getByRole('status').textContent).toContain(
+        FilterOperator.EXPRESSION,
+      ),
     );
     second.engine.dispose();
   });
