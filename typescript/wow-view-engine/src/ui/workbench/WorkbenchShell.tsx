@@ -25,7 +25,8 @@ import {
   hasAsked as viewHasAsked,
   hasResult as viewHasResult,
 } from '../../runtime/index.js';
-import { retryableOpen, type WorkbenchController } from '../../react/index.js';
+import type { WorkbenchController } from '../../react/index.js';
+import { retryableOpen } from '../../react/useOpenView.js';
 import { AppliedBar } from '../filter/AppliedBar.js';
 import { EditorFold } from './EditorBand.js';
 import { SurfaceKind } from '../kit/kinds.js';

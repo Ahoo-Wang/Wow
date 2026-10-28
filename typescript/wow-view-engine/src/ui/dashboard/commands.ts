@@ -21,11 +21,11 @@ import {
   referencedInstance,
 } from '../../dashboard/index.js';
 import type { DataViewConfig } from '../../model/index.js';
-import {
-  ownedNavigation,
-  type DashboardController,
-  type DashboardPanelView,
+import type {
+  DashboardController,
+  DashboardPanelView,
 } from '../../react/index.js';
+import { ownedNavigation } from '../../react/usePanelFollowUps.js';
 import {
   hasResult,
   isRecordRuntime,

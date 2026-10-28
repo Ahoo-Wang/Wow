@@ -12,12 +12,12 @@
  */
 
 import type * as React from 'react';
-import {
-  failureReasons,
-  type ActionRunner,
-  type BulkOutcome,
-  type BulkRunning,
+import type {
+  ActionRunner,
+  BulkOutcome,
+  BulkRunning,
 } from '../../react/index.js';
+import { failureReasons } from '../../react/actionRunner.js';
 import { LineAlert, type AlertTone } from '../kit/alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';

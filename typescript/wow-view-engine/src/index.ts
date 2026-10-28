@@ -46,14 +46,12 @@ export {
   type AnalysisTop,
   type AnalysisViewConfig,
   type DerivedFormat,
-  FIELD_METRIC_TYPES,
   type FieldMetricType,
   type ValueMetric,
 } from './model/analysis.js';
 export {
   type AxisSpec,
   type BoxplotSpec,
-  CARTESIAN_MISSING,
   CHART_TYPES,
   type CalendarSpec,
   type CandlestickSpec,
@@ -63,7 +61,6 @@ export {
   type ChartFamily,
   type ChartSpec,
   type ChartType,
-  DERIVED_KINDS,
   type DerivedKind,
   type DerivedSeries,
   type FunnelSpec,
@@ -78,7 +75,6 @@ export {
   type MetricTrend,
   type ParallelSpec,
   type PieSpec,
-  REFERENCE_STATISTICS,
   type RadarSpec,
   type ReferenceBand,
   type ReferenceLine,
@@ -103,7 +99,6 @@ export type { CurrencyReading } from './model/currency.js';
 export {
   type BoardValueSource,
   type ContentPanelKind,
-  DASHBOARD_GRID_COLUMNS,
   type DashboardContentPanel,
   type DashboardField,
   type DashboardFilterType,
@@ -254,7 +249,6 @@ export {
 export {
   type AbsoluteDateTimeValue,
   type BooleanFilterValue,
-  DURATION_COMPARISONS,
   type DateTimeFilterValue,
   type DateTimePreset,
   type ComparisonOperatorName,
@@ -363,11 +357,7 @@ export {
 export { type AnalysisLimitBounds } from './analysis/limitBounds.js';
 export { type ChartFit } from './analysis/fitCharts.js';
 export { type Dropped } from './analysis/expand.js';
-export {
-  type HavingOperator,
-  type HavingRow,
-  havingRows,
-} from './analysis/having.js';
+export { type HavingOperator, type HavingRow } from './analysis/having.js';
 export { type MetricCondition } from './analysis/metricCondition.js';
 export { type MetricFunction } from './analysis/metricFormat.js';
 export {

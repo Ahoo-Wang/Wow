@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 258 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -263,12 +263,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 258 — with its kind and
 | `useKindWord` | function | `kindWord` for the kind the surface has open (`SurfaceKind`). | — |
 | `useSaidText` | function | A box that edits a label as it is typed: what it shows — `value` in words — and what a keystroke gives back (`keptKey`, against the value the box opened on), so words typed back to what was shown are the key again. | — |
 | `useSay` | function | How a definition's keys (`text(key)`) are said here: in the wording in force — the nearest provider's `messages`, merged over the ones above — else in the words the engine was built with, else as the key itself. | — |
-| `useSurfaceAttributes` | function | The attributes a popup takes from the surface it opened from, so the stylesheet resolves it as it does the surface: the mode, the preset, the change convention, the density and whether the first chart slot follows the brand. | — |
-| `useSurfaceColorMode` | function | The mode the nearest surface is in: light or dark, resolved. | — |
 | `useSurfaceDisplay` | function | The language and zone the nearest surface shows values in. | — |
-| `useSurfaceFont` | function | — | — |
-| `useSurfaceHostTokens` | function | — | — |
-| `useSurfaceTokens` | function | — | — |
 | `useViewExpansion` | function | Let a surface fill the screen **where it stands**. | — |
 | `useViewMessages` | function | The formatters for the wording in force here, with `messages` merged over it and its numbers grouped in `locale`. | — |
 | `useViewNavigation` | function | The places of the host's navigation (host-integration.md 4.3), from the`ViewHost` above: every registered resource the host bound a `route` to, in the order they were registered, with its system views; titles said in the words in force, so a change of language redraws it, and a resource registered or bound differently changes it. | — |

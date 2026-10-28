@@ -240,7 +240,7 @@ export interface AnalysisEditorController extends QuestionEditing {
     focus(): void;
     // (undocumented)
     groups: AnalysisGroup[];
-    having: ReturnType<typeof havingRows>;
+    having: HavingRow[] | null;
     havingAllowed: boolean;
     havingMetrics: readonly string[] | null;
     issues: Issue[];
@@ -783,9 +783,6 @@ interface CandlestickSpec {
     x: string;
 }
 
-// @public
-const CARTESIAN_MISSING: readonly ["zero", "gap"];
-
 // @public (undocumented)
 interface CartesianData {
     // (undocumented)
@@ -828,8 +825,8 @@ type CartesianGap = {
     gap: 'split' | 'shares' | 'none-measured';
 };
 
-// @public (undocumented)
-type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
+// @public
+type CartesianMissing = 'zero' | 'gap';
 
 // @public (undocumented)
 interface CartesianSeries {
@@ -950,8 +947,8 @@ interface ColumnCurrency {
 // @public
 type ColumnEdge = 'left' | 'right';
 
-// @public (undocumented)
-type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+// @public
+type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
 // @public (undocumented)
 type ConflictChoice = 'reload' | 'overwrite';
@@ -1009,9 +1006,6 @@ interface CursorPaging {
     // (undocumented)
     nextCursor: string | null;
 }
-
-// @public
-const DASHBOARD_GRID_COLUMNS = 24;
 
 // @public
 type DashboardContentPanel = DashboardPanelBase & ({
@@ -1294,7 +1288,7 @@ interface DashboardTimeGrouping {
 
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
-    columns: typeof DASHBOARD_GRID_COLUMNS;
+    columns: 24;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -1520,9 +1514,6 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
-
-// @public
 type DerivedFormat = {
     style: 'number';
     decimals?: number;
@@ -1538,8 +1529,8 @@ type DerivedFormat = {
 // @public
 type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
-// @public (undocumented)
-type DerivedKind = (typeof DERIVED_KINDS)[number];
+// @public
+type DerivedKind = 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share' | 'previous' | 'previous-year';
 
 // @public
 interface DerivedLine {
@@ -1611,9 +1602,6 @@ interface Dropped {
     // (undocumented)
     metrics: AnalysisMetric[];
 }
-
-// @public
-const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
@@ -1691,12 +1679,6 @@ interface ExportRowsOptions {
     onProgress?(fetched: number, total?: number): void;
     signal?: AbortSignal;
 }
-
-// @public
-export function failureReasons(failed: readonly BulkFailure[]): {
-    reason: string;
-    count: number;
-}[];
 
 // @public
 interface FieldAnalysisSpec {
@@ -2330,9 +2312,6 @@ interface HavingRow {
     value: number | null;
 }
 
-// @public
-function havingRows(having: AnalysisHavingExpression | undefined): HavingRow[] | null;
-
 // @public (undocumented)
 interface HeatmapData {
     cells: (number | null)[][];
@@ -2440,11 +2419,6 @@ type IssueSeverity = 'error' | 'warning' | 'note';
 type JsonValue = string | number | boolean | null | JsonValue[] | {
     [key: string]: JsonValue;
 };
-
-// @public
-export function kindMismatch(runtime: {
-    kind: ViewKind;
-} | null, drawn: readonly ViewKind[]): Issue | null;
 
 // @public
 export interface LeaveGuard {
@@ -2735,9 +2709,6 @@ interface OptionSource {
 
 // @public
 type OptionSpec = string | Omit<FieldOption, 'value'> | false;
-
-// @public
-export function ownedNavigation(runtime: ViewRuntime<DataViewConfig>, title: string, handOver: HandOver | null): ViewNavigation | null;
 
 // @public
 interface OwnedView {
@@ -3500,9 +3471,6 @@ export interface RecoveredWrite {
 }
 
 // @public
-const REFERENCE_STATISTICS: readonly ["average", "median"];
-
-// @public
 interface ReferenceBand {
     // (undocumented)
     axis: 'left' | 'right';
@@ -3548,8 +3516,8 @@ interface ReferenceLine {
     value?: number;
 }
 
-// @public (undocumented)
-type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+// @public
+type ReferenceStatistic = 'average' | 'median';
 
 // @public
 interface RefreshConfig {
@@ -3601,9 +3569,6 @@ export type ReshapeProposal = Pick<AnalysisViewConfig, 'groups' | 'metrics'> & P
     dropped?: Dropped;
     columns?: AnalysisColumn[];
 };
-
-// @public
-export function retryableOpen(issue: Issue | null): boolean;
 
 // @public
 interface RiverStream {
@@ -3945,9 +3910,6 @@ export interface ToggleSortOptions {
     exclusive?: boolean;
 }
 
-// @public
-export function toIssue(error: unknown, code: string): Issue;
-
 // @public (undocumented)
 interface TreemapData {
     nested: boolean;
@@ -4094,9 +4056,6 @@ export function useViewRuntime<R extends ViewRuntimeStore<unknown>>(runtime: R |
 
 // @public
 export function useWorkbench(engine: ViewEngine, definitionId: string, options: WorkbenchOptions): WorkbenchController;
-
-// @public
-export const VALUE_CANDIDATE_DEBOUNCE_MS = 250;
 
 // @public
 interface ValueCandidate {

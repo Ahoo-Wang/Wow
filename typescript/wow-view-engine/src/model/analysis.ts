@@ -356,13 +356,18 @@ export const DERIVED_FORMAT_STYLES = [
 export const MAX_DERIVED_DECIMALS = 6;
 
 /**
- * The metric types that measure one field, in the order a field offers them:
- * a function of its values, how many distinct values it
- * holds, a percentile of them, its value on the earliest or the latest
- * record (期初值／期末值), or any one of them. The record count names
- * no field, and a derived metric names other metrics. Declared beside the
- * union so a `satisfies` refuses a type the metric does not have, and the
- * summary a tray card offers is derived from this rather than listed again.
+ * The metric types that measure one field: a function of its values, how
+ * many distinct values it holds, a percentile of them, its value on the
+ * earliest or the latest record (期初值／期末值), or any one of them. The
+ * record count names no field, and a derived metric names other metrics.
+ */
+export type FieldMetricType =
+  'numeric' | 'distinct-count' | 'percentile' | 'first' | 'last' | 'any';
+
+/**
+ * The field metric types in the order a field offers them. The `satisfies`
+ * refuses a type the metric does not have, and the summary a tray card
+ * offers is derived from this rather than listed again.
  */
 export const FIELD_METRIC_TYPES = [
   AggregationMetricTypes.NUMERIC,
@@ -371,9 +376,7 @@ export const FIELD_METRIC_TYPES = [
   AggregationMetricTypes.FIRST,
   AggregationMetricTypes.LAST,
   AggregationMetricTypes.ANY,
-] as const satisfies readonly AnalysisMetric['type'][];
-
-export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
+] as const satisfies readonly (FieldMetricType & AnalysisMetric['type'])[];
 
 /**
  * The metric types whose value is one record's value of a field rather than

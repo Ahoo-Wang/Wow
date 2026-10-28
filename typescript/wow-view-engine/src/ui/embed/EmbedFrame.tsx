@@ -14,11 +14,9 @@
 import { useEffect, type ReactNode } from 'react';
 import type { ViewKind } from '../../model/index.js';
 import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
-import {
-  kindMismatch,
-  retryableOpen,
-  type OpenViewState,
-} from '../../react/index.js';
+import type { OpenViewState } from '../../react/index.js';
+import { kindMismatch } from '../../react/issues.js';
+import { retryableOpen } from '../../react/useOpenView.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert.js';
 import { Skeleton } from '../components/skeleton.js';
 import { kindWord, SurfaceKind } from '../kit/kinds.js';

@@ -586,9 +586,6 @@ export interface CandlestickSpec {
     x: string;
 }
 
-// @public
-export const CARTESIAN_MISSING: readonly ["zero", "gap"];
-
 // @public (undocumented)
 export interface CartesianData {
     // (undocumented)
@@ -631,8 +628,8 @@ export type CartesianGap = {
     gap: 'split' | 'shares' | 'none-measured';
 };
 
-// @public (undocumented)
-export type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
+// @public
+export type CartesianMissing = 'zero' | 'gap';
 
 // @public (undocumented)
 export interface CartesianSeries {
@@ -759,8 +756,8 @@ export interface ColumnCurrency {
 // @public
 export type ColumnEdge = 'left' | 'right';
 
-// @public (undocumented)
-export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+// @public
+export type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
 // @public
 export function compileAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AggregationQuery;
@@ -851,9 +848,6 @@ export interface CursorPaging {
     // (undocumented)
     nextCursor: string | null;
 }
-
-// @public
-export const DASHBOARD_GRID_COLUMNS = 24;
 
 // @public
 export type DashboardContentPanel = DashboardPanelBase & ({
@@ -1065,7 +1059,7 @@ export interface DashboardTimeGrouping {
 
 // @public (undocumented)
 export interface DashboardViewConfig extends ViewConfigBase {
-    columns: typeof DASHBOARD_GRID_COLUMNS;
+    columns: 24;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -1328,9 +1322,6 @@ export interface DefinitionNarrowing {
 }
 
 // @public
-export const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
-
-// @public
 export type DerivedFormat = {
     style: 'number';
     decimals?: number;
@@ -1346,8 +1337,8 @@ export type DerivedFormat = {
 // @public
 export type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
-// @public (undocumented)
-export type DerivedKind = (typeof DERIVED_KINDS)[number];
+// @public
+export type DerivedKind = 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share' | 'previous' | 'previous-year';
 
 // @public
 export interface DerivedLine {
@@ -1387,9 +1378,6 @@ export interface Dropped {
     // (undocumented)
     metrics: AnalysisMetric[];
 }
-
-// @public
-export const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 export interface DurationFilterValue {
@@ -1502,9 +1490,6 @@ export interface ExportRowsOptions {
     onProgress?(fetched: number, total?: number): void;
     signal?: AbortSignal;
 }
-
-// @public
-export const FIELD_METRIC_TYPES: readonly ["numeric", "distinct-count", "percentile", "first", "last", "any"];
 
 // @public
 export interface FieldAnalysisSpec {
@@ -1663,8 +1648,8 @@ export interface FieldKindValidateContext {
     value: unknown;
 }
 
-// @public (undocumented)
-export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
+// @public
+export type FieldMetricType = 'numeric' | 'distinct-count' | 'percentile' | 'first' | 'last' | 'any';
 
 // @public
 export type FieldNumeric = DecimalNumeric | FixedMoneyNumeric | RowMoneyNumeric;
@@ -2032,9 +2017,6 @@ export interface HavingRow {
     operator: HavingOperator;
     value: number | null;
 }
-
-// @public
-export function havingRows(having: AnalysisHavingExpression | undefined): HavingRow[] | null;
 
 // @public (undocumented)
 export interface HeatmapData {
@@ -2941,9 +2923,6 @@ export interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode
 }
 
 // @public
-export const REFERENCE_STATISTICS: readonly ["average", "median"];
-
-// @public
 export interface ReferenceBand {
     // (undocumented)
     axis: 'left' | 'right';
@@ -3011,8 +2990,8 @@ export interface ReferenceLine {
     value?: number;
 }
 
-// @public (undocumented)
-export type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+// @public
+export type ReferenceStatistic = 'average' | 'median';
 
 // @public
 export interface RefreshConfig {

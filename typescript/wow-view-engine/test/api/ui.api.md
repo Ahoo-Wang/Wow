@@ -666,9 +666,6 @@ interface CandlestickSpec {
 // @public
 type CaptureChart = (minWidth: number) => ChartCapture | undefined;
 
-// @public
-const CARTESIAN_MISSING: readonly ["zero", "gap"];
-
 // @public (undocumented)
 interface CartesianData {
     // (undocumented)
@@ -711,8 +708,8 @@ type CartesianGap = {
     gap: 'split' | 'shares' | 'none-measured';
 };
 
-// @public (undocumented)
-type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
+// @public
+type CartesianMissing = 'zero' | 'gap';
 
 // @public (undocumented)
 interface CartesianSeries {
@@ -962,8 +959,8 @@ export interface ColumnSettingsProps {
 // @public
 export type ColumnSettingsTable = Pick<RecordTableController, 'columnFields' | 'summaryFields' | 'pinnedOf' | 'hiddenOf' | 'summaryOf' | 'columns' | 'setColumnOrder' | 'setPinned' | 'setColumnWidth' | 'setSummary' | 'setColumns'>;
 
-// @public (undocumented)
-type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+// @public
+type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
 // @public (undocumented)
 type ConflictChoice = 'reload' | 'overwrite';
@@ -1043,9 +1040,6 @@ interface CursorPaging {
     // (undocumented)
     nextCursor: string | null;
 }
-
-// @public
-const DASHBOARD_GRID_COLUMNS = 24;
 
 // @public
 type DashboardContentPanel = DashboardPanelBase & ({
@@ -1429,7 +1423,7 @@ interface DashboardTimeGrouping {
 
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
-    columns: typeof DASHBOARD_GRID_COLUMNS;
+    columns: 24;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -1695,9 +1689,6 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
-
-// @public
 type DerivedFormat = {
     style: 'number';
     decimals?: number;
@@ -1713,8 +1704,8 @@ type DerivedFormat = {
 // @public
 type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
-// @public (undocumented)
-type DerivedKind = (typeof DERIVED_KINDS)[number];
+// @public
+type DerivedKind = 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share' | 'previous' | 'previous-year';
 
 // @public
 interface DerivedLine {
@@ -1794,9 +1785,6 @@ export interface DisplayField {
 
 // @public
 export function displayValue(value: unknown, field: DisplayField, context: DisplayContext): string | undefined;
-
-// @public
-const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
@@ -6352,9 +6340,6 @@ interface RecoveredWrite {
 }
 
 // @public
-const REFERENCE_STATISTICS: readonly ["average", "median"];
-
-// @public
 interface ReferenceBand {
     // (undocumented)
     axis: 'left' | 'right';
@@ -6400,8 +6385,8 @@ interface ReferenceLine {
     value?: number;
 }
 
-// @public (undocumented)
-type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+// @public
+type ReferenceStatistic = 'average' | 'median';
 
 // @public
 interface RefreshConfig {
@@ -8331,29 +8316,7 @@ export function useSaidText(value: string | undefined): {
 export function useSay(messages?: ViewMessages): Say;
 
 // @public
-export function useSurfaceAttributes(): {
-    lang: string | undefined;
-    'data-theme': 'light' | 'dark' | undefined;
-    'data-fve-preset': string | undefined;
-    'data-fve-change-colors': string | undefined;
-    'data-fve-density': string | undefined;
-    'data-fve-brand-chart': string | undefined;
-};
-
-// @public
-export function useSurfaceColorMode(): 'light' | 'dark' | undefined;
-
-// @public
 export function useSurfaceDisplay(): DisplayContext;
-
-// @public (undocumented)
-export function useSurfaceFont(): string | undefined;
-
-// @public (undocumented)
-export function useSurfaceHostTokens(): Partial<Record<FveToken, string>> | undefined;
-
-// @public (undocumented)
-export function useSurfaceTokens(): string | undefined;
 
 // @public
 export function useViewExpansion(target: RefObject<HTMLElement | null>, toggleRef: RefObject<HTMLElement | null>, enabled?: boolean): ViewExpansion;
