@@ -5279,7 +5279,7 @@
                 },
                 "direction" : {
                   "type" : "string",
-                  "enum" : [ "ASC", "DESC" ]
+                  "enum" : [ "asc", "desc" ]
                 }
               },
               "required" : [ "field", "direction" ]
@@ -5301,7 +5301,7 @@
           },
           "total" : {
             "type" : "string",
-            "enum" : [ "EXACT", "BOUNDED", "NONE" ]
+            "enum" : [ "exact", "bounded", "none" ]
           },
           "size" : {
             "type" : "integer"

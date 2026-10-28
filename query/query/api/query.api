@@ -1195,7 +1195,7 @@ public final class me/ahoo/wow/query/schema/QueryFieldDeclarationBuilder {
 	public static synthetic fun enumValue$default (Lme/ahoo/wow/query/schema/QueryFieldDeclarationBuilder;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)V
 	public final fun items (Lkotlin/jvm/functions/Function1;)V
 	public final fun items (Lme/ahoo/wow/query/schema/QueryFieldDeclaration;)V
-	public final fun kind (Lme/ahoo/wow/query/schema/QueryValueKind;)V
+	public final fun kind (Lme/ahoo/wow/api/query/QueryValueKind;)V
 	public final fun nullable (Z)V
 	public final fun property (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun reference (Ljava/lang/String;Ljava/lang/String;)V
@@ -1457,18 +1457,6 @@ public final class me/ahoo/wow/query/schema/QueryValueDomainsKt {
 	public static final fun operationValues (Lme/ahoo/wow/query/schema/QueryValueSchema;)Ljava/util/List;
 }
 
-public final class me/ahoo/wow/query/schema/QueryValueKind : java/lang/Enum {
-	public static final field ARRAY Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static final field NULL Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static final field OBJECT Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static final field SCALAR Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static final field UNION Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static final field UNKNOWN Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryValueKind;
-	public static fun values ()[Lme/ahoo/wow/query/schema/QueryValueKind;
-}
-
 public final class me/ahoo/wow/query/schema/QueryValueSchema {
 	public final fun getAdditionalProperties ()Lme/ahoo/wow/query/schema/QueryValueSchema;
 	public final fun getAliases ()Ljava/util/Set;
@@ -1479,7 +1467,7 @@ public final class me/ahoo/wow/query/schema/QueryValueSchema {
 	public final fun getEnumDescriptions ()Ljava/util/Map;
 	public final fun getEnumValues ()Ljava/util/List;
 	public final fun getItems ()Lme/ahoo/wow/query/schema/QueryValueSchema;
-	public final fun getKind ()Lme/ahoo/wow/query/schema/QueryValueKind;
+	public final fun getKind ()Lme/ahoo/wow/api/query/QueryValueKind;
 	public final fun getMaskRule ()Lme/ahoo/wow/query/schema/MaskRule;
 	public final fun getNullable ()Z
 	public final fun getProperties ()Ljava/util/Map;

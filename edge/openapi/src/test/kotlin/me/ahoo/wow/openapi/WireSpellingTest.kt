@@ -51,8 +51,7 @@ class WireSpellingTest {
             .map { "x-wow-command" to it }
         wow.assert().isNotEmpty()
         creations.assert().isNotEmpty()
-        (wow + creations).filterNot { (path, value) -> KEBAB.matches(value) || path in QUERY_PROTOCOL }
-            .assert().isEmpty()
+        (wow + creations).filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
     }
 
     private fun enums(node: Any?, path: String): List<Pair<String, String>> = when (node) {
@@ -71,11 +70,5 @@ class WireSpellingTest {
     private companion object {
         val KEBAB = Regex("[a-z0-9]+(-[a-z0-9]+)*")
         val SNAPSHOTS: Path = Path.of("src/test/resources/openapi")
-
-        /** The query protocol's request enumerations, which keep their spelling until the query protocol changes. */
-        val QUERY_PROTOCOL = setOf(
-            "wow.QueryRequest/properties/sort/items/properties/direction",
-            "wow.QueryRequest/properties/total",
-        )
     }
 }
