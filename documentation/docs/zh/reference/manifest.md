@@ -36,6 +36,22 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `includeState`
 - `errors`: 数组，元素为 [`Error`](#error)
 - `commands`: 数组，元素为 [`Command`](#command); 缺省或取默认值时省略
+- `routes`: 数组，元素为 [`ServiceRoute`](#serviceroute); 缺省或取默认值时省略
+
+## `ServiceRoute`
+
+- `name`
+- `route`
+- `parameters`: 对象数组; 缺省或取默认值时省略
+  - `name`
+  - `in`
+  - `schema`
+  - `required`
+- `request`
+- `response`
+- `errors`: 缺省或取默认值时省略
+- `description`
+- `deprecated`: 缺省或取默认值时省略
 
 ## `Command`
 

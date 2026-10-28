@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 125 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -74,6 +74,7 @@ Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the fir
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
+| `RouteParameterManifest` | interface | A path variable or query parameter of a service route, and its scalar schema. | — |
 | `RoutingCommand` | type | A command as a `RoutingManifest` lists it: its name, former names and routes. | — |
 | `RoutingManifest` | interface | What a `CommandClient` reads of a Manifest to send a command: each context's aggregates and their commands with their routes, and the context's own system commands. | — |
 | `SNAPSHOT_SUBSCRIPTION` | const | The name of the built-in subscription that writes snapshots. | — |
@@ -82,6 +83,7 @@ Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the fir
 | `ScheduleSet` | interface | The body of `wow.ScheduleSet`: the aggregate set its schedule `key`, to send `target` the command of type `commandType` (`command` its JSON text) as `rule` says. | — |
 | `Scope` | interface | The owner and the space an aggregate belongs to, beside its tenant. | — |
 | `ServiceManifest` | interface | The service a merged Manifest describes; a fragment has none. | — |
+| `ServiceRouteManifest` | interface | A service route: a route whose handler is the service's own code, its parameters and schemas. | — |
 | `SnapshotManifest` | interface | Whether an aggregate keeps snapshots, and the revision of their state. | — |
 | `SnapshotQueryClient` | class | Queries an aggregate type's snapshots, the default read model; only where the aggregate keeps them. | — |
 | `SnapshotRecord` | interface | A record of the `snapshot` query model: the aggregate's system fields and its state. | — |

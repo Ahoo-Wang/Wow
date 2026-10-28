@@ -34,6 +34,34 @@ export interface ContextManifest {
   readonly errors: readonly ErrorManifest[];
   /** The context's own system commands: its job commands. */
   readonly commands?: readonly CommandManifest[];
+  /** The context's service routes, whose handlers are its own code. */
+  readonly routes?: readonly ServiceRouteManifest[];
+}
+
+/** A service route: a route whose handler is the service's own code, its parameters and schemas. */
+export interface ServiceRouteManifest {
+  /** The route's name in its context: its identity and its client's method. */
+  readonly name: string;
+  readonly route: RouteManifest;
+  readonly parameters?: readonly RouteParameterManifest[];
+  /** #/$defs/<key> */
+  readonly request?: string;
+  /** #/$defs/<key> */
+  readonly response?: string;
+  /** The codes the route refuses with, entries of the context's errors. */
+  readonly errors?: readonly string[];
+  readonly description?: string;
+  readonly deprecated?: boolean;
+}
+
+/** A path variable or query parameter of a service route, and its scalar schema. */
+export interface RouteParameterManifest {
+  readonly name: string;
+  /** Where the parameter is read from. */
+  readonly in: 'path' | 'query' | (string & {});
+  /** An inline JSON Schema of a scalar. */
+  readonly schema: unknown;
+  readonly required: boolean;
 }
 
 /** An aggregate type: its state, snapshots, commands, events and query models. */
