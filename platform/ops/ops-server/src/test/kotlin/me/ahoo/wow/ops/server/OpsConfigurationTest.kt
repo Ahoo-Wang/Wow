@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -59,7 +60,7 @@ class OpsConfigurationTest {
         }
         // What the host hands out when CoSec authorizes the requests itself.
         if (policies != null && authorizerEnabled) {
-            beans.addBean("cosec", CoSecAutoConfiguration().wowCoSecAuthorizers(policies, wow))
+            beans.addBean("cosec", CoSecAutoConfiguration().wowCoSecAuthorizers(policies, Manifest(), wow))
         }
         val authorizer = OpsConfiguration().opsAuthorizer(beans.getBeanProvider(CoSecAuthorizers::class.java))
         return runBlocking { authorizer.authorize(caller, resume) }
