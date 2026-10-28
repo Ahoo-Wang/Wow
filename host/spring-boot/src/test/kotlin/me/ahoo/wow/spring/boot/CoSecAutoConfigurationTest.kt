@@ -26,6 +26,7 @@ import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -56,6 +57,10 @@ class CoSecAutoConfigurationTest {
     class CoSec {
         @Bean
         fun authorization(): CoSecAuthorization = CoSecAuthorization { _, _ -> Mono.just(AuthorizeResult.ALLOW) }
+
+        /** The service's Manifest, which the host always has: CoSec's authorizer reads the command routes from it. */
+        @Bean
+        fun manifest(): Manifest = Manifest(contexts = emptyList())
 
         @Bean
         fun httpOptions(): WowHttpOptions = WowHttpOptions(requestFacts = setOf("X-Trace"))
