@@ -37,6 +37,7 @@ import {
   dealsKanban,
   kanbanConfig,
 } from './fixtures/kanban.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -135,7 +136,9 @@ describe('useRecordKanban', () => {
       runtime.edit({
         filter: {
           op: 'and',
-          children: [{ field: 'amount', operator: 'GT', value: 10 }],
+          children: [
+            { field: 'amount', operator: FilterOperator.GT, value: 10 },
+          ],
         },
       }),
     );

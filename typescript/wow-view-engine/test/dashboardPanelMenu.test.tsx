@@ -50,6 +50,7 @@ import {
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { tracked } from './fixtures/writes.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -188,7 +189,9 @@ describe('导出数据… on a record panel (D22 运维)', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
       },
       panels: [

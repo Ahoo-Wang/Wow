@@ -14,6 +14,10 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -53,30 +57,33 @@ afterEach(cleanup);
  * would leave nothing to measure is off, saying why.
  */
 
-const count: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const count: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 const amount: AnalysisMetric = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const cost: AnalysisMetric = {
   alias: 'cost',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'cost' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'cost' },
 };
 
 function derived(alias: string, left: string, right: string): AnalysisMetric {
   return {
     alias,
-    type: 'DERIVED',
+    type: AggregationMetricType.DERIVED,
     label: alias === 'perOrder' ? 'Per order' : alias,
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE' as never,
-      left: { type: 'METRIC_REF', metric: left },
-      right: { type: 'METRIC_REF', metric: right },
+      type: DerivedExpressionType.BINARY,
+      operator: AggregationExpressionOperator.DIVIDE as never,
+      left: { type: DerivedExpressionType.METRIC_REF, metric: left },
+      right: { type: DerivedExpressionType.METRIC_REF, metric: right },
     },
   };
 }
@@ -385,7 +392,7 @@ describe('the metrics row', () => {
     ]);
     const sum = formatMessage(defaultMessages, 'label.summary.of', {
       field: 'Amount',
-      fn: defaultMessages['label.summary.fn.SUM'],
+      fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
     });
 
     fireEvent.keyDown(handle('Per order'), { key: 'ArrowLeft' });
@@ -416,7 +423,7 @@ describe('the metrics row', () => {
     await open([count, amount, derived('perOrder', 'amount', 'orders')]);
     const sum = formatMessage(defaultMessages, 'label.summary.of', {
       field: 'Amount',
-      fn: defaultMessages['label.summary.fn.SUM'],
+      fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
     });
     fireEvent.keyDown(handle('Per order'), { key: 'ArrowLeft' });
     await waitFor(() => expect(note()).not.toBeNull());
@@ -454,7 +461,7 @@ describe('the metrics row', () => {
     ]);
     const sum = formatMessage(defaultMessages, 'label.summary.of', {
       field: 'Amount',
-      fn: defaultMessages['label.summary.fn.SUM'],
+      fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
     });
     const remove = screen.getByRole('button', {
       name: label('label.analysis.remove-metric', { name: sum }),

@@ -27,6 +27,8 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   fitChartSlots,
@@ -154,21 +156,27 @@ export function shipmentsConfig(
   const split = scene !== 'ten-thousand-days';
   const groups: AnalysisViewConfig['groups'] = [
     {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     },
     ...(split
-      ? [{ type: 'TERMS' as const, field: 'warehouse', alias: 'warehouse' }]
+      ? [
+          {
+            type: AggregationGroupType.TERMS as const,
+            field: 'warehouse',
+            alias: 'warehouse',
+          },
+        ]
       : []),
   ];
   const metrics = [
     {
       alias: 'amount',
-      type: 'NUMERIC',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'amount' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     },
   ] satisfies AnalysisViewConfig['metrics'];
   const fitted = fitChartSlots({ type }, groups, metrics);

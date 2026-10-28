@@ -22,6 +22,7 @@ import {
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   DashboardFilters,
@@ -121,7 +122,7 @@ const misdeclaredOverview = {
                   children: [
                     {
                       field: 'status',
-                      operator: 'CONTAINS',
+                      operator: FilterOperator.CONTAINS,
                       value: 'CANCELLED',
                     },
                   ],
@@ -469,8 +470,12 @@ function preBatchCConfig(): DashboardViewConfig {
     filter: {
       op: 'and',
       children: [
-        { field: 'region', operator: 'IN', value: ['CN-SOUTH'] },
-        { field: 'region', operator: 'NOT_IN', value: ['CN-WEST'] },
+        { field: 'region', operator: FilterOperator.IN, value: ['CN-SOUTH'] },
+        {
+          field: 'region',
+          operator: FilterOperator.NOT_IN,
+          value: ['CN-WEST'],
+        },
       ],
     },
     filterMode: 'simple',
@@ -524,7 +529,13 @@ function tabbedConfig(): DashboardViewConfig {
         owned: {
           definitionId: 'orders',
           config: analysisConfig({
-            groups: [{ alias: 'status', field: 'status', type: 'TERMS' }],
+            groups: [
+              {
+                alias: 'status',
+                field: 'status',
+                type: AggregationGroupType.TERMS,
+              },
+            ],
             chart: {
               type: 'bar',
               cartesian: { x: 'status', series: [{ metric: 'amount' }] },
@@ -601,8 +612,8 @@ const trendView: ViewInstance = {
       {
         alias: 'createdAt',
         field: 'createdAt',
-        type: 'DATE_HISTOGRAM',
-        unit: 'DAY',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.DAY,
       },
     ],
     chart: {
@@ -641,7 +652,10 @@ function filtersConfig(): DashboardViewConfig {
       { name: 'phase', label: '状态', kind: 'string' },
       { name: 'order', label: '订单号', kind: 'string' },
     ],
-    timeGrouping: { units: ['DAY', 'MONTH'], default: 'DAY' },
+    timeGrouping: {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
+      default: AggregationDateUnit.DAY,
+    },
     panels: [
       ...base.panels.map(panel =>
         panel.kind === 'view'

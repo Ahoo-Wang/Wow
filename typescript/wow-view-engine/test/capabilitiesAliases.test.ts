@@ -16,6 +16,12 @@ import {
   type QueryModelDescriptor,
   AggregationFunction,
   AggregationGroupType,
+  FilterOperator,
+  SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
@@ -125,12 +131,14 @@ describe('a field the definition names by an alias', () => {
           children: [
             {
               op: 'or',
-              children: [{ field: 'amount', operator: 'GT', value: 10 }],
+              children: [
+                { field: 'amount', operator: FilterOperator.GT, value: 10 },
+              ],
             },
           ],
         },
-        sort: [{ field: 'amount', direction: 'DESC' }],
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
         card: { title: 'id', fields: ['amount'], image: 'amount' },
       }),
       renamed,
@@ -138,11 +146,15 @@ describe('a field the definition names by an alias', () => {
     expect(record).toMatchObject({
       filter: {
         children: [
-          { children: [{ field: 'total', operator: 'GT', value: 10 }] },
+          {
+            children: [
+              { field: 'total', operator: FilterOperator.GT, value: 10 },
+            ],
+          },
         ],
       },
-      sort: [{ field: 'total', direction: 'DESC' }],
-      summaries: [{ field: 'total', fn: 'SUM' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
+      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'], image: 'total' },
     });
@@ -150,25 +162,32 @@ describe('a field the definition names by an alias', () => {
     const analysis = withCanonicalNames(
       analysisConfig({
         groups: [
-          { alias: 'a', field: 'amount', type: 'HISTOGRAM', interval: 10 },
+          {
+            alias: 'a',
+            field: 'amount',
+            type: AggregationGroupType.HISTOGRAM,
+            interval: 10,
+          },
         ],
         metrics: [
           {
             alias: 'sum',
-            type: 'NUMERIC',
-            function: 'SUM',
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'CONSTANT', value: 1 },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: { type: AggregationExpressionType.CONSTANT, value: 1 },
             },
             filter: {
               op: 'and',
-              children: [{ field: 'amount', operator: 'GT', value: 0 }],
+              children: [
+                { field: 'amount', operator: FilterOperator.GT, value: 0 },
+              ],
             },
           },
-          { alias: 'any', type: 'ANY', field: 'amount' },
+          { alias: 'any', type: AggregationMetricType.ANY, field: 'amount' },
         ],
       }),
       renamed,
@@ -199,7 +218,9 @@ describe('a field the definition names by an alias', () => {
       title: 'By amount',
       scope: 'personal',
       revision: '1',
-      config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+      config: recordConfig({
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
+      }),
     };
     const descriptor = renamedDescriptor();
     const paged = vi.fn(() => Promise.resolve({ total: 0, list: [] }));
@@ -222,8 +243,8 @@ describe('a field the definition names by an alias', () => {
     expect(paged).toHaveBeenCalledWith(
       expect.objectContaining({
         sort: [
-          { field: 'total', direction: 'DESC' },
-          { field: 'id', direction: 'ASC' },
+          { field: 'total', direction: SortDirection.DESC },
+          { field: 'id', direction: SortDirection.ASC },
         ],
       }),
       undefined,
@@ -238,7 +259,9 @@ describe('a field the definition names by an alias', () => {
       title: 'By amount',
       scope: 'personal',
       revision: '1',
-      config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+      config: recordConfig({
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
+      }),
     };
     const describe = vi
       .fn()
@@ -263,13 +286,13 @@ describe('a field the definition names by an alias', () => {
 
     const state = runtime.getSnapshot();
     expect(state.draft).toMatchObject({
-      sort: [{ field: 'total', direction: 'DESC' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
     });
     expect(state.applied).toMatchObject({
-      sort: [{ field: 'total', direction: 'DESC' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
     });
     expect(state.saved?.config).toMatchObject({
-      sort: [{ field: 'total', direction: 'DESC' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
     });
     expect(state.dirty).toBe(false);
   });
@@ -322,7 +345,7 @@ describe('a field the definition names by an alias', () => {
       elements: [{ path: 'items', filter: true, aggregate: true }],
       record: {
         ...base.record,
-        search: { modes: ['TERMS'] as never, fields: ['total'] },
+        search: { modes: [SearchMode.TERMS] as never, fields: ['total'] },
       },
     };
     const { definition } = narrowDefinition(
@@ -356,10 +379,12 @@ describe('a definition whose record defaults name a field by an alias', () => {
         defaults: {
           filter: {
             op: 'and',
-            children: [{ field: 'amount', operator: 'GT', value: 0 }],
+            children: [
+              { field: 'amount', operator: FilterOperator.GT, value: 0 },
+            ],
           },
-          sort: [{ field: 'amount', direction: 'DESC' }],
-          summaries: [{ field: 'amount', fn: 'SUM' }],
+          sort: [{ field: 'amount', direction: SortDirection.DESC }],
+          summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
           table: { columns: [{ field: 'id' }, { field: 'amount' }] },
           card: { title: 'id', fields: ['amount'] },
         },
@@ -374,15 +399,15 @@ describe('a definition whose record defaults name a field by an alias', () => {
     expect(definition.record?.defaults).toEqual({
       filter: {
         op: 'and',
-        children: [{ field: 'total', operator: 'GT', value: 0 }],
+        children: [{ field: 'total', operator: FilterOperator.GT, value: 0 }],
       },
-      sort: [{ field: 'total', direction: 'DESC' }],
-      summaries: [{ field: 'total', fn: 'SUM' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
+      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'] },
     });
     expect(defaultRecordConfig(definition)).toMatchObject({
-      sort: [{ field: 'total', direction: 'DESC' }],
+      sort: [{ field: 'total', direction: SortDirection.DESC }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
     });
   });
@@ -420,7 +445,9 @@ describe('a board that names a panel field by an alias', () => {
       title: 'Orders',
       scope: 'shared',
       revision: 'r1',
-      config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+      config: recordConfig({
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
+      }),
     };
     const descriptor = renamedDescriptor();
     const store = new MemoryViewStore({ instances: [list] });
@@ -557,9 +584,12 @@ describe('a board that names a panel field by an alias', () => {
               metrics: [
                 {
                   alias: 'sum',
-                  type: 'NUMERIC',
-                  function: 'SUM',
-                  expression: { type: 'FIELD', field: 'amount' },
+                  type: AggregationMetricType.NUMERIC,
+                  function: AggregationFunction.SUM,
+                  expression: {
+                    type: AggregationExpressionType.FIELD,
+                    field: 'amount',
+                  },
                 },
               ],
             }),
@@ -582,7 +612,14 @@ describe('a board that names a panel field by an alias', () => {
             bindings: [{ globalField: 'min', panelField: 'total' }],
             owned: {
               config: {
-                metrics: [{ expression: { type: 'FIELD', field: 'total' } }],
+                metrics: [
+                  {
+                    expression: {
+                      type: AggregationExpressionType.FIELD,
+                      field: 'total',
+                    },
+                  },
+                ],
               },
             },
           },
@@ -592,7 +629,11 @@ describe('a board that names a panel field by an alias', () => {
     for (const panel of runtime.getSnapshot().panels)
       expect(panel.runtime?.scopeFilter).toMatchObject({
         children: [
-          { children: [{ field: 'total', operator: 'IN', value: [10] }] },
+          {
+            children: [
+              { field: 'total', operator: FilterOperator.IN, value: [10] },
+            ],
+          },
         ],
       });
   });

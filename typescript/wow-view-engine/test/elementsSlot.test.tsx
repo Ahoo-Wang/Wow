@@ -15,6 +15,8 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -313,7 +315,9 @@ describe('the expansion slot', () => {
     expect(draft(engine).elements).toEqual([{ path: 'items' }]);
     // The warehouse is the order's; inside an item it names nothing.
     expect(draft(engine).groups).toEqual([]);
-    expect(draft(engine).metrics).toMatchObject([{ type: 'COUNT' }]);
+    expect(draft(engine).metrics).toMatchObject([
+      { type: AggregationMetricType.COUNT },
+    ]);
     expect(
       document.querySelectorAll('[data-slot="dimension-card"]'),
     ).toHaveLength(0);
@@ -474,7 +478,9 @@ describe('the expansion slot', () => {
     expect(expandInto()?.textContent).toBe('Items');
     // Nothing is left to measure the order by, so the metrics start again
     // from the first thing the unit can count.
-    expect(draft(engine).metrics).toMatchObject([{ type: 'COUNT' }]);
+    expect(draft(engine).metrics).toMatchObject([
+      { type: AggregationMetricType.COUNT },
+    ]);
   });
 });
 
@@ -522,19 +528,25 @@ describe('what an expansion takes away (D71)', () => {
     await open({
       config: {
         metrics: [
-          { type: 'COUNT', alias: 'n' },
+          { type: AggregationMetricType.COUNT, alias: 'n' },
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'gmv',
             label: 'GMV',
             function: AggregationFunction.SUM,
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'total',
             function: AggregationFunction.SUM,
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       },
@@ -553,7 +565,7 @@ describe('what an expansion takes away (D71)', () => {
           count: '2',
           names: `GMV, ${label('label.summary.of', {
             field: 'Amount',
-            fn: defaultMessages['label.summary.fn.SUM'],
+            fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
           })}`,
         }),
       }),

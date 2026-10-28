@@ -35,6 +35,10 @@ import type { defaultMessages } from '../src/ui/kit/messages.js';
 import { formatMessage } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The period still under way at the end of a time axis (second review
@@ -50,10 +54,10 @@ import { analysisConfig } from './fixtures.js';
 type Loose = Record<string, any>;
 
 const MONTH: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'paidAt',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 };
 
 const month = (n: number) => Date.UTC(2026, n - 1, 1);

@@ -15,6 +15,9 @@ import {
   QueryValueKind,
   SensitivityLevel,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  ComparisonOperator,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -120,7 +123,7 @@ describe('the second review', () => {
     const variants: QueryModelDescriptor = ordersDescriptor({
       fields: [
         describedField('lines', {
-          types: ['OBJECT'],
+          types: [QueryValueTypes.OBJECT],
           kind: QueryValueKind.ARRAY,
         }),
       ],
@@ -219,7 +222,9 @@ describe('the second review', () => {
     ]);
     const snapshot = ordersDescriptor({
       fields: [
-        describedField('code', { filter: { operators: ['EQ'] as never } }),
+        describedField('code', {
+          filter: { operators: [FilterOperator.EQ] as never },
+        }),
       ],
     });
     const definition = defineView(
@@ -227,7 +232,7 @@ describe('the second review', () => {
       spec({ code: { label: 'Code', kind: 'sku' } }),
       { kinds },
     );
-    expect(definition.fields[0].operators).toEqual(['EQ']);
+    expect(definition.fields[0].operators).toEqual([ComparisonOperator.EQ]);
   });
 
   it('7: a board whose derived wires stand as they were is the same board', () => {

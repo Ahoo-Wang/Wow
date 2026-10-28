@@ -30,6 +30,8 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -103,22 +105,26 @@ export function salesConfig(rows: LongTableRows): AnalysisViewConfig {
   return analysisConfig({
     layout: 'table',
     groups: [
-      { type: 'TERMS', field: 'customer', alias: 'customer' },
-      { type: 'TERMS', field: 'region', alias: 'region' },
+      {
+        type: AggregationGroupType.TERMS,
+        field: 'customer',
+        alias: 'customer',
+      },
+      { type: AggregationGroupType.TERMS, field: 'region', alias: 'region' },
     ],
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
       {
         alias: 'average',
-        type: 'NUMERIC',
-        function: 'AVG',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.AVG,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
     sort: [{ alias: 'amount', direction: SortDirection.DESC }],

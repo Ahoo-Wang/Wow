@@ -30,6 +30,8 @@ import {
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -282,15 +284,26 @@ describe('the options page', () => {
     const { user } = show(
       chartConfig({
         groups: [
-          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-          { alias: 'status', field: 'status', type: 'TERMS' },
+          {
+            alias: 'warehouse',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
+          {
+            alias: 'status',
+            field: 'status',
+            type: AggregationGroupType.TERMS,
+          },
         ],
         metrics: [
           {
             alias: 'amount',
-            type: 'NUMERIC',
-            function: 'AVG',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.AVG,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         chart: {

@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
@@ -84,7 +87,7 @@ function validate(
 /** A global filter on `region`, bound onto the panel's `warehouse`. */
 const REGION_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+  children: [{ field: 'region', operator: FilterOperator.EQ, value: 'CN' }],
 };
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
@@ -168,10 +171,12 @@ describe('mapGlobalFilter', () => {
     const tree: FilterTree = {
       op: 'or',
       children: [
-        { field: 'region', operator: 'EQ', value: 'CN' },
+        { field: 'region', operator: FilterOperator.EQ, value: 'CN' },
         {
           op: 'and',
-          children: [{ field: 'region', operator: 'IN', value: ['EU'] }],
+          children: [
+            { field: 'region', operator: FilterOperator.IN, value: ['EU'] },
+          ],
         },
       ],
     };
@@ -183,10 +188,12 @@ describe('mapGlobalFilter', () => {
     ).toEqual({
       op: 'or',
       children: [
-        { field: 'warehouse', operator: 'EQ', value: 'CN' },
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
         {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'IN', value: ['EU'] }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.IN, value: ['EU'] },
+          ],
         },
       ],
     });
@@ -203,7 +210,9 @@ describe('mergeGlobalFilter', () => {
   it('ANDs the mapped global filter onto the panel filter as a nested group', () => {
     const panelFilter: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     };
 
     expect(
@@ -213,11 +222,13 @@ describe('mergeGlobalFilter', () => {
     ).toEqual({
       op: 'and',
       children: [
-        { field: 'status', operator: 'EQ', value: 'PENDING' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
         // Nested, not flattened: the panel may already ask about warehouse.
         {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
       ],
     });
@@ -226,7 +237,9 @@ describe('mergeGlobalFilter', () => {
   it('is the panel filter alone when the dashboard has no condition', () => {
     const panelFilter: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     };
 
     expect(
@@ -451,7 +464,13 @@ describe('validateDashboard references', () => {
           elements: [{ path: 'items' }],
           filter: {
             op: 'and',
-            children: [{ field: 'warehouse', operator: 'EQ', value: 'WH-1' }],
+            children: [
+              {
+                field: 'warehouse',
+                operator: FilterOperator.EQ,
+                value: 'WH-1',
+              },
+            ],
           },
         }),
       },
@@ -567,8 +586,8 @@ describe('validateDashboard bindings', () => {
       fixed: {
         op: 'or',
         children: [
-          { field: 'region', operator: 'EQ', value: 'CN' },
-          { field: 'product', operator: 'EQ', value: 'X' },
+          { field: 'region', operator: FilterOperator.EQ, value: 'CN' },
+          { field: 'product', operator: FilterOperator.EQ, value: 'X' },
         ],
       },
     });
@@ -588,7 +607,7 @@ describe('validateDashboard bindings', () => {
       ],
       fixed: {
         op: 'and',
-        children: [{ field: 'region', operator: 'EQ', value: 7 }],
+        children: [{ field: 'region', operator: FilterOperator.EQ, value: 7 }],
       },
     });
 
@@ -599,8 +618,8 @@ describe('validateDashboard bindings', () => {
     const panelFilter: FilterTree = {
       op: 'and',
       children: [
-        { field: 'status', operator: 'EQ', value: 'A' },
-        { field: 'status', operator: 'EQ', value: 'B' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'A' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'B' },
       ],
     };
     const reference = panelReference({
@@ -763,7 +782,11 @@ describe("validateDashboard, what is the board's and what a panel's", () => {
               filter: {
                 op: 'and',
                 children: [
-                  { field: 'warehouse', operator: 'CONTAINS', value: 'CN' },
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.CONTAINS,
+                    value: 'CN',
+                  },
                 ],
               },
             }),

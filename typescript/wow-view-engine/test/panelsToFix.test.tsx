@@ -50,6 +50,7 @@ import {
   panelsToFix,
   saidByBoard,
 } from '../src/ui/workbench/panelsToFix.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -204,7 +205,9 @@ function brokenBoards(): ViewEngine {
         config: analysisConfig({
           filter: {
             op: 'and',
-            children: [{ field, operator: 'CONTAINS', value: 'DONE' }],
+            children: [
+              { field, operator: FilterOperator.CONTAINS, value: 'DONE' },
+            ],
           },
         }),
       },

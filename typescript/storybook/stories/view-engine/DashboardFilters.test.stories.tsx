@@ -19,6 +19,7 @@ import displayMeta, {
   Filters as DisplayFilters,
 } from './Dashboard.stories.js';
 import { aggregateCalls } from './fixtures.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -380,7 +381,7 @@ export const ValuesReachTheHost: Story = {
         values: {
           created: { type: 'absolute', from: '2026-09-01', to: '2026-09-30' },
         },
-        unit: 'DAY',
+        unit: AggregationDateUnit.DAY,
       }),
     );
     await pickSouth(await filterBar(canvasElement));

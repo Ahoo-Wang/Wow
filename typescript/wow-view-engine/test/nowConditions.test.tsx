@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter as wow } from '@ahoo-wang/wow-client/dsl';
+import { filter as wow, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -43,10 +43,12 @@ afterEach(cleanup);
 const NOT_OVERDUE: FilterTree = {
   op: 'and',
   children: [
-    { field: 'status', operator: 'EQ', value: 'PENDING' },
+    { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
     {
       op: 'nor',
-      children: [{ field: 'dueAt', operator: 'BEFORE_NOW', value: null }],
+      children: [
+        { field: 'dueAt', operator: FilterOperator.BEFORE_NOW, value: null },
+      ],
     },
   ],
 };

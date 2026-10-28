@@ -17,6 +17,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  FilterOperator,
+  SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -147,11 +151,15 @@ const COLUMNS = [
 function carrying(...types: string[]): FilterNode {
   return {
     field: 'body',
-    operator: 'ELEMENT_MATCH',
+    operator: FilterOperator.ELEMENT_MATCH,
     value: {
       op: 'and',
       children: [
-        { field: 'body.bodyType', operator: 'IN', value: types.map(event) },
+        {
+          field: 'body.bodyType',
+          operator: FilterOperator.IN,
+          value: types.map(event),
+        },
       ],
     },
   };
@@ -166,7 +174,7 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'createTime', direction: 'DESC' }],
+    sort: [{ field: 'createTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -194,8 +202,10 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT', label: '事件数' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: '事件数' },
+    ],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -213,9 +223,9 @@ function analysisView(
 /** How many customers the events of a bucket belong to. */
 const CUSTOMERS = {
   alias: 'customers',
-  type: 'DISTINCT_COUNT',
+  type: AggregationMetricType.DISTINCT_COUNT,
   label: '涉及客户',
-  expression: { type: 'FIELD', field: 'aggregateId' },
+  expression: { type: AggregationExpressionType.FIELD, field: 'aggregateId' },
 } as const;
 
 /**
@@ -228,15 +238,18 @@ function dailyView(filter: FilterNode[], count = '事件数'): AnalysisViewConfi
     filter: { op: 'and', children: filter },
     groups: [
       {
-        type: 'DATE_HISTOGRAM',
+        type: AggregationGroupType.DATE_HISTOGRAM,
         field: 'createTime',
         alias: 'day',
-        unit: 'DAY',
+        unit: AggregationDateUnit.DAY,
         label: '日期',
       },
     ],
-    metrics: [{ alias: 'count', type: 'COUNT', label: count }, CUSTOMERS],
-    sort: [{ alias: 'day', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: count },
+      CUSTOMERS,
+    ],
+    sort: [{ alias: 'day', direction: SortDirection.DESC }],
     limit: 30,
   });
 }
@@ -346,13 +359,13 @@ export const customerEventsDefinition: DataViewDefinition = {
       name: 'header.upstream_name',
       label: '命令',
       kind: 'string',
-      operators: ['IS_NULL', 'IS_NOT_NULL'],
+      operators: [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL],
     },
     {
       name: 'header.command_operator',
       label: '操作人',
       kind: 'string',
-      operators: ['IS_NULL', 'IS_NOT_NULL'],
+      operators: [FilterOperator.IS_NULL, FilterOperator.IS_NOT_NULL],
     },
     {
       // `ELEMENT_SCOPE` and presence.
@@ -434,11 +447,11 @@ export const customerEventsDefinition: DataViewDefinition = {
       id: 'history',
       title: '客户历史',
       config: recordView(
-        [{ field: 'aggregateId', operator: 'EQ', value: '' }],
+        [{ field: 'aggregateId', operator: FilterOperator.EQ, value: '' }],
         {
           sort: [
-            { field: 'aggregateId', direction: 'ASC' },
-            { field: 'version', direction: 'ASC' },
+            { field: 'aggregateId', direction: SortDirection.ASC },
+            { field: 'version', direction: SortDirection.ASC },
           ],
         },
       ),
@@ -460,7 +473,7 @@ export const customerEventsDefinition: DataViewDefinition = {
         elements: [{ path: 'body' }],
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'body.bodyType',
             alias: 'type',
             label: '事件类型',
@@ -475,18 +488,22 @@ export const customerEventsDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createTime',
             alias: 'month',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
             label: '月份',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '事件数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '事件数',
+          },
           CUSTOMERS,
         ],
-        sort: [{ alias: 'month', direction: 'ASC' }],
+        sort: [{ alias: 'month', direction: SortDirection.ASC }],
         limit: 120,
         layout: 'chart',
         chart: {
@@ -510,7 +527,7 @@ export const customerEventsDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'aggregateId',
             alias: 'customer',
             label: '客户 ID',
@@ -519,12 +536,19 @@ export const customerEventsDefinition: DataViewDefinition = {
         // How many changes, and when the last one was: the latest of the
         // streams' times, which reads as a date.
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '变更次数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '变更次数',
+          },
           {
             alias: 'latest',
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             function: MAX,
-            expression: { type: 'FIELD', field: 'createTime' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'createTime',
+            },
             label: '最近一次变更',
           },
         ],

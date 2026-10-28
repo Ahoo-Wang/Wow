@@ -28,6 +28,11 @@ Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`rea
 <!-- typecheck: file=orders.ts -->
 
 ```ts
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
 
 export const orders: ViewDefinition = {
@@ -51,7 +56,7 @@ export const orders: ViewDefinition = {
       name: 'amount',
       label: 'Amount',
       kind: 'number',
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
     },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
@@ -68,13 +73,19 @@ export const orders: ViewDefinition = {
           op: 'and',
           // enum 是封闭集合，因此提供 IN 与 NOT_IN 而不是 EQ：
           // 一个条件即表达“取其中之一”，两者互换时保留已选项。
-          children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+          children: [
+            {
+              field: 'status',
+              operator: FilterOperator.IN,
+              value: ['PENDING'],
+            },
+          ],
         },
         filterMode: 'simple',
         refresh: { interval: null },
-        sort: [{ field: 'createdAt', direction: 'DESC' }],
+        sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [

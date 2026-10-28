@@ -33,6 +33,7 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The orders, with the search box a list page of them has: the order
@@ -102,7 +103,9 @@ const allOrders: ViewInstance = {
   title: '全部订单',
   scope: 'shared',
   revision: '1',
-  config: recordConfig({ sort: [{ field: 'createdAt', direction: 'DESC' }] }),
+  config: recordConfig({
+    sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
+  }),
 };
 
 function board(search: boolean): ViewInstance {

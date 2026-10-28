@@ -14,6 +14,7 @@
 import {
   AGGREGATION_LIMITS,
   AggregationGroupType,
+  StringComparison,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -756,7 +757,13 @@ describe('validateDefinition system views', () => {
 
     it('judges it against its own definition when that is registered beside it', () => {
       const unknownField = analysisConfig({
-        groups: [{ alias: 'region', field: 'region', type: 'TERMS' }],
+        groups: [
+          {
+            alias: 'region',
+            field: 'region',
+            type: AggregationGroupType.TERMS,
+          },
+        ],
       });
       // By its shape alone it is whole.
       expect(codes(board(unknownField))).toEqual([]);
@@ -1064,8 +1071,8 @@ describe('ViewEngine and an unusable definition', () => {
 
   it('admits the two comparisons it does know', () => {
     for (const stringComparison of [
-      'CASE_SENSITIVE',
-      'CASE_INSENSITIVE',
+      StringComparison.CASE_SENSITIVE,
+      StringComparison.CASE_INSENSITIVE,
     ] as const) {
       expect(
         validateDefinition(

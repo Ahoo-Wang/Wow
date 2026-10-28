@@ -39,6 +39,7 @@ import {
 import { expectMetricCardsFit } from './metricFit.js';
 import { nextFrame } from './panelEdges.js';
 import { noPanelOut } from './retail/twins.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The home page — the operations daily report over the retail data set —
@@ -164,7 +165,9 @@ export const DailyReport: Story = {
       ).toHaveTextContent(change);
       await expect(
         card.querySelector('[data-slot="metric-change"]'),
-      ).toHaveTextContent(zhCN['label.chart.change.against.DAY']);
+      ).toHaveTextContent(
+        zhCN[`label.chart.change.against.${AggregationDateUnit.DAY}`],
+      );
     }
     // A7: on-time shipping of 09-21 under its 95% target, as a bar short
     // of full.
@@ -666,7 +669,9 @@ export const PicksASpecificDay: Story = {
     await expect(report).not.toHaveTextContent('昨日');
     await expect(
       panelOf('GMV').querySelector('[data-slot="metric-change"]'),
-    ).toHaveTextContent(zhCN['label.chart.change.against.DAY']);
+    ).toHaveTextContent(
+      zhCN[`label.chart.change.against.${AggregationDateUnit.DAY}`],
+    );
     await waitFor(() =>
       expect(valueOf('GMV')).not.toBe(DAILY_GOLDEN.cards.GMV),
     );

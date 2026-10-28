@@ -61,6 +61,19 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  FilterOperator,
+  HavingExpressionType,
+  SearchMode,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -133,7 +146,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           analysisKernelConfig({
             groups: [
               {
-                type: 'TERMS',
+                type: AggregationGroupType.TERMS,
                 field: 'warehouse',
                 alias: 'wh',
                 missingKey: '(empty)',
@@ -162,10 +175,10 @@ describe('4.4 the analysis rows that need a member of their own', () => {
     const dated = {
       groups: [
         {
-          type: 'DATE_HISTOGRAM' as const,
+          type: AggregationGroupType.DATE_HISTOGRAM as const,
           field: 'createdAt',
           alias: 'month',
-          unit: 'MONTH' as const,
+          unit: AggregationDateUnit.MONTH as const,
           dense: true,
         },
       ],
@@ -201,12 +214,12 @@ describe('4.4 the analysis rows that need a member of their own', () => {
     expect(
       validate(
         { metricSort: false },
-        { sort: [{ alias: 'wh', direction: 'ASC' }] },
+        { sort: [{ alias: 'wh', direction: SortDirection.ASC }] },
       ),
     ).toEqual([]);
     // A fresh view and a condition's values start from a dimension.
     expect(defaultAnalysisConfig(narrowed.definition).sort).toEqual([
-      { alias: 'warehouse_group', direction: 'ASC' },
+      { alias: 'warehouse_group', direction: SortDirection.ASC },
     ]);
     expect(
       valueCandidatesConfig(
@@ -214,7 +227,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
         narrowed.definition.fields[0],
         builtinFieldKinds,
       ).sort,
-    ).toEqual([{ alias: 'value', direction: 'ASC' }]);
+    ).toEqual([{ alias: 'value', direction: SortDirection.ASC }]);
     // The table does not offer a metric header to sort by.
     const view = projectAnalysis(
       narrowed.definition,
@@ -231,32 +244,47 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       analysisDescriptor({
         analysis: {
           ...ordersDescriptor().analysis,
-          having: { metrics: ['COUNT'] as never },
+          having: { metrics: [AggregationMetricType.COUNT] as never },
         },
       }),
       builtinFieldKinds,
     );
-    expect(narrowed.definition.analysis?.havingMetrics).toEqual(['COUNT']);
+    expect(narrowed.definition.analysis?.havingMetrics).toEqual([
+      AggregationMetricType.COUNT,
+    ]);
 
     const summed: Pick<AnalysisViewConfig, 'metrics'> = {
       metrics: [
-        { type: 'COUNT' as const, alias: 'orders' },
+        { type: AggregationMetricType.COUNT as const, alias: 'orders' },
         {
-          type: 'NUMERIC' as const,
+          type: AggregationMetricType.NUMERIC as const,
           alias: 'total',
-          function: 'SUM' as const,
-          expression: { type: 'FIELD' as const, field: 'amount' },
+          function: AggregationFunction.SUM as const,
+          expression: {
+            type: AggregationExpressionType.FIELD as const,
+            field: 'amount',
+          },
         },
       ],
     };
     const keep = (metric: string): Partial<AnalysisViewConfig> => ({
       ...summed,
-      having: { type: 'CONDITION', metric, operator: 'GT', value: 1 },
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric,
+        operator: ComparisonOperator.GT,
+        value: 1,
+      },
     });
-    expect(validate({ havingMetrics: ['COUNT'] }, keep('orders'))).toEqual([]);
-    expect(validate({ havingMetrics: ['COUNT'] }, keep('total'))).toContain(
-      'analysis.having.metric-unsupported',
-    );
+    expect(
+      validate(
+        { havingMetrics: [AggregationMetricType.COUNT] },
+        keep('orders'),
+      ),
+    ).toEqual([]);
+    expect(
+      validate({ havingMetrics: [AggregationMetricType.COUNT] }, keep('total')),
+    ).toContain('analysis.having.metric-unsupported');
   });
 
   it('keeps a field out of a metric condition and out of a formula where the source does', () => {
@@ -290,11 +318,17 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       analysisKernelConfig({
         metrics: [
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'orders',
             filter: {
               op: 'and',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'CN',
+                },
+              ],
             },
           },
         ],
@@ -310,14 +344,14 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       analysisKernelConfig({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'twice',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'FIELD', field: 'amount' },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: { type: AggregationExpressionType.FIELD, field: 'amount' },
             },
           },
         ],
@@ -337,10 +371,13 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           analysisKernelConfig({
             metrics: [
               {
-                type: 'NUMERIC',
+                type: AggregationMetricType.NUMERIC,
                 alias: 'total',
-                function: 'SUM',
-                expression: { type: 'FIELD', field: 'amount' },
+                function: AggregationFunction.SUM,
+                expression: {
+                  type: AggregationExpressionType.FIELD,
+                  field: 'amount',
+                },
               },
             ],
             sort: [],
@@ -356,15 +393,21 @@ describe('4.4 the analysis rows that need a member of their own', () => {
     const config = analysisKernelConfig({
       metrics: [
         {
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           alias: 'p95',
           percentile: 95,
-          expression: { type: 'FIELD', field: 'amount' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
-          type: 'DISTINCT_COUNT',
+          type: AggregationMetricType.DISTINCT_COUNT,
           alias: 'kinds',
-          expression: { type: 'FIELD', field: 'amount' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
       ],
       sort: [],
@@ -383,7 +426,10 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       analysisDescriptor({
         analysis: {
           ...ordersDescriptor().analysis,
-          approximate: ['DISTINCT_COUNT', 'PERCENTILE'] as never,
+          approximate: [
+            AggregationMetricType.DISTINCT_COUNT,
+            AggregationMetricType.PERCENTILE,
+          ] as never,
         },
       }),
       builtinFieldKinds,
@@ -395,34 +441,49 @@ describe('4.4 the analysis rows that need a member of their own', () => {
     const box = analysisKernelConfig({
       metrics: [
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'lo',
-          function: 'MIN',
-          expression: { type: 'FIELD', field: 'amount' },
+          function: AggregationFunction.MIN,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           alias: 'q1',
           percentile: 25,
-          expression: { type: 'FIELD', field: 'amount' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           alias: 'med',
           percentile: 50,
-          expression: { type: 'FIELD', field: 'amount' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           alias: 'q3',
           percentile: 75,
-          expression: { type: 'FIELD', field: 'amount' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'hi',
-          function: 'MAX',
-          expression: { type: 'FIELD', field: 'amount' },
+          function: AggregationFunction.MAX,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
       ],
       sort: [],
@@ -489,8 +550,11 @@ describe('the controls on a narrowed analysis', () => {
         ...ordersDescriptor().analysis,
         dense: false,
         sort: { groups: true, metrics: false },
-        having: { metrics: ['COUNT'] as never },
-        approximate: ['DISTINCT_COUNT', 'PERCENTILE'] as never,
+        having: { metrics: [AggregationMetricType.COUNT] as never },
+        approximate: [
+          AggregationMetricType.DISTINCT_COUNT,
+          AggregationMetricType.PERCENTILE,
+        ] as never,
       },
       fields: [
         describedField('warehouse', {
@@ -531,8 +595,11 @@ describe('the controls on a narrowed analysis', () => {
     expect(result.current).toMatchObject({
       denseAllowed: false,
       metricSortAllowed: false,
-      havingMetrics: ['COUNT'],
-      approximate: ['DISTINCT_COUNT', 'PERCENTILE'],
+      havingMetrics: [AggregationMetricType.COUNT],
+      approximate: [
+        AggregationMetricType.DISTINCT_COUNT,
+        AggregationMetricType.PERCENTILE,
+      ],
     });
   });
 
@@ -551,7 +618,7 @@ describe('the controls on a narrowed analysis', () => {
       denseAllowed: true,
       metricSortAllowed: true,
       havingMetrics: null,
-      approximate: ['PERCENTILE'],
+      approximate: [AggregationMetricType.PERCENTILE],
     });
     expect(
       result.current.fields.every(field => field.expressionInput !== false),
@@ -568,7 +635,7 @@ describe('a phrase search the source matches only as words', () => {
           name: 'q',
           label: 'Search notes',
           kind: 'search',
-          searchMode: 'PHRASE',
+          searchMode: SearchMode.PHRASE,
         },
       ],
     });
@@ -589,9 +656,11 @@ describe('a phrase search the source matches only as words', () => {
       return renderHook(() => useSearchBox(runtime)).result.current;
     };
 
-    const words = await open(['TERMS']);
+    const words = await open([AggregationGroupType.TERMS]);
     expect(words?.byWords).toBe(true);
-    expect((await open(['TERMS', 'PHRASE']))?.byWords).toBe(false);
+    expect((await open([SearchMode.TERMS, SearchMode.PHRASE]))?.byWords).toBe(
+      false,
+    );
 
     render(
       <MessagesProvider messages={zhCN}>

@@ -37,10 +37,15 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
-const status: FilterNode = { field: 'status', operator: 'EQ', value: 'PAID' };
+const status: FilterNode = {
+  field: 'status',
+  operator: FilterOperator.EQ,
+  value: 'PAID',
+};
 const and = (...children: FilterNode[]): FilterTree => ({
   op: 'and',
   children,
@@ -51,7 +56,7 @@ describe('the root search', () => {
     const added = withRootSearch(and(status), 'keyword', 'late');
     expect(added.children).toEqual([
       status,
-      { field: 'keyword', operator: 'SEARCH', value: 'late' },
+      { field: 'keyword', operator: FilterOperator.SEARCH, value: 'late' },
     ]);
     expect(rootSearch(added, 'keyword')).toBe('late');
 
@@ -65,14 +70,20 @@ describe('the root search', () => {
   it('narrows an advanced tree whose top is an or, rather than joining it', () => {
     const either: FilterTree = { op: 'or', children: [status] };
     expect(withRootSearch(either, 'keyword', 'late')).toEqual(
-      and(either, { field: 'keyword', operator: 'SEARCH', value: 'late' }),
+      and(either, {
+        field: 'keyword',
+        operator: FilterOperator.SEARCH,
+        value: 'late',
+      }),
     );
   });
 
   it('leaves a search composed inside a group to the editor', () => {
     const nested = and({
       op: 'or',
-      children: [{ field: 'keyword', operator: 'SEARCH', value: 'x' }],
+      children: [
+        { field: 'keyword', operator: FilterOperator.SEARCH, value: 'x' },
+      ],
     });
     expect(rootSearch(nested, 'keyword')).toBe('');
   });

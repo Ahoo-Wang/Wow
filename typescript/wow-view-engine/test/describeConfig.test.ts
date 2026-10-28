@@ -23,6 +23,7 @@ import {
 } from '../src/ui/kit/messages.js';
 import type { MessageFormatters } from '../src/ui/kit/MessagesProvider.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /** The formatters a component would get, without a component to get them. */
 function wording(overrides: ViewMessages = {}): MessageFormatters {
@@ -44,7 +45,7 @@ describe('describeConfig', () => {
       describeConfig(
         recordConfig({
           pageSize: 50,
-          sort: [{ field: 'amount', direction: 'ASC' }],
+          sort: [{ field: 'amount', direction: SortDirection.ASC }],
         }),
         wording(),
       ),

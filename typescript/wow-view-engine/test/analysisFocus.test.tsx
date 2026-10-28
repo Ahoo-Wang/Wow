@@ -14,6 +14,10 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
@@ -346,8 +350,16 @@ describe('a removal leaves the keyboard in the list', () => {
     open({
       config: {
         groups: [
-          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-          { alias: 'status', field: 'status', type: 'TERMS' },
+          {
+            alias: 'warehouse',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
+          {
+            alias: 'status',
+            field: 'status',
+            type: AggregationGroupType.TERMS,
+          },
         ],
       },
     });
@@ -379,12 +391,15 @@ describe('a removal leaves the keyboard in the list', () => {
     open({
       config: {
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'total',
-            type: 'NUMERIC',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       },
@@ -408,19 +423,32 @@ describe('a removal leaves the keyboard in the list', () => {
     open({
       config: {
         having: {
-          type: 'AND',
+          type: HavingExpressionType.AND,
           operands: [
-            { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 1 },
-            { type: 'CONDITION', metric: 'total', operator: 'GT', value: 2 },
+            {
+              type: HavingExpressionType.CONDITION,
+              metric: 'orders',
+              operator: ComparisonOperator.GT,
+              value: 1,
+            },
+            {
+              type: HavingExpressionType.CONDITION,
+              metric: 'total',
+              operator: ComparisonOperator.GT,
+              value: 2,
+            },
           ],
         },
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'total',
-            type: 'NUMERIC',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       },
@@ -539,12 +567,15 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
       {
         groups: [],
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'total',
-            type: 'NUMERIC',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         chart: {
@@ -602,8 +633,14 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
   it('moves to the stage that takes the removed one’s place', async () => {
     await openOptions(
       {
-        groups: [{ alias: 'status', field: 'status', type: 'TERMS' }],
-        metrics: [{ alias: 'orders', type: 'COUNT' }],
+        groups: [
+          {
+            alias: 'status',
+            field: 'status',
+            type: AggregationGroupType.TERMS,
+          },
+        ],
+        metrics: [{ alias: 'orders', type: AggregationMetricType.COUNT }],
         chart: {
           type: 'funnel',
           funnel: {
@@ -644,12 +681,15 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
     await openOptions(
       {
         metrics: [
-          { alias: 'orders', type: 'COUNT' },
+          { alias: 'orders', type: AggregationMetricType.COUNT },
           {
             alias: 'total',
-            type: 'NUMERIC',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            type: AggregationMetricType.NUMERIC,
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         chart: {

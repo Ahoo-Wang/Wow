@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { SortDirection } from '@ahoo-wang/wow-client/dsl';
+import {
+  SortDirection,
+  AggregationGroupType,
+  AggregationDateUnit,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisViewConfig,
   CartesianSpec,
@@ -94,14 +101,19 @@ function referencesConfig(scene: ReferenceScene): AnalysisViewConfig {
   return analysisConfig({
     layout: 'chart',
     groups: [
-      { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'day', unit: 'DAY' },
+      {
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        field: 'createdAt',
+        alias: 'day',
+        unit: AggregationDateUnit.DAY,
+      },
     ],
     metrics: [
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
     sort: [

@@ -17,7 +17,16 @@
  * a metric card shows above its sparkline.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  AggregationDateUnit,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  DerivedExpressionType,
+  AggregationExpressionOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
@@ -51,10 +60,10 @@ describe('display metadata', () => {
   // mid-morning in Shanghai, and no longer the day "today" means.
   it('cuts a date histogram in the engine zone unless the group names one', () => {
     const day = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     } as const;
     const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
 
@@ -98,29 +107,36 @@ describe('display metadata', () => {
       config({
         layout: 'table',
         groups: [
-          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'day',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
             timeZone: 'UTC',
           },
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'month',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
           },
         ],
         metrics: [
-          { type: 'COUNT', alias: 'orders' },
-          { type: 'ANY', alias: 'some', field: 'warehouse' },
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.ANY,
+            alias: 'some',
+            field: 'warehouse',
+          },
+          {
+            type: AggregationMetricType.NUMERIC,
             alias: 'latest',
-            function: 'MAX',
-            expression: { type: 'FIELD', field: 'createdAt' },
+            function: AggregationFunction.MAX,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'createdAt',
+            },
           },
         ],
       }),
@@ -136,11 +152,13 @@ describe('display metadata', () => {
     });
     expect(column('day')).toMatchObject({
       kind: 'datetime',
-      dateUnit: 'DAY',
+      dateUnit: AggregationDateUnit.DAY,
       timeZone: 'UTC',
     });
     // Cut in the engine's zone, which is the zone it is shown in anyway.
-    expect(column('month')).toMatchObject({ dateUnit: 'MONTH' });
+    expect(column('month')).toMatchObject({
+      dateUnit: AggregationDateUnit.MONTH,
+    });
     expect(column('month')?.timeZone).toBeUndefined();
     // ANY returns one of the field's values, and so does MAX: the latest of
     // a datetime is a datetime, never thirteen digits of epoch milliseconds
@@ -149,7 +167,7 @@ describe('display metadata', () => {
     expect(column('latest')).toMatchObject({
       kind: 'datetime',
       cell: 'datetime',
-      fn: 'MAX',
+      fn: AggregationFunction.MAX,
     });
     expect(column('orders')?.kind).toBeUndefined();
   });
@@ -163,10 +181,15 @@ describe('display metadata', () => {
       config({
         layout: 'table',
         groups: [
-          { type: 'HISTOGRAM', field: 'amount', alias: 'band', interval: 500 },
-          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          {
+            type: AggregationGroupType.HISTOGRAM,
+            field: 'amount',
+            alias: 'band',
+            interval: 500,
+          },
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
         ],
-        metrics: [{ type: 'COUNT', alias: 'orders' }],
+        metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
       }),
       [],
     );
@@ -212,7 +235,7 @@ describe('projectAnalysis', () => {
         role: 'metric',
         // Which summary it is, so the header can say it; a count of records
         // is a whole number in nobody's currency.
-        fn: 'COUNT',
+        fn: AggregationMetricType.COUNT,
         width: undefined,
         numberFormat: { maximumFractionDigits: 0 },
         // What it is a quantity of, for a combo's axes (`metricMeasure`).
@@ -249,21 +272,28 @@ describe('projectAnalysis', () => {
         config({
           layout: 'table',
           groups: [
-            { type: 'TERMS', field: 'warehouse', alias: 'wh' },
             {
-              type: 'DATE_HISTOGRAM',
+              type: AggregationGroupType.TERMS,
+              field: 'warehouse',
+              alias: 'wh',
+            },
+            {
+              type: AggregationGroupType.DATE_HISTOGRAM,
               field: 'createdAt',
               alias: 'month',
-              unit: 'MONTH',
+              unit: AggregationDateUnit.MONTH,
             },
           ],
           metrics: [
-            { type: 'COUNT', alias: 'orders' },
+            { type: AggregationMetricType.COUNT, alias: 'orders' },
             {
-              type: 'NUMERIC',
+              type: AggregationMetricType.NUMERIC,
               alias: 'amount_1',
-              function: 'SUM',
-              expression: { type: 'FIELD', field: 'amount' },
+              function: AggregationFunction.SUM,
+              expression: {
+                type: AggregationExpressionType.FIELD,
+                field: 'amount',
+              },
             },
           ],
           table: { columns },
@@ -338,10 +368,13 @@ describe('projectAnalysis', () => {
         layout: 'table',
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'total',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         sort: [],
@@ -420,20 +453,36 @@ describe('projectAnalysis', () => {
       config({
         layout: 'table',
         elements: [{ path: 'items' }],
-        groups: [{ type: 'TERMS', field: 'items.sku', alias: 'sku' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'items.sku',
+            alias: 'sku',
+          },
+        ],
         metrics: [
           {
-            type: 'PERCENTILE',
+            type: AggregationMetricType.PERCENTILE,
             alias: 'p95',
-            expression: { type: 'FIELD', field: 'items.amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'items.amount',
+            },
             percentile: 95,
           },
           {
-            type: 'DISTINCT_COUNT',
+            type: AggregationMetricType.DISTINCT_COUNT,
             alias: 'buyers',
-            expression: { type: 'FIELD', field: 'items.amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'items.amount',
+            },
           },
-          { type: 'ANY', alias: 'sample', field: 'items.amount' },
+          {
+            type: AggregationMetricType.ANY,
+            alias: 'sample',
+            field: 'items.amount',
+          },
         ],
         sort: [],
         chart: {
@@ -465,10 +514,10 @@ describe('metric card headline', () => {
       config({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'month',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
           },
         ],
         table: { columns: [], totals: true },
@@ -500,29 +549,36 @@ describe('metric card headline', () => {
 describe('metricFormat', () => {
   const money = { style: 'currency', currency: 'CNY' } as const;
   const field = { numberFormat: money };
-  const count: AnalysisMetric = { type: 'COUNT', alias: 'm' };
-  const distinct: AnalysisMetric = {
-    type: 'DISTINCT_COUNT',
+  const count: AnalysisMetric = {
+    type: AggregationMetricType.COUNT,
     alias: 'm',
-    expression: { type: 'FIELD', field: 'amount' },
+  };
+  const distinct: AnalysisMetric = {
+    type: AggregationMetricType.DISTINCT_COUNT,
+    alias: 'm',
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   };
   const percentile: AnalysisMetric = {
-    type: 'PERCENTILE',
+    type: AggregationMetricType.PERCENTILE,
     alias: 'm',
     percentile: 95,
-    expression: { type: 'FIELD', field: 'amount' },
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   };
-  const any: AnalysisMetric = { type: 'ANY', alias: 'm', field: 'amount' };
-  const derived: AnalysisMetric = {
-    type: 'DERIVED',
+  const any: AnalysisMetric = {
+    type: AggregationMetricType.ANY,
     alias: 'm',
-    expression: { type: 'METRIC_REF', metric: 'orders' },
+    field: 'amount',
+  };
+  const derived: AnalysisMetric = {
+    type: AggregationMetricType.DERIVED,
+    alias: 'm',
+    expression: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
   };
   const numeric = (fn: AggregationFunctionName): AnalysisMetric => ({
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     alias: 'm',
     function: fn,
-    expression: { type: 'FIELD', field: 'amount' },
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   });
   const TWO = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 
@@ -534,23 +590,33 @@ describe('metricFormat', () => {
   });
 
   it('gives a computed number two decimals, its currency kept', () => {
-    expect(metricFormat(numeric('AVG'), field)).toEqual({ ...money, ...TWO });
+    expect(metricFormat(numeric(AggregationFunction.AVG), field)).toEqual({
+      ...money,
+      ...TWO,
+    });
     // An integer column's average is not an integer, whatever the column is.
     expect(
-      metricFormat(numeric('AVG'), {
+      metricFormat(numeric(AggregationFunction.AVG), {
         numberFormat: { maximumFractionDigits: 0 },
       }),
     ).toEqual(TWO);
-    for (const fn of ['STDDEV', 'VARIANCE'] as const)
+    for (const fn of [
+      AggregationFunction.STDDEV,
+      AggregationFunction.VARIANCE,
+    ] as const)
       expect(metricFormat(numeric(fn))).toEqual(TWO);
   });
 
   it('leaves a value of the field reading as the field does', () => {
-    for (const fn of ['SUM', 'MIN', 'MAX'] as const)
+    for (const fn of [
+      AggregationFunction.SUM,
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+    ] as const)
       expect(metricFormat(numeric(fn), field)).toEqual(money);
     expect(metricFormat(percentile, field)).toEqual(money);
     expect(metricFormat(any, field)).toEqual(money);
-    expect(metricFormat(numeric('SUM'))).toBeUndefined();
+    expect(metricFormat(numeric(AggregationFunction.SUM))).toBeUndefined();
   });
 
   it('gives a derived metric a plain number: it belongs to no field', () => {
@@ -558,9 +624,11 @@ describe('metricFormat', () => {
   });
 
   it('names which summary a metric is, for the header to say', () => {
-    expect(metricFunctionOf(count)).toBe('COUNT');
-    expect(metricFunctionOf(numeric('AVG'))).toBe('AVG');
-    expect(metricFunctionOf(percentile)).toBe('PERCENTILE');
+    expect(metricFunctionOf(count)).toBe(AggregationMetricType.COUNT);
+    expect(metricFunctionOf(numeric(AggregationFunction.AVG))).toBe(
+      AggregationFunction.AVG,
+    );
+    expect(metricFunctionOf(percentile)).toBe(AggregationMetricType.PERCENTILE);
   });
 });
 
@@ -576,19 +644,25 @@ describe('a derived column', () => {
         metrics: [
           { ...base.metrics[0] },
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'total',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'avg',
             expression: {
-              type: 'BINARY',
-              operator: 'DIVIDE',
-              left: { type: 'METRIC_REF', metric: 'total' },
-              right: { type: 'METRIC_REF', metric: base.metrics[0].alias },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.DIVIDE,
+              left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+              right: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: base.metrics[0].alias,
+              },
             },
           },
         ],
@@ -600,9 +674,9 @@ describe('a derived column', () => {
     // Each operand is marked with its summary for the UI to word, the
     // count included: the kernel holds no catalogue.
     expect(derived?.label).toBe(
-      `${metricReferenceText('SUM', 'Amount')} ÷ ${metricReferenceText('COUNT', base.metrics[0].alias)}`,
+      `${metricReferenceText(AggregationFunction.SUM, 'Amount')} ÷ ${metricReferenceText(AggregationMetricType.COUNT, base.metrics[0].alias)}`,
     );
-    expect(derived?.fn).toBe('DERIVED');
+    expect(derived?.fn).toBe(AggregationMetricType.DERIVED);
   });
 });
 
@@ -618,10 +692,13 @@ describe('a named column', () => {
         metrics: [
           { ...base.metrics[0], label: '单数' },
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'total',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
         table: { columns: [] },
@@ -638,7 +715,7 @@ describe('a named column', () => {
       true,
       undefined,
     ]);
-    expect(view.schema?.[1]).toMatchObject({ fn: 'COUNT' });
+    expect(view.schema?.[1]).toMatchObject({ fn: AggregationMetricType.COUNT });
   });
 });
 
@@ -772,10 +849,10 @@ describe('the probe row read back', () => {
  */
 describe('the whole beside the groups', () => {
   const day = {
-    type: 'DATE_HISTOGRAM',
+    type: AggregationGroupType.DATE_HISTOGRAM,
     field: 'createdAt',
     alias: 'day',
-    unit: 'DAY',
+    unit: AggregationDateUnit.DAY,
   } as const;
   // Three days asked for, a fourth came back as the probe: the grouping
   // goes on past what is shown.
@@ -791,7 +868,7 @@ describe('the whole beside the groups', () => {
       config({
         groups: [day],
         limit: 3,
-        sort: [{ alias: 'day', direction: 'ASC' }],
+        sort: [{ alias: 'day', direction: SortDirection.ASC }],
         table,
         chart: {
           type: 'metric',
@@ -839,15 +916,15 @@ describe('a heatmap over a category its field lists', () => {
       config({
         layout: 'chart',
         groups: [
-          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'month',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
           },
         ],
-        metrics: [{ type: 'COUNT', alias: 'orders' }],
+        metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
         chart: {
           type: 'heatmap',
           heatmap: { x: 'month', y: 'wh', value: 'orders' },
@@ -875,14 +952,14 @@ describe('the period still under way, in the table', () => {
     layout: 'table',
     groups: [
       {
-        type: 'DATE_HISTOGRAM',
+        type: AggregationGroupType.DATE_HISTOGRAM,
         field: 'createdAt',
         alias: 'month',
-        unit: 'MONTH',
+        unit: AggregationDateUnit.MONTH,
         timeZone: 'UTC',
       },
     ],
-    metrics: [{ type: 'COUNT', alias: 'orders' }],
+    metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
   });
   // Newest first, as a monthly table is often sorted.
   const rows = [

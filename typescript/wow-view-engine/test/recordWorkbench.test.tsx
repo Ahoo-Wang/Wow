@@ -57,6 +57,7 @@ import {
 } from './fixtures.js';
 import { editorToggle } from './fixtures/workbench.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -320,8 +321,8 @@ describe('DataWorkbench', () => {
         filter: {
           op: 'and',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
-            { field: 'warehouse', operator: 'EQ', value: 'US' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'US' },
           ],
         },
       }),
@@ -407,7 +408,7 @@ describe('DataWorkbench', () => {
           {
             ...mine,
             config: recordConfig({
-              summaries: [{ field: 'createdAt', fn: 'MIN' }],
+              summaries: [{ field: 'createdAt', fn: AggregationFunction.MIN }],
               table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
             }),
           },
@@ -447,7 +448,7 @@ describe('DataWorkbench', () => {
     ).toMatch(/^18 Sept 2026, 15:06$/);
     // Both scopes read the column's way, under the word a moment takes.
     expect(footer.textContent).toContain(
-      defaultMessages['label.summary.fn.date.MIN'],
+      defaultMessages[`label.summary.fn.date.${AggregationFunction.MIN}`],
     );
     expect(
       [...footer.querySelectorAll('[data-slot="summary-value"]')].map(
@@ -709,7 +710,9 @@ describe('DataWorkbench', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );

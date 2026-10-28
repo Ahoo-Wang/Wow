@@ -14,6 +14,13 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -48,40 +55,48 @@ afterEach(cleanup);
 
 const amount: AnalysisMetric = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const cost: AnalysisMetric = {
   alias: 'cost',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'cost' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'cost' },
 };
-const count: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const count: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 
 function derived(alias: string, left: string, right: string): AnalysisMetric {
   return {
     alias,
-    type: 'DERIVED',
+    type: AggregationMetricType.DERIVED,
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE' as never,
-      left: { type: 'METRIC_REF', metric: left },
-      right: { type: 'METRIC_REF', metric: right },
+      type: DerivedExpressionType.BINARY,
+      operator: AggregationExpressionOperator.DIVIDE as never,
+      left: { type: DerivedExpressionType.METRIC_REF, metric: left },
+      right: { type: DerivedExpressionType.METRIC_REF, metric: right },
     },
   };
 }
 
 function over(metric: string, value = 10): AnalysisHavingExpression {
-  return { type: 'CONDITION', metric, operator: 'GT', value };
+  return {
+    type: HavingExpressionType.CONDITION,
+    metric,
+    operator: ComparisonOperator.GT,
+    value,
+  };
 }
 
 function and(
   ...operands: AnalysisHavingExpression[]
 ): AnalysisHavingExpression {
   return {
-    type: 'AND',
+    type: HavingExpressionType.AND,
     operands: operands as [
       AnalysisHavingExpression,
       ...AnalysisHavingExpression[],
@@ -91,7 +106,7 @@ function and(
 
 function or(...operands: AnalysisHavingExpression[]): AnalysisHavingExpression {
   return {
-    type: 'OR',
+    type: HavingExpressionType.OR,
     operands: operands as [
       AnalysisHavingExpression,
       ...AnalysisHavingExpression[],
@@ -100,7 +115,11 @@ function or(...operands: AnalysisHavingExpression[]): AnalysisHavingExpression {
 }
 
 const grouped = [
-  { alias: 'warehouse', field: 'warehouse', type: 'TERMS' as const },
+  {
+    alias: 'warehouse',
+    field: 'warehouse',
+    type: AggregationGroupType.TERMS as const,
+  },
 ];
 
 describe('withoutDangling', () => {
@@ -123,12 +142,15 @@ describe('withoutDangling', () => {
 
   it('reads no operand in a sample value or a moment', () => {
     const metrics = [
-      { alias: 'sample', type: 'ANY', field: 'amount' },
+      { alias: 'sample', type: AggregationMetricType.ANY, field: 'amount' },
       {
         alias: 'latest',
-        type: 'NUMERIC',
-        function: 'MAX',
-        expression: { type: 'FIELD', field: 'createdAt' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MAX,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'createdAt',
+        },
       },
       count,
       derived('a', 'sample', 'orders'),
@@ -171,7 +193,7 @@ describe('withoutDangling', () => {
       follow(or(and(over('orders'), over('amount')), over('orders', 99))),
     ).toEqual(or(and(over('orders')), over('orders', 99)));
     expect(
-      follow({ type: 'IS_NULL', metric: 'amount' } as never),
+      follow({ type: HavingExpressionType.IS_NULL, metric: 'amount' } as never),
     ).toBeUndefined();
   });
 
@@ -179,13 +201,13 @@ describe('withoutDangling', () => {
     const metrics = [
       count,
       amount,
-      { alias: 'sample', type: 'ANY', field: 'amount' },
+      { alias: 'sample', type: AggregationMetricType.ANY, field: 'amount' },
     ] as AnalysisViewConfig['metrics'];
     const having = and(over('orders'), over('amount'), over('sample'));
     expect(
       withoutDangling(
         { groups: grouped, metrics, having },
-        { havingMetrics: ['NUMERIC'] },
+        { havingMetrics: [AggregationMetricType.NUMERIC] },
       ).having,
     ).toEqual(and(over('amount')));
     expect(
@@ -321,7 +343,11 @@ describe('withElements', () => {
           {
             path: 'items',
             aggregations: [
-              { field: 'qty', groups: [], functions: ['SUM' as never] },
+              {
+                field: 'qty',
+                groups: [],
+                functions: [AggregationFunction.SUM as never],
+              },
             ],
           },
         ],
@@ -471,7 +497,9 @@ describe('an edit to the question', () => {
         derived('costPerOrder', 'cost', 'orders'),
       ] as AnalysisViewConfig['metrics'],
       having: and(over('orders'), over('amount'), over('perOrder')),
-      sort: [{ alias: 'perOrderShare', direction: 'DESC' as never }],
+      sort: [
+        { alias: 'perOrderShare', direction: SortDirection.DESC as never },
+      ],
     });
 
     act(() => analysis().removeMetric(1));
@@ -512,7 +540,7 @@ describe('an edit to the question', () => {
     act(() =>
       analysis().replaceMetric(1, {
         alias: 'amount',
-        type: 'ANY',
+        type: AggregationMetricType.ANY,
         field: 'amount',
       }),
     );
@@ -593,15 +621,15 @@ describe('an edit to the question', () => {
         metrics: [count, amount] as AnalysisViewConfig['metrics'],
         having: and(over('orders'), over('amount')),
       },
-      ['COUNT', 'NUMERIC'],
+      [AggregationMetricType.COUNT, AggregationMetricType.NUMERIC],
     );
     expect(analysis().issues).toEqual([]);
 
     act(() =>
       analysis().replaceMetric(1, {
         alias: 'amount',
-        type: 'DISTINCT_COUNT',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.DISTINCT_COUNT,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       }),
     );
 
@@ -615,8 +643,11 @@ describe('an edit to the question', () => {
         count,
         {
           alias: 'days',
-          type: 'DISTINCT_COUNT',
-          expression: { type: 'FIELD', field: 'createdAt' },
+          type: AggregationMetricType.DISTINCT_COUNT,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'createdAt',
+          },
         },
         derived('perDay', 'orders', 'days'),
       ] as AnalysisViewConfig['metrics'],
@@ -627,9 +658,12 @@ describe('an edit to the question', () => {
     act(() =>
       analysis().replaceMetric(1, {
         alias: 'days',
-        type: 'NUMERIC',
-        function: 'MAX',
-        expression: { type: 'FIELD', field: 'createdAt' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MAX,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'createdAt',
+        },
       }),
     );
 
@@ -644,13 +678,15 @@ describe('an edit to the question', () => {
   it('takes what reads a metric a collapse leaves behind', async () => {
     const qty: AnalysisMetric = {
       alias: 'qty',
-      type: 'NUMERIC',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'items.qty' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'items.qty' },
     };
     const { analysis, draft } = await editor({
       elements: [{ path: 'items' }],
-      groups: [{ alias: 'sku', field: 'items.sku', type: 'TERMS' }],
+      groups: [
+        { alias: 'sku', field: 'items.sku', type: AggregationGroupType.TERMS },
+      ],
       metrics: [
         count,
         qty,
@@ -723,10 +759,10 @@ describe('an edit to the question', () => {
     act(() =>
       analysis().updateMetric(2, {
         expression: {
-          type: 'BINARY',
-          operator: 'DIVIDE' as never,
-          left: { type: 'METRIC_REF', metric: 'stale' },
-          right: { type: 'METRIC_REF', metric: 'amount' },
+          type: DerivedExpressionType.BINARY,
+          operator: AggregationExpressionOperator.DIVIDE as never,
+          left: { type: DerivedExpressionType.METRIC_REF, metric: 'stale' },
+          right: { type: DerivedExpressionType.METRIC_REF, metric: 'amount' },
         },
       } as never),
     );

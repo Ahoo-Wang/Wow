@@ -24,6 +24,8 @@ import {
   SearchMode,
   type FieldDescriptor,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QueryModels,
 } from '@ahoo-wang/wow-client/dsl';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import type {
@@ -76,7 +78,7 @@ function described(path: string, scope?: string): FieldDescriptor {
   return {
     path,
     ...(scope ? { scope } : {}),
-    types: ['STRING'],
+    types: [QueryValueTypes.STRING],
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,
@@ -113,7 +115,7 @@ function linesDescriptor(store: Store): QueryModelDescriptor {
       .map(element => described(`${field.name}.${element.name}`, field.name)),
   ]);
   return {
-    model: 'SNAPSHOT',
+    model: QueryModels.SNAPSHOT,
     version: `sha256:order-lines-${store}`,
     timeZone: 'Asia/Shanghai',
     record: {
@@ -198,10 +200,16 @@ const teaLines: ViewInstance = {
       children: [
         {
           field: 'lines',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: {
             op: 'and',
-            children: [{ field: 'lines.q', operator: 'SEARCH', value: 'tea' }],
+            children: [
+              {
+                field: 'lines.q',
+                operator: FilterOperator.SEARCH,
+                value: 'tea',
+              },
+            ],
           },
         },
       ],

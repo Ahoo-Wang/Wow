@@ -35,6 +35,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -64,11 +65,15 @@ const HANDED: ViewHandOver = {
   instanceId: 'list',
   scopeFilter: {
     op: 'and',
-    children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    children: [
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+    ],
   },
   filter: {
     op: 'and',
-    children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+    children: [
+      { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+    ],
   },
 };
 

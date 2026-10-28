@@ -19,6 +19,11 @@ import {
   type FieldDefinition,
   type FilterTree,
 } from '../src/index.js';
+import {
+  AggregationDateUnit,
+  DateDiffUnit,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * `describeFilter` — the applied-condition summary, which is two things at
@@ -70,8 +75,8 @@ describe('describeFilter', () => {
     const items = describeFilter(
       fields,
       tree(
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        { field: 'amount', operator: FilterOperator.BETWEEN, value: [1, 9] },
       ),
       builtinFieldKinds,
     );
@@ -94,23 +99,25 @@ describe('describeFilter', () => {
     };
     const [item] = describeFilter(
       [named],
-      tree({ field: 'isNew', operator: 'EQ', value: false }),
+      tree({ field: 'isNew', operator: FilterOperator.EQ, value: false }),
       builtinFieldKinds,
     );
     expect(item!.value).toEqual({ kind: 'text', value: false, label: '老客' });
     // Without options, the answer is the catalogue's yes or no.
     const [plain] = describeFilter(
       fields,
-      tree({ field: 'paid', operator: 'EQ', value: true }),
+      tree({ field: 'paid', operator: FilterOperator.EQ, value: true }),
       builtinFieldKinds,
     );
     expect(plain!.value).toEqual({ kind: 'text', value: true });
     const kind = builtinFieldKinds.get('boolean')!;
-    expect(kind.editor('EQ', named)).toEqual({
+    expect(kind.editor(FilterOperator.EQ, named)).toEqual({
       input: 'boolean',
       options: named.options,
     });
-    expect(kind.editor('EQ', fields[2]!)).toEqual({ input: 'boolean' });
+    expect(kind.editor(FilterOperator.EQ, fields[2]!)).toEqual({
+      input: 'boolean',
+    });
   });
 
   it('reads a group out as one item joined by its own operator', () => {
@@ -119,15 +126,25 @@ describe('describeFilter', () => {
       {
         op: 'and',
         children: [
-          { field: 'id', operator: 'EQ', value: 'o-1' },
+          { field: 'id', operator: FilterOperator.EQ, value: 'o-1' },
           {
             op: 'or',
             children: [
-              { field: 'status', operator: 'IN', value: ['PENDING'] },
-              { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
+              {
+                field: 'status',
+                operator: FilterOperator.IN,
+                value: ['PENDING'],
+              },
+              {
+                field: 'amount',
+                operator: FilterOperator.BETWEEN,
+                value: [1, 9],
+              },
               {
                 op: 'nor',
-                children: [{ field: 'paid', operator: 'EQ', value: true }],
+                children: [
+                  { field: 'paid', operator: FilterOperator.EQ, value: true },
+                ],
               },
             ],
           },
@@ -150,8 +167,8 @@ describe('describeFilter', () => {
       {
         op: 'or',
         children: [
-          { field: 'id', operator: 'EQ', value: 'o-1' },
-          { field: 'amount', operator: 'GT', value: 9 },
+          { field: 'id', operator: FilterOperator.EQ, value: 'o-1' },
+          { field: 'amount', operator: FilterOperator.GT, value: 9 },
         ],
       },
       builtinFieldKinds,
@@ -167,9 +184,13 @@ describe('describeFilter', () => {
       {
         op: 'nor',
         children: [
-          { field: 'paid', operator: 'EQ', value: true },
+          { field: 'paid', operator: FilterOperator.EQ, value: true },
           // Blank, so left out; the root still negates what remains.
-          { field: 'amount', operator: 'GT', value: null as never },
+          {
+            field: 'amount',
+            operator: FilterOperator.GT,
+            value: null as never,
+          },
         ],
       },
       builtinFieldKinds,
@@ -182,7 +203,7 @@ describe('describeFilter', () => {
   it('marks a condition whose field disappeared instead of hiding it', () => {
     const items = describeFilter(
       fields,
-      tree({ field: 'gone', operator: 'EQ', value: 'x' }),
+      tree({ field: 'gone', operator: FilterOperator.EQ, value: 'x' }),
       builtinFieldKinds,
     );
     expect(items[0]).toMatchObject({ field: 'gone', unresolved: true });
@@ -196,7 +217,7 @@ describe('describeFilter', () => {
     // one value — test/enumEq.test.ts — so the scalar sits under `IN` here.)
     const items = describeFilter(
       fields,
-      tree({ field: 'status', operator: 'IN', value: 'PENDING' }),
+      tree({ field: 'status', operator: FilterOperator.IN, value: 'PENDING' }),
       builtinFieldKinds,
     );
 
@@ -217,12 +238,16 @@ describe('describeFilter', () => {
     ]);
     const items = describeFilter(
       [{ name: 'status', label: 'Status', kind: 'exploding' }],
-      tree({ field: 'status', operator: 'IN', value: ['PENDING'] }),
+      tree({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: ['PENDING'],
+      }),
       exploding,
     );
 
     expect(items[0]).toMatchObject({ field: 'status', unresolved: true });
-    expect(items[0].text).toContain('IN');
+    expect(items[0].text).toContain(FilterOperator.IN);
   });
 });
 
@@ -242,19 +267,23 @@ describe('describeFilter parts', () => {
 
   it('names the field and its kind beside the operator', () => {
     expect(
-      partsOf({ field: 'amount', operator: 'GT', value: 9 }),
+      partsOf({ field: 'amount', operator: FilterOperator.GT, value: 9 }),
     ).toMatchObject({
       field: 'amount',
       label: 'Amount',
       kind: 'number',
-      operator: 'GT',
+      operator: FilterOperator.GT,
       value: { kind: 'text', value: 9 },
     });
   });
 
   it('carries a number range as two bounds', () => {
     expect(
-      partsOf({ field: 'amount', operator: 'BETWEEN', value: [1, 9] }).value,
+      partsOf({
+        field: 'amount',
+        operator: FilterOperator.BETWEEN,
+        value: [1, 9],
+      }).value,
     ).toEqual({ kind: 'range', from: 1, to: 9 });
   });
 
@@ -266,10 +295,14 @@ describe('describeFilter parts', () => {
       timeZone: 'Asia/Shanghai',
     };
     expect(
-      partsOf({ field: 'createdAt', operator: 'BETWEEN', value: day }).value,
+      partsOf({
+        field: 'createdAt',
+        operator: FilterOperator.BETWEEN,
+        value: day,
+      }).value,
     ).toEqual({
       kind: 'period',
-      unit: 'DAY',
+      unit: DateDiffUnit.DAY,
       from: day.from,
       timeZone: 'Asia/Shanghai',
     });
@@ -278,7 +311,7 @@ describe('describeFilter parts', () => {
     expect(
       partsOf({
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'absolute', from: day.from, to: day.to },
       }).value,
     ).toEqual({ kind: 'range', from: day.from, to: day.to });
@@ -286,7 +319,8 @@ describe('describeFilter parts', () => {
 
   it('reads whole periods as the first and the last', () => {
     const between = (value: Record<string, string>) =>
-      partsOf({ field: 'createdAt', operator: 'BETWEEN', value }).value;
+      partsOf({ field: 'createdAt', operator: FilterOperator.BETWEEN, value })
+        .value;
     // Three days in Shanghai: what a brushed stretch of a day axis opens.
     expect(
       between({
@@ -297,7 +331,7 @@ describe('describeFilter parts', () => {
       }),
     ).toEqual({
       kind: 'periods',
-      unit: 'DAY',
+      unit: DateDiffUnit.DAY,
       from: '2026-08-31T16:00:00.000Z',
       last: '2026-09-02T16:00:00.000Z',
       timeZone: 'Asia/Shanghai',
@@ -312,7 +346,7 @@ describe('describeFilter parts', () => {
       }),
     ).toEqual({
       kind: 'periods',
-      unit: 'DAY',
+      unit: DateDiffUnit.DAY,
       from: '2026-03-07T05:00:00.000Z',
       last: '2026-03-09T04:00:00.000Z',
       timeZone: 'America/New_York',
@@ -325,7 +359,7 @@ describe('describeFilter parts', () => {
         to: '2026-02-28T23:59:59.999Z',
         timeZone: 'UTC',
       }),
-    ).toMatchObject({ kind: 'periods', unit: 'MONTH' });
+    ).toMatchObject({ kind: 'periods', unit: AggregationDateUnit.MONTH });
     expect(
       between({
         type: 'absolute',
@@ -333,7 +367,7 @@ describe('describeFilter parts', () => {
         to: '2026-06-30T23:59:59.999Z',
         timeZone: 'UTC',
       }),
-    ).toMatchObject({ kind: 'periods', unit: 'QUARTER' });
+    ).toMatchObject({ kind: 'periods', unit: AggregationDateUnit.QUARTER });
     expect(
       between({
         type: 'absolute',
@@ -341,7 +375,7 @@ describe('describeFilter parts', () => {
         to: '2026-12-31T23:59:59.999Z',
         timeZone: 'UTC',
       }),
-    ).toMatchObject({ kind: 'periods', unit: 'YEAR' });
+    ).toMatchObject({ kind: 'periods', unit: AggregationDateUnit.YEAR });
     // A millisecond short of whole is two bounds; so is a bad zone.
     expect(
       between({
@@ -376,11 +410,19 @@ describe('describeFilter parts', () => {
    * read alike (2026-09-23 review P2).
    */
   describe('a segment of a number line', () => {
-    const gte = { field: 'amount', operator: 'GTE', value: 0 } as const;
-    const lt = { field: 'amount', operator: 'LT', value: 500 } as const;
+    const gte = {
+      field: 'amount',
+      operator: FilterOperator.GTE,
+      value: 0,
+    } as const;
+    const lt = {
+      field: 'amount',
+      operator: FilterOperator.LT,
+      value: 500,
+    } as const;
     const status: FilterTree['children'][number] = {
       field: 'status',
-      operator: 'IN',
+      operator: FilterOperator.IN,
       value: ['PENDING'],
     };
 
@@ -444,10 +486,17 @@ describe('describeFilter parts', () => {
         ),
       ).toEqual([]);
       expect(kinds({ ...gte, value: 500 }, lt)).toEqual(['text', 'text']);
-      expect(kinds(gte, { ...lt, operator: 'LTE' })).toEqual(['text', 'text']);
+      expect(kinds(gte, { ...lt, operator: FilterOperator.LTE })).toEqual([
+        'text',
+        'text',
+      ]);
       // Two fields, one bound each.
       expect(
-        kinds(gte, { field: 'shippedAt', operator: 'LT', value: 500 }),
+        kinds(gte, {
+          field: 'shippedAt',
+          operator: FilterOperator.LT,
+          value: 500,
+        }),
       ).toEqual(['text', 'text']);
       // Under "any of" the pair asks something else.
       const [either] = describeFilter(
@@ -465,8 +514,8 @@ describe('describeFilter parts', () => {
       const [item] = describeFilter(
         fields,
         tree(
-          { field: 'shippedAt', operator: 'GTE', value: 1 },
-          { field: 'shippedAt', operator: 'LT', value: 2 },
+          { field: 'shippedAt', operator: FilterOperator.GTE, value: 1 },
+          { field: 'shippedAt', operator: FilterOperator.LT, value: 2 },
         ),
         builtinFieldKinds,
       );
@@ -479,7 +528,11 @@ describe('describeFilter parts', () => {
 
   it('carries the raw codes an enum holds beside the labels it resolved', () => {
     expect(
-      partsOf({ field: 'status', operator: 'IN', value: ['PENDING'] }).value,
+      partsOf({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: ['PENDING'],
+      }).value,
     ).toEqual({ kind: 'list', values: ['PENDING'], labels: ['Pending'] });
   });
 
@@ -487,7 +540,7 @@ describe('describeFilter parts', () => {
     expect(
       partsOf({
         field: 'customer',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: { items: [{ id: 'c-1', label: 'Acme' }] } as never,
       }).value,
     ).toEqual({ kind: 'list', values: ['c-1'], labels: ['Acme'] });
@@ -495,8 +548,15 @@ describe('describeFilter parts', () => {
 
   it('says a presence question has no value beside its operator', () => {
     expect(
-      partsOf({ field: 'amount', operator: 'IS_NULL', value: null as never }),
-    ).toMatchObject({ operator: 'IS_NULL', value: { kind: 'none' } });
+      partsOf({
+        field: 'amount',
+        operator: FilterOperator.IS_NULL,
+        value: null as never,
+      }),
+    ).toMatchObject({
+      operator: FilterOperator.IS_NULL,
+      value: { kind: 'none' },
+    });
   });
 
   /**
@@ -511,20 +571,30 @@ describe('describeFilter parts', () => {
     const at = (operator: string, value: unknown = last) =>
       partsOf({ field: 'createdAt', operator, value } as never).value;
 
-    expect(at('BETWEEN')).toEqual({
+    expect(at(FilterOperator.BETWEEN)).toEqual({
       kind: 'relative',
       amount: 7,
       unit: 'day',
       direction: 'past',
       bound: 'window',
     });
-    expect(at('GTE')).toMatchObject({ bound: 'instant', direction: 'past' });
-    expect(at('LTE')).toMatchObject({ bound: 'instant', direction: 'past' });
-    expect(at('LTE', { ...last, direction: 'future' })).toMatchObject({
+    expect(at(FilterOperator.GTE)).toMatchObject({
+      bound: 'instant',
+      direction: 'past',
+    });
+    expect(at(FilterOperator.LTE)).toMatchObject({
+      bound: 'instant',
+      direction: 'past',
+    });
+    expect(
+      at(FilterOperator.LTE, { ...last, direction: 'future' }),
+    ).toMatchObject({
       bound: 'instant',
       direction: 'future',
     });
-    expect(at('BETWEEN', { ...last, direction: 'future' })).toMatchObject({
+    expect(
+      at(FilterOperator.BETWEEN, { ...last, direction: 'future' }),
+    ).toMatchObject({
       bound: 'window',
       direction: 'future',
     });
@@ -539,11 +609,11 @@ describe('describeFilter parts', () => {
   it('calls an open-ended window the GTE it compiles to', () => {
     const item = partsOf({
       field: 'createdAt',
-      operator: 'BETWEEN',
+      operator: FilterOperator.BETWEEN,
       value: { type: 'absolute', from: '2026-01-01' } as never,
     });
 
-    expect(item.operator).toBe('GTE');
+    expect(item.operator).toBe(FilterOperator.GTE);
     expect(item.value).toEqual({ kind: 'text', value: '2026-01-01' });
     // And the line a host reads is the one it always was.
     expect(item.text).toBe('Created from 2026-01-01');
@@ -553,7 +623,7 @@ describe('describeFilter parts', () => {
     expect(
       partsOf({
         field: 'createdAt',
-        operator: 'LTE',
+        operator: FilterOperator.LTE,
         value: { type: 'preset', preset: 'nextQuarter' } as never,
       }).value,
     ).toEqual({ kind: 'preset', preset: 'nextQuarter' });
@@ -564,9 +634,15 @@ describe('describeFilter parts', () => {
     const at = (operator: string) =>
       partsOf({ field: 'createdAt', operator, value: range } as never).value;
 
-    expect(at('GTE')).toEqual({ kind: 'text', value: '2026-01-01' });
-    expect(at('LTE')).toEqual({ kind: 'text', value: '2026-01-31' });
-    expect(at('BETWEEN')).toEqual({
+    expect(at(FilterOperator.GTE)).toEqual({
+      kind: 'text',
+      value: '2026-01-01',
+    });
+    expect(at(FilterOperator.LTE)).toEqual({
+      kind: 'text',
+      value: '2026-01-31',
+    });
+    expect(at(FilterOperator.BETWEEN)).toEqual({
       kind: 'range',
       from: '2026-01-01',
       to: '2026-01-31',
@@ -581,12 +657,16 @@ describe('describeFilter parts', () => {
    */
   it('carries the renderer key that overrides the field kind', () => {
     expect(
-      partsOf({ field: 'shippedAt', operator: 'GT', value: 1_760_000_000_000 }),
+      partsOf({
+        field: 'shippedAt',
+        operator: FilterOperator.GT,
+        value: 1_760_000_000_000,
+      }),
     ).toMatchObject({ kind: 'number', cell: 'date' });
     // Nothing is invented for a field that declares none.
-    expect(partsOf({ field: 'amount', operator: 'GT', value: 9 }).cell).toBe(
-      undefined,
-    );
+    expect(
+      partsOf({ field: 'amount', operator: FilterOperator.GT, value: 9 }).cell,
+    ).toBe(undefined);
   });
 
   /**
@@ -599,7 +679,11 @@ describe('describeFilter parts', () => {
   it('labels only the entries the definition actually named', () => {
     // No candidate set at all: raw values, and nothing claiming to be a label.
     expect(
-      partsOf({ field: 'charges', operator: 'IN', value: [100, 5000] }).value,
+      partsOf({
+        field: 'charges',
+        operator: FilterOperator.IN,
+        value: [100, 5000],
+      }).value,
     ).toEqual({ kind: 'list', values: [100, 5000] });
 
     // A code the definition dropped leaves a hole where its label would be,
@@ -607,7 +691,7 @@ describe('describeFilter parts', () => {
     expect(
       partsOf({
         field: 'status',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: ['PENDING', 'RETIRED'],
       }).value,
     ).toEqual({
@@ -620,12 +704,16 @@ describe('describeFilter parts', () => {
   /** And the English line reads exactly as it always did. */
   it('still reads an unnamed entry as the entry itself', () => {
     expect(
-      partsOf({ field: 'charges', operator: 'IN', value: [100, 5000] }).text,
+      partsOf({
+        field: 'charges',
+        operator: FilterOperator.IN,
+        value: [100, 5000],
+      }).text,
     ).toBe('Charges has any of 100, 5000');
     expect(
       partsOf({
         field: 'status',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: ['PENDING', 'RETIRED'],
       }).text,
     ).toBe('Status IN Pending, RETIRED');
@@ -634,7 +722,11 @@ describe('describeFilter parts', () => {
   it('says a value the kind cannot read is blank, not a reading of it', () => {
     // `status` is an enum, whose operators take a list.
     expect(
-      partsOf({ field: 'status', operator: 'IN', value: 'PENDING' }).value,
+      partsOf({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: 'PENDING',
+      }).value,
     ).toEqual({ kind: 'blank' });
   });
 
@@ -642,9 +734,9 @@ describe('describeFilter parts', () => {
     // Nothing is known about the value; the operator still is, and a bar
     // that dropped it would say less than the one line it replaced.
     expect(
-      partsOf({ field: 'gone', operator: 'EQ', value: 'x' }),
+      partsOf({ field: 'gone', operator: FilterOperator.EQ, value: 'x' }),
     ).toMatchObject({
-      operator: 'EQ',
+      operator: FilterOperator.EQ,
       value: { kind: 'blank' },
       unresolved: true,
     });
@@ -656,8 +748,8 @@ describe('describeFilter parts', () => {
       {
         op: 'or',
         children: [
-          { field: 'id', operator: 'EQ', value: 'o-1' },
-          { field: 'amount', operator: 'GT', value: 9 },
+          { field: 'id', operator: FilterOperator.EQ, value: 'o-1' },
+          { field: 'amount', operator: FilterOperator.GT, value: 9 },
         ],
       },
       builtinFieldKinds,
@@ -683,10 +775,12 @@ describe('describeFilter parts', () => {
       withItems,
       tree({
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'or',
-          children: [{ field: 'items.sku', operator: 'EQ', value: 'A' }],
+          children: [
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A' },
+          ],
         } as never,
       }),
       builtinFieldKinds,
@@ -694,7 +788,7 @@ describe('describeFilter parts', () => {
 
     expect(item).toMatchObject({
       field: 'items',
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperator.ELEMENT_MATCH,
       value: { kind: 'none' },
       group: 'or',
     });
@@ -721,10 +815,12 @@ describe('describeFilter parts', () => {
       withItems,
       tree({
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
-          children: [{ field: 'items.retired', operator: 'EQ', value: 'A' }],
+          children: [
+            { field: 'items.retired', operator: FilterOperator.EQ, value: 'A' },
+          ],
         } as never,
       }),
       builtinFieldKinds,
@@ -744,17 +840,27 @@ describe('describeFilter parts', () => {
     const withTags: FieldDefinition[] = [
       { name: 'tags', label: 'Tags', kind: 'array' },
     ];
-    const [any, none] = ['IN', 'NOT_IN'].map(
+    const [any, none] = [FilterOperator.IN, FilterOperator.NOT_IN].map(
       operator =>
         describeFilter(
           withTags,
-          tree({ field: 'tags', operator: operator as 'IN', value: ['a'] }),
+          tree({
+            field: 'tags',
+            operator: operator as `${FilterOperator.IN}`,
+            value: ['a'],
+          }),
           builtinFieldKinds,
         )[0],
     );
 
-    expect(any).toMatchObject({ operator: 'IN', relation: 'has-any' });
-    expect(none).toMatchObject({ operator: 'NOT_IN', relation: 'has-none' });
+    expect(any).toMatchObject({
+      operator: FilterOperator.IN,
+      relation: 'has-any',
+    });
+    expect(none).toMatchObject({
+      operator: FilterOperator.NOT_IN,
+      relation: 'has-none',
+    });
     // The English line is what it always was.
     expect(any?.text).toBe('Tags has any of a');
   });
@@ -781,12 +887,12 @@ describe('describeFilter parts', () => {
         withItems,
         tree({
           field: 'items',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: {
             op,
             children: skus.map(sku => ({
               field: 'items.sku',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: sku,
             })),
           },
@@ -812,14 +918,16 @@ describe('describeFilter parts', () => {
       withItems,
       tree({
         field: 'items',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: {
           op: 'and',
           children: [
-            { field: 'items.sku', operator: 'EQ', value: 'A' },
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A' },
             {
               op: 'or',
-              children: [{ field: 'items.sku', operator: 'EQ', value: 'B' }],
+              children: [
+                { field: 'items.sku', operator: FilterOperator.EQ, value: 'B' },
+              ],
             },
           ],
         },

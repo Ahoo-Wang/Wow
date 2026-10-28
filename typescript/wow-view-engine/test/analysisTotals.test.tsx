@@ -22,7 +22,13 @@
  * no totals row repeats it and the footer counts no 「1 组」.
  */
 
-import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  HavingExpressionType,
+  ComparisonOperator,
+  AggregationMetricType,
+  AggregationExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -131,7 +137,12 @@ describe('the totals row beside rows that leave some out', () => {
 
   it('says the groups 「只保留」 dropped are in it', async () => {
     show({
-      having: { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 2 },
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.GT,
+        value: 2,
+      },
     });
     await waitFor(() => expect(slot('totals-row')).not.toBeNull());
 
@@ -144,9 +155,9 @@ describe('the totals row beside rows that leave some out', () => {
     show({
       limit: 2,
       having: {
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 0,
       },
     });
@@ -234,13 +245,13 @@ describe('an analysis with no dimension', () => {
  */
 describe('a metric the whole range has no value of', () => {
   const metrics: AnalysisViewConfig['metrics'] = [
-    { alias: 'orders', type: 'COUNT' },
-    { alias: 'anyStatus', type: 'ANY', field: 'status' },
+    { alias: 'orders', type: AggregationMetricType.COUNT },
+    { alias: 'anyStatus', type: AggregationMetricType.ANY, field: 'status' },
     {
       alias: 'amountMax',
-      type: 'NUMERIC',
-      function: 'MAX',
-      expression: { type: 'FIELD', field: 'amount' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MAX,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     },
   ];
 

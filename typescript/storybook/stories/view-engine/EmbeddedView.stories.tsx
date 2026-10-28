@@ -51,6 +51,7 @@ import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './EmbeddedView.stories.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 一个已经存好的视图，嵌在宿主自己的业务页面里——只有结果，没有别的。
@@ -285,13 +286,17 @@ function HostPage({
 /** 宿主把视图收到「只看华东仓」，用的是视图自己的字段名。 */
 const EAST_ONLY: FilterTree = {
   op: 'and',
-  children: [{ field: 'warehouse', operator: 'IN', value: ['CN-EAST'] }],
+  children: [
+    { field: 'warehouse', operator: FilterOperator.IN, value: ['CN-EAST'] },
+  ],
 };
 
 /** 宿主想按一个这份定义根本没有的字段收窄——于是收窄被拒。 */
 const UNKNOWN_SCOPE: FilterTree = {
   op: 'and',
-  children: [{ field: 'customerId', operator: 'EQ', value: 'C-8812' }],
+  children: [
+    { field: 'customerId', operator: FilterOperator.EQ, value: 'C-8812' },
+  ],
 };
 
 const SCOPE_FILTERS: Record<ScopeChoice, FilterTree | null> = {

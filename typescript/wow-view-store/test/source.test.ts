@@ -22,6 +22,11 @@ import {
   PagingMode,
   QueryValueKind,
   type QueryModelDescriptor,
+  QueryModels,
+  QueryValueTypes,
+  FilterOperator,
+  AggregationGroupType,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import { datasetCatalogOf, viewSourceOf } from '../src/index.js';
 import type { FakeDataset } from './support/fakeViewStore.js';
@@ -36,7 +41,7 @@ const DESCRIPTOR = { version: 'sha256:1', fields: [] };
 
 /** A dataset's descriptor as the V10 service answers it: two scalar columns. */
 const DATASET_DESCRIPTOR = {
-  model: 'DATASET',
+  model: QueryModels.DATASET,
   version: 'sha256:1',
   timeZone: 'UTC',
   record: {
@@ -74,7 +79,7 @@ const DATASET_DESCRIPTOR = {
   },
   fields: ['order_id', 'city'].map(path => ({
     path,
-    types: ['STRING'],
+    types: [QueryValueTypes.STRING],
     kind: QueryValueKind.SCALAR,
     nullable: false,
     project: true,
@@ -126,13 +131,13 @@ describe('the V10 data sources', () => {
 
     expect(
       await source.paged(
-        { filter: { op: 'MATCH_ALL' } } as never,
+        { filter: { op: FilterOperator.MATCH_ALL } } as never,
         undefined,
         abort,
       ),
     ).toEqual({ total: 2, list: ROWS });
     expect(dataset.source.paged).toHaveBeenCalledWith({
-      filter: { op: 'MATCH_ALL' },
+      filter: { op: FilterOperator.MATCH_ALL },
     });
     expect(await source.cursor({} as never)).toEqual({
       list: ROWS,
@@ -165,7 +170,7 @@ describe('the V10 data sources', () => {
         }),
     );
     expect(
-      await source.paged({ filter: { op: 'MATCH_ALL' } } as never),
+      await source.paged({ filter: { op: FilterOperator.MATCH_ALL } } as never),
     ).toEqual({ total: 1, list: streams });
     fake.failNext(
       /\/sales\/order\/events\/query$/,
@@ -180,8 +185,10 @@ describe('the V10 data sources', () => {
     expect(
       await source.aggregate({
         elements: [{ path: 'events' }],
-        groupBy: [{ type: 'TERMS', field: 'name', alias: 'event' }],
-        metrics: [{ type: 'COUNT', alias: 'n' }],
+        groupBy: [
+          { type: AggregationGroupType.TERMS, field: 'name', alias: 'event' },
+        ],
+        metrics: [{ type: AggregationMetricType.COUNT, alias: 'n' }],
       } as never),
     ).toEqual([{ event: 'sales.order.OrderPaid', n: 2 }]);
   });

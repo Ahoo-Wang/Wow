@@ -54,6 +54,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -145,7 +146,9 @@ describe('query failures reach onError', () => {
       instances: [
         {
           ...mine,
-          config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+          config: recordConfig({
+            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+          }),
         },
       ],
     });

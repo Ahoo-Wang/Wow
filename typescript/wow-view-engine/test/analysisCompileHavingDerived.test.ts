@@ -22,6 +22,11 @@ import {
   aggregation,
   type AggregationQuery,
   type HavingExpression,
+  HavingExpressionType,
+  ComparisonOperator,
+  AggregationMetricType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -54,56 +59,108 @@ function compileHaving(stored: AnalysisHavingExpression) {
 describe('compileAnalysis having', () => {
   it.each<[AnalysisHavingExpression, HavingExpression]>([
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'EQ', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.EQ,
+        value: 1,
+      },
       having.eq('orders', 1),
     ],
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'NE', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.NE,
+        value: 1,
+      },
       having.ne('orders', 1),
     ],
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.GT,
+        value: 1,
+      },
       having.gt('orders', 1),
     ],
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'GTE', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.GTE,
+        value: 1,
+      },
       having.gte('orders', 1),
     ],
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'LT', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.LT,
+        value: 1,
+      },
       having.lt('orders', 1),
     ],
     [
-      { type: 'CONDITION', metric: 'orders', operator: 'LTE', value: 1 },
+      {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.LTE,
+        value: 1,
+      },
       having.lte('orders', 1),
     ],
     [
-      { type: 'BETWEEN', metric: 'orders', lower: 1, upper: 9 },
+      {
+        type: HavingExpressionType.BETWEEN,
+        metric: 'orders',
+        lower: 1,
+        upper: 9,
+      },
       having.between('orders', 1, 9),
     ],
     [
-      { type: 'IN', metric: 'orders', values: [2, 3] },
+      { type: HavingExpressionType.IN, metric: 'orders', values: [2, 3] },
       having.isIn('orders', [2, 3]),
     ],
-    [{ type: 'IS_NULL', metric: 'orders' }, having.isNull('orders')],
     [
-      { type: 'IS_NULL', metric: 'orders', negated: false },
+      { type: HavingExpressionType.IS_NULL, metric: 'orders' },
       having.isNull('orders'),
     ],
     [
-      { type: 'IS_NULL', metric: 'orders', negated: true },
+      { type: HavingExpressionType.IS_NULL, metric: 'orders', negated: false },
+      having.isNull('orders'),
+    ],
+    [
+      { type: HavingExpressionType.IS_NULL, metric: 'orders', negated: true },
       having.isNotNull('orders'),
     ],
     [
       {
-        type: 'OR',
+        type: HavingExpressionType.OR,
         operands: [
-          { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 9 },
           {
-            type: 'AND',
+            type: HavingExpressionType.CONDITION,
+            metric: 'orders',
+            operator: ComparisonOperator.GT,
+            value: 9,
+          },
+          {
+            type: HavingExpressionType.AND,
             operands: [
-              { type: 'CONDITION', metric: 'orders', operator: 'LT', value: 2 },
-              { type: 'IS_NULL', metric: 'orders', negated: true },
+              {
+                type: HavingExpressionType.CONDITION,
+                metric: 'orders',
+                operator: ComparisonOperator.LT,
+                value: 2,
+              },
+              {
+                type: HavingExpressionType.IS_NULL,
+                metric: 'orders',
+                negated: true,
+              },
             ],
           },
         ],
@@ -119,7 +176,12 @@ describe('compileAnalysis having', () => {
 
   it("refuses a number Wow would refuse, with Wow's message", () => {
     expect(() =>
-      compileHaving({ type: 'BETWEEN', metric: 'orders', lower: 9, upper: 1 }),
+      compileHaving({
+        type: HavingExpressionType.BETWEEN,
+        metric: 'orders',
+        lower: 9,
+        upper: 1,
+      }),
     ).toThrow(
       'having between [orders] lower bound must not exceed upper bound.',
     );
@@ -130,29 +192,35 @@ describe('compileAnalysis derived metrics', () => {
   it('compiles every operator through the DerivedExpressionDsl', () => {
     const query = compile({
       metrics: [
-        { type: 'COUNT', alias: 'orders' },
+        { type: AggregationMetricType.COUNT, alias: 'orders' },
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'mix',
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
             left: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'METRIC_REF', metric: 'orders' },
-              right: { type: 'CONSTANT', value: 1 },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: 'orders',
+              },
+              right: { type: DerivedExpressionType.CONSTANT, value: 1 },
             },
             right: {
-              type: 'BINARY',
-              operator: 'SUBTRACT',
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.SUBTRACT,
               left: {
-                type: 'BINARY',
-                operator: 'MULTIPLY',
-                left: { type: 'METRIC_REF', metric: 'orders' },
-                right: { type: 'CONSTANT', value: 2 },
+                type: DerivedExpressionType.BINARY,
+                operator: AggregationExpressionOperator.MULTIPLY,
+                left: {
+                  type: DerivedExpressionType.METRIC_REF,
+                  metric: 'orders',
+                },
+                right: { type: DerivedExpressionType.CONSTANT, value: 2 },
               },
-              right: { type: 'CONSTANT', value: 3 },
+              right: { type: DerivedExpressionType.CONSTANT, value: 3 },
             },
           },
         },

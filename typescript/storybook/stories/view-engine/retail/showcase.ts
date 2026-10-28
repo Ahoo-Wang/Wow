@@ -45,6 +45,17 @@ import {
   RETAIL_ORDER_ANALYSIS,
   retailOrdersDefinition,
 } from './views.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  DerivedExpressionType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** 板子的 id。 */
 export const SHOWCASE = 'retail-showcase';
@@ -84,7 +95,7 @@ const leaf = (field: string, operator: string, value: unknown): FilterNode =>
 
 /** 一段钉死的日期：[from, to]，上海时间的整天。 */
 const days = (field: string, from: string, to: string): FilterNode =>
-  leaf(field, 'BETWEEN', {
+  leaf(field, FilterOperator.BETWEEN, {
     type: 'absolute',
     from: `${from}T00:00:00+08:00`,
     to: `${to}T23:59:59.999+08:00`,
@@ -100,13 +111,14 @@ const FIFTY_TWO_WEEKS = (field: string) =>
 
 /** 到上个月为止：完整的月，本月还没过完不算。 */
 const THROUGH_LAST_MONTH = (field: string) =>
-  leaf(field, 'LTE', { type: 'preset', preset: 'lastMonth' });
+  leaf(field, FilterOperator.LTE, { type: 'preset', preset: 'lastMonth' });
 
-const PAID = leaf('state.timing.paidAt', 'IS_NOT_NULL', null);
+const PAID = leaf('state.timing.paidAt', FilterOperator.IS_NOT_NULL, null);
 
 const GMV = 'state.amounts.payableAmount';
 
-const field = (name: string) => ({ type: 'FIELD', field: name }) as const;
+const field = (name: string) =>
+  ({ type: AggregationExpressionType.FIELD, field: name }) as const;
 
 const sum = (
   alias: string,
@@ -114,9 +126,9 @@ const sum = (
   label: string,
   filter?: FilterNode[],
 ): AnalysisMetric => ({
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias,
-  function: 'SUM',
+  function: AggregationFunction.SUM,
   expression: field(name),
   label,
   ...(filter ? { filter: and(...filter) } : {}),
@@ -127,7 +139,7 @@ const count = (
   label: string,
   filter?: FilterNode[],
 ): AnalysisMetric => ({
-  type: 'COUNT',
+  type: AggregationMetricType.COUNT,
   alias,
   label,
   ...(filter ? { filter: and(...filter) } : {}),
@@ -140,15 +152,15 @@ const ratio = (
   under: string,
   format: DerivedFormat = { style: 'percent' },
 ): AnalysisMetric => ({
-  type: 'DERIVED',
+  type: AggregationMetricType.DERIVED,
   alias,
   label,
   format,
   expression: {
-    type: 'BINARY',
-    operator: 'DIVIDE',
-    left: { type: 'METRIC_REF', metric: over },
-    right: { type: 'METRIC_REF', metric: under },
+    type: DerivedExpressionType.BINARY,
+    operator: AggregationExpressionOperator.DIVIDE,
+    left: { type: DerivedExpressionType.METRIC_REF, metric: over },
+    right: { type: DerivedExpressionType.METRIC_REF, metric: under },
   },
 });
 
@@ -157,7 +169,7 @@ const byTerms = (
   alias: string,
   label?: string,
 ): AnalysisGroup => ({
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: name,
   alias,
   ...(label ? { label } : {}),
@@ -166,11 +178,11 @@ const byTerms = (
 const byDate = (
   name: string,
   alias: string,
-  unit: 'DAY' | 'WEEK' | 'MONTH',
+  unit: `${AggregationDateUnit.DAY | AggregationDateUnit.WEEK | AggregationDateUnit.MONTH}`,
   label: string,
   dense = false,
 ): AnalysisGroup => ({
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: name,
   alias,
   unit,
@@ -295,7 +307,10 @@ const byPayment: PanelClick = { kind: 'filter', filter: 'payment' };
 /** 上月 GMV 达成：已结束的整月，不拿月中「至今」比整月目标。 */
 const lastMonthGauge = analysis({
   filter: and(
-    leaf('firstEventTime', 'BETWEEN', { type: 'preset', preset: 'lastMonth' }),
+    leaf('firstEventTime', FilterOperator.BETWEEN, {
+      type: 'preset',
+      preset: 'lastMonth',
+    }),
   ),
   groups: [],
   metrics: [sum('gmv', GMV, 'GMV')],
@@ -308,11 +323,16 @@ const lastMonthGauge = analysis({
 /** 近 25 个月的日 GMV，7 日均线与目标区间；截至昨日。 */
 const dailyGmv = analysis({
   filter: and(
-    leaf('firstEventTime', 'LTE', { type: 'preset', preset: 'yesterday' }),
+    leaf('firstEventTime', FilterOperator.LTE, {
+      type: 'preset',
+      preset: 'yesterday',
+    }),
   ),
-  groups: [byDate('firstEventTime', 'day', 'DAY', '日期', true)],
+  groups: [
+    byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期', true),
+  ],
   metrics: [sum('gmv', GMV, 'GMV')],
-  sort: [{ alias: 'day', direction: 'ASC' }],
+  sort: [{ alias: 'day', direction: SortDirection.ASC }],
   limit: 1000,
   chart: {
     type: 'line',
@@ -336,13 +356,15 @@ const dailyGmv = analysis({
 /** 月 GMV（柱）与客单价（线），只取完整月。 */
 const monthlyGmvAov = analysis({
   filter: and(THROUGH_LAST_MONTH('firstEventTime')),
-  groups: [byDate('firstEventTime', 'month', 'MONTH', '月份')],
+  groups: [
+    byDate('firstEventTime', 'month', AggregationDateUnit.MONTH, '月份'),
+  ],
   metrics: [
     sum('gmv', GMV, 'GMV'),
     count('orders', '订单数'),
     ratio('aov', '客单价', 'gmv', 'orders', { style: 'currency' }),
   ],
-  sort: [{ alias: 'month', direction: 'ASC' }],
+  sort: [{ alias: 'month', direction: SortDirection.ASC }],
   chart: {
     type: 'combo',
     cartesian: {
@@ -361,11 +383,11 @@ const monthlyGmvAov = analysis({
 const newReturningShare = analysis({
   filter: and(THROUGH_LAST_MONTH('firstEventTime')),
   groups: [
-    byDate('firstEventTime', 'month', 'MONTH', '月份'),
+    byDate('firstEventTime', 'month', AggregationDateUnit.MONTH, '月份'),
     byTerms('state.buyer.isNewBuyer', 'isNew', '新客'),
   ],
   metrics: [sum('gmv', GMV, 'GMV')],
-  sort: [{ alias: 'month', direction: 'ASC' }],
+  sort: [{ alias: 'month', direction: SortDirection.ASC }],
   limit: 1000,
   chart: {
     type: 'area',
@@ -383,11 +405,11 @@ const newReturningShare = analysis({
 const weeklyRiver = analysis({
   filter: and(FIFTY_TWO_WEEKS('firstEventTime')),
   groups: [
-    byDate('firstEventTime', 'week', 'WEEK', '周'),
+    byDate('firstEventTime', 'week', AggregationDateUnit.WEEK, '周'),
     byTerms('state.channel', 'channel'),
   ],
   metrics: [sum('gmv', GMV, 'GMV')],
-  sort: [{ alias: 'week', direction: 'ASC' }],
+  sort: [{ alias: 'week', direction: SortDirection.ASC }],
   limit: 1000,
   chart: {
     type: 'themeRiver',
@@ -398,9 +420,9 @@ const weeklyRiver = analysis({
 /** 近 12 个完整月的每日 GMV（日历）。 */
 const dailyCalendar = analysis({
   filter: and(TWELVE_FULL_MONTHS('firstEventTime')),
-  groups: [byDate('firstEventTime', 'day', 'DAY', '日期')],
+  groups: [byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期')],
   metrics: [sum('gmv', GMV, 'GMV')],
-  sort: [{ alias: 'day', direction: 'ASC' }],
+  sort: [{ alias: 'day', direction: SortDirection.ASC }],
   limit: 1000,
   chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
 });
@@ -415,41 +437,43 @@ const skuWeeklyPrice = analysis({
   elements: [
     {
       path: 'state.items',
-      filter: and(leaf('state.items.skuId', 'IN', [SHOWCASE_SKU])),
+      filter: and(leaf('state.items.skuId', FilterOperator.IN, [SHOWCASE_SKU])),
     },
   ],
-  groups: [byDate('state.items.placedAt', 'week', 'WEEK', '下单周')],
+  groups: [
+    byDate('state.items.placedAt', 'week', AggregationDateUnit.WEEK, '下单周'),
+  ],
   metrics: [
     {
       alias: 'open',
-      type: 'FIRST',
+      type: AggregationMetricType.FIRST,
       field: 'state.items.salePrice',
       orderBy: 'state.items.placedAt',
       label: '周内首单价',
     },
     {
       alias: 'high',
-      type: 'NUMERIC',
-      function: 'MAX',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MAX,
       expression: field('state.items.salePrice'),
       label: '周内最高价',
     },
     {
       alias: 'low',
-      type: 'NUMERIC',
-      function: 'MIN',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MIN,
       expression: field('state.items.salePrice'),
       label: '周内最低价',
     },
     {
       alias: 'close',
-      type: 'LAST',
+      type: AggregationMetricType.LAST,
       field: 'state.items.salePrice',
       orderBy: 'state.items.placedAt',
       label: '周内末单价',
     },
   ] as [AnalysisMetric, ...AnalysisMetric[]],
-  sort: [{ alias: 'week', direction: 'ASC' }],
+  sort: [{ alias: 'week', direction: SortDirection.ASC }],
   chart: {
     type: 'candlestick',
     candlestick: {
@@ -465,24 +489,27 @@ const skuWeeklyPrice = analysis({
 /** 上月净销售额（实付 − 已退）由各渠道一段段累加。 */
 const lastMonthNetWaterfall = analysis({
   filter: and(
-    leaf('firstEventTime', 'BETWEEN', { type: 'preset', preset: 'lastMonth' }),
+    leaf('firstEventTime', FilterOperator.BETWEEN, {
+      type: 'preset',
+      preset: 'lastMonth',
+    }),
   ),
   groups: [byTerms('state.channel', 'channel')],
   metrics: [
     {
       alias: 'net',
-      type: 'NUMERIC',
-      function: 'SUM',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
       label: '净销售额',
       expression: {
-        type: 'BINARY',
-        operator: 'SUBTRACT',
+        type: AggregationExpressionType.BINARY,
+        operator: AggregationExpressionOperator.SUBTRACT,
         left: field('state.amounts.paidAmount'),
         right: field('state.amounts.refundedAmount'),
       },
     },
   ],
-  sort: [{ alias: 'net', direction: 'DESC' }],
+  sort: [{ alias: 'net', direction: SortDirection.DESC }],
   chart: {
     type: 'waterfall',
     waterfall: { x: 'channel', value: 'net', total: true },
@@ -496,9 +523,11 @@ const channelRatios = analysis({
   metrics: [
     count('orders', '订单数'),
     count('paidOrders', '已付款', [PAID]),
-    count('returning', '老客单', [leaf('state.buyer.isNewBuyer', 'EQ', false)]),
+    count('returning', '老客单', [
+      leaf('state.buyer.isNewBuyer', FilterOperator.EQ, false),
+    ]),
     count('cancelled', '取消', [
-      leaf('state.cancelReason', 'IS_NOT_NULL', null),
+      leaf('state.cancelReason', FilterOperator.IS_NOT_NULL, null),
     ]),
     sum('paid', 'state.amounts.paidAmount', '实付'),
     sum('refunded', 'state.amounts.refundedAmount', '已退'),
@@ -530,7 +559,7 @@ const channelParallel = analysis({
     ratio('refundRate', '退款率', 'refunded', 'paid'),
     ratio('aov', '客单价', 'gmv', 'orders', { style: 'currency' }),
   ],
-  sort: [{ alias: 'gmv', direction: 'DESC' }],
+  sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
   chart: {
     type: 'parallel',
     parallel: {
@@ -545,7 +574,7 @@ const provinceMap = analysis({
   filter: and(TWELVE_FULL_MONTHS('firstEventTime')),
   groups: [byTerms('state.address.province', 'province')],
   metrics: [sum('gmv', GMV, 'GMV')],
-  sort: [{ alias: 'gmv', direction: 'DESC' }],
+  sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
   chart: {
     type: 'map',
     map: { region: 'province', value: 'gmv', map: SHOWCASE_MAP },

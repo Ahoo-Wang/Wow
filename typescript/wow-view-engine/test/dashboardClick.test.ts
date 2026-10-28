@@ -47,6 +47,7 @@ import {
   type PanelClick,
 } from '../src/index.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 
 const region: DashboardField = {
   name: 'region',
@@ -167,11 +168,11 @@ describe('a page destination’s URL', () => {
 
 describe('the filters a press can set', () => {
   it('takes a date bucket for a date filter and one value for the rest', () => {
-    expect(takesGroup('date', 'DATE_HISTOGRAM')).toBe(true);
-    expect(takesGroup('date', 'TERMS')).toBe(false);
-    expect(takesGroup('text', 'TERMS')).toBe(true);
-    expect(takesGroup('number', 'HISTOGRAM')).toBe(false);
-    expect(takesGroup(null, 'TERMS')).toBe(false);
+    expect(takesGroup('date', AggregationGroupType.DATE_HISTOGRAM)).toBe(true);
+    expect(takesGroup('date', AggregationGroupType.TERMS)).toBe(false);
+    expect(takesGroup('text', AggregationGroupType.TERMS)).toBe(true);
+    expect(takesGroup('number', AggregationGroupType.HISTOGRAM)).toBe(false);
+    expect(takesGroup(null, AggregationGroupType.TERMS)).toBe(false);
   });
 
   it('lists a filter wired through a field the panel groups by, in a way it takes', () => {
@@ -341,8 +342,8 @@ describe('a click that opens another board (D23 Q17)', () => {
     kind: 'datetime',
   };
   const groups = [
-    { field: 'warehouse', type: 'TERMS' as const },
-    { field: 'createdAt', type: 'DATE_HISTOGRAM' as const },
+    { field: 'warehouse', type: AggregationGroupType.TERMS as const },
+    { field: 'createdAt', type: AggregationGroupType.DATE_HISTOGRAM as const },
   ];
   const fields: FieldDefinition[] = [
     { name: 'warehouse', label: 'Warehouse', kind: 'string' },
@@ -382,7 +383,7 @@ describe('a click that opens another board (D23 Q17)', () => {
     expect(
       boardValueChoices(
         area,
-        [{ field: 'amount', type: 'TERMS' }],
+        [{ field: 'amount', type: AggregationGroupType.TERMS }],
         [{ name: 'amount', label: 'Amount', kind: 'number' }],
       ),
     ).toEqual([]);

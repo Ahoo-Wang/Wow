@@ -67,6 +67,7 @@ import {
   preD27DashboardConfig,
   recordConfig,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);
@@ -187,10 +188,14 @@ describe('the 24-column grid and the boards stored before it', () => {
         {
           op: 'and',
           children: [
-            { field: 'region', operator: 'IN', value: ['CN'] },
-            { field: 'created', operator: 'BETWEEN', value: window },
+            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
+            {
+              field: 'created',
+              operator: FilterOperator.BETWEEN,
+              value: window,
+            },
             // An EQ of one number is the one-entry list the filter keeps.
-            { field: 'amount', operator: 'EQ', value: 100 },
+            { field: 'amount', operator: FilterOperator.EQ, value: 100 },
           ],
         },
         { fields: [region, created, amount] },
@@ -213,20 +218,22 @@ describe('the 24-column grid and the boards stored before it', () => {
     it('keeps what no filter could hold as the fixed scope', () => {
       const kept: FilterNode[] = [
         // Another operator than the filter asks with.
-        { field: 'amount', operator: 'GT', value: 100 },
+        { field: 'amount', operator: FilterOperator.GT, value: 100 },
         // Two values for a filter that takes one.
-        { field: 'region', operator: 'IN', value: ['CN', 'JP'] },
+        { field: 'region', operator: FilterOperator.IN, value: ['CN', 'JP'] },
         // A field that is no filter of this board.
-        { field: 'status', operator: 'IN', value: ['PAID'] },
+        { field: 'status', operator: FilterOperator.IN, value: ['PAID'] },
         // A group is not taken apart.
         {
           op: 'or',
-          children: [{ field: 'region', operator: 'IN', value: ['US'] }],
+          children: [
+            { field: 'region', operator: FilterOperator.IN, value: ['US'] },
+          ],
         },
         // A filter with a default of its own keeps it.
         {
           field: 'created',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'relative', unit: 'day', amount: 7 },
         },
       ];
@@ -246,14 +253,14 @@ describe('the 24-column grid and the boards stored before it', () => {
     it('moves one leaf per filter and keeps the second', () => {
       const second: FilterLeaf = {
         field: 'region',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: ['JP'],
       };
       const board = preCDashboardConfig(
         {
           op: 'and',
           children: [
-            { field: 'region', operator: 'IN', value: ['CN'] },
+            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
             second,
           ],
         },
@@ -276,7 +283,7 @@ describe('the 24-column grid and the boards stored before it', () => {
     it('never moves again once read, whatever the author changes of a filter', () => {
       const leaf: FilterLeaf = {
         field: 'region',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: ['EU', 'CN'],
       };
       const board = preCDashboardConfig(
@@ -302,7 +309,13 @@ describe('the 24-column grid and the boards stored before it', () => {
     it('takes no tree apart that is not a plain AND, and fixes it whole', () => {
       const tree = {
         op: 'or' as const,
-        children: [{ field: 'region', operator: 'IN' as const, value: ['CN'] }],
+        children: [
+          {
+            field: 'region',
+            operator: FilterOperator.IN as const,
+            value: ['CN'],
+          },
+        ],
       };
       const board = preCDashboardConfig(tree, { fields: [region] });
 
@@ -338,8 +351,16 @@ describe('the 24-column grid and the boards stored before it', () => {
    */
   describe('a board’s own condition', () => {
     const region = { name: 'region', label: '仓库', kind: 'string' } as const;
-    const cn: FilterLeaf = { field: 'region', operator: 'IN', value: ['CN'] };
-    const jp: FilterLeaf = { field: 'region', operator: 'IN', value: ['JP'] };
+    const cn: FilterLeaf = {
+      field: 'region',
+      operator: FilterOperator.IN,
+      value: ['CN'],
+    };
+    const jp: FilterLeaf = {
+      field: 'region',
+      operator: FilterOperator.IN,
+      value: ['JP'],
+    };
 
     it('takes an empty one out, the fixed scope as it was', () => {
       const fixed = { op: 'and' as const, children: [cn] };
@@ -414,7 +435,9 @@ describe('the 24-column grid and the boards stored before it', () => {
         fields: [region],
         fixed: {
           op: 'and',
-          children: [{ field: 'nowhere', operator: 'IN', value: ['CN'] }],
+          children: [
+            { field: 'nowhere', operator: FilterOperator.IN, value: ['CN'] },
+          ],
         },
       });
 
@@ -428,7 +451,9 @@ describe('the 24-column grid and the boards stored before it', () => {
         fields: [region],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'IN', value: ['CN'] }],
+          children: [
+            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
+          ],
         },
         panels: [saved('a', { x: 0, y: 0, w: 12, h: 4 })],
       });

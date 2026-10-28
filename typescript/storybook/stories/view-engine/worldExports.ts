@@ -25,6 +25,9 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisViewConfig,
@@ -126,17 +129,19 @@ const config: AnalysisViewConfig = {
   filter: { op: 'and', children: [] },
   filterMode: 'simple',
   refresh: { interval: null },
-  groups: [{ type: 'TERMS', field: 'country', alias: 'country' }],
+  groups: [
+    { type: AggregationGroupType.TERMS, field: 'country', alias: 'country' },
+  ],
   metrics: [
     {
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'gmv',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'amount' },
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       label: 'GMV',
     },
   ],
-  sort: [{ alias: 'gmv', direction: 'DESC' }],
+  sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
   limit: 100,
   layout: 'chart',
   table: { columns: [] },

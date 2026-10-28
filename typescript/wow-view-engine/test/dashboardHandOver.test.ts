@@ -40,6 +40,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
 
@@ -126,7 +127,7 @@ function codes(issues: readonly Issue[]): string[] {
 describe('DashboardViewRuntime takes no outer condition (D26 Q32)', () => {
   const OUTER: FilterTree = {
     op: 'and',
-    children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+    children: [{ field: 'region', operator: FilterOperator.NE, value: 'EU' }],
   };
 
   it('refuses one and runs as it was: a board is narrowed filter by filter', async () => {
@@ -193,11 +194,15 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
     const handed = runtime.handOver('orders');
     expect(handed?.scopeFilter).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'IN', value: ['CN'] }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.IN, value: ['CN'] },
+      ],
     });
     expect(handed?.filter).toEqual({
       op: 'and',
-      children: [{ field: 'status', operator: 'IN', value: ['SHIPPED'] }],
+      children: [
+        { field: 'status', operator: FilterOperator.IN, value: ['SHIPPED'] },
+      ],
     });
     // The way back: this board, on its tab, under what its filters hold.
     expect(handed?.from).toEqual({
@@ -218,7 +223,9 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
       handing({
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'EU' },
+          ],
         },
       }),
     );
@@ -229,8 +236,8 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
     expect(handed?.scopeFilter).toEqual({
       op: 'and',
       children: [
-        { field: 'warehouse', operator: 'NE', value: 'EU' },
-        { field: 'warehouse', operator: 'IN', value: ['CN'] },
+        { field: 'warehouse', operator: FilterOperator.NE, value: 'EU' },
+        { field: 'warehouse', operator: FilterOperator.IN, value: ['CN'] },
       ],
     });
     expect(JSON.stringify(handed?.filter)).not.toContain('"EU"');

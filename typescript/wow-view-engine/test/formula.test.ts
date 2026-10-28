@@ -13,15 +13,19 @@
 
 import { describe, expect, it } from 'vitest';
 import { metricReferenceText, wordReferences } from '../src/analysis/index.js';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 describe('wordReferences', () => {
   const word = (fn: string, label: string) => `[${fn}:${label}]`;
 
   it('words every marked reference, wherever it stands in the text', () => {
-    const text = `(${metricReferenceText('SUM', 'Amount')} − ${metricReferenceText(
-      'SUM',
+    const text = `(${metricReferenceText(AggregationFunction.SUM, 'Amount')} − ${metricReferenceText(
+      AggregationFunction.SUM,
       'Cost',
-    )}) ÷ ${metricReferenceText('COUNT', 'orders')}`;
+    )}) ÷ ${metricReferenceText(AggregationMetricType.COUNT, 'orders')}`;
     expect(wordReferences(text, word)).toBe(
       '([SUM:Amount] − [SUM:Cost]) ÷ [COUNT:orders]',
     );
@@ -35,7 +39,7 @@ describe('wordReferences', () => {
   it('keeps a label with spaces and signs whole', () => {
     expect(
       wordReferences(
-        `${metricReferenceText('AVG', 'Amount − Cost (net)')} × 2`,
+        `${metricReferenceText(AggregationFunction.AVG, 'Amount − Cost (net)')} × 2`,
         word,
       ),
     ).toBe('[AVG:Amount − Cost (net)] × 2');

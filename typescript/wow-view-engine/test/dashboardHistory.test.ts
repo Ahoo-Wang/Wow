@@ -20,6 +20,7 @@
  * one-column reading's reorder, written back onto the grid, as one step.
  */
 
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
@@ -154,7 +155,9 @@ describe('the history of building a board', () => {
     );
     const filter = {
       op: 'and' as const,
-      children: [{ field: 'region', operator: 'EQ' as const, value: 'EU' }],
+      children: [
+        { field: 'region', operator: FilterOperator.EQ as const, value: 'EU' },
+      ],
     };
 
     runtime.addPanel({ kind: 'heading', content: 'Stock' });

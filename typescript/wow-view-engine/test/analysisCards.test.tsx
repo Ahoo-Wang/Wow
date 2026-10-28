@@ -15,6 +15,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -364,11 +366,13 @@ describe('a display name', () => {
         {
           alias: 'warehouse',
           field: 'warehouse',
-          type: 'TERMS',
+          type: AggregationGroupType.TERMS,
           label: '门店',
         },
       ],
-      metrics: [{ alias: 'orders', type: 'COUNT', label: '单数' }],
+      metrics: [
+        { alias: 'orders', type: AggregationMetricType.COUNT, label: '单数' },
+      ],
     });
 
     await waitFor(() =>
@@ -388,11 +392,13 @@ describe('a display name', () => {
         {
           alias: 'warehouse',
           field: 'warehouse',
-          type: 'TERMS',
+          type: AggregationGroupType.TERMS,
           label: '门店',
         },
       ],
-      metrics: [{ alias: 'orders', type: 'COUNT', label: '单数' }],
+      metrics: [
+        { alias: 'orders', type: AggregationMetricType.COUNT, label: '单数' },
+      ],
     });
 
     const reading = await waitFor(() => {
@@ -470,7 +476,7 @@ describe('the sentinel bucket', () => {
     await add('Add dimension', 'Warehouse');
     await waitFor(() =>
       expect(draft(engine).groups[0]).toMatchObject({
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         missingKey: DEFAULT_MISSING_KEY,
       }),
     );
@@ -495,8 +501,8 @@ describe('filling in empty periods', () => {
         {
           alias: 'created',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'MONTH',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.MONTH,
         },
       ],
     });
@@ -540,7 +546,7 @@ describe('the granularity a new time dimension starts at', () => {
       children: [
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'absolute', from: '2026-01-01', to: '2026-02-28' },
         },
       ],
@@ -551,8 +557,8 @@ describe('the granularity a new time dimension starts at', () => {
     await add('Add dimension', 'Created');
     await waitFor(() =>
       expect(draft(engine).groups[1]).toMatchObject({
-        type: 'DATE_HISTOGRAM',
-        unit: 'WEEK',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.WEEK,
       }),
     );
 
@@ -560,7 +566,9 @@ describe('the granularity a new time dimension starts at', () => {
     const plain = await open();
     await add('Add dimension', 'Created');
     await waitFor(() =>
-      expect(draft(plain.engine).groups[1]).toMatchObject({ unit: 'MONTH' }),
+      expect(draft(plain.engine).groups[1]).toMatchObject({
+        unit: AggregationDateUnit.MONTH,
+      }),
     );
   });
 });

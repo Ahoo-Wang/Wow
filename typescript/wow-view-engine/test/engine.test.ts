@@ -45,6 +45,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const mine: ViewInstance = {
   id: 'orders-1',
@@ -542,7 +543,7 @@ describe('ViewEngine list commands', () => {
         children: [
           {
             field: 'warehouse',
-            operator: 'EQ',
+            operator: FilterOperator.EQ,
             value: 'x'.repeat(MAX_VIEW_CONFIG_BYTES),
           },
         ],

@@ -15,6 +15,7 @@ import {
   AggregationGroupType,
   FilterOperator,
   SortDirection,
+  AggregationDatePart,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { AnalysisGroup } from '../src/model/analysis';
@@ -45,10 +46,15 @@ describe('the literal views of the wire values', () => {
     expect(SortDirections.DESC).toBe(SortDirection.DESC);
   });
 
+  // wire spelling (D352b): the subject is that a config written as plain JSON strings type-checks
   it('are typed by their values, so a config stays plain JSON', () => {
     expectTypeOf(AggregationGroupTypes.TERMS).toEqualTypeOf<'TERMS'>();
     // A config is written as strings and still type-checks.
-    const terms: AnalysisGroup = { type: 'TERMS', field: 'city', alias: 'c' };
+    const terms: AnalysisGroup = {
+      type: 'TERMS',
+      field: 'city',
+      alias: 'c',
+    };
     expectTypeOf(terms).toExtend<AnalysisGroup>();
   });
 
@@ -57,11 +63,11 @@ describe('the literal views of the wire values', () => {
     // its cases narrow the union to nothing (tsconfig.test.json checks it).
     expect(
       groupWord({
-        type: 'DATE_PART',
+        type: AggregationGroupType.DATE_PART,
         field: 'at',
         alias: 'p',
-        part: 'HOUR_OF_DAY',
+        part: AggregationDatePart.HOUR_OF_DAY,
       }),
-    ).toBe('HOUR_OF_DAY');
+    ).toBe(AggregationDatePart.HOUR_OF_DAY);
   });
 });

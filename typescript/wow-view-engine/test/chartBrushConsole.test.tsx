@@ -20,6 +20,7 @@
  * chart drawn by an earlier test in the same file would hide it.
  */
 
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ChartData, ChartSpec } from '../src/index.js';
@@ -52,7 +53,7 @@ const columns = [
     label: 'Day',
     role: 'group' as const,
     kind: 'datetime',
-    dateUnit: 'DAY' as const,
+    dateUnit: AggregationDateUnit.DAY as const,
     timeZone: 'UTC',
   },
 ];

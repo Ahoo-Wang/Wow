@@ -39,6 +39,7 @@ import {
   valueLabels,
 } from './chartDom.js';
 import { contrastRatio } from './contrast.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 图表怎么读（2026-09-23 图表审查的 P2 打磨）：悬停的柱子更显眼而不是更淡，
@@ -569,7 +570,12 @@ export const FilledZerosWriteNothing: Story = {
       return found;
     });
     const quiet = rows.filter(row =>
-      row[1]?.includes(zhCN['label.chart.filled.DAY'].replace('{value}', '0')),
+      row[1]?.includes(
+        zhCN[`label.chart.filled.${AggregationDateUnit.DAY}`].replace(
+          '{value}',
+          '0',
+        ),
+      ),
     );
     const busy = rows.length - quiet.length;
     await expect(quiet.length).toBeGreaterThan(0);

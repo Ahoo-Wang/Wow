@@ -36,6 +36,12 @@ import {
   shipmentsView,
 } from './dailyShipments.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * How many aggregations the month's source has answered: a play reads it
@@ -61,13 +67,13 @@ export const dailyView: ViewInstance = shipmentsView(shipmentsConfig('month'));
 
 const AMOUNT = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 } satisfies ReturnType<typeof analysisConfig>['metrics'][number];
 
 const WAREHOUSE = {
-  type: 'TERMS' as const,
+  type: AggregationGroupType.TERMS as const,
   field: 'warehouse',
   alias: 'warehouse',
 };

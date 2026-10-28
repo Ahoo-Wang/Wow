@@ -34,6 +34,11 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  DeletionState,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * One condition as the kernel hands it over: the parts, and the English line
@@ -48,7 +53,7 @@ function condition(over: Partial<FilterSummaryItem> = {}): FilterSummaryItem {
     field: 'warehouse',
     label: 'Warehouse',
     kind: 'string',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: { kind: 'text', value: 'CN' },
     ...over,
   };
@@ -226,7 +231,7 @@ describe('AppliedBar', () => {
       field: 'amount',
       label: 'Amount',
       kind: 'number',
-      operator: 'GT',
+      operator: FilterOperator.GT,
       value: { kind: 'text', value: 10 },
     });
     const view = render(
@@ -272,7 +277,7 @@ describe('AppliedBar', () => {
               field: 'amount',
               label: 'Amount',
               kind: 'number',
-              operator: 'GT',
+              operator: FilterOperator.GT,
               value: { kind: 'text', value: 10 },
             }),
           ],
@@ -366,8 +371,8 @@ describe('AppliedBar', () => {
       field: '@deleted',
       label: 'Deleted',
       kind: 'deletion',
-      operator: 'DELETION',
-      value: { kind: 'text', value: 'ACTIVE' },
+      operator: FilterOperator.DELETION,
+      value: { kind: 'text', value: DeletionState.ACTIVE },
     });
     render(<AppliedBar filter={stub([], { implied: [implied] })} asked />);
 
@@ -403,7 +408,7 @@ describe('AppliedBar', () => {
 
     act(() => {
       filter().addLeaf('@deleted');
-      filter().updateLeaf([0], { value: 'ALL' });
+      filter().updateLeaf([0], { value: DeletionState.ALL });
     });
     act(() => filter().submit());
 
@@ -453,7 +458,7 @@ describe('a value the way its field shows it', () => {
             label: 'Shipped',
             kind: 'number',
             cell: 'date',
-            operator: 'GT',
+            operator: FilterOperator.GT,
             value: { kind: 'text', value: instant },
           }),
         ])}
@@ -483,7 +488,7 @@ describe('a value the way its field shows it', () => {
             label: 'Charges',
             kind: 'array',
             numberFormat: YUAN,
-            operator: 'IN',
+            operator: FilterOperator.IN,
             value: { kind: 'list', values: [100, 5000] },
           }),
         ])}
@@ -507,7 +512,7 @@ describe('a value the way its field shows it', () => {
             label: 'Charges',
             kind: 'array',
             numberFormat: YUAN,
-            operator: 'IN',
+            operator: FilterOperator.IN,
             value: {
               kind: 'list',
               values: [100, 5000],
@@ -547,7 +552,7 @@ describe('the applied badge in another language', () => {
       field: 'status',
       label: '状态',
       kind: 'enum',
-      operator: 'IN',
+      operator: FilterOperator.IN,
       value: { kind: 'list', values: ['PENDING'], labels: ['待出库'] },
     });
 
@@ -558,18 +563,21 @@ describe('the applied badge in another language', () => {
    * millisecond — two wordings of one condition on one screen.
    */
   it('says a range that is one period as the period, a week as a week', () => {
-    const period = (unit: 'DAY' | 'WEEK', from: string): FilterSummaryItem =>
+    const period = (
+      unit: `${AggregationDateUnit.DAY}` | `${AggregationDateUnit.WEEK}`,
+      from: string,
+    ): FilterSummaryItem =>
       condition({
         text: 'Event time BETWEEN …',
         field: 'createTime',
         label: '事件时间',
         kind: 'datetime',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { kind: 'period', unit, from, timeZone: 'Asia/Shanghai' },
       });
     inChinese([
-      period('DAY', '2026-09-21T16:00:00.000Z'),
-      period('WEEK', '2026-09-20T16:00:00.000Z'),
+      period(AggregationDateUnit.DAY, '2026-09-21T16:00:00.000Z'),
+      period(AggregationDateUnit.WEEK, '2026-09-20T16:00:00.000Z'),
     ]);
 
     const said = [...document.querySelectorAll('[data-slot="badge"]')].map(
@@ -677,10 +685,10 @@ describe('the applied badge in another language', () => {
         value,
       });
     inChinese([
-      warehouse('EQ', { kind: 'text', value: '华东' }),
-      warehouse('NE', { kind: 'text', value: '华北' }),
-      warehouse('NOT_IN', { kind: 'list', values: ['西南'] }),
-      warehouse('IN', { kind: 'list', values: ['华南', '西南'] }),
+      warehouse(FilterOperator.EQ, { kind: 'text', value: '华东' }),
+      warehouse(FilterOperator.NE, { kind: 'text', value: '华北' }),
+      warehouse(FilterOperator.NOT_IN, { kind: 'list', values: ['西南'] }),
+      warehouse(FilterOperator.IN, { kind: 'list', values: ['华南', '西南'] }),
     ]);
 
     expect(screen.getByText('仓库 是 华东')).toBeDefined();
@@ -701,7 +709,7 @@ describe('the applied badge in another language', () => {
         field: 'tags',
         label: '标签',
         kind: 'array',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         relation: 'has-any',
         value: { kind: 'list', values: ['URGENT'], labels: ['加急'] },
       }),
@@ -727,7 +735,7 @@ describe('the applied badge in another language', () => {
       condition({
         text: 'Warehouse is empty',
         label: '仓库',
-        operator: 'IS_NULL',
+        operator: FilterOperator.IS_NULL,
         value: { kind: 'none' },
       }),
     ]);
@@ -747,7 +755,7 @@ describe('the applied badge in another language', () => {
     inChinese([
       when({
         text: 'Created on or before next quarter',
-        operator: 'LTE',
+        operator: FilterOperator.LTE,
         value: { kind: 'preset', preset: 'nextQuarter' },
       }),
     ]);
@@ -766,7 +774,7 @@ describe('the applied badge in another language', () => {
       when({
         text: 'Created last 7 days',
         path: ['children', 0],
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: {
           kind: 'relative',
           amount: 7,
@@ -778,7 +786,7 @@ describe('the applied badge in another language', () => {
       when({
         text: 'Created on or before 7 days ago',
         path: ['children', 1],
-        operator: 'LTE',
+        operator: FilterOperator.LTE,
         value: {
           kind: 'relative',
           amount: 7,
@@ -790,7 +798,7 @@ describe('the applied badge in another language', () => {
       when({
         text: 'Created on or after 7 days ahead',
         path: ['children', 2],
-        operator: 'GTE',
+        operator: FilterOperator.GTE,
         value: {
           kind: 'relative',
           amount: 7,
@@ -822,19 +830,19 @@ describe('the applied badge in another language', () => {
       when({
         text: 'Created last 12 months',
         path: ['children', 0],
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { ...relative(12, 'month'), bound: 'window' },
       }),
       when({
         text: 'Created on or before 3 months ago',
         path: ['children', 1],
-        operator: 'LTE',
+        operator: FilterOperator.LTE,
         value: { ...relative(3, 'month'), bound: 'instant' },
       }),
       when({
         text: 'Created last 2 quarters',
         path: ['children', 2],
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { ...relative(2, 'quarter'), bound: 'window' },
       }),
     ]);
@@ -849,7 +857,7 @@ describe('the applied badge in another language', () => {
     inChinese([
       when({
         text: 'Created from 2026-01-01',
-        operator: 'GTE',
+        operator: FilterOperator.GTE,
         kind: 'date',
         value: { kind: 'text', value: '2026-01-01' },
       }),
@@ -882,7 +890,7 @@ describe('the applied badge in another language', () => {
         field: 'items',
         label: '明细',
         kind: 'elementMatch',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: { kind: 'none' },
         group,
         items,
@@ -925,7 +933,7 @@ describe('the applied badge in another language', () => {
             field: 'amount',
             label: '金额',
             kind: 'number',
-            operator: 'BETWEEN',
+            operator: FilterOperator.BETWEEN,
             value: { kind: 'range', from: 1, to: 9 },
           }),
         ],

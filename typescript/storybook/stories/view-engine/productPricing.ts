@@ -17,6 +17,13 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  DeletionState,
+  FilterOperator,
+  SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
+  StringComparison,
+  TimeUnit,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -73,7 +80,7 @@ export const DELIVERY_TYPES = [
 
 /** A pricing's status, the schema's `enumValues`, each worn as a badge. */
 export const PRICING_STATUSES = [
-  { value: 'ACTIVE', label: '生效中', tone: 'success' as const },
+  { value: DeletionState.ACTIVE, label: '生效中', tone: 'success' as const },
   { value: 'INACTIVE', label: '已停用', tone: 'neutral' as const },
   { value: 'EXPIRED', label: '已过期', tone: 'warning' as const },
 ];
@@ -84,10 +91,14 @@ export const PRICING_STATUSES = [
  * through today at least".
  */
 const IN_FORCE: FilterNode[] = [
-  { field: 'state.status', operator: 'IN', value: ['ACTIVE'] },
+  {
+    field: 'state.status',
+    operator: FilterOperator.IN,
+    value: [DeletionState.ACTIVE],
+  },
   {
     field: 'state.deadline',
-    operator: 'GTE',
+    operator: FilterOperator.GTE,
     value: { type: 'preset', preset: 'today' },
   },
 ];
@@ -117,12 +128,12 @@ const COLUMNS = [
  * the page as the quantity rises.
  */
 const BY_PRODUCT = [
-  { field: 'state.skuId.code', direction: 'ASC' as const },
+  { field: 'state.skuId.code', direction: SortDirection.ASC as const },
   {
     field: 'state.deliveryTime.deliveryCycle.start',
-    direction: 'ASC' as const,
+    direction: SortDirection.ASC as const,
   },
-  { field: 'state.minOrderQuantity', direction: 'ASC' as const },
+  { field: 'state.minOrderQuantity', direction: SortDirection.ASC as const },
 ];
 
 function recordView(
@@ -134,7 +145,7 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'eventTime', direction: 'DESC' }],
+    sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -165,8 +176,10 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT', label: '定价数' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: '定价数' },
+    ],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -189,9 +202,9 @@ function price(
 ): AnalysisViewConfig['metrics'][number] {
   return {
     alias,
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     function: fn,
-    expression: { type: 'FIELD', field: 'state.price' },
+    expression: { type: AggregationExpressionType.FIELD, field: 'state.price' },
     label,
   };
 }
@@ -292,7 +305,7 @@ export const productPricingDefinition: DataViewDefinition = {
       kind: 'string',
       sortable: true,
       cell: 'copyable',
-      stringComparison: 'CASE_SENSITIVE',
+      stringComparison: StringComparison.CASE_SENSITIVE,
     },
     {
       name: 'state.skuId.brandName',
@@ -333,7 +346,11 @@ export const productPricingDefinition: DataViewDefinition = {
       sortable: true,
       numberFormat: PRICE_FORMAT,
       // A sum of unit prices is no amount anyone pays.
-      summary: ['MIN', 'AVG', 'MAX'],
+      summary: [
+        AggregationFunction.MIN,
+        AggregationFunction.AVG,
+        AggregationFunction.MAX,
+      ],
     },
     {
       name: 'state.minOrderQuantity',
@@ -354,8 +371,8 @@ export const productPricingDefinition: DataViewDefinition = {
       label: '有效期至',
       kind: 'date',
       sortable: true,
-      temporal: { type: 'epoch', timeUnit: 'MILLISECONDS' },
-      summary: ['MIN', 'MAX'],
+      temporal: { type: 'epoch', timeUnit: TimeUnit.MILLISECONDS },
+      summary: [AggregationFunction.MIN, AggregationFunction.MAX],
     },
     {
       name: 'state.deliveryTime.type',
@@ -461,10 +478,14 @@ export const productPricingDefinition: DataViewDefinition = {
       title: '半年内到期',
       config: recordView(
         [
-          { field: 'state.status', operator: 'IN', value: ['ACTIVE'] },
+          {
+            field: 'state.status',
+            operator: FilterOperator.IN,
+            value: [DeletionState.ACTIVE],
+          },
           {
             field: 'state.deadline',
-            operator: 'BETWEEN',
+            operator: FilterOperator.BETWEEN,
             value: {
               type: 'relative',
               amount: 6,
@@ -473,7 +494,7 @@ export const productPricingDefinition: DataViewDefinition = {
             },
           },
         ],
-        { sort: [{ field: 'state.deadline', direction: 'ASC' }] },
+        { sort: [{ field: 'state.deadline', direction: SortDirection.ASC }] },
       ),
     },
     {
@@ -482,7 +503,7 @@ export const productPricingDefinition: DataViewDefinition = {
       config: recordView([
         {
           field: 'state.status',
-          operator: 'IN',
+          operator: FilterOperator.IN,
           value: ['INACTIVE', 'EXPIRED'],
         },
       ]),
@@ -492,7 +513,13 @@ export const productPricingDefinition: DataViewDefinition = {
       id: 'by-status',
       title: '按状态分布',
       config: analysisView({
-        groups: [{ type: 'TERMS', field: 'state.status', alias: 'status' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'state.status',
+            alias: 'status',
+          },
+        ],
         layout: 'chart',
       }),
     },
@@ -504,7 +531,7 @@ export const productPricingDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'HISTOGRAM',
+            type: AggregationGroupType.HISTOGRAM,
             field: 'state.price',
             alias: 'band',
             interval: 500,
@@ -512,15 +539,22 @@ export const productPricingDefinition: DataViewDefinition = {
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '定价数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '定价数',
+          },
           {
             alias: 'products',
-            type: 'DISTINCT_COUNT',
-            expression: { type: 'FIELD', field: 'state.skuId.id' },
+            type: AggregationMetricType.DISTINCT_COUNT,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.skuId.id',
+            },
             label: '商品数',
           },
         ],
-        sort: [{ alias: 'band', direction: 'ASC' }],
+        sort: [{ alias: 'band', direction: SortDirection.ASC }],
         limit: 100,
         layout: 'chart',
       }),
@@ -532,21 +566,28 @@ export const productPricingDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.skuId.brandName',
             alias: 'brand',
             label: '品牌',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '定价数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '定价数',
+          },
           price('lowest', MIN, '最低单价'),
           price('highest', MAX, '最高单价'),
           {
             alias: 'earliest',
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             function: MIN,
-            expression: { type: 'FIELD', field: 'state.deadline' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.deadline',
+            },
             label: '最早到期',
           },
         ],
@@ -558,14 +599,18 @@ export const productPricingDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.deliveryTime.type',
             alias: 'delivery',
             label: '货期类型',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '定价数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '定价数',
+          },
           price('average', AVG, '平均单价'),
         ],
       }),

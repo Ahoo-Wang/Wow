@@ -176,7 +176,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **只有「全部」需要查询**：`compileSummaries` 产出 `AggregationQuery`，`projectSummaries` 按别名读回（[kernels.md](../kernels.md)）；`page` 由 `record/project.ts` 的 `pageSummaries(cells, rows)` 在屏幕上的行上算，与 `projectSummaries` 的 `page` 分支同一份，不会漂移；
 - **降级只剩本页**：聚合失败时 `runtime/execute.ts` 退回 `scope: 'page'`，只剩 `本页` 一行（不编数），并报 warning（`runtime.summary.page-only`）——少一行而不说读者未必注意，只报不改词则那个词在撒谎（test/resultIssues.test.tsx「what the screen says about a downgraded total」）；
 - 一个字段可配多个函数，格子按字段分组；函数名按目录措辞（`label.summary.fn.*`），与数值一起右对齐；没配汇总的列留空而不是 0；算不出的格子显示 `label.summary.unavailable` 的破折号；
-- **时刻列的最早与最晚**：`date`／`datetime` 列（含 `cell: 'date'`）的 `MIN`／`MAX` 各是这一列的一个单元格——`page` 用 `readInstant` 比时刻、留下原值，`total` 把答复（ISO 串或毫秒）原样读回——页脚走 `cellText`，按宿主语言与时区画时刻；词是 `label.summary.fn.date.MIN／MAX`：最早／最晚（一词一义）；`COUNT` 仍是个数，合计与平均被准入拒绝（test/record.test.ts「a date column summarised」、test/recordTable.test.tsx；故事 `EarliestAndLatest`）。
+- **时刻列的最早与最晚**：`date`／`datetime` 列（含 `cell: 'date'`）的 `MIN`／`MAX` 各是这一列的一个单元格——`page` 用 `readInstant` 比时刻、留下原值，`total` 把答复（ISO 串或毫秒）原样读回——页脚走 `cellText`，按宿主语言与时区画时刻；词是 `label.summary.fn.date.MIN／MAX`：最早／最晚（一词一义）；`COUNT` 仍是个数，合计与平均被准入拒绝（test/recordProjectSummaries.test.ts「a date column summarised」、test/recordTable.test.tsx；故事 `EarliestAndLatest`）。
 
 ## 表头排序
 

@@ -42,6 +42,11 @@ import type {
   RecordData,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 const SHANGHAI = 'Asia/Shanghai';
 const context = { timeZone: SHANGHAI };
@@ -63,14 +68,14 @@ const FIELDS: FieldDefinition[] = [
 const DAYS: AnalysisGroup = {
   alias: 'day',
   field: 'createdAt',
-  type: 'DATE_HISTOGRAM',
-  unit: 'DAY',
+  type: AggregationGroupType.DATE_HISTOGRAM,
+  unit: AggregationDateUnit.DAY,
 };
 
 /** 2025-10-15 through 2025-11-20 in Shanghai, as A-11 scopes itself. */
 const AUTUMN: FilterLeaf = {
   field: 'createdAt',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: {
     type: 'absolute',
     from: '2025-10-15T00:00:00+08:00',
@@ -81,13 +86,13 @@ const AUTUMN: FilterLeaf = {
 /** Up to yesterday, as A-02 scopes itself: a bound that moves with the clock. */
 const TO_YESTERDAY: FilterLeaf = {
   field: 'createdAt',
-  operator: 'LTE',
+  operator: FilterOperator.LTE,
   value: { type: 'preset', preset: 'yesterday' },
 };
 
 const PENDING: FilterLeaf = {
   field: 'status',
-  operator: 'IN',
+  operator: FilterOperator.IN,
   value: ['PENDING'],
 };
 
@@ -202,10 +207,21 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
   });
 
   it('a band of a number histogram beside a bound on the same number', () => {
-    const scope = scoped({ field: 'amount', operator: 'GTE', value: 50 });
+    const scope = scoped({
+      field: 'amount',
+      operator: FilterOperator.GTE,
+      value: 50,
+    });
     const row = rowOf(
       scope,
-      [{ alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 100 }],
+      [
+        {
+          alias: 'band',
+          field: 'amount',
+          type: AggregationGroupType.HISTOGRAM,
+          interval: 100,
+        },
+      ],
       { band: 100 },
     );
 
@@ -219,13 +235,13 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
   it('a status among the statuses asked about (只显示这一组)', () => {
     const scope = scoped({
       field: 'status',
-      operator: 'IN',
+      operator: FilterOperator.IN,
       value: ['PENDING', 'SHIPPED'],
     });
     const status: AnalysisGroup = {
       alias: 'status',
       field: 'status',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
     };
     const config = analysisConfig({ filter: scope, groups: [status] });
     const row = drillGroups(

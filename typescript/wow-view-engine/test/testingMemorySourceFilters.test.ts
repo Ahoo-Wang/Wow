@@ -22,6 +22,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type FilterExpression,
+  TimeUnit,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
 import { matches, memorySource } from '../src/testing/index.js';
@@ -162,7 +163,7 @@ describe('memorySource: filters and readings', () => {
             op,
             field: 'timeoutAt',
             offset: 'PT0S',
-            timeUnit: 'MILLISECONDS',
+            timeUnit: TimeUnit.MILLISECONDS,
             ...rest,
           } as FilterExpression,
         })
@@ -189,7 +190,7 @@ describe('memorySource: filters and readings', () => {
       await expect(
         ids(FilterOperator.AFTER_NOW, {
           field: 'inSeconds',
-          timeUnit: 'SECONDS',
+          timeUnit: TimeUnit.SECONDS,
         }),
       ).resolves.toEqual(['soon']);
     });
@@ -226,7 +227,7 @@ describe('memorySource: filters and readings', () => {
         source.aggregate(
           query([count()], {
             filter: {
-              op: 'SPACE_ID',
+              op: FilterOperator.SPACE_ID,
               value: 'north',
             } as unknown as FilterExpression,
           }),
@@ -281,7 +282,10 @@ describe('memorySource: filters and readings', () => {
           ]),
         ),
       ).resolves.toEqual([
-        { MIN: '2026-09-14T11:10:00.000Z', MAX: '2026-09-16T01:05:00.000Z' },
+        {
+          [AggregationFunction.MIN]: '2026-09-14T11:10:00.000Z',
+          [AggregationFunction.MAX]: '2026-09-16T01:05:00.000Z',
+        },
       ]);
     });
 

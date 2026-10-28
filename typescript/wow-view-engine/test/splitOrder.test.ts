@@ -23,6 +23,14 @@ import {
 } from '../src/index.js';
 import { OTHER_SERIES_KEY } from '../src/analysis/chartRows.js';
 import { analysisConfig, ordersDefinition } from './fixtures.js';
+import {
+  AggregationDatePart,
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The order a split's series read in — the legend, the stack — is the
@@ -34,24 +42,31 @@ import { analysisConfig, ordersDefinition } from './fixtures.js';
 
 const SUM: AnalysisMetric = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
-const AVG: AnalysisMetric = { ...SUM, function: 'AVG' } as AnalysisMetric;
+const AVG: AnalysisMetric = {
+  ...SUM,
+  function: AggregationFunction.AVG,
+} as AnalysisMetric;
 
 function split(
   splitGroup: AnalysisGroup = {
     alias: 'status',
     field: 'status',
-    type: 'TERMS',
+    type: AggregationGroupType.TERMS,
   },
   metric: AnalysisMetric = SUM,
   overrides: Partial<AnalysisViewConfig> = {},
 ): AnalysisViewConfig {
   return analysisConfig({
     groups: [
-      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
       splitGroup,
     ],
     metrics: [metric],
@@ -191,7 +206,13 @@ describe('a category split reads the largest first', () => {
 
   it('leaves an unsplit chart’s series in the order the analyst set', () => {
     const config = analysisConfig({
-      metrics: [{ alias: 'orders', type: 'COUNT' } as AnalysisMetric, SUM],
+      metrics: [
+        {
+          alias: 'orders',
+          type: AggregationMetricType.COUNT,
+        } as AnalysisMetric,
+        SUM,
+      ],
       chart: {
         type: 'bar',
         cartesian: {
@@ -212,8 +233,8 @@ describe('a split along a scale keeps the scale’s order', () => {
     const config = split({
       alias: 'day',
       field: 'createdAt',
-      type: 'DATE_HISTOGRAM',
-      unit: 'DAY',
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      unit: AggregationDateUnit.DAY,
       timeZone: 'UTC',
     });
     const data = shapeChart(config, [
@@ -232,8 +253,8 @@ describe('a split along a scale keeps the scale’s order', () => {
     const config = split({
       alias: 'weekday',
       field: 'createdAt',
-      type: 'DATE_PART',
-      part: 'DAY_OF_WEEK',
+      type: AggregationGroupType.DATE_PART,
+      part: AggregationDatePart.DAY_OF_WEEK,
     } as AnalysisGroup);
     const data = shapeChart(config, [
       { warehouse: 'CN', weekday: 3, amount: 9 },
@@ -247,7 +268,7 @@ describe('a split along a scale keeps the scale’s order', () => {
     const config = split({
       alias: 'band',
       field: 'amount',
-      type: 'HISTOGRAM',
+      type: AggregationGroupType.HISTOGRAM,
       interval: 100,
     });
     const data = shapeChart(config, [

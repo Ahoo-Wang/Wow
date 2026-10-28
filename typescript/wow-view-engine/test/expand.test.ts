@@ -11,7 +11,15 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  FilterOperator,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   withoutLevelsFrom,
@@ -53,7 +61,11 @@ const chained = definition({
         path: 'items',
         aggregations: [
           { field: 'sku', groups: [AggregationGroupType.TERMS], functions: [] },
-          { field: 'qty', groups: [], functions: ['SUM' as never] },
+          {
+            field: 'qty',
+            groups: [],
+            functions: [AggregationFunction.SUM as never],
+          },
         ],
       },
       {
@@ -79,25 +91,34 @@ describe('withElements', () => {
     expect(rescoped.elements).toEqual([{ path: 'items' }]);
     expect(rescoped.groups).toEqual([]);
     // The count survives: an item can be counted as an order can.
-    expect(rescoped.metrics).toMatchObject([{ type: 'COUNT' }]);
+    expect(rescoped.metrics).toMatchObject([
+      { type: AggregationMetricType.COUNT },
+    ]);
   });
 
   it('keeps what still names a field of the new unit, and drops a condition that does not', () => {
     const inside: AnalysisViewConfig = config({
       elements: [{ path: 'items' }],
-      groups: [{ type: 'TERMS', field: 'items.sku', alias: 'sku' }],
+      groups: [
+        { type: AggregationGroupType.TERMS, field: 'items.sku', alias: 'sku' },
+      ],
       metrics: [
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'qty',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'items.qty' },
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'items.qty',
+          },
           filter: {
             op: 'and',
-            children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+            children: [
+              { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+            ],
           },
         },
-        { type: 'COUNT', alias: 'n' },
+        { type: AggregationMetricType.COUNT, alias: 'n' },
       ],
     });
     const deeper = withElements(
@@ -109,7 +130,9 @@ describe('withElements', () => {
     expect(deeper.elements).toEqual([{ path: 'items' }, { path: 'batches' }]);
     // The sku and the quantity are the item's, not the batch's.
     expect(deeper.groups).toEqual([]);
-    expect(deeper.metrics).toEqual([{ type: 'COUNT', alias: 'n' }]);
+    expect(deeper.metrics).toEqual([
+      { type: AggregationMetricType.COUNT, alias: 'n' },
+    ]);
 
     // Back out to the item: the item's own question stands, but the
     // condition on the order's warehouse leaves the metric.
@@ -122,12 +145,15 @@ describe('withElements', () => {
     expect(back.groups).toEqual(inside.groups);
     expect(back.metrics).toEqual([
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'qty',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'items.qty' },
+        function: AggregationFunction.SUM,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'items.qty',
+        },
       },
-      { type: 'COUNT', alias: 'n' },
+      { type: AggregationMetricType.COUNT, alias: 'n' },
     ]);
   });
 
@@ -140,10 +166,13 @@ describe('withElements', () => {
       config({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'amount',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       }),
@@ -153,10 +182,13 @@ describe('withElements', () => {
     );
     expect(rescoped.metrics).toEqual([
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'items_qty_sum',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'items.qty' },
+        function: AggregationFunction.SUM,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'items.qty',
+        },
       },
     ]);
   });
@@ -166,20 +198,26 @@ describe('withElements', () => {
       config({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'amount',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.SUM,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
-          { type: 'COUNT', alias: 'n' },
+          { type: AggregationMetricType.COUNT, alias: 'n' },
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'avg',
             expression: {
-              type: 'BINARY',
-              operator: 'DIVIDE' as never,
-              left: { type: 'METRIC_REF', metric: 'amount' },
-              right: { type: 'METRIC_REF', metric: 'n' },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.DIVIDE as never,
+              left: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: 'amount',
+              },
+              right: { type: DerivedExpressionType.METRIC_REF, metric: 'n' },
             },
           },
         ],
@@ -188,7 +226,9 @@ describe('withElements', () => {
       chained,
       chain,
     );
-    expect(rescoped.metrics).toEqual([{ type: 'COUNT', alias: 'n' }]);
+    expect(rescoped.metrics).toEqual([
+      { type: AggregationMetricType.COUNT, alias: 'n' },
+    ]);
   });
 
   it('asks every metric shape which fields it names', () => {
@@ -199,26 +239,30 @@ describe('withElements', () => {
     // something out of scope.
     const measured = config({
       metrics: [
-        { type: 'ANY', alias: 'anyWarehouse', field: 'warehouse' },
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.ANY,
+          alias: 'anyWarehouse',
+          field: 'warehouse',
+        },
+        {
+          type: AggregationMetricType.NUMERIC,
           alias: 'half',
-          function: 'SUM',
+          function: AggregationFunction.SUM,
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'FIELD', field: 'amount' },
-            right: { type: 'CONSTANT', value: 2 },
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+            right: { type: AggregationExpressionType.CONSTANT, value: 2 },
           },
         },
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'twiceHalf',
           expression: {
-            type: 'BINARY',
-            operator: 'MULTIPLY' as never,
-            left: { type: 'METRIC_REF', metric: 'half' },
-            right: { type: 'CONSTANT', value: 2 },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.MULTIPLY as never,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'half' },
+            right: { type: DerivedExpressionType.CONSTANT, value: 2 },
           },
         },
       ],
@@ -235,7 +279,7 @@ describe('withElements', () => {
     // question starts again from what an item can be counted by.
     expect(
       withElements(measured, withLevel([], 'items'), chained, chain).metrics,
-    ).toMatchObject([{ type: 'COUNT' }]);
+    ).toMatchObject([{ type: AggregationMetricType.COUNT }]);
   });
 
   it('walks the declared chain one step at a time', () => {

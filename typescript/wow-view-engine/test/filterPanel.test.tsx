@@ -531,7 +531,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     act(() => {
       filter().addLeaf('amount');
-      filter().updateLeaf([0], { operator: 'IN' });
+      filter().updateLeaf([0], { operator: FilterOperator.IN });
     });
     const leaf = () => filter().tree.children[0] as { value: unknown };
     const entry = () => screen.getByLabelText('New Amount value');
@@ -568,7 +568,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     act(() => {
       filter().addLeaf('amount');
-      filter().updateLeaf([0], { operator: 'IN', value: [1] });
+      filter().updateLeaf([0], { operator: FilterOperator.IN, value: [1] });
     });
 
     await user.type(screen.getByLabelText('New Amount value'), '7');
@@ -596,7 +596,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel();
     act(() => {
       filter().addLeaf('amount');
-      filter().updateLeaf([0], { operator: 'IN', value: [1] });
+      filter().updateLeaf([0], { operator: FilterOperator.IN, value: [1] });
     });
     act(() => filter().submit());
     const entry = () => screen.getByLabelText('New Amount value');
@@ -814,7 +814,7 @@ describe('FilterPanel tree editing', () => {
     await choose('Warehouse operator', 'is not');
     expect(filter().tree.children[0]).toMatchObject({
       op: 'nor',
-      children: [{ field: 'warehouse', operator: 'NE' }],
+      children: [{ field: 'warehouse', operator: FilterOperator.NE }],
     });
 
     // ✕ takes the wrapper with the condition.
@@ -1011,7 +1011,7 @@ describe('FilterPanel tree editing', () => {
     // Every operator the field offers has an entry, so none of them can
     // render as its key.
     expect(options.textContent).not.toContain('label.operator');
-    expect(filter().operatorsFor('warehouse')).toContain('NOT_IN');
+    expect(filter().operatorsFor('warehouse')).toContain(FilterOperator.NOT_IN);
   });
 
   /**
@@ -1081,7 +1081,9 @@ describe('FilterPanel tree editing', () => {
       filter().updateLeaf([0], {
         value: {
           op: 'and',
-          children: [{ field: 'items.qty', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'items.qty', operator: FilterOperator.EQ, value: 'x' },
+          ],
         } as never,
       }),
     );
@@ -1177,7 +1179,7 @@ describe('FilterPanel tree editing', () => {
       op: 'and' as const,
       children: Array.from({ length: 5_000 }, () => ({
         field: 'warehouse',
-        operator: 'EQ',
+        operator: FilterOperator.EQ,
         value: 'CN',
       })),
     };
@@ -1246,8 +1248,8 @@ describe('FilterPanel tree editing', () => {
   it('marks a condition with a warning apart from one that is invalid', async () => {
     const rounded: FieldKind = {
       id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => null,
       validate: ({ value, path }) =>
         typeof value !== 'number'
@@ -1330,9 +1332,9 @@ describe('FilterPanel tree editing', () => {
       const menu = await screen.findByRole('menu');
       // The operator code first, then the sentence it makes of the
       // conditions under it.
-      expect(menu.textContent).toContain('AND');
+      expect(menu.textContent).toContain(FilterOperator.AND);
       expect(menu.textContent).toContain('All conditions');
-      expect(menu.textContent).toContain('NOR');
+      expect(menu.textContent).toContain(FilterOperator.NOR);
 
       // Named in full: "OR" is also the tail of "NOR".
       fireEvent.click(
@@ -1527,7 +1529,7 @@ describe('a stored condition the editor cannot draw', () => {
       filter: {
         op: 'and',
         children: [
-          { field: 'warehouse', operator: 'EQ', value: 'CN' },
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
           null as unknown as FilterTree,
         ],
       },

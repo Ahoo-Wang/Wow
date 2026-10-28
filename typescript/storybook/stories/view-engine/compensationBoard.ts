@@ -33,6 +33,14 @@ import {
   executionFailedDefinition,
 } from './compensation.js';
 import { rowSource } from './rowSource.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+  QueryValueKind,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * An operations board over the failed executions, the fixture of the
@@ -59,7 +67,7 @@ export const HOME_DASHBOARD = 'home-operations';
 
 const ACTIVE_ONLY: FilterNode = {
   field: 'state.status',
-  operator: 'IN',
+  operator: FilterOperator.IN,
   value: ACTIVE,
 };
 
@@ -71,7 +79,7 @@ function countCard(filter: FilterNode[]): AnalysisViewConfig {
     filterMode: 'simple',
     refresh: { interval: null },
     groups: [],
-    metrics: [{ alias: 'count', type: 'COUNT' }],
+    metrics: [{ alias: 'count', type: AggregationMetricType.COUNT }],
     sort: [],
     limit: 1,
     layout: 'chart',
@@ -107,7 +115,7 @@ export const homeViews: ViewInstance[] = [
       ACTIVE_ONLY,
       {
         field: 'state.recoverable',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: ['UNRECOVERABLE'],
       },
     ]),
@@ -118,7 +126,7 @@ export const homeViews: ViewInstance[] = [
     countCard([
       {
         field: 'firstEventTime',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'preset', preset: 'today' },
       },
     ]),
@@ -133,7 +141,7 @@ export const homeViews: ViewInstance[] = [
       children: [
         {
           field: 'firstEventTime',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset: 'thisMonth' },
         },
       ],
@@ -142,15 +150,15 @@ export const homeViews: ViewInstance[] = [
     refresh: { interval: null },
     groups: [
       {
-        type: 'DATE_HISTOGRAM',
+        type: AggregationGroupType.DATE_HISTOGRAM,
         field: 'firstEventTime',
         alias: 'day',
-        unit: 'DAY',
+        unit: AggregationDateUnit.DAY,
       },
     ],
-    metrics: [{ alias: 'count', type: 'COUNT' }],
+    metrics: [{ alias: 'count', type: AggregationMetricType.COUNT }],
     // The month reads oldest first; the chart would run forward either way.
-    sort: [{ alias: 'day', direction: 'ASC' }],
+    sort: [{ alias: 'day', direction: SortDirection.ASC }],
     limit: 31,
     layout: 'chart',
     table: { columns: [] },
@@ -167,13 +175,13 @@ export const homeViews: ViewInstance[] = [
     refresh: { interval: null },
     groups: [
       {
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         field: 'state.function.processorName',
         alias: 'processor',
       },
     ],
-    metrics: [{ alias: 'count', type: 'COUNT' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [{ alias: 'count', type: AggregationMetricType.COUNT }],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 6,
     layout: 'chart',
     table: { columns: [] },
@@ -192,7 +200,7 @@ export const homeViews: ViewInstance[] = [
     filter: { op: 'and', children: [ACTIVE_ONLY] },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'eventTime', direction: 'DESC' }],
+    sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
     pageSize: 10,
     layout: 'table',
     summaries: [],
@@ -373,7 +381,7 @@ function fixtureExecution(index: number, openedAt: number): RecordData {
       ? 'UNRECOVERABLE'
       : index % 4 === 1
         ? 'RECOVERABLE'
-        : 'UNKNOWN';
+        : QueryValueKind.UNKNOWN;
   const retries = index % 4;
   const eventTime = openedAt + (retries + 1) * 20 * 60_000;
   return {

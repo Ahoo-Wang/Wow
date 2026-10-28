@@ -35,6 +35,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -97,7 +98,7 @@ describe('the origin bar', () => {
 
     act(() => {
       controller!.drill(
-        [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        [{ field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' }],
         'Orders · Warehouse is CN',
       );
     });

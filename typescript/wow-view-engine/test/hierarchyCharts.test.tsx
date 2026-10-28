@@ -31,11 +31,18 @@ import type {
 } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
 const terms = (alias: string): AnalysisGroup => ({
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: alias,
   alias,
 });
@@ -43,23 +50,23 @@ const CATEGORY = terms('category');
 const SUB = terms('sub');
 const CHANNEL = terms('channel');
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'placedAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
 const GMV: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'gmv',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVG: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'avg',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const config = (

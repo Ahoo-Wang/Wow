@@ -21,17 +21,23 @@ import type {
   AggregationDateUnitName,
   FilterTree,
 } from '../src/model/index.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  ComparisonOperator,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 const DAY = 86_400_000;
 const ALL: AggregationDateUnitName[] = [
-  'SECOND',
-  'MINUTE',
-  'HOUR',
-  'DAY',
-  'WEEK',
-  'MONTH',
-  'QUARTER',
-  'YEAR',
+  AggregationDateUnit.SECOND,
+  AggregationDateUnit.MINUTE,
+  AggregationDateUnit.HOUR,
+  AggregationDateUnit.DAY,
+  AggregationDateUnit.WEEK,
+  AggregationDateUnit.MONTH,
+  AggregationDateUnit.QUARTER,
+  AggregationDateUnit.YEAR,
 ];
 const now = new Date('2026-09-22T10:00:00Z');
 const zone = 'Asia/Shanghai';
@@ -39,32 +45,61 @@ const zone = 'Asia/Shanghai';
 describe('recommendDateUnit', () => {
   it('picks the coarsest offered unit that still gives a handful of buckets', () => {
     // A year: months (12), not quarters (4).
-    expect(recommendDateUnit(365 * DAY, ALL)).toBe('MONTH');
+    expect(recommendDateUnit(365 * DAY, ALL)).toBe(AggregationDateUnit.MONTH);
     // Two months: weeks (8), not months (2).
-    expect(recommendDateUnit(60 * DAY, ALL)).toBe('WEEK');
+    expect(recommendDateUnit(60 * DAY, ALL)).toBe(AggregationDateUnit.WEEK);
     // A week: days.
-    expect(recommendDateUnit(7 * DAY, ALL)).toBe('DAY');
+    expect(recommendDateUnit(7 * DAY, ALL)).toBe(AggregationDateUnit.DAY);
     // A morning: minutes would be hundreds; hours are three, too few, so
     // it falls to minutes — the coarsest that still clears the bar.
-    expect(recommendDateUnit(3 * 3_600_000, ALL)).toBe('MINUTE');
+    expect(recommendDateUnit(3 * 3_600_000, ALL)).toBe(
+      AggregationDateUnit.MINUTE,
+    );
     // Ten years: years.
-    expect(recommendDateUnit(3650 * DAY, ALL)).toBe('YEAR');
+    expect(recommendDateUnit(3650 * DAY, ALL)).toBe(AggregationDateUnit.YEAR);
   });
 
   it('stays within what the field offers', () => {
-    expect(recommendDateUnit(365 * DAY, ['DAY', 'MONTH'])).toBe('MONTH');
+    expect(
+      recommendDateUnit(365 * DAY, [
+        AggregationDateUnit.DAY,
+        AggregationDateUnit.MONTH,
+      ]),
+    ).toBe(AggregationDateUnit.MONTH);
     // Four quarters are too few buckets, so a year offered days or quarters
     // is cut by the day.
-    expect(recommendDateUnit(365 * DAY, ['DAY', 'QUARTER'])).toBe('DAY');
-    expect(recommendDateUnit(365 * DAY, ['HOUR', 'DAY'])).toBe('DAY');
+    expect(
+      recommendDateUnit(365 * DAY, [
+        AggregationDateUnit.DAY,
+        AggregationDateUnit.QUARTER,
+      ]),
+    ).toBe(AggregationDateUnit.DAY);
+    expect(
+      recommendDateUnit(365 * DAY, [
+        AggregationDateUnit.HOUR,
+        AggregationDateUnit.DAY,
+      ]),
+    ).toBe(AggregationDateUnit.DAY);
     // Nothing offered cuts the span into enough buckets: the finest one.
-    expect(recommendDateUnit(2 * DAY, ['MONTH', 'YEAR'])).toBe('MONTH');
+    expect(
+      recommendDateUnit(2 * DAY, [
+        AggregationDateUnit.MONTH,
+        AggregationDateUnit.YEAR,
+      ]),
+    ).toBe(AggregationDateUnit.MONTH);
   });
 
   it('starts at the first offered unit when there is no span to read', () => {
-    expect(recommendDateUnit(null, ['MONTH', 'DAY'])).toBe('MONTH');
-    expect(recommendDateUnit(0, ['DAY'])).toBe('DAY');
-    expect(recommendDateUnit(365 * DAY, [])).toBe('DAY');
+    expect(
+      recommendDateUnit(null, [
+        AggregationDateUnit.MONTH,
+        AggregationDateUnit.DAY,
+      ]),
+    ).toBe(AggregationDateUnit.MONTH);
+    expect(recommendDateUnit(0, [AggregationDateUnit.DAY])).toBe(
+      AggregationDateUnit.DAY,
+    );
+    expect(recommendDateUnit(365 * DAY, [])).toBe(AggregationDateUnit.DAY);
   });
 });
 
@@ -79,7 +114,7 @@ describe('rangeSpan', () => {
       tree([
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'absolute', from: '2026-01-01', to: '2026-01-31' },
         },
       ]),
@@ -96,7 +131,7 @@ describe('rangeSpan', () => {
       tree([
         {
           field: 'createdAt',
-          operator: 'GTE',
+          operator: FilterOperator.GTE,
           value: { type: 'absolute', from: '2026-09-15' },
         },
       ]),
@@ -111,7 +146,7 @@ describe('rangeSpan', () => {
         tree([
           {
             field: 'createdAt',
-            operator: 'LTE',
+            operator: FilterOperator.LTE,
             value: { type: 'absolute', from: '2026-09-15' },
           },
         ]),
@@ -127,19 +162,19 @@ describe('rangeSpan', () => {
       tree([
         {
           field: 'createdAt',
-          operator: 'GTE',
+          operator: FilterOperator.GTE,
           value: { type: 'absolute', from: '2026-01-01' },
         },
         {
           field: 'createdAt',
-          operator: 'LT',
+          operator: FilterOperator.LT,
           value: { type: 'absolute', from: '2026-03-01' },
         },
         // Another field, and a relative window on this one under an OR:
         // neither is a bound.
         {
           field: 'shippedAt',
-          operator: 'GTE',
+          operator: FilterOperator.GTE,
           value: { type: 'absolute', from: '2025-01-01' },
         },
         {
@@ -147,7 +182,7 @@ describe('rangeSpan', () => {
           children: [
             {
               field: 'createdAt',
-              operator: 'GTE',
+              operator: FilterOperator.GTE,
               value: { type: 'relative', amount: 1, unit: 'day' },
             },
           ],
@@ -165,7 +200,7 @@ describe('rangeSpan', () => {
       tree([
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'relative', amount: 30, unit: 'day' },
         },
       ]),
@@ -174,7 +209,7 @@ describe('rangeSpan', () => {
       zone,
     );
     expect(span).toBeCloseTo(30 * DAY, -3);
-    expect(recommendDateUnit(span, ALL)).toBe('DAY');
+    expect(recommendDateUnit(span, ALL)).toBe(AggregationDateUnit.DAY);
   });
 
   it('reads a strict lower bound from the far end of the day it names', () => {
@@ -183,7 +218,9 @@ describe('rangeSpan', () => {
     // operator is one the built-in date editor offers — an injected scope
     // filter or a host's own kind writes them — but a span read off the
     // applied range has to count them all the same.
-    const after = (operator: 'GT' | 'GTE') =>
+    const after = (
+      operator: `${FilterOperator.GT}` | `${FilterOperator.GTE}`,
+    ) =>
       rangeSpan(
         tree([
           {
@@ -196,8 +233,10 @@ describe('rangeSpan', () => {
         now,
         zone,
       );
-    expect(after('GT')).toBeGreaterThan(0);
-    expect(after('GTE')! - after('GT')!).toBeCloseTo(DAY, -3);
+    expect(after(ComparisonOperator.GT)).toBeGreaterThan(0);
+    expect(
+      after(ComparisonOperator.GTE)! - after(ComparisonOperator.GT)!,
+    ).toBeCloseTo(DAY, -3);
   });
 
   it('reads nothing from a date condition that pins neither end', () => {
@@ -210,7 +249,7 @@ describe('rangeSpan', () => {
         tree([
           {
             field: 'createdAt',
-            operator: 'EQ',
+            operator: FilterOperator.EQ,
             value: { type: 'absolute', from: '2026-09-15' },
           },
         ]),
@@ -225,7 +264,9 @@ describe('rangeSpan', () => {
     expect(rangeSpan(tree([]), 'createdAt', now, zone)).toBeNull();
     expect(
       rangeSpan(
-        tree([{ field: 'createdAt', operator: 'IS_NULL', value: null }]),
+        tree([
+          { field: 'createdAt', operator: FilterOperator.IS_NULL, value: null },
+        ]),
         'createdAt',
         now,
         zone,
@@ -236,7 +277,12 @@ describe('rangeSpan', () => {
 
 describe('resultSpan', () => {
   const groups = [
-    { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'm', unit: 'MONTH' },
+    {
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      field: 'createdAt',
+      alias: 'm',
+      unit: AggregationDateUnit.MONTH,
+    },
   ] as const;
 
   it('spans from the first bucket’s start to the last bucket’s end', () => {
@@ -252,7 +298,7 @@ describe('resultSpan', () => {
     );
     // January through May: five months.
     expect(span).toBeCloseTo(151 * DAY, -3);
-    expect(recommendDateUnit(span, ALL)).toBe('WEEK');
+    expect(recommendDateUnit(span, ALL)).toBe(AggregationDateUnit.WEEK);
   });
 
   it('reads nothing without a time dimension on the field, or without rows', () => {
@@ -263,7 +309,7 @@ describe('resultSpan', () => {
     expect(
       resultSpan(
         [{ wh: 'CN', n: 1 }],
-        [{ type: 'TERMS', field: 'createdAt', alias: 'wh' }],
+        [{ type: AggregationGroupType.TERMS, field: 'createdAt', alias: 'wh' }],
         'createdAt',
         zone,
       ),

@@ -14,6 +14,10 @@
 import {
   AggregationGroupType,
   type AggregationQuery,
+  FilterOperator,
+  AggregationMetricType,
+  SortDirection,
+  StringComparison,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -123,12 +127,18 @@ describe('value candidates in the analysis kernel', () => {
 
     const query = compileAnalysis(definition, config, kinds, CONTEXT);
     expect(query).toEqual({
-      filter: { op: 'MATCH_ALL' },
-      groupBy: [{ type: 'TERMS', field: 'warehouse', alias: 'value' }],
-      metrics: [{ type: 'COUNT', alias: 'count' }],
+      filter: { op: FilterOperator.MATCH_ALL },
+      groupBy: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'warehouse',
+          alias: 'value',
+        },
+      ],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'count' }],
       sort: [
-        { field: 'count', direction: 'DESC' },
-        { field: 'value', direction: 'ASC' },
+        { field: 'count', direction: SortDirection.DESC },
+        { field: 'value', direction: SortDirection.ASC },
       ],
       // Fifty asked for, and the probe row that says whether there are more.
       limit: 51,
@@ -172,26 +182,34 @@ describe('value candidates in the analysis kernel', () => {
       ).filter;
 
     expect(narrowed(warehouse, '  ber ')).toEqual({
-      op: 'CONTAINS',
+      op: FilterOperator.CONTAINS,
       field: 'warehouse',
       value: 'ber',
-      stringComparison: 'CASE_INSENSITIVE',
+      stringComparison: StringComparison.CASE_INSENSITIVE,
     });
-    expect(narrowed(warehouse, '   ')).toEqual({ op: 'MATCH_ALL' });
+    expect(narrowed(warehouse, '   ')).toEqual({
+      op: FilterOperator.MATCH_ALL,
+    });
 
     const prefixOnly: FieldDefinition = {
       ...warehouse,
-      operators: ['EQ', 'STARTS_WITH'],
+      operators: [FilterOperator.EQ, FilterOperator.STARTS_WITH],
     };
-    expect(valueCandidateNarrowing(prefixOnly, kinds)).toBe('STARTS_WITH');
-    expect(narrowed(prefixOnly, 'ber')).toMatchObject({ op: 'STARTS_WITH' });
+    expect(valueCandidateNarrowing(prefixOnly, kinds)).toBe(
+      FilterOperator.STARTS_WITH,
+    );
+    expect(narrowed(prefixOnly, 'ber')).toMatchObject({
+      op: FilterOperator.STARTS_WITH,
+    });
 
     const exactOnly: FieldDefinition = {
       ...warehouse,
-      operators: ['EQ', 'IN'],
+      operators: [FilterOperator.EQ, FilterOperator.IN],
     };
     expect(valueCandidateNarrowing(exactOnly, kinds)).toBeNull();
-    expect(narrowed(exactOnly, 'ber')).toEqual({ op: 'MATCH_ALL' });
+    expect(narrowed(exactOnly, 'ber')).toEqual({
+      op: FilterOperator.MATCH_ALL,
+    });
   });
 
   it('reads the probe row as more values, and leaves out what cannot be compared with', () => {
@@ -237,7 +255,10 @@ describe('value candidates in the analysis kernel', () => {
     expect(
       narrowValueCandidates(
         values,
-        { ...warehouse, operators: ['EQ', 'STARTS_WITH'] },
+        {
+          ...warehouse,
+          operators: [FilterOperator.EQ, FilterOperator.STARTS_WITH],
+        },
         kinds,
         'ber',
       ).map(v => v.value),
@@ -245,7 +266,7 @@ describe('value candidates in the analysis kernel', () => {
     expect(
       narrowValueCandidates(
         values,
-        { ...warehouse, stringComparison: 'CASE_SENSITIVE' },
+        { ...warehouse, stringComparison: StringComparison.CASE_SENSITIVE },
         kinds,
         'BER',
       ),
@@ -310,7 +331,9 @@ describe('a view runtime offers value candidates', () => {
     // Another scope is another set of records: asked again, under it.
     runtime.setScopeFilter({
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     });
     const before = aggregate.mock.calls.length;
     await warehouse!.search('');
@@ -318,7 +341,7 @@ describe('a view runtime offers value candidates', () => {
     expect(
       aggregate.mock.calls[aggregate.mock.calls.length - 1][0].filter,
     ).toEqual({
-      op: 'EQ',
+      op: FilterOperator.EQ,
       field: 'status',
       value: 'PENDING',
     });
@@ -347,7 +370,7 @@ describe('a view runtime offers value candidates', () => {
 
   it('asks the source to narrow a list it could not answer whole', async () => {
     const { source, aggregate } = answering(query =>
-      query.filter?.op === 'CONTAINS'
+      query.filter?.op === FilterOperator.CONTAINS
         ? [{ value: 'Berlin', count: 1 }]
         : Array.from({ length: 51 }, (_, at) => ({
             value: `W${at}`,
@@ -376,7 +399,13 @@ describe('a view runtime offers value candidates', () => {
       ...base,
       fields: base.fields.map(field =>
         field.name === 'warehouse'
-          ? { ...field, operators: ['EQ' as const, 'IN' as const] }
+          ? {
+              ...field,
+              operators: [
+                FilterOperator.EQ as const,
+                FilterOperator.IN as const,
+              ],
+            }
           : field,
       ),
     };
@@ -390,7 +419,9 @@ describe('a view runtime offers value candidates', () => {
       complete: false,
     });
     expect(aggregate).toHaveBeenCalledTimes(1);
-    expect(aggregate.mock.calls[0][0].filter).toEqual({ op: 'MATCH_ALL' });
+    expect(aggregate.mock.calls[0][0].filter).toEqual({
+      op: FilterOperator.MATCH_ALL,
+    });
     runtime.dispose();
   });
 

@@ -33,32 +33,50 @@ import type {
   RecordData,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
-const amount = { type: 'FIELD', field: 'amount' } as const;
-const hours = { type: 'FIELD', field: 'hours' } as const;
+const amount = {
+  type: AggregationExpressionType.FIELD,
+  field: 'amount',
+} as const;
+const hours = {
+  type: AggregationExpressionType.FIELD,
+  field: 'hours',
+} as const;
 const WAREHOUSE: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'warehouse',
 };
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'placedAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
-const COUNT: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const COUNT: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const SUM: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
+  function: AggregationFunction.SUM,
   expression: amount,
 };
 const AVG: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'average',
-  function: 'AVG',
+  function: AggregationFunction.AVG,
   expression: amount,
 };
 
@@ -75,37 +93,37 @@ function fiveOf(
   const scoped = filter === undefined ? {} : { filter };
   return [
     {
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: `${prefix}_min`,
-      function: 'MIN',
+      function: AggregationFunction.MIN,
       expression,
       ...scoped,
     },
     {
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       alias: `${prefix}_p25`,
       expression,
       percentile: 25,
       ...scoped,
     },
     {
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       alias: `${prefix}_p50`,
       expression,
       percentile: 50,
       ...scoped,
     },
     {
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       alias: `${prefix}_p75`,
       expression,
       percentile: 75,
       ...scoped,
     },
     {
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: `${prefix}_max`,
-      function: 'MAX',
+      function: AggregationFunction.MAX,
       expression,
       ...scoped,
     },
@@ -145,7 +163,7 @@ describe('five numbers (D41)', () => {
     const mixed = [COUNT, FIVE[4]!, FIVE[2]!, FIVE[0]!, FIVE[3]!, FIVE[1]!];
     expect(fiveNumberSets(mixed)).toEqual([BOX]);
     const ninety: AnalysisMetric = {
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       alias: 'amount_p90',
       expression: amount,
       percentile: 90,
@@ -162,7 +180,9 @@ describe('five numbers (D41)', () => {
     expect(sets.map(set => set.median)).toEqual(['amount_p50', 'hours_p50']);
     const shipped = fiveOf(amount, 'shipped', {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'SHIPPED' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'SHIPPED' },
+      ],
     } as never);
     // Half under a condition and half not is no box.
     expect(
@@ -204,7 +224,12 @@ describe('five numbers (D41)', () => {
     expect(fiveNumberSets([SUM, ...added])).toHaveLength(1);
     // The metric itself is one of the five: four are added.
     expect(fiveNumberMetrics(FIVE[2]!, [])!.map(metric => metric.type)).toEqual(
-      ['NUMERIC', 'PERCENTILE', 'PERCENTILE', 'NUMERIC'],
+      [
+        AggregationMetricType.NUMERIC,
+        AggregationMetricType.PERCENTILE,
+        AggregationMetricType.PERCENTILE,
+        AggregationMetricType.NUMERIC,
+      ],
     );
     const filter = { op: 'and', children: [] } as never;
     expect(
@@ -215,7 +240,11 @@ describe('five numbers (D41)', () => {
     expect(fiveNumberMetrics(COUNT, [])).toBeUndefined();
     expect(
       fiveNumberMetrics(
-        { type: 'DISTINCT_COUNT', alias: 'd', expression: amount },
+        {
+          type: AggregationMetricType.DISTINCT_COUNT,
+          alias: 'd',
+          expression: amount,
+        },
         [],
       ),
     ).toBeUndefined();
@@ -223,14 +252,14 @@ describe('five numbers (D41)', () => {
     expect(
       fiveNumberMetrics(
         {
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           alias: 'x',
           percentile: 50,
           expression: {
-            type: 'BINARY',
-            operator: 'MULTIPLY',
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.MULTIPLY,
             left: amount,
-            right: { type: 'CONSTANT', value: 2 },
+            right: { type: AggregationExpressionType.CONSTANT, value: 2 },
           },
         },
         [],

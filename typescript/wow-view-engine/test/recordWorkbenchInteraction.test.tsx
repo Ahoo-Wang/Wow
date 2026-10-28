@@ -46,6 +46,7 @@ import {
 } from './fixtures.js';
 import { addConditions, editorToggle } from './fixtures/workbench.js';
 import { dataColumnHeaders, mine, setup } from './fixtures/ui.js';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -138,8 +139,8 @@ describe('DataWorkbench interaction', () => {
       const calls = vi.mocked(source.paged).mock.calls;
       // The user's sort, then the row key the engine breaks ties on.
       expect(calls[calls.length - 1][0].sort).toEqual([
-        { field: 'amount', direction: 'ASC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.ASC },
+        { field: 'id', direction: SortDirection.ASC },
       ]);
     });
 
@@ -236,7 +237,7 @@ describe('DataWorkbench interaction', () => {
       });
       expect(calls[asked][0].sort?.[0]).toEqual({
         field: 'amount',
-        direction: 'ASC',
+        direction: SortDirection.ASC,
       });
     });
     await waitFor(() =>
@@ -505,7 +506,9 @@ describe('the record workbench layout', () => {
     config: recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     }),
   };
@@ -606,7 +609,9 @@ describe('the record workbench layout', () => {
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
       // Nothing left to narrow by: the query asks for everything.
-      expect(calls[calls.length - 1][0].filter).toEqual({ op: 'MATCH_ALL' });
+      expect(calls[calls.length - 1][0].filter).toEqual({
+        op: FilterOperator.MATCH_ALL,
+      });
     });
     await waitFor(() =>
       expect(
@@ -837,10 +842,14 @@ describe('emptyWayOut', () => {
   });
   const pending: FilterNode = {
     field: 'status',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: 'PENDING',
   };
-  const cn: FilterNode = { field: 'warehouse', operator: 'EQ', value: 'CN' };
+  const cn: FilterNode = {
+    field: 'warehouse',
+    operator: FilterOperator.EQ,
+    value: 'CN',
+  };
   const record = (filter: FilterTree) =>
     ({ kind: 'record', filter }) as unknown as RecordViewConfig;
   const saved = (filter: FilterTree) =>
