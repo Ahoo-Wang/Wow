@@ -57,6 +57,7 @@ object SurfaceRules {
         "me/ahoo/wow/ops/api/parked/Skip",
         "me/ahoo/wow/ops/api/parked/SkipRequested",
         "me/ahoo/wow/viewstore/api/SystemView",
+        "me/ahoo/wow/viewstore/api/ViewEntry",
         "me/ahoo/wow/viewstore/api/preferences/SetViewPreferences",
         "me/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet",
         "me/ahoo/wow/viewstore/api/view/CreateView",

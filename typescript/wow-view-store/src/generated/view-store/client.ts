@@ -4,12 +4,13 @@ import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { DatasetWordingCommandClient } from './dataset_wording/commandClient.js';
 import { DatasetWordingEventQueryClient, DatasetWordingSnapshotQueryClient, DatasetWordingStateClient } from './dataset_wording/queryClient.js';
 import { ViewStoreManifest } from './manifest.js';
+import { ViewStoreRoutes } from './routes.js';
 import { ViewCommandClient } from './view/commandClient.js';
 import { ViewEventQueryClient, ViewSnapshotQueryClient, ViewStateClient } from './view/queryClient.js';
 import { ViewPreferencesCommandClient } from './view_preferences/commandClient.js';
 import { ViewPreferencesEventQueryClient, ViewPreferencesSnapshotQueryClient, ViewPreferencesStateClient } from './view_preferences/queryClient.js';
 
-/** The clients of `view-store`: its command client, and per aggregate its command, query and state clients. */
+/** The clients of `view-store`: its command client, per aggregate its command, query and state clients, and its service routes. */
 export class ViewStoreClient {
   /** Sends any command of the service, by its Manifest's routes: `send`, `wait` and `stream`. */
   readonly commands: CommandClient;
@@ -38,6 +39,9 @@ export class ViewStoreClient {
     readonly state: ViewPreferencesStateClient;
   };
 
+  /** The service routes of `view-store`. */
+  readonly routes: ViewStoreRoutes;
+
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, { manifest: ViewStoreManifest });
@@ -59,5 +63,6 @@ export class ViewStoreClient {
       events: new ViewPreferencesEventQueryClient(options),
       state: new ViewPreferencesStateClient(options),
     };
+    this.routes = new ViewStoreRoutes(options);
   }
 }

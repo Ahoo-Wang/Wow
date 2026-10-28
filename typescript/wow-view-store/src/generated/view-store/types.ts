@@ -114,6 +114,23 @@ export interface SetViewPreferences {
  */
 export type ShareView = Record<string, unknown>;
 
+/** - key: `me.ahoo.wow.viewstore.api.SystemView` */
+export interface SystemView {
+  config: Record<string, unknown>;
+  definitionId: string;
+  id: string;
+  kind: ViewKind;
+  revision: string;
+  scope: ViewAudience;
+  source?: SystemViewSource;
+  title: string;
+  version?: number | null;
+}
+
+
+/** - key: `me.ahoo.wow.viewstore.api.SystemViewSource` */
+export type SystemViewSource = 'configured' | 'stored';
+
 /** - key: `me.ahoo.wow.viewstore.api.ViewAudience` */
 export type ViewAudience = 'personal' | 'shared' | 'system';
 
@@ -147,6 +164,20 @@ export interface ViewCreated {
   definitionId: string;
   kind: ViewKind;
   title: string;
+}
+
+
+/** - key: `me.ahoo.wow.viewstore.api.ViewEntry` */
+export interface ViewEntry {
+  config: Record<string, unknown>;
+  definitionId: string;
+  id: string;
+  kind: ViewKind;
+  revision: string;
+  scope: ViewAudience;
+  source?: null | SystemViewSource;
+  title: string;
+  version?: number | null;
 }
 
 

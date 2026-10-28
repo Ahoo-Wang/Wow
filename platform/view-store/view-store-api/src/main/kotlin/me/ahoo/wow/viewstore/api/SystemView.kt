@@ -34,13 +34,10 @@ data class SystemView(
     val source: SystemViewSource = SystemViewSource.CONFIGURED,
     val version: Int? = null,
 ) {
-    /** Always `system`: the engine reads the scope from it. */
-    val scope: String
-        get() = SYSTEM_SCOPE
+    /** Always [ViewAudience.SYSTEM], `system` on the wire: the engine reads the scope from it. */
+    val scope: ViewAudience = ViewAudience.SYSTEM
 
     companion object {
-        const val SYSTEM_SCOPE: String = "system"
-
         /** The id prefix kept for the system views a host declares in code. */
         const val CODE_SYSTEM_VIEW_PREFIX: String = "system:"
     }

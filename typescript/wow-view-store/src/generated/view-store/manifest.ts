@@ -2,7 +2,7 @@
 
 import { MANIFEST_FORMAT, type RoutingManifest } from '@ahoo-wang/wow-client';
 
-/** The routes of `view-store`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema. */
+/** The routes of `view-store`'s commands and service routes, as its Manifest lists them: what its clients send by, with no Manifest fetched and no schema. */
 export const ViewStoreManifest: RoutingManifest = {
   format: MANIFEST_FORMAT,
   contexts: [
@@ -34,6 +34,10 @@ export const ViewStoreManifest: RoutingManifest = {
             { name: 'SetViewPreferences', routes: [{ method: 'POST', path: '/view-store/view_preferences/{id}/set-view-preferences' }, { method: 'POST', path: '/view-store/view_preferences/set-view-preferences' }] },
           ],
         },
+      ],
+      routes: [
+        { name: 'systemViews', route: { method: 'GET', path: '/view-store/system-views' } },
+        { name: 'view', route: { method: 'GET', path: '/view-store/views/{id}' } },
       ],
     },
   ],

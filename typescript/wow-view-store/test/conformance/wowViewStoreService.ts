@@ -200,6 +200,36 @@ export function describeWowViewStoreService(
       });
     });
 
+    describe('a view by id', () => {
+      it('is the caller’s own, else a shared one of its tenant; another user’s own is none', async () => {
+        const open = await storesOf();
+        const definitionId = fresh();
+        const alice = open(ALICE).views;
+        const bob = open({ ...ALICE, user: 'bob', roles: [] }).views;
+        const mine = await alice.create(
+          { definitionId, title: 'Mine', scope: 'personal', config },
+          write(),
+        );
+        const ours = await alice.create(
+          { definitionId, title: 'Ours', scope: 'shared', config },
+          write(),
+        );
+
+        expect(await open(ALICE).views.get(mine.id)).toEqual(mine);
+        expect(await bob.get(ours.id)).toEqual(ours);
+        await expect(bob.get(mine.id)).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+          detail: { code: WowViewStoreErrorCodes.NOT_FOUND },
+        });
+        await expect(
+          open({ ...ALICE, app: '' }).views.get(mine.id),
+        ).rejects.toMatchObject({
+          code: 'INVALID',
+          detail: { code: WowViewStoreErrorCodes.APP_REQUIRED },
+        });
+      });
+    });
+
     describe('system views', () => {
       const ADMIN: ServiceCaller = {
         tenant: `system-a-${run}`,
@@ -308,6 +338,14 @@ export function describeWowViewStoreService(
           title: subject.configured.title,
         });
         expect(configured).not.toHaveProperty('stored');
+        const read = await reader.get(configured!.id);
+        expect(read).toMatchObject({
+          id: subject.configured.id,
+          definitionId: subject.configured.definitionId,
+          scope: 'system',
+          revision: configured!.revision,
+        });
+        expect(read).not.toHaveProperty('stored');
         await expect(
           reader.rename(configured!.id, 'Mine', configured!.revision, write()),
         ).rejects.toMatchObject({ code: 'FORBIDDEN' });
