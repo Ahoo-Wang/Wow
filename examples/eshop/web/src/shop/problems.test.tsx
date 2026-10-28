@@ -12,7 +12,11 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { CommandRejectedError, WowProblemError } from "@ahoo-wang/wow-client";
+import {
+  CommandRejectedError,
+  CommandResultStatus,
+  WowProblemError,
+} from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { result } from "@/test/fakeShop";
 import { ProblemAlert, problemOf } from "./problems";
@@ -40,7 +44,7 @@ describe("a problem", () => {
     expect(
       problemOf(
         result({
-          status: "rejected",
+          status: CommandResultStatus.REJECTED,
           error: { code: "eshop-inventory.stock.insufficient", message: "Short" },
         }),
       ),
@@ -50,12 +54,12 @@ describe("a problem", () => {
       detail: "Short",
       violations: [],
     });
-    expect(problemOf(result({ status: "failed", error: null })).title).toBe("Failed");
+    expect(problemOf(result({ status: CommandResultStatus.FAILED, error: null })).title).toBe("Failed");
   });
 
   it("is read from a rejection: the problem it came in, else its result", () => {
     const rejected = result({
-      status: "rejected",
+      status: CommandResultStatus.REJECTED,
       error: { code: "eshop-basket.basket.empty", message: "Empty" },
     });
     const problem = new WowProblemError({

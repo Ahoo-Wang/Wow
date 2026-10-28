@@ -176,7 +176,8 @@ class HttpCommandClient internal constructor(
         put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request.requestId) ?: ids.next())
         request.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
         if (transport.mode is ClientMode.User) {
-            plan?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }
+            // The default plan sends no wait: the service picks it, the snapshot or the commit where there is none.
+            plan?.takeUnless { it.isDefault }?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }
             // A plan's own timeout, or the request's; the peer's default timeout otherwise.
             plan?.timeout?.takeIf { request.timeout != null || it != WaitPlan.DEFAULT_TIMEOUT }
                 ?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }

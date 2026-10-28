@@ -39,8 +39,13 @@ import {
 
 const HOUR = 3_600_000;
 
-/** 生成 showcase 档的预算（本机判）；浏览器里的实测在第 3 批。 */
-const GENERATE_BUDGET_MS = 150;
+/**
+ * 生成 showcase 档的本机预算；浏览器里的实测在第 3 批。2026-10-28 在开发机上
+ * 实测，五次里最快的一次是 65～70ms（单跑与整个 unit 项目一起跑都一样），
+ * 但同机还在跑 Gradle 等构建时到过 150ms。与 CI 的护栏同一规则：取实测的
+ * 约 3 倍，只拦数量级的变慢，不拦机器上的负载。
+ */
+const GENERATE_BUDGET_MS = 210;
 /**
  * CI 上的回退护栏：CI 的机器与故事的 Chromium 同时跑，这个节点代理数在那里
  * 是 195～244ms，所以只拦数量级的变慢（约是最慢一次的 3 倍）。
@@ -720,7 +725,7 @@ describe('generateRetail: determinism, scale and speed', () => {
     expect(ratio).toBeLessThan(6);
   });
 
-  it('generates the showcase scale within 150 ms locally (600 ms guard on CI)', () => {
+  it('generates the showcase scale within 210 ms locally (600 ms guard on CI)', () => {
     // 五次里最快的一次是生成本身的开销；其余几次带着机器上别的负载（CI 的
     // 机器是共享的），只记下来，不拿来判。浏览器里的实测在第 3 批。
     const times: number[] = [];

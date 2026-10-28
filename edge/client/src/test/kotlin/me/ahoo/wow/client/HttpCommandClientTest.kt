@@ -191,6 +191,18 @@ class HttpCommandClientTest {
         }
 
     @Test
+    fun `a user-mode command with only a timeout should leave the plan to the service`(): Unit = runBlocking {
+        peer.reply(Reply.json(committed()))
+        val sent = CommandRequest.builder(ref, DeliverItems(emptyList())).timeout(3.seconds).build()
+        sent.plan!!.isDefault.assert().isTrue()
+        client(ClientMode.User(UserCredential.NONE)).of(alice).wait(sent)
+        val request = peer.taken.single()
+        // The default plan waits for the snapshot, or for the commit where the aggregate has none: the service knows.
+        request.headers.containsKey(WowHeaders.WAIT).assert().isFalse()
+        request.headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("3s")
+    }
+
+    @Test
     fun `a user-mode send should wait for the peer to accept the command`(): Unit = runBlocking {
         peer.reply(Reply.json(resultOf(ref, hop = Hop.accepted("mail")), status = 202))
         val result = client(

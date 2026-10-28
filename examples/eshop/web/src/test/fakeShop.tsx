@@ -14,6 +14,7 @@
 import { render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import type { CommandResult } from "@ahoo-wang/wow-client";
+import { commandResultOf } from "@ahoo-wang/wow-client/testing";
 import { routes } from "@/App";
 import { SessionProvider, type User } from "@/shop/session";
 
@@ -126,23 +127,7 @@ export function result(
 ): CommandResult {
   const { context = "eshop-catalog", aggregate = "product", id = "mug", ...rest } =
     overrides;
-  return {
-    format: 1,
-    commandId: "c-1",
-    requestId: "r-1",
-    correlationId: "r-1",
-    ref: { type: { context, name: aggregate }, tenantId: "(0)", id },
-    hop: { stage: "committed", context },
-    function: { kind: "command", context, processor: aggregate, name: "Command" },
-    status: "succeeded",
-    version: 1,
-    duplicate: false,
-    error: null,
-    results: {},
-    derived: [],
-    signalTime: 0,
-    ...rest,
-  } as CommandResult;
+  return commandResultOf({ type: { context, name: aggregate }, tenantId: "(0)", id }, rest);
 }
 
 /** A snapshot record as the query routes answer it. */

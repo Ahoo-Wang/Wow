@@ -13,6 +13,7 @@
 
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { CommandResultStatus, FunctionKind } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { CHECKOUT_TO_PAID } from "@/shop/checkout";
 import {
@@ -53,7 +54,7 @@ function hops(count: number) {
       context: step.hop.context ?? "eshop-basket",
       hop: step.hop,
       function: {
-        kind: "saga",
+        kind: FunctionKind.SAGA,
         context: step.hop.context ?? "eshop-basket",
         processor: "saga",
         name: `Step${index}`,
@@ -150,7 +151,7 @@ describe("the basket", () => {
     const rejected = result({
       context: "eshop-ordering",
       hop: CHECKOUT_TO_PAID[2].hop,
-      status: "rejected",
+      status: CommandResultStatus.REJECTED,
       error: { code: "eshop-ordering.order.empty", message: "No items" },
     });
     const { transport } = basket(() => ({ events: [...hops(2), rejected] }));

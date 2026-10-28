@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CommandRejectedError, WowProblemError } from '@ahoo-wang/wow-client';
+import {
+  CommandRejectedError,
+  CommandResultStatus,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
 import { commandResultOf } from '@ahoo-wang/wow-client/testing';
 import { ViewStoreError } from '@ahoo-wang/wow-view-engine';
 import {
@@ -109,7 +113,7 @@ describe('the V10 store reads a failure', () => {
           tenantId: 't',
           id: 'v1',
         },
-        { status: 'rejected' },
+        { status: CommandResultStatus.REJECTED },
       ),
       error: { code: 'view-store.app-required', message: 'no app' },
     };
