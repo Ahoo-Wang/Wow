@@ -21,23 +21,20 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
+import me.ahoo.wow.viewstore.domain.view.ViewReads
+import me.ahoo.wow.viewstore.domain.view.ViewStoreRoutes
 import me.ahoo.wow.viewstore.server.system.ConfiguredSystemViews
 import me.ahoo.wow.viewstore.server.system.StoredSystemViews
-import me.ahoo.wow.viewstore.server.system.SystemViewRoutes
 import me.ahoo.wow.viewstore.server.system.ViewStoreProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
-import org.springframework.web.reactive.function.server.RouterFunction
-import org.springframework.web.reactive.function.server.ServerResponse
 
 /**
- * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup and the
- * system views.
+ * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup, the
+ * system views and the handlers of its own routes.
  *
  * Its callers: CoSec's, the user, its roles and the application CoSec authorized the request in, which the edge's
  * resolver reads from the security context CoSec put on the request, which the `cosec` profile has CoSec's inject mode
@@ -79,11 +76,13 @@ class ViewStoreConfiguration {
     fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<QueryApi>): StoredSystemViews =
         StoredSystemViews(configured) { queries.ifAvailable }
 
-    /** Before Wow's routes, whose catch-all answers every other path under `/view-store` with a 404. */
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    fun systemViewRoutes(views: StoredSystemViews, callers: CallerResolver): RouterFunction<ServerResponse> =
-        SystemViewRoutes(views, callers).routes()
+    fun viewReads(systemViews: StoredSystemViews, queries: ObjectProvider<QueryApi>): ViewReads =
+        QueriedViewReads(systemViews) { queries.ifAvailable }
+
+    /** The handlers of the view store's service routes, which Wow's routes mount from the Manifest. */
+    @Bean
+    fun viewStoreRoutes(reads: ViewReads): ViewStoreRoutes = ViewStoreRoutes(reads)
 
     companion object {
         /**

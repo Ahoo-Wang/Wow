@@ -27,7 +27,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
 3. Put the CoSec gateway in front: it verifies each request's access token, and the service, in CoSec's inject mode, parses the token it forwards and holds no secret.
 
-4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
+4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service. A gateway whose policies allow paths one by one allows, beside the aggregates' command and query routes, the view store's own reads, which the Manifest lists as its service routes: `GET /view-store/system-views` (the system views, `?definitionId=` for one definition's) and `GET /view-store/views/{id}` (one view by id, personal, shared or system).
 
 ## Apply and check
 

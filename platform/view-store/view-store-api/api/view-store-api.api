@@ -1,7 +1,6 @@
 public final class me/ahoo/wow/viewstore/api/SystemView {
 	public static final field CODE_SYSTEM_VIEW_PREFIX Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/viewstore/api/SystemView$Companion;
-	public static final field SYSTEM_SCOPE Ljava/lang/String;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -20,7 +19,7 @@ public final class me/ahoo/wow/viewstore/api/SystemView {
 	public final fun getId ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/viewstore/api/ViewKind;
 	public final fun getRevision ()Ljava/lang/String;
-	public final fun getScope ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/viewstore/api/ViewAudience;
 	public final fun getSource ()Lme/ahoo/wow/viewstore/api/SystemViewSource;
 	public final fun getTitle ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/Integer;
@@ -53,6 +52,34 @@ public final class me/ahoo/wow/viewstore/api/ViewAudience : java/lang/Enum {
 
 public final class me/ahoo/wow/viewstore/api/ViewAudience$Companion {
 	public final fun ofOwner (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/ViewAudience;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewEntry {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Integer;Lme/ahoo/wow/viewstore/api/SystemViewSource;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Integer;Lme/ahoo/wow/viewstore/api/SystemViewSource;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/viewstore/api/ViewKind;
+	public final fun component5 ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/util/Map;
+	public final fun component8 ()Ljava/lang/Integer;
+	public final fun component9 ()Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Integer;Lme/ahoo/wow/viewstore/api/SystemViewSource;)Lme/ahoo/wow/viewstore/api/ViewEntry;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/ViewEntry;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Integer;Lme/ahoo/wow/viewstore/api/SystemViewSource;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/ViewEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ljava/util/Map;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Lme/ahoo/wow/viewstore/api/ViewKind;
+	public final fun getRevision ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun getSource ()Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/viewstore/api/ViewKind : java/lang/Enum {

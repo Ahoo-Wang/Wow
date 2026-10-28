@@ -19,24 +19,17 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
-import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
-import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.node.ObjectNode
 
 /** The configured system views: checked at startup, matched by tenant and application, revised by content. */
@@ -88,18 +81,6 @@ class SystemViewsTest {
         ConfiguredSystemViews(listOf(entry(), entry(appId = "a1"))).systemViews("t", "a1").assert().hasSize(2)
     }
 
-    @Test
-    fun `a request without accepted credentials should be answered 401`() {
-        val views = StoredSystemViews(ConfiguredSystemViews(emptyList())) { null }
-        val routes = SystemViewRoutes(views, CallerResolver { null }).routes()
-        WebTestClient.bindToRouterFunction(routes).build().get().uri(SystemViewRoutes.SYSTEM_VIEWS)
-            .header(ViewStoreContext.APP_ID_HEADER, "app")
-            .exchange()
-            .expectStatus().isUnauthorized
-            .expectBody(String::class.java).returnResult().responseBody.assert()
-            .contains("\"code\":\"wow.auth.unauthenticated\"")
-    }
-
     private fun stored(id: String, title: String) = WowJson.mapper.createObjectNode().apply {
         put("aggregateId", id)
         put("version", 1)
@@ -120,46 +101,6 @@ class SystemViewsTest {
         return StoredSystemViews(ConfiguredSystemViews(emptyList())) { api }
     }
 
-    private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
-        val views = storedViews(records)
-        // The application the resolver authenticated, from the header as the view store's own resolver takes it.
-        val callers = CallerResolver { request ->
-            val app = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)
-            Caller.of(tenantId = "t1", attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty())
-        }
-        return WebTestClient.bindToRouterFunction(SystemViewRoutes(views, callers).routes()).build()
-    }
-
-    @Test
-    fun `a stored view that no longer passes the checks should be left out, not fail the list (R2_3-7)`() {
-        val client = views { flowOf(stored("kept", "Kept"), stored("system:x", "Broken"), stored("blank", " ")) }
-        val listed = client.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
-            .header(ViewStoreContext.APP_ID_HEADER, "app")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java).returnResult().responseBody!!
-        WowJson.mapper.readTree(listed).toList().map { it["id"].asString() }.assert().containsExactly("kept")
-    }
-
-    @Test
-    fun `a store that is unavailable should be a problem the client retries after a while (R2_3-8)`() {
-        val unavailable = views { flow { throw StorageUnavailableException("The snapshots are unavailable.") } }
-        unavailable.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
-            .header(ViewStoreContext.APP_ID_HEADER, "app")
-            .exchange()
-            .expectStatus().isEqualTo(503)
-            .expectHeader().valueEquals("Retry-After", "1")
-            .expectHeader().contentType("application/problem+json")
-            .expectBody(String::class.java).returnResult().responseBody!!
-            .let { WowJson.mapper.readTree(it)["code"].asString() }.assert().isEqualTo("wow.storage.unavailable")
-        val broken = views { flow { error("A bug.") } }
-        broken.get().uri("${SystemViewRoutes.SYSTEM_VIEWS}/kept")
-            .header(ViewStoreContext.APP_ID_HEADER, "app")
-            .exchange()
-            .expectStatus().isEqualTo(500)
-            .expectHeader().contentType("application/problem+json")
-    }
-
     @Test
     fun `a stored view failing the checks should be logged by its id, or without one, and left out (R2_3-7)`() {
         val nameless = stored("nameless", "Nameless").apply { remove("aggregateId") }
@@ -178,16 +119,5 @@ class SystemViewsTest {
         warnings.assert().hasSize(2)
         warnings[0].assert().contains("[system:x] of app is not a valid system view")
         warnings[1].assert().contains("[null] of app is not a valid system view")
-    }
-
-    @Test
-    fun `a cancelled request should stay cancelled, not be answered as a problem (R2_3-8)`() {
-        val cancelled = views { flow { throw CancellationException("The client went away.") } }
-        cancelled.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
-            .header(ViewStoreContext.APP_ID_HEADER, "app")
-            .exchange()
-            .expectStatus().isEqualTo(500)
-            .expectHeader().doesNotExist("Content-Type")
-            .expectBody().isEmpty()
     }
 }

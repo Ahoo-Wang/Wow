@@ -50,9 +50,10 @@ class ViewStoreServerTest {
                 .status.assert().isEqualTo(NOT_FOUND)
             val references = QueriedBoardReferences { store.context.getBean(QueryApi::class.java) }
             runBlocking { references.referencingBoards("(0)", "app", "view-1") }.assert().isEmpty()
-            // Without snapshot queries, the configured system views alone.
+            // Without snapshot queries, the configured system views alone, and no saved view by id.
             store.get("/view-store/system-views", Who.user("a")).assertOk().json.values().map { it["id"].asString() }
                 .assert().isEmpty()
+            store.get("/view-store/views/v-1", Who.user("a")).status.assert().isEqualTo(NOT_FOUND)
         }
     }
 
@@ -66,13 +67,27 @@ class ViewStoreServerTest {
     }
 
     @Test
-    fun `the Manifest baseline should list every command route the server serves`() {
+    fun `the Manifest baseline should list every command route and service route the server serves`() {
         startViewStore().use { store ->
-            val served = commandRoutes(store.get("/wow/manifest", Who.user("a")).assertOk().json)
+            val manifest = store.get("/wow/manifest", Who.user("a")).assertOk().json
+            val baseline = WowJson.mapper.readTree(File("manifest/baseline.json"))
+            val served = commandRoutes(manifest)
             served.assert().contains("POST /view-store/dataset_wording/clear-dataset-wording")
-            commandRoutes(WowJson.mapper.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
+            commandRoutes(baseline).assert().isEqualTo(served)
+            serviceRoutes(manifest).assert().containsExactlyInAnyOrder(
+                "systemViews GET /view-store/system-views",
+                "view GET /view-store/views/{id}",
+            )
+            serviceRoutes(baseline).assert().isEqualTo(serviceRoutes(manifest))
         }
     }
+
+    /** The service routes of [manifest], a Manifest tree, as `name METHOD path`. */
+    private fun serviceRoutes(manifest: JsonNode): Set<String> = manifest["contexts"].values().flatMap { context ->
+        context["routes"].values().map {
+            "${it["name"].asString()} ${it["route"]["method"].asString()} ${it["route"]["path"].asString()}"
+        }
+    }.toSet()
 
     /** The command routes of [manifest], a Manifest tree, as `METHOD path`. */
     private fun commandRoutes(manifest: JsonNode): Set<String> = manifest["contexts"].values().flatMap { context ->
@@ -96,8 +111,11 @@ class ViewStoreServerTest {
             // A blank definition is none.
             store.get("/view-store/system-views?definitionId=", Who.user("a")).assertOk().json.size().assert()
                 .isEqualTo(1)
-            store.get("/view-store/system-views/all", Who.user("a")).assertOk().json["kind"].asString().assert()
-                .isEqualTo("analysis")
+            store.get("/view-store/views/all", Who.user("a")).assertOk().json.let { view ->
+                view["kind"].asString().assert().isEqualTo("analysis")
+                view["scope"].asString().assert().isEqualTo("system")
+                view["source"].asString().assert().isEqualTo("configured")
+            }
         }
     }
 

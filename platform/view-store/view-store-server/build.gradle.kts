@@ -45,7 +45,7 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation(project(":test-spring-boot"))
-    // SystemViewsTest binds a WebTestClient to the system views' routes.
+    // ViewStoreDevelopmentCallersTest resolves callers of a MockServerRequest.
     testImplementation("org.springframework:spring-test")
     // The generator of the configuration metadata of the service's own keys (design rule K8).
     testImplementation(testFixtures(project(":spring-boot")))
