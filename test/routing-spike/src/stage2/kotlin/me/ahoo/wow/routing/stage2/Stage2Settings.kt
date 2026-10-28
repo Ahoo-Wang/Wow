@@ -16,7 +16,7 @@ package me.ahoo.wow.routing.stage2
 import java.io.File
 import java.time.Duration
 
-/** Which node a command is sent to, and so where it runs: the host's `wow.cluster.router`. */
+/** Which node a command is sent to, and so where it runs: the host's `wow.routing`. */
 enum class Router(val label: String, val property: String) {
     PARTITIONED("Partitioned", "partitioned"),
     LOCAL("Local", "local"),

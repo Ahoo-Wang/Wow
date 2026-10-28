@@ -921,41 +921,6 @@ object ArchitectureRules {
     }
 
     /**
-     * The production lines that read a `wow.*` key past its properties bean (design rule K1, one reader per key): an
-     * `Environment` or `Binder` read (`getProperty`, `getRequiredProperty`, `containsProperty`, `bind`,
-     * `bindOrCreate`) of a `"wow.` literal or of a constant whose value is one, and any `${'$'}{wow.` placeholder, such
-     * as an `@Value` or a SpEL expression's. Each is `path:line: text`; [allowed] maps a path to the reason it may.
-     */
-    fun wowKeyReaders(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> {
-        val sources = productionSources(repositoryRoot)
-        // A constant counts in its own file, or qualified by the class of the file that declares it.
-        val qualified = sources.flatMap { file ->
-            WOW_CONSTANT.findAll(file.readText()).map { "${file.nameWithoutExtension}.${it.groupValues[1]}" }.toList()
-        }
-        return sources.flatMap { file ->
-            val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
-            if (path in allowed) return@flatMap emptyList()
-            val text = file.readText()
-            val own = WOW_CONSTANT.findAll(text).map { it.groupValues[1] }.toList()
-            val names = (own + qualified).map { Regex.escape(it) }
-            val constantRead = names.takeIf { it.isNotEmpty() }
-                ?.let { Regex("(?<![\\w.])(" + it.joinToString("|") + ")\\b") }
-            text.lines().mapIndexedNotNull { index, line ->
-                val code = line.substringBefore("//").trim()
-                val reads = ENVIRONMENT_READ.containsMatchIn(code) && !code.contains("System.getProperty") &&
-                    (code.contains("\"wow.") || constantRead?.containsMatchIn(code) == true)
-                if (reads || code.contains("${'$'}{wow.") && !code.startsWith("*")) "$path:${index + 1}: $code" else null
-            }
-        }
-    }
-
-    /** The paths of [allowed] that no longer read a `wow.*` key past its bean, so their entries are stale. */
-    fun staleKeyReaders(repositoryRoot: File, allowed: Map<String, String>): List<String> =
-        wowKeyReaders(repositoryRoot).let { readers ->
-            allowed.keys.filter { path -> readers.none { it.startsWith("$path:") } }
-        }
-
-    /**
      * The meters production code registers under a name it spells out (a string literal or template) instead of a
      * constant of the metric catalog, `me.ahoo.wow.observability.WowMetrics` (decision D289): `path:line: code`, minus
      * the files [allowed].
@@ -982,12 +947,8 @@ object ArchitectureRules {
             "\\.builder|\\.(?:counter|timer|gauge|summary))\\(([^,)]*)",
     )
 
-    private val WOW_CONSTANT = Regex("const val (\\w+)\\s*(?::\\s*String)?\\s*=\\s*\"wow\\.")
-    private val ENVIRONMENT_READ =
-        Regex("\\.(getProperty|getRequiredProperty|containsProperty|bind|bindOrCreate)\\(|\\bgetProperty\\(")
-
     /** The Kotlin and Java production sources of [MODULES]. */
-    private fun productionSources(repositoryRoot: File): List<File> =
+    internal fun productionSources(repositoryRoot: File): List<File> =
         MODULES.flatMap { module ->
             listOf("src/main/kotlin", "src/main/java")
                 .map { File(repositoryRoot, "${module.dir}/$it") }

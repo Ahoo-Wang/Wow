@@ -120,7 +120,7 @@ class NodeProcess private constructor(
                     // The node learns its internal port once bound and advertises it to the others.
                     "--wow.internal.port=0",
                     "--wow.backend=postgres",
-                    "--wow.cluster.router=${router.property}",
+                    "--wow.routing=${router.property}",
                     "--wow.log.partitions=${settings.partitions}",
                     "--h2.datasource.url=${postgres.jdbcUrl}",
                     "--h2.datasource.username=${postgres.username}",

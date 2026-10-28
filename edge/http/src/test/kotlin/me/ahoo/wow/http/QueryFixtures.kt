@@ -156,7 +156,7 @@ class QueryNode(
     manifest: Manifest = queryManifest(),
     /** How lists stream as server-sent events. */
     val streams: QueryStreams = QueryStreams(),
-    /** Whether queries may cross tenants (`wow.query.cross-tenant.enabled`). */
+    /** Whether queries may cross tenants (`wow.query.allow-cross-tenant`). */
     crossTenant: Boolean = false,
 ) {
     private val cart =

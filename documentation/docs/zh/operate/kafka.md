@@ -51,7 +51,7 @@ wow:
 | `wow.<context>.commands` | 其他上下文的 Saga 和定时器；对经 Kafka 路由的聚合类型，还有本上下文自己的节点；只要它发布失败台账，还有 ops 对其台账的操作（`wow.ledger.*`） | 本上下文 |
 | `wow.<context>.receipts` | 其他上下文，在它们拒绝本上下文发出的命令、或提交了本上下文要求回执的命令时 | 本上下文的 Saga |
 
-聚合默认会被发布；它也可以不发布、发布时不带状态，或者指定另一个主题。`wow.kafka.topic-prefix` 在每个主题名前加一个前缀，例如 `staging.`，写入和读取两侧都加。每条记录都是以聚合为键的信封，所以一个聚合的记录保持顺序（[线上协议](../reference/protocols#kafka-envelope)）。
+聚合默认会被发布；它也可以不发布、发布时不带状态，或者指定另一个主题。`wow.kafka.topics.prefix` 在每个主题名前加一个前缀，例如 `staging.`，写入和读取两侧都加。每条记录都是以聚合为键的信封，所以一个聚合的记录保持顺序（[线上协议](../reference/protocols#kafka-envelope)）。
 
 ### 分区 {#partitions}
 

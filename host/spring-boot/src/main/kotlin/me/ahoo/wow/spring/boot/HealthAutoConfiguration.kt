@@ -63,7 +63,7 @@ class HealthAutoConfiguration {
     @ConditionalOnMissingBean
     @InternalWowApi
     fun wowNodeHealth(node: ServiceNode, properties: WowProperties): NodeHealth =
-        NodeHealth(node, properties.health.options())
+        NodeHealth(node, properties.health.options(properties.node.sampleInterval))
 
     /**
      * `wow`: every component of the node's health, and `queries`, the stores' query bulkheads, when

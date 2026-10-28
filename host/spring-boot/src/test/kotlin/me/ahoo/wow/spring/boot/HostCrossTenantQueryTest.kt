@@ -22,12 +22,12 @@ import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 
-/** `wow.query.cross-tenant.enabled` (decision D254 ⑦) and the query tenant of a cross-tenant caller. */
+/** `wow.query.allow-cross-tenant` (decision D254 ⑦) and the query tenant of a cross-tenant caller. */
 class HostCrossTenantQueryTest {
     @Test
     fun `cross-tenant queries are off by default and the key turns them on`() {
-        QueryProperties().crossTenant.enabled.assert().isFalse()
-        val host = startHost("wow.query.cross-tenant.enabled" to true)
+        QueryProperties().allowCrossTenant.assert().isFalse()
+        val host = startHost("wow.query.allow-cross-tenant" to true)
         try {
             host.context.getBean(HttpQueries::class.java).crossTenant.assert().isTrue()
         } finally {

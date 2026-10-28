@@ -81,11 +81,11 @@ class HostTopicRoutingTest {
     @Test
     fun `a routing for a type the node does not serve should be refused`() {
         val properties = WowProperties().apply {
-            aggregates["bank.ledger"] = WowProperties.Aggregate().apply { routing = WowProperties.AggregateRouting.TOPIC }
+            aggregates["bank.ledger"] = WowProperties.Aggregate().apply { routing = WowProperties.CommandRouting.TOPIC }
         }
-        runCatching { WowAutoConfiguration.topicRouted(properties, emptyList()) }.exceptionOrNull()!!.message.assert()
+        runCatching { CommandRoutings.topicRouted(properties, emptyList()) }.exceptionOrNull()!!.message.assert()
             .contains("wow.aggregates.[bank.ledger].routing names no aggregate type")
-        WowAutoConfiguration.topicRouted(WowProperties(), emptyList()).assert().isEmpty()
+        CommandRoutings.topicRouted(WowProperties(), emptyList()).assert().isEmpty()
     }
 
     /** In-memory topics as the node's, its command topic with the log's partitions. */

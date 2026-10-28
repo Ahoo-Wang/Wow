@@ -222,9 +222,9 @@ class HostStoresTest {
     @Test
     fun `the snapshot maintenance options follow the interval`() {
         val options = WowProperties.Snapshot().apply {
-            interval = java.time.Duration.ofMinutes(1)
-            batch = 7
-            pages = 3
+            maintenanceInterval = java.time.Duration.ofMinutes(1)
+            rebuild.pageSize = 7
+            rebuild.maxPages = 3
         }.options()
         options.interval.inWholeSeconds.assert().isEqualTo(60)
         options.batch.assert().isEqualTo(7)

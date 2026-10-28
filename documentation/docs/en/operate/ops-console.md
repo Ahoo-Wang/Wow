@@ -86,6 +86,6 @@ The console does not show stack traces: a service records a failure as its excep
 
 ## Without the ops service
 
-A single service can expose its own parked entries: `wow.ops.enabled: true` serves `/wow/ops/parked` on its public port, with the same four actions. It is off by default. Reading is authorized as the system command `wow.ledger.Read`, and each action as its `wow.ledger.*` command, by the application's `CommandAuthorizer`: without one, every action is refused with 403, and the host warns at startup. A resume or a skip answers 200 when this node ran it, and 202 with the outcome `REQUESTED` when it left it for the node that owns the entry's partition, which runs it on its next scan.
+A single service can expose its own parked entries: `wow.http.ops.enabled: true` serves `/wow/ops/parked` on its public port, with the same four actions. It is off by default. Reading is authorized as the system command `wow.ledger.Read`, and each action as its `wow.ledger.*` command, by the application's `CommandAuthorizer`: without one, every action is refused with 403, and the host warns at startup. A resume or a skip answers 200 when this node ran it, and 202 with the outcome `REQUESTED` when it left it for the node that owns the entry's partition, which runs it on its next scan.
 
 Each service can also notify a webhook when an aggregate parks or spends its retries: set `wow.ops.webhook.url`, with `wow.ops.webhook.format` `generic` for Wow's JSON or `wecom` for a WeCom (WeChat Work) robot, and `wow.ops.webhook.events` to choose between `parked` and `exhausted`.

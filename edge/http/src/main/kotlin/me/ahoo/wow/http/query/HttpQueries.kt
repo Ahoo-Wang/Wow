@@ -46,7 +46,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * as server-sent events.
  *
  * [crossTenant] is whether a caller that may act across scopes may query across tenants
- * (`wow.query.cross-tenant.enabled`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
+ * (`wow.query.allow-cross-tenant`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
  * answered 403 `wow.auth.forbidden` while it is off.
  */
 class HttpQueries @InternalWowApi constructor(

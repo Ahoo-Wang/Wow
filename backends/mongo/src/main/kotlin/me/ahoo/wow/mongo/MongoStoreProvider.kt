@@ -47,7 +47,7 @@ import kotlin.time.Duration
  * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
  * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
- * its `sharding` option, `auto` (the default) or `off`, whether it shards its collections on a sharded cluster
+ * its `sharding` option, `auto` (the default) or `none`, whether it shards its collections on a sharded cluster
  * ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
  * ([MongoTimeouts.OPERATION] when not set). Its pool is the client's [MongoPoolGauge] bean its `pool-gauge` option names
  * (else the only one); without one, it says nothing of its pool, and its queries take the default bound.

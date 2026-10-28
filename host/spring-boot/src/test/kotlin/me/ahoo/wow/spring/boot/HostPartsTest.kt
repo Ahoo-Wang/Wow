@@ -137,13 +137,21 @@ class BackendSelectionTest {
     @Test
     fun `the router should follow the backend`() {
         val properties = WowProperties()
-        WowAutoConfiguration.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
-        WowAutoConfiguration.routing(properties, local = false).assert().isEqualTo(Routing.PARTITIONED)
-        properties.cluster.router = Routing.LOCAL
-        WowAutoConfiguration.routing(properties, local = false).assert().isEqualTo(Routing.LOCAL)
-        WowAutoConfiguration.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
-        properties.cluster.router = Routing.PARTITIONED
-        assertThrows<IllegalStateException> { WowAutoConfiguration.routing(properties, local = true) }
+        CommandRoutings.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
+        CommandRoutings.routing(properties, local = false).assert().isEqualTo(Routing.PARTITIONED)
+        properties.routing = WowProperties.CommandRouting.LOCAL
+        CommandRoutings.routing(properties, local = false).assert().isEqualTo(Routing.LOCAL)
+        CommandRoutings.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
+        properties.routing = WowProperties.CommandRouting.TOPIC
+        CommandRoutings.routing(properties, local = false).assert().isEqualTo(Routing.PARTITIONED)
+        properties.routing = WowProperties.CommandRouting.PARTITIONED
+        assertThrows<IllegalStateException> { CommandRoutings.routing(properties, local = true) }
+        // An aggregate type's partitioned or local is the node's, so it must be the node's.
+        properties.aggregates["bank.account"] = WowProperties.Aggregate().apply { routing = WowProperties.CommandRouting.LOCAL }
+        assertThrows<WowConfigurationException> { CommandRoutings.routing(properties, local = false) }
+            .key.assert().isEqualTo("wow.aggregates.[bank.account].routing")
+        properties.aggregates["bank.account"]!!.routing = WowProperties.CommandRouting.PARTITIONED
+        CommandRoutings.routing(properties, local = false).assert().isEqualTo(Routing.PARTITIONED)
     }
 
     @Test
@@ -262,10 +270,10 @@ class WowPropertiesTest {
             "wow.internal.port" to "9191",
             "wow.backend" to "mongo",
             "wow.log.partitions" to "16",
-            "wow.cluster.router" to "local",
+            "wow.routing" to "local",
             "wow.cluster.lease-ttl" to "20s",
             "wow.cluster.drain-timeout" to "500ms",
-            "wow.subscription.read-retry.max-attempts" to "3",
+            "wow.subscription.read-retry.error-after" to "3",
             "wow.subscription.read-retry.max-backoff" to "1s",
             "wow.subscription.systemic.failing-aggregates" to "0",
             "wow.subscription.systemic.window" to "30s",
@@ -281,7 +289,8 @@ class WowPropertiesTest {
         properties.internal.port.assert().isEqualTo(9191)
         properties.backend.assert().isEqualTo("mongo")
         properties.log.partitions.assert().isEqualTo(16)
-        properties.cluster.router.assert().isEqualTo(Routing.LOCAL)
+        properties.routing.assert().isEqualTo(WowProperties.CommandRouting.LOCAL)
+        properties.subscription.readRetry.policy().maxAttempts.assert().isEqualTo(3)
         properties.cluster.options().leaseTtl.assert().isEqualTo(20.seconds)
         properties.cluster.options().drainTimeout.assert().isEqualTo(500.milliseconds)
         properties.subscription.options().readRetry.maxAttempts.assert().isEqualTo(3)

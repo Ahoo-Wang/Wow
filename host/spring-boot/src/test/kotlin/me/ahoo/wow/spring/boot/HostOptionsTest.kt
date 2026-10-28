@@ -78,6 +78,7 @@ class HostOptionsTest {
         val wow = wow(
             "wow.aggregates.[bank.account].clickhouse.history.ttl" to "7d",
             "wow.aggregates.[bank.audit].clickhouse.history.enabled" to "false",
+            "wow.aggregates.[bank.ledger].clickhouse.history.enabled" to "true",
             "wow.aggregates.[bank.card].tenant" to "t0",
         )
         SinkAutoConfiguration.aggregateOptions("kafka", wow.aggregates).assert().isEmpty()
@@ -89,6 +90,7 @@ class HostOptionsTest {
             mapOf(
                 AggregateType("bank", "account") to AggregateSinkOptions(historyTtl = 7.days),
                 AggregateType("bank", "audit") to AggregateSinkOptions(history = false),
+                AggregateType("bank", "ledger") to AggregateSinkOptions(history = true),
             ),
         )
         val malformed = wow("wow.aggregates.[account].clickhouse.history.enabled" to "false")

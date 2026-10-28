@@ -462,7 +462,7 @@ class HostQueryTest {
         properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
         // Unset: on wherever the store is in memory.
-        properties.memory.enabled.assert().isNull()
+        properties.memory.enabled.assert().isTrue()
         properties.budgets.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.IN_PROCESS_DEFAULT.maxListSize)
         policy.inProcess!!.label.assert().isEqualTo(QueryBudget.IN_PROCESS_LABEL)

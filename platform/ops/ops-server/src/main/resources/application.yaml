@@ -11,17 +11,18 @@ server:
 # No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
 # from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
 # signed-in caller, and any other node does not start.
-wow.cosec.mode: "off"
+wow.cosec.mode: disabled
 wow:
   # One node, its data in memory, for trying the service out. The `mongo` profile keeps the entries on MongoDB, the
   # `postgres` profile on PostgreSQL, and either serves their snapshot queries (`POST /ops/parked/snapshot/query`); the
   # `kafka` profile connects the node to the services whose ledgers it shows.
   internal:
     port: 9098
-  ops:
-    # The operator's routes over this node's own parked entries (/wow/ops/parked): the ops saga's sends to an owning
-    # context that failed park here.
-    enabled: true
+  http:
+    ops:
+      # The operator's routes over this node's own parked entries (/wow/ops/parked): the ops saga's sends to an owning
+      # context that failed park here.
+      enabled: true
 ---
 # CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
 # (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the

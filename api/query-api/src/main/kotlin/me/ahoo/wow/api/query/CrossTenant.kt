@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * The tenants a cross-tenant query reads: every tenant when [tenantIds] is null ([ALL]), else those.
  * Only the HTTP edge states one, for a caller that may act across scopes and names `Wow-Scope: tenant=*` or
- * `tenant=("t1" "t2")` while `wow.query.cross-tenant.enabled` is on; trusted in-process code that must read every
+ * `tenant=("t1" "t2")` while `wow.query.allow-cross-tenant` is on; trusted in-process code that must read every
  * tenant uses `QueryApi.trusted()`. A type whose tenant is fixed is still read in that tenant alone, and every
  * cross-tenant query is audited, whether or not a `QueryObserver` audits.
  */

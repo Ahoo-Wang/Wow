@@ -145,7 +145,7 @@ From 100k accounts up, every run is **primed** (`bench.sh --prime`, D224 note â‘
 The keys are `tier`, `suites`, `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties` and `base_ref`. `suites` takes suite names and the group names below (`all` is every group). `properties`, a JSON object of server properties, goes to the last arm of every paired suite: the head, or with `"aa": true` the second of the two head arms, so an A/A run with properties measures the head's defaults against the changed head on one runner (a probe; its ratios are not written to `noise.json`):
 
 ```json
-{ "suites": ["e1-pg-uniform"], "aa": true, "properties": { "wow.snapshot.interval": "PT10S" } }
+{ "suites": ["e1-pg-uniform"], "aa": true, "properties": { "wow.snapshot.maintenance-interval": "PT10S" } }
 ```
 
 When the run has finished, delete the branch; its results stay with the run:

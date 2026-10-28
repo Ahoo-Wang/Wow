@@ -33,7 +33,7 @@ A property the kind does not have is 400 `wow.query.malformed` with the violatio
 
 ## Across tenants
 
-A query reads the caller's tenant. A caller with `crossScope` may read other tenants on a query route by naming them in `Wow-Scope`: `tenant=*` for every tenant, or an inner list, `tenant=("t1" "t2")`. This is off until `wow.query.cross-tenant.enabled` is on, and while it is off such a query is 403 `wow.auth.forbidden`.
+A query reads the caller's tenant. A caller with `crossScope` may read other tenants on a query route by naming them in `Wow-Scope`: `tenant=*` for every tenant, or an inner list, `tenant=("t1" "t2")`. This is off until `wow.query.allow-cross-tenant` is on, and while it is off such a query is 403 `wow.auth.forbidden`.
 
 - An aggregate type whose tenant is fixed is still read in that tenant alone. A list that leaves it out is 400 `wow.query.malformed`.
 - Every cross-tenant query is logged at INFO on `me.ahoo.wow.query.CrossTenantAudit`, whether or not a query observer audits.

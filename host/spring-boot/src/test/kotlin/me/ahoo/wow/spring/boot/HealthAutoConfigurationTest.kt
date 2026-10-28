@@ -47,7 +47,7 @@ class HealthAutoConfigurationTest {
 
     @Test
     fun `the contributors should report the node's health, its readiness and its liveness`() {
-        runner.withPropertyValues("wow.health.sample-interval=1s", "wow.health.stores.down-after=2s").run { context ->
+        runner.withPropertyValues("wow.node.sample-interval=1s", "wow.health.stores.down-after=2s").run { context ->
             val health = context.getBean(NodeHealth::class.java)
             health.isRunning.assert().isTrue()
             health.options.storeDownAfter.inWholeSeconds.assert().isEqualTo(2L)

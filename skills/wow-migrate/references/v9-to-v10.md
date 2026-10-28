@@ -540,7 +540,7 @@ Routes of the 9.x example, from its generated OpenAPI, next to its V10 port's (c
 | `GET …/{id}/state/tracing` | `GET /{context}/{aggregate}/{id}/state/trace`; a past state is `GET …/{id}/state?version=` or `?at=` |
 | `PUT …/{id}/snapshot` (regenerate), `PUT …/snapshot/{afterId}/{limit}` (batch regenerate) | `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild` (decision D172) with `{"ids": [...]}`: rebuilds those aggregates' snapshots from the log in the background (a bounded list of ids per request, `SnapshotRebuilds.MAX_IDS`; no "after id" sweep) |
 | `POST …/state/{afterId}/{limit}` (state-event resend), `PUT …/{id}/{version}/compensate` (re-dispatch one version) | No targeted resend or replay: deferred to 10.x (09 §17 G-9); report it. A version whose handling failed is a parked entry, resumed under `/wow/ops/parked` |
-| The 9.x compensation service's routes and dashboard | The node's parked entries under `/wow/ops/parked` (`wow.ops.enabled: true`), see [Compensation and failed executions](#compensation-and-failed-executions) |
+| The 9.x compensation service's routes and dashboard | The node's parked entries under `/wow/ops/parked` (`wow.http.ops.enabled: true`), see [Compensation and failed executions](#compensation-and-failed-executions) |
 | Datasets (`wow-query` dataset routes) | `POST /wow/dataset/{context}/{dataset}/query` and its `GET`; `GET /wow/dataset` lists those the caller sees |
 
 Read the 9.x paths from the application's generated 9.x OpenAPI, not from annotations; every client, gateway rule and CoSec policy that names a 9.x path must change.
@@ -597,6 +597,17 @@ A target pinned to an earlier V10 pre-release renamed two things that are not 9.
 A target pinned to an earlier V10 pre-release that read `WowProperties.mongo` or `WowProperties.postgres` in its own code reads its store's options instead: those classes are gone, and the keys (`wow.mongo.*`, `wow.postgres.*`) are unchanged. A store's `wow.stores.<name>.*` now takes only the options its store type declares: any other key fails the start, naming the declared ones.
 
 A target pinned to an earlier V10 pre-release writes a store's provider settings beside its own keys: `wow.stores.<name>.options.<key>` is `wow.stores.<name>.<key>` (`index-prefix`, `query-client`, `pool-gauge`, `query-read-preference`, `sharding`), as `data-source`, `client` and `database` already were; the host reads `type`, `ddl` and `query` itself. A few values changed with it: `wow.mongo.sharding` (and a store's `sharding`) is `auto` or `none` (it was `off`), and Elasticsearch's `refresh` is `wait-for`, `immediate` or `none` (it was `wait_for`, `true`, `false`). A value outside an option's set fails the start, naming the key and the values.
+
+A target pinned to an earlier V10 pre-release renames these host keys, with no alias; an old key refuses the start, pointing at the migration guide:
+
+- `wow.cluster.router` and `wow.aggregates.[..].routing: cluster|kafka` are one key, `wow.routing: auto|partitioned|local|topic`, with the same values at `wow.aggregates.[<context>.<aggregate>].routing` (`auto` takes `wow.routing`'s; `partitioned` or `local` there must be the node's).
+- `wow.ops.enabled` is `wow.http.ops.enabled`; `wow.ops.webhook.*` and `wow.ops.publish.*` stay.
+- `wow.cosec.mode` is `gateway` or `disabled` (it was `off`).
+- `wow.health.sample-interval` and `wow.observability.sample-interval` are one `wow.node.sample-interval`.
+- `wow.subscription.read-retry.max-attempts` is `read-retry.error-after`, and `read-retry.timeout` is gone.
+- `wow.cluster.max-in-flight-per-peer` is `max-in-flight-per-node`; `wow.query.cross-tenant.enabled` is `wow.query.allow-cross-tenant`; `wow.snapshot.interval`, `.batch` and `.pages` are `wow.snapshot.maintenance-interval`, `.rebuild.page-size` and `.rebuild.max-pages`; `wow.kafka.topic-prefix` is `wow.kafka.topics.prefix`.
+- `wow.state-views.max-bytes` is a size (`64MB`); a number is still read as bytes.
+- `wow.query.memory.enabled` is `true` by default, and an aggregate's `clickhouse.history.enabled` is `auto`, `true` or `false`.
 
 A target pinned to an earlier V10 pre-release changes in how its authorizers compose: an application's own `CommandAuthorizer` no longer switches CoSec's off; both must allow. Every `CommandAuthorizer` bean is asked in its order (`@Order`), and the first denial is the answer, so an authorizer allows (has no objection to) every command outside its own concern. `CallAuthorizer` is gone: a rule for the service identities' calls is a `CommandAuthorizer` that checks `caller.service`. `CoSecAuthorizers` is gone: an authorizer of the application's own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and allows every command when there is one. Every `Observer` bean is told, so OpenTelemetry's observer runs beside the application's; and two beans of a single seam (`CallerResolver`, `GlobalIdGenerator`, `MaskStrategyResolver`, `DatasetVisibility`, `CommandCaller`, `QueryCountCache`) fail the start unless one is `@Primary`.
 
@@ -754,7 +765,7 @@ V10 takes a command's request id and space from `Wow-Request-Id` and `Wow-Space`
 
 The 9.x compensation service (`wow-compensation-*` and its dashboard) is retired, not ported: a V10 node keeps its own failure ledger (decisions D14, D141). A subscription handler that fails retries in process (`@Retry`, `wow.subscription.retry.*`), then parks its aggregate; a parked entry is retried on the long horizon by `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<processor.function>].parked.max-retries`, `min-backoff`, `execution-timeout`, the 9.x retry spec), and an operator acts on it:
 
-- HTTP, with `wow.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
+- HTTP, with `wow.http.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
 - Authorization: each action is authorized by the host's `CommandAuthorizer` (CoSec's, with `wow.cosec.authorizer.enabled`) as a system command on the parked aggregate, and reads as `wow.ledger.Read`; without an authorizer every action and read is refused.
 - Notifications: `wow.ops.webhook.url`, `format` (`generic` or `wecom`), `events` (`parked`, `exhausted`) replace the 9.x compensation notifications.
 - A console across services: the V10 ops service (`platform/ops`) reads each service's ledger, which a service publishes by itself once the ops service is deployed on the same Kafka (`wow.ops.publish.enabled`, `auto` by default).

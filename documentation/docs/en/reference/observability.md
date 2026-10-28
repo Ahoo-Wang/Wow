@@ -60,7 +60,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.query.pressure` | Gauge | `wow.store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `wow.store` | The times an adaptive bound went down |
 
-Gauges are sampled every `wow.observability.sample-interval` (15 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
+Gauges are sampled every `wow.node.sample-interval` (15 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
 
 ### Analytics catalog server
 

@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.boot.context.properties.ConfigurationProperties
-import java.time.Duration
 
 /**
  * Observability's configuration, `wow.observability.*`, read when wow-observability is on the classpath
@@ -28,12 +27,6 @@ class ObservabilityProperties {
     var enabled: Boolean = true
 
     /**
-     * How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and
-     * a rebuild's progress.
-     */
-    var sampleInterval: Duration = DEFAULT_SAMPLE_INTERVAL
-
-    /**
      * How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as
      * the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in.
      */
@@ -42,7 +35,6 @@ class ObservabilityProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.observability"
-        private val DEFAULT_SAMPLE_INTERVAL: Duration = Duration.ofSeconds(15)
         private const val DEFAULT_MAX_PARKED: Int = 10_000
     }
 }

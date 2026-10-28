@@ -32,7 +32,7 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  *
  * - A caller names another scope (`Wow-Scope`) only when it may act across scopes
  *   ([Caller.crossScope]); any other caller naming one is refused, [QueryErrors.FORBIDDEN].
- * - A cross-tenant read is refused while [crossTenant] is off (`wow.query.cross-tenant.enabled`),
+ * - A cross-tenant read is refused while [crossTenant] is off (`wow.query.allow-cross-tenant`),
  *   [QueryErrors.FORBIDDEN] too.
  * - The tenant follows [tenants]: a type whose tenant is fixed is read in that tenant alone, so a
  *   cross-tenant read of it is narrowed to it, and one whose tenants leave it out, or a target naming another
@@ -96,7 +96,7 @@ class QueryTargets(
         if (reads != null && !crossTenant) {
             throw QueryTargetException(
                 QueryErrors.FORBIDDEN,
-                "Cross-tenant queries are off (wow.query.cross-tenant.enabled).",
+                "Cross-tenant queries are off (wow.query.allow-cross-tenant).",
             )
         }
     }

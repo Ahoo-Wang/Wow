@@ -119,7 +119,12 @@ class SinkAutoConfiguration {
                 buildMap {
                     aggregates.forEach { (key, aggregate) ->
                         val history = aggregate.clickhouse.history
-                        history.enabled?.let { put("aggregates.$key.history.enabled", it.toString()) }
+                        if (history.enabled != WowProperties.Switch.AUTO) {
+                            put(
+                                "aggregates.$key.history.enabled",
+                                (history.enabled == WowProperties.Switch.TRUE).toString()
+                            )
+                        }
                         history.ttl?.let { put("aggregates.$key.history.ttl", it.toString()) }
                     }
                 }

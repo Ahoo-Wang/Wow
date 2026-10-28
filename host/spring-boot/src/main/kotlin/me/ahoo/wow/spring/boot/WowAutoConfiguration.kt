@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
@@ -65,9 +64,7 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.AdmissionPlugins
 import me.ahoo.wow.runtime.node.BackendFactory
-import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
@@ -167,7 +164,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   them from the [SourceTopics] bean (wow-kafka's).
  * - **Parked entries**: retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
- *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
+ *   one parks or spends its retries; `wow.http.ops.enabled` serves the operator's routes ([parkedRoutes]).
  * - **Observation**: every [Observer] bean (wow-observability's, [ObservabilityAutoConfiguration], and the
  *   application's), as one ([Observer.of]), in their order; nothing does without one.
  * - **Lifecycle**: [WowLifecycles].
@@ -281,7 +278,8 @@ class WowAutoConfiguration {
         providers: ObjectProvider<StoreProvider>,
     ): StoreProviders {
         // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
-        val memoryQueries = queries.ifAvailable?.memory?.enabled != false
+        // Without the query plane (wow.query.enabled=false, or no wow-query) there are no query properties to say.
+        val memoryQueries = queries.ifAvailable?.memory?.enabled ?: true
         return StoreProviders.load(
             beanFactory.beanClassLoader,
             memory = MemoryStoreProvider(memoryQueries),
@@ -503,15 +501,15 @@ class WowAutoConfiguration {
             val contexts = models.models.mapTo(HashSet()) { it.type.context }
             TransportNeeds.check(
                 TransportNeeds.of(
-                    topicRouted(properties, models.models),
-                    properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
+                    CommandRoutings.topicRouted(properties, models.models),
+                    properties.ops.publish.enabled == WowProperties.Switch.TRUE,
                     TransportNeeds.intake(environment, transportTypes(beanFactory, transports)),
                 ),
                 properties.transport,
                 TransportNeeds.unpublished(manifest, contexts),
             )
         }
-        val routing = routing(properties, backends.local)
+        val routing = CommandRoutings.routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
             clock = clock,
@@ -523,20 +521,10 @@ class WowAutoConfiguration {
             backends = backends.factory,
             channel = channel,
             remoteSignals = signals,
-            options = ServiceNodeOptions(
-                cluster = properties.cluster.options(properties.wait.defaultTimeout),
-                routing = routing,
-                wait = properties.wait.options(),
-                subscription = properties.subscription.options(properties.subscriptions),
-                handoff = properties.log.handoffOptions(),
-                executor = properties.executor.options(),
-                stateCache = properties.stateCache.options(),
-                stateViews = properties.stateViews.options(),
-                timers = properties.timers.options(),
-                schedules = properties.schedules.mapValues { it.value.options() },
-                topicRouted = topicRouted(properties, models.models),
-                ledger = properties.ops.publish.options(transport = sourceTopics?.producer != null),
-                snapshots = properties.snapshot.options(),
+            options = properties.serviceNodeOptions(
+                routing,
+                CommandRoutings.topicRouted(properties, models.models),
+                transport = sourceTopics?.producer != null,
             ),
             admission = AdmissionPlugins(
                 authorizer = CommandAuthorizer.allOf(authorizers.orderedStream().toList()),
@@ -860,12 +848,12 @@ class WowAutoConfiguration {
     )
 
     /**
-     * The operator's routes over the parked entries, when `wow.ops.enabled`: authenticated by the
+     * The operator's routes over the parked entries, when `wow.http.ops.enabled`: authenticated by the
      * application's [CallerResolver], each caller kept in its tenant, their actions authorized by its
      * [CommandAuthorizer], and refused when it has none.
      */
     @Bean
-    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops", name = ["enabled"], havingValue = "true")
+    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.http.ops", name = ["enabled"], havingValue = "true")
     fun wowParkedRouterFunction(
         manifest: Manifest,
         node: ServiceNode,
@@ -876,7 +864,7 @@ class WowAutoConfiguration {
         val authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }?.let(CommandAuthorizer::allOf)
         if (authorizer == null) {
             logger.warn {
-                "wow.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
+                "wow.http.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
                     "refused (403) until the application gives one."
             }
         }
@@ -966,24 +954,6 @@ class WowAutoConfiguration {
         private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
 
         /**
-         * Where commands run: `wow.cluster.router`, by default local when a log is on a store no other node shares
-         * ([local]: the memory backend's), and partitioned on the others. Such a store refuses partitioned routing.
-         */
-        internal fun routing(properties: WowProperties, local: Boolean): Routing {
-            val configured = properties.cluster.router
-            if (local) {
-                configCheck(
-                    configured != Routing.PARTITIONED,
-                    "wow.cluster.router",
-                    configured,
-                    "Back Wow with PostgreSQL or MongoDB, or route locally.",
-                ) { "wow.cluster.router=partitioned routes across nodes, which the memory backend cannot serve." }
-                return Routing.LOCAL
-            }
-            return configured ?: Routing.PARTITIONED
-        }
-
-        /**
          * The fixed tenants of `wow.aggregates.[<context>.<aggregate>].tenant`, each of an aggregate
          * type of [models]: a key that names no such type, or a blank tenant, is refused.
          */
@@ -1001,20 +971,6 @@ class WowAutoConfiguration {
                 }
             }.toMap()
             return TenantPolicy.fixed(fixed)
-        }
-
-        /**
-         * The aggregate types of [models] whose `wow.aggregates.[<context>.<aggregate>].routing` is `kafka`:
-         * a key that names no such type is refused.
-         */
-        internal fun topicRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
-            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.TOPIC }
-                .keys.mapTo(LinkedHashSet()) { key ->
-                    configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
-                        "wow.aggregates.[$key].routing names no aggregate type this node serves."
-                    }.type
-                }
         }
 
         /**

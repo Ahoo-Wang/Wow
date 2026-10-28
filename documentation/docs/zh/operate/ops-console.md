@@ -86,6 +86,6 @@ wow:
 
 ## 不用 ops 服务 {#without-the-ops-service}
 
-单个服务也可以公开它自己的停放条目：`wow.ops.enabled: true` 在它的公开端口上提供 `/wow/ops/parked`，带有同样的四个操作。它默认关闭。读取按系统命令 `wow.ledger.Read` 授权，每个操作按它的 `wow.ledger.*` 命令授权，由应用的 `CommandAuthorizer` 决定：没有它时，每个操作都以 403 拒绝，宿主会在启动时警告。恢复或跳过在本节点执行时回答 200；留给拥有条目分区的节点、由它在下一次扫描时执行时，回答 202，结果为 `REQUESTED`。
+单个服务也可以公开它自己的停放条目：`wow.http.ops.enabled: true` 在它的公开端口上提供 `/wow/ops/parked`，带有同样的四个操作。它默认关闭。读取按系统命令 `wow.ledger.Read` 授权，每个操作按它的 `wow.ledger.*` 命令授权，由应用的 `CommandAuthorizer` 决定：没有它时，每个操作都以 403 拒绝，宿主会在启动时警告。恢复或跳过在本节点执行时回答 200；留给拥有条目分区的节点、由它在下一次扫描时执行时，回答 202，结果为 `REQUESTED`。
 
 每个服务还可以在聚合停放或重试用尽时通知一个 webhook：设置 `wow.ops.webhook.url`，`wow.ops.webhook.format` 设为 `generic`（Wow 的 JSON）或 `wecom`（企业微信机器人），并用 `wow.ops.webhook.events` 在 `parked` 和 `exhausted` 之间选择。

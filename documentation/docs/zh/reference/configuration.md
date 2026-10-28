@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 220 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 218 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -19,6 +19,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 220 个，由宿主
 | `wow.ddl` | `Ddl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. |
 | `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start. |
+| `wow.routing` | `CommandRouting` | `auto` | Where commands run (CommandRouting): `auto`, on the owner of the aggregate's partition, or here on the memory backend, which cannot route across nodes; `partitioned`; `local`; or `topic`, through each context's command topic. An aggregate type's `wow.aggregates.[<context>.<aggregate>].routing` comes before it. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
@@ -54,13 +55,12 @@ How the nodes of a service share the partitions of each context's log, and forwa
 | `wow.cluster.heartbeat-interval` | `Duration` | `PT3S` | How often a node sends its heartbeat; less than half of `member-ttl`, so one late heartbeat is harmless. |
 | `wow.cluster.lease-parallelism` | `Integer` | `16` | The most lease acquisitions a node runs at a time. |
 | `wow.cluster.lease-ttl` | `Duration` | `PT10S` | How long a partition stays with a node that stopped renewing its lease. |
-| `wow.cluster.max-in-flight-per-peer` | `Integer` | `1024` | The forwards one peer may have outstanding; one more runs here instead. |
+| `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more runs here instead. |
 | `wow.cluster.member-ttl` | `Duration` | `PT10S` | How long a node stays a member of the cluster after its last heartbeat. |
 | `wow.cluster.reconcile-interval` | `Duration` | `PT1S` | How often a node compares the partitions it holds with those it should hold; a change of the members it notices reconciles at once. |
 | `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`. |
 | `wow.cluster.renew-interval` | `Duration` | `PT3S` | How often a node renews its leases; less than half of `lease-ttl`, or every lease is lost between rounds. |
 | `wow.cluster.route-refresh-interval` | `Duration` | `PT1S` | How often the route table is read from the leases and members; a failed forward refreshes it at once. |
-| `wow.cluster.router` | `Routing` |  | Where commands run: `partitioned`, on the owner of the aggregate's partition, or `local`, here. `local` on the memory backend, which cannot route across nodes, and `partitioned` on the others when not set. |
 
 ## `wow.contexts`
 
@@ -77,7 +77,7 @@ The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and doc
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.cosec.mode` | `String` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
+| `wow.cosec.mode` | `CoSecMode` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
 | `wow.cosec.trust-injected-app` | `Boolean` | `false` | Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup. |
 
 ## `wow.cosec.authorizer`
@@ -132,7 +132,6 @@ The node's health and its probes, when the application has Spring Boot Actuator:
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.health.enabled` | `Boolean` | `true` | Whether the host contributes the node's health to Actuator and its probe groups. |
-| `wow.health.sample-interval` | `Duration` | `PT10S` | How often the node samples what a probe must not wait for (the logs' heads, the subscriptions' lag and parked entries) and probes its stores. |
 
 ## `wow.health.executor`
 
@@ -199,7 +198,7 @@ The client address and `User-Agent` of each command, recorded as request facts.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.http.client-facts.enabled` | `Boolean` | `true` | Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither. |
+| `wow.http.client-facts.enabled` | `Boolean` | `true` | Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither. |
 
 ## `wow.http.global-errors`
 
@@ -234,6 +233,14 @@ The springdoc bridge, when the application has springdoc.
 | `wow.http.openapi.springdoc.enabled` | `Boolean` | `true` | Merges the Wow routes into springdoc's documents. |
 | `wow.http.openapi.springdoc.group` | `String` | `wow` | The springdoc group of the Wow routes alone: `/v3/api-docs/<group>`. |
 
+## `wow.http.ops`
+
+The operator's routes of the parked entries.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.http.ops.enabled` | `Boolean` | `false` | Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. |
+
 ## `wow.internal`
 
 The internal port: the cluster channel, the wait signals and the calls of other services.
@@ -257,10 +264,10 @@ The settings of the kafka topic transport.
 | `wow.kafka.offset-gap` | `OffsetGapPolicy` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.subscription.offset.gaps). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.200S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms,...), except the settings the transport's guarantees rest on. |
-| `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
 | `wow.kafka.topics.configs` | `Map<String,String>` |  | Other topic configs auto creates a topic with, such as retention.ms. |
 | `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The min.insync.replicas auto creates a topic with; the broker's default when not set. |
 | `wow.kafka.topics.partition-refresh` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this. |
+| `wow.kafka.topics.prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
 | `wow.kafka.topics.replication-factor` | `Integer` |  | The replication factor auto creates a topic with; the broker's default when not set. A command accepted on a command topic is durable only when it and the minimum in-sync replicas are both at least 2. |
 
 ## `wow.log`
@@ -294,6 +301,7 @@ This node's identity among the nodes of the service, and where they reach it.
 | --- | --- | --- | --- |
 | `wow.node.address` | `String` |  | The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address the port binds is `wow.internal.host`. |
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
+| `wow.node.sample-interval` | `Duration` | `PT10S` | How often the node samples what is read rather than heard: for its health, the logs' heads, the subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress. |
 | `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 
 ## `wow.observability`
@@ -304,15 +312,6 @@ Observability's configuration, `wow.observability.*`, read when wow-observabilit
 | --- | --- | --- | --- |
 | `wow.observability.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
 | `wow.observability.max-parked` | `Integer` | `10000` | How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in. |
-| `wow.observability.sample-interval` | `Duration` | `PT15S` | How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress. |
-
-## `wow.ops`
-
-The operator's side of the parked entries: their routes, the webhook told when an entry parks, and the failure ledger published to the ops context.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.ops.enabled` | `Boolean` | `false` | Whether the operator's routes of the parked entries are served under `/wow/ops/parked` on the public port. |
 
 ## `wow.ops.publish`
 
@@ -380,6 +379,7 @@ The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: 
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `wow.query.allow-cross-tenant` | `Boolean` | `false` | Whether a caller that may act across scopes may query across tenants on the query routes (`Wow-Scope: tenant=*` or `tenant=("t1" "t2")`); 403 `wow.auth.forbidden` while not. A type whose tenant is fixed is still read in that tenant alone, and each such query is logged at INFO (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants. |
 | `wow.query.enabled` | `Boolean` | `true` | Whether the query routes and gateways are wired at all. |
 | `wow.query.max-concurrent` | `Integer` |  | How many snapshot and `events` queries each store runs at once, whichever entry asks; beyond it a query waits, then is `wow.query.busy` (429, with `Retry-After`). Not set, each store's provider derives one from its pool: PostgreSQL a quarter of a pool the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise. `0` for no bound; `wow.stores.<name>.query.max-concurrent` overrides it for one store. |
 | `wow.query.max-queued` | `Integer` |  | How many queries may wait for a permit before the next one is refused at once; 4 per permit when not set. `wow.stores.<name>.query.max-queued` overrides it for one store. |
@@ -465,14 +465,6 @@ The cache of the `events` counts.
 | --- | --- | --- | --- |
 | `wow.query.count-cache.events.enabled` | `Boolean` | `false` | Whether the events' counts are cached too; the log runs ahead of the snapshot checkpoint, so a cached events count may lag the streams for up to `ttl`. |
 
-## `wow.query.cross-tenant`
-
-Queries across tenants on the query routes.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.query.cross-tenant.enabled` | `Boolean` | `false` | Whether a caller that may act across scopes may query across tenants on the query routes (`Wow-Scope: tenant=*` or `tenant=("t1" "t2")`); 403 `wow.auth.forbidden` while off. A type whose tenant is fixed is still read in that tenant alone, and each such query is logged at INFO (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants. |
-
 ## `wow.query.dataset`
 
 The datasets, and the bound of their queries.
@@ -498,7 +490,7 @@ Queries of the snapshots and logs kept in memory.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.query.memory.enabled` | `Boolean` |  | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there. |
+| `wow.query.memory.enabled` | `Boolean` | `true` | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. On by default wherever a store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there. |
 
 ## `wow.query.sensitivity`
 
@@ -532,12 +524,19 @@ Where the snapshots are by default, and how the snapshot maintenance runs: `wow.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.snapshot.batch` | `Integer` | `100` | How many snapshots a rebuild rewrites per page. |
-| `wow.snapshot.interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
-| `wow.snapshot.pages` | `Integer` | `10` | The most pages a rebuild rewrites in one maintenance run. |
+| `wow.snapshot.maintenance-interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
 | `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set. |
 | `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`. |
 | `wow.snapshot.write-batch` | `Integer` | `256` | How many snapshots of a partition the snapshot subscriptions write together at most. |
+
+## `wow.snapshot.rebuild`
+
+How an in-place rebuild rewrites the snapshots.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.snapshot.rebuild.max-pages` | `Integer` | `10` | The most pages a rebuild rewrites in one maintenance run. |
+| `wow.snapshot.rebuild.page-size` | `Integer` | `100` | How many snapshots a rebuild rewrites per page. |
 
 ## `wow.state-cache`
 
@@ -556,7 +555,7 @@ The bounds of each context's state views: `wow.state-views.*`.
 | --- | --- | --- | --- |
 | `wow.state-views.capacity` | `Integer` | `4096` | The most state views a context keeps. |
 | `wow.state-views.max-age` | `Duration` | `PT1M` | How long a state view is kept at most. |
-| `wow.state-views.max-bytes` | `Long` | `67108864` | The most bytes of serialized state a context's views hold, counting two bytes a character. |
+| `wow.state-views.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
 
 ## `wow.subscription`
 
@@ -593,15 +592,14 @@ How the parked entries are retried automatically, over minutes and hours.
 
 ## `wow.subscription.read-retry`
 
-How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `max-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.
+How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `wow.subscription.read-retry.error-after` | `Integer` | `5` | The attempts after which each failure is logged as an error, and retried at `max-backoff`. |
 | `wow.subscription.read-retry.initial-backoff` | `Duration` | `PT0.1S` | The wait after the first failure. |
-| `wow.subscription.read-retry.max-attempts` | `Integer` | `5` | The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each failure is logged as an error and retried at `max-backoff`. |
 | `wow.subscription.read-retry.max-backoff` | `Duration` | `PT5S` | The longest wait between two attempts. |
 | `wow.subscription.read-retry.multiplier` | `Double` | `2` | How many times longer each wait is than the one before; at least 1. |
-| `wow.subscription.read-retry.timeout` | `Duration` |  | How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. A read retry does not use it. |
 
 ## `wow.subscription.retry`
 
@@ -610,10 +608,10 @@ How a failing handler is retried in process before its aggregate is parked; a su
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.subscription.retry.initial-backoff` | `Duration` | `PT0.1S` | The wait after the first failure. |
-| `wow.subscription.retry.max-attempts` | `Integer` | `5` | The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each failure is logged as an error and retried at `max-backoff`. |
+| `wow.subscription.retry.max-attempts` | `Integer` | `5` | The most attempts of a call in all, the first included. |
 | `wow.subscription.retry.max-backoff` | `Duration` | `PT5S` | The longest wait between two attempts. |
 | `wow.subscription.retry.multiplier` | `Double` | `2` | How many times longer each wait is than the one before; at least 1. |
-| `wow.subscription.retry.timeout` | `Duration` |  | How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. A read retry does not use it. |
+| `wow.subscription.retry.timeout` | `Duration` |  | How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. |
 
 ## `wow.subscription.systemic`
 

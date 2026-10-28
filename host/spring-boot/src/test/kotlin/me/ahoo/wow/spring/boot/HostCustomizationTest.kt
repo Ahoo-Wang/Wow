@@ -165,7 +165,7 @@ class HostRefusalTest {
 
     @Test
     fun `partitioned routing should be refused on the memory backend`() {
-        refusal("wow.cluster.router" to "partitioned").assert().contains("memory backend")
+        refusal("wow.routing" to "partitioned").assert().contains("memory backend")
     }
 
     @Test
