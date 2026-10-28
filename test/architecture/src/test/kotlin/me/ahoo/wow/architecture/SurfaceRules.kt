@@ -181,6 +181,10 @@ object SurfaceRules {
      * The public signatures of the ABI dumps of [MODULES] that name a `me/ahoo/wow` type no dump declares, outside
      * [ABI_CLOSURE_ALLOWED], as `dump: class: type`, and each allowed type no dump names that way any more (a stale
      * entry): the public API is closed when every type it names is public too.
+     *
+     * Two kinds of line are read apart. A synthetic default-arguments bridge is skipped: it mirrors a declaration the
+     * dump lists too, or an internal constructor no other module can call, so it promises nothing of its own. A
+     * protected class counts as declared, as a spec's protected companion is: a subclass reaches it.
      */
     fun abiClosureViolations(repositoryRoot: File): List<String> {
         val dumps = MODULES.map { "${it.dir}/api/${it.name}.api" to File(repositoryRoot, "${it.dir}/api/${it.name}.api") }
@@ -201,5 +205,26 @@ object SurfaceRules {
                 .map { (owner, type) -> "$path: $owner: $type" }
         }
         return violations + (ABI_CLOSURE_ALLOWED.keys - leaked).map { "stale entry: $it" }
+    }
+
+    private val ANY_OPT_IN = Regex("""\b(?:OptIn|optIn)\b""")
+
+    /**
+     * The lines of the third-party store (`test/spi-consumer`) that opt in to anything, its tests included: it proves
+     * that a backend is written on Wow's public, stable API alone, so neither its build nor any source opts in. A
+     * fixture it needs from Wow's internals is the TCK's to give (as `QueryBackendSpec.indexPlan` gives a plan).
+     */
+    fun spiConsumerOptIns(repositoryRoot: File): List<String> {
+        val root = File(repositoryRoot, "test/spi-consumer")
+        return root.walkTopDown()
+            .onEnter { it.name != "build" }
+            .filter { it.isFile && (it.extension == "kt" || it.name == "build.gradle.kts") }
+            .sortedBy { it.path }
+            .flatMap { file ->
+                val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (ANY_OPT_IN.containsMatchIn(line)) "$path:${index + 1}: ${line.trim()}" else null
+                }
+            }.toList()
     }
 }

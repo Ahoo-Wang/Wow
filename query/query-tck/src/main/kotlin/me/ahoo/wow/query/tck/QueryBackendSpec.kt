@@ -85,6 +85,8 @@ import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.error.QueryTimeoutException
+import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
@@ -159,13 +161,24 @@ abstract class QueryBackendSpec {
     protected suspend fun given(snapshots: List<SnapshotRecord>): Fixture {
         store(snapshots)
         val binding = binding(type)
-        val provider = DefaultQueryModelSchemaProvider(
+        return Fixture(binding.backend, schemaOf(binding))
+    }
+
+    /**
+     * The plan the host makes of [indexes], each a name and its keys (logical paths of the spec's order state, such as
+     * `state.status`), on the schema this backend's facts compile to: what the backend's
+     * [SnapshotQueries.manageIndexes][me.ahoo.wow.query.store.SnapshotQueries.manageIndexes] receives. Fails, as the
+     * host's planning does, on a key the model does not know or the storage cannot index.
+     */
+    protected suspend fun indexPlan(vararg indexes: Pair<String, List<String>>): QueryIndexPlan =
+        QueryIndexPlan.of(schemaOf(binding(type)), indexes.map { (name, keys) -> QueryIndexDeclaration(name, keys) })
+
+    private suspend fun schemaOf(binding: QueryBackendBinding<QueryBackend>): QueryModelSchema =
+        DefaultQueryModelSchemaProvider(
             context,
             listOf(BeanQuerySchemaSource(listOf(QuerySchemaRegistration(context, DECLARATION)))),
             binding.storage,
-        )
-        return Fixture(binding.backend, provider.schema())
-    }
+        ).schema()
 
     /** A snapshot of this test's [type] whose state is [state], a JSON object. */
     @Suppress("LongParameterList")

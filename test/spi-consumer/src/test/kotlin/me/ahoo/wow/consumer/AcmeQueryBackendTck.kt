@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.consumer
 
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
@@ -20,10 +22,13 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * The query contract over Acme's snapshots: the in-memory reference backend read through the schema Acme's own
- * adapter, written on the public vocabulary alone, compiles to.
+ * adapter, written on the public vocabulary alone, compiles to; and its indexes over the plan the host makes of an
+ * aggregate's declarations ([indexPlan]).
  */
 class AcmeQueryBackendTck : QueryBackendSpec() {
     private val storage = InMemoryQueryStorage()
@@ -35,4 +40,18 @@ class AcmeQueryBackendTck : QueryBackendSpec() {
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = checkNotNull(queries.binding(type))
+
+    @Test
+    fun `a declared index should be created once and kept`(): Unit = runBlocking {
+        val status = indexPlan("ix_status" to listOf("state.status"))
+        queries.manageIndexes(type, status).created.assert().containsExactly("ix_status")
+        queries.manageIndexes(type, status).created.assert().isEmpty()
+    }
+
+    @Test
+    fun `an index over many values should be refused by Acme, an unknown key by the plan`(): Unit = runBlocking {
+        val keywords = indexPlan("ix_keywords" to listOf("state.keywords"))
+        assertThrows<IllegalArgumentException> { queries.manageIndexes(type, keywords) }
+        assertThrows<IllegalArgumentException> { indexPlan("ix_none" to listOf("state.none")) }
+    }
 }

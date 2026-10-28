@@ -37,6 +37,22 @@ class InternalOptInTest {
     }
 
     @Test
+    fun `the third-party store should opt in to nothing, its tests included`() {
+        SurfaceRules.spiConsumerOptIns(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `third-party opt-in rule should catch an opt-in in a test`(@TempDir root: File) {
+        File(root, "test/spi-consumer/src/test/kotlin").mkdirs()
+        File(root, "test/spi-consumer/src/test/kotlin/AcmeTest.kt")
+            .writeText("@OptIn(InternalWowApi::class)\nclass AcmeTest\n")
+        File(root, "test/spi-consumer/build/generated").mkdirs()
+        File(root, "test/spi-consumer/build/generated/Generated.kt").writeText("@OptIn(Any::class)\n")
+        SurfaceRules.spiConsumerOptIns(root).assert()
+            .containsExactly("test/spi-consumer/src/test/kotlin/AcmeTest.kt:1: @OptIn(InternalWowApi::class)")
+    }
+
+    @Test
     fun `internal opt-in rule should excuse an allowed declaration alone`(@TempDir root: File) {
         val server = ArchitectureRules.OPS_SERVER.dir
         val path = "$server/src/main/kotlin/me/ahoo/wow/ops/server/Reads.kt"

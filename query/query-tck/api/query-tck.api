@@ -185,6 +185,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	protected fun getSemanticDivergences ()Ljava/util/Set;
 	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	protected final fun given (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun indexPlan ([Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun list sorts by several fields in either direction and honors the limit ()V
 	public final fun list without a limit streams every record ()V
 	public final fun logical filters combine AND, OR and NOR ()V
