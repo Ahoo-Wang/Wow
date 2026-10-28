@@ -140,6 +140,13 @@ const RULES = [
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
+  // The Manifest's own JSON Schema (ManifestSchema of :manifest): wow-client's
+  // Manifest types are generated from it (test/manifestTypes.test.ts), and
+  // wow-generator reads those types, so a change to it reruns both.
+  [
+    /^api\/manifest\/src\/main\/resources\/META-INF\/wow\/manifest\.schema\.json$/,
+    [SDK],
+  ],
   // The view store service's Manifest baseline: wow-view-store's
   // src/generated/ is wow-generator's output for it, byte for byte
   // (test/generated.test.ts), so a change to it reruns wow-view-store.
@@ -262,6 +269,10 @@ const UNIT_RULES = [
   [
     /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
     () => ['wow-view-store'],
+  ],
+  [
+    /^api\/manifest\/src\/main\/resources\/META-INF\/wow\/manifest\.schema\.json$/,
+    () => ['wow-client', 'wow-generator'],
   ],
 ];
 
