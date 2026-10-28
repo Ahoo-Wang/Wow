@@ -286,11 +286,14 @@ export const SharesAndClaims: Story = {
       'ViewAudienceSaga.onAudienceChanged',
     );
 
-    await pressWhenEnabled(
+    // The row moves to the shared group when the list is read again, which
+    // lands after the announcement: its 设为个人 is waited for, not read.
+    const makePersonal = await waitFor(() =>
       within(managerRow('我盯的大额单')).getByRole('button', {
         name: zhCN['label.manage.make-personal'],
       }),
     );
+    await pressWhenEnabled(makePersonal);
     await waitFor(() => expect(sent('POST', /\/claim-view$/)).toHaveLength(1));
     const [claim] = sent('POST', /\/claim-view$/);
     await expect(claim.path).toBe(
