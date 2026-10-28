@@ -38,7 +38,9 @@ data class SourceTokenRule(
         }.sortedBy { it.path }.flatMap { file ->
             val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
             stripComments(file.readText()).lines().flatMapIndexed { index, line ->
-                pattern.findAll(allowed?.let { line.replace(it, "") } ?: line).map { "$path:${index + 1}: ${it.value}" }.toList()
+                pattern.findAll(
+                    allowed?.let { line.replace(it, "") } ?: line
+                ).map { "$path:${index + 1}: ${it.value}" }.toList()
             }
         }
 

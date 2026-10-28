@@ -19,10 +19,12 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportRefusedException
 import me.ahoo.wow.spi.transport.TransportUnavailableException
 import java.net.SocketException
 import java.net.UnknownHostException
@@ -88,12 +90,12 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve, an HTTP connection
  *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
  *   [SQLNonTransientConnectionException], SQL state class `08`).
- * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded: a node that refused a command
- *   as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
+ * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded: a store that did not admit the call
+ *   ([StorageBusyException], a query store's bulkhead), a node that refused a command as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
  *   `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]).
  *
- * - [FailureClass.UNRECOVERABLE], a value a store refused for good ([StorageRefusedException]): writing it again fails
- *   the same way, so the aggregate is parked at once.
+ * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
+ *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once.
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -108,14 +110,14 @@ internal object BuiltInFailures : FailureClassifier {
         setOf(FrameworkErrors.COMMAND_BUSY, FrameworkErrors.WAIT_TIMEOUT, FrameworkErrors.QUERY_BUSY)
 
     override fun classify(failure: Throwable): FailureClass? = when (failure) {
-        is CommandBusyException -> FailureClass.BACKPRESSURE
+        is CommandBusyException, is StorageBusyException -> FailureClass.BACKPRESSURE
         is WowProblemException -> when {
             failure.code in BACKPRESSURE_CODES -> FailureClass.BACKPRESSURE
             failure.status == TOO_MANY_REQUESTS && failure.retryHint.retryAfter != null -> FailureClass.BACKPRESSURE
             failure.code == FrameworkErrors.STORAGE_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
-        is StorageRefusedException -> FailureClass.UNRECOVERABLE
+        is StorageRefusedException, is TransportRefusedException -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException,
         is TransportUnavailableException,
         is SocketException,

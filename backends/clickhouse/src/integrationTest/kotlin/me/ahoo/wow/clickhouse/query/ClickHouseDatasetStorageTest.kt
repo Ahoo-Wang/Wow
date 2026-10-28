@@ -29,15 +29,15 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.error.QueryExecutionException
-import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetBuilder
-import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QuerySchemaException
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -177,7 +177,7 @@ class ClickHouseDatasetStorageTest {
         val target = DatasetTarget(endlessDataset(), factory)
         val query = QueryAdmission.Trusted.count(CountQuery(EqualFilter(QueryField("bucket"), 99)), target.schema())
             .withTimeout(Duration.ofSeconds(1))
-        val error = assertThrows<QueryTimeoutException> { target.backend.count(query) }
+        val error = assertThrows<StorageTimeoutException> { target.backend.count(query) }
         error.timeout.assert().isEqualTo(Duration.ofSeconds(1))
     }
 
@@ -187,7 +187,7 @@ class ClickHouseDatasetStorageTest {
         val target = DatasetTarget(endlessDataset(), factory)
         val query = QueryAdmission.Trusted.list(ListQuery(EqualFilter(QueryField("bucket"), 1)), target.schema())
             .withTimeout(Duration.ofSeconds(1))
-        assertThrows<QueryTimeoutException> { target.backend.stream(query).collect { } }
+        assertThrows<StorageTimeoutException> { target.backend.stream(query).collect { } }
     }
 
     @Test

@@ -143,8 +143,8 @@ A backend declares what it can do on the ports themselves, and the spec skips, t
 ## The rules
 
 - A backend depends on `:spi`, and on `:query` when it serves queries; it never depends on another backend or on the runtime. `:architecture` holds this, and the new module joins `ALLOWED_PROJECT_DEPENDENCIES`.
-- It records the format of every structure it creates and refuses one of another format, so a node never writes a layout it does not understand.
+- It records the format of every structure it creates and refuses one of another format, so a node never writes a layout it does not understand. It decides what a `ddl` mode does through `Ddl.ensure` or `Ddl.apply`, so each mode means the same in every store; `:architecture` holds that its code names no mode otherwise.
 - It is a published module: it keeps an ABI dump, a README that links to the site, and a page under Operate for its operators.
-- A store it cannot reach is reported as `StorageUnavailableException`, which the node treats as systemic: a subscription pauses and retries, and parks nothing.
+- It reports its failures as the SPI's typed exceptions, which the runtime classifies itself; a backend registers no failure classifier. A store or a broker it cannot reach is a `StorageUnavailableException` or a `TransportUnavailableException`, systemic: a subscription pauses and retries, and parks nothing. A value it refuses for good is a `StorageRefusedException` or a `TransportRefusedException`, on which the aggregate parks at once. A statement it stops at the caller's timeout is a `StorageTimeoutException`, which the query core answers as `wow.query.timeout`. Any other failure stays the driver's own exception.
 
 The PostgreSQL backend, `backends/postgres`, is the reference to read alongside its tests.

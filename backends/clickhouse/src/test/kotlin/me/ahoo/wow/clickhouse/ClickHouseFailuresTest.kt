@@ -66,7 +66,10 @@ class ClickHouseFailuresTest {
         ClickHouseExecutor.translate(exceeded, timeout).assert().isInstanceOf(StorageTimeoutException::class.java)
         (ClickHouseExecutor.translate(exceeded, timeout) as StorageTimeoutException).timeout.assert().isEqualTo(timeout)
         ClickHouseExecutor.translate(exceeded, null).assert().isSameAs(exceeded)
-        ClickHouseExecutor.translate(server(203), timeout).assert().isInstanceOf(StorageUnavailableException::class.java)
+        ClickHouseExecutor.translate(
+            server(203),
+            timeout
+        ).assert().isInstanceOf(StorageUnavailableException::class.java)
     }
 
     @Test

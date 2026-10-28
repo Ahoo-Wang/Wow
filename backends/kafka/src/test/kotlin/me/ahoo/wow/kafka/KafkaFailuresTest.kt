@@ -18,18 +18,23 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.spi.transport.TopicMessage
+import me.ahoo.wow.spi.transport.TransportRefusedException
 import me.ahoo.wow.spi.transport.TransportUnavailableException
 import org.apache.kafka.clients.producer.MockProducer
+import org.apache.kafka.common.InvalidRecordException
 import org.apache.kafka.common.errors.BrokerNotAvailableException
 import org.apache.kafka.common.errors.CoordinatorNotAvailableException
 import org.apache.kafka.common.errors.DisconnectException
+import org.apache.kafka.common.errors.InvalidTopicException
 import org.apache.kafka.common.errors.LeaderNotAvailableException
 import org.apache.kafka.common.errors.NetworkException
 import org.apache.kafka.common.errors.NotEnoughReplicasException
+import org.apache.kafka.common.errors.RecordBatchTooLargeException
 import org.apache.kafka.common.errors.RecordTooLargeException
+import org.apache.kafka.common.errors.SaslAuthenticationException
 import org.apache.kafka.common.errors.TimeoutException
+import org.apache.kafka.common.errors.TopicAuthorizationException
 import org.apache.kafka.common.serialization.ByteArraySerializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
@@ -50,8 +55,33 @@ class KafkaFailuresTest {
             KafkaFailures.translate(failure).assert().isInstanceOf(TransportUnavailableException::class.java)
                 .hasCause(failure)
         }
-        val tooLarge = RecordTooLargeException("too large")
-        KafkaFailures.translate(tooLarge).assert().isSameAs(tooLarge)
+        val unknown = IllegalStateException("broken")
+        KafkaFailures.translate(unknown).assert().isSameAs(unknown)
+    }
+
+    @Test
+    fun `a record the broker never takes is a transport refusal`() {
+        listOf(
+            RecordTooLargeException("too large"),
+            RecordBatchTooLargeException("batch too large"),
+            InvalidTopicException("bad name"),
+            InvalidRecordException("no key on a compacted topic"),
+        ).forEach { failure ->
+            KafkaFailures.translate(failure).assert().isInstanceOf(TransportRefusedException::class.java)
+                .hasCause(failure)
+        }
+    }
+
+    @Test
+    fun `refused credentials or permissions are the node's, a transport unavailable naming them`() {
+        listOf(
+            SaslAuthenticationException("bad password"),
+            TopicAuthorizationException("Not authorized to access topics: [t]"),
+        ).forEach { failure ->
+            KafkaFailures.translate(failure).assert().isInstanceOf(TransportUnavailableException::class.java)
+                .hasMessageContaining("credentials or permissions")
+                .hasMessageContaining(failure.javaClass.simpleName)
+        }
     }
 
     private fun failedSend(failure: RuntimeException): Throwable {
@@ -66,9 +96,10 @@ class KafkaFailuresTest {
     }
 
     @Test
-    fun `a send the broker never acknowledged fails as unavailable, a refused one as it is`() {
-        failedSend(TimeoutException("Expiring 1 record")).assert().isInstanceOf(TransportUnavailableException::class.java)
-        failedSend(RecordTooLargeException("too large")).assert().isInstanceOf(RecordTooLargeException::class.java)
-        assertThrownBy<IllegalStateException> { error("unused") }
+    fun `a send the broker never acknowledged fails as unavailable, a refused one as a refusal`() {
+        failedSend(
+            TimeoutException("Expiring 1 record")
+        ).assert().isInstanceOf(TransportUnavailableException::class.java)
+        failedSend(RecordTooLargeException("too large")).assert().isInstanceOf(TransportRefusedException::class.java)
     }
 }

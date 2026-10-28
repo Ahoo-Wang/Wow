@@ -143,8 +143,8 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 ## 规则 {#the-rules}
 
 - 后端依赖 `:spi`，提供查询时还依赖 `:query`；它从不依赖另一个后端或运行时。`:architecture` 保证这一点，新模块要加入 `ALLOWED_PROJECT_DEPENDENCIES`。
-- 它记录自己创建的每个结构的格式，并拒绝另一种格式的结构，所以节点永远不会写入它不理解的布局。
+- 它记录自己创建的每个结构的格式，并拒绝另一种格式的结构，所以节点永远不会写入它不理解的布局。它通过 `Ddl.ensure` 或 `Ddl.apply` 决定一个 `ddl` 模式做什么，所以每种模式在每个存储里含义相同；`:architecture` 保证它的代码不在别处提到某个模式。
 - 它是一个已发布的模块：它保留 ABI 转储、一个链接到站点的 README，并在“运维”下为它的运维人员提供一个页面。
-- 无法访问的存储报告为 `StorageUnavailableException`，节点把它当作系统性的失败：订阅暂停并重试，不停放任何东西。
+- 它用 SPI 的类型化异常报告失败，由运行时自己分类；后端不注册失败分类器。无法访问的存储或 broker 是 `StorageUnavailableException` 或 `TransportUnavailableException`，属于系统性失败：订阅暂停并重试，不停放任何东西。它永久拒绝的值是 `StorageRefusedException` 或 `TransportRefusedException`，聚合立即停放。它在调用方的超时处停止的语句是 `StorageTimeoutException`，查询核心将其回答为 `wow.query.timeout`。其他失败保持驱动自己的异常。
 
 PostgreSQL 后端 `backends/postgres` 是可以对照其测试阅读的参照。

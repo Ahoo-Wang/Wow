@@ -13,21 +13,32 @@
 
 package me.ahoo.wow.kafka
 
+import me.ahoo.wow.spi.transport.TransportRefusedException
 import me.ahoo.wow.spi.transport.TransportUnavailableException
+import org.apache.kafka.common.InvalidRecordException
+import org.apache.kafka.common.errors.AuthenticationException
+import org.apache.kafka.common.errors.AuthorizationException
 import org.apache.kafka.common.errors.BrokerNotAvailableException
 import org.apache.kafka.common.errors.CoordinatorNotAvailableException
 import org.apache.kafka.common.errors.DisconnectException
+import org.apache.kafka.common.errors.InvalidTopicException
 import org.apache.kafka.common.errors.LeaderNotAvailableException
 import org.apache.kafka.common.errors.NetworkException
 import org.apache.kafka.common.errors.NotEnoughReplicasException
+import org.apache.kafka.common.errors.RecordBatchTooLargeException
+import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.kafka.common.errors.TimeoutException
 
 /**
- * Tells Kafka being unreachable from a defect: the first is a [TransportUnavailableException], on which a
- * subscription pauses its partition, the second stays the client's exception.
+ * Tells Kafka being unreachable, Kafka refusing a record for good and a defect apart:
  *
- * Unavailable are a broker, leader or coordinator not available, a network failure or a disconnection, too few
- * replicas in sync, a request that timed out.
+ * - unreachable, a [TransportUnavailableException], on which a subscription pauses its partition: a broker, leader
+ *   or coordinator not available, a network failure or a disconnection, too few replicas in sync, a request that
+ *   timed out; and the node's credentials or permissions refused ([AuthenticationException],
+ *   [AuthorizationException]), a misconfiguration of the whole node that every entry would hit, named so;
+ * - refused, a [TransportRefusedException], on which a subscription parks the aggregate at once: a record or batch
+ *   beyond the broker's size limit, a topic name it does not take, a record it calls invalid;
+ * - anything else stays the client's exception.
  */
 internal object KafkaFailures {
     /** Whether [failure] says Kafka cannot be reached, or cannot take the request now. */
@@ -43,11 +54,31 @@ internal object KafkaFailures {
         else -> false
     }
 
-    /** [failure] as a [TransportUnavailableException] when it [isUnavailable], else as it is. */
-    fun translate(failure: Throwable): Throwable =
-        if (isUnavailable(failure)) {
-            TransportUnavailableException("Kafka is unavailable; retry later.", failure)
-        } else {
+    /** Whether [failure] says Kafka refused the node's credentials or its permission for the request. */
+    fun isAuthFailure(failure: Throwable): Boolean =
+        failure is AuthenticationException || failure is AuthorizationException
+
+    /** Whether [failure] says the broker will never take the record as it is. */
+    fun isRefused(failure: Throwable): Boolean = when (failure) {
+        is RecordTooLargeException,
+        is RecordBatchTooLargeException,
+        is InvalidTopicException,
+        is InvalidRecordException,
+        -> true
+        else -> false
+    }
+
+    /** [failure] as what it says ([KafkaFailures]): unavailable, refused, or as it is. */
+    fun translate(failure: Throwable): Throwable = when {
+        isUnavailable(failure) -> TransportUnavailableException("Kafka is unavailable; retry later.", failure)
+        isAuthFailure(failure) -> TransportUnavailableException(
+            "Kafka refused the node's credentials or permissions (${failure.javaClass.simpleName}: " +
+                "${failure.message}); fix the node's Kafka security settings.",
+            failure,
+        )
+        isRefused(
             failure
-        }
+        ) -> TransportRefusedException("Kafka refuses the record for good: ${failure.message}", failure)
+        else -> failure
+    }
 }

@@ -20,11 +20,13 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportRefusedException
 import me.ahoo.wow.spi.transport.TransportUnavailableException
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -65,10 +67,12 @@ class FailureClassificationTest {
     }
 
     @Test
-    fun `a value a store refused for good is unrecoverable, wherever it was wrapped`() {
+    fun `a value a store or a transport refused for good is unrecoverable, wherever it was wrapped`() {
         val refused = StorageRefusedException("PostgreSQL refuses the value (SQLSTATE 22P05).")
         classification.classify(refused, null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         classification.classify(IllegalStateException("The sink failed.", refused), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(TransportRefusedException("The record is too large."), null).assert()
             .isEqualTo(FailureClass.UNRECOVERABLE)
     }
 
@@ -111,6 +115,7 @@ class FailureClassificationTest {
             WowProblemException(code, status, RetryHint(true, true, retryAfter), "$code failed")
         listOf(
             CommandBusyException(cart("x"), "c-1", "busy"),
+            IllegalStateException("The query was not admitted.", StorageBusyException("The store is busy.")),
             problem(FrameworkErrors.COMMAND_BUSY, 429, 1.seconds),
             problem(FrameworkErrors.WAIT_TIMEOUT, 504),
             problem(FrameworkErrors.QUERY_BUSY, 429),

@@ -30,7 +30,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
  *
  * [send] hands every message to the producer in order, on a virtual thread since a send may block while the producer
  * fetches metadata or its buffer is full, then suspends until the broker acknowledged each one; it throws the first
- * failure, Kafka being unreachable as a [me.ahoo.wow.spi.transport.TransportUnavailableException] ([KafkaFailures]).
+ * failure, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
  * A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
