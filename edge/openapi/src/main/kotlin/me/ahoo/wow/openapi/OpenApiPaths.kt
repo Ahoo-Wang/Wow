@@ -160,7 +160,7 @@ internal class OpenApiPaths(
                 )
             }
             val answer = route.response?.let { response ->
-                obj("200" to obj("description" to "The route's answer.", "content" to json(schemas.ref(response))))
+                obj("200" to obj("description" to "The route's answer.", "content" to json(schemas.inline(response))))
             } ?: obj("204" to obj("description" to "The route answers no body."))
             add(
                 route.route.method,
@@ -173,7 +173,7 @@ internal class OpenApiPaths(
                     "deprecated" to route.deprecated.takeIf { it },
                     "parameters" to parameters.ifEmpty { null },
                     "requestBody" to route.request?.let {
-                        obj("required" to true, "content" to json(schemas.ref(it)))
+                        obj("required" to true, "content" to json(schemas.inline(it)))
                     },
                     "responses" to answer + errors.of(
                         "route",

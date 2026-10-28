@@ -96,7 +96,10 @@ data class CompatibilityReport(
  *   that breaks the loading of its history. A name no longer retired breaks too; one newly retired is additive.
  *
  * - Schemas follow [SchemaCompatibility]: a removed field, a narrowed type, a newly required field or a removed enum
- *   value break; an optional field or an enum value added does not. The state schema is the snapshot query's fields,
+ *   value break; an optional field or an enum value added does not. A state and an event are outputs as well
+ *   ([SchemaDirection.OUTPUT]): their readers (the query models' clients, the published stream's subscribers) read
+ *   what the service writes now, so a field made optional or nullable, a type widened or an enum value added breaks
+ *   an aggregate that has readers, whatever the revision, which only rebuilds or upgrades the service's own records. The state schema is the snapshot query's fields,
  *   so the same rules hold for it, and a field renamed with its old path in `x-wow-alias` is additive.
  * - A revision covers only the service's own storage, never a contract others read. A state schema
  *   that breaks breaks the snapshot query's clients (its `state.*` fields) and the subscribers of the aggregate's
@@ -279,9 +282,14 @@ private class Changes(val schemas: SchemaCompatibility) {
         (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
     }
 
-    private fun compareBody(path: String, baseline: String?, current: String?, direction: SchemaDirection) {
+    private fun compareBody(
+        path: String,
+        baseline: Map<String, Any?>?,
+        current: Map<String, Any?>?,
+        direction: SchemaDirection,
+    ) {
         when {
-            baseline != null && current != null -> list += schemas.compare(path, baseline, current, direction = direction)
+            baseline != null && current != null -> list += schemas.compareInline(path, baseline, current, direction)
             baseline != current -> breaking(path, if (current == null) "body removed" else "body added")
         }
     }
@@ -373,6 +381,37 @@ private class Changes(val schemas: SchemaCompatibility) {
                 }
             }
         }
+        readerBreaks("$path.state", baseline.state.schema, current.state.schema, schemaChanges, exposure.state)
+    }
+
+    /** Whether this path is [ancestor] or within it: a field, an item or a value of it. */
+    private fun String.isUnder(ancestor: String): Boolean =
+        this == ancestor || listOf(".", "[", "{").any { startsWith(ancestor + it) }
+
+    /**
+     * What breaks the readers of an output (state, events, the published stream), which read what the service writes
+     * now with what they were built against: the changes a reader breaks on ([SchemaDirection.OUTPUT]), such as a
+     * field made optional or an enum value added, that do not already break the service's own records. A revision
+     * only rebuilds or upgrades the service's own records, so it keeps none of these; without [readers] there is no
+     * one to break. Each takes the place of the same change found additive for the service's own records.
+     */
+    private fun readerBreaks(
+        path: String,
+        baseline: String,
+        current: String,
+        own: List<ManifestChange>,
+        readers: List<String>,
+    ) {
+        if (readers.isEmpty()) return
+        val ownBreaks = own.filter { it.kind == ChangeKind.BREAKING }.map { it.path }.toSet()
+        val breaks = schemas.compare(path, baseline, current, path.endsWith(".state"), SchemaDirection.OUTPUT)
+            // A change under one that already breaks the service's own records is reported there.
+            .filter { change -> change.kind == ChangeKind.BREAKING && ownBreaks.none { change.path.isUnder(it) } }
+        list.removeAll { change ->
+            change.kind == ChangeKind.ADDITIVE &&
+                breaks.any { it.path == change.path && it.description == change.description }
+        }
+        list += breaks.map { it.copy(description = "${it.description}: ${readers.joinToString(" and ")} read it") }
     }
 
     fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest) {
@@ -441,6 +480,7 @@ private class Changes(val schemas: SchemaCompatibility) {
                 }
             }
         }
+        readerBreaks("$path.schema", baseline.schema, current.schema, schemaChanges, exposure.events)
     }
 
     /**

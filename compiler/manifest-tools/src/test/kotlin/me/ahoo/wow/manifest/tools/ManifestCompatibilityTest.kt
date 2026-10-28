@@ -758,8 +758,8 @@ class ManifestCompatibilityTest {
             RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
             RouteParameterManifest("limit", RouteParameterManifest.Location.QUERY, INTEGER, required = false),
         ),
-        request = Manifest.schemaRef("shop.Filter"),
-        response = Manifest.schemaRef("shop.Summary"),
+        request = Manifest.refSchema("shop.Filter"),
+        response = Manifest.arraySchema(Manifest.refSchema("shop.Summary")),
         errors = listOf("shop.summary.closed"),
     )
 
@@ -772,6 +772,26 @@ class ManifestCompatibilityTest {
 
     private fun route(change: (ServiceRouteManifest) -> ServiceRouteManifest) =
         routeBaseline.context { it.copyWith(routes = it.routes.map(change)) }
+
+    @Test
+    fun `a state or an event that its readers would no longer read should break whatever its revision`() {
+        // The baseline's cart has a published stream: its events have readers.
+        val optional = schema("productId" to STRING)
+        ManifestCompatibility.compare(BASELINE, BASELINE.def("shop.ItemAdded", optional)).changes.map { it.toString() }
+            .assert().containsExactly(
+                "BREAKING $CART.events[ItemAdded].schema.productId: field made optional: the subscribers of its " +
+                    "published stream read it",
+            )
+        val revised = BASELINE.def("shop.ItemAdded", optional).cart {
+            it.copyWith(events = it.events.map { event -> event.copyWith(revision = 2) })
+        }
+        ManifestCompatibility.compare(BASELINE, revised).changes.filter { it.kind == ChangeKind.BREAKING }
+            .map { it.path }.assert().containsExactly("$CART.events[ItemAdded].schema.productId")
+        // No one reads an unexposed aggregate's events: a field made optional is its own records' concern alone.
+        ManifestCompatibility.compare(UNEXPOSED, UNEXPOSED.def("shop.ItemAdded", optional)).changes
+            .map { it.toString() }.assert()
+            .containsExactly("ADDITIVE $CART.events[ItemAdded].schema.productId: field made optional")
+    }
 
     @Test
     fun `a service route's changes should be classified, its request an input and its response an output`() {
@@ -797,7 +817,7 @@ class ManifestCompatibilityTest {
         routeChanges(routeBaseline.def("shop.Filter", schema("status" to STRING, "since" to STRING))).assert()
             .containsExactly("ADDITIVE contexts[shop].routes[summary].request.since: optional field added")
         routeChanges(routeBaseline.def("shop.Summary", schema("total" to INTEGER))).assert()
-            .containsExactly("BREAKING contexts[shop].routes[summary].response.total: field made optional")
+            .containsExactly("BREAKING contexts[shop].routes[summary].response[].total: field made optional")
         routeChanges(route { it.copyWith(response = null) }).assert()
             .containsExactly("BREAKING contexts[shop].routes[summary].response: body removed")
     }

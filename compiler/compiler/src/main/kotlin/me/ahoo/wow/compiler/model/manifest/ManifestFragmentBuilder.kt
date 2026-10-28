@@ -145,8 +145,8 @@ internal object ManifestFragmentBuilder {
                 else -> null
             }
         },
-        request = route.request?.let(Manifest::schemaRef),
-        response = route.response?.let(Manifest::schemaRef),
+        request = route.request,
+        response = route.response,
         errors = route.errors.sorted(),
         description = route.description,
         deprecated = route.deprecated,

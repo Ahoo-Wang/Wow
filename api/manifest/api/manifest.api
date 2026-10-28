@@ -210,7 +210,11 @@ public final class me/ahoo/wow/manifest/Manifest {
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
+	public final fun arraySchema (Ljava/util/Map;Z)Ljava/util/Map;
+	public static synthetic fun arraySchema$default (Lme/ahoo/wow/manifest/Manifest$Companion;Ljava/util/Map;ZILjava/lang/Object;)Ljava/util/Map;
 	public final fun isSchemaRef (Ljava/lang/String;)Z
+	public final fun refSchema (Ljava/lang/String;)Ljava/util/Map;
+	public final fun refsOf (Ljava/util/Map;)Ljava/util/List;
 	public final fun schemaKey (Ljava/lang/String;)Ljava/lang/String;
 	public final fun schemaRef (Ljava/lang/String;)Ljava/lang/String;
 }
@@ -366,8 +370,8 @@ public final class me/ahoo/wow/manifest/ServiceRouteManifest {
 	public final fun getErrors ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getParameters ()Ljava/util/List;
-	public final fun getRequest ()Ljava/lang/String;
-	public final fun getResponse ()Ljava/lang/String;
+	public final fun getRequest ()Ljava/util/Map;
+	public final fun getResponse ()Ljava/util/Map;
 	public final fun getRoute ()Lme/ahoo/wow/manifest/RouteManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

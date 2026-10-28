@@ -1806,8 +1806,8 @@ export interface ServiceRouteManifest {
     readonly name: string;
     // (undocumented)
     readonly parameters?: readonly RouteParameterManifest[];
-    readonly request?: string;
-    readonly response?: string;
+    readonly request?: unknown;
+    readonly response?: unknown;
     // (undocumented)
     readonly route: RouteManifest;
 }

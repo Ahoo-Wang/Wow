@@ -72,8 +72,8 @@ object ManifestSchema {
                 "name" to string("The route's name in its context: its identity and its client's method."),
                 "route" to ref(ROUTE),
                 "parameters" to array(ref(ROUTE_PARAMETER)),
-                "request" to schemaRef(),
-                "response" to schemaRef(),
+                "request" to inlineSchema(),
+                "response" to inlineSchema(),
                 "errors" to strings("The codes the route refuses with, entries of the context's errors."),
                 "description" to string(),
                 "deprecated" to boolean(),
@@ -239,6 +239,11 @@ object ManifestSchema {
     private fun boolean(description: String? = null) = obj("type" to "boolean", "description" to description)
 
     private fun integer() = obj("type" to "integer")
+
+    private fun inlineSchema() = obj(
+        "type" to "object",
+        "description" to "An inline JSON Schema: a \$ref into \$defs, or an array of one.",
+    )
 
     private fun schemaRef() = obj("type" to "string", "pattern" to "^#/\\\$defs/", "description" to "#/\$defs/<key>")
 

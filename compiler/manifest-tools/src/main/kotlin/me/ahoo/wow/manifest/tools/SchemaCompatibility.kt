@@ -71,6 +71,21 @@ internal class SchemaCompatibility(
         return comparison.changes
     }
 
+    /**
+     * The changes from the inline schema [baseline] to [current] at [path], each `$ref` followed into its side's
+     * `$defs`: a route's body or answer, a reference or an array of one, compared item by item.
+     */
+    fun compareInline(
+        path: String,
+        baseline: Map<String, Any?>,
+        current: Map<String, Any?>,
+        direction: SchemaDirection,
+    ): List<ManifestChange> {
+        val comparison = Comparison(direction)
+        comparison.compare(path, baseline, current, null)
+        return comparison.changes
+    }
+
     private fun refSchema(ref: String): Map<String, Any?> = mapOf(REF to ref)
 
     private inner class Comparison(private val direction: SchemaDirection) {

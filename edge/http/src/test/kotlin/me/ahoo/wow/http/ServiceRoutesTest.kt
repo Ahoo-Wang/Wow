@@ -83,7 +83,7 @@ class ServiceRoutesTest {
                                     required = true,
                                 ),
                             ),
-                            response = Manifest.schemaRef("Summary"),
+                            response = Manifest.refSchema("Summary"),
                             errors = listOf(CLOSED),
                         ),
                         ServiceRouteManifest(name = "kinds", route = RouteManifest("GET", "/$CONTEXT/kinds/{n}")),
@@ -91,7 +91,7 @@ class ServiceRoutesTest {
                         ServiceRouteManifest(
                             name = "addNote",
                             route = RouteManifest("POST", "/$CONTEXT/notes"),
-                            request = Manifest.schemaRef("Note"),
+                            request = Manifest.refSchema("Note"),
                         ),
                     ),
                 ),

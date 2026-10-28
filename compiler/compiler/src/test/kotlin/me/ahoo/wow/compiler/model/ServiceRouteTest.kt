@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.RouteParameterManifest
@@ -59,6 +60,9 @@ class ServiceRouteTest {
 
             @ServiceRoute(method = RouteMethod.POST, path = "notes", name = "addNote")
             suspend fun add(note: Note) = Unit
+
+            @ServiceRoute(method = RouteMethod.PUT, path = "notes")
+            suspend fun replace(notes: Set<Note>): List<Note> = notes.sortedBy { it.text }
         }
         """.trimIndent(),
     )
@@ -120,7 +124,7 @@ class ServiceRouteTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null).assert().isEqualTo(
             listOf(
-                "[shop.addNote, shop.summary]",
+                "[shop.addNote, shop.replace, shop.summary]",
                 "Summary(day=mon@t1, period=WEEK, limit=3)",
                 "Summary(day=mon@t1, period=null, limit=3)",
                 "The query parameter limit is required.",
@@ -134,7 +138,13 @@ class ServiceRouteTest {
             ServiceRouteManifest(
                 name = "addNote",
                 route = RouteManifest("POST", "/shop/notes"),
-                request = "#/\$defs/sample.Note",
+                request = Manifest.refSchema("sample.Note"),
+            ),
+            ServiceRouteManifest(
+                name = "replace",
+                route = RouteManifest("PUT", "/shop/notes"),
+                request = Manifest.arraySchema(Manifest.refSchema("sample.Note"), unique = true),
+                response = Manifest.arraySchema(Manifest.refSchema("sample.Note")),
             ),
             ServiceRouteManifest(
                 name = "summary",
@@ -154,7 +164,7 @@ class ServiceRouteTest {
                         required = true,
                     ),
                 ),
-                response = "#/\$defs/sample.Summary",
+                response = Manifest.refSchema("sample.Summary"),
                 errors = listOf("shop.summary.closed"),
                 description = "The summary of a day.",
             ),
@@ -180,7 +190,7 @@ class ServiceRouteTest {
                 suspend fun unbound(other: String): Item = Item(other)
 
                 @ServiceRoute(method = RouteMethod.GET, path = "items")
-                suspend fun list(): List<Item> = emptyList()
+                suspend fun list(): Map<String, Item> = emptyMap()
 
                 @ServiceRoute(method = RouteMethod.GET, path = "stream")
                 suspend fun stream(): Flow<Item> = error("no")
@@ -195,7 +205,7 @@ class ServiceRouteTest {
         result.messages.assert()
             .contains("path variable {id} binds no parameter")
             .contains("parameter other binds nothing, and a GET takes no body")
-            .contains("its answer is a kotlin.collections.List<sample.Item>")
+            .contains("its answer is a kotlin.collections.Map<kotlin.String, sample.Item>")
             .contains("its answer is a kotlinx.coroutines.flow.Flow<sample.Item>")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")

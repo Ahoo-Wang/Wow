@@ -65,7 +65,7 @@ class Manifest @InternalWowApi constructor(
                 val commands = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
                     subscription.committed.orEmpty() + subscription.calls.orEmpty()
                 commands.filter(::isSchemaRef)
-            } + context.routes.flatMap { listOfNotNull(it.request, it.response) }
+            } + context.routes.flatMap { route -> listOfNotNull(route.request, route.response).flatMap(::refsOf) }
         }
 
     /** The schema references whose key is not in [defs]: a fragment before its schemas are generated has them all. */
@@ -96,6 +96,28 @@ class Manifest @InternalWowApi constructor(
 
         /** Whether [ref] is a reference into `$defs` ([schemaRef]): a command named by its class, say. */
         fun isSchemaRef(ref: String): Boolean = ref.startsWith(DEFS_PREFIX)
+
+        /** The `$defs` references an inline [schema] holds, its own and its items', in order. */
+        fun refsOf(schema: Map<String, Any?>): List<String> = buildList {
+            (schema[REF] as? String)?.let(::add)
+            (schema[ITEMS] as? Map<*, *>)?.let { items ->
+                @Suppress("UNCHECKED_CAST")
+                addAll(refsOf(items as Map<String, Any?>))
+            }
+        }
+
+        /** The inline schema of a reference to the schema [key] of `$defs`. */
+        fun refSchema(key: String): Map<String, Any?> = mapOf(REF to schemaRef(key))
+
+        /** The inline schema of an array of [items], of distinct values when [unique]. */
+        fun arraySchema(items: Map<String, Any?>, unique: Boolean = false): Map<String, Any?> = buildMap {
+            put("type", "array")
+            put(ITEMS, items)
+            if (unique) put("uniqueItems", true)
+        }
+
+        private const val REF = "\$ref"
+        private const val ITEMS = "items"
 
         /** The key of `$defs` [ref] points to. */
         fun schemaKey(ref: String): String {
@@ -354,8 +376,9 @@ class CommandManifest @InternalWowApi constructor(
  * A service route of a context (`@ServiceRoute`): a route whose handler is the service's own code. Its
  * [name] is its identity within the context, for compatibility and for its generated client; [route] is where the
  * edge serves it, below the context; [parameters] are its path variables and query parameters; [request] and
- * [response] are the schema references of its body and its answer, null when it takes none or answers
- * `204 No Content`. [errors] are the codes it refuses with, entries of the context's error table.
+ * [response] are the inline JSON Schemas of its body and its answer, null when it takes none or answers
+ * `204 No Content`: a reference into `$defs` (`{"$ref": "#/$defs/<key>"}`), or an array of one
+ * (`{"type": "array", "items": {"$ref": ...}}`, `"uniqueItems": true` for a set). [errors] are the codes it refuses with, entries of the context's error table.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -363,8 +386,8 @@ class ServiceRouteManifest @InternalWowApi constructor(
     val name: String,
     val route: RouteManifest,
     val parameters: List<RouteParameterManifest> = emptyList(),
-    val request: String? = null,
-    val response: String? = null,
+    val request: Map<String, Any?>? = null,
+    val response: Map<String, Any?>? = null,
     val errors: List<String> = emptyList(),
     val description: String? = null,
     val deprecated: Boolean = false,
