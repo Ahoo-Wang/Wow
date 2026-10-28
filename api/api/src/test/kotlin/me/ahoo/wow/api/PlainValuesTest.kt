@@ -113,8 +113,8 @@ class PlainValuesTest {
         valueSemantics({ ResumeParked.of("Saga.on", parked) }, ResumeParked.of("Saga.other", parked))
         valueSemantics({ SkipParked.of("Saga.on", parked) }, SkipParked.of("Saga.other", parked))
         valueSemantics(
-            { MarkParkedRecoverable.of("Saga.on", parked, "RECOVERABLE") },
-            MarkParkedRecoverable.of("Saga.on", parked, "UNRECOVERABLE"),
+            { MarkParkedRecoverable.of("Saga.on", parked, "recoverable") },
+            MarkParkedRecoverable.of("Saga.on", parked, "unrecoverable"),
         )
         valueSemantics(
             { ApplyParkedRetrySpec.of("Saga.on", parked) },

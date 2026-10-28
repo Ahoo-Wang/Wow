@@ -202,17 +202,17 @@ class LedgerCommandsTest {
             runtime.stop()
             commands.execute(wire(ResumeParked.of(NAME, cart("x2")))).assert().isNull()
             ledger.parked(NAME, cart("x2"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
-            lastRecord()["request"].asString().assert().isEqualTo("RESUME")
+            lastRecord()["request"].asString().assert().isEqualTo("resume")
         }
 
     @Test
     fun `an entry is marked and given a spec, each published as it now stands`(): Unit = runBlocking {
         parkAll("x1", start = false)
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "unrecoverable"))).assert().isNull()
-        lastRecord()["status"].asString().assert().isEqualTo("UNRECOVERABLE")
+        lastRecord()["status"].asString().assert().isEqualTo("unrecoverable")
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "maybe")))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
 
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, initialBackoff = "PT5M", timeout = "30s")))
@@ -229,7 +229,7 @@ class LedgerCommandsTest {
 
         val absent = cart("absent")
         sent.clear()
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, absent, "RECOVERABLE"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, absent, "recoverable"))).assert().isNull()
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, absent, maxRetries = 1))).assert().isNull()
         sent.map { it.record["outcome"].asString() }.assert().containsExactly(
             LedgerResolution.NOT_PARKED,
@@ -282,7 +282,7 @@ class LedgerCommandsTest {
     fun `a node that does not publish its ledger still runs the commands`(): Unit = runBlocking {
         parkAll("x1", "x2", start = false)
         val quiet = LedgerCommands(ops)
-        quiet.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
+        quiet.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
         quiet.execute(wire(SkipParked.of(NAME, X1))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         sent.assert().isEmpty()

@@ -155,8 +155,8 @@ class ParkedRoutesTest {
         body["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT1H")
         body["retrySpec"]["timeout"].asString().assert().isEqualTo("PT1M")
         body["retrySpec"]["applied"].asBoolean().assert().isFalse()
-        body["recoverable"].asString().assert().isEqualTo("UNKNOWN")
-        body["status"].asString().assert().isEqualTo("SCHEDULED")
+        body["recoverable"].asString().assert().isEqualTo("unknown")
+        body["status"].asString().assert().isEqualTo("scheduled")
         body["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 1.hours.inWholeMilliseconds)
 
         client.get(entry("absent")).status.assert().isEqualTo(404)
@@ -186,24 +186,24 @@ class ParkedRoutesTest {
         // Nothing of "gone" is in the log: resuming it handles nothing and resolves it.
         val resolved = local.post("${entry("gone")}/${OpsPaths.RESUME}")
         resolved.status.assert().isEqualTo(200)
-        resolved.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+        resolved.body!!["outcome"].asString().assert().isEqualTo("resolved")
         resolved.body!!.has("entry").assert().isFalse()
         val parked = local.post("${entry("x")}/${OpsPaths.RESUME}")
         parked.status.assert().isEqualTo(200)
-        parked.body!!["outcome"].asString().assert().isEqualTo("PARKED")
+        parked.body!!["outcome"].asString().assert().isEqualTo("parked")
         parked.body!!["entry"]["reason"].asString().assert().contains("x is broken")
 
         val remote = client(other)
         val requested = remote.post("${entry("x")}/${OpsPaths.RESUME}")
         requested.status.assert().isEqualTo(202)
-        requested.body!!["outcome"].asString().assert().isEqualTo("REQUESTED")
-        requested.body!!["entry"]["request"].asString().assert().isEqualTo("RESUME")
-        remote.post("${entry("x")}/${OpsPaths.SKIP}").body!!["entry"]["request"].asString().assert().isEqualTo("SKIP")
+        requested.body!!["outcome"].asString().assert().isEqualTo("requested")
+        requested.body!!["entry"]["request"].asString().assert().isEqualTo("resume")
+        remote.post("${entry("x")}/${OpsPaths.SKIP}").body!!["entry"]["request"].asString().assert().isEqualTo("skip")
         ledger.parked(NAME, type.ref(TENANT, "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
         val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}")
         skipped.status.assert().isEqualTo(200)
-        skipped.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+        skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
         local.post("${entry("x")}/${OpsPaths.SKIP}").status.assert().isEqualTo(404)
         local.post("${entry("x")}/${OpsPaths.RESUME}").status.assert().isEqualTo(404)
 
@@ -247,15 +247,15 @@ class ParkedRoutesTest {
             one.status.assert().isEqualTo(200)
             one.body!!["reason"].asString().assert().isEqualTo("pay: down")
             // Nothing retries a parked timer: it waits for an operator.
-            one.body!!["status"].asString().assert().isEqualTo("EXHAUSTED")
+            one.body!!["status"].asString().assert().isEqualTo("exhausted")
 
             val resumed = client.post("${timerEntry("t-1")}/${OpsPaths.RESUME}")
             resumed.status.assert().isEqualTo(200)
-            resumed.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+            resumed.body!!["outcome"].asString().assert().isEqualTo("resolved")
             timers.find(type.ref(TENANT, "o-1"), "pay")!!.status.assert().isEqualTo(TimerStatus.PENDING)
             val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}")
             skipped.status.assert().isEqualTo(200)
-            skipped.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+            skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
             val remind = timers.find(type.ref(TENANT, "o-1"), "remind")!!
             remind.status.assert().isEqualTo(TimerStatus.CANCELLED)
             remind.outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
@@ -295,8 +295,8 @@ class ParkedRoutesTest {
         val client = client(other)
         val marked = client.post("${entry("a")}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"unrecoverable"}""")
         marked.status.assert().isEqualTo(200)
-        marked.body!!["recoverable"].asString().assert().isEqualTo("UNRECOVERABLE")
-        marked.body!!["status"].asString().assert().isEqualTo("UNRECOVERABLE")
+        marked.body!!["recoverable"].asString().assert().isEqualTo("unrecoverable")
+        marked.body!!["status"].asString().assert().isEqualTo("unrecoverable")
         marked.body!!["nextRetryAt"].isNull.assert().isTrue()
         ledger.parked(NAME, type.ref(TENANT, "a"))!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
 
@@ -307,8 +307,8 @@ class ParkedRoutesTest {
         client.post(mark, """{"recoverable":1}""").assertMalformed()
         client.post(mark, "[]").assertMalformed()
         client.post(mark, "{").assertMalformed()
-        client.post(mark, """{"recoverable":"RECOVERABLE"}""", json = false).status.assert().isEqualTo(415)
-        client.post("${entry("absent")}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"RECOVERABLE"}""")
+        client.post(mark, """{"recoverable":"recoverable"}""", json = false).status.assert().isEqualTo(415)
+        client.post("${entry("absent")}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"recoverable"}""")
             .status.assert().isEqualTo(404)
         actions.map { it.second.type.name }.toSet().assert().containsExactly(OpsCommands.MARK_RECOVERABLE)
     }
@@ -339,7 +339,7 @@ class ParkedRoutesTest {
             it["timeout"].asString().assert().isEqualTo("PT0.500S")
         }
         val none = client.post(apply, """{"maxRetries":0}""").body!!
-        none["status"].asString().assert().isEqualTo("EXHAUSTED")
+        none["status"].asString().assert().isEqualTo("exhausted")
         client.post(apply, null).status.assert().isEqualTo(200)
 
         client.post(apply, """{"maxRetries":-1}""").assertMalformed()
@@ -400,7 +400,7 @@ class ParkedRoutesTest {
             listOf(OpsPaths.RESUME, OpsPaths.SKIP).forEach { action ->
                 client.post("$foreign/$action").status.assert().isEqualTo(404)
             }
-            client.post("$foreign/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"UNRECOVERABLE"}""")
+            client.post("$foreign/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"unrecoverable"}""")
                 .status.assert().isEqualTo(404)
             client.post("$foreign/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":0}""").status.assert().isEqualTo(404)
             ledger.parked(NAME, type.ref("other", "b"))!!.let {

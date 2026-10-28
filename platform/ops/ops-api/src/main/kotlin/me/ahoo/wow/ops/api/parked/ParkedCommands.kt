@@ -57,8 +57,8 @@ data class Resume(val reason: String? = null, val failedAt: Long? = null)
 data class Skip(val reason: String? = null, val failedAt: Long? = null)
 
 /**
- * Marks the entry [recoverable] (`wow.ledger.MarkRecoverable`, 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`
- * or `UNKNOWN`; an unrecoverable entry is not retried automatically.
+ * Marks the entry [recoverable] (`wow.ledger.MarkRecoverable`, 9.x `MarkRecoverable`): `recoverable`, `unrecoverable`
+ * or `unknown`; an unrecoverable entry is not retried automatically.
  */
 @Summary("Mark a parked entry recoverable or not")
 data class MarkRecoverable(val recoverable: String)

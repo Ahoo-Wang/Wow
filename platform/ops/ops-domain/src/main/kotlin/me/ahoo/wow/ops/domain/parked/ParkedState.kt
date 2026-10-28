@@ -30,7 +30,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
  * One service's entry of one parked aggregate, as its ledger last published it: the ops view, whose
  * snapshot is the read model an operator queries. While parked, it is the entry's [ParkedEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
- * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
+ * owning service (`resume`, `skip`, `mark-recoverable` or `apply-retry-spec`), until the service publishes the entry
  * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request,
  * until the next request or the entry's resolution. [errorType] is what [reason] says failed, which an operator
  * groups the entries by.
@@ -198,9 +198,9 @@ class ParkedState {
         /** The type of the failure [reason] records; see [errorType]. */
         fun errorTypeOf(reason: String): String = reason.substringBefore(": ").trim()
 
-        const val RESUME: String = "RESUME"
-        const val SKIP: String = "SKIP"
-        const val MARK_RECOVERABLE: String = "MARK_RECOVERABLE"
-        const val APPLY_RETRY_SPEC: String = "APPLY_RETRY_SPEC"
+        const val RESUME: String = "resume"
+        const val SKIP: String = "skip"
+        const val MARK_RECOVERABLE: String = "mark-recoverable"
+        const val APPLY_RETRY_SPEC: String = "apply-retry-spec"
     }
 }

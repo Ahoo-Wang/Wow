@@ -81,10 +81,10 @@ describe("the parked entries' definition", () => {
       (parked.views ?? []).map((view) => [view.id, view.config]),
     );
     const documents = [
-      "SCHEDULED",
-      "EXHAUSTED",
-      "UNRECOVERABLE",
-      "RESOLVED",
+      "scheduled",
+      "exhausted",
+      "unrecoverable",
+      "resolved",
     ].map((status) => entry(status));
     const kept = (id: string) =>
       documents
@@ -100,12 +100,12 @@ describe("the parked entries' definition", () => {
           ),
         )
         .map((document) => document.aggregateId);
-    expect(kept("attention")).toEqual(["EXHAUSTED", "UNRECOVERABLE"]);
-    expect(kept("scheduled")).toEqual(["SCHEDULED"]);
-    expect(kept("unrecoverable")).toEqual(["UNRECOVERABLE"]);
-    expect(kept("resolved")).toEqual(["RESOLVED"]);
+    expect(kept("attention")).toEqual(["exhausted", "unrecoverable"]);
+    expect(kept("scheduled")).toEqual(["scheduled"]);
+    expect(kept("unrecoverable")).toEqual(["unrecoverable"]);
+    expect(kept("resolved")).toEqual(["resolved"]);
     expect(kept("all")).toHaveLength(4);
-    expect(kept("active")).toEqual(["SCHEDULED", "EXHAUSTED", "UNRECOVERABLE"]);
+    expect(kept("active")).toEqual(["scheduled", "exhausted", "unrecoverable"]);
     for (const id of ["by-context", "clusters", "by-subscription", "over-time"])
       expect(views[id].kind).toBe("analysis");
   });

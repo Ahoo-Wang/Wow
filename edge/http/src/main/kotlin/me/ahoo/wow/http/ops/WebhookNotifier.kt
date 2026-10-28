@@ -15,6 +15,7 @@ package me.ahoo.wow.http.ops
 
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
@@ -79,7 +80,7 @@ class WebhookNotifier(
     /** What is posted for [notice]. */
     fun bodyOf(notice: ParkedNotice): Map<String, Any?> = when (format) {
         Format.GENERIC -> linkedMapOf(
-            "event" to notice.kind.name,
+            "event" to WireNames.of(notice.kind),
             "service" to service,
             "group" to notice.group,
             "at" to Instant.ofEpochMilli(notice.at).toString(),

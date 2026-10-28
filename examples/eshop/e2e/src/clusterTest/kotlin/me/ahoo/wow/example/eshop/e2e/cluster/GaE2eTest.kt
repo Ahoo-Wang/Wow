@@ -367,7 +367,7 @@ class GaE2eTest {
         flows.eventually(
             "the entry resolved in ops",
             OPS_BOUND
-        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
         flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
         ops.exhausted(started).assert().doesNotContain(id)
         reads.parked("payment").filter { it["aggregateId"] == "olga-1" }.assert().isEmpty()
@@ -407,7 +407,7 @@ class GaE2eTest {
         flows.eventually(
             "the entry of gus-1 resolved in ops",
             OPS_BOUND
-        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
         val events = flows.trace("/eshop-ordering/order/gus-1").flatMap { it.events }
         events.assert().contains("ScheduleSet")
         "gus-1 cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(

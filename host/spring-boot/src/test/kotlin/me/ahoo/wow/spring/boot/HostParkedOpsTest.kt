@@ -128,7 +128,7 @@ class HostParkedOpsTest {
         val parked = hooks.filter {
             it["entry"]["aggregate"]["id"].asString() == id && it["entry"]["subscription"].asString() == FLAKY
         }
-        parked.map { it["event"].asString() }.assert().containsExactly("PARKED")
+        parked.map { it["event"].asString() }.assert().containsExactly("parked")
         parked.single()["service"].asString().assert().isEqualTo("bank-service")
         parked.single()["entry"]["subscription"].asString().assert().isEqualTo(FLAKY)
     }
@@ -136,40 +136,40 @@ class HostParkedOpsTest {
     @Test
     fun `an entry whose retries are spent waits for an operator, who acts on it over HTTP`() {
         val id = openAccount()
-        eventually { hooks.any { it["event"].asString() == "EXHAUSTED" && it["entry"]["aggregate"]["id"].asString() == id } }
+        eventually { hooks.any { it["event"].asString() == "exhausted" && it["entry"]["aggregate"]["id"].asString() == id } }
         failing.attempts(BROKEN, id).assert().isEqualTo(2)
 
         val listed = host.get("${OpsPaths.PARKED}?subscription=$BROKEN")
         listed.status.assert().isEqualTo(200)
         listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().contains(id)
         val exhausted = host.get(entry(BROKEN, id)).body!!
-        exhausted["status"].asString().assert().isEqualTo("EXHAUSTED")
+        exhausted["status"].asString().assert().isEqualTo("exhausted")
         exhausted["retries"].asInt().assert().isEqualTo(1)
         exhausted["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(1)
 
         val resumed = host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null)
         resumed.status.assert().isEqualTo(200)
-        resumed.body!!["outcome"].asString().assert().isEqualTo("PARKED")
+        resumed.body!!["outcome"].asString().assert().isEqualTo("parked")
         failing.attempts(BROKEN, id).assert().isEqualTo(3)
 
         val marked = host.post(
             "${entry(BROKEN, id)}/${OpsPaths.MARK_RECOVERABLE}",
-            """{"recoverable":"UNRECOVERABLE"}"""
+            """{"recoverable":"unrecoverable"}"""
         )
-        marked.body!!["status"].asString().assert().isEqualTo("UNRECOVERABLE")
-        host.post("${entry(BROKEN, id)}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"RECOVERABLE"}""")
+        marked.body!!["status"].asString().assert().isEqualTo("unrecoverable")
+        host.post("${entry(BROKEN, id)}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"recoverable"}""")
         // A spec with another retry takes it up again; it still fails, and is spent again.
         val applied = host.post("${entry(BROKEN, id)}/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":2}""")
         applied.status.assert().isEqualTo(200)
         applied.body!!["retrySpec"]["applied"].asBoolean().assert().isTrue()
         eventually { failing.attempts(BROKEN, id) == 4 }
         eventually {
-            hooks.count { it["event"].asString() == "EXHAUSTED" && it["entry"]["aggregate"]["id"].asString() == id } == 2
+            hooks.count { it["event"].asString() == "exhausted" && it["entry"]["aggregate"]["id"].asString() == id } == 2
         }
 
         val skipped = host.post("${entry(BROKEN, id)}/${OpsPaths.SKIP}", null)
         skipped.status.assert().isEqualTo(200)
-        skipped.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+        skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
         host.get(entry(BROKEN, id)).status.assert().isEqualTo(404)
         host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null).status.assert().isEqualTo(404)
     }

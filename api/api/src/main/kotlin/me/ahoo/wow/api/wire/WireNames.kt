@@ -33,4 +33,10 @@ object WireNames {
      */
     fun of(name: String): String =
         name.replace(ACRONYM_END, "$1-$2").replace(WORD_END, "$1-$2").replace('_', '-').lowercase()
+
+    /** The constant of [E] whose wire name is [wire], or null when none is: `catch-up` is `CATCH_UP`, `CATCH_UP` none. */
+    inline fun <reified E : Enum<E>> entryOf(wire: String): E? = enumValues<E>().firstOrNull { of(it) == wire }
+
+    /** The wire names of [E]'s constants, in their order. */
+    inline fun <reified E : Enum<E>> namesOf(): List<String> = enumValues<E>().map { of(it) }
 }

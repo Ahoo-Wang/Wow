@@ -24,6 +24,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WaitHeader
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
@@ -66,12 +67,16 @@ import kotlin.time.Duration.Companion.seconds
  * - `GET /wow/ops/parked?subscription=&after=&limit=`: a page of entries, by subscription and aggregate, with the
  *   cursor of the next page (`next`, passed back as `after`);
  * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry;
- * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry `RESOLVED` or still
- *   `PARKED`), 202 when it was left for the owner of the entry's partition (`REQUESTED`);
- * - `POST …/mark-recoverable` (`{"recoverable": "RECOVERABLE" | "UNRECOVERABLE" | "UNKNOWN"}`) and
+ * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry resolved or still
+ *   parked), 202 when it was left for the owner of the entry's partition;
+ * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
  *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration
  *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
  *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
+ *
+ * An action's `outcome` (`resolved`, `parked` or `requested`) and the entry's `recoverable`, `request` and `status` are
+ * written, and `recoverable` read, by their wire names ([WireNames]), as every Wow enumeration on the wire; the
+ * failure ledger stores them as it always has.
  *
  * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise),
  * and keeps it in the tenants it reaches ([TenantPolicy.reaches]): a caller that may not act across scopes lists only
@@ -224,7 +229,7 @@ private class ParkedHandler(
         }
         val status = if (outcome == ParkedOps.Outcome.REQUESTED) HttpStatus.ACCEPTED else HttpStatus.OK
         val body = buildMap {
-            put("outcome", outcome.name)
+            put("outcome", WireNames.of(outcome))
             ops.get(subscription, ref)?.let { put("entry", viewOf(it)) }
         }
         return respond(status, body)
@@ -239,9 +244,9 @@ private class ParkedHandler(
 
     private fun recoverableOf(body: JsonNode): Recoverable {
         val value = body[RECOVERABLE]?.takeIf { it.isString }?.asString()
-            ?: throw badRequest("The body names the entry's \"recoverable\": ${Recoverable.entries.joinToString()}.")
-        return Recoverable.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-            ?: throw badRequest("Not a recoverable: '$value'; one of ${Recoverable.entries.joinToString()}.")
+            ?: throw badRequest("The body names the entry's \"recoverable\": ${WireNames.namesOf<Recoverable>().joinToString()}.")
+        return WireNames.entryOf<Recoverable>(value)
+            ?: throw badRequest("Not a recoverable: '$value'; one of ${WireNames.namesOf<Recoverable>().joinToString()}.")
     }
 
     suspend fun applyRetrySpec(request: ServerRequest): ServerResponse {
@@ -380,9 +385,9 @@ internal fun viewOf(view: ParkedView): Map<String, Any?> {
             "timeout" to view.spec.timeout.toIsoString(),
             "applied" to (entry.retrySpec != null),
         ),
-        "recoverable" to entry.recoverable.name,
-        "request" to entry.request?.name,
-        "status" to view.status.name,
+        "recoverable" to WireNames.of(entry.recoverable),
+        "request" to entry.request?.let(WireNames::of),
+        "status" to WireNames.of(view.status),
         "nextRetryAt" to view.nextRetryAt,
     )
 }

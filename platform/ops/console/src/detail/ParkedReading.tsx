@@ -28,10 +28,10 @@ import {
 
 const STATUS_VARIANT: Record<string, "destructive" | "secondary" | "outline"> =
   {
-    EXHAUSTED: "destructive",
-    UNRECOVERABLE: "destructive",
-    SCHEDULED: "secondary",
-    RESOLVED: "outline",
+    exhausted: "destructive",
+    unrecoverable: "destructive",
+    scheduled: "secondary",
+    resolved: "outline",
   };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

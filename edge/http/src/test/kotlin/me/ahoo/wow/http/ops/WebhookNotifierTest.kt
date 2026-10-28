@@ -72,7 +72,7 @@ class WebhookNotifierTest {
         headers.getValue("Content-type").assert().isEqualTo("application/json")
         headers.getValue("X-token").assert().isEqualTo("secret")
         val posted = json.readTree(body)
-        posted["event"].asString().assert().isEqualTo("PARKED")
+        posted["event"].asString().assert().isEqualTo("parked")
         posted["service"].asString().assert().isEqualTo("shop-service")
         posted["group"].asString().assert().isEqualTo("shop-service.shop")
         posted["at"].asString().assert().isEqualTo("2023-11-14T22:13:20Z")

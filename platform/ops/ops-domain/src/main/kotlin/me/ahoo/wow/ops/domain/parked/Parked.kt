@@ -107,7 +107,7 @@ class Parked(private val state: ParkedState) {
 
     fun onCommand(command: MarkRecoverable): MarkRecoverableRequested {
         rejectResolved()
-        val recoverable = command.recoverable.uppercase()
+        val recoverable = command.recoverable
         if (recoverable !in RECOVERABLES) {
             reject(
                 ParkedRejections.INVALID,
@@ -139,7 +139,7 @@ class Parked(private val state: ParkedState) {
     }
 
     private companion object {
-        val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", ParkedEntry.UNKNOWN)
+        val RECOVERABLES = listOf("recoverable", "unrecoverable", ParkedEntry.UNKNOWN)
 
         fun isDuration(value: String): Boolean = Duration.parseOrNull(value.trim())?.let {
             it.isFinite() && !it.isNegative()

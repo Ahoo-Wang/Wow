@@ -21,6 +21,8 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.wire.WireNames
+import me.ahoo.wow.spi.ledger.LedgerRequest
+import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.transport.EnvelopeKind
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
@@ -50,6 +52,8 @@ object WowEnums {
         JobScope::class.java,
         Misfire::class.java,
         EnvelopeKind::class.java,
+        Recoverable::class.java,
+        LedgerRequest::class.java,
     )
 
     /** The name of [module]'s Jackson module, a reader's or a writer's. */

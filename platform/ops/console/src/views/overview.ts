@@ -196,14 +196,14 @@ function homeBoard(): DashboardViewConfig {
         card("in-window", t.inWindow, [ACTIVE], "active"),
         card("all-parked", t.allParked, [ACTIVE], "active", false),
         card("needs-attention", t.attention, [ATTENTION], "attention"),
-        card("retrying", t.retrying, [status("SCHEDULED")], "scheduled"),
+        card("retrying", t.retrying, [status("scheduled")], "scheduled"),
         card(
           "unrecoverable",
           t.unrecoverable,
-          [status("UNRECOVERABLE")],
+          [status("unrecoverable")],
           "unrecoverable",
         ),
-        card("resolved", t.resolved, [status("RESOLVED")], "resolved"),
+        card("resolved", t.resolved, [status("resolved")], "resolved"),
       ],
       [
         system("over-time", t.overTime, size(16, 5)),

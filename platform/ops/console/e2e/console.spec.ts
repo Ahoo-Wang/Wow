@@ -73,13 +73,13 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ request }) => {
   context = `e2e-${Date.now().toString(36)}`;
-  exhausted = await publish(request, context, "pay-1", "EXHAUSTED");
-  scheduled = await publish(request, context, "pay-2", "SCHEDULED", 1);
+  exhausted = await publish(request, context, "pay-1", "exhausted");
+  scheduled = await publish(request, context, "pay-2", "scheduled", 1);
   unrecoverable = await publish(
     request,
     context,
     "pay-3",
-    "UNRECOVERABLE",
+    "unrecoverable",
     2,
     "wow.subscription.unrecoverable: offset 7 is no longer retained",
   );
@@ -210,7 +210,7 @@ test("an operator resumes an entry, it goes back to the owning service, and the 
 
   // The owning service resumed it: the open view reads the entries again on
   // its own and lets the resolved one go.
-  await resolve(request, exhausted, "RESUMED");
+  await resolve(request, exhausted, "resumed");
   await expect(row(page, exhausted)).toHaveCount(0, { timeout: 30_000 });
   await view(page, "Resolved");
   await expect(row(page, exhausted)).toContainText("Resolved");

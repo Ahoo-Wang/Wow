@@ -51,8 +51,8 @@ const ENTRIES = [
         initialBackoff: "PT1M",
         timeout: "PT2M",
       },
-      recoverable: "UNKNOWN",
-      status: "EXHAUSTED",
+      recoverable: "unknown",
+      status: "exhausted",
     },
   },
   {
@@ -70,7 +70,7 @@ const ENTRIES = [
       reason: "Retrying.",
       errorType: "Retrying.",
       failedAt: Date.parse("2026-10-01T09:00:00Z"),
-      status: "SCHEDULED",
+      status: "scheduled",
     },
   },
 ];

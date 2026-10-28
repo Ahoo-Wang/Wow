@@ -30,6 +30,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedKey
@@ -316,9 +317,9 @@ class LedgerPublisher internal constructor(
                 timeout = view.spec.timeout.toIsoString(),
                 applied = entry.retrySpec != null,
             ),
-            recoverable = entry.recoverable.name,
-            request = entry.request?.name,
-            status = view.status.name,
+            recoverable = WireNames.of(entry.recoverable),
+            request = entry.request?.let(WireNames::of),
+            status = WireNames.of(view.status),
             nextRetryAt = view.nextRetryAt,
             recordedAt = now,
         )

@@ -37,7 +37,7 @@ class LedgerRecordsTest {
         failedAt = 1,
         retries = retries,
         retrySpec = LedgerRetrySpec(3, "PT1M", "PT2M"),
-        status = "SCHEDULED",
+        status = "scheduled",
         recordedAt = 2,
     )
 
@@ -73,13 +73,13 @@ class LedgerRecordsTest {
         valueSemantics(resolution(), resolution(), resolution(LedgerResolution.SKIPPED))
         resolution().toString().assert().isEqualTo(
             "LedgerResolution(service=sales-service, context=sales, subscription=OrderSaga.onPlaced, " +
-                "aggregate=$aggregate, failedAt=1, outcome=RESUMED, resolvedAt=3)",
+                "aggregate=$aggregate, failedAt=1, outcome=resumed, resolvedAt=3)",
         )
         LedgerResolution.of("s", "c", "p", aggregate, null, LedgerResolution.NOT_PARKED, 2).failedAt.assert().isNull()
-        LedgerResolution("s", "c", "p", aggregate, outcome = "SKIPPED", resolvedAt = 2)
-            .assert().isEqualTo(LedgerResolution.of("s", "c", "p", aggregate, null, "SKIPPED", 2))
+        LedgerResolution("s", "c", "p", aggregate, outcome = "skipped", resolvedAt = 2)
+            .assert().isEqualTo(LedgerResolution.of("s", "c", "p", aggregate, null, "skipped", 2))
         listOf(LedgerResolution.SKIPPED, LedgerResolution.RESOLVED, LedgerResolution.NOT_PARKED).assert()
-            .containsExactly("SKIPPED", "RESOLVED", "NOT_PARKED")
+            .containsExactly("skipped", "resolved", "not-parked")
     }
 
     @Test

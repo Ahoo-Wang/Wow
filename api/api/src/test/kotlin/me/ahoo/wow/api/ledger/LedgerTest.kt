@@ -52,7 +52,7 @@ class LedgerTest {
         val commands: List<LedgerCommand> = listOf(
             ResumeParked.of("s", ref),
             SkipParked.of("s", ref),
-            MarkParkedRecoverable.of("s", ref, "RECOVERABLE"),
+            MarkParkedRecoverable.of("s", ref, "recoverable"),
             ApplyParkedRetrySpec.of("s", ref, maxRetries = 3),
         )
         commands.map { it.subscription to it.toRef() }.toSet().assert().containsExactly("s" to ref)

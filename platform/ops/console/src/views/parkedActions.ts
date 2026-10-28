@@ -90,9 +90,9 @@ const field = textKeys("parked", PARKED_WORDS.en);
 
 /** The recoverabilities an operator marks, in the order a menu lists them. */
 const RECOVERABILITY = [
-  { value: "RECOVERABLE", label: field.recoverableYes },
-  { value: "UNRECOVERABLE", label: field.recoverableNo },
-  { value: "UNKNOWN", label: field.recoverableUnknown },
+  { value: "recoverable", label: field.recoverableYes },
+  { value: "unrecoverable", label: field.recoverableNo },
+  { value: "unknown", label: field.recoverableUnknown },
 ];
 
 /** What a row holds of an entry's state for the actions (`record.rowFields`). */
@@ -107,7 +107,7 @@ function stateOf(row: RecordRow): { status?: string; recoverable?: string } {
 
 /** A resolved entry takes no action (`ops.parked.resolved`). */
 function parked(row: RecordRow): true | string {
-  return stateOf(row).status === "RESOLVED" ? t.resolved : true;
+  return stateOf(row).status === "resolved" ? t.resolved : true;
 }
 
 function idOf(row: RecordRow): string {
@@ -209,7 +209,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       confirm: ({ recoverable }) => ({
         title: t.markConfirm,
         action: t.markAsValue,
-        ...(recoverable === "UNRECOVERABLE"
+        ...(recoverable === "unrecoverable"
           ? { body: t.markUnrecoverableBody, tone: "danger" as const }
           : { body: t.markBody }),
       }),

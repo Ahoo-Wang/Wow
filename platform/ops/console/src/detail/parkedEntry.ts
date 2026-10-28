@@ -20,21 +20,21 @@ export type ParkedField = keyof (typeof PARKED_WORDS)["en"];
 
 const OPTION_WORDS: Record<string, Record<string, ParkedField>> = {
   status: {
-    SCHEDULED: "statusScheduled",
-    EXHAUSTED: "statusExhausted",
-    UNRECOVERABLE: "statusUnrecoverable",
-    RESOLVED: "statusResolved",
+    scheduled: "statusScheduled",
+    exhausted: "statusExhausted",
+    unrecoverable: "statusUnrecoverable",
+    resolved: "statusResolved",
   },
   recoverable: {
-    RECOVERABLE: "recoverableYes",
-    UNRECOVERABLE: "recoverableNo",
-    UNKNOWN: "recoverableUnknown",
+    recoverable: "recoverableYes",
+    unrecoverable: "recoverableNo",
+    unknown: "recoverableUnknown",
   },
   requested: {
-    RESUME: "requestedResume",
-    SKIP: "requestedSkip",
-    MARK_RECOVERABLE: "requestedMark",
-    APPLY_RETRY_SPEC: "requestedSpec",
+    resume: "requestedResume",
+    skip: "requestedSkip",
+    "mark-recoverable": "requestedMark",
+    "apply-retry-spec": "requestedSpec",
   },
   /** The ledger's system command an owning service refused (decision D226). */
   refusedAction: {
@@ -44,10 +44,10 @@ const OPTION_WORDS: Record<string, Record<string, ParkedField>> = {
     "wow.ledger.ApplyRetrySpec": "requestedSpec",
   },
   outcome: {
-    RESUMED: "outcomeResumed",
-    SKIPPED: "outcomeSkipped",
-    RESOLVED: "outcomeResolved",
-    NOT_PARKED: "outcomeNotParked",
+    resumed: "outcomeResumed",
+    skipped: "outcomeSkipped",
+    resolved: "outcomeResolved",
+    "not-parked": "outcomeNotParked",
   },
 };
 
