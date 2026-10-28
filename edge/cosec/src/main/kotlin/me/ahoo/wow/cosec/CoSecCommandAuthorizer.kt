@@ -72,18 +72,7 @@ class CoSecCommandAuthorizer(
     }
 
     /** The security context of [caller], as CoSec would have resolved it for an HTTP request. */
-    fun securityContextOf(caller: Caller): SecurityContext {
-        val tenant = SimpleTenant(if (caller.tenantId == defaultTenant) Tenant.DEFAULT_TENANT_ID else caller.tenantId)
-        val principal: CoSecPrincipal = caller.subject?.let { subject ->
-            SimplePrincipal(
-                id = subject,
-                policies = caller.attributes[CoSecCallerResolver.POLICIES].orEmpty().toSet(),
-                roles = caller.attributes[CoSecCallerResolver.ROLES].orEmpty().toSet(),
-                attributes = caller.attributes - CoSecCallerResolver.ROLES - CoSecCallerResolver.POLICIES,
-            )
-        } ?: SimplePrincipal.ANONYMOUS
-        return SimpleSecurityContext(SimpleTenantPrincipal(principal, tenant), tenant)
-    }
+    fun securityContextOf(caller: Caller): SecurityContext = coSecContextOf(caller, defaultTenant)
 
     /** The request of [action]'s command route in the Manifest, or of the routeless shape when it has none. */
     fun requestOf(action: CommandAction): Request {
@@ -158,7 +147,25 @@ private class ActionRoutes(manifest: Manifest) {
 }
 
 /** A command action as the request of its route: no header, no query, no cookie, no remote address. */
-private data class ActionRequest(
+/**
+ * The security context of [caller], as CoSec would have resolved it for an HTTP request: its subject, the roles and
+ * policies of [CoSecCallerResolver.ROLES] and [CoSecCallerResolver.POLICIES], its other attributes, and its tenant,
+ * [defaultTenant] being CoSec's `(0)`; a caller without a subject is CoSec's anonymous principal.
+ */
+internal fun coSecContextOf(caller: Caller, defaultTenant: String): SecurityContext {
+    val tenant = SimpleTenant(if (caller.tenantId == defaultTenant) Tenant.DEFAULT_TENANT_ID else caller.tenantId)
+    val principal: CoSecPrincipal = caller.subject?.let { subject ->
+        SimplePrincipal(
+            id = subject,
+            policies = caller.attributes[CoSecCallerResolver.POLICIES].orEmpty().toSet(),
+            roles = caller.attributes[CoSecCallerResolver.ROLES].orEmpty().toSet(),
+            attributes = caller.attributes - CoSecCallerResolver.ROLES - CoSecCallerResolver.POLICIES,
+        )
+    } ?: SimplePrincipal.ANONYMOUS
+    return SimpleSecurityContext(SimpleTenantPrincipal(principal, tenant), tenant)
+}
+
+internal data class ActionRequest(
     override val method: String,
     override val path: String,
     override val attributes: Map<String, String>,

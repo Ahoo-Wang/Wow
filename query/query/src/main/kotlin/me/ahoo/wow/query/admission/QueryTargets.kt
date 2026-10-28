@@ -75,6 +75,16 @@ class QueryTargets(
     }
 
     /**
+     * The caller [caller] acts as on a route that reads no aggregate type of its own, such as a service route: in the
+     * [target] scope and its tenant when it names one and may act across scopes, else in its own. Throws the
+     * [QueryErrors.FORBIDDEN] [QueryError] that refuses it.
+     */
+    fun acting(caller: Caller, target: TargetScope? = null): Caller {
+        admit(caller, target)
+        return caller.copyWith(tenantId = target?.tenantId ?: caller.tenantId, scope = target?.scope ?: caller.scope)
+    }
+
+    /**
      * Whether [caller] may name [target] and the tenants it [reads] at all, whatever it reads: only a caller that may
      * act across scopes names either, and the tenants only while cross-tenant queries are on. Throws the
      * [QueryErrors.FORBIDDEN] [QueryError] that refuses it.

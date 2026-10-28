@@ -460,6 +460,7 @@ export interface ContextManifest {
     readonly name: string;
     // (undocumented)
     readonly published: readonly PublishedManifest[];
+    readonly routes?: readonly ServiceRouteManifest[];
     // (undocumented)
     readonly subscriptions: readonly SubscriptionManifest[];
 }
@@ -1097,6 +1098,7 @@ export const FrameworkErrorCodes: {
     readonly SUBSCRIPTION_PARKED: "wow.subscription.parked";
     readonly LEDGER_STALE: "wow.ledger.stale";
     readonly WAIT_TIMEOUT: "wow.wait.timeout";
+    readonly ROUTE_MALFORMED: "wow.route.malformed";
     readonly QUERY_MALFORMED: "wow.query.malformed";
     readonly QUERY_INVALID: "wow.query.invalid";
     readonly QUERY_FAILED: "wow.query.failed";
@@ -1688,6 +1690,16 @@ export interface RouteManifest {
 }
 
 // @public
+export interface RouteParameterManifest {
+    readonly in: 'path' | 'query' | (string & {});
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly required: boolean;
+    readonly schema: unknown;
+}
+
+// @public
 export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases'>>;
 
 // @public
@@ -1782,6 +1794,22 @@ export interface ServiceManifest {
     readonly name: string;
     // (undocumented)
     readonly version?: string;
+}
+
+// @public
+export interface ServiceRouteManifest {
+    // (undocumented)
+    readonly deprecated?: boolean;
+    // (undocumented)
+    readonly description?: string;
+    readonly errors?: readonly string[];
+    readonly name: string;
+    // (undocumented)
+    readonly parameters?: readonly RouteParameterManifest[];
+    readonly request?: string;
+    readonly response?: string;
+    // (undocumented)
+    readonly route: RouteManifest;
 }
 
 // @public

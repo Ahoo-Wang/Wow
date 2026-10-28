@@ -388,4 +388,54 @@ class ManifestMergerTest {
         exception.conflicts.assert().containsExactly("a.json is of format 2, not 1")
         exception.message.assert().contains("- a.json is of format 2, not 1")
     }
+
+    @Test
+    fun `a server module's fragment should add its service routes to the context its domain declares`() {
+        val domain = ManifestFragment("shop-domain.json", Manifests.fragment())
+        val summary = ServiceRouteManifest(
+            name = "summary",
+            route = RouteManifest("GET", "/shop/summaries/{day}"),
+            errors = listOf("shop.summary.closed"),
+        )
+        val server = ManifestFragment(
+            "shop-server.json",
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        name = "shop",
+                        errors = listOf(ErrorManifest("shop.summary.closed", 409)),
+                        routes = listOf(summary),
+                    ),
+                ),
+            ),
+        )
+        val context = ManifestMerger.merge(listOf(domain, server)).contexts.single()
+        context.aggregates.map { it.name }.assert().containsExactly("cart")
+        context.routes.assert().containsExactly(summary)
+        context.errors.map { it.code }.assert().contains("cart.empty", "shop.summary.closed")
+    }
+
+    @Test
+    fun `a service route should be named once, refuse with its context's errors and take no one else's route`() {
+        val fragment = Manifests.fragment().let { fragment ->
+            val context = fragment.contexts.single()
+            val routes = listOf(
+                ServiceRouteManifest("summary", RouteManifest("GET", "/shop/summaries")),
+                ServiceRouteManifest("summary", RouteManifest("GET", "/shop/summaries/today")),
+                ServiceRouteManifest("carts", RouteManifest("GET", "/shop/cart/all")),
+                ServiceRouteManifest("states", RouteManifest("GET", "/shop/reports/state")),
+                ServiceRouteManifest("odd", RouteManifest("GET", "/shop/odd"), errors = listOf("shop.odd")),
+            )
+            fragment.copyWith(contexts = listOf(context.copyWith(routes = routes)))
+        }
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().contains(
+            "service route summary of context shop is declared twice in a.json",
+            "service route shop.odd (a.json) refuses with shop.odd, which is not an error of the context",
+        )
+        conflicts.filter { it.contains("takes a segment an aggregate, the jobs or the framework reserves") }
+            .assert().hasSize(2)
+    }
 }

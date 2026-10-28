@@ -20,6 +20,7 @@ import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
+import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
@@ -58,6 +59,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   tenant, is one of the node's [CommandAuthorizer]s when `wow.cosec.authorizer.enabled` is true and the application
  *   has CoSec's `Authorization`: asked with the application's own authorizers, each of which must allow a command too.
  *   On the public port CoSec's WebFilter already authorizes the command routes by path and method.
+ * - [CoSecServiceRouteAuthorizer], CoSec's decision on a call of a service route by the route's method and path, is
+ *   one of the node's [me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer]s on the same condition.
  */
 @AutoConfiguration(before = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
@@ -78,6 +81,14 @@ class CoSecAutoConfiguration {
         manifest: Manifest,
         properties: WowProperties,
     ): CoSecCommandAuthorizer = CoSecCommandAuthorizer(authorization, manifest, defaultTenant(properties))
+
+    @Bean
+    @Conditional(CoSecAuthorizes::class)
+    @InternalWowApi
+    fun wowCoSecServiceRouteAuthorizer(
+        authorization: CoSecAuthorization,
+        properties: WowProperties,
+    ): CoSecServiceRouteAuthorizer = CoSecServiceRouteAuthorizer(authorization, defaultTenant(properties))
 
     /** No [CallerResolver] is defined yet: the application's own one wins over CoSec's. */
     internal class NoCallerResolver : Condition {

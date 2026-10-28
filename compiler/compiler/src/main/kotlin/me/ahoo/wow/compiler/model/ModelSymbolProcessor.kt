@@ -42,6 +42,8 @@ import me.ahoo.wow.compiler.model.aggregate.RootStateResolver
 import me.ahoo.wow.compiler.model.aggregate.UpgradeFunction
 import me.ahoo.wow.compiler.model.aggregate.UpgradeResolver
 import me.ahoo.wow.compiler.model.manifest.ManifestFragmentBuilder
+import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
+import me.ahoo.wow.compiler.model.route.ServiceRouteResolver
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.source.ModelSource
 import me.ahoo.wow.compiler.model.source.QueryPropertiesSource
@@ -145,6 +147,9 @@ internal class ModelSymbolProcessor(
     private val reportedUpgrades = mutableSetOf<UpgradeFunction>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
 
+    /** The module's `@ServiceRoute` functions without problems. */
+    private val routes = mutableListOf<ServiceRouteBinding>()
+
     /** Reads each aggregate root into its binding, claiming the upgrade functions it names. */
     private val analyzer = AggregateAnalyzer(upgrades, claimedUpgrades, ::mountedOf, ::context)
 
@@ -214,7 +219,31 @@ internal class ModelSymbolProcessor(
             reportUnclaimedUpgrades()
             reportUnclaimedMounted()
         }
-        return deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver)
+        return deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver) +
+            processRoutes(resolver)
+    }
+
+    /**
+     * Collects the module's `@ServiceRoute` functions; in generate mode, their problems fail the compilation, and so
+     * does a name two of them take.
+     */
+    private fun processRoutes(resolver: Resolver): List<KSAnnotated> {
+        val functions = resolver.getSymbolsWithAnnotation(ServiceRouteResolver.SERVICE_ROUTE)
+            .filterIsInstance<KSFunctionDeclaration>().toList()
+        functions.filter { it.validate() }.forEach { function ->
+            function.containingFile?.let { sources += it }
+            function.parentDeclaration?.packageName?.asString()?.let { packages += it }
+            val binding = ServiceRouteResolver.read(function)
+            val problems = binding.problems + listOfNotNull(
+                "service route ${binding.name} is declared twice".takeIf { routes.any { it.name == binding.name } },
+            )
+            if (problems.isEmpty()) {
+                routes += binding
+            } else if (mode == Mode.GENERATE) {
+                problems.forEach { logger.error(it, function) }
+            }
+        }
+        return functions.filterNot { it.validate() }
     }
 
     /** Collects the module's `@MountedCommand` classes; the ones not yet valid are deferred. */
@@ -390,7 +419,8 @@ internal class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (bindings.isEmpty() && subscriptions.isEmpty() && errorCodes.isEmpty()) {
+        val collected = listOf(bindings, subscriptions, errorCodes.values, routes)
+        if (collected.all { it.isEmpty() }) {
             return
         }
         // With the processor off, nothing was collected: the mode is report or generate.
@@ -434,7 +464,8 @@ internal class ModelSymbolProcessor(
             description,
             bindings,
             subscriptions,
-            errors.map { it.second }
+            errors.map { it.second },
+            routes,
         )
         codeGenerator.createNewFileByPath(
             Dependencies(aggregating = true, sources = sources.toTypedArray()),
@@ -454,7 +485,9 @@ internal class ModelSymbolProcessor(
         val className = ModelProviderSource.className(module)
         val dependencies = Dependencies(aggregating = true, sources = sources.toTypedArray())
         codeGenerator.createNewFile(dependencies, packageName, className).bufferedWriter().use {
-            it.write(ModelProviderSource.render(packageName, className, context, fragment, bindings, subscriptions))
+            it.write(
+                ModelProviderSource.render(packageName, className, context, fragment, bindings, subscriptions, routes),
+            )
         }
         codeGenerator.createNewFileByPath(
             dependencies,

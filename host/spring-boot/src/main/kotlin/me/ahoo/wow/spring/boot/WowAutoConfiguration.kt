@@ -43,6 +43,7 @@ import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.peerReadRoutes
 import me.ahoo.wow.http.problem.GlobalErrors
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
@@ -56,6 +57,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -818,7 +820,12 @@ class WowAutoConfiguration {
     fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
         PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
 
-    /** The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration] gives them. */
+    /**
+     * The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration]
+     * gives them; the service routes the modules' model providers bind, each handler's instance its
+     * bean, every call asked of the application's [ServiceRouteAuthorizer]s, and the handlers' commands sent through
+     * the node's [CommandClient].
+     */
     @Bean
     @InternalWowApi
     @Suppress("LongParameterList") // One parameter per part of the routes, each a bean.
@@ -831,6 +838,10 @@ class WowAutoConfiguration {
         queries: ObjectProvider<HttpQueries>,
         masks: PayloadMasks,
         routes: RoutesScope,
+        models: WowModels,
+        dependencies: Dependencies,
+        routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
+        commands: ObjectProvider<CommandClient>,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -840,6 +851,11 @@ class WowAutoConfiguration {
         queries.getIfAvailable { HttpQueries.NONE },
         masks,
         routes.scope,
+        ServiceRoutes(
+            handlers = models.providers.flatMap { it.routes(dependencies) },
+            authorizers = routeAuthorizers.orderedStream().toList(),
+            commands = commands.getIfAvailable(),
+        ),
     )
 
     /**

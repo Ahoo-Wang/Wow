@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.ServiceRouteManifest
 import me.ahoo.wow.manifest.SubscriptionManifest
 
 /** Whether a difference between two Manifests keeps the contract. */
@@ -105,6 +106,11 @@ data class CompatibilityReport(
  *   published stream's subscribers, which read events at their current revision: raising the revision (with an
  *   `@Upgrade` from each earlier one) only reads the service's own old records. A lowered revision
  *   breaks.
+ * - A service route ([ServiceRouteManifest]) is matched by its name: removing it, or changing its method or path,
+ *   breaks; a parameter removed, moved, retyped or made required breaks, and so does a required one added; its
+ *   request is an input and its response an output ([SchemaDirection]); a route that no longer takes or answers a
+ *   body, or newly does, breaks. Its refusal codes are documentation for a client that handles unknown codes, so a
+ *   code added or removed is additive.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
  * - Disabling snapshots, changing the ownership, a published stream's topic, or dropping its state breaks; so does a
@@ -224,6 +230,60 @@ private class Changes(val schemas: SchemaCompatibility) {
             ::comparePublished,
         )
         compareErrors("$path.errors", baseline.errors, current.errors)
+        compareNamed(
+            "$path.routes",
+            baseline.routes,
+            current.routes,
+            { it.name },
+            "service route",
+            ::compareServiceRoute
+        )
+    }
+
+    fun compareServiceRoute(path: String, baseline: ServiceRouteManifest, current: ServiceRouteManifest) {
+        if (route(baseline.route) != route(current.route)) {
+            breaking("$path.route", "route changed from ${route(baseline.route)} to ${route(current.route)}")
+        }
+        compareNamed(
+            "$path.parameters",
+            baseline.parameters,
+            current.parameters,
+            { it.name },
+            "parameter",
+            { entry, old, new ->
+                if (old.location != new.location) {
+                    breaking(
+                        entry,
+                        "parameter moved from ${old.location} to ${new.location}"
+                    )
+                }
+                if (new.required && !old.required) breaking(entry, "parameter made required")
+                if (old.schema != new.schema) {
+                    breaking(
+                        entry,
+                        "parameter schema changed from ${old.schema} to ${new.schema}"
+                    )
+                }
+            },
+        )
+        current.parameters.filter { new -> new.required && baseline.parameters.none { it.name == new.name } }
+            .forEach { breaking("$path.parameters[${it.name}]", "required parameter added") }
+        compareBody("$path.request", baseline.request, current.request, SchemaDirection.INPUT)
+        compareBody("$path.response", baseline.response, current.response, SchemaDirection.OUTPUT)
+        (baseline.errors - current.errors.toSet()).forEach {
+            additive(
+                "$path.errors",
+                "refusal code $it no longer listed"
+            )
+        }
+        (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
+    }
+
+    private fun compareBody(path: String, baseline: String?, current: String?, direction: SchemaDirection) {
+        when {
+            baseline != null && current != null -> list += schemas.compare(path, baseline, current, direction = direction)
+            baseline != current -> breaking(path, if (current == null) "body removed" else "body added")
+        }
     }
 
     fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {

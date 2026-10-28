@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
+import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -57,6 +58,12 @@ class PlainValuesTest {
             CommandAction.of(type, ref, Scope.NONE, Creation.NONE),
             CommandAction.of(type, ref, Scope.NONE, Creation.REQUIRED),
             "CommandAction(",
+        )
+        checks(
+            RouteAction.of("shop", "summary", "GET", "/shop/summaries", "t", Scope.NONE),
+            RouteAction.of("shop", "summary", "GET", "/shop/summaries", "t", Scope.NONE),
+            RouteAction.of("shop", "summary", "GET", "/shop/summaries", "t", Scope("alice")),
+            "RouteAction(",
         )
         checks(
             Authorization.Denied.of("no"),

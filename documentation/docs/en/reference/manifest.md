@@ -36,6 +36,22 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `includeState`
 - `errors`: array of [`Error`](#error)
 - `commands`: array of [`Command`](#command); left out when absent or at its default
+- `routes`: array of [`ServiceRoute`](#serviceroute); left out when absent or at its default
+
+## `ServiceRoute`
+
+- `name`
+- `route`
+- `parameters`: array of objects; left out when absent or at its default
+  - `name`
+  - `in`
+  - `schema`
+  - `required`
+- `request`
+- `response`
+- `errors`: left out when absent or at its default
+- `description`
+- `deprecated`: left out when absent or at its default
 
 ## `Command`
 

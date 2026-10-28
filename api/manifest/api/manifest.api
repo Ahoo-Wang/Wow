@@ -61,6 +61,7 @@ public final class me/ahoo/wow/manifest/ContextManifest {
 	public final fun getErrors ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getPublished ()Ljava/util/List;
+	public final fun getRoutes ()Ljava/util/List;
 	public final fun getSubscriptions ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -139,6 +140,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field QUERY_TIMEOUT Ljava/lang/String;
 	public static final field QUERY_TOO_MANY_GROUPS Ljava/lang/String;
 	public static final field REQUEST_MALFORMED Ljava/lang/String;
+	public static final field ROUTE_MALFORMED Ljava/lang/String;
 	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
 	public static final field SCHEDULE_NOT_DUE Ljava/lang/String;
 	public static final field STORAGE_UNAVAILABLE Ljava/lang/String;
@@ -331,10 +333,42 @@ public final class me/ahoo/wow/manifest/RouteManifest {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/manifest/RouteParameterManifest {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocation ()Lme/ahoo/wow/manifest/RouteParameterManifest$Location;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRequired ()Z
+	public final fun getSchema ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/RouteParameterManifest$Location : java/lang/Enum {
+	public static final field PATH Lme/ahoo/wow/manifest/RouteParameterManifest$Location;
+	public static final field QUERY Lme/ahoo/wow/manifest/RouteParameterManifest$Location;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteParameterManifest$Location;
+	public static fun values ()[Lme/ahoo/wow/manifest/RouteParameterManifest$Location;
+}
+
 public final class me/ahoo/wow/manifest/ServiceInfo {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/ServiceRouteManifest {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getErrors ()Ljava/util/List;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getParameters ()Ljava/util/List;
+	public final fun getRequest ()Ljava/lang/String;
+	public final fun getResponse ()Ljava/lang/String;
+	public final fun getRoute ()Lme/ahoo/wow/manifest/RouteManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

@@ -46,7 +46,8 @@ fun ContextManifest.copyWith(
     published: List<PublishedManifest> = this.published,
     errors: List<ErrorManifest> = this.errors,
     commands: List<CommandManifest> = this.commands,
-): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors, commands)
+    routes: List<ServiceRouteManifest> = this.routes,
+): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors, commands, routes)
 
 @InternalWowApi
 fun AggregateManifest.copyWith(
@@ -106,6 +107,27 @@ fun CommandManifest.copyWith(
     system: Boolean = this.system,
 ): CommandManifest =
     CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description, system)
+
+@InternalWowApi
+fun ServiceRouteManifest.copyWith(
+    name: String = this.name,
+    route: RouteManifest = this.route,
+    parameters: List<RouteParameterManifest> = this.parameters,
+    request: String? = this.request,
+    response: String? = this.response,
+    errors: List<String> = this.errors,
+    description: String? = this.description,
+    deprecated: Boolean = this.deprecated,
+): ServiceRouteManifest =
+    ServiceRouteManifest(name, route, parameters, request, response, errors, description, deprecated)
+
+@InternalWowApi
+fun RouteParameterManifest.copyWith(
+    name: String = this.name,
+    location: RouteParameterManifest.Location = this.location,
+    schema: Map<String, Any?> = this.schema,
+    required: Boolean = this.required,
+): RouteParameterManifest = RouteParameterManifest(name, location, schema, required)
 
 @InternalWowApi
 fun RouteManifest.copyWith(

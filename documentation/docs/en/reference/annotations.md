@@ -163,6 +163,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `CLASS`
 - Parameters: None.
 
+## `@ServiceRoute`
+
+[ServiceRoute](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ServiceRoute.kt): A service route: an HTTP route of the module's bounded context whose handler is this function, not a command or a query.
+
+- Targets: `FUNCTION`
+- Parameters: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
+
 ## `@Summary`
 
 [Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.

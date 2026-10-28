@@ -76,6 +76,30 @@ class ManifestSchemaTest {
                     aggregates = aggregates,
                     subscriptions = subscriptions,
                     commands = SystemCommands.jobs(context.name),
+                    routes = listOf(
+                        ServiceRouteManifest(
+                            name = "summary",
+                            route = RouteManifest("GET", "/shop/summary/{day}"),
+                            parameters = listOf(
+                                RouteParameterManifest(
+                                    "day",
+                                    RouteParameterManifest.Location.PATH,
+                                    mapOf("type" to "string")
+                                ),
+                                RouteParameterManifest(
+                                    "status",
+                                    RouteParameterManifest.Location.QUERY,
+                                    mapOf("type" to "string"),
+                                    required = false,
+                                ),
+                            ),
+                            request = "#/\$defs/x",
+                            response = "#/\$defs/x",
+                            errors = listOf("shop.summary.closed"),
+                            description = "The day's summary.",
+                            deprecated = true,
+                        ),
+                    ),
                 ),
             ),
         )

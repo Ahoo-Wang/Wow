@@ -574,6 +574,10 @@
     "status" : 504,
     "description" : "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
   }, {
+    "code" : "wow.route.malformed",
+    "status" : 400,
+    "description" : "A service route's parameter or body cannot be read as its type; the violation names the parameter."
+  }, {
     "code" : "wow.query.malformed",
     "status" : 400,
     "description" : "The query body cannot be read as a query."

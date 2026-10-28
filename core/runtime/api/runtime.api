@@ -205,6 +205,24 @@ public abstract interface class me/ahoo/wow/runtime/admission/CommandValidator {
 	public abstract fun validate (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;)Ljava/util/List;
 }
 
+public final class me/ahoo/wow/runtime/admission/RouteAction {
+	public static final field Companion Lme/ahoo/wow/runtime/admission/RouteAction$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/runtime/admission/RouteAction;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/admission/RouteAction$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/runtime/admission/RouteAction;
+}
+
 public final class me/ahoo/wow/runtime/admission/ServerCommandRequest {
 	public static final field Companion Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Companion;
 	public static final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
@@ -248,6 +266,17 @@ public final class me/ahoo/wow/runtime/admission/ServerCommandRequest$Companion 
 	public final fun builder (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
 	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+}
+
+public abstract interface class me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer {
+	public static final field ALLOW_ALL Lme/ahoo/wow/runtime/admission/ServiceRouteAuthorizer;
+	public static final field Companion Lme/ahoo/wow/runtime/admission/ServiceRouteAuthorizer$Companion;
+	public static fun allOf (Ljava/util/List;)Lme/ahoo/wow/runtime/admission/ServiceRouteAuthorizer;
+	public abstract fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/RouteAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer$Companion {
+	public final fun allOf (Ljava/util/List;)Lme/ahoo/wow/runtime/admission/ServiceRouteAuthorizer;
 }
 
 public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/wow/api/client/CommandClient {

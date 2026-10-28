@@ -40,6 +40,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.ledger.stale` | 409 | Stale ledger action | The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. |
 | `wow.subscription.parked` | 500 | Subscription parked | A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes. |
 | `wow.wait.timeout` | 504 | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
+| `wow.route.malformed` | 400 | Malformed route request | A service route's parameter or body cannot be read as its type; the violation names the parameter. |
 | `wow.query.malformed` | 400 | Malformed query | The query body cannot be read as a query. |
 | `wow.query.invalid` | 400 | Invalid query | The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...). |
 | `wow.query.failed` | 500 | Query failed | The query backend failed to run the query. |

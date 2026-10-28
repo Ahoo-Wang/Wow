@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 123 names, from src/index.ts.
+# @ahoo-wang/wow-client — 125 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -60,6 +60,7 @@ type  RequestOptions
 type  RetryHint
 type  RetryManifest
 type  RouteManifest
+type  RouteParameterManifest
 type  RoutingCommand
 type  RoutingManifest
 value SNAPSHOT_SUBSCRIPTION
@@ -68,6 +69,7 @@ type  ScheduleRule
 type  ScheduleSet
 type  Scope
 type  ServiceManifest
+type  ServiceRouteManifest
 type  SnapshotManifest
 value SnapshotQueryClient
 type  SnapshotRecord

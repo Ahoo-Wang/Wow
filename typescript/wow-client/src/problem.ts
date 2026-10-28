@@ -80,6 +80,8 @@ export const FrameworkErrorCodes = {
   LEDGER_STALE: 'wow.ledger.stale',
   /** 504: the wait ran out of time; the command may have committed. */
   WAIT_TIMEOUT: 'wow.wait.timeout',
+  /** 400: a service route's parameter or body cannot be read as its type; the violation names it. */
+  ROUTE_MALFORMED: 'wow.route.malformed',
   /** 400: the query body cannot be read as a query. */
   QUERY_MALFORMED: 'wow.query.malformed',
   /** 400: the query failed admission; each violation has its code. */

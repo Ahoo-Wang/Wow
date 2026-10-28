@@ -51,6 +51,7 @@ class FrameworkErrorsTest {
                 "wow.ledger.stale" to 409,
                 "wow.subscription.parked" to 500,
                 "wow.wait.timeout" to 504,
+                "wow.route.malformed" to 400,
                 "wow.query.malformed" to 400,
                 "wow.query.invalid" to 400,
                 "wow.query.failed" to 500,

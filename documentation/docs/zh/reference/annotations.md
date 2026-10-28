@@ -163,6 +163,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 - 目标: `CLASS`
 - 参数: 无。
 
+## `@ServiceRoute`
+
+[ServiceRoute](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ServiceRoute.kt): A service route: an HTTP route of the module's bounded context whose handler is this function, not a command or a query.
+
+- 目标: `FUNCTION`
+- 参数: `method: RouteMethod`, `path: String`, `name: String = ""`, `errors: Array<String> = []`
+
 ## `@Summary`
 
 [Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
