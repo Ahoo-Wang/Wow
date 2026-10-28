@@ -45,10 +45,8 @@ class CoSecCallAuthorizationTest {
         Mono.just(if (allowed) AuthorizeResult.ALLOW else AuthorizeResult.deny("Not this service's."))
     }
 
-    private val calls = CoSecCommandAuthorizer(
-        authorization,
-        Caller.DEFAULT_TENANT
-    ).let { CallAuthorizer(it::authorize) }
+    private val calls = CoSecCommandAuthorizer(authorization, cartManifest(), Caller.DEFAULT_TENANT)
+        .let { CallAuthorizer(it::authorize) }
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions()),
         authorizer = calls.over(CommandAuthorizer.ALLOW_ALL),
