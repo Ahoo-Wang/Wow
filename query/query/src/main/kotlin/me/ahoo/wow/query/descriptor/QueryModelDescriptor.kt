@@ -265,6 +265,10 @@ data class DynamicFieldDescriptor(
     val types: Set<QueryValueType>,
     val kind: QueryValueKind,
     val filter: FieldFilterDescriptor,
+    /** How a concrete key sorts pages, as admission grants it. */
+    val sort: FieldSortDescriptor,
+    /** How a concrete key is aggregated, as admission grants it; `null` when it cannot be aggregated at all. */
+    val aggregate: FieldAggregateDescriptor?,
     /** Keys that are declared separately and therefore excluded from this pattern. */
     val excludedKeys: List<String>?,
 )

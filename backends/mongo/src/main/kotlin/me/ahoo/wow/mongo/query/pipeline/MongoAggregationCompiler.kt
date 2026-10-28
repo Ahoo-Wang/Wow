@@ -42,7 +42,7 @@ internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDoc
 /**
  * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler
  * of `query.aggregation`, in a package of its own so that its source paths differ from the 9.x module's):
- * `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native windows,
+ * `$match`, one `$unwind` per element scope and per multi-valued terms field, `$group`, the fill and metric projection, the native windows,
  * HAVING, the sort and the limit. Every path is a physical path admission resolved; every value is a literal.
  */
 internal object MongoAggregationCompiler {
@@ -67,10 +67,14 @@ internal object MongoAggregationCompiler {
         val dense = query.denseGroup
             ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
 
+        query.groupBy.forEachIndexed { index, group ->
+            if (group.multiValued(admitted)) addAll((group as AggregationGroup.Terms).termsValues(admitted, index))
+        }
+
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
-            val filters = groups.mapNotNull { group ->
-                val (filter, expression) = group.compile(admitted, dense?.grid)
+            val filters = groups.mapIndexedNotNull { index, group ->
+                val (filter, expression) = group.compile(admitted, dense?.grid, index)
                 id[group.alias] = expression
                 filter
             }

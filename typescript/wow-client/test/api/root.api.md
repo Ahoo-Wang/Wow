@@ -697,10 +697,12 @@ interface DurationSemantic {
 
 // @public
 interface DynamicFieldDescriptor {
+    aggregate?: FieldAggregateDescriptor;
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
     kind: QueryValueKind;
     pattern: string;
+    sort: FieldSortDescriptor;
     types: QueryValueType[];
 }
 

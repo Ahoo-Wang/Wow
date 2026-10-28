@@ -513,7 +513,7 @@ class MongoDifferentialQueryTest {
                 groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "part")),
                 metrics = listOf(count("parts")),
             ),
-            "terms by an array's first value" to AggregationQuery(
+            "terms by each of an array's values" to AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(KEYWORDS, "keyword")),
                 metrics = listOf(count()),
             ),

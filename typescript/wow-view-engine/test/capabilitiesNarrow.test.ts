@@ -142,6 +142,7 @@ describe('4.1 fields', () => {
           types: [QueryValueTypes.STRING],
           kind: QueryValueKind.SCALAR as never,
           filter: { operators: [FilterOperator.EQ] },
+          sort: { paged: false, cursor: false },
           excludedKeys: ['size'],
         },
         {
@@ -149,6 +150,7 @@ describe('4.1 fields', () => {
           types: [QueryValueTypes.STRING],
           kind: QueryValueKind.ARRAY as never,
           filter: { operators: [FilterOperator.IN] },
+          sort: { paged: false, cursor: false },
         },
       ],
     });
@@ -185,6 +187,7 @@ describe('4.1 fields', () => {
           types: [QueryValueTypes.STRING],
           kind: QueryValueKind.SCALAR as never,
           filter: { operators: [] },
+          sort: { paged: false, cursor: false },
         },
       ],
     });

@@ -159,10 +159,12 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun a query within its timeout runs as without one ()V
 	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
 	public final fun a stream sees a record written after its position, between two chunks ()V
+	public final fun a string array sorts by its least value ascending, or refuses the sort where storage cannot ()V
 	public final fun aggregation HAVING keeps the matching groups ()V
 	public final fun aggregation HAVING that matches no group returns no row ()V
 	public final fun aggregation counts distinct values ()V
 	public final fun aggregation expands elements and sums each element group ()V
+	public final fun aggregation groups a string array by each of its values, or refuses it where storage cannot ()V
 	public final fun aggregation groups an epoch field by day ()V
 	public final fun aggregation groups by terms in group order ()V
 	public final fun aggregation groups the elements by a field of their root record ()V

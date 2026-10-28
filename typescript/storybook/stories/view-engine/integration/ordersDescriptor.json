@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:318c16352d5f8f3ec7f78dbaac304466a5bd117965d50ba73db547f818e34704",
+  "version" : "sha256:88aa6cff48da3d359f8e0d6acd9acb18b111a914ffbde11c14c81e3e6dee4d6e",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -599,6 +599,10 @@
     "kind" : "object",
     "filter" : {
       "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
     }
   }, {
     "pattern" : "schedules.{key}.epochMillis",
@@ -606,6 +610,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms", "histogram" ],
+      "missingKey" : false,
+      "functions" : [ "sum", "avg", "min", "max", "stddev", "variance" ],
+      "distinctCount" : true,
+      "percentile" : true,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : true,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "schedules.{key}.expression",
@@ -613,6 +632,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "schedules.{key}.millis",
@@ -620,6 +654,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms", "histogram" ],
+      "missingKey" : false,
+      "functions" : [ "sum", "avg", "min", "max", "stddev", "variance" ],
+      "distinctCount" : true,
+      "percentile" : true,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : true,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "schedules.{key}.misfire",
@@ -627,6 +676,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "schedules.{key}.type",
@@ -634,6 +698,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "schedules.{key}.zone",
@@ -641,6 +720,21 @@
     "kind" : "scalar",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "terms" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
     }
   }, {
     "pattern" : "tags.{key}",
@@ -648,6 +742,21 @@
     "kind" : "array",
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : false
+    },
+    "aggregate" : {
+      "groups" : [ "terms" ],
+      "missingKey" : false,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : false,
+      "firstLast" : false,
+      "expressionInput" : false,
+      "inMetricFilter" : false
     }
   } ],
   "constraints" : [ {

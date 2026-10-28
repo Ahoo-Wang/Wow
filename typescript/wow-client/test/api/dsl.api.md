@@ -528,10 +528,12 @@ export type DynamicDocumentArray = DynamicDocument[];
 
 // @public
 export interface DynamicFieldDescriptor {
+    aggregate?: FieldAggregateDescriptor;
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
     kind: QueryValueKind;
     pattern: string;
+    sort: FieldSortDescriptor;
     types: QueryValueType[];
 }
 
