@@ -446,6 +446,40 @@ class InMemoryReferenceSemanticsTest {
     }
 
     @Test
+    fun `terms over an array join a group per value, combined with the other groups`() {
+        // r1 [a, b], r2 [b], r3 [c]; r4's list is empty and r5 has none, so both are in the null group.
+        val byTagAndTenant = aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Terms(TAGS, alias = "tag"),
+                    AggregationGroup.Terms(TENANT, alias = "tenant")
+                ),
+                metrics = listOf(AggregationMetric.Count("n")),
+            ),
+        )
+        byTagAndTenant.map {
+            Triple(it.path("tag").stringValue(null), it.path("tenant").stringValue(), it.path("n").longValue())
+        }.assert().containsExactlyInAnyOrder(
+            Triple("a", "t1", 1L),
+            Triple("b", "t1", 2L),
+            Triple("c", "t1", 1L),
+            Triple(null, "t1", 1L),
+            Triple(null, "t2", 1L),
+        )
+        // A record without an instant joins no date group, whatever its tags: r5 is left out.
+        val byTagAndDay = aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Terms(TAGS, alias = "tag"),
+                    AggregationGroup.DateHistogram(AT, alias = "day", unit = AggregationDateUnit.DAY),
+                ),
+                metrics = listOf(AggregationMetric.Count("n")),
+            ),
+        )
+        byTagAndDay.sumOf { it.path("n").longValue() }.assert().isEqualTo(5L)
+    }
+
+    @Test
     fun `date histograms bucket by every unit, and date parts by every part`() {
         val counts = AggregationDateUnit.entries.associateWith { unit ->
             aggregate(

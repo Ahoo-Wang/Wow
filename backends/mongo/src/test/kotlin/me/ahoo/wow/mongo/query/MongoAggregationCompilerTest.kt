@@ -101,6 +101,20 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `terms by an expression, and other groups, are never unwound`() {
+        val stages = pipeline(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Terms(alias = "double", expression = AggregationExpression.Field(AMOUNT)),
+                    AggregationGroup.Histogram(AMOUNT, "band", 10.0),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).map { it.toBsonDocument().firstKey }
+        stages.assert().doesNotContain("\$unwind", "\$set")
+    }
+
+    @Test
     fun `a histogram puts what is no number in the null bucket`() {
         val compiled = json(
             AggregationQuery(
