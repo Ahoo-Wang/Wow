@@ -185,7 +185,30 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Revision :
 	public abstract fun value ()I
 }
 
+public final class me/ahoo/wow/api/annotation/RouteMethod : java/lang/Enum {
+	public static final field DELETE Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static final field GET Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static final field PATCH Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static final field POST Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static final field PUT Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getHasBody ()Z
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/annotation/RouteMethod;
+	public static fun values ()[Lme/ahoo/wow/api/annotation/RouteMethod;
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/RouteQuery : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/Saga : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/ServiceRoute : java/lang/annotation/Annotation {
+	public abstract fun errors ()[Ljava/lang/String;
+	public abstract fun method ()Lme/ahoo/wow/api/annotation/RouteMethod;
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun path ()Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Summary : java/lang/annotation/Annotation {
@@ -1075,6 +1098,7 @@ public final class me/ahoo/wow/api/result/FrameworkCodes {
 	public static final field QUERY_TIMEOUT Ljava/lang/String;
 	public static final field QUERY_TOO_MANY_GROUPS Ljava/lang/String;
 	public static final field REQUEST_MALFORMED Ljava/lang/String;
+	public static final field ROUTE_MALFORMED Ljava/lang/String;
 	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
 	public static final field SCHEDULE_NOT_DUE Ljava/lang/String;
 	public static final field STORAGE_UNAVAILABLE Ljava/lang/String;
@@ -1227,6 +1251,23 @@ public final class me/ahoo/wow/api/result/WaitSignal {
 }
 
 public final class me/ahoo/wow/api/result/WaitSignal$Companion {
+}
+
+public abstract interface class me/ahoo/wow/api/route/RouteCall {
+	public abstract fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
+	public abstract fun getCommands ()Lme/ahoo/wow/api/client/CommandClient;
+	public abstract fun getRequestId ()Ljava/lang/String;
+	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public abstract fun getTenantId ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/route/RouteRefusal : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public fun getMessage ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/schedule/CancelSchedule {

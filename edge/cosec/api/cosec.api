@@ -51,3 +51,14 @@ public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer : me/ahoo/wow/runtim
 public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion {
 }
 
+public final class me/ahoo/wow/cosec/CoSecServiceRouteAuthorizer : me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer {
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecServiceRouteAuthorizer$Companion;
+	public static final field ROUTE Ljava/lang/String;
+	public fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/RouteAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/cosec/CoSecServiceRouteAuthorizer$Companion {
+}
+
