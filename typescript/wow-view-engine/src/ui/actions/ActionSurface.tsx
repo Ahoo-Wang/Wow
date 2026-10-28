@@ -133,6 +133,9 @@ export function useActionSurface({
     actions: rules,
     table,
     onError,
+    // The rules are asked at the engine's clock, so a pinned environment
+    // pins what the actions say.
+    ...(runtime ? { environment: runtime.environment } : {}),
     ...(refresh ? { refresh } : {}),
     ...(also ? { also } : {}),
   });

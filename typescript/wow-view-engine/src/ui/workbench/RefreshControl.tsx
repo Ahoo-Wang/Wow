@@ -159,7 +159,7 @@ export function RefreshControl({
         variant={variant}
         size="sm"
         data-slot="refresh-now"
-        onClick={refresh.now}
+        onClick={refresh.refreshNow}
         disabled={busy || refresh.loading}
         // Said as well as drawn: the cadence beside the word is a fragment,
         // and a screen reader reaching the button gets the sentence it

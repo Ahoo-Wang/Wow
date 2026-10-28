@@ -11,7 +11,7 @@ A command on a record is declared, not drawn. The host says **what**: which comm
 | When is it available? | The aggregate's own rule, read from the record's state: the same condition the command handler checks. Do not invent a stricter one; the server keeps the last word. | `available: (row, { now, input }) => true \| reason` |
 | What does a refusal say? | Why not, in the audience's words, and what to do instead where there is something (「只有已付款的订单能发货」). Never a code or a constant. | a `text(key)` reason |
 | Does it read fields the view may not show? | The rule reads state fields; a row carries only the shown columns, the row key, card fields and the fields sorts and summaries read. A development build (`NODE_ENV=development`) warns `record.action.unfetched` through `onIssue` when a rule reads a field the row did not fetch: open each view with actions once while developing. There the rules see each row through a read-watching proxy (`structuredClone` of it throws); production passes rows as they are. | the definition's `record.rowFields` (ask `wow-view-definition`) |
-| Does availability change with time alone? | A hold that expires, a timeout passing. | `changesAt: (row, { now }) => ms \| null`; the engine asks again then, keep no timer |
+| Does availability change with time alone? | A hold that expires, a timeout passing. | `changesAt: (row, { now }) => Date \| null` (`now` is a `Date` too); the engine asks again then, keep no timer |
 | May this person do it at all? | A role the host knows. | `hidden: row => …` (absent), as against `available` (disabled with why) |
 | Does it lose something? | Cancelling, refunding, deleting, forcing past a limit: what is lost does not come back. | `tone: 'danger'` and `confirm: { title, body }` saying the consequence; `ask` left out (`'always'`), so one record is asked too |
 | Is it a routine step that cannot be undone? | Shipping a paid order: irreversible, but the next step of the work, not a loss. | `confirm: { title }` with `ask` left out (`'always'`): one record is asked too; no danger tone |
@@ -209,7 +209,7 @@ const commands: OrderCommands = {
 const orders = actionHarness(
   orderActions(commands),
   [row('O-1', 'PAID'), row('O-2', 'SHIPPED')],
-  { now: Date.parse('2026-09-30T00:00:00Z') },
+  { now: new Date('2026-09-30T00:00:00Z') },
 );
 
 // Where each is offered, and why a record does not take one.

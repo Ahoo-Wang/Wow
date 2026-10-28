@@ -405,7 +405,12 @@ describe('sorting an analysis from its header', () => {
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, mine.id);
-      return { opened, analysis: useAnalysisEditor(opened.runtime) };
+      return {
+        opened,
+        analysis: useAnalysisEditor(
+          opened.runtime?.kind === 'analysis' ? opened.runtime : null,
+        ),
+      };
     });
     await waitFor(() => expect(result.current.opened.runtime).not.toBeNull());
     const before = result.current.opened.runtime!.getSnapshot().draft;

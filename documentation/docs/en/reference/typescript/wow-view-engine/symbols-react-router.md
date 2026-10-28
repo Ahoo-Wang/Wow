@@ -9,12 +9,14 @@ description: 'Every name @ahoo-wang/wow-view-engine/react-router exports, genera
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react-router` exports — 1 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 1 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react-router.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react-router` exports — 3 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 2 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react-router.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
+| `ViewLocation` | interface | Where the host's router is (host-integration.md 4.2): what the engine reads the open view (`?view=`), the open record (`?id=`) and what a page was handed (`ViewRouteState`, the history entry's state) from. | — |
+| `ViewRouter` | interface | The router port (host-integration.md 4.2): the host's router as the engine reads and moves it — the one bridge to it, whichever library it is. | [Host Wiring](./host#api-ViewRouter) |
 | `useReactRouter` | function | React Router as `ViewHost`'s `router`, inside its `RouterProvider` (or any router component): where it is, and a way to go — paths relative to its `basename`, as its own links are. | [Host Wiring](./host#api-ViewRouter) |
 
 :::

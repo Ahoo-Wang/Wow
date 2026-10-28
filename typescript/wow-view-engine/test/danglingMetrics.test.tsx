@@ -464,7 +464,12 @@ describe('an edit to the question', () => {
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'orders-1');
-      return { opened, analysis: useAnalysisEditor(opened.runtime) };
+      return {
+        opened,
+        analysis: useAnalysisEditor(
+          opened.runtime?.kind === 'analysis' ? opened.runtime : null,
+        ),
+      };
     });
     await waitFor(() => expect(result.current.opened.runtime).not.toBeNull());
     const draft = () => {

@@ -246,9 +246,23 @@ export interface RecordViewRuntime<
   loadLane(laneId: string): void;
 }
 
+/** An analysis view: a question asked of one source, and its answer. */
+export type AnalysisViewRuntime = ViewRuntime<AnalysisViewConfig>;
+
+/**
+ * Whether `runtime` is an analysis view, read off its `kind`: what narrows
+ * a runtime held as any data view (a board panel's, say) to one, where
+ * `isRecordRuntime` narrows it to a record view.
+ */
+export function isAnalysisRuntime(
+  runtime: ViewRuntime | null | undefined,
+): runtime is AnalysisViewRuntime {
+  return runtime?.kind === 'analysis';
+}
+
 /** What opening an instance returns; narrow it by `runtime.kind`. */
 export type AnyViewRuntime =
-  RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
+  RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime;
 
 /**
  * What `ViewEngine` needs beyond the public contract: admission at the scope
@@ -292,7 +306,7 @@ export interface ManagedViewRuntime<
 export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig]
   ? RecordViewRuntime
   : [C] extends [AnalysisViewConfig]
-    ? ViewRuntime<AnalysisViewConfig>
+    ? AnalysisViewRuntime
     : [C] extends [DashboardViewConfig]
       ? DashboardRuntime
       : AnyViewRuntime;
@@ -483,6 +497,16 @@ export interface CreateInput<C extends ViewConfig> {
    * so it never shows a row the page around it was narrowed away from.
    */
   scopeFilter?: FilterTree | null;
+}
+
+/**
+ * Where a copy of a view is saved: its title and the scope it is saved
+ * into (`ViewEngine.saveAs`, and a board panel's view saved as its own).
+ * `'system'` makes a stored system view, which needs `editSystem`.
+ */
+export interface SaveAsInput {
+  title: string;
+  scope: ViewScope;
 }
 
 /** How `ViewEngine.open` opens a view, beyond which one. */

@@ -16,7 +16,9 @@ import {
   type DefineDatasetSpec,
 } from './define/defineDataset.js';
 import type { ReadOptions, WriteOptions } from '../store/ViewStore.js';
+import type { ViewDefinition } from '../model/index.js';
 import type { ViewSource } from './source.js';
+import type { ViewResource } from './viewEngineOptions.js';
 
 /**
  * One dataset of a service's directory, named as wow-client's `DatasetEntry`
@@ -103,12 +105,8 @@ export type DatasetOverrides = Partial<
 
 /** The part of an engine `DatasetResources` drives (`ViewEngine` is one). */
 export interface DatasetRegistrar {
-  readonly definitions: ReadonlyMap<string, unknown>;
-  register(resource: {
-    definition: ReturnType<typeof defineDataset>;
-    source: ViewSource;
-    wording?: DatasetWordingEditor;
-  }): void;
+  readonly definitions: ReadonlyMap<string, ViewDefinition>;
+  register(resource: ViewResource): void;
   unregister(definitionId: string): boolean;
 }
 

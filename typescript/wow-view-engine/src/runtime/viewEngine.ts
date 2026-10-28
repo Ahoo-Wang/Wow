@@ -17,13 +17,13 @@ import {
   toSummary,
   type Issue,
   type RuntimeLimits,
+  type TextResolver,
   type ViewConfig,
   type ViewDefinition,
   type ViewInstance,
   type ViewAudience,
   type ViewInstanceSummary,
   type ViewPreferences,
-  type ViewScope,
 } from '../model/index.js';
 import {
   builtinFieldKinds,
@@ -31,7 +31,6 @@ import {
   type FieldKindRegistry,
 } from '../filter/index.js';
 import type {
-  InstancePermissions,
   ReadOptions,
   ViewPermissions,
   ViewStore,
@@ -42,24 +41,29 @@ import {
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
 import { engineLabels, type ReferenceLabels } from './referenceLabels.js';
-import type { ViewEngineOptions, ViewListing } from './viewEngineOptions.js';
-import { recordSource } from './source.js';
+import type {
+  ViewEngineOptions,
+  ViewListing,
+  ViewResource,
+} from './viewEngineOptions.js';
+import type { OptionSource } from './source.js';
 import type {
   AnyViewRuntime,
   CreateInput,
   ManagedViewRuntime,
   OpenOptions,
   RuntimeFor,
+  SaveAsInput,
   ViewRuntime,
 } from './viewRuntimeTypes.js';
-import { DashboardViewRuntime } from './dashboardRuntime.js';
+import type { DatasetWordingEditor } from './datasetResources.js';
+import {
+  DashboardViewRuntime,
+  type DashboardRuntime,
+} from './dashboardRuntime.js';
 import { InstanceWrites } from './instanceWrites.js';
 import { PanelViews } from './panelViews.js';
-import {
-  ViewCommandError,
-  type WritePayload,
-  type WriteState,
-} from './write.js';
+import type { WritePayload, WriteState } from './write.js';
 import {
   WriteLedger,
   type ConflictChoice,
@@ -67,7 +71,7 @@ import {
   type WriteTarget,
 } from './writeLedger.js';
 import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
-import { DefinitionRegistry, systemInstances } from './definitions.js';
+import { type DefinitionRegistry, systemInstances } from './definitions.js';
 import { PermissionGuard } from './permissions.js';
 import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
@@ -76,7 +80,7 @@ import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
-import { EngineResources } from './resources.js';
+import { Resources } from './resources.js';
 import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
@@ -102,12 +106,15 @@ import { publishCopy, readReferences } from './publish.js';
  * cannot reach itself: how to read a referenced instance, and how to build a
  * child runtime for it.
  *
- * Construct it; do not extend it. Its base class is how the file is split,
- * not an extension point.
+ * What the host registered — the definitions, their sources, the words
+ * their keys are said in — is held beside it (`resources.ts`), and the
+ * members of the same names here hand on to it.
+ *
+ * Construct it; do not extend it.
  *
  * @sealed
  */
-export class ViewEngine extends EngineResources {
+export class ViewEngine {
   /**
    * The host's store as the engine reads it: every view it hands back is
    * read into the form this engine writes on its way in (`readingStore`,
@@ -122,8 +129,9 @@ export class ViewEngine extends EngineResources {
   private readonly runner: RequestRunner;
   /** What each source admits; see `capabilities.ts`. */
   private readonly capabilities: SourceCapabilities;
+  /** What the host registered; see `resources.ts`. */
+  private readonly resources: Resources;
   private readonly registry: DefinitionRegistry;
-  protected readonly registered: ReadonlyMap<string, ViewDefinition>;
   private readonly guard: PermissionGuard;
   private readonly preferenceCache: PreferenceCache;
   private readonly runtimes = new OpenRuntimes();
@@ -135,7 +143,9 @@ export class ViewEngine extends EngineResources {
   /** The writes addressed by id; see `instanceWrites.ts`. */
   private readonly writes: InstanceWrites;
   /** Who is told that a definition's list has changed; see `subscribe`. */
-  private readonly changes = new ViewChanges(found => this.report(found));
+  private readonly changes = new ViewChanges(found =>
+    this.resources.report(found),
+  );
   /** The last summary seen of each instance; see `summaries.ts`. */
   private readonly summaries = new SummaryCache();
   /** Reference ids read as names, one cache for every view. */
@@ -148,7 +158,6 @@ export class ViewEngine extends EngineResources {
   });
 
   constructor(options: ViewEngineOptions) {
-    super(options);
     this.options = options;
     this.environment = options.environment ?? defaultRuntimeEnvironment();
     // Read in first, then watched: a store failure is told to the host's
@@ -159,34 +168,26 @@ export class ViewEngine extends EngineResources {
       kinds: this.kinds,
       limits: options.limits,
       environment: this.environment,
-      resolveSource: key => recordSource(this.resolveSource(key)),
+      resolveSource: key => this.resources.resolveSource(key),
       declared: id => this.registry.definitions.get(id),
-      report: found => this.report(found),
+      report: found => this.resources.report(found),
     });
     // A source with a descriptor runs under its own (`effective`).
     this.limits = this.capabilities.fallback;
     this.runner = new RequestRunner(this.limits);
+    this.resources = new Resources(options, this.kinds, this.limits);
+    this.registry = this.resources.registry;
     this.labels = engineLabels(this);
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
-    this.registry = new DefinitionRegistry(
-      {
-        definitions: options.resources.map(({ definition }) => definition),
-        hasSource: key => this.hasSource(key),
-        ...(options.text ? { text: (key: string) => options.text?.(key) } : {}),
-      },
-      this.kinds,
-      this.limits,
-      (found, resource) => this.report(found, resource),
-    );
-    this.registered = this.registry.definitions;
-    this.keepDefinitionsIn(this.registry);
     this.writes = new InstanceWrites({
-      locate: (id, action) => this.locate(id, action),
       store: this.store,
+      guard: this.guard,
       definition: id => this.registry.require(id),
+      prune: () => this.runtimes.prune(),
       holders: id => this.runtimes.holders(id),
+      listed: id => this.summaries.get(id),
       maxDashboardPanels: this.limits.maxDashboardPanels,
       ledger: this.ledger,
     });
@@ -203,12 +204,103 @@ export class ViewEngine extends EngineResources {
       limits: this.limits,
       environment: this.environment,
       runner: this.runner,
-      resolveSource: key => recordSource(this.resolveSource(key)),
+      resolveSource: key => this.resources.resolveSource(key),
       labels: this.labels,
       readInstance: id => this.readInstance(id),
       capabilities: this.capabilities,
-      report: found => this.report(found),
+      report: found => this.resources.report(found),
     });
+  }
+
+  /**
+   * Every registered definition, by id, as it was declared: its keys
+   * (`text(key)`) are said where they are shown (`useSay`, `say`).
+   */
+  get definitions(): ReadonlyMap<string, ViewDefinition> {
+    return this.resources.definitions;
+  }
+
+  /**
+   * Adds a resource at run time, or replaces the one of its definition's
+   * id (host-integration.md 3.2): a dataset published after the engine was
+   * built, its definition derived from its descriptor (`defineDataset`).
+   * It is judged and its findings told as the resources given at
+   * construction are; views opened after this run on it, those already
+   * open keep the definition they opened on until reopened. Every open
+   * board is asked again for the views it could not read for want of a
+   * definition: a board over datasets opens before their directory is
+   * read, and its panels come back once each dataset registers.
+   */
+  register(resource: ViewResource): void {
+    this.resources.register(resource);
+    for (const runtime of this.runtimes.all())
+      if (runtime instanceof DashboardViewRuntime) runtime.retryReferences();
+  }
+
+  /**
+   * Removes the resource of `definitionId`: a dataset retired, or one the
+   * directory no longer lists. Views already open keep running on it;
+   * opening another reports the definition as not found, as a saved view
+   * of a resource never registered does. `false` when there was none.
+   */
+  unregister(definitionId: string): boolean {
+    return this.resources.unregister(definitionId);
+  }
+
+  /**
+   * Checks the words a Provider says the definitions' keys in: its
+   * `messages`, in its `language` (host-integration.md 3.1). The Provider
+   * calls this as they change; nothing is redrawn or rebuilt by it — the
+   * keys are said where they are shown.
+   *
+   * The words set are checked on their own: a key they lack reads as
+   * itself (`definition.text.unknown`), or in the words the engine started
+   * with (`definition.text.fallback`) — a Chinese page showing an English
+   * label is a gap too. A fallback is told only of words that say any of
+   * the definitions' keys at all: words that say none (a Provider with no
+   * catalogue of the definitions') leave them to the starting words, as
+   * the host meant. Each key is told once per language, and again once
+   * that language had it and lacks it again.
+   */
+  setText(text: TextResolver | undefined, language?: string): void {
+    this.resources.setText(text, language);
+  }
+
+  /**
+   * The words the engine was built with for `key` (`ViewEngineOptions.text`),
+   * or `undefined`: what a surface says a key in where its Provider's words
+   * lack it.
+   */
+  startingWord(key: string): string | undefined {
+    return this.resources.startingWord(key);
+  }
+
+  /**
+   * Whether a binding the host made (`bind`, host-integration.md 4) names a
+   * registered definition. One that names none binds nothing — the routes,
+   * the reading and the actions it carries would be lost without a word, a
+   * misspelt id looking like a design — so it is told through `onIssue` as
+   * `binding.definition.unknown`, once per id. A warning, not an error: a
+   * binding may be meant for an engine nested further down (bindings pass
+   * to inner hosts), or for a resource a feature flag left out, and a
+   * binding that matches nothing breaks nothing. `ViewHost` asks this of
+   * every binding it is given.
+   */
+  checkBinding(definitionId: string): boolean {
+    return this.resources.checkBinding(definitionId);
+  }
+
+  /**
+   * The editor of a dataset's wording, where its resource was registered
+   * with one: what the view manager's wording tab reads and saves.
+   */
+  wordingOf(definitionId: string): DatasetWordingEditor | undefined {
+    return this.resources.wordingOf(definitionId);
+  }
+
+  /** The remote candidates of `reference` fields under `key` (`ViewEngineOptions.resolveOptions`). */
+  resolveOptions(key: string): OptionSource {
+    return this.resources.resolveOptions(key);
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
@@ -244,7 +336,10 @@ export class ViewEngine extends EngineResources {
       this.store,
       definitionId,
       id =>
-        this.report(issue('view.list.reserved-id', [], { id }), definitionId),
+        this.resources.report(
+          issue('view.list.reserved-id', [], { id }),
+          definitionId,
+        ),
       {
         limit: this.limits.listedViews,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -403,7 +498,7 @@ export class ViewEngine extends EngineResources {
    */
   async saveAs(
     runtime: ViewRuntime,
-    input: { title: string; scope: ViewScope },
+    input: SaveAsInput,
   ): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
@@ -433,9 +528,9 @@ export class ViewEngine extends EngineResources {
    * own, or a panel it lacks, is refused (`dashboard.panel.not-owned`).
    */
   saveOwnedView(
-    dashboard: ViewRuntime,
+    dashboard: DashboardRuntime,
     panelId: string,
-    input: { title: string; scope: ViewScope },
+    input: SaveAsInput,
   ): Promise<ViewInstance> {
     return this.panelViews.save(
       this.runtimes.require(dashboard),
@@ -454,9 +549,9 @@ export class ViewEngine extends EngineResources {
    * (`dashboard.panel.not-referenced`).
    */
   copyPanelView(
-    dashboard: ViewRuntime,
+    dashboard: DashboardRuntime,
     panelId: string,
-    input: { title: string; scope: ViewScope },
+    input: SaveAsInput,
   ): Promise<ViewInstance> {
     return this.panelViews.save(
       this.runtimes.require(dashboard),
@@ -628,20 +723,6 @@ export class ViewEngine extends EngineResources {
     return this.ledger.resolveConflict(target, choice);
   }
 
-  /**
-   * `EngineResources.register`, and every open board asked again for the
-   * views it could not read for want of a definition (D93): a board over
-   * datasets opens before their directory is read, and its panels come
-   * back once each dataset registers.
-   */
-  override register(
-    resource: Parameters<EngineResources['register']>[0],
-  ): void {
-    super.register(resource);
-    for (const runtime of this.runtimes.all())
-      if (runtime instanceof DashboardViewRuntime) runtime.retryReferences();
-  }
-
   /** Open runtimes, for a workbench that tracks its own tabs. */
   openRuntimes(): readonly ViewRuntime[] {
     return this.runtimes.all();
@@ -735,39 +816,6 @@ export class ViewEngine extends EngineResources {
       holders: id => this.runtimes.holders(id),
       referenceOf: readReferences(this.summaries, this.store),
       noteChange: change => this.changes.emit(change),
-    };
-  }
-
-  /**
-   * What a command needs about an instance it was given only the id of: the
-   * revision to write against, the definition whose list it belongs to, and
-   * the open view it came through, from an open view, the last list, or the
-   * store.
-   */
-  private async locate(
-    id: string,
-    action: keyof InstancePermissions,
-  ): Promise<{
-    revision: string;
-    definitionId: string;
-    scope: ViewScope;
-    runtime: ManagedViewRuntime | undefined;
-  }> {
-    // A code-declared view is not in any store, and no store write can reach it.
-    if (parseSystemInstanceId(id))
-      throw new ViewCommandError(
-        issue('view.system.read-only', [], { action }),
-      );
-    this.runtimes.prune();
-    const [runtime] = this.runtimes.holders(id);
-    const known = runtime?.getSnapshot().saved ?? this.summaries.get(id);
-    const summary = known ?? (await this.store.get(id));
-    this.guard.requireInstance(summary, action);
-    return {
-      revision: summary.revision,
-      definitionId: summary.definitionId,
-      scope: summary.scope,
-      runtime,
     };
   }
 }

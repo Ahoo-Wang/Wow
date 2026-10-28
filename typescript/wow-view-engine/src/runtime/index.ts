@@ -41,6 +41,8 @@ export {
 export {
   hasAsked,
   hasResult,
+  isAnalysisRuntime,
+  type AnalysisViewRuntime,
   type AnyViewRuntime,
   type CreateInput,
   type DefinitionFor,
@@ -52,6 +54,7 @@ export {
   type ViewResult,
   type ViewRuntime,
   type ViewRuntimeState,
+  type SaveAsInput,
 } from './viewRuntimeTypes.js';
 export { isRecordRuntime } from './recordRuntime.js';
 export {

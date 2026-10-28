@@ -76,20 +76,20 @@ export type AdmitFinding = Issue & { definition: string };
 | `changesAt(key?)` | `now` 之后某条记录的可用性最早自己翻转的时刻 |
 | `run(id, key, input?)` | 像引擎那样给一条记录发命令：不接受时以原因拒绝（`ActionRefusedError`），否则就是宿主自己的 `run` |
 
-`options.now` 是规则被问的时刻，缺省 `Date.now()`。
+`options.now` 是规则被问的时刻（`Date`），缺省为当前时间。
 
 ```ts
 export declare function actionHarness(list: RecordActions, rows: readonly ActionRow[], input?: ActionHarnessOptions): ActionHarness;
 
 export interface ActionHarnessOptions {
-  now?: number;
+  now?: Date;
 }
 
 export interface ActionHarness {
   asks(id: string, place: ActionPlace, input?: ActionInput): { asks: boolean; confirm: ActionConfirm | null };
   at(place: ActionPlace): string[];
   bulk(id: string, keys?: readonly RecordKey[], input?: ActionInput): HarnessBulk;
-  changesAt(key?: RecordKey): number | null;
+  changesAt(key?: RecordKey): Date | null;
   choice(id: string): readonly FieldOption[] | null;
   form(id: string): HarnessField[] | null;
   readonly ids: readonly string[];
@@ -143,12 +143,12 @@ export declare class ActionRefusedError extends Error {
 export declare function memorySource(documents: readonly RecordData[], options?: MemorySourceOptions): ViewSource;
 
 export interface MemorySourceOptions {
-  now?: () => number;
+  now?: () => Date;
   remember?: boolean;
   timeField?: string;
 }
 
-export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => number }): boolean;
+export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => Date }): boolean;
 ```
 
 ## resolveNavigation {#api-resolveNavigation}

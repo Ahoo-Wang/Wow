@@ -93,6 +93,16 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `DatasetDirectoryEntry { contextName, name, title: string \| null, version: string \| null }` | `{ context, dataset, title?, version? }`; a directory lists only what it serves, so no `null` version |
 | `SHARED_OWNER_ID`, `SYSTEM_OWNER_ID`, `SYSTEM_TENANT_ID` (wow-view-store) | gone from the entry: name an audience by `SHARED_SCOPE` / `SYSTEM_SCOPE` (`Wow-Scope`); no path carries an owner |
 | `typeof WowViewStoreErrorCodes[keyof …]` written by hand | `WowViewStoreErrorCode` |
+| `ViewEngine extends EngineResources`; `EngineResources`, `ResourceHost` | `ViewEngine` extends nothing, and neither type is exported; `engine.resolveSource(key)` is removed |
+| `register({ definition, source?, wording? })`, `DatasetRegistrar.definitions: ReadonlyMap<string, unknown>` | `register(resource: ViewResource)` (`ViewResource.wording?`); `ReadonlyMap<string, ViewDefinition>` |
+| `saveAs` / `saveOwnedView` / `copyPanelView` with `{ title, scope }`; `SaveTargetInput` (`/react`) | `SaveAsInput` (root); `saveOwnedView` / `copyPanelView(dashboard: DashboardRuntime, …)` |
+| `useAnalysisEditor(runtime: ViewRuntime \| null)` | `useAnalysisEditor(runtime: AnalysisViewRuntime \| null)`: narrow with `runtime?.kind === 'analysis'` or `isAnalysisRuntime` |
+| `ViewRouter`, `ViewLocation`, `ViewDestination`, … from `/ui` only | also from the root; `/react-router` exports `ViewRouter`, `ViewLocation`; `/testing` exports `ViewDestination`, `ViewRoute` |
+| `memorySource(rows, { now: () => ms })`, `matches(doc, filter, { now: () => ms })` | `{ now: () => new Date(ms) }`: a clock is `() => Date` |
+| `actionHarness(list, rows, { now: ms })`, `ActionContext.now: number`, `RecordActionsController.now: number` | `{ now: new Date(ms) }`; `now: Date` (compare with `now.getTime()`) |
+| `RecordAction.changesAt(row, ctx) => ms \| null`, `ActionHarness.changesAt(key?): number \| null` | `=> Date \| null` (e.g. `new Date(ms)`); a number is no longer read |
+| `RefreshController.now()` | `refreshNow()` |
+| `useRecordActions` read the system clock | it reads `options.environment.now()` (`useActionSurface` passes the engine's), so a pinned `RuntimeEnvironment.now` drives the rules |
 | `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
 | the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
 | `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |

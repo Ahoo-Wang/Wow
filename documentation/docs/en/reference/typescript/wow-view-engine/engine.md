@@ -7,7 +7,7 @@ description: 'ViewEngine, its options and resources, ViewSource and RuntimeEnvir
 
 `ViewEngine` is the one object a host builds once, at application start, and shares across the application: it registers the definitions (`resources`), holds the `store` that keeps saved views, manages the open runtimes, and is the only entry point for the commands that open, create, save, rename and delete. There is one entry point because every write takes one path — so the default UI and a hand-built one behave the same, and every outcome that is not a success lands in the same three recovery actions (`retryWrite`, `abandonWrite`, `resolveConflict`).
 
-Construct it; do not extend it. It is `@sealed`, and its base class `EngineResources` is how the file is split, not an extension point.
+Construct it; do not extend it: it is `@sealed`.
 
 Guides: Getting Started with the View Engine (step 6 builds the engine and its resources); [Fitting the View Engine into a Host](../../../typescript/view-engine/host.md) (why one engine serves the whole application); [View Engine Core Concepts](../../../typescript/view-engine/index.md) (the views and runtimes the engine manages).
 
@@ -135,7 +135,7 @@ The members a host uses most; the full signature is in the [API report](https://
 | `setText(text, language?)` | Changes how the definitions' keys are said, and in which language; `ViewHost` calls it for you |
 
 ```ts
-export declare class ViewEngine extends EngineResources {
+export declare class ViewEngine {
   constructor(options: ViewEngineOptions);
   abandonWrite(target: WriteTarget): void;
   changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
@@ -159,7 +159,7 @@ export declare class ViewEngine extends EngineResources {
   resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
   retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
   save(runtime: ViewRuntime): Promise<ViewInstance>;
-  saveAs(runtime: ViewRuntime, input: { title: string; scope: ViewScope }): Promise<ViewInstance>;
+  saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
   setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
   setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
   readonly store: ViewStore;

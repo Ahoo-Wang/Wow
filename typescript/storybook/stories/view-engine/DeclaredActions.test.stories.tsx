@@ -62,12 +62,14 @@ function orderActions(delay = 300, opensAt?: number): RecordActions {
       primary: true,
       available: (row, { now }) => {
         if (statusOf(row) === 'CANCELLED') return '已取消的订单不能发货';
-        if (opensAt !== undefined && now <= opensAt)
+        if (opensAt !== undefined && now.getTime() <= opensAt)
           return '仓库尚未开门，稍后再发';
         return amountOf(row) >= 1000 ? true : '金额不足 1000，先走人工审核';
       },
       changesAt: (_row, { now }) =>
-        opensAt !== undefined && now <= opensAt ? opensAt + 1 : null,
+        opensAt !== undefined && now.getTime() <= opensAt
+          ? new Date(opensAt + 1)
+          : null,
       confirm: { title: '发出 {count} 张订单？', ask: 'bulk' },
       run: () => slowly(delay),
     },

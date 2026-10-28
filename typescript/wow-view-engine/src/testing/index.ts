@@ -25,7 +25,11 @@ export {
   type AdmitFinding,
   type AdmitOptions,
 } from '../runtime/admission.js';
-export { resolveNavigation } from '../runtime/routes.js';
+export {
+  resolveNavigation,
+  type ViewDestination,
+  type ViewRoute,
+} from '../runtime/routes.js';
 export {
   actionHarness,
   type ActionHarness,

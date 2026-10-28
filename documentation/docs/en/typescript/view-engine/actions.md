@@ -169,7 +169,7 @@ Bind them on the resource, `bind('orders', { route, actions: orderActions(orderC
 | `run(row, input)` | Sends the command for one record |
 | `timeout` | How long one record's `run` is waited for |
 
-Every rule gets `{ now, input? }`: the time comes from the engine, so a rule never reads the clock; `input` is the option picked or the form filled. A rule that throws refuses the record.
+Every rule gets `{ now, input? }`: `now` is a `Date` from the engine, so a rule never reads the clock; `input` is the option picked or the form filled. A rule that throws refuses the record.
 
 **When availability changes with time alone**, write `changesAt`, and the surface asks again then, with one timer for all records in view:
 
@@ -188,10 +188,10 @@ export const holdActions = actions([
     label: text('orders.release'),
     // Not while the hold lasts…
     available: (row, { now }) =>
-      holdUntil(row) > now ? text('orders.onHold') : true,
+      holdUntil(row) > now.getTime() ? text('orders.onHold') : true,
     // …and once it is over: the engine asks again at that moment.
     changesAt: (row, { now }) =>
-      holdUntil(row) > now ? holdUntil(row) + 1 : null,
+      holdUntil(row) > now.getTime() ? new Date(holdUntil(row) + 1) : null,
     run: row => release(String(row.key)),
   },
 ]);
@@ -346,7 +346,7 @@ const commands: OrderCommands = {
 const orders = actionHarness(
   orderActions(commands),
   [row('O-1', 'PAID'), row('O-2', 'SHIPPED')],
-  { now: Date.parse('2026-09-30T00:00:00Z') },
+  { now: new Date('2026-09-30T00:00:00Z') },
 );
 
 // What each place offers; why a record does not take one.

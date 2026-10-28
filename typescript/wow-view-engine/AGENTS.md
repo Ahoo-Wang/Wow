@@ -316,7 +316,7 @@ src/
     navigation.ts             — `ViewNavigation`: where a way off a board or an embed goes, for the host's route; `HandOver`, the two parts a view takes off a board (what the page holds as its scope, the reader's values as its own conditions) and the board to go back to (`BoardOrigin`); `GroupNaming`; `withHandedFilter`
     openRuntimes.ts           — The views one engine has open, and who holds an instance
     panelViews.ts             — `PanelViews`: a dashboard panel's view saved as a view of its own and the panel pointed at it — the analysis it owns (`saveOwnedView`) or the saved view it shows, copied for another audience (`copyPanelView`)
-    instanceWrites.ts         — `InstanceWrites`: the writes the engine addresses to a saved view by id — rename, 设为共享／设为个人, delete, and 放进仪表盘 (`addToDashboard`, R2-98: the view as one more panel, written as the board's save)
+    instanceWrites.ts         — `InstanceWrites`: the writes the engine addresses to a saved view by id — rename, 设为共享／设为个人, delete, and 放进仪表盘 (`addToDashboard`, R2-98: the view as one more panel, written as the board's save), each locating the instance first (its revision, its open view, the reader's right)
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only" — bar a stored one where the host grants `editSystem` (D81) — which the manager's buttons ask as well; `mayCreate`, the create permission of a scope (`system` asks `editSystem`)
     preferences.ts            — The preference cache, the list order and the default view
@@ -345,12 +345,12 @@ src/
     validateFields.ts         — The fields' part of definition admission: names, kinds, what each kind reads, what a search looks in (an element's search names the element's fields, N4)
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
-    viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch over `resources` (host-integration.md 3.1)
+    viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch over `resources` (host-integration.md 3.1); what the host registered held as `Resources`, its members handed on
     viewEngineOptions.ts      — What a host builds the engine from (`ViewEngineOptions`, `ViewResource`) and what its list answers (`ViewListing`)
-    resources.ts              — `EngineResources`: what the engine is given — each resource's source by its definition's key, the options, the words keys are said in; `definitions` said in the current words
+    resources.ts              — `Resources`, which the engine holds (internal, not exported): what the host registered — the definition registry, each resource's source by its definition's key and wording editor by its id, the options, the words keys are checked against, where findings go
     text.ts                   — `EngineText`: the words the engine was built with (`startingWord`, a surface's fallback) and the words its Provider set last, checked for the keys they lack (`setText`); the engine says nothing — definitions, state, snapshots and the store keep their keys (D2)
     viewRuntime.ts            — `DataViewRuntime`: one open data view over one `RuntimeStore` — admission, ask, run, land; what only a Record view has comes in through four hooks (`startOver`, `pageNow`, `settle`, `holds`)
-    viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `ManagedViewRuntime`, the state and result shapes; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
+    viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `AnalysisViewRuntime` (narrowed to by `isAnalysisRuntime`), `ManagedViewRuntime`, the state and result shapes, `SaveAsInput`; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back; the runtime's public face, named export by export (D29)

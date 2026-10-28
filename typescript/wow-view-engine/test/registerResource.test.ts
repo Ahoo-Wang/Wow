@@ -133,7 +133,8 @@ describe('ViewEngine.register', () => {
   });
 
   it('removes a resource: open views keep running, opening another reports it unknown', () => {
-    const engine = engineOf();
+    const issues: Issue[] = [];
+    const engine = engineOf(issues);
     const described = descriptor('city', 'sha256:1');
     engine.register({
       definition: datasetOf(described),
@@ -146,7 +147,13 @@ describe('ViewEngine.register', () => {
     expect(engine.definitions.has(ID)).toBe(false);
     expect(names(open.fields)).toEqual(['order_id', 'city']);
     expect(() => create(engine)).toThrow();
-    expect(() => engine.resolveSource(ID)).toThrow();
+    // Its source went with it: registered again without one, the
+    // definition's rows come from nowhere.
+    engine.register({ definition: datasetOf(described) });
+    expect(issues.map(found => found.code)).toContain(
+      'definition.source.unregistered',
+    );
+    engine.unregister(ID);
     // A source another definition still reads is kept.
     expect(engine.unregister('orders')).toBe(true);
   });

@@ -20,12 +20,7 @@
 
 import { useState } from 'react';
 import { LockIcon, UnplugIcon } from 'lucide-react';
-import type {
-  AnalysisViewConfig,
-  DataViewConfig,
-  Issue,
-  RecordData,
-} from '../../model/index.js';
+import type { Issue, RecordData } from '../../model/index.js';
 import { presentationMembersOf } from '../../dashboard/index.js';
 import {
   useAnalysisEditor,
@@ -39,7 +34,8 @@ import {
   type FollowUp,
   type FollowUpAction,
 } from '../../react/index.js';
-import type { RecordViewRuntime, ViewRuntime } from '../../runtime/index.js';
+import type { RecordViewRuntime } from '../../runtime/index.js';
+import type { AnalysisViewRuntime } from '../../runtime/viewRuntimeTypes.js';
 import {
   DrillMenu,
   groupText,
@@ -298,7 +294,7 @@ export function AnalysisPanel({
   onRetry,
   press,
 }: {
-  runtime: ViewRuntime;
+  runtime: AnalysisViewRuntime;
   onRetry?: () => void;
   press?: PanelPress;
 }) {
@@ -306,10 +302,9 @@ export function AnalysisPanel({
   const analysis = useAnalysisEditor(runtime);
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
-  const child = runtime as ViewRuntime<DataViewConfig>;
   // The workbench the follow-ups drive is the host's, reached by its route.
   const followUps = usePanelFollowUps(
-    child,
+    runtime,
     press?.navigate,
     press?.handOver ?? nothingHanded,
   );
@@ -317,11 +312,7 @@ export function AnalysisPanel({
   // ran, looked at as the child's draft says. A panel's own look is laid
   // onto that draft without a run (D20: presentation never asks the
   // source), so a change of chart redraws the rows on hand.
-  const result = useAnalysisResult(
-    runtime as ViewRuntime<AnalysisViewConfig>,
-    analysis,
-    followUps,
-  );
+  const result = useAnalysisResult(runtime, analysis, followUps);
   const { view, chart, chartData } = result;
   const failed = state?.query.status === 'error';
   // Which group was pressed, and where, while the menu over it is open.
@@ -420,7 +411,7 @@ export function AnalysisPanel({
       pick={followUp ? pick : null}
       onClose={() => setPick(null)}
       followUp={followUp}
-      context={boardContext(child, messages, display)}
+      context={boardContext(runtime, messages, display)}
       away
     />
   );

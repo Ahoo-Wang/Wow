@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/testing — 15 names, from src/testing/index.ts.
+# @ahoo-wang/wow-view-engine/testing — 17 names, from src/testing/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionHarness
@@ -11,6 +11,8 @@ type  HarnessBulk
 type  HarnessField
 type  HarnessState
 type  MemorySourceOptions
+type  ViewDestination
+type  ViewRoute
 value actionHarness
 value admit
 value matches

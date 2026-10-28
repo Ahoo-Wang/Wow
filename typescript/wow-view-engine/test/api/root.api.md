@@ -60,8 +60,7 @@ export interface ActionConfirm {
 export interface ActionContext {
     // (undocumented)
     readonly input?: ActionInput;
-    // (undocumented)
-    readonly now: number;
+    readonly now: Date;
 }
 
 // @public
@@ -514,7 +513,10 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
 }
 
 // @public
-export type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
+export type AnalysisViewRuntime = ViewRuntime<AnalysisViewConfig>;
+
+// @public
+export type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime;
 
 // @public
 export function appendLane(definition: DataViewDefinition, config: RecordViewConfig, view: RecordProjection, id: string, page: LanePage['page'], index: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
@@ -1487,13 +1489,9 @@ export type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'record
 // @public
 export interface DatasetRegistrar {
     // (undocumented)
-    readonly definitions: ReadonlyMap<string, unknown>;
+    readonly definitions: ReadonlyMap<string, ViewDefinition>;
     // (undocumented)
-    register(resource: {
-        definition: ReturnType<typeof defineDataset>;
-        source: ViewSource;
-        wording?: DatasetWordingEditor;
-    }): void;
+    register(resource: ViewResource): void;
     // (undocumented)
     unregister(definitionId: string): boolean;
 }
@@ -1961,32 +1959,6 @@ export function emptyFilter(): FilterTree;
 
 // @public
 export function emptyPreferences(): ViewPreferences;
-
-// @public
-export abstract class EngineResources {
-    constructor(host: ResourceHost);
-    checkBinding(definitionId: string): boolean;
-    get definitions(): ReadonlyMap<string, ViewDefinition>;
-    protected hasSource(key: string): boolean;
-    protected keepDefinitionsIn(keep: {
-        register(definition: ViewDefinition): void;
-        unregister(definitionId: string): void;
-    }): void;
-    register(resource: {
-        definition: ViewDefinition;
-        source?: ViewSource;
-        wording?: DatasetWordingEditor;
-    }): void;
-    protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
-    protected report(found: Issue, resource?: string): void;
-    // (undocumented)
-    resolveOptions(key: string): OptionSource;
-    resolveSource(key: string): ViewSource;
-    setText(text: TextResolver | undefined, language?: string): void;
-    startingWord(key: string): string | undefined;
-    unregister(definitionId: string): boolean;
-    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
-}
 
 // @public
 export const enumFieldKind: FieldKind;
@@ -2830,6 +2802,9 @@ export interface InstantRange {
 
 // @public
 export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean;
+
+// @public
+export function isAnalysisRuntime(runtime: ViewRuntime | null | undefined): runtime is AnalysisViewRuntime;
 
 // @public
 export function isApproximate(column: {
@@ -3956,7 +3931,7 @@ export const RECORD_PRESENTATION_MEMBERS: readonly ["layout"];
 // @public
 export interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
-    changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+    changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
@@ -4361,21 +4336,6 @@ export function resolveDateTimeBound(value: DateTimeFilterValue, now: Date, time
 export function resolveDateTimeRange(value: DateTimeFilterValue, now: Date, timeZone: string): InstantRange;
 
 // @public
-export interface ResourceHost {
-    // (undocumented)
-    onIssue?(issue: Issue): void;
-    // (undocumented)
-    resolveOptions?(key: string): OptionSource;
-    // (undocumented)
-    resources: readonly {
-        definition: ViewDefinition;
-        source?: ViewSource;
-    }[];
-    // (undocumented)
-    text?(key: string): string | undefined;
-}
-
-// @public
 export function resultSpan(rows: readonly RecordData[], groups: readonly AnalysisGroup[], field: string, timeZone: string): number | null;
 
 // @public
@@ -4392,6 +4352,9 @@ export interface RiverStream {
 
 // @public
 export function rootSearch(tree: FilterTree, field: string): string;
+
+// @public
+export type RoutedTarget = SavedViewTarget | UnsavedViewTarget | DashboardTarget;
 
 // @public
 export function rowCurrency(row: RecordData | undefined, column: Pick<AnalysisColumnView, 'currency'>): CurrencyReading | undefined;
@@ -4421,7 +4384,7 @@ export interface RuntimeEnvironment {
 }
 
 // @public
-export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig] ? RecordViewRuntime : [C] extends [AnalysisViewConfig] ? ViewRuntime<AnalysisViewConfig> : [C] extends [DashboardViewConfig] ? DashboardRuntime : AnyViewRuntime;
+export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig] ? RecordViewRuntime : [C] extends [AnalysisViewConfig] ? AnalysisViewRuntime : [C] extends [DashboardViewConfig] ? DashboardRuntime : AnyViewRuntime;
 
 // @public
 export interface RuntimeLimits {
@@ -4489,6 +4452,14 @@ export interface SankeyNode {
 export interface SankeySpec {
     levels: string[];
     value: string;
+}
+
+// @public
+export interface SaveAsInput {
+    // (undocumented)
+    scope: ViewScope;
+    // (undocumented)
+    title: string;
 }
 
 // @public
@@ -5067,19 +5038,21 @@ export interface ViewConfigBase {
 // @public
 export type ViewDefinition = DataViewDefinition | DashboardDefinition;
 
+// @public
+export type ViewDestination = ViewRoute | ViewNavigation;
+
 // @public @sealed
-export class ViewEngine extends EngineResources {
+export class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
     addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
+    checkBinding(definitionId: string): boolean;
     close(runtime: ViewRuntime): void;
-    copyPanelView(dashboard: ViewRuntime, panelId: string, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
+    copyPanelView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;
     definitionIssues(definitionId: string): Issue[];
+    get definitions(): ReadonlyMap<string, ViewDefinition>;
     // (undocumented)
     delete(id: string): Promise<void>;
     // (undocumented)
@@ -5100,29 +5073,26 @@ export class ViewEngine extends EngineResources {
     // (undocumented)
     preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
-    register(resource: Parameters<EngineResources['register']>[0]): void;
-    // (undocumented)
-    protected readonly registered: ReadonlyMap<string, ViewDefinition>;
+    register(resource: ViewResource): void;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
     rename(id: string, title: string): Promise<ViewInstance>;
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
+    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
-    saveAs(runtime: ViewRuntime, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
-    saveOwnedView(dashboard: ViewRuntime, panelId: string, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
+    saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
+    saveOwnedView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
     // (undocumented)
     setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
+    setText(text: TextResolver | undefined, language?: string): void;
+    startingWord(key: string): string | undefined;
     readonly store: ViewStore;
     subscribe(listener: ViewChangeListener): () => void;
+    unregister(definitionId: string): boolean;
+    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public (undocumented)
@@ -5230,6 +5200,13 @@ export interface ViewListPage {
 }
 
 // @public
+export interface ViewLocation {
+    pathname: string;
+    search: string;
+    state: unknown;
+}
+
+// @public
 export type ViewNavigation = SavedViewTarget | UnsavedViewTarget | DashboardTarget
 /** A page of the host's: a panel's URL filled with the group pressed. */
 | {
@@ -5280,6 +5257,7 @@ export interface ViewResource {
     // (undocumented)
     definition: ViewDefinition;
     source?: ViewSource;
+    wording?: DatasetWordingEditor;
 }
 
 // @public (undocumented)
@@ -5291,6 +5269,40 @@ export interface ViewResult<C> {
     own: C;
     // (undocumented)
     receivedAt: number;
+}
+
+// @public
+export interface ViewRoute {
+    // (undocumented)
+    kind: 'route';
+    // (undocumented)
+    path: string;
+    // (undocumented)
+    state: ViewRouteState;
+    target: RoutedTarget;
+}
+
+// @public
+export type ViewRouteOf = (instanceId: string | null, target?: RoutedTarget) => string;
+
+// @public
+export interface ViewRouter {
+    go(path: string, options?: {
+        state?: unknown;
+        replace?: boolean;
+    }): void;
+    readonly location: ViewLocation;
+}
+
+// @public
+export interface ViewRouteState {
+    boards?: Record<string, {
+        filters?: DashboardFilters;
+        tab?: string | null;
+    }>;
+    filters?: DashboardFilters;
+    handOver?: ViewHandOver;
+    tab?: string | null;
 }
 
 // @public

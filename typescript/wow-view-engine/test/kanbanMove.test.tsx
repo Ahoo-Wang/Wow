@@ -79,7 +79,7 @@ function controller(
   overrides: Partial<RecordActionsController> = {},
 ): RecordActionsController {
   return {
-    now: 0,
+    now: new Date(0),
     busy: false,
     pending: null,
     start: vi.fn(),

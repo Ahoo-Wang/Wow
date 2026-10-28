@@ -131,8 +131,8 @@ export interface RefreshController {
    * `applied`, would never hear about it.
    */
   setInterval(interval: number | null): void;
-  /** One refresh, now. Unchanged by any of the above. */
-  now(): void;
+  /** Refreshes once, at once. Unchanged by any of the above. */
+  refreshNow(): void;
   /** True while a query of this view is in flight. */
   loading: boolean;
   /**
@@ -220,7 +220,7 @@ export function useAutoRefresh(
       },
       [runtime],
     ),
-    now: useCallback(() => runtime?.refresh(), [runtime]),
+    refreshNow: useCallback(() => runtime?.refresh(), [runtime]),
     loading: state?.query.status === 'loading',
     dueAt: state?.nextRefreshAt ?? null,
     // Stable per runtime, so a ticker can depend on it without restarting on

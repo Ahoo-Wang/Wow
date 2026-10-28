@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/testing exports, generated f
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/testing` exports — 15 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 15 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/testing.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/testing` exports — 17 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 15 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/testing.api.md). This index is English only.
 
 ::: v-pre
 
@@ -25,6 +25,8 @@ Every name `@ahoo-wang/wow-view-engine/testing` exports — 15 — with its kind
 | `HarnessField` | interface | One field of an action's form, as the dialog draws it. | [Testing Helpers](./testing#api-actionHarness) |
 | `HarnessState` | interface | One action on one record, as the row, the menu and the detail draw it. | [Testing Helpers](./testing#api-actionHarness) |
 | `MemorySourceOptions` | interface | How `memorySource` keeps and reads its documents. | [Testing Helpers](./testing#api-memorySource) |
+| `ViewDestination` | type | What the host's `navigate` is handed: a route, where the target's definition has one; otherwise the target as it came — a URL, or a definition the host bound no route for. | — |
+| `ViewRoute` | interface | A way off a board or a view, resolved through its definition's `route`: the host's path, and what the page there is handed. | — |
 | `actionHarness` | function | — | [Testing Helpers](./testing#api-actionHarness) |
 | `admit` | function | Every finding the engine would have about `definitions` over`descriptors` (the snapshots, by `DataViewDefinition.source`), each with the definition it is about; `[]` for a host's declarations that hold. | [Testing Helpers](./testing#api-admit) |
 | `matches` | function | Whether one document matches a filter, as `memorySource` reads it — the question a test asks of a condition of its own, such as the one an old screen used, to compare with what a view matched. | [Testing Helpers](./testing#api-memorySource) |
