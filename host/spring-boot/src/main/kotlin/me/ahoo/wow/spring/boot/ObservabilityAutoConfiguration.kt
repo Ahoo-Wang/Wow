@@ -26,6 +26,7 @@ import me.ahoo.wow.observability.QueryLimitMetrics
 import me.ahoo.wow.observability.TracingTopicProducer
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.store.QueryStores
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.observation.Observer
@@ -42,7 +43,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import kotlin.time.toKotlinDuration
 
 /**
  * Tracing and metrics (wow-observability), active when the application has wow-observability on its
@@ -85,20 +85,14 @@ class ObservabilityAutoConfiguration {
     @Bean
     fun wowParkedMetrics(meters: ObjectProvider<MeterRegistry>): ParkedNotifier = ParkedMetrics(meters.orGlobal())
 
-    @Bean(initMethod = "start", destroyMethod = "close")
+    @Bean
     @ConditionalOnBean(ServiceNode::class)
     @InternalWowApi
     fun wowNodeMetrics(
         node: ServiceNode,
         meters: ObjectProvider<MeterRegistry>,
-        properties: ObservabilityProperties,
-        wow: WowProperties,
-    ): NodeMetrics = NodeMetrics(
-        node,
-        meters.orGlobal(),
-        wow.node.sampleInterval.toKotlinDuration(),
-        properties.maxParked,
-    )
+        sampler: NodeSampler,
+    ): NodeMetrics = NodeMetrics(node, meters.orGlobal(), sampler)
 
     /**
      * The meters of the stores' query bulkheads: each one's limit and, of those that adapt, the write

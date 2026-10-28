@@ -603,7 +603,7 @@ A target pinned to an earlier V10 pre-release renames these host keys, with no a
 - `wow.cluster.router` and `wow.aggregates.[..].routing: cluster|kafka` are one key, `wow.routing: auto|partitioned|local|topic`, with the same values at `wow.aggregates.[<context>.<aggregate>].routing` (`auto` takes `wow.routing`'s; `partitioned` or `local` there must be the node's).
 - `wow.ops.enabled` is `wow.http.ops.enabled`; `wow.ops.webhook.*` and `wow.ops.publish.*` stay.
 - `wow.cosec.mode` is `gateway` or `disabled` (it was `off`).
-- `wow.health.sample-interval` and `wow.observability.sample-interval` are one `wow.node.sample-interval`.
+- `wow.health.sample-interval` and `wow.observability.sample-interval` are one `wow.node.sample-interval`. The node's one sampler counts parked entries up to `wow.node.max-parked` (it was `wow.observability.max-parked`), for its health and its gauges alike; `wow.health.subscriptions.parked-degraded-at` is at most it.
 - `wow.subscription.read-retry.max-attempts` is `read-retry.error-after`, and `read-retry.timeout` is gone.
 - `wow.cluster.max-in-flight-per-peer` is `max-in-flight-per-node`; `wow.query.cross-tenant.enabled` is `wow.query.allow-cross-tenant`; `wow.snapshot.interval`, `.batch` and `.pages` are `wow.snapshot.maintenance-interval`, `.rebuild.page-size` and `.rebuild.max-pages`; `wow.kafka.topic-prefix` is `wow.kafka.topics.prefix`.
 - `wow.state-views.max-bytes` is a size (`64MB`); a number is still read as bytes.

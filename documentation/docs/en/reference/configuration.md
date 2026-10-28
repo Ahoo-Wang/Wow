@@ -301,6 +301,7 @@ This node's identity among the nodes of the service, and where they reach it.
 | --- | --- | --- | --- |
 | `wow.node.address` | `String` |  | The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address the port binds is `wow.internal.host`. |
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
+| `wow.node.max-parked` | `Integer` | `10000` | How many parked entries of one subscription a sample counts at most: a count past it reads as the cap, so a flood of parked entries costs one bounded read per sample. The health's `parked-degraded-at` is at most it. |
 | `wow.node.sample-interval` | `Duration` | `PT10S` | How often the node samples what is read rather than heard: for its health, the logs' heads, the subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress. |
 | `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 
@@ -311,7 +312,6 @@ Observability's configuration, `wow.observability.*`, read when wow-observabilit
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.observability.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
-| `wow.observability.max-parked` | `Integer` | `10000` | How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in. |
 
 ## `wow.ops.publish`
 

@@ -24,9 +24,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
-import me.ahoo.wow.runtime.node.LogGroupNode
-import me.ahoo.wow.runtime.node.ParkedKey
-import me.ahoo.wow.runtime.node.ParkedOps
+import me.ahoo.wow.runtime.node.NodeSample
+import me.ahoo.wow.runtime.node.NodeSampler
+import me.ahoo.wow.runtime.node.ParkedSubscription
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.PausedPartition
@@ -63,8 +63,9 @@ import kotlin.time.Duration.Companion.seconds
  * - `topics`: each topic the node reads, by where it is in joining its lease group:
  *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise; `UP`, marked `standby`, while
  *   a node on standby has not joined it.
- * - `subscriptions`: each subscription of each runtime, from the last sample: its lag behind the log's head in the
- *   partitions it runs here, its parked entries (the service's, from the ledgers), and the partitions it has paused
+ * - `subscriptions`: each subscription of each runtime, by its group and name, from the node's last sample
+ *   ([NodeSampler]): its lag behind the log's head in the partitions it runs here, its parked entries (the service's,
+ *   from the ledgers: each context's `snapshot` its own), and the partitions it has paused
  *   ([SubscriptionPauses], each runtime's systemic pauses). Never `DOWN`: a subscription that falls behind
  *   does not stop the node from serving.
  * - `executor`: the commands in flight against `wow.executor.max-in-flight`, and per context the
@@ -80,12 +81,15 @@ import kotlin.time.Duration.Companion.seconds
  * which a restart does not bring back, and a restart storm would only add load to them. A node that is not running
  * (starting, stopping) is live: the startup probe covers the start, and a draining node is not restarted.
  *
- * A probe reads what was recorded and sampled: it never calls a store. [start] starts the dispatcher's tick and the
- * sampling, once the node has started; [close] stops them.
+ * A probe reads what was recorded and sampled: it never calls a store. [sampler], the node's one sampler, which its
+ * owner starts and closes, samples the node; each of its samples probes the stores the node has not called and checks
+ * the hand-overs. [start] starts the dispatcher's tick, once the node has started; [close] stops it.
  */
 @InternalWowApi
 class NodeHealth(
     val node: ServiceNode,
+    /** The node's one sampler, which its gauges read too; its owner starts and closes it. */
+    private val sampler: NodeSampler,
     val options: HealthOptions = HealthOptions(),
     private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
@@ -97,6 +101,7 @@ class NodeHealth(
     /** The wall clock the pauses' `since` is of (epoch milliseconds): the node's. */
     private val clock: Clock = node.clock,
 ) : AutoCloseable {
+
     @Volatile
     private var running: Job? = null
 
@@ -110,17 +115,21 @@ class NodeHealth(
     private val mismatches = ConcurrentHashMap<String, Long>()
 
     @Volatile
-    private var lastSample: Sample = Sample.EMPTY
+    private var lastSample: NodeSample = NodeSample.EMPTY
 
     /** How long a probe or a sampled read may take: [HealthOptions.storeDownAfter], at least a second. */
     private val probeTimeout: Duration = options.storeDownAfter.coerceAtLeast(MIN_PROBE_TIMEOUT)
+
+    init {
+        sampler.listen(::sampled)
+    }
 
     /** How often the dispatcher ticks: every second, or four times within a shorter stall timeout. */
     private val tick: Duration = minOf(TICK, options.stallTimeout / TICKS_PER_STALL)
 
     /**
-     * Starts the dispatcher's tick, every second (more often within a short stall timeout), and the sampling, every [HealthOptions.sampleInterval], the first
-     * sample at once. Starting twice does nothing.
+     * Starts the dispatcher's tick, every second (more often within a short stall timeout). Starting twice does
+     * nothing.
      */
     @Synchronized
     fun start() {
@@ -136,16 +145,10 @@ class NodeHealth(
                 delay(tick)
             }
         }
-        scope.launch {
-            while (true) {
-                sampleQuietly()
-                delay(options.sampleInterval)
-            }
-        }
         running = root
     }
 
-    /** Stops the tick and the sampling; [start] starts them again. */
+    /** Stops the tick; [start] starts it again. */
     @Synchronized
     override fun close() {
         running?.cancel()
@@ -155,12 +158,17 @@ class NodeHealth(
     /** Whether [start]ed and not [close]d. */
     val isRunning: Boolean get() = running != null
 
-    /**
-     * Takes one sample, while the node runs: probes each log's head and each context's lease store, so a store the
-     * node is not calling (an idle node, one that recovered) still shows how it is, then the subscriptions' lag and
-     * parked counts, and the ownerships' hand-overs.
-     */
+    /** Takes one sample of the node ([NodeSampler.sample]), which every reader of the sampler is told of. */
     suspend fun sample() {
+        sampler.sample()
+    }
+
+    /**
+     * Each sample, while the node runs: probes each log's head and each context's lease store, so a store the node is
+     * not calling (an idle node, one that recovered) still shows how it is, keeps the sample for the subscriptions,
+     * and checks the ownerships' hand-overs.
+     */
+    private suspend fun sampled(sample: NodeSample) {
         if (node.state != ServiceNode.State.RUNNING) {
             return
         }
@@ -170,7 +178,7 @@ class NodeHealth(
             probe(store.activity) { store.leases.members(group) }
         }
         stores.placed.forEach { placed -> probe(placed.activity) { placed.activity.recorded { placed.store.probe() } } }
-        lastSample = sampleSubscriptions()
+        lastSample = sample
         ownership()
     }
 
@@ -381,12 +389,13 @@ class NodeHealth(
     private fun subscriptionHealth(
         runtime: SubscriptionRuntime,
         subscription: String,
-        sample: Sample,
+        sample: NodeSample,
         paused: List<PausedPartition>,
     ): ComponentHealth {
-        val lag = sample.lags[runtime.group to subscription]
-        val parked = sample.parked[subscription]
-        val growing = parked != null && parked > (sample.previousParked[subscription] ?: parked)
+        val lag = lagOf(runtime, subscription, sample)
+        val key = ParkedSubscription(runtime.group, subscription)
+        val parked = sample.parked[key]
+        val growing = parked != null && parked > (sample.previousParked[key] ?: parked)
         val status = when {
             paused.isNotEmpty() -> HealthStatus.DEGRADED
             lag != null && lag >= options.lagDegradedAt -> HealthStatus.DEGRADED
@@ -409,6 +418,17 @@ class NodeHealth(
             }
         }
         return ComponentHealth(subscription, status, details)
+    }
+
+    /**
+     * The entries of the log after [subscription]'s watermark in the partitions [runtime] runs here, to the heads
+     * [sample] read; null for a runtime whose heads it did not read (an intake, another context's topic).
+     */
+    private fun lagOf(runtime: SubscriptionRuntime, subscription: String, sample: NodeSample): Long? {
+        val behind = runtime.positions().filter { it.subscription == subscription }.mapNotNull { position ->
+            sample.heads[runtime.group to position.partition]?.let { (it - position.watermark).coerceAtLeast(0) }
+        }
+        return if (behind.isEmpty()) null else behind.sum()
     }
 
     private fun executor(): ComponentHealth {
@@ -435,64 +455,6 @@ class NodeHealth(
         context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)
     } + node.topicSubscriptions.values.mapNotNull { it.runtime }
 
-    /**
-     * The lag of each subscription of each log group, and the parked entries of each subscription; a group whose
-     * heads, or a subscription whose ledger, cannot be read now is left out of this sample (its store shows why).
-     */
-    private suspend fun sampleSubscriptions(): Sample {
-        val lags = HashMap<Pair<String, String>, Long>()
-        node.contexts.values.flatMap { it.logGroups }.forEach { group ->
-            quietly("read the heads of ${group.subscriptions.group}") {
-                withTimeoutOrNull(probeTimeout) { lagsOf(group, lags) }
-            }
-        }
-        val parked = HashMap<String, Int>()
-        node.parked.subscriptions.forEach { subscription ->
-            quietly("count the parked entries of $subscription") {
-                withTimeoutOrNull(
-                    probeTimeout
-                ) { countParked(node.parked, subscription) }?.let { parked[subscription] = it }
-            }
-        }
-        return Sample(nanos(), lags, parked, lastSample.parked)
-    }
-
-    /** Adds the lag of each subscription of [group] in the partitions it runs here to [lags]. */
-    private suspend fun lagsOf(group: LogGroupNode, lags: MutableMap<Pair<String, String>, Long>) {
-        val heads = HashMap<Int, Long>()
-        val sampled = HashMap<Pair<String, String>, Long>()
-        group.subscriptions.positions().forEach { position ->
-            val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
-            val key = group.subscriptions.group to position.subscription
-            sampled[key] = (sampled[key] ?: 0L) + (head - position.watermark).coerceAtLeast(0)
-        }
-        lags += sampled
-    }
-
-    @Suppress("TooGenericExceptionCaught") // Left out of the sample; the next one tries again.
-    private suspend fun quietly(action: String, block: suspend () -> Unit) {
-        try {
-            block()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.debug(failure) { "Node ${node.node} failed to $action for its health; sampling again." }
-        }
-    }
-
-    /** How many entries [subscription] has parked, up to [HealthOptions.parkedDegradedAt]. */
-    private suspend fun countParked(parked: ParkedOps, subscription: String): Int {
-        var count = 0
-        var after: ParkedKey? = null
-        do {
-            val limit = minOf(ParkedOps.MAX_LIMIT, options.parkedDegradedAt - count)
-            val page = parked.list(subscription, after, limit)
-            count += page.entries.size
-            after = page.next
-        } while (after != null && count < options.parkedDegradedAt)
-        return count
-    }
-
     /** Calls a store with [call] as a probe, recorded in its [activity]: a probe without an answer is a failure. */
     @Suppress("TooGenericExceptionCaught") // A failed probe is recorded by the store's record; the next one follows.
     private suspend fun probe(activity: StoreActivity, call: suspend () -> Unit) {
@@ -514,30 +476,7 @@ class NodeHealth(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught") // A failed sample is logged; the next one is taken all the same.
-    private suspend fun sampleQuietly() {
-        try {
-            sample()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to sample the health of node ${node.node}; sampling again." }
-        }
-    }
-
     private fun ago(now: Long, at: Long): Duration? = if (at == StoreActivity.NONE) null else (now - at).nanoseconds
-
-    /** One sample of what a probe must not wait for, taken [at] (`System.nanoTime()`). */
-    private class Sample(
-        val at: Long,
-        val lags: Map<Pair<String, String>, Long>,
-        val parked: Map<String, Int>,
-        val previousParked: Map<String, Int>,
-    ) {
-        companion object {
-            val EMPTY = Sample(StoreActivity.NONE, emptyMap(), emptyMap(), emptyMap())
-        }
-    }
 
     @InternalWowApi
     companion object {

@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffOptions
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -231,6 +232,12 @@ class WowProperties {
          * (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress.
          */
         var sampleInterval: Duration = DEFAULT_HEALTH.sampleInterval.toJavaDuration()
+
+        /**
+         * How many parked entries of one subscription a sample counts at most: a count past it reads as the cap, so a
+         * flood of parked entries costs one bounded read per sample. The health's `parked-degraded-at` is at most it.
+         */
+        var maxParked: Int = NodeSampler.DEFAULT_MAX_PARKED
     }
 
     @InternalWowApi
