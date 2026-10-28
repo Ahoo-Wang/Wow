@@ -68,10 +68,18 @@ public final class me/ahoo/wow/kafka/KafkaTopicProducer$Companion {
 }
 
 public final class me/ahoo/wow/kafka/KafkaTransportProvider : me/ahoo/wow/spi/transport/TransportProvider {
+	public static final field BOOTSTRAP_SERVERS Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaTransportProvider$Companion;
+	public static final field MIN_INSYNC_REPLICAS Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field OFFSET_GAP Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field POLL_TIMEOUT Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field PROPERTIES Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field REPLICATION_FACTOR Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field TOPIC_CONFIGS Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final field TYPE Ljava/lang/String;
 	public fun <init> ()V
 	public fun available (Lme/ahoo/wow/spi/transport/TransportConfig;)Z
+	public fun getOptions ()Ljava/util/List;
 	public fun getRequirement ()Ljava/lang/String;
 	public fun getType ()Ljava/lang/String;
 	public fun open (Lme/ahoo/wow/spi/transport/TransportConfig;)Lme/ahoo/wow/spi/transport/TopicTransport;

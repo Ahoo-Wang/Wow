@@ -43,7 +43,6 @@ import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
-import me.ahoo.wow.spi.transport.TransportConfig
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -145,19 +144,16 @@ class HostKafkaSinkTest {
                 ).isInstanceOf(KafkaTopicAdmin::class.java)
                 topics.ddl.assert().isEqualTo(Ddl.AUTO)
                 topics.partitionRefresh.assert().isEqualTo(5.seconds)
-                val kafka = context.getBean(KafkaProperties::class.java)
-                kafka.topics.replicationFactor.assert().isEqualTo(3.toShort())
-                kafka.topics.configs.assert().isEqualTo(mapOf("retention.ms" to "600000"))
-                // The transport reads its settings under wow.kafka, flattened (finding R5.B-5).
-                val options = KafkaTransportProvider.options(
-                    TransportConfig.of("kafka", "kafka", PortProviders.optionsOf(context.environment, "kafka")),
-                )
+                // The transport reads the settings it declares under wow.kafka, flattened (finding R5.B-5).
+                val config = context.getBean(SelectedTransport::class.java).config
+                config.options.assert().containsEntry("topics.replication-factor", "3")
+                    .containsEntry("topics.configs.retention.ms", "600000")
+                val options = KafkaTransportProvider.options(config)
                 options.metadataMaxAge.assert().isEqualTo(5.seconds)
                 options.pollTimeout.assert().isEqualTo(50.milliseconds)
                 options.properties.assert().isEqualTo(mapOf("client.id" to "bank"))
                 // The Manifest publishes nothing: no sink reads any state.
                 sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
-                context.getBean(KafkaProperties::class.java).properties.assert().isEqualTo(mapOf("client.id" to "bank"))
             }
     }
 

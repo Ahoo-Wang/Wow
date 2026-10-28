@@ -28,6 +28,22 @@ wow:
 
 `wow.clickhouse.username` (`default`) and `password` sign in, and `wow.clickhouse.database` (`default`) holds the tables. The sink writes every aggregate the Manifest publishes; `wow.clickhouse.sink.enabled: false` turns it off.
 
+The sink and the datasets each open a client of these settings and close it with the node. An application that wants one shared client, or uses ClickHouse itself, declares the client as a bean: both then use it and never close it. It binds `wow.clickhouse` with Spring's `Binder`, builds the client with `ClickHouseClients.of`, and closes it with its context. The analytics catalog does so:
+
+<!-- sample: platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/AnalyticsCatalogConfiguration.kt#shared-client -->
+
+```kotlin
+@Bean(destroyMethod = "close")
+@ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
+fun analyticsCatalogClickHouseClient(environment: Environment): Client {
+    val settings = Binder.get(environment)
+        .bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
+        .orElse(emptyMap())
+        .orEmpty()
+    return ClickHouseClients.of(settings)
+}
+```
+
 ## The tables
 
 For each aggregate type, named after its context and aggregate (`eshop_ordering_order`):
@@ -39,7 +55,7 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 | `<ctx>_<agg>_events` | One row per event, filled by a materialized view |
 | `<ctx>_<agg>_state_flat` | A view of the current state with each top-level scalar of the state as a typed column, for analytics tools |
 
-`wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
+`wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
 
 ## Delivered once, read once
 

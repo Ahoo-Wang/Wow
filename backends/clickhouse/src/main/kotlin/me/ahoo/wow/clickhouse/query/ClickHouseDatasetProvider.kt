@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.query
 
 import com.clickhouse.client.api.Client
+import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetConfig
@@ -24,47 +25,66 @@ import kotlin.time.toJavaDuration
 
 /**
  * The ClickHouse dataset backend (`wow.clickhouse.*`), found by `ServiceLoader`: the [ClickHouseDatasetBindings] over
- * the application's client-v2 [Client] (the one the Sink writes with), available when it has one and
- * `wow.clickhouse.query.enabled` is not `false`. A dataset's bare `table` is in `wow.clickhouse.database`, where the Sink
- * writes; its statements run under `wow.clickhouse.query.settings.*`.
+ * the application's client-v2 [Client] when it has one, which it never closes, else over one of its own of `endpoint`
+ * and the credentials ([ClickHouseClients]), which the bindings close when the host closes them. It is available when
+ * either is there and `wow.clickhouse.query.enabled` is not `false`. A dataset's bare `table` is in
+ * `wow.clickhouse.database`, where the Sink writes; its statements run under `wow.clickhouse.query.settings.*`.
  */
 internal class ClickHouseDatasetProvider : QueryDatasetProvider {
     override val type: String = TYPE
 
-    override val options: List<ProviderOption<*>> = listOf(ENABLED, DATABASE, METADATA_TTL)
-
-    override fun available(config: QueryDatasetConfig): Boolean =
-        config.option(ENABLED) != false && config.resources.has(Client::class.java)
-
-    override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> = ClickHouseDatasetBindings(
-        config.resources.resource(Client::class.java, null, "${config.key}.endpoint"),
-        optionsOf(config),
+    override val options: List<ProviderOption<*>> = listOf(
+        ClickHouseClients.ENDPOINT,
+        ClickHouseClients.USERNAME,
+        ClickHouseClients.PASSWORD,
+        ClickHouseClients.DATABASE,
+        ENABLED,
+        METADATA_TTL,
+        SETTINGS,
     )
+
+    override fun available(config: QueryDatasetConfig): Boolean = config.option(ENABLED) != false &&
+        (config.resources.has(Client::class.java) || config.option(ClickHouseClients.ENDPOINT) != null)
+
+    override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> {
+        if (config.resources.has(Client::class.java)) {
+            val client = config.resources.resource(Client::class.java, null, config.key)
+            return ClickHouseDatasetBindings(client, optionsOf(config))
+        }
+        val client = ClickHouseClients.of(
+            requireNotNull(config.option(ClickHouseClients.ENDPOINT)) {
+                "${config.key}.${ClickHouseClients.ENDPOINT.key} is not set."
+            },
+            checkNotNull(config.option(ClickHouseClients.USERNAME)),
+            checkNotNull(config.option(ClickHouseClients.PASSWORD)),
+        )
+        return OwnedClientBindings(ClickHouseDatasetBindings(client, optionsOf(config)), client)
+    }
 
     /** The dataset options [config] gives: its database, the metadata's time to live and the statements' settings. */
     fun optionsOf(config: QueryDatasetConfig): ClickHouseDatasetOptions = ClickHouseDatasetOptions(
-        database = checkNotNull(config.option(DATABASE)),
+        database = checkNotNull(config.option(ClickHouseClients.DATABASE)),
         metadataTtl = checkNotNull(config.option(METADATA_TTL)).toJavaDuration(),
         settings = config.options(SETTINGS),
     )
 
+    /** [bindings] over a [client] of their own, which closing them closes. */
+    private class OwnedClientBindings(
+        private val bindings: QueryBindings<QueryDataset>,
+        private val client: Client,
+    ) : QueryBindings<QueryDataset> by bindings, AutoCloseable {
+        override fun close() = client.close()
+    }
+
     companion object {
         const val TYPE: String = "clickhouse"
-
-        private const val SETTINGS = "query.settings"
 
         /** Whether the datasets are served over ClickHouse. */
         val ENABLED: ProviderOption<Boolean> = ProviderOption.boolean(
             "query.enabled",
-            "whether the datasets are served over ClickHouse when the application has a ClickHouse client.",
+            "whether the datasets are served over ClickHouse when the endpoint is set or the application has a " +
+                "ClickHouse client.",
             true,
-        )
-
-        /** The database of a dataset whose `table` names none. */
-        val DATABASE: ProviderOption<String> = ProviderOption.string(
-            "database",
-            "the database of the Sink's tables and of a dataset whose table names none.",
-            "default",
         )
 
         /** How long a table's columns and engine are reused before `system.columns` is read again. */
@@ -72,6 +92,13 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
             "query.metadata-ttl",
             "how long a dataset table's columns and engine are reused before system.columns is read again.",
             1.minutes,
+        )
+
+        /** The server settings every dataset statement runs under. */
+        val SETTINGS: ProviderOption<Map<String, String>> = ProviderOption.map(
+            "query.settings",
+            "server settings every dataset query runs under, such as max_memory_usage; the execution time comes from " +
+                "each query's budget (wow.query.budgets.http.timeout), not from here.",
         )
     }
 }

@@ -33,14 +33,13 @@ import org.springframework.context.annotation.Configuration
 /**
  * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
  * `wow.clickhouse.endpoint` set, every stream the Manifest publishes is written to ClickHouse by a subscription
- * `clickhouse-sink.<aggregate>`, over the client [ClickHouseAutoConfiguration] wires.
+ * `clickhouse-sink.<aggregate>`, over the application's ClickHouse client or one the Sink opens itself.
  */
 class HostClickHouseSinkTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(
             AutoConfigurations.of(
                 TransportAutoConfiguration::class.java,
-                ClickHouseAutoConfiguration::class.java,
                 SinkAutoConfiguration::class.java,
             ),
         )
@@ -57,7 +56,8 @@ class HostClickHouseSinkTest {
     @Test
     fun `with an endpoint the client and the sinks should be wired`() {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
-            context.getBean(Client::class.java).assert().isNotNull()
+            // No application client: the Sink opens one of its own, closed with its sinks.
+            context.getBeansOfType(Client::class.java).assert().isEmpty()
             val sinks = context.getBean(ProvidedSinks::class.java).sinks.single()
             sinks.nameOf(PublishedManifest("account", "t")).assert()
                 .isEqualTo("clickhouse-sink.account")
@@ -70,7 +70,6 @@ class HostClickHouseSinkTest {
     fun `the sink should be switched off by its property`() {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.sink.enabled=false")
             .run { context ->
-                context.getBeansOfType(Client::class.java).assert().hasSize(1)
                 context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
             }
     }

@@ -17,7 +17,11 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.sink.Sink
+import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.state.StateEventRecord
+import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.sink.SinkSpec
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -34,6 +38,22 @@ class ClickHouseSinkSpecTest : SinkSpec() {
     override fun createSink(): Sink =
         ClickHouseSinks(ClickHouseSinkIntegrationTest.client, SinkFixtures.MANIFEST, ClickHouseSinkOptions(database = database))
             .sinkOf("shop", "order")
+
+    override fun provided(): Pair<SinkProvider, SinkConfig> = ClickHouseSinkProvider() to SinkConfig.of(
+        "clickhouse",
+        "clickhouse",
+        mapOf(
+            "endpoint" to WowContainers.clickHouse.httpUrl,
+            "username" to WowContainers.clickHouse.username,
+            "password" to WowContainers.clickHouse.password,
+            "database" to database,
+            "ddl" to "auto",
+            "sink.batch-size" to "10",
+            "sink.deduplication-window" to "10",
+            "aggregates.shop.order.history.ttl" to "7d",
+        ),
+        StoreResources.of(mapOf("manifest" to SinkFixtures.MANIFEST)),
+    )
 
     override fun record(ref: AggregateRef, version: Int): StateEventRecord =
         SinkFixtures.recordOf(id = ref.id, version = version, tenantId = ref.tenantId)

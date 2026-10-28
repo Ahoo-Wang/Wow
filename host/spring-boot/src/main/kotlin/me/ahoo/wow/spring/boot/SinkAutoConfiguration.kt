@@ -34,7 +34,8 @@ import org.springframework.core.env.Environment
 /**
  * The Sinks of the streams the service publishes: those the [me.ahoo.wow.spi.sink]
  * providers on the classpath or among the application's beans find configured ([PortProviders]), the ClickHouse Sink by
- * `wow.clickhouse.endpoint` (unless `wow.clickhouse.sink.enabled=false`). Each is one subscription per published
+ * `wow.clickhouse.endpoint` (unless `wow.clickhouse.sink.enabled=false`), over the application's ClickHouse client
+ * when it has one. Each is one subscription per published
  * stream, named `<processor>.<aggregate>`, which the node takes with its subscription factories ([ProvidedSinks]).
  *
  * A Sink that writes into one of the node's stores starts by itself, with no key of its own: for each store
@@ -43,7 +44,7 @@ import org.springframework.core.env.Environment
  * serves their `events` queries ([storeSinkConfigs]).
  * Wow's ClickHouse Sink also reads each aggregate type's `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*`.
  */
-@AutoConfiguration(after = [TransportAutoConfiguration::class, ClickHouseAutoConfiguration::class])
+@AutoConfiguration(after = [TransportAutoConfiguration::class])
 @EnableConfigurationProperties(WowProperties::class)
 class SinkAutoConfiguration {
     @Bean(destroyMethod = "close")

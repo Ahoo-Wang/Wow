@@ -27,10 +27,8 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     // The backend follows what the application puts on the classpath (`wow.backend`, D110): each backend's store
     // provider is found by ServiceLoader (review R3.3-1), so the host neither brings nor compiles against them.
-    // A topic transport and a Sink are found the same way, by their providers (finding R5.B-5), so the host compiles
-    // against neither the Kafka transport nor the ClickHouse Sink; the ClickHouse dataset backend is wired when the
-    // application has it. The query plane comes with wow-http.
-    compileOnly(project(":clickhouse"))
+    // A topic transport, a Sink and a dataset backend are found the same way, by their providers (finding R5.B-5),
+    // so the host compiles against none of Kafka and ClickHouse. The query plane comes with wow-http.
     // The application's DataSource and MongoClient from its properties alone (decisions D310, D318), when it has
     // HikariCP or wow-mongo and no Spring Boot JDBC or MongoDB of its own.
     compileOnly("com.zaxxer:HikariCP")
@@ -39,7 +37,7 @@ dependencies {
     // has wow-mongo; Spring Boot's through its settings customizer.
     compileOnly(project(":mongo"))
     compileOnly("org.springframework.boot:spring-boot-mongodb")
-    // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
+    // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module (review R5.C-12).
     compileOnly(project(":cosec"))
     compileOnly(libs.cosec.webflux)
     // Tracing and metrics are wired when the application has wow-observability (decision D174).

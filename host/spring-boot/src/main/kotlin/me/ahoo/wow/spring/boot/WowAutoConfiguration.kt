@@ -86,9 +86,12 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.tenant.TenantPolicy
+import me.ahoo.wow.spi.transport.TopicTransportOptions
+import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -185,6 +188,8 @@ class WowAutoConfiguration {
         environment: ConfigurableEnvironment,
         context: ApplicationContext,
         providers: StoreProviders,
+        transports: ObjectProvider<TransportProvider>,
+        sinks: ObjectProvider<SinkProvider>,
     ): ConfigurationKeys {
         val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
             context.findAnnotationOnBean(
@@ -192,9 +197,16 @@ class WowAutoConfiguration {
                 ConfigurationProperties::class.java
             )?.let { it.prefix.ifEmpty { it.value } }
         }
+        val ports = PortProviders.load(
+            context.classLoader,
+            transports.orderedStream().toList(),
+            sinks.orderedStream().toList(),
+        )
         val declared = ProviderOptionKeys.of(
             providers.stores.values.map { it.type to it.options } +
-                HostDatasets.providers(context.classLoader).map { it.type to it.options },
+                HostDatasets.providers(context.classLoader).map { it.type to it.options } +
+                ports.transports.values.map { it.type to TopicTransportOptions.of(it) } +
+                ports.sinks.values.map { it.type to it.options },
         )
         return ConfigurationKeys.of(context.classLoader, prefixes, declared).also { it.check(environment) }
     }
@@ -471,7 +483,7 @@ class WowAutoConfiguration {
         providedSinks: ObjectProvider<ProvidedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
-        kafka: ObjectProvider<KafkaProperties>,
+        transports: ObjectProvider<TransportProvider>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
@@ -487,7 +499,7 @@ class WowAutoConfiguration {
                 TransportNeeds.of(
                     topicRouted(properties, models.models),
                     properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
-                    kafka.ifAvailable?.commandIntake?.enabled == true,
+                    TransportNeeds.intake(environment, transportTypes(beanFactory, transports)),
                 ),
                 properties.transport,
                 TransportNeeds.unpublished(manifest, contexts),
@@ -906,6 +918,13 @@ class WowAutoConfiguration {
          * `spring.http.codecs.max-in-memory-size`, or the older `spring.codec.max-in-memory-size`, else WebFlux's
          * default. The internal port takes a forward of a body that large.
          */
+        /** The types of the topic transports the node can open: on the classpath, and the application's beans. */
+        internal fun transportTypes(
+            beanFactory: ConfigurableListableBeanFactory,
+            transports: ObjectProvider<TransportProvider>,
+        ): Set<String> =
+            PortProviders.load(beanFactory.beanClassLoader, transports.orderedStream().toList()).transports.keys
+
         internal fun publicCodecLimit(environment: Environment): Int {
             val binder = Binder.get(environment)
             val size = CODEC_LIMITS.firstNotNullOfOrNull { binder.bind(it, DataSize::class.java).orElse(null) }

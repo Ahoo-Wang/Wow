@@ -15,8 +15,10 @@ package me.ahoo.wow.clickhouse.sink
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
@@ -25,26 +27,39 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The ClickHouse Sink, type `clickhouse`: available once `endpoint` is set,
- * unless `sink.enabled` is `false`. It writes every stream the service's Manifest (a resource of the application)
- * publishes, through the application's ClickHouse [Client] when it has one, else through one of `endpoint`,
- * `username` (`default`) and `password` (empty) it closes with the sinks. Its settings, relative to its
- * configuration (`wow.clickhouse.*`): `database`, `ddl` ([Ddl], `auto` by default; the host gives `wow.ddl` when it
- * is not set), `sink.batch-size`, `sink.deduplication-window`, and each aggregate type's `history.enabled` and
- * `history.ttl`, under `aggregates.<context>.<aggregate>` ([ClickHouseSinkOptions]).
+ * The ClickHouse Sink, type `clickhouse`: available once `endpoint` is set, unless `sink.enabled` is `false`. It
+ * writes every stream the service's Manifest (a resource of the application) publishes, through the application's
+ * [Client] when it has one, which it never closes, else through one of its own ([ClickHouseClients]), which it closes
+ * with the sinks. Its settings, relative to its configuration (`wow.clickhouse.*`), are its [options]: the
+ * connection's, `ddl` ([Ddl], `auto` by default; the host gives `wow.ddl` when it is not set), `sink.batch-size`,
+ * `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl` under
+ * `aggregates.<context>.<aggregate>`, which the host gives from
+ * `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` ([ClickHouseSinkOptions]).
  */
 class ClickHouseSinkProvider : SinkProvider {
     override val type: String = TYPE
 
     override val requirement: String = "endpoint, the ClickHouse HTTP endpoint"
 
+    override val options: List<ProviderOption<*>> = listOf(
+        ClickHouseClients.ENDPOINT,
+        ClickHouseClients.USERNAME,
+        ClickHouseClients.PASSWORD,
+        ClickHouseClients.DATABASE,
+        DDL,
+        ENABLED,
+        BATCH_SIZE,
+        DEDUPLICATION_WINDOW,
+        AGGREGATES,
+    )
+
     override fun available(config: SinkConfig): Boolean =
-        config.option(ENDPOINT) != null && config.option("sink.enabled")?.toBooleanStrict() != false
+        config.option(ClickHouseClients.ENDPOINT) != null && config.option(ENABLED) != false
 
     override fun open(config: SinkConfig): StreamSinks {
         val manifest = config.resources.resource(Manifest::class.java, null, config.key)
         val owned = if (config.resources.has(Client::class.java)) null else clientOf(config)
-        val client = owned ?: config.resources.resource(Client::class.java, null, "${config.key}.$ENDPOINT")
+        val client = owned ?: config.resources.resource(Client::class.java, null, config.key)
         val sinks = ClickHouseSinks(client, manifest, options(config))
         return object : StreamSinks {
             override val processor: String = ClickHouseSinks.PROCESSOR
@@ -63,29 +78,70 @@ class ClickHouseSinkProvider : SinkProvider {
         /** The type of the ClickHouse Sink. */
         const val TYPE: String = "clickhouse"
 
-        private const val ENDPOINT = "endpoint"
+        /** How the Sink manages its tables, over `wow.ddl`. */
+        @JvmField
+        val DDL: ProviderOption<String> = ProviderOption.string(
+            "ddl",
+            "how the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing " +
+                "and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl " +
+                "when not set.",
+        )
+
+        /** Whether the published streams are written to ClickHouse. */
+        @JvmField
+        val ENABLED: ProviderOption<Boolean> = ProviderOption.boolean(
+            "sink.enabled",
+            "whether the Manifest's published streams are written to ClickHouse.",
+            true,
+        )
+
+        /** The most records one insert carries. */
+        @JvmField
+        val BATCH_SIZE: ProviderOption<Int> = ProviderOption.int(
+            "sink.batch-size",
+            "the most records one insert carries.",
+            ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
+        )
+
+        /** How many recent inserts each table remembers to drop a retried one. */
+        @JvmField
+        val DEDUPLICATION_WINDOW: ProviderOption<Int> = ProviderOption.int(
+            "sink.deduplication-window",
+            "how many recent inserts each table remembers to drop a retried one: the " +
+                "non_replicated_deduplication_window of the tables auto creates.",
+            ClickHouseSinkOptions.DEFAULT_DEDUPLICATION_WINDOW,
+        )
+
+        /** Each aggregate type's history, which the host gives the Sink; not set under `wow.clickhouse`. */
+        @JvmField
+        val AGGREGATES: ProviderOption<Map<String, String>> = ProviderOption.map(
+            "aggregates",
+            "each aggregate type's history settings, <context>.<aggregate>.history.enabled and .ttl, given by the " +
+                "host from wow.aggregates.[<context>.<aggregate>].clickhouse.history.",
+        ).perStore()
+
         private const val HISTORY = ".history."
-        private const val AGGREGATES = "aggregates"
 
         /** A client of [config]'s endpoint and credentials. */
-        fun clientOf(config: SinkConfig): Client = Client.Builder()
-            .addEndpoint(requireNotNull(config.option(ENDPOINT)) { "${config.key}.$ENDPOINT is not set." })
-            .setUsername(config.option("username") ?: "default")
-            .setPassword(config.options["password"].orEmpty())
-            .build()
+        fun clientOf(config: SinkConfig): Client = ClickHouseClients.of(
+            requireNotNull(config.option(ClickHouseClients.ENDPOINT)) {
+                "${config.key}.${ClickHouseClients.ENDPOINT.key} is not set."
+            },
+            checkNotNull(config.option(ClickHouseClients.USERNAME)),
+            checkNotNull(config.option(ClickHouseClients.PASSWORD)),
+        )
 
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {
-            val ddlText = config.option("ddl") ?: "auto"
+            val ddlText = config.option(DDL) ?: "auto"
             val ddl = requireNotNull(Ddl.entries.firstOrNull { it.name.equals(ddlText, ignoreCase = true) }) {
-                "${config.key}.ddl is $ddlText, which is no DDL mode: set it to auto, validate or none."
+                "${config.key}.${DDL.key} is $ddlText, which is no DDL mode: set it to auto, validate or none."
             }
             return ClickHouseSinkOptions(
-                database = config.option("database") ?: ClickHouseSinkOptions.DEFAULT_DATABASE,
+                database = checkNotNull(config.option(ClickHouseClients.DATABASE)),
                 ddl = ddl,
-                batchSize = config.option("sink.batch-size")?.toInt() ?: ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
-                deduplicationWindow = config.option("sink.deduplication-window")?.toInt()
-                    ?: ClickHouseSinkOptions.DEFAULT_DEDUPLICATION_WINDOW,
+                batchSize = checkNotNull(config.option(BATCH_SIZE)),
+                deduplicationWindow = checkNotNull(config.option(DEDUPLICATION_WINDOW)),
                 aggregates = aggregates(config),
             )
         }
@@ -110,7 +166,7 @@ class ClickHouseSinkProvider : SinkProvider {
                 val context = key.substringBefore('.', "")
                 val aggregate = key.substringAfter('.', "")
                 require(context.isNotBlank() && aggregate.isNotBlank()) {
-                    "${config.key}.$AGGREGATES.$key names no aggregate type: name it <context>.<aggregate>."
+                    "${config.key}.${AGGREGATES.key}.$key names no aggregate type: name it <context>.<aggregate>."
                 }
                 AggregateType(context, aggregate)
             }

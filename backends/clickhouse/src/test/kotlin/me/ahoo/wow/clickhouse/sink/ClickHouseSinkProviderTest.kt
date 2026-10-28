@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreResources
@@ -36,9 +37,9 @@ class ClickHouseSinkProviderTest {
         provider.available(config()).assert().isFalse()
         provider.available(config("endpoint" to "http://c:8123")).assert().isTrue()
         provider.available(config("endpoint" to "http://c:8123", "sink.enabled" to "false")).assert().isFalse()
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             provider.available(config("endpoint" to "http://c:8123", "sink.enabled" to "maybe"))
-        }
+        }.key.assert().isEqualTo("wow.clickhouse.sink.enabled")
         ServiceLoader.load(SinkProvider::class.java).map { it.type }.assert().contains("clickhouse")
     }
 

@@ -26,7 +26,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * instance of the provider's type under `wow.<type>.<key>`, and each instance may set it over that; a key a provider
  * does not declare fails the start, naming the declared ones.
  *
- * A provider declares its options with the factories ([string], [duration], [int], [boolean]).
+ * A provider declares its options with the factories ([string], [duration], [int], [boolean], [map]). A [map] option
+ * is a prefix whose sub-keys pass through as they are (`properties.*` of a client): a config reads it with its
+ * `options(option)`.
  */
 @WowSpi
 class ProviderOption<T : Any> @InternalWowApi constructor(
@@ -53,6 +55,9 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
          */
         PER_STORE,
     }
+
+    /** Whether this option is a prefix of free sub-keys ([map]). */
+    val isMap: Boolean get() = type == Map::class.java
 
     /** This option, settable only on one store instance ([Scope.PER_STORE]). */
     fun perStore(): ProviderOption<T> = ProviderOption(key, description, type, default, Scope.PER_STORE, parser)
@@ -81,8 +86,8 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
             ProviderOption(key, description, String::class.java, default, Scope.TYPE) { it }
 
         /**
-         * A duration, written as Kotlin writes one (`5s`, `1m 30s`), in ISO-8601 (`PT5S`) or as milliseconds (`500`),
-         * as a Spring `Duration` property reads it.
+         * A duration, written as Kotlin writes one (`500ms`, `5s`, `1m 30s`), in ISO-8601 (`PT5S`), or as a bare number
+         * of milliseconds (`500`), as a Spring `Duration` property reads it.
          */
         @JvmStatic
         @JvmOverloads
@@ -104,6 +109,19 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
             ProviderOption(key, description, Boolean::class.javaObjectType, default, Scope.TYPE) { text ->
                 requireNotNull(text.lowercase().toBooleanStrictOrNull()) { "neither true nor false" }
             }
+
+        /**
+         * The settings under [prefix], each sub-key passed through as it is (a client's `properties.*`, a server's
+         * `settings.*`): any sub-key is accepted, none is checked.
+         */
+        @JvmStatic
+        fun map(prefix: String, description: String): ProviderOption<Map<String, String>> {
+            @Suppress("UNCHECKED_CAST")
+            val type = Map::class.java as Class<Map<String, String>>
+            return ProviderOption(prefix, description, type, null, Scope.TYPE) {
+                throw IllegalArgumentException("a map option is read by its sub-keys")
+            }
+        }
 
         private fun parseDuration(text: String): Duration =
             text.toLongOrNull()?.milliseconds ?: Duration.parse(text)

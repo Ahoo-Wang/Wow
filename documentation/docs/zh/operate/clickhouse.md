@@ -28,6 +28,22 @@ wow:
 
 `wow.clickhouse.username`（`default`）和 `password` 用于登录，`wow.clickhouse.database`（`default`）存放这些表。Sink 写入 Manifest 发布的每个聚合；`wow.clickhouse.sink.enabled: false` 关闭它。
 
+Sink 和数据集各自用这些设置打开一个客户端，并随节点关闭。想共用一个客户端，或自己也要用 ClickHouse 的应用，把客户端声明为 bean：两者就都用它，且从不关闭它。应用用 Spring 的 `Binder` 绑定 `wow.clickhouse`，用 `ClickHouseClients.of` 构建客户端，并随自己的上下文关闭它。分析目录服务就是这样做的：
+
+<!-- sample: platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/AnalyticsCatalogConfiguration.kt#shared-client -->
+
+```kotlin
+@Bean(destroyMethod = "close")
+@ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
+fun analyticsCatalogClickHouseClient(environment: Environment): Client {
+    val settings = Binder.get(environment)
+        .bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
+        .orElse(emptyMap())
+        .orEmpty()
+    return ClickHouseClients.of(settings)
+}
+```
+
 ## 表 {#the-tables}
 
 每个聚合类型一组，以它的上下文和聚合命名（`eshop_ordering_order`）：
@@ -39,7 +55,7 @@ wow:
 | `<ctx>_<agg>_events` | 每个事件一行，由物化视图填充 |
 | `<ctx>_<agg>_state_flat` | 当前状态的一个视图，状态的每个顶层标量都是一个有类型的列，供分析工具使用 |
 
-`wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled: false` 只保留当前状态：Sink 随后直接写 `_state`，也就没有 `_state_events` 和 `_events`。`...history.ttl` 则让历史保留一段时间，而不是永久保留。
+`wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` 只保留当前状态：Sink 随后直接写 `_state`，也就没有 `_state_events` 和 `_events`。`...history.ttl` 则让历史保留一段时间，而不是永久保留。
 
 ## 投递一次，读取一次 {#delivered-once-read-once}
 

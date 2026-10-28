@@ -67,6 +67,12 @@ class StoreConfig @InternalWowApi constructor(
     fun <T : Any> option(option: ProviderOption<T>): T? =
         option(option.key)?.let { option.parse(it, "$key.options.${option.key}") } ?: option.default
 
+    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
+    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {
+        read += option.key
+        return options.filterKeys { it.startsWith("${option.key}.") }.mapKeys { it.key.removePrefix("${option.key}.") }
+    }
+
     /** The keys of [options] the store asked for, so a test can hold them to the options its provider declares. */
     @InternalWowApi
     val optionsRead: Set<String> get() = read.toSet()

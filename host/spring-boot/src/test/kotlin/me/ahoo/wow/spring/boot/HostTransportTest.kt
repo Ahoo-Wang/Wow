@@ -73,11 +73,12 @@ class HostTransportTest {
                 ContextManifest("other", published = listOf(PublishedManifest("x", "wow.other.x.state"))),
             ),
         )
-        val needs = TransportNeeds.of(setOf(AggregateType(BANK, "account")), ledger = true, intake = true)
+        val intake = listOf("wow.kafka.command-intake.enabled")
+        val needs = TransportNeeds.of(setOf(AggregateType(BANK, "account")), ledger = true, intake = intake)
         needs.assert().hasSize(3)
         needs.first().assert().contains("routes $BANK.account through Kafka")
         // Decision D322: a published stream is no need; the node without a transport names those it does not publish.
-        TransportNeeds.of(emptySet(), ledger = false, intake = false).assert().isEmpty()
+        TransportNeeds.of(emptySet(), ledger = false, intake = emptyList()).assert().isEmpty()
         TransportNeeds.unpublished(manifest, setOf(BANK)).assert().containsExactly("$BANK.account")
         TransportNeeds.check(emptyList(), "auto")
         assertThrows<WowConfigurationException> { TransportNeeds.check(needs, "auto") }.also {
