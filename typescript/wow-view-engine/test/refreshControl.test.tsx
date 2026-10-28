@@ -552,7 +552,11 @@ describe('RefreshControl', () => {
     // it says which zero this is.
     rerender(
       <RefreshControl
-        refresh={refreshController({ interval: 30, chosen: 30, loading: true })}
+        refresh={refreshController({
+          interval: 30,
+          chosen: 30,
+          status: 'loading',
+        })}
       />,
     );
     expect(reading(container)).toBe(left(0));
@@ -759,7 +763,9 @@ describe('RefreshControl', () => {
    * runtime already replaces an in-flight request when `applied` moves.
    */
   it('stops the press while a query is out, not the choice', () => {
-    render(<RefreshControl refresh={refreshController({ loading: true })} />);
+    render(
+      <RefreshControl refresh={refreshController({ status: 'loading' })} />,
+    );
 
     // The spinner names itself, so the pressed half is matched by what it
     // still says rather than by the whole of its name.
@@ -782,7 +788,7 @@ describe('RefreshControl', () => {
   it('announces the wait in the host catalogue, not in English', () => {
     render(
       <MessagesProvider messages={zhCN}>
-        <RefreshControl refresh={refreshController({ loading: true })} />
+        <RefreshControl refresh={refreshController({ status: 'loading' })} />
       </MessagesProvider>,
     );
 

@@ -99,9 +99,11 @@ interface Managed {
 async function managed(engine: ViewEngine) {
   const rendered = renderHook<Managed, unknown>(() => {
     const list = useViewList(engine, 'orders');
-    return { list, manager: useViewManager(engine, 'orders', list) };
+    return { list, manager: useViewManager(engine, 'orders', { list }) };
   });
-  await waitFor(() => expect(rendered.result.current.list.loading).toBe(false));
+  await waitFor(() =>
+    expect(rendered.result.current.list.status).not.toBe('loading'),
+  );
   return rendered;
 }
 
@@ -168,17 +170,17 @@ describe('useViewManager', () => {
     // The row is gone from the store, and a workbench riding on the default
     // would otherwise reopen it here — the engine has just disposed that
     // runtime, so the open answers with a transient not-found.
-    expect(result.current.list.loading).toBe(true);
+    expect(result.current.list.status).toBe('loading');
     expect(result.current.list.items.map(item => item.id)).not.toContain(
       'orders-2',
     );
-    expect(result.current.list.preferences?.defaultInstanceId).toBeNull();
+    expect(result.current.list.preferences.value?.defaultInstanceId).toBeNull();
     expect(result.current.list.defaultInstanceId).not.toBe('orders-2');
 
     await act(async () => {
       listed.resolve(await read('orders'));
     });
-    await waitFor(() => expect(result.current.list.loading).toBe(false));
+    await waitFor(() => expect(result.current.list.status).not.toBe('loading'));
     expect(result.current.list.defaultInstanceId).not.toBe('orders-2');
     expect(result.current.list.items.map(item => item.id)).not.toContain(
       'orders-2',
@@ -256,12 +258,15 @@ describe('useViewManager', () => {
     const rendered = renderHook<Managed, { definitionId: string }>(
       ({ definitionId }) => {
         const list = useViewList(engine, definitionId);
-        return { list, manager: useViewManager(engine, definitionId, list) };
+        return {
+          list,
+          manager: useViewManager(engine, definitionId, { list: list }),
+        };
       },
       { initialProps: { definitionId: 'orders' } },
     );
     await waitFor(() =>
-      expect(rendered.result.current.list.loading).toBe(false),
+      expect(rendered.result.current.list.status).not.toBe('loading'),
     );
 
     let landed!: Promise<boolean>;
@@ -491,10 +496,10 @@ describe('useViewManager', () => {
     });
     const rendered = renderHook<Managed, unknown>(() => {
       const list = useViewList(engine, 'orders', { kinds: ['record'] });
-      return { list, manager: useViewManager(engine, 'orders', list) };
+      return { list, manager: useViewManager(engine, 'orders', { list }) };
     });
     await waitFor(() =>
-      expect(rendered.result.current.list.loading).toBe(false),
+      expect(rendered.result.current.list.status).not.toBe('loading'),
     );
     const { result } = rendered;
     const before = result.current.list.items.map(item => item.id);
@@ -661,7 +666,7 @@ describe('useViewManager', () => {
       new ViewStoreError('UNAVAILABLE', 'offline'),
     );
     const { result } = await managed(engine);
-    expect(result.current.list.preferences).toBeNull();
+    expect(result.current.list.preferences.value).toBeNull();
 
     await act(async () => {
       // The second personal view, which has one of its own above it: the
@@ -1017,12 +1022,15 @@ describe('useViewManager', () => {
     const rendered = renderHook<Managed, { definitionId: string }>(
       ({ definitionId }) => {
         const list = useViewList(engine, definitionId);
-        return { list, manager: useViewManager(engine, definitionId, list) };
+        return {
+          list,
+          manager: useViewManager(engine, definitionId, { list: list }),
+        };
       },
       { initialProps: { definitionId: 'orders' } },
     );
     await waitFor(() =>
-      expect(rendered.result.current.list.loading).toBe(false),
+      expect(rendered.result.current.list.status).not.toBe('loading'),
     );
 
     let stuck!: Promise<boolean>;
@@ -1033,7 +1041,7 @@ describe('useViewManager', () => {
 
     rendered.rerender({ definitionId: 'returns' });
     await waitFor(() =>
-      expect(rendered.result.current.list.loading).toBe(false),
+      expect(rendered.result.current.list.status).not.toBe('loading'),
     );
     expect(rendered.result.current.manager.pending).toBeNull();
 

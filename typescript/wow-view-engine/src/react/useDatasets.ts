@@ -12,11 +12,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Issue } from '../model/index.js';
 import type {
   DatasetDuplicate,
   DatasetResource,
   DatasetResources,
 } from '../runtime/datasetResources.js';
+import { sourceIssue } from '../runtime/failure/issues.js';
+import type { QueryStatus } from '../runtime/index.js';
 
 /** The datasets a `DatasetResources` serves, as `useDatasets` reads them. */
 export interface DatasetsState {
@@ -24,10 +27,17 @@ export interface DatasetsState {
   datasets: readonly DatasetResource[];
   /** The datasets the last read left out because an earlier catalog serves their id. */
   duplicates: readonly DatasetDuplicate[];
-  /** Whether a read is under way: the first, or one `key` or `refresh` asked for. */
-  loading: boolean;
-  /** Why the last read failed (no catalog could be listed); what was read before stays. */
-  error: unknown;
+  /**
+   * `idle` while paused before any read, `loading` while a read is under
+   * way — the first, one `key` or `refresh` asked for, or the one a cleared
+   * `paused` starts — then how the last one ended.
+   */
+  status: QueryStatus;
+  /**
+   * Why the last read failed (`dataset.read.failed`: no catalog could be
+   * listed, in its own words); what was read before stays.
+   */
+  error: Issue | null;
   /** Reads the directories again. */
   refresh(): void;
 }
@@ -58,12 +68,18 @@ export function useDatasets(
   { key = '', paused = false }: DatasetsReading = {},
 ): DatasetsState {
   const [round, setRound] = useState(0);
-  const asked = paused ? null : `${key}#${round}`;
+  // Each time `paused` clears, the read it starts is a new one, though the
+  // key may be the one read before the pause: counted, so its answer is
+  // told from the old one and the read shows as under way.
+  const [resumed, setResumed] = useState({ paused, count: 0 });
+  if (resumed.paused !== paused)
+    setResumed({ paused, count: resumed.count + (paused ? 0 : 1) });
+  const asked = paused ? null : `${key}#${round}#${resumed.count}`;
   const [read, setRead] = useState<{
     for: string | null;
     datasets: readonly DatasetResource[];
     duplicates: readonly DatasetDuplicate[];
-    error: unknown;
+    error: Issue | null;
   }>({ for: null, datasets: [], duplicates: [], error: null });
   useEffect(() => {
     if (asked === null) return;
@@ -73,7 +89,8 @@ export function useDatasets(
       ({ datasets, duplicates }) => {
         if (live) setRead({ for: asked, datasets, duplicates, error: null });
       },
-      (error: unknown) => {
+      async (caught: unknown) => {
+        const error = await sourceIssue(caught, 'dataset.read.failed');
         if (live) setRead(current => ({ ...current, for: asked, error }));
       },
     );
@@ -87,10 +104,20 @@ export function useDatasets(
     () => ({
       datasets: read.datasets,
       duplicates: read.duplicates,
+      status: datasetsStatus(asked, read),
       error: read.error,
-      loading: asked !== null && read.for !== asked,
       refresh,
     }),
     [read, asked, refresh],
   );
+}
+
+/** Where the reads stand: asked and not answered, answered, or never asked. */
+function datasetsStatus(
+  asked: string | null,
+  read: { for: string | null; error: Issue | null },
+): QueryStatus {
+  if (asked !== null && read.for !== asked) return 'loading';
+  if (read.for === null) return 'idle';
+  return read.error ? 'error' : 'success';
 }

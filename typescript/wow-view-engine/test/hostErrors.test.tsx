@@ -374,7 +374,8 @@ describe('export failures reach onError', () => {
       return {
         runtime,
         table,
-        exporter: useRecordExport(runtime, table, {
+        exporter: useRecordExport(runtime, {
+          table,
           deliver: () => {
             throw failure;
           },

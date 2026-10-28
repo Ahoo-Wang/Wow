@@ -46,9 +46,9 @@ describe('useViewList', () => {
     );
 
     const { result } = renderHook(() => useViewList(engine, 'orders'));
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.status).not.toBe('loading'));
     expect(result.current.items.map(item => item.id)).toEqual([
       'orders-1',
       'system:orders:all',
@@ -73,8 +73,8 @@ describe('useViewList', () => {
     // view and swap it for another a moment later.
     expect(result.current.defaultInstanceId).toBeNull();
     // And says so: null here is no answer yet, not an answer of none.
-    expect(result.current.preferences).toBeNull();
-    expect(result.current.preferencesSettled).toBe(false);
+    expect(result.current.preferences.value).toBeNull();
+    expect(result.current.preferences.status).toBe('loading');
 
     act(() =>
       release({ order: [], defaultInstanceId: 'orders-1', revision: '1' }),
@@ -82,7 +82,7 @@ describe('useViewList', () => {
     await waitFor(() =>
       expect(result.current.defaultInstanceId).toBe('orders-1'),
     );
-    expect(result.current.preferencesSettled).toBe(true);
+    expect(result.current.preferences.status).not.toBe('loading');
   });
 
   it('calls off its reads of the list and the preferences when it is unmounted', async () => {
@@ -119,7 +119,7 @@ describe('useViewList', () => {
       expect(result.current.defaultInstanceId).toBe('system:orders:all'),
     );
     // A failure is an answer too: nothing the reader set can come later.
-    expect(result.current.preferencesSettled).toBe(true);
+    expect(result.current.preferences.status).not.toBe('loading');
   });
 
   it('keeps a failed list and failed preferences apart', async () => {
@@ -135,7 +135,7 @@ describe('useViewList', () => {
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error?.code).toBe('view.list.failed.unavailable');
-    expect(result.current.preferencesError?.code).toBe(
+    expect(result.current.preferences.error?.code).toBe(
       'view.preferences.load-failed.forbidden',
     );
     // The declared view is listed whatever the store said, and with no
@@ -155,7 +155,7 @@ describe('useViewList', () => {
   it('keeps the previous list when a reload fails', async () => {
     const { engine, store } = engineWith();
     const { result } = renderHook(() => useViewList(engine, 'orders'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.status).not.toBe('loading'));
     expect(result.current.items.map(item => item.id)).toContain('orders-1');
 
     vi.spyOn(store, 'list').mockRejectedValueOnce(
@@ -204,7 +204,9 @@ describe('useViewList', () => {
       const rendered = renderHook(() =>
         useViewList(engine, 'orders', kind ? { kinds: [kind] } : undefined),
       );
-      await waitFor(() => expect(rendered.result.current.loading).toBe(false));
+      await waitFor(() =>
+        expect(rendered.result.current.status).not.toBe('loading'),
+      );
       return rendered.result;
     }
 
@@ -252,7 +254,7 @@ describe('useViewList', () => {
     it('loses the row a host deleted straight through the engine', async () => {
       const { engine } = engineWith();
       const { result } = renderHook(() => useViewList(engine, 'orders'));
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(result.current.status).not.toBe('loading'));
       expect(result.current.items).toHaveLength(2);
 
       await act(() => engine.delete('orders-1'));
@@ -276,7 +278,7 @@ describe('useViewList', () => {
         { requestId: 'seed' },
       );
       const { result } = renderHook(() => useViewList(engine, 'orders'));
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(result.current.status).not.toBe('loading'));
       expect(result.current.defaultInstanceId).toBe('orders-1');
 
       let release: (value: ViewListPage) => void = () => {};
@@ -290,20 +292,20 @@ describe('useViewList', () => {
 
       // The reload is still out, and the row is already gone: a workbench
       // riding on the default must not reopen what was just disposed.
-      expect(result.current.loading).toBe(true);
+      expect(result.current.status).toBe('loading');
       expect(result.current.items.map(item => item.id)).toEqual([
         'system:orders:all',
       ]);
       expect(result.current.defaultInstanceId).toBe('system:orders:all');
 
       act(() => release({ items: [], nextCursor: null }));
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(result.current.status).not.toBe('loading'));
     });
 
     it('reads the list again when a view is renamed', async () => {
       const { engine } = engineWith();
       const { result } = renderHook(() => useViewList(engine, 'orders'));
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(result.current.status).not.toBe('loading'));
 
       await act(() => engine.rename('orders-1', 'Renamed'));
 
@@ -319,7 +321,7 @@ describe('useViewList', () => {
       const { result, unmount } = renderHook(() =>
         useViewList(engine, 'orders'),
       );
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(result.current.status).not.toBe('loading'));
       const list = vi.spyOn(store, 'list');
 
       unmount();
@@ -333,7 +335,7 @@ describe('useViewList', () => {
     const { engine, store } = engineWith();
     const list = vi.spyOn(store, 'list');
     const { result } = renderHook(() => useViewList(engine, 'orders'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.status).not.toBe('loading'));
 
     act(() => result.current.reload());
 

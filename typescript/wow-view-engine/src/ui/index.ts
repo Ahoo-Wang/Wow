@@ -49,6 +49,7 @@ export { AppliedBar, type AppliedBarProps } from './filter/AppliedBar.js';
 export {
   ColumnSettings,
   type ColumnSettingsProps,
+  type ColumnSettingsTable,
 } from './columns/ColumnSettings.js';
 export {
   PanelGridItem,
@@ -236,6 +237,7 @@ export { type KanbanMove } from './record/kanbanDrag.js';
 export {
   RecordPagination,
   type RecordPaginationProps,
+  type RecordPaginationTable,
 } from './record/RecordPagination.js';
 export {
   type RecordCell,

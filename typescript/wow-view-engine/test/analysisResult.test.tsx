@@ -99,11 +99,14 @@ async function opened(canDrill = true) {
     return {
       runtime,
       analysis,
-      result: useAnalysisResult(runtime, analysis, {
-        state,
-        canDrill,
-        drill,
-        follow,
+      result: useAnalysisResult(runtime, {
+        analysis,
+        workbench: {
+          state,
+          canDrill,
+          drill,
+          follow,
+        },
       }),
     };
   });
@@ -114,11 +117,14 @@ async function opened(canDrill = true) {
 describe('useAnalysisResult', () => {
   it('draws nothing and offers nothing without a runtime', () => {
     const { result } = renderHook(() =>
-      useAnalysisResult(null, useAnalysisEditor(null), {
-        state: null,
-        canDrill: true,
-        drill: () => {},
-        follow: () => {},
+      useAnalysisResult(null, {
+        analysis: useAnalysisEditor(null),
+        workbench: {
+          state: null,
+          canDrill: true,
+          drill: () => {},
+          follow: () => {},
+        },
       }),
     );
     expect(result.current.view).toBeNull();
@@ -289,11 +295,14 @@ describe('useAnalysisResult', () => {
       const analysis = useAnalysisEditor(runtime);
       return {
         analysis,
-        result: useAnalysisResult(runtime, analysis, {
-          state,
-          canDrill: true,
-          drill: vi.fn(),
-          follow: vi.fn(),
+        result: useAnalysisResult(runtime, {
+          analysis,
+          workbench: {
+            state,
+            canDrill: true,
+            drill: vi.fn(),
+            follow: vi.fn(),
+          },
         }),
       };
     });
@@ -346,11 +355,14 @@ describe('useAnalysisResult', () => {
       const analysis = useAnalysisEditor(runtime);
       return {
         analysis,
-        result: useAnalysisResult(runtime, analysis, {
-          state,
-          canDrill: true,
-          drill: vi.fn(),
-          follow: vi.fn(),
+        result: useAnalysisResult(runtime, {
+          analysis,
+          workbench: {
+            state,
+            canDrill: true,
+            drill: vi.fn(),
+            follow: vi.fn(),
+          },
         }),
       };
     });
@@ -467,11 +479,14 @@ describe('useAnalysisResult', () => {
         return {
           runtime,
           analysis,
-          result: useAnalysisResult(runtime, analysis, {
-            state,
-            canDrill: true,
-            drill: vi.fn(),
-            follow: vi.fn(),
+          result: useAnalysisResult(runtime, {
+            analysis,
+            workbench: {
+              state,
+              canDrill: true,
+              drill: vi.fn(),
+              follow: vi.fn(),
+            },
           }),
         };
       });
@@ -598,11 +613,14 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
       const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
       const state = useViewRuntime(runtime);
       const analysis = useAnalysisEditor(runtime);
-      return useAnalysisResult(runtime, analysis, {
-        state,
-        canDrill: true,
-        drill,
-        follow,
+      return useAnalysisResult(runtime, {
+        analysis,
+        workbench: {
+          state,
+          canDrill: true,
+          drill,
+          follow,
+        },
       });
     });
     await waitFor(() => expect(hook.result.current.view).not.toBeNull());

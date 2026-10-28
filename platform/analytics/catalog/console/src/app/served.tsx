@@ -27,8 +27,8 @@ const ServedContext = createContext<Served>({
   datasets: [],
   duplicates: [],
   references: {},
+  status: "idle",
   error: null,
-  loading: false,
   refresh: () => {},
 });
 

@@ -305,7 +305,7 @@ describe('useWorkbench', () => {
 
       // Made and shown at once — no id to open, nothing to wait for — and
       // the view it replaced is closed, since it is no longer on screen.
-      expect(result.current.opened.loading).toBe(false);
+      expect(result.current.opened.status).not.toBe('loading');
       expect(result.current.state?.title).toBe('New view');
       expect(result.current.state?.saved).toBeNull();
       expect(result.current.runtime?.kind).toBe('record');

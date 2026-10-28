@@ -143,7 +143,7 @@ export function AnalysisParts({
   // as the screen does, never by a program's key (`analysisIssueNamer`).
   const nameIssue = analysisIssueNamer(analysis, messages);
 
-  const result = useAnalysisResult(runtime, analysis, workbench);
+  const result = useAnalysisResult(runtime, { analysis, workbench });
   // The chart on screen hands itself over here, for the toolbar's export
   // to take away as a picture (D33 Q58).
   const image = useChartImageSlot();

@@ -212,7 +212,7 @@ export function EmbeddedDashboard(given: EmbeddedDashboardProps) {
       ...(held ? { held } : {}),
     };
   }, []);
-  const opened = useOpenView(engine, instanceId, null, opening);
+  const opened = useOpenView(engine, instanceId, { opening });
   return (
     <StartingWords engine={engine}>
       <EmbedFrame
@@ -392,7 +392,7 @@ function EmbeddedBoard({
             readAt={dashboard.readAt}
             now={() => runtime.environment.now()}
             refresh={interactive ? refresh : undefined}
-            busy={dashboard.resolving || dashboard.loading}
+            busy={dashboard.resolving || dashboard.status === 'loading'}
           />
         )}
         {headed && expand}

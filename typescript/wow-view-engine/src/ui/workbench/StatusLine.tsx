@@ -206,10 +206,10 @@ export function StatusLine({
         issues={[
           ...(warnings ?? [...state.issues, ...said]).map(nameIssue),
           ...definitionIssues.map(ownWord),
-          ...(list.preferencesError
+          ...(list.preferences.error
             ? [
                 {
-                  ...ownWord(list.preferencesError),
+                  ...ownWord(list.preferences.error),
                   severity: 'warning' as const,
                 },
               ]

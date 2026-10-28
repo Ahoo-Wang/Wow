@@ -152,7 +152,7 @@ export function ViewManagerRow({
   const can = manager.can.instance(item.id);
   const outcome = manager.outcomes.get(item.id);
   const busy = manager.pending !== null;
-  const isDefault = list.preferences?.defaultInstanceId === item.id;
+  const isDefault = list.preferences.value?.defaultInstanceId === item.id;
   const target = otherAudience(item);
   const Audience = AUDIENCE_ICON[target];
   const audienceButton = useRef<HTMLButtonElement>(null);

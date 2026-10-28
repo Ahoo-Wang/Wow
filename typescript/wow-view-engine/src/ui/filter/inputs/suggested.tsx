@@ -80,7 +80,7 @@ function useSuggestions(
 ) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
-  const candidates = useValueCandidates(source, typed, open);
+  const candidates = useValueCandidates(source, { query: typed, active: open });
   const text = typed.trim();
   // An answer for other text is narrowed here until the one for this text
   // arrives, so the list follows the keyboard rather than the network.
@@ -144,9 +144,7 @@ function useSuggestions(
           className="fve:text-destructive fve:flex fve:items-center fve:justify-between fve:gap-2 fve:px-2 fve:py-1.5 fve:text-xs"
         >
           <span className="fve:min-w-0">
-            {messages.label('label.filter.values-failed', {
-              reason: candidates.reason ?? '',
-            })}
+            {candidates.error && messages.issue(candidates.error)}
           </span>
           <Button
             type="button"

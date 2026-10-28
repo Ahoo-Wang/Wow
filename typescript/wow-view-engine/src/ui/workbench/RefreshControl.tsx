@@ -142,7 +142,7 @@ export function RefreshControl({
   // and no refresh under way, so it falls back to the cadence itself: the
   // view still refreshes every 30s, the clock on it is merely paused, and a
   // frozen "7s" would be a countdown that stopped counting.
-  const reading = countdown ?? (refresh.loading ? 0 : null);
+  const reading = countdown ?? (refresh.status === 'loading' ? 0 : null);
   const cadenceId = useId();
 
   return (
@@ -160,7 +160,7 @@ export function RefreshControl({
         size="sm"
         data-slot="refresh-now"
         onClick={refresh.refreshNow}
-        disabled={busy || refresh.loading}
+        disabled={busy || refresh.status === 'loading'}
         // Said as well as drawn: the cadence beside the word is a fragment,
         // and a screen reader reaching the button gets the sentence it
         // stands for rather than two words in a row — through
@@ -171,7 +171,7 @@ export function RefreshControl({
         {/* The vendored spinner announces itself as `status "Loading"` in
             English whatever the host's catalogue says, so the name is handed
             to it here, where the component is used. */}
-        {refresh.loading ? (
+        {refresh.status === 'loading' ? (
           <Spinner aria-label={messages.label('label.status.loading')} />
         ) : (
           <RefreshCwIcon />

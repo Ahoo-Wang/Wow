@@ -201,6 +201,14 @@ function landingStore() {
   };
 }
 
+/** What `useHandedRemoval` takes a handed condition off of. */
+export interface HandedRemovalOptions {
+  /** The saved view handed over, or `null` while none is on screen. */
+  handed: SavedViewTarget | null;
+  /** The runtime the editor edits. */
+  runtime: AnyViewRuntime | null;
+}
+
 /**
  * The filter editor of a saved view handed over (`SavedViewTarget`), whose
  * ✕ on 「正在显示」 takes a condition the board handed it **off** rather
@@ -220,8 +228,7 @@ function landingStore() {
  */
 export function useHandedRemoval(
   filter: FilterEditorController,
-  handed: SavedViewTarget | null,
-  runtime: AnyViewRuntime | null,
+  { handed, runtime }: HandedRemovalOptions,
 ): FilterEditorController {
   return useMemo(() => {
     const conditions = handedConditions(handed?.filter ?? null);

@@ -71,9 +71,6 @@ const ENTRIES = {
  * type is read off, not a type a host writes a value of.
  */
 const FORGOTTEN = {
-  // `AnalysisEditorController` is what `questionEditing` returns, read off
-  // it rather than written twice; its members' types are all exported.
-  react: ['questionEditing'],
   ui: [
     // `TokenName` and `FveToken` are read off the theme's registry, whose
     // machine form is `dist/theme-tokens.json`; the names are in the report.

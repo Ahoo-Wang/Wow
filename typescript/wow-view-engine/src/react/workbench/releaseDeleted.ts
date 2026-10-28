@@ -14,6 +14,18 @@
 import { useEffect, useRef } from 'react';
 import type { OpenViewState } from '../useOpenView.js';
 
+/** What `useReleaseDeleted` watches, and how it lets the pin go. */
+export interface ReleaseDeletedOptions {
+  /** The id actually being opened: the pin, or the list's default. */
+  openId: string | null;
+  /** The pin alone; only a pinned id is this hook's to release. */
+  chosen: string | null;
+  /** What opening `openId` answered (`useOpenView`). */
+  opened: OpenViewState;
+  /** Lets the pin go, with `null`. */
+  setChosen: (id: string | null) => void;
+}
+
 /**
  * Lets the pinned view go once it is gone.
  *
@@ -26,14 +38,12 @@ import type { OpenViewState } from '../useOpenView.js';
  * pinned to a deleted view answers "not found" for as long as the page is
  * open, so the page would never move on to the view that is still there.
  */
-export function useReleaseDeleted(
-  /** The id actually being opened: the pin, or the list's default. */
-  openId: string | null,
-  /** The pin alone; only a pinned id is this hook's to release. */
-  chosen: string | null,
-  opened: OpenViewState,
-  setChosen: (id: string | null) => void,
-): void {
+export function useReleaseDeleted({
+  openId,
+  chosen,
+  opened,
+  setChosen,
+}: ReleaseDeletedOptions): void {
   const wasOpen = useRef<string | null>(null);
   const { runtime } = opened;
   const failed = opened.error?.code;

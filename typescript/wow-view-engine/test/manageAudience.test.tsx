@@ -225,7 +225,7 @@ describe('the view manager’s move between audiences', () => {
 describe('the words, in both catalogues', () => {
   function Chinese({ engine }: { engine: ViewEngine }) {
     const list = useViewList(engine, 'orders');
-    const manager = useViewManager(engine, 'orders', list);
+    const manager = useViewManager(engine, 'orders', { list });
     return (
       <ViewSurface messages={{ ...zhCN, 'boards.team': '团队看板' }}>
         <ViewManager

@@ -198,7 +198,8 @@ export function RecordPanel({
   const bulk = surface.bulk;
   if (failed && !table.hasResult)
     return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
-  if (table.loading && table.rows.length === 0) return <PanelLoading />;
+  if (table.status === 'loading' && table.rows.length === 0)
+    return <PanelLoading />;
   return (
     <div className="fve:flex fve:flex-col fve:gap-2">
       <QueryStrip
@@ -303,16 +304,18 @@ export function AnalysisPanel({
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // The workbench the follow-ups drive is the host's, reached by its route.
-  const followUps = usePanelFollowUps(
-    runtime,
-    press?.navigate,
-    press?.handOver ?? nothingHanded,
-  );
+  const followUps = usePanelFollowUps(runtime, {
+    navigate: press?.navigate,
+    handOver: press?.handOver ?? nothingHanded,
+  });
   // Drawn as the workbench draws it (`useAnalysisResult`): the rows that
   // ran, looked at as the child's draft says. A panel's own look is laid
   // onto that draft without a run (D20: presentation never asks the
   // source), so a change of chart redraws the rows on hand.
-  const result = useAnalysisResult(runtime, analysis, followUps);
+  const result = useAnalysisResult(runtime, {
+    analysis,
+    workbench: followUps,
+  });
   const { view, chart, chartData } = result;
   const failed = state?.query.status === 'error';
   // Which group was pressed, and where, while the menu over it is open.

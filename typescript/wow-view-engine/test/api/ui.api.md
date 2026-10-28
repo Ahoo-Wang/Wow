@@ -956,9 +956,12 @@ export interface ColumnSettingsProps {
     released?: ReleasedPins;
     rowKey?: string;
     // (undocumented)
-    table: RecordTableController;
+    table: ColumnSettingsTable;
     trigger?: ReactElement<Record<string, unknown>>;
 }
+
+// @public
+export type ColumnSettingsTable = Pick<RecordTableController, 'columnFields' | 'summaryFields' | 'pinnedOf' | 'hiddenOf' | 'summaryOf' | 'columns' | 'setColumnOrder' | 'setPinned' | 'setColumnWidth' | 'setSummary' | 'setColumns'>;
 
 // @public (undocumented)
 type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
@@ -1075,6 +1078,7 @@ interface DashboardController {
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
+    error: Issue | null;
     filterCandidates(name: string): ValueCandidateSource | null;
     filterChoices(name: string): FieldOption[] | null;
     filterFields: readonly DashboardField[];
@@ -1085,7 +1089,6 @@ interface DashboardController {
     history: EditHistoryState;
     issues: Issue[];
     kinds: FieldKindRegistry | null;
-    loading: boolean;
     // (undocumented)
     panels: DashboardPanelView[];
     place(panelId: string, layout: PanelLayout, grown?: ReadonlyMap<string, number>): void;
@@ -1103,6 +1106,7 @@ interface DashboardController {
     setGroupingUnit(unit: AggregationDateUnitName): void;
     showTab(tabId: string): void;
     spanFilters(panelId: string): readonly DashboardField[];
+    status: QueryStatus;
     tab: string | null;
     tabs: readonly DashboardTab[];
     timeGrouping: DashboardTimeGrouping | null;
@@ -1517,6 +1521,15 @@ interface DatasetDirectoryEntry {
 }
 
 // @public
+interface DatasetDuplicate {
+    // (undocumented)
+    dropped: number;
+    entry: DatasetDirectoryEntry;
+    id: string;
+    kept: number;
+}
+
+// @public
 type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
 
 // @public
@@ -1526,6 +1539,15 @@ interface DatasetResource {
     entry: DatasetDirectoryEntry;
     // (undocumented)
     id: string;
+}
+
+// @public
+interface DatasetsState {
+    datasets: readonly DatasetResource[];
+    duplicates: readonly DatasetDuplicate[];
+    error: Issue | null;
+    refresh(): void;
+    status: QueryStatus;
 }
 
 // @public
@@ -1548,10 +1570,8 @@ export function DatasetWorkbench(input: DatasetWorkbenchProps): JSX.Element;
 export interface DatasetWorkbenchProps extends Omit<DataWorkbenchProps, 'definitionId'> {
     className?: string;
     datasetId?: string | null;
-    datasets: readonly DatasetResource[];
-    loading?: boolean;
+    datasets: DatasetsState;
     onDatasetChange?(id: string): void;
-    onRefresh?(): void;
 }
 
 // @public
@@ -2163,6 +2183,7 @@ export const en: {
     readonly 'label.dataset.none-hint': "A dataset appears here once a catalog serves it.";
     readonly 'label.dataset.loading': "Reading the datasets…";
     readonly 'label.dataset.refresh': "Read the datasets again";
+    readonly 'dataset.read.failed': "The datasets served could not be read: {reason}";
     readonly 'label.embed.locked': "Set by this page";
     readonly 'label.embed.unavailable-removed': "Conditions its data source no longer offers are left out here; the saved view is unchanged.";
     readonly 'label.embed.locked-name': "{filter} (set by this page)";
@@ -3787,7 +3808,7 @@ export const en: {
     readonly 'label.filter.value-count': "{value} ({count} records)";
     readonly 'label.filter.value-count-one': "{value} (1 record)";
     readonly 'label.filter.values-loading': "Reading the values…";
-    readonly 'label.filter.values-failed': "The values could not be read: {reason}";
+    readonly 'filter.values.failed': "The values could not be read: {reason}";
     readonly 'label.filter.values-top': "Only the most frequent values are listed; type to narrow";
     readonly 'label.filter.type-to-add': "Type a value and press Enter";
     readonly 'label.filter.already-listed': "Already in the list";
@@ -5429,12 +5450,11 @@ interface OpenOptions {
 interface OpenViewState {
     // (undocumented)
     error: Issue | null;
-    // (undocumented)
-    loading: boolean;
     retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
     scopeIssues: Issue[];
+    status: QueryStatus;
 }
 
 // @public
@@ -6101,8 +6121,11 @@ export interface RecordPaginationProps {
     controls?: 'all' | 'pages' | 'none';
     label?: string;
     // (undocumented)
-    table: RecordTableController;
+    table: RecordPaginationTable;
 }
+
+// @public
+export type RecordPaginationTable = Pick<RecordTableController, 'paging' | 'pageSizes' | 'pageSize' | 'setPageSize' | 'status' | 'hasResult' | 'rows' | 'hasNext' | 'next' | 'previous' | 'goTo'>;
 
 // @public (undocumented)
 type RecordPaging = PagedPaging | CursorPaging;
@@ -6204,7 +6227,6 @@ interface RecordTableController {
     // (undocumented)
     layout: RecordLayout;
     layouts: RecordLayout[];
-    loading: boolean;
     maxSortFields: number;
     next(): void;
     // (undocumented)
@@ -6391,12 +6413,13 @@ export function RefreshControl(input: RefreshControlProps): JSX.Element;
 interface RefreshController {
     chosen: number | null;
     dueAt: number | null;
+    error: Issue | null;
     interval: number | null;
     intervals: readonly number[];
-    loading: boolean;
     refreshNow(): void;
     remaining(): number | null;
     setInterval(interval: number | null): void;
+    status: QueryStatus;
     unsound: boolean;
 }
 
@@ -8676,6 +8699,14 @@ interface ViewListPage {
     nextCursor: string | null;
 }
 
+// @public
+interface ViewListPreferences {
+    error: Issue | null;
+    // (undocumented)
+    status: QueryStatus;
+    value: ViewPreferences | null;
+}
+
 // @public (undocumented)
 export interface ViewListProps {
     collapseRef?: RefObject<HTMLButtonElement | null>;
@@ -8706,15 +8737,12 @@ interface ViewListState {
     error: Issue | null;
     items: ViewInstanceSummary[];
     // (undocumented)
-    loading: boolean;
-    // (undocumented)
     permissions: ViewPermissions;
     // (undocumented)
-    preferences: ViewPreferences | null;
-    preferencesError: Issue | null;
-    preferencesSettled: boolean;
+    preferences: ViewListPreferences;
     // (undocumented)
     reload(options?: ViewListReloadOptions): void;
+    status: QueryStatus;
 }
 
 // @public

@@ -55,7 +55,7 @@ import type {
 import { hasAsked, type ViewRuntime } from '../runtime/index.js';
 import type { AnalysisFieldOption } from './analysisFields.js';
 import type { AnalysisEditorController } from './useAnalysisEditor.js';
-import type { WorkbenchController } from './useWorkbench.js';
+import type { FollowUpHost } from './usePanelFollowUps.js';
 
 /** Stable identity for "nothing asked yet", so the memos below stay quiet. */
 const NO_COLUMNS: readonly AnalysisColumnView[] = [];
@@ -133,6 +133,37 @@ export interface FollowUp {
   /** The group, one dimension each, in the order the result is grouped. */
   groups: readonly FollowUpGroup[];
   actions: readonly FollowUpAction[];
+}
+
+/**
+ * What of the analysis editor the result reads and drives: the draft's
+ * shape and look, and the commands a chart pick and a repair call.
+ */
+export type AnalysisResultInput = Pick<
+  AnalysisEditorController,
+  | 'aliases'
+  | 'chart'
+  | 'fields'
+  | 'groups'
+  | 'layout'
+  | 'metrics'
+  | 'moments'
+  | 'pending'
+  | 'setChartType'
+  | 'setLayout'
+  | 'submit'
+  | 'updateChart'
+  | 'windows'
+>;
+
+export interface AnalysisResultOptions {
+  /** The draft the result is looked at through. */
+  analysis: AnalysisResultInput;
+  /**
+   * What a follow-up opens through: the workbench, or what a dashboard
+   * panel hands in its place (`usePanelFollowUps`).
+   */
+  workbench: FollowUpHost;
 }
 
 export interface AnalysisResultController {
@@ -219,11 +250,7 @@ export interface AnalysisResultController {
  */
 export function useAnalysisResult(
   runtime: ViewRuntime<AnalysisViewConfig> | null,
-  analysis: AnalysisEditorController,
-  workbench: Pick<
-    WorkbenchController,
-    'state' | 'canDrill' | 'drill' | 'follow'
-  >,
+  { analysis, workbench }: AnalysisResultOptions,
 ): AnalysisResultController {
   const result = workbench.state?.result;
   const data = result?.data;
@@ -465,11 +492,8 @@ interface FollowUpSource {
   pickable: boolean;
   ran: AnalysisViewConfig | undefined;
   runtime: ViewRuntime<AnalysisViewConfig> | null;
-  workbench: Pick<
-    WorkbenchController,
-    'state' | 'canDrill' | 'drill' | 'follow'
-  >;
-  analysis: AnalysisEditorController;
+  workbench: FollowUpHost;
+  analysis: Pick<AnalysisResultInput, 'fields' | 'layout'>;
   chart: ChartSpec;
   gap: ReturnType<typeof drillGap> | undefined;
   expanded: boolean;
@@ -562,7 +586,7 @@ function followUpOf(
       run: (name, title) => {
         const patch = split(
           runtime,
-          analysis,
+          analysis.fields,
           drawn,
           conditions,
           name,
@@ -600,7 +624,13 @@ function followUpOf(
  * (`wantsWhole`): running would apply that too, which is not this gesture's
  * to do.
  */
-function repair(analysis: AnalysisEditorController, next: Picked): void {
+function repair(
+  analysis: Pick<
+    AnalysisResultInput,
+    'setLayout' | 'setChartType' | 'pending' | 'submit'
+  >,
+  next: Picked,
+): void {
   if (next === 'table') analysis.setLayout('table');
   else {
     analysis.setLayout('chart');
@@ -616,14 +646,14 @@ function repair(analysis: AnalysisEditorController, next: Picked): void {
  */
 function split(
   runtime: ViewRuntime<AnalysisViewConfig>,
-  analysis: AnalysisEditorController,
+  fields: readonly AnalysisFieldOption[],
   config: AnalysisViewConfig,
   conditions: readonly FilterNode[],
   name: string,
   moments: ReadonlySet<string>,
 ): ReturnType<typeof splitBy> | null {
   const field = runtime.fields.find(entry => entry.name === name);
-  const option = analysis.fields.find(entry => entry.field === name);
+  const option = fields.find(entry => entry.field === name);
   if (!field || !option) return null;
   return splitBy(
     config,

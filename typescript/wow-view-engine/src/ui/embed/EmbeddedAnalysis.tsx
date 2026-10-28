@@ -71,12 +71,14 @@ export function EmbeddedAnalysis({
     () => ({ scopeFilter: runtime.scopeFilter, filter: null }),
     [runtime],
   );
-  const followUps = usePanelFollowUps(
-    runtime,
-    interactive ? onNavigate : undefined,
-    pageScope,
-  );
-  const result = useAnalysisResult(runtime, analysis, followUps);
+  const followUps = usePanelFollowUps(runtime, {
+    navigate: interactive ? onNavigate : undefined,
+    handOver: pageScope,
+  });
+  const result = useAnalysisResult(runtime, {
+    analysis,
+    workbench: followUps,
+  });
   const { view, chart, chartData } = result;
   const headerSort = useHeaderSort(analysis, result.ran?.sort ?? NO_SORT);
   // A sort needs a dimension: an ungrouped aggregation is one row anyway.

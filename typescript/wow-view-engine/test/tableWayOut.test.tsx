@@ -189,11 +189,14 @@ async function open(config: AnalysisViewConfig) {
       runtime,
       state,
       analysis,
-      result: useAnalysisResult(runtime, analysis, {
-        state,
-        canDrill: true,
-        drill: vi.fn(),
-        follow: vi.fn(),
+      result: useAnalysisResult(runtime, {
+        analysis,
+        workbench: {
+          state,
+          canDrill: true,
+          drill: vi.fn(),
+          follow: vi.fn(),
+        },
       }),
     };
   });

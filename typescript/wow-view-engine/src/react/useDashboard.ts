@@ -44,6 +44,7 @@ import type {
   OptionSource,
   PanelGrouping,
   PressDestination,
+  QueryStatus,
   ValueCandidateSource,
   ViewRuntime,
 } from '../runtime/index.js';
@@ -103,7 +104,9 @@ export interface DashboardController {
   /** True while a panel reference is still loading. */
   resolving: boolean;
   /**
-   * True while any panel has a query in flight.
+   * Where the panels' queries stand together: `loading` while any has one
+   * in flight, else `error` when one's last query failed, `success` once
+   * they have answered, `idle` before any ran.
    *
    * A dashboard runs nothing of its own — `state.query` never leaves `idle`
    * — so "is something running here" is only answerable by asking the
@@ -111,7 +114,12 @@ export interface DashboardController {
    * (`PanelChildren.loading`). A control that read the dashboard's
    * query state instead would call a board of twelve loading panels idle.
    */
-  loading: boolean;
+  status: QueryStatus;
+  /**
+   * Why a panel's last query failed, the first such panel's; each panel
+   * says its own in its frame. `issues` are findings about the board.
+   */
+  error: Issue | null;
   /**
    * When the panels on the tab shown were read, on the runtime's clock
    * (`ViewResult.receivedAt`): the **earliest** of their last answers, so
@@ -300,15 +308,13 @@ export function useDashboard(
     },
     [children],
   );
-  const anyLoading = useCallback(
-    () =>
-      children.some(child => child.getSnapshot().query.status === 'loading'),
-    [children],
-  );
+  const together = useCallback(() => panelsStatus(children), [children]);
+  const firstFailure = useCallback(() => panelsError(children), [children]);
   // The server reads the same getters, here and for `readAt`: the panels'
   // runtimes open in effects, so there are none on the server or on the
   // first client frame — not loading, nothing read — and the two agree.
-  const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
+  const status = useSyncExternalStore(watch, together, together);
+  const error = useSyncExternalStore(watch, firstFailure, firstFailure);
   const tabNow = state?.tab ?? null;
   const earliest = useCallback(() => {
     let at: number | null = null;
@@ -346,7 +352,8 @@ export function useDashboard(
       [issues, panels],
     ),
     resolving: state?.resolving ?? false,
-    loading,
+    status,
+    error,
     readAt,
     dirty: state?.dirty ?? false,
     place: useCallback(
@@ -476,4 +483,29 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
         !panel.waiting) ||
       panel.issues.some(found => found.severity === 'error'),
   };
+}
+
+/** The panels' queries as one: any in flight, else any failed, else answered. */
+function panelsStatus(
+  children: readonly ViewRuntime<DataViewConfig>[],
+): QueryStatus {
+  let status: QueryStatus = 'idle';
+  for (const child of children) {
+    const query = child.getSnapshot().query.status;
+    if (query === 'loading') return 'loading';
+    if (query === 'error') status = 'error';
+    else if (query === 'success' && status === 'idle') status = 'success';
+  }
+  return status;
+}
+
+/** The first panel whose last query failed: why it did. */
+function panelsError(
+  children: readonly ViewRuntime<DataViewConfig>[],
+): Issue | null {
+  for (const child of children) {
+    const { query } = child.getSnapshot();
+    if (query.status === 'error') return query.error ?? null;
+  }
+  return null;
 }

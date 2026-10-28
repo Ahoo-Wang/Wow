@@ -97,8 +97,27 @@ const REGION_LABEL = {
   scrolling: 'label.columns.pin.none',
 } as const;
 
+/**
+ * What of a record table the column settings read and set: the columns,
+ * their pinning, visibility, widths and summaries.
+ */
+export type ColumnSettingsTable = Pick<
+  RecordTableController,
+  | 'columnFields'
+  | 'summaryFields'
+  | 'pinnedOf'
+  | 'hiddenOf'
+  | 'summaryOf'
+  | 'columns'
+  | 'setColumnOrder'
+  | 'setPinned'
+  | 'setColumnWidth'
+  | 'setSummary'
+  | 'setColumns'
+>;
+
 export interface ColumnSettingsProps {
-  table: RecordTableController;
+  table: ColumnSettingsTable;
   /** The fields the definition offers, in its order. */
   fields: readonly FieldDefinition[];
   /**
@@ -406,7 +425,7 @@ interface ListProps {
   all: readonly ColumnSettingRow[];
   /** Whether the list is showing the order, and can therefore change it. */
   reorderable: boolean;
-  table: RecordTableController;
+  table: ColumnSettingsTable;
   released: ReleasedPins;
   onMove(field: string, toIndex: number): void;
   /** Cycles one column's pinning, and says what that did. */

@@ -18,7 +18,7 @@ import {
   type DetailSection,
   type RecordRow,
 } from '../record/index.js';
-import type { RecordViewRuntime } from '../runtime/index.js';
+import type { QueryStatus, RecordViewRuntime } from '../runtime/index.js';
 import { recordReadIssue } from '../runtime/failure/issues.js';
 import { rowsOnScreen } from './recordSelection.js';
 import { useViewRuntime } from './useViewRuntime.js';
@@ -62,8 +62,11 @@ export interface RecordDetailController {
   record: RecordData | null;
   /** Whether `record` is the whole record rather than the page's row. */
   complete: boolean;
-  /** Reading the whole record. */
-  loading: boolean;
+  /**
+   * Reading the whole record: `idle` while none is open, `loading` until
+   * this open — or the view's latest result — is answered, then how it was.
+   */
+  status: QueryStatus;
   /**
    * Why the whole record could not be read, in the source's words:
    * `record.detail.forbidden` when the source refused the reader
@@ -112,8 +115,8 @@ interface Seed {
  *
  * A record may be opened by its key alone (`control.open`, G2): a link to
  * one the page does not hold. It then starts from the page's row when the
- * page has it, and from nothing — `loading`, then the record, `missing`, or
- * `error` — when it does not.
+ * page has it, and from nothing — `loading`, then the record, `missing`
+ * or `error` — when it does not.
  */
 export function useRecordDetail(
   runtime: RecordViewRuntime | null,
@@ -185,15 +188,22 @@ export function useRecordDetail(
         onPage ??
         (seed?.key === key ? seed.row : null) ??
         null);
+  const reading =
+    current === null ||
+    current.answered.landed !== landed ||
+    current.answered.attempt !== attempt;
   return {
     key,
     record: shown,
     complete: current?.whole != null,
-    loading:
-      key !== null &&
-      (current === null ||
-        current.answered.landed !== landed ||
-        current.answered.attempt !== attempt),
+    status:
+      key === null
+        ? 'idle'
+        : reading
+          ? 'loading'
+          : current.error
+            ? 'error'
+            : 'success',
     error: current?.error ?? null,
     missing: current?.missing ?? false,
     sections: runtime ? detailSections(runtime.definition) : [],

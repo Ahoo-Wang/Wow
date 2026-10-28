@@ -120,7 +120,6 @@ export function recordTableController(
     summaries: null,
     status: 'success',
     error: null,
-    loading: false,
     hasResult: true,
     sort: [],
     // Settled: nothing waits for Apply, so the rows ran on the sort the
@@ -204,7 +203,6 @@ export function twoColumnTable(
     summaries: null,
     status: 'success',
     error: null,
-    loading: false,
     conditionsChanged: false,
     hasResult: true,
     sort: [],
@@ -262,7 +260,8 @@ export function refreshController(
     intervals: [30, 60, 300],
     setInterval: () => {},
     refreshNow: () => {},
-    loading: false,
+    status: 'success',
+    error: null,
     // Nothing armed, so nothing counts down; the suites that assert the
     // countdown hand over a due time and a clock to read it against.
     dueAt: null,

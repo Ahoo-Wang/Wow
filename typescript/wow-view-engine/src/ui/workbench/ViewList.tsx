@@ -277,7 +277,7 @@ function ViewListBody({
       {messages.label('label.view.list-cut', { limit: list.cut })}
     </p>
   );
-  if (list.loading)
+  if (list.status === 'loading')
     return (
       <div className="fve:flex fve:flex-col fve:gap-2">
         {Array.from({ length: 3 }, (_unused, index) => (
@@ -328,7 +328,7 @@ function ViewListBody({
             audience={audience}
             items={items}
             currentId={currentId}
-            defaultId={list.preferences?.defaultInstanceId ?? null}
+            defaultId={list.preferences.value?.defaultInstanceId ?? null}
             editable={item =>
               !instanceAbilities(item, list.permissions).readOnly
             }

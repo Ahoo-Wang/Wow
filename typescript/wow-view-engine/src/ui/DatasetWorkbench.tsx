@@ -14,7 +14,9 @@
 import { cn } from 'cn';
 import { useId, useState } from 'react';
 import { DatabaseIcon, RefreshCwIcon } from 'lucide-react';
+import type { DatasetsState } from '../react/useDatasets.js';
 import type { DatasetResource } from '../runtime/datasetResources.js';
+import { Alert, AlertDescription } from './components/alert.js';
 import { Button } from './components/button.js';
 import {
   Empty,
@@ -44,8 +46,13 @@ export interface DatasetWorkbenchProps extends Omit<
   DataWorkbenchProps,
   'definitionId'
 > {
-  /** The datasets served, as `useDatasets` or `DatasetResources.refresh` answers them (`datasets`). */
-  datasets: readonly DatasetResource[];
+  /**
+   * The datasets served, as `useDatasets` reads them: the picker lists
+   * them, says while they are read and why the last read failed, and
+   * offers `refresh`, so a dataset published since appears without a
+   * reload.
+   */
+  datasets: DatasetsState;
   /**
    * Which dataset is open, by its definition id, as `value` is on an input:
    * left out, the workbench owns it from the first dataset served on; given
@@ -54,13 +61,6 @@ export interface DatasetWorkbenchProps extends Omit<
   datasetId?: string | null;
   /** Told which dataset the reader picked, so a host can write it into its route. */
   onDatasetChange?(id: string): void;
-  /** Whether the datasets are being read: shown beside the picker. */
-  loading?: boolean;
-  /**
-   * Reads the datasets again (`useDatasets`' `refresh`): given, the bar
-   * offers it, so a dataset published since appears without a reload.
-   */
-  onRefresh?(): void;
   /** Classes of the root, for the host's layout. */
   className?: string;
 }
@@ -79,14 +79,14 @@ function nameOf({ id, entry }: DatasetResource): string {
  * datasets is an ordinary board whose panels name them.
  */
 export function DatasetWorkbench({
-  datasets,
+  datasets: served,
   datasetId,
   onDatasetChange,
-  loading = false,
-  onRefresh,
   className,
   ...workbench
 }: DatasetWorkbenchProps) {
+  const { datasets, error, refresh } = served;
+  const loading = served.status === 'loading';
   const messages = useViewMessages(workbench.messages, workbench.locale);
   const labelId = useId();
   const [own, setOwn] = useState<string | null>(null);
@@ -143,23 +143,30 @@ export function DatasetWorkbench({
           {loading && (
             <Spinner aria-label={messages.label('label.dataset.loading')} />
           )}
-          {onRefresh && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={messages.label('label.dataset.refresh')}
-              title={messages.label('label.dataset.refresh')}
-              disabled={loading}
-              onClick={onRefresh}
-            >
-              <RefreshCwIcon />
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={messages.label('label.dataset.refresh')}
+            title={messages.label('label.dataset.refresh')}
+            disabled={loading}
+            onClick={refresh}
+          >
+            <RefreshCwIcon />
+          </Button>
         </div>
+        {/* Said above whatever was read before, which stays open. */}
+        {error && (
+          <div className="fve:px-3 fve:pt-2">
+            <Alert variant="destructive" data-slot="dataset-failed">
+              <AlertDescription>{messages.issue(error)}</AlertDescription>
+            </Alert>
+          </div>
+        )}
       </ViewSurface>
       {open === null ? (
-        loading ? null : (
+        // Nothing read yet is not "none served": the failure above says why.
+        loading || error ? null : (
           <ViewSurface
             engine={workbench.engine}
             colorMode={workbench.colorMode}

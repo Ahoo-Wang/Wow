@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 256 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 258 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -38,6 +38,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 256 — with its kind and
 | `ColorModeControl` | interface | What `useColorMode` hands a host's switch. | — |
 | `ColumnSettings` | function | Which columns the table shows, in which order, pinned where, summarised how. | — |
 | `ColumnSettingsProps` | interface | — | — |
+| `ColumnSettingsTable` | type | What of a record table the column settings read and set: the columns, their pinning, visibility, widths and summaries. | — |
 | `ContentPanel` | function | The static panels: a note, a picture, a list of links. | — |
 | `ContentPanelProps` | interface | — | — |
 | `ControlAria` | interface | What a form that is not a condition — a declared action's — says of a control besides its name: the id a visible label points at, the hint it is described by, and that it must be filled. | — |
@@ -156,6 +157,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 256 — with its kind and
 | `RecordKanbanProps` | interface | — | — |
 | `RecordPagination` | function | How many rows there are and how to reach the next of them. | — |
 | `RecordPaginationProps` | interface | — | — |
+| `RecordPaginationTable` | type | What of a record table the pager reads and steps through. | — |
 | `RecordPanelHost` | interface | What a host puts on a board's record panels: its declared actions on the records — a row's and a selection's, as a record workbench places them — and its slots after them, and what reading the board again means after a command. | — |
 | `RecordParts` | function | What makes a record view a record view: the condition band it edits in, and the toolbar, rows and paging it reads. | — |
 | `RecordPartsProps` | interface | — | — |

@@ -172,7 +172,7 @@ export function useExportOffer({
     },
     [columns, display, messages, neutralizeFormulas, onExported],
   );
-  const control = useRecordExport(runtime, table, { deliver });
+  const control = useRecordExport(runtime, { table, deliver });
   return {
     control,
     conditions: [...filter.applied, ...filter.scoped, ...filter.implied],

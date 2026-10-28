@@ -135,7 +135,7 @@ export function EmbedFrame({
         )}
         {/* Said as well as drawn (U-13), as the workbench's opening is: the
             embed's first moment is otherwise silent to a reader. */}
-        {opened.loading && (
+        {opened.status === 'loading' && (
           <div data-slot="embed-opening" aria-busy="true">
             <span role="status" className="fve:sr-only">
               {messages.label(kindWord('label.workbench.opening', kind))}

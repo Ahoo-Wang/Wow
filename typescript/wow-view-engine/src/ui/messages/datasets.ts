@@ -12,8 +12,8 @@
  */
 
 /**
- * The standalone dataset view: the picker of the datasets served, and
- * what it says while none is.
+ * The standalone dataset view: the picker of the datasets served, what it
+ * says while none is, and why they could not be read.
  */
 export const datasetMessages = {
   'label.dataset.picker': 'Dataset',
@@ -21,4 +21,5 @@ export const datasetMessages = {
   'label.dataset.none-hint': 'A dataset appears here once a catalog serves it.',
   'label.dataset.loading': 'Reading the datasets…',
   'label.dataset.refresh': 'Read the datasets again',
+  'dataset.read.failed': 'The datasets served could not be read: {reason}',
 } as const satisfies Record<string, string>;

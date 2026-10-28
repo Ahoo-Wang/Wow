@@ -120,8 +120,6 @@ export interface RecordTableController {
   summaries: SummaryRow | null;
   status: QueryStatus;
   error: Issue | null;
-  /** True while a query is in flight and rows are still the previous ones. */
-  loading: boolean;
   /**
    * The query failed, and the rows still on screen were fetched under other
    * conditions than the ones it asked (`ViewQueryState.conditionsChanged`):
@@ -528,7 +526,6 @@ export function useRecordTable(
     summaries: data?.kind === 'record' ? data.summaries : null,
     status: state?.query.status ?? 'idle',
     error: state?.query.error ?? null,
-    loading: state?.query.status === 'loading',
     conditionsChanged: state?.query.conditionsChanged === true,
     hasResult: hasResult(state),
     filterRequired: (state?.issues ?? []).some(

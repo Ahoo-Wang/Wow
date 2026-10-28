@@ -178,7 +178,7 @@ export const filterMessages = {
   'label.filter.value-count': '{value} ({count} records)',
   'label.filter.value-count-one': '{value} (1 record)',
   'label.filter.values-loading': 'Reading the values…',
-  'label.filter.values-failed': 'The values could not be read: {reason}',
+  'filter.values.failed': 'The values could not be read: {reason}',
   'label.filter.values-top':
     'Only the most frequent values are listed; type to narrow',
   // What an empty list's entry box says: the whole gesture, because this is
