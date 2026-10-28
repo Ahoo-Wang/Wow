@@ -125,6 +125,21 @@ class ProviderOptionChecksTest {
     }
 
     @Test
+    fun `a provider declaring a key twice should fail, and no option can be declared without a description`() {
+        val again = ProviderOption.int("region", "the region again, as a number.")
+        assertThrows<AssertionError> {
+            transportSpec(transport(listOf(region, again), "region"))
+                .`the transport should read only the options it declares, each declared once with a description`()
+        }.message.assert().contains("region")
+        assertThrows<AssertionError> {
+            sinkSpec(sink(listOf(region, again), "region"))
+                .`the sink should read only the options it declares, each declared once with a description`()
+        }.message.assert().contains("region")
+        // The description the specs require is required when an option is declared: a blank one is never built.
+        assertThrows<IllegalArgumentException> { ProviderOption.string("region", " ") }
+    }
+
+    @Test
     fun `a spec no provider opens should skip the check`() {
         assertThrows<TestAbortedException> {
             transportSpec(null)

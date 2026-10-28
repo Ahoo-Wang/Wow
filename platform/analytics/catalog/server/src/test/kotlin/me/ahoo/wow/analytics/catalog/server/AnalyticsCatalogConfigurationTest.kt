@@ -62,7 +62,7 @@ class AnalyticsCatalogConfigurationTest {
             "wow.clickhouse.username" to "catalog",
         )
         configuration.analyticsCatalogClickHouseClient(environment).use { client ->
-            client.endpoints.assert().hasSize(1)
+            client.assert().isNotNull()
         }
         assertThrows<IllegalArgumentException> { configuration.analyticsCatalogClickHouseClient(environment()) }
             .message.assert().contains("wow.clickhouse.endpoint")

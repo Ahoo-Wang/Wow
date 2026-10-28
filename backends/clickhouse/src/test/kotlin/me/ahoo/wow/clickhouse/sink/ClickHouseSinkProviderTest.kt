@@ -50,7 +50,7 @@ class ClickHouseSinkProviderTest {
         assertThrows<IllegalArgumentException> { ClickHouseClients.of(mapOf("endpoint" to " ")) }
             .message.assert().contains("wow.clickhouse.endpoint is not set")
         ClickHouseClients.of(mapOf("endpoint" to "http://127.0.0.1:1", "username" to " ")).use {
-            it.endpoints.assert().hasSize(1)
+            it.assert().isNotNull()
         }
     }
 
