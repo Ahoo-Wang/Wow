@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -222,6 +223,48 @@ class HandoffLogTest {
             held.await()
             seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
             job.cancelAndJoin()
+
+            log.storeReads.assert().isEqualTo(0L)
+            log.delivered.assert().isEqualTo(1L)
+            reads.reasons.assert().isEmpty()
+        }
+
+    @Test
+    fun `an idle probe whose head read sees this node's commit returned meanwhile should take it from memory`(): Unit =
+        runBlocking {
+            // X-19: the append commits, hands its entry over and returns while the probe reads the head, so the head
+            // shows the commit and no append is in flight; only what was handed over says it is this node's.
+            val gated = GateHead(store)
+            val log = handoff(probeInterval = 20.milliseconds, log = gated)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            gated.arm()
+            gated.entered.await()
+            log.append(next(refs[0])).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            gated.release.complete(Unit)
+            seen.take(1).single().position.sequence.assert().isEqualTo(1L)
+            job.cancelAndJoin()
+
+            log.storeReads.assert().isEqualTo(0L)
+            log.delivered.assert().isEqualTo(1L)
+            reads.reasons.assert().isEmpty()
+        }
+
+    @Test
+    fun `an entry handed over the instant the probe interval ends should be taken, never lost to the timeout`() =
+        runTest {
+            // On virtual time, the append runs first at the instant the tail's wait times out: the entry reaches the
+            // waiting tail, and the timeout comes next. A wait that a timeout cancels may lose what it took, to a read
+            // of the store; the tail's wait takes the entry or leaves it.
+            val probe = 1.seconds
+            val log = handoff(probeInterval = probe)
+            backgroundScope.launch {
+                delay(probe)
+                log.append(next(refs[0]))
+            }
+            val seen = Channel<LogEntry>(Channel.UNLIMITED)
+            backgroundScope.launch { log.tail(0, null).collect { seen.send(it) } }
+            seen.receive().position.sequence.assert().isEqualTo(1L)
 
             log.storeReads.assert().isEqualTo(0L)
             log.delivered.assert().isEqualTo(1L)
@@ -528,6 +571,28 @@ private class RecordingLog(private val delegate: EventLog) : EventLog by delegat
 
     /** Counted once the read returned: a commit after it is handed to the tail that read it. */
     override suspend fun head(partition: Int): Long? = delegate.head(partition).also { heads.incrementAndGet() }
+}
+
+/** A log whose next head read, once [arm]ed, waits for [release] before it reads the store's head. */
+private class GateHead(private val delegate: EventLog) : EventLog by delegate {
+    val entered = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+
+    @Volatile
+    private var armed = false
+
+    fun arm() {
+        armed = true
+    }
+
+    override suspend fun head(partition: Int): Long? {
+        if (armed) {
+            armed = false
+            entered.complete(Unit)
+            release.await()
+        }
+        return delegate.head(partition)
+    }
 }
 
 /** A log whose append commits and answers [AppendOutcome.Unknown] when [next] is set, as after a timeout. */

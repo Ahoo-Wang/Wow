@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.runtime.log
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.transformWhile
+import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -250,13 +252,21 @@ class HandoffLog(
         }
 
         /**
-         * Reads the store from the cursor up to the partition's head, when the head is past it; for a probe ([ObservedEvent.TailRead.Reason.IDLE]),
-         * not while an append of this node in flight hands over what the head shows ([ownCommitAhead]).
+         * Reads the store from the cursor up to the partition's head, when the head is past it and memory does not
+         * continue the run that far: what this node's appends handed over by then, even while the head was read, is
+         * taken first. For a probe ([ObservedEvent.TailRead.Reason.IDLE]), not while an append of this node in flight
+         * hands over what the head shows ([ownCommitAhead]).
          */
         private suspend fun FlowCollector<LogEntry>.fromStore(reason: Reason) {
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
             val head = log.head(partition) ?: 0L
+            if (head > cursor) {
+                // An append of this node may have committed, handed its entry over and returned while the head was
+                // read: its commit is in the head and no longer in flight, so only what was handed over shows it.
+                drain()
+                deliverRun()
+            }
             if (head > cursor && reason == Reason.IDLE && ownCommitAhead()) {
                 // This node's own commits first, from memory; what the head shows past them is other nodes', read now
                 // rather than a probe interval later.
@@ -302,12 +312,22 @@ class HandoffLog(
                     return Reason.OVERFLOW
                 }
                 if (pending.isEmpty()) {
-                    val entry = withTimeoutOrNull(options.probeInterval) { listener.entries.receive() } ?: return Reason.IDLE
-                    hold(entry)
+                    hold(nextOrIdle() ?: return Reason.IDLE)
                 } else if (!awaitGap()) {
                     return Reason.GAP
                 }
             }
+        }
+
+        /**
+         * The next entry handed over, or null once [HandoffOptions.probeInterval] passes without one. A select clause
+         * either takes an entry or leaves it, whichever of the two completes; a `receive` cancelled by a timeout may
+         * take one and still be cancelled, losing it to a read of the store.
+         */
+        @OptIn(ExperimentalCoroutinesApi::class) // onTimeout: the probe interval.
+        private suspend fun nextOrIdle(): LogEntry? = select {
+            listener.entries.onReceive { it }
+            onTimeout(options.probeInterval) { null }
         }
 
         /**
@@ -327,6 +347,7 @@ class HandoffLog(
             }
         }
 
+        // An entry the timeout takes from the channel and loses costs nothing: the tail reads the store for the gap.
         private suspend fun gapWithin(appends: InFlight, horizon: Long): Boolean =
             withTimeoutOrNull(options.gapWait) {
                 while (!pending.containsKey(cursor + 1) && !listener.overflowed.get()) {
