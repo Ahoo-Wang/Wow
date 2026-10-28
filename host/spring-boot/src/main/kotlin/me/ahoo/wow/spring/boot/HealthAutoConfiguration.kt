@@ -72,7 +72,7 @@ class HealthAutoConfiguration {
             parkedDegradedAt,
             "Set it to at most wow.node.max-parked (${sampler.maxParked}), which the node counts parked entries up to.",
         ) { "wow.health.subscriptions.parked-degraded-at is $parkedDegradedAt, past wow.node.max-parked." }
-        return NodeHealth(node, properties.health.options(properties.node.sampleInterval), sampler = sampler)
+        return NodeHealth(node, sampler, properties.health.options(properties.node.sampleInterval))
     }
 
     /**

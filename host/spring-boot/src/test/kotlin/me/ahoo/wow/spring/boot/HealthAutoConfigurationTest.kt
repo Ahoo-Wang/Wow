@@ -19,6 +19,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.health.NodeHealth
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
@@ -76,7 +77,7 @@ class HealthAutoConfigurationTest {
 
     @Test
     fun `an application's own node health should be the one the contributors read`() {
-        runner.withBean("ownHealth", NodeHealth::class.java, { NodeHealth(node()) }).run { context ->
+        runner.withBean("ownHealth", NodeHealth::class.java, { node().let { NodeHealth(it, NodeSampler(it)) } }).run { context ->
             context.getBeansOfType(NodeHealth::class.java).keys.assert().containsExactly("ownHealth")
             context.containsBean(HealthAutoConfiguration.READINESS_INDICATOR).assert().isTrue()
         }

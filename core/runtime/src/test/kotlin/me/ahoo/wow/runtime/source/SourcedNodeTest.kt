@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SourcedSubscription
@@ -184,7 +185,7 @@ class SourcedNodeTest {
                 if (open) topics.partitions(topic) else emptyList()
         }
         val node = node(topics = SourceTopics(gated, PREFIX))
-        val health = NodeHealth(node, HealthOptions(storeDownAfter = Duration.ZERO))
+        val health = NodeHealth(node, NodeSampler(node), HealthOptions(storeDownAfter = Duration.ZERO))
         node.start()
         val readiness = health.readiness()
         readiness.status.assert().isEqualTo(HealthStatus.DOWN)
@@ -198,7 +199,7 @@ class SourcedNodeTest {
         health.readiness().component(NodeHealth.TOPICS)!!.components.single().details["lastJoinFailure"].assert()
             .isEqualTo("IllegalStateException")
         // A node that does not wait for its topics is ready, its topic degraded.
-        NodeHealth(node, HealthOptions(topicsRequired = false)).readiness().let {
+        NodeHealth(node, NodeSampler(node), HealthOptions(topicsRequired = false)).readiness().let {
             it.status.assert().isEqualTo(HealthStatus.UP)
             it.component(NodeHealth.TOPICS)!!.status.assert().isEqualTo(HealthStatus.DEGRADED)
         }
@@ -218,7 +219,7 @@ class SourcedNodeTest {
     @Test
     fun `a node on standby should be ready, its topics marked standby until it is resumed`(): Unit = runBlocking {
         val node = node()
-        val health = NodeHealth(node, HealthOptions(storeDownAfter = Duration.ZERO))
+        val health = NodeHealth(node, NodeSampler(node), HealthOptions(storeDownAfter = Duration.ZERO))
         node.start(standby = true)
         val readiness = health.readiness()
         readiness.status.assert().isEqualTo(HealthStatus.UP)

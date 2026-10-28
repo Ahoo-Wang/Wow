@@ -128,7 +128,7 @@ class NodeMetricsTest {
         val runtime = node.context(SALES).logGroups.single().subscriptions
         val heads = (0 until 2).associateWith { node.context(SALES).backends.log.head(it) ?: 0L }
         eventually { runtime.positions().filter { it.subscription == BOARD }.all { it.watermark == heads[it.partition] } }
-        val metrics = NodeMetrics(node, telemetry.meters)
+        val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
         metrics.sample()
         gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
         val board = arrayOf(WowMetrics.GROUP, runtime.group, WowMetrics.SUBSCRIPTION, BOARD)
@@ -159,7 +159,7 @@ class NodeMetricsTest {
             eventually { node.pauses.paused().isNotEmpty() }
             val paused = node.pauses.paused().single()
             paused.subscription.assert().isEqualTo(BOARD)
-            val metrics = NodeMetrics(node, telemetry.meters)
+            val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
             metrics.sample()
             val board = arrayOf(WowMetrics.GROUP, paused.group, WowMetrics.SUBSCRIPTION, BOARD)
             // One series per subscription, counting its paused partitions.
@@ -179,7 +179,7 @@ class NodeMetricsTest {
             place("good-1")
             eventually { node.throttled.isNotEmpty() }
             val throttled = node.throttled.single()
-            val metrics = NodeMetrics(node, telemetry.meters)
+            val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
             metrics.sample()
             val board = arrayOf(WowMetrics.GROUP, throttled.group, WowMetrics.SUBSCRIPTION, BOARD)
             gauge(WowMetrics.THROTTLED_PARTITIONS.name, *board).assert().containsExactly(1.0)
@@ -198,7 +198,7 @@ class NodeMetricsTest {
             node.start()
             listOf("good-1", "bad-1").forEach { place(it) }
             eventually { node.parked.list(BOARD).entries.size == 1 }
-            val metrics = NodeMetrics(node, telemetry.meters)
+            val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
             metrics.reportsParked().assert().isTrue()
             metrics.sample()
             gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(1.0)
@@ -217,10 +217,11 @@ class NodeMetricsTest {
     fun `sampling should go on every interval, past a sample that fails, until it is closed`(): Unit = runBlocking {
         node.start()
         place("good-1")
-        val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node, interval = 20.milliseconds))
+        val sampler = NodeSampler(node, interval = 20.milliseconds)
+        NodeMetrics(node, telemetry.meters, sampler)
         broken = true
-        metrics.start()
-        metrics.start()
+        sampler.start()
+        sampler.start()
         // While the ledger is down, every sample fails before it gauges anything.
         kotlinx.coroutines.delay(100.milliseconds)
         telemetry.meters.find(WowMetrics.PARKED_AGGREGATES.name).gauges().assert().isEmpty()
@@ -228,7 +229,7 @@ class NodeMetricsTest {
         eventually(
             5.seconds
         ) { gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD) == listOf(0.0) }
-        metrics.close()
+        sampler.close()
     }
 
     @Test

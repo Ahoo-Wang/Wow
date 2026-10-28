@@ -85,7 +85,7 @@ class ObservabilityAutoConfiguration {
     @Bean
     fun wowParkedMetrics(meters: ObjectProvider<MeterRegistry>): ParkedNotifier = ParkedMetrics(meters.orGlobal())
 
-    @Bean(initMethod = "start", destroyMethod = "close")
+    @Bean
     @ConditionalOnBean(ServiceNode::class)
     @InternalWowApi
     fun wowNodeMetrics(

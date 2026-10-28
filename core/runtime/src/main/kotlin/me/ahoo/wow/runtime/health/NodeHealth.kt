@@ -81,14 +81,15 @@ import kotlin.time.Duration.Companion.seconds
  * which a restart does not bring back, and a restart storm would only add load to them. A node that is not running
  * (starting, stopping) is live: the startup probe covers the start, and a draining node is not restarted.
  *
- * A probe reads what was recorded and sampled: it never calls a store. [sampler] samples the node, every
- * [HealthOptions.sampleInterval] by default; each of its samples probes the stores the node has not called and checks
- * the hand-overs. [start] starts the dispatcher's tick and the sampling, once the node has started; [close] stops
- * them (a sampler given to it, which other readers share, is closed by its owner).
+ * A probe reads what was recorded and sampled: it never calls a store. [sampler], the node's one sampler, which its
+ * owner starts and closes, samples the node; each of its samples probes the stores the node has not called and checks
+ * the hand-overs. [start] starts the dispatcher's tick, once the node has started; [close] stops it.
  */
 @InternalWowApi
 class NodeHealth(
     val node: ServiceNode,
+    /** The node's one sampler, which its gauges read too; its owner starts and closes it. */
+    private val sampler: NodeSampler,
     val options: HealthOptions = HealthOptions(),
     private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
@@ -99,8 +100,6 @@ class NodeHealth(
     private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = SubscriptionRuntime::paused,
     /** The wall clock the pauses' `since` is of (epoch milliseconds): the node's. */
     private val clock: Clock = node.clock,
-    /** The node's sampler, which its gauges may read too; one of its own, counting to the degraded mark, when null. */
-    sampler: NodeSampler? = null,
 ) : AutoCloseable {
 
     @Volatile
@@ -121,22 +120,16 @@ class NodeHealth(
     /** How long a probe or a sampled read may take: [HealthOptions.storeDownAfter], at least a second. */
     private val probeTimeout: Duration = options.storeDownAfter.coerceAtLeast(MIN_PROBE_TIMEOUT)
 
-    private val ownsSampler = sampler == null
-
-    /** The node's sampler; one of its own, its reads bounded as a probe is, when none is given. */
-    private val sampler: NodeSampler = sampler
-        ?: NodeSampler(node, options.sampleInterval, options.parkedDegradedAt, probeTimeout, context, nanos)
-
     init {
-        this.sampler.listen(::sampled)
+        sampler.listen(::sampled)
     }
 
     /** How often the dispatcher ticks: every second, or four times within a shorter stall timeout. */
     private val tick: Duration = minOf(TICK, options.stallTimeout / TICKS_PER_STALL)
 
     /**
-     * Starts the dispatcher's tick, every second (more often within a short stall timeout), and the sampling, the first
-     * sample at once. Starting twice does nothing.
+     * Starts the dispatcher's tick, every second (more often within a short stall timeout). Starting twice does
+     * nothing.
      */
     @Synchronized
     fun start() {
@@ -153,17 +146,13 @@ class NodeHealth(
             }
         }
         running = root
-        sampler.start()
     }
 
-    /** Stops the tick and the sampling; [start] starts them again. */
+    /** Stops the tick; [start] starts it again. */
     @Synchronized
     override fun close() {
         running?.cancel()
         running = null
-        if (ownsSampler) {
-            sampler.close()
-        }
     }
 
     /** Whether [start]ed and not [close]d. */

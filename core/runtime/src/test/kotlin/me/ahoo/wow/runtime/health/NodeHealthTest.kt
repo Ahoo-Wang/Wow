@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.health
 
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
@@ -46,6 +47,7 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.PlacedStores
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
@@ -90,6 +92,7 @@ class NodeHealthTest {
     private val channel = LoopbackClusterChannel()
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
     private val healths = CopyOnWriteArrayList<NodeHealth>()
+    private val samplers = HashMap<NodeHealth, NodeSampler>()
     private val log = FlakyLog(InMemoryEventLog(PARTITIONS))
     private val leases = FlakyLeases(InMemoryLeaseStore())
 
@@ -102,6 +105,7 @@ class NodeHealthTest {
         log.hang = null
         slow.complete(Unit)
         healths.forEach { it.close() }
+        samplers.values.forEach { it.close() }
         nodes.forEach { it.stop() }
     }
 
@@ -166,7 +170,26 @@ class NodeHealthTest {
     }
 
     private fun health(node: ServiceNode, options: HealthOptions = OPTIONS): NodeHealth =
-        NodeHealth(node, options).also { healths += it }
+        healthOf(node, options) { sampler -> NodeHealth(node, sampler, options) }
+
+    /** The health [create]d over a sampler of [node] as a host makes one, its reads bounded as a probe is. */
+    private fun healthOf(node: ServiceNode, options: HealthOptions, create: (NodeSampler) -> NodeHealth): NodeHealth {
+        val sampler = NodeSampler(
+            node,
+            options.sampleInterval,
+            readTimeout = options.storeDownAfter.coerceAtLeast(1.seconds),
+        )
+        return create(sampler).also {
+            healths += it
+            samplers[it] = sampler
+        }
+    }
+
+    /** Starts [health]'s tick and its sampler, as a host starts both. */
+    private fun start(health: NodeHealth) {
+        start(health)
+        samplers.getValue(health).start()
+    }
 
     private fun account(gate: CompletableDeferred<Unit>? = null, context: String = BANK): AggregateModel<Account> =
         aggregate<Account>(context, "account") {
@@ -202,8 +225,8 @@ class NodeHealthTest {
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
 
             node.start()
-            health.start()
-            health.start()
+            start(health)
+            start(health)
             health.isRunning.assert().isTrue()
             eventually { health.readiness().status == HealthStatus.UP }
             node.gateway.execute(deposit("a-1"))
@@ -342,7 +365,7 @@ class NodeHealthTest {
         val node = node()
         val health = health(node)
         node.start()
-        health.start()
+        start(health)
         eventually { health.readiness().status == HealthStatus.UP }
 
         log.down = true
@@ -363,7 +386,7 @@ class NodeHealthTest {
         health.health().status(NodeHealth.STORES).assert().isEqualTo(HealthStatus.DEGRADED)
         // Once the window of the failures has passed, the store is up again.
         delay(5)
-        NodeHealth(node, HealthOptions(storeDownAfter = Duration.ZERO, storeWindow = 1.milliseconds)).health()
+        health(node, HealthOptions(storeDownAfter = Duration.ZERO, storeWindow = 1.milliseconds)).health()
             .status(NodeHealth.STORES).assert().isEqualTo(HealthStatus.UP)
     }
 
@@ -380,7 +403,7 @@ class NodeHealthTest {
                 ),
             )
             node.start()
-            health.start()
+            start(health)
             eventually { health.readiness().status == HealthStatus.UP }
 
             log.hang = CompletableDeferred()
@@ -452,7 +475,7 @@ class NodeHealthTest {
         val node = node(account(gate), fastNodeOptions().copyWith(executor = ExecutorOptions(maxInFlight = 1)))
         val health = health(node, HealthOptions(storeDownAfter = Duration.ZERO, stallTimeout = 100.milliseconds))
         node.start()
-        health.start()
+        start(health)
         coroutineScope {
             val stuck = async { node.gateway.execute(deposit("a-1")) }
             eventually { node.context(BANK).executor.commandsInFlight == 1 }
@@ -475,13 +498,9 @@ class NodeHealthTest {
         node.start()
         val single = Executors.newSingleThreadExecutor()
         try {
-            val health = NodeHealth(
-                node,
-                HealthOptions(stallTimeout = 100.milliseconds),
-                single.asCoroutineDispatcher()
-            )
-            healths += health
-            health.start()
+            val options = HealthOptions(stallTimeout = 100.milliseconds)
+            val health = healthOf(node, options) { NodeHealth(node, it, options, single.asCoroutineDispatcher()) }
+            start(health)
             delay(50)
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
             single.execute { Thread.sleep(400) }
@@ -521,12 +540,10 @@ class NodeHealthTest {
                 },
             )
             val paused = PausedPartition("g", "Slow.onDeposit", 1, 1_000, "StorageUnavailableException")
-            val health = NodeHealth(
-                node,
-                HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5),
-                pausedOf = { listOf(paused) },
-                clock = clockOf { 3_000 },
-            ).also { healths += it }
+            val options = HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5)
+            val health = healthOf(node, options) {
+                NodeHealth(node, it, options, pausedOf = { listOf(paused) }, clock = clockOf { 3_000 })
+            }
             node.start()
             // A first sample, before anything parks: the parked count grows from it.
             health.sample()

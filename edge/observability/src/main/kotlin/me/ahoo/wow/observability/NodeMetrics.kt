@@ -50,26 +50,19 @@ import java.util.concurrent.atomic.AtomicReference
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
  * longer reports it) is removed from [meters], so it does not report its last value forever.
  *
- * [start] starts the sampling; [close] stops it when the sampler is its own (one given to it is closed by its owner).
+ * The sampler's owner starts and closes it; these gauges follow each of its samples.
  */
 @InternalWowApi
 class NodeMetrics(
     private val node: ServiceNode,
     private val meters: MeterRegistry,
-    /** The node's sampler, which its health may read too; one of its own when null. */
-    sampler: NodeSampler? = null,
-) : AutoCloseable {
-    private val ownsSampler = sampler == null
-    private val sampler: NodeSampler = sampler ?: NodeSampler(node)
+    /** The node's one sampler, which its health reads too; its owner starts and closes it. */
+    private val sampler: NodeSampler,
+) {
     private val gauges = ConcurrentHashMap<Pair<String, Tags>, Pair<AtomicReference<Double>, Gauge>>()
 
     init {
-        this.sampler.listen { sample -> sampled(sample) }
-    }
-
-    /** Starts sampling, once the node has started. Starting twice does nothing. */
-    fun start() {
-        sampler.start()
+        sampler.listen { sample -> sampled(sample) }
     }
 
     /** Takes one sample of the node ([NodeSampler.sample]), which sets every gauge. */
@@ -145,13 +138,6 @@ class NodeMetrics(
 
     private fun subscriptionTags(group: String, subscription: String): Tags =
         WowMetrics.PAUSED_PARTITIONS.tagsOf(group, subscription)
-
-    /** Stops sampling, when the sampler is its own. */
-    override fun close() {
-        if (ownsSampler) {
-            sampler.close()
-        }
-    }
 
     @InternalWowApi
     companion object {
