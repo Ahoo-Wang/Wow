@@ -714,7 +714,8 @@
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication" : {
       "type" : "object",
-      "description" : "Approve the requested publication of a dataset"
+      "description" : "Approve the requested publication of a dataset",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact" : {
       "type" : "object",
@@ -770,7 +771,8 @@
                     "type" : "string"
                   }
                 },
-                "required" : [ "aggregate", "context" ]
+                "required" : [ "aggregate", "context" ],
+                "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference"
               },
               "sensitivity" : {
                 "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity-nullable"
@@ -779,7 +781,8 @@
                 "type" : [ "string", "null" ]
               }
             },
-            "required" : [ "name" ]
+            "required" : [ "name" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetField"
           }
         },
         "identity" : {
@@ -803,7 +806,8 @@
             "tenant" : {
               "type" : [ "string", "null" ]
             }
-          }
+          },
+          "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope"
         },
         "select" : {
           "type" : "string"
@@ -818,13 +822,15 @@
           "type" : [ "string", "null" ]
         },
         "version" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "view" : {
           "type" : "string"
         }
       },
-      "required" : [ "context", "database", "ddl", "fields", "name", "scope", "sources", "version", "view" ]
+      "required" : [ "context", "database", "ddl", "fields", "name", "scope", "sources", "version", "view" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition" : {
       "type" : "object",
@@ -850,7 +856,8 @@
                 "type" : [ "string", "null" ]
               }
             },
-            "required" : [ "name" ]
+            "required" : [ "name" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn"
           }
         },
         "eventTime" : {
@@ -875,7 +882,8 @@
               },
               "kind" : {
                 "type" : "string",
-                "enum" : [ "INNER", "LEFT" ]
+                "enum" : [ "INNER", "LEFT" ],
+                "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind"
               },
               "on" : {
                 "type" : "array",
@@ -889,11 +897,13 @@
                       "type" : "string"
                     }
                   },
-                  "required" : [ "left", "right" ]
+                  "required" : [ "left", "right" ],
+                  "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKey"
                 }
               }
             },
-            "required" : [ "alias", "on" ]
+            "required" : [ "alias", "on" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoin"
           }
         },
         "sources" : {
@@ -908,14 +918,16 @@
                 "type" : "string"
               }
             },
-            "required" : [ "alias", "sourceId" ]
+            "required" : [ "alias", "sourceId" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetSource"
           }
         },
         "subject" : {
           "type" : "string"
         }
       },
-      "required" : [ "columns", "sources", "subject" ]
+      "required" : [ "columns", "sources", "subject" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition-nullable" : {
       "anyOf" : [ {
@@ -947,7 +959,8 @@
         }
       },
       "required" : [ "context", "definition", "name", "sources" ],
-      "description" : "A dataset was drafted"
+      "description" : "A dataset was drafted",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision" : {
       "type" : "object",
@@ -963,7 +976,8 @@
         }
       },
       "required" : [ "problems" ],
-      "description" : "A dataset needs revision"
+      "description" : "A dataset needs revision",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused" : {
       "type" : "object",
@@ -973,7 +987,8 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "A dataset's publication was refused"
+      "description" : "A dataset's publication was refused",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested" : {
       "type" : "object",
@@ -989,7 +1004,8 @@
         }
       },
       "required" : [ "definition", "reasons" ],
-      "description" : "A dataset's publication was requested"
+      "description" : "A dataset's publication was requested",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished" : {
       "type" : "object",
@@ -1005,17 +1021,20 @@
         }
       },
       "required" : [ "artifact", "definition" ],
-      "description" : "A dataset's version was published"
+      "description" : "A dataset's version was published",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired" : {
       "type" : "object",
       "properties" : {
         "version" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         }
       },
       "required" : [ "version" ],
-      "description" : "A dataset was retired"
+      "description" : "A dataset was retired",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised" : {
       "type" : "object",
@@ -1034,44 +1053,53 @@
         }
       },
       "required" : [ "definition", "sources" ],
-      "description" : "A dataset was revised"
+      "description" : "A dataset was revised",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared" : {
       "type" : "object",
       "properties" : {
         "version" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         }
       },
       "required" : [ "version" ],
-      "description" : "A dataset's version compiles again"
+      "description" : "A dataset's version compiles again",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack" : {
       "type" : "object",
       "properties" : {
         "from" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "version" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         }
       },
       "required" : [ "from", "version" ],
-      "description" : "A dataset was switched back to an earlier version"
+      "description" : "A dataset was switched back to an earlier version",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity-nullable" : {
       "type" : [ "object", "null" ],
       "properties" : {
         "keepPrefix" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "keepSuffix" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "level" : {
           "$ref" : "#/$defs/me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable"
         }
-      }
+      },
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetViewsDropped" : {
       "type" : "object",
@@ -1084,7 +1112,8 @@
         }
       },
       "required" : [ "views" ],
-      "description" : "A retired dataset's views were dropped"
+      "description" : "A retired dataset's views were dropped",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetViewsDropped"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset" : {
       "type" : "object",
@@ -1103,19 +1132,23 @@
         }
       },
       "required" : [ "context", "definition", "name" ],
-      "description" : "Draft a dataset over the catalog's sources"
+      "description" : "Draft a dataset over the catalog's sources",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews" : {
       "type" : "object",
-      "description" : "Drop a retired dataset's views"
+      "description" : "Drop a retired dataset's views",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset" : {
       "type" : "object",
-      "description" : "Publish the dataset's definition as its next version"
+      "description" : "Publish the dataset's definition as its next version",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset" : {
       "type" : "object",
-      "description" : "Compile a published dataset again after a source changed"
+      "description" : "Compile a published dataset again after a source changed",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication" : {
       "type" : "object",
@@ -1125,11 +1158,13 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Refuse the requested publication of a dataset"
+      "description" : "Refuse the requested publication of a dataset",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset" : {
       "type" : "object",
-      "description" : "Retire a dataset"
+      "description" : "Retire a dataset",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset" : {
       "type" : "object",
@@ -1142,17 +1177,20 @@
         }
       },
       "required" : [ "definition" ],
-      "description" : "Revise a dataset's definition"
+      "description" : "Revise a dataset's definition",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset" : {
       "type" : "object",
       "properties" : {
         "version" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         }
       },
       "required" : [ "version" ],
-      "description" : "Switch a dataset back to an earlier version"
+      "description" : "Switch a dataset back to an earlier version",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange" : {
       "type" : "object",
@@ -1164,11 +1202,13 @@
           }
         }
       },
-      "description" : "Approve a lower sensitivity of a Wow source"
+      "description" : "Approve a lower sensitivity of a Wow source",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ApproveSource" : {
       "type" : "object",
-      "description" : "Approve a source for the datasets"
+      "description" : "Approve a source for the datasets",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ApproveSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.DraftSource" : {
       "type" : "object",
@@ -1181,7 +1221,8 @@
         }
       },
       "required" : [ "database", "table" ],
-      "description" : "Draft an analyst's source from a warehouse table"
+      "description" : "Draft an analyst's source from a warehouse table",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.DraftSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity" : {
       "type" : "object",
@@ -1190,10 +1231,12 @@
           "type" : "string"
         },
         "keepPrefix" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "keepSuffix" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "level" : {
           "$ref" : "#/$defs/me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable"
@@ -1202,17 +1245,20 @@
           "type" : "string"
         },
         "revision" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "strategy" : {
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "path" ]
+      "required" : [ "path" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity"
     },
     "me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed" : {
       "type" : "object",
-      "description" : "Mark an analyst's source reviewed"
+      "description" : "Mark an analyst's source reviewed",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity" : {
       "type" : "object",
@@ -1225,7 +1271,8 @@
         }
       },
       "required" : [ "fields" ],
-      "description" : "Review the sensitivity of a source's values"
+      "description" : "Review the sensitivity of a source's values",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ReviseSource" : {
       "type" : "object",
@@ -1249,7 +1296,8 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "Revise an analyst's source"
+      "description" : "Revise an analyst's source",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ReviseSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved" : {
       "type" : "object",
@@ -1268,11 +1316,13 @@
         }
       },
       "required" : [ "keys", "sensitivity" ],
-      "description" : "A lower sensitivity was approved"
+      "description" : "A lower sensitivity was approved",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceApproved" : {
       "type" : "object",
-      "description" : "A source was approved for the datasets"
+      "description" : "A source was approved for the datasets",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceApproved"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceColumn" : {
       "type" : "object",
@@ -1284,7 +1334,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name", "type" ]
+      "required" : [ "name", "type" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceColumn"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceDrafted" : {
       "type" : "object",
@@ -1315,7 +1366,8 @@
         }
       },
       "required" : [ "columns", "connection", "database", "engine", "table", "tableEngine", "tableUuid" ],
-      "description" : "An analyst's source was drafted"
+      "description" : "An analyst's source was drafted",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceDrafted"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceReference" : {
       "type" : "object",
@@ -1330,11 +1382,13 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "path" ]
+      "required" : [ "aggregate", "context", "path" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceReference"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceReviewed" : {
       "type" : "object",
-      "description" : "An analyst's source was reviewed"
+      "description" : "An analyst's source was reviewed",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceRevised" : {
       "type" : "object",
@@ -1361,7 +1415,8 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "An analyst's source was revised"
+      "description" : "An analyst's source was revised",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceRevised"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceSensitivityReviewed" : {
       "type" : "object",
@@ -1377,7 +1432,8 @@
         }
       },
       "required" : [ "fields" ],
-      "description" : "A source's sensitivity was reviewed"
+      "description" : "A source's sensitivity was reviewed",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceSensitivityReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceTableChanged" : {
       "type" : "object",
@@ -1399,11 +1455,13 @@
         }
       },
       "required" : [ "columns", "tableEngine", "tableUuid" ],
-      "description" : "A source's table changed"
+      "description" : "A source's table changed",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceTableChanged"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceTableMissing" : {
       "type" : "object",
-      "description" : "A source's table is missing"
+      "description" : "A source's table is missing",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceTableMissing"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SyncSource" : {
       "type" : "object",
@@ -1416,7 +1474,8 @@
         }
       },
       "required" : [ "database", "table" ],
-      "description" : "Bring a source up to date with the warehouse"
+      "description" : "Bring a source up to date with the warehouse",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SyncSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichment" : {
       "type" : "object",
@@ -1430,7 +1489,8 @@
         "eventRevisions" : {
           "type" : "object",
           "additionalProperties" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "fingerprint" : {
@@ -1452,7 +1512,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "fingerprint", "ownership", "role", "service", "writer", "writtenAt" ]
+      "required" : [ "aggregate", "context", "fingerprint", "ownership", "role", "service", "writer", "writtenAt" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichment"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentAdopted" : {
       "type" : "object",
@@ -1525,7 +1586,8 @@
         }
       },
       "required" : [ "columns", "connection", "database", "engine", "enrichment", "table", "tableEngine", "tableUuid", "tenantColumn" ],
-      "description" : "A trusted wow_catalog row was adopted"
+      "description" : "A trusted wow_catalog row was adopted",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentAdopted"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentLost" : {
       "type" : "object",
@@ -1538,7 +1600,8 @@
         }
       },
       "required" : [ "pending" ],
-      "description" : "A Wow source's trusted wow_catalog row is gone"
+      "description" : "A Wow source's trusted wow_catalog row is gone",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentLost"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused" : {
       "type" : "object",
@@ -1551,7 +1614,8 @@
         }
       },
       "required" : [ "reasons" ],
-      "description" : "A table's wow_catalog rows were refused"
+      "description" : "A table's wow_catalog rows were refused",
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused"
     },
     "me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState" : {
       "type" : "object",
@@ -1560,7 +1624,8 @@
           "type" : "string"
         },
         "current" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "definition" : {
           "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition-nullable"
@@ -1594,7 +1659,8 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "DRAFT", "PUBLISHED", "RETIRED", "NEEDS_REVISION" ]
+          "enum" : [ "DRAFT", "PUBLISHED", "RETIRED", "NEEDS_REVISION" ],
+          "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus"
         },
         "stillServing" : {
           "type" : "boolean"
@@ -1614,11 +1680,13 @@
                 "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
               }
             },
-            "required" : [ "artifact", "definition" ]
+            "required" : [ "artifact", "definition" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion"
           }
         }
       },
-      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ]
+      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState"
     },
     "me.ahoo.wow.analytics.catalog.domain.source.SourceState" : {
       "type" : "object",
@@ -1659,7 +1727,8 @@
         },
         "kind" : {
           "type" : "string",
-          "enum" : [ "ANALYST", "WOW" ]
+          "enum" : [ "ANALYST", "WOW" ],
+          "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceKind"
         },
         "missing" : {
           "type" : "boolean"
@@ -1699,7 +1768,8 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "DRAFT", "REVIEWED", "ADOPTED" ]
+          "enum" : [ "DRAFT", "REVIEWED", "ADOPTED" ],
+          "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceStatus"
         },
         "table" : {
           "type" : "string"
@@ -1714,7 +1784,8 @@
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ]
+      "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.domain.source.SourceState"
     },
     "me.ahoo.wow.analytics.catalog.server.ReferenceActions" : {
       "type" : "object",
@@ -1765,14 +1836,16 @@
                             "type" : "string"
                           }
                         },
-                        "required" : [ "name", "required", "type" ]
+                        "required" : [ "name", "required", "type" ],
+                        "x-wow-class" : "me.ahoo.wow.analytics.catalog.server.CommandInput"
                       }
                     },
                     "name" : {
                       "type" : "string"
                     }
                   },
-                  "required" : [ "inputs", "name" ]
+                  "required" : [ "inputs", "name" ],
+                  "x-wow-class" : "me.ahoo.wow.analytics.catalog.server.ReferenceCommand"
                 }
               },
               "context" : {
@@ -1782,18 +1855,21 @@
                 "type" : "string"
               }
             },
-            "required" : [ "aggregate", "commands", "context", "field" ]
+            "required" : [ "aggregate", "commands", "context", "field" ],
+            "x-wow-class" : "me.ahoo.wow.analytics.catalog.server.ReferenceField"
           }
         }
       },
-      "required" : [ "dataset", "fields" ]
+      "required" : [ "dataset", "fields" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.server.ReferenceActions"
     },
     "me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable" : {
       "anyOf" : [ {
         "type" : "null"
       }, {
         "type" : "string",
-        "enum" : [ "display", "confidential" ]
+        "enum" : [ "display", "confidential" ],
+        "x-wow-class" : "me.ahoo.wow.api.query.annotation.SensitivityLevel"
       } ]
     },
     "me.ahoo.wow.api.result.CommandResult" : {
@@ -1844,14 +1920,17 @@
                     "type" : "string"
                   }
                 },
-                "required" : [ "code", "message", "path" ]
+                "required" : [ "code", "message", "path" ],
+                "x-wow-class" : "me.ahoo.wow.api.result.Violation"
               }
             }
           },
-          "required" : [ "code", "message" ]
+          "required" : [ "code", "message" ],
+          "x-wow-class" : "me.ahoo.wow.api.result.ErrorInfo"
         },
         "format" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int32"
         },
         "function" : {
           "type" : "object",
@@ -1861,7 +1940,8 @@
             },
             "kind" : {
               "type" : "string",
-              "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ]
+              "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ],
+              "x-wow-class" : "me.ahoo.wow.api.result.FunctionKind"
             },
             "name" : {
               "type" : "string"
@@ -1870,7 +1950,8 @@
               "type" : "string"
             }
           },
-          "required" : [ "context", "kind", "name", "processor" ]
+          "required" : [ "context", "kind", "name", "processor" ],
+          "x-wow-class" : "me.ahoo.wow.api.result.FunctionInfo"
         },
         "hop" : {
           "$ref" : "#/$defs/me.ahoo.wow.api.result.Hop"
@@ -1900,10 +1981,12 @@
                   "type" : "string"
                 }
               },
-              "required" : [ "context", "name" ]
+              "required" : [ "context", "name" ],
+              "x-wow-class" : "me.ahoo.wow.api.aggregate.AggregateType"
             }
           },
-          "required" : [ "id", "tenantId", "type" ]
+          "required" : [ "id", "tenantId", "type" ],
+          "x-wow-class" : "me.ahoo.wow.api.aggregate.AggregateRef"
         },
         "requestId" : {
           "type" : "string"
@@ -1917,7 +2000,8 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "succeeded", "rejected", "failed" ]
+          "enum" : [ "succeeded", "rejected", "failed" ],
+          "x-wow-class" : "me.ahoo.wow.api.result.CommandResult$Status"
         },
         "transformedFrom" : {
           "type" : [ "object", "null" ],
@@ -1929,13 +2013,16 @@
               "type" : "string"
             }
           },
-          "required" : [ "command" ]
+          "required" : [ "command" ],
+          "x-wow-class" : "me.ahoo.wow.api.result.TransformedFrom"
         },
         "version" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int32"
         }
       },
-      "required" : [ "commandId", "correlationId", "function", "hop", "ref", "requestId", "signalTime", "status" ]
+      "required" : [ "commandId", "correlationId", "function", "hop", "ref", "requestId", "signalTime", "status" ],
+      "x-wow-class" : "me.ahoo.wow.api.result.CommandResult"
     },
     "me.ahoo.wow.api.result.Hop" : {
       "type" : "object",
@@ -1945,13 +2032,15 @@
         },
         "stage" : {
           "type" : "string",
-          "enum" : [ "accepted", "committed", "handled" ]
+          "enum" : [ "accepted", "committed", "handled" ],
+          "x-wow-class" : "me.ahoo.wow.api.result.Stage"
         },
         "subscription" : {
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "stage" ]
+      "required" : [ "stage" ],
+      "x-wow-class" : "me.ahoo.wow.api.result.Hop"
     },
     "wow.snapshot.Rebuild" : {
       "type" : "object",
@@ -1963,7 +2052,8 @@
           }
         }
       },
-      "required" : [ "ids" ]
+      "required" : [ "ids" ],
+      "x-wow-class" : "me.ahoo.wow.spi.snapshot.RebuildSnapshot"
     }
   }
 }

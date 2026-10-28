@@ -79,7 +79,8 @@ import java.util.Properties
  *   plugin also compiles `<package>.<Context>Contract` per context from its contract ([GenerateContractSources],
  *   source set [CONTRACT_SOURCE_SET]): the context's name and, per aggregate, its type, refs,
  *   ownership, query models and, with `wow-query-api` on its class path, the query fields of its state, named as the
- *   compiler names the domain module's `<State>Properties`. Its classes and jar carry that code; its paired domain
+ *   compiler names the domain module's `<State>Properties`; and per state an aggregate publishes, the view
+ *   `<State>View` another context reads it as. Its classes and jar carry that code; its paired domain
  *   modules compile against a core view of it without that code (attribute [API_VIEW]), a jar, every
  *   other consumer against all of it. The generator runs in a worker over the api module's own [TOOLS_CONFIGURATION].
  *
@@ -261,8 +262,8 @@ class WowPlugin : Plugin<Project> {
         val tools = toolsConfiguration(api)
         val generate = api.tasks.register(GENERATE_CONTRACT_SOURCES_TASK, GenerateContractSources::class.java) { task ->
             task.group = GROUP_NAME
-            task.description = "Generates the constants, refs and query fields of this api module's contexts from " +
-                "its contract."
+            task.description = "Generates the constants, refs, query fields and state views of this api module's " +
+                "contexts from its contract."
             task.contract.from(assemble.map { it.outputDirectory.file(PeerContracts.RESOURCE) })
             task.classpath.from(api.provider { generated.compileClasspath })
             task.tools.from(tools)

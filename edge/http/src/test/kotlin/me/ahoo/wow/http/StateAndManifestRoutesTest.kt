@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
@@ -208,6 +209,19 @@ class StateAndManifestRoutesTest {
         answer.body.assert().isEqualTo(json.valueToTree(ManifestTree.write(manifest)))
         answer.body!!["contexts"][0]["name"].asString().assert().isEqualTo(CONTEXT)
         node.get("/wow/manifest", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
+    }
+
+    @Test
+    fun `the public Manifest should name no JVM class, which its schemas carry`() {
+        val classed = cartManifest().let { manifest ->
+            manifest.copyWith(
+                defs = manifest.defs + ("shop.Note" to mapOf("type" to "object", CLASS_KEYWORD to "shop.Note")),
+            )
+        }
+        val answer = HttpNode(manifest = classed).get("/wow/manifest")
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["\$defs"]["shop.Note"]["type"].asString().assert().isEqualTo("object")
+        answer.body.toString().assert().doesNotContain(CLASS_KEYWORD)
     }
 
     @Test

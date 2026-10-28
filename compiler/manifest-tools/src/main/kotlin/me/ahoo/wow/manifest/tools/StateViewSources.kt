@@ -1,0 +1,326 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.manifest.tools
+
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+
+/**
+ * The views of a context's aggregate states generated from its contract, beside its
+ * `<Context>Contract` ([ContractSources]): per state an aggregate publishes, `<package>.<State>View`, an immutable
+ * `data class` of the state's fields, which another context reads the state as.
+ *
+ * - The package is the one the aggregate's command and event classes share (the api module's aggregate package), the
+ *   name the state class's simple name followed by `View`: `OrderState` is `OrderStateView`, never the domain's own
+ *   name, which a server module sees beside it. The view carries `@StateView` naming its aggregate,
+ *   `context.aggregate`, so a typed read of it finds the aggregate's snapshots; a state two aggregates share fails the
+ *   generation, since a view is of one aggregate.
+ * - Fields only: a field the state schema requires is non-null, any other nullable and `null` by default. Reading
+ *   ignores a field the view does not know (Wow's JSON does), so a field the producer adds breaks no reader.
+ * - A field's type is read from its schema ([WireTypes]): a `format` names the type a plain JSON type does not
+ *   (`int64` a `Long`, `date-time` an `Instant`), `uniqueItems` a `Set`, and `x-wow-class` a class: one on the api's
+ *   class path ([onClassPath]) is referenced, a domain's own object or enumeration is copied into the view as a nested
+ *   class of its fields or constants. A free shape is read as Wow reads one elsewhere: any value is a Jackson
+ *   `JsonNode`, an object of no class and no properties an `ObjectNode`, unless `additionalProperties` gives its
+ *   values a schema, a typed `Map<String, V>`; every api module has Jackson through `wow-api`. A type the schema does
+ *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized
+ *   class of the domain, an enumeration constant that is not a Kotlin name) fails the generation, naming the field.
+ * - A state the contract withholds (`publishState = false`) has no view, nor has a state of no field.
+ */
+internal class StateViewSources(
+    private val defs: Map<String, Any?>,
+    private val onClassPath: (String) -> Boolean,
+) {
+    fun of(context: ContextManifest, contextPackage: String): List<ContractSources.Source> {
+        val withheld = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
+        // A state of no field has nothing to view: one the contract withholds is an object of no structure.
+        val viewed = context.aggregates.filter { aggregate ->
+            aggregate.name !in withheld && properties(schemaOf(Manifest.schemaKey(aggregate.state.schema))).isNotEmpty()
+        }
+        val views = viewed.groupBy { Manifest.schemaKey(it.state.schema) }
+        val names = mutableMapOf<String, String>()
+        return views.map { (state, aggregates) ->
+            // A view is of one aggregate: a typed read of it, or a handler of its events, names one.
+            check(aggregates.size == 1) {
+                "The aggregates ${aggregates.joinToString { "${context.name}.${it.name}" }} share the state $state, " +
+                    "which a state view cannot name: give each aggregate a state class of its own."
+            }
+            val aggregate = aggregates.single()
+            val pkg = ContractSources.packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
+            val name = "${simpleName(classOf(state))}View"
+            names.put("$pkg.$name", state)?.let { other ->
+                error(
+                    "The states $other and $state of the context ${context.name} would both be viewed as $pkg.$name: " +
+                        "rename one of them."
+                )
+            }
+            source(pkg, name, state, "${context.name}.${aggregate.name}")
+        }
+    }
+
+    private fun source(pkg: String, name: String, state: String, aggregate: String): ContractSources.Source {
+        val view = View(name, classOf(state))
+        val body = view.dataClass(name, state, schemaOf(state), "")
+        val text = buildString {
+            appendLine("// Generated by the Wow Gradle plugin from this api module's contract; do not edit.")
+            if (pkg.isNotEmpty()) {
+                appendLine("package $pkg")
+                appendLine()
+            }
+            appendLine("import me.ahoo.wow.api.read.StateView")
+            appendLine()
+            appendLine("/**")
+            appendLine(" * The state of `$aggregate` as another context reads it, from its contract.")
+            description(schemaOf(state))?.let { appendLine(" * ${comment(it)}") }
+            appendLine(" */")
+            appendLine("@StateView(${literal(aggregate)})")
+            append(body)
+        }
+        val directory = if (pkg.isEmpty()) "" else pkg.replace('.', '/') + "/"
+        return ContractSources.Source("$directory$name.kt", text)
+    }
+
+    /** The view [root] of the state class [state] being generated, with the domain's own types it copies. */
+    private inner class View(private val root: String, private val state: String) {
+        /** The nested class names of the copied classes, by binary name. */
+        private val nested = linkedMapOf<String, String>()
+        private val bodies = mutableListOf<String>()
+
+        /** The data class [name] of the object [schema], the class [binary], at [indent], with its nested copies. */
+        fun dataClass(name: String, binary: String, schema: Map<String, Any?>, indent: String): String {
+            val properties = properties(schema)
+            val required = required(schema)
+            val fields = properties.map { (field, property) ->
+                val type = typeOf(property, "$binary.$field")
+                val nullable = type.nullable || field !in required
+                buildString {
+                    description(property)?.let { appendLine("$indent    /** ${comment(it)} */") }
+                    append("$indent    val ${identifier(field, "$binary.$field")}: ${type.name}")
+                    append(if (nullable) "? = null," else ",")
+                }
+            }
+            return buildString {
+                append("${indent}public data class $name(\n")
+                fields.forEach { appendLine(it) }
+                if (indent.isEmpty()) {
+                    append(")")
+                    // The root holds every copy, so each is named once, `<View>.<Type>`.
+                    var index = 0
+                    if (bodies.isEmpty()) {
+                        appendLine()
+                    } else {
+                        appendLine(" {")
+                        while (index < bodies.size) {
+                            if (index > 0) appendLine()
+                            append(bodies[index++])
+                        }
+                        appendLine("}")
+                    }
+                } else {
+                    appendLine("$indent)")
+                }
+            }
+        }
+
+        /** The Kotlin type of a value of [schema], at [field] (`class.field`, for a failure's message). */
+        fun typeOf(schema: Any?, field: String): Type {
+            val node = schema as? Map<*, *> ?: fail(field, "its schema is no object")
+            // Any value: Jackson reads a JSON null into the node too.
+            if (node.isEmpty()) return Type(JSON_NODE, nullable = false)
+            (node[REF] as? String)?.let { ref ->
+                val key = Manifest.schemaKey(ref)
+                val definition = defs[key] as? Map<*, *> ?: fail(field, "its schema refers to $ref, which is not defined")
+                return typeOf(definition, field)
+            }
+            alternatives(node)?.let { alternatives ->
+                val values = alternatives.filterNot { isNull(it) }
+                if (values.size != 1) fail(field, "it is one of several types (anyOf/oneOf)")
+                return typeOf(values.single(), field).copy(nullable = true)
+            }
+            val types = types(node)
+            val nullable = NULL in types
+            val binary = node[WireTypes.CLASS_KEYWORD]?.toString()
+            val name = binary?.let { classType(it, node, field) } ?: jsonType((types - NULL).singleOrNull(), node, field)
+            return Type(name, nullable)
+        }
+
+        /** The Kotlin type of a value of the JSON [type] that [node] describes, its class unnamed. */
+        private fun jsonType(type: String?, node: Map<*, *>, field: String): String = when (type) {
+            "string" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "String"
+            "boolean" -> "Boolean"
+            "integer" -> integerType(node, field)
+            "number" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "Double"
+            "array" -> {
+                val item = typeOf(node[ITEMS] ?: emptyMap<String, Any?>(), "$field[]")
+                val collection = if (node[WireTypes.UNIQUE_ITEMS] == true) "Set" else "List"
+                "$collection<${item.text}>"
+            }
+            "object" -> mapType(node, field)
+            else -> fail(field, "its type is ${node[TYPE] ?: "not given"}")
+        }
+
+        private fun integerType(node: Map<*, *>, field: String): String {
+            val format = node[WireTypes.FORMAT] as? String ?: fail(field, "it is an integer of no format")
+            return WireTypes.TYPES[format] ?: fail(field, "it is an integer of the format $format")
+        }
+
+        /**
+         * An object of no class: a typed map of the values `additionalProperties` describes, or, free (any property, of
+         * any value), a Jackson `ObjectNode`, as Wow reads any other free shape.
+         */
+        private fun mapType(node: Map<*, *>, field: String): String {
+            if (properties(node).isNotEmpty()) fail(field, "it is an object of no class")
+            return when (val additional = node[ADDITIONAL_PROPERTIES]) {
+                null, true -> OBJECT_NODE
+                is Map<*, *> -> if (additional.isEmpty()) {
+                    OBJECT_NODE
+                } else {
+                    "Map<String, ${typeOf(additional, "$field{}").text}>"
+                }
+                else -> fail(field, "it is an object that accepts no property")
+            }
+        }
+
+        /** The type of the class [binary]: referenced on the class path, else copied from [node]. */
+        private fun classType(binary: String, node: Map<*, *>, field: String): String {
+            WireTypes.KOTLIN_TYPES[binary]?.let { return it }
+            if ('(' in binary) fail(field, "it is of the parameterized class $binary")
+            if (binary == state) return root
+            if (onClassPath(binary)) return binary.replace('$', '.')
+            nested[binary]?.let { return "$root.$it" }
+            val simple = simpleName(binary)
+            if (simple == root || simple in nested.values) {
+                fail(field, "it is of the class $binary, whose simple name another copied class of the view has")
+            }
+            val enum = node[ENUM] as? List<*>
+            when {
+                enum != null -> {
+                    nested[binary] = simple
+                    bodies += enumClass(simple, binary, enum, field)
+                }
+                properties(node).isNotEmpty() -> {
+                    nested[binary] = simple
+                    // Reserved before its fields are read: a recursive class refers to itself.
+                    val index = bodies.size
+                    bodies += ""
+                    bodies[index] = buildString {
+                        appendLine("    /** `${comment(binary)}`, as the view copies it. */")
+                        append(dataClass(simple, binary, node.mapKeys { it.key.toString() }, "    "))
+                    }
+                }
+                else -> fail(
+                    field,
+                    "it is of the class $binary, which is not on the api's class path and has no fields"
+                )
+            }
+            return "$root.$simple"
+        }
+
+        private fun enumClass(name: String, binary: String, values: List<*>, field: String): String = buildString {
+            val constants = values.map { value ->
+                val constant = value as? String
+                if (constant == null || !IDENTIFIER.matches(constant) || constant in KEYWORDS) {
+                    fail(field, "the enumeration $binary has the value $value, which is no Kotlin name")
+                }
+                constant
+            }
+            appendLine("    /** `${comment(binary)}`, as the view copies it. */")
+            appendLine("    public enum class $name {")
+            constants.forEach { appendLine("        $it,") }
+            appendLine("    }")
+        }
+    }
+
+    /** A Kotlin type [name], [nullable] when its schema accepts `null`. */
+    data class Type(val name: String, val nullable: Boolean) {
+        val text: String get() = if (nullable) "$name?" else name
+    }
+
+    private fun schemaOf(state: String): Map<String, Any?> {
+        @Suppress("UNCHECKED_CAST")
+        return defs[state] as? Map<String, Any?> ?: error("The contract defines no schema of the state $state.")
+    }
+
+    /** The class of the state [key]: its `x-wow-class`, else the key, its binary name. */
+    private fun classOf(key: String): String = schemaOf(key)[WireTypes.CLASS_KEYWORD] as? String ?: key
+
+    private fun classesOf(aggregate: AggregateManifest): List<String> =
+        (aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema })
+            .filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey)
+
+    private companion object {
+        const val REF = "\$ref"
+        const val TYPE = "type"
+        const val ENUM = "enum"
+        const val ITEMS = "items"
+        const val PROPERTIES = "properties"
+        const val REQUIRED = "required"
+        const val ADDITIONAL_PROPERTIES = "additionalProperties"
+        const val NULL = "null"
+
+        /** The Jackson types of a free value and a free object. */
+        const val JSON_NODE = "tools.jackson.databind.JsonNode"
+        const val OBJECT_NODE = "tools.jackson.databind.node.ObjectNode"
+        val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
+
+        /** Kotlin's hard keywords, which a name cannot be without backticks. */
+        val KEYWORDS = setOf(
+            "as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in", "interface", "is",
+            "null", "object", "package", "return", "super", "this", "throw", "true", "try", "typealias", "typeof",
+            "val", "var", "when", "while",
+        )
+
+        /** The characters a JVM name cannot hold, even between backticks. */
+        val FORBIDDEN = setOf('.', ';', '[', ']', '/', '<', '>', ':', '\\', '`', '\n', '\r')
+
+        fun fail(field: String, reason: String): Nothing =
+            error("The state view cannot type the field $field: $reason. Reference a class of the api instead.")
+
+        @Suppress("UNCHECKED_CAST")
+        fun properties(schema: Map<*, *>): Map<String, Any?> =
+            schema[PROPERTIES] as? Map<String, Any?> ?: emptyMap()
+
+        fun required(schema: Map<*, *>): Set<String> =
+            (schema[REQUIRED] as? List<*>).orEmpty().map { it.toString() }.toSet()
+
+        fun alternatives(node: Map<*, *>): List<*>? = (node["anyOf"] ?: node["oneOf"]) as? List<*>
+
+        fun isNull(schema: Any?): Boolean = (schema as? Map<*, *>)?.get(TYPE) == NULL
+
+        fun types(node: Map<*, *>): Set<String> = when (val type = node[TYPE]) {
+            is String -> setOf(type)
+            is List<*> -> type.map { it.toString() }.toSet()
+            else -> emptySet()
+        }
+
+        fun description(schema: Any?): String? =
+            ((schema as? Map<*, *>)?.get("description") as? String)?.takeIf { it.isNotBlank() }
+
+        /** The Kotlin name of the field [name], between backticks when it is not a plain name. */
+        fun identifier(name: String, field: String): String = when {
+            IDENTIFIER.matches(name) && name !in KEYWORDS -> name
+            name.isEmpty() || name.any { it in FORBIDDEN } -> fail(field, "its name is no Kotlin name")
+            else -> "`$name`"
+        }
+
+        /** The simple name of the binary name [binary]: `a.b.Outer$Inner` is `Inner`. */
+        fun simpleName(binary: String): String = binary.substringAfterLast('.').substringAfterLast('$')
+
+        fun literal(value: String): String =
+            "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
+
+        fun comment(text: String): String = text.replace("*/", "*&#47;").replace(Regex("\\s*\\n\\s*"), " ")
+    }
+}

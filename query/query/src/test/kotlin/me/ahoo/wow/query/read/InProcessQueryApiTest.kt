@@ -38,6 +38,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
@@ -68,6 +69,10 @@ import tools.jackson.databind.node.ObjectNode
 /** The node's typed QueryApi (decisions D254 ②, D259): one engine, the caller's scope, the in-process budget. */
 class InProcessQueryApiTest {
     data class CartState(val items: Int = 0)
+
+    /** The cart's state as another context's api generates its view (decision D362). */
+    @StateView("shop.cart")
+    data class CartStateView(val items: Int)
 
     data class ItemAdded(val sku: String)
 
@@ -377,6 +382,14 @@ class InProcessQueryApiTest {
         assertThrows<IllegalArgumentException> { api.of(alice).events(order) }
         assertThrows<IllegalArgumentException> { api.of(alice).snapshots<ItemAdded>() }
         assertThrows<IllegalArgumentException> { api.of(alice).datasetTrees(DatasetName.of("shop", "sales")) }
+    }
+
+    @Test
+    fun `a generated view should read the snapshots of the aggregate it names`(): Unit = runBlocking {
+        save("acme", "c-1", "alice", items = 3)
+        val views = api().of(alice).snapshots<CartStateView>()
+        views.type.assert().isEqualTo(cart)
+        views.single(SingleQuery(AggregateIdFilter("c-1")))!!.state.assert().isEqualTo(CartStateView(3))
     }
 
     @Test

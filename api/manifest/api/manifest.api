@@ -16,6 +16,10 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/manifest/ClassNames {
+	public static final field CLASS_KEYWORD Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/manifest/CommandManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;

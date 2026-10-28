@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle
+package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -20,11 +20,9 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class GenerateContractSourcesTest {
+class ClassPathTest {
     @TempDir
     lateinit var directory: File
-
-    private val queryField = "me/ahoo/wow/api/query/QueryField.class"
 
     private fun jar(name: String, vararg entries: String): File = File(directory, name).also { jar ->
         ZipOutputStream(jar.outputStream()).use { zip ->
@@ -36,14 +34,21 @@ class GenerateContractSourcesTest {
     }
 
     @Test
-    fun `query fields should need wow-query-api on the class path`() {
+    fun `a class should be found in a class directory or a jar, a nested one by its binary name`() {
         val classes = File(directory, "classes").apply { mkdirs() }
         val notAJar = File(directory, "notes.txt").apply { writeText("not a jar") }
         val missing = File(directory, "missing.jar")
-        val other = jar("other.jar", "sample/Other.class")
-        GenerateContractSources.hasQueryApi(listOf(classes, notAJar, missing, other)).assert().isFalse()
-        GenerateContractSources.hasQueryApi(listOf(other, jar("query-api.jar", queryField))).assert().isTrue()
-        File(classes, queryField).apply { parentFile.mkdirs() }.writeText("")
-        GenerateContractSources.hasQueryApi(listOf(classes)).assert().isTrue()
+        val other = jar("other.jar", "sample/Other.class", "sample/Outer\$Inner.class")
+        val classPath = ClassPath(listOf(classes, notAJar, missing, other))
+        ("sample.Other" in classPath).assert().isTrue()
+        ("sample.Outer\$Inner" in classPath).assert().isTrue()
+        ("sample.Absent" in classPath).assert().isFalse()
+        File(classes, "sample/Mine.class").apply { parentFile.mkdirs() }.writeText("")
+        ("sample.Mine" in classPath).assert().isTrue()
+    }
+
+    @Test
+    fun `a JDK class should always be on the class path`() {
+        ("java.time.Instant" in ClassPath(emptyList())).assert().isTrue()
     }
 }

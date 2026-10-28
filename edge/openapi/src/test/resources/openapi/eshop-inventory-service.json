@@ -3240,7 +3240,8 @@
         "type" : "object",
         "properties" : {
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "quantity" ],
@@ -3263,7 +3264,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3276,7 +3278,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3289,7 +3292,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3299,7 +3303,8 @@
         "type" : "object",
         "properties" : {
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "quantity" ],
@@ -3312,7 +3317,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3322,15 +3328,18 @@
         "type" : "object",
         "properties" : {
           "available" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "onHand" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "reservations" : {
             "type" : "object",
             "additionalProperties" : {
-              "type" : "integer"
+              "type" : "integer",
+              "format" : "int32"
             }
           }
         },

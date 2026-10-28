@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestMerger
@@ -43,6 +44,15 @@ class EShopOpenApiSnapshotTest {
         val document = ManifestOpenApi.write(manifest(context))
         OpenApiChecks.check(document)
         assertSnapshot(document, SNAPSHOTS.resolve("eshop-$context-service.json"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["catalog", "basket", "ordering", "inventory", "payment"])
+    fun `a public document should name no JVM class, which the Manifest's schemas carry`(context: String) {
+        val manifest = manifest(context)
+        OpenApiChecks.mapper.writeValueAsString(manifest.defs).assert().contains("\"$CLASS_KEYWORD\"")
+        OpenApiChecks.mapper.writeValueAsString(ManifestOpenApi.write(manifest)).assert()
+            .doesNotContain("\"$CLASS_KEYWORD\"")
     }
 
     @Test

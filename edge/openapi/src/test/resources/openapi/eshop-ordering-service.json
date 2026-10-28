@@ -3238,7 +3238,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3289,7 +3290,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "unitPrice" : {
             "type" : "number",
@@ -3384,7 +3386,8 @@
             "type" : "array",
             "items" : {
               "type" : "string"
-            }
+            },
+            "uniqueItems" : true
           },
           "items" : {
             "type" : "array",

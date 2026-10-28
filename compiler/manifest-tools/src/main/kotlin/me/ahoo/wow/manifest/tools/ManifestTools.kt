@@ -181,21 +181,27 @@ object ManifestTools {
 
     /**
      * Writes the Kotlin sources generated from the api module's [contracts] (none, or the one `assembleWowContract`
-     * wrote) under [output], which it clears first ([ContractSources]); with [queryFields], the query
-     * field constants of the states too. What the Gradle plugin's `generateWowContractSources` does. Returns the
-     * number of files written.
+     * wrote) under [output], which it clears first ([ContractSources]): the `<Context>Contract`s and the views of
+     * the states, which reference the classes of the [classpath] the code compiles against; with `wow-query-api` on
+     * it, the query field constants of the states too. What the Gradle plugin's `generateWowContractSources` does.
+     * Returns the number of files written.
      */
     @JvmStatic
-    fun generateContractSources(contracts: List<File>, queryFields: Boolean, output: File): Int {
+    fun generateContractSources(contracts: List<File>, classpath: List<File>, output: File): Int {
         output.deleteRecursively()
+        val classes = ClassPath(classpath)
+        val queryFields = QUERY_FIELD in classes
         val sources = contracts.filter { it.isFile }.map(ManifestJson::read).flatMap {
-            ContractSources.of(it, queryFields)
+            ContractSources.of(it, queryFields) { binary -> binary in classes }
         }
         sources.forEach { source ->
             File(output, source.path).apply { parentFile.mkdirs() }.writeText(source.text)
         }
         return sources.size
     }
+
+    /** The class of `wow-query-api` whose constants the generated query fields are. */
+    private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
 
     private const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
 }
