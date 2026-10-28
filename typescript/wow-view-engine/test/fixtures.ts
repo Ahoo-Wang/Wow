@@ -249,38 +249,6 @@ export function dashboardConfig(
   };
 }
 
-/**
- * A board as a store kept it before batch C: its condition in `filter`
- * (with the editor mode beside it), and no `fixed` scope yet — what the
- * engine's read boundary migrates (`migrateDashboardConfig`, D23 Q16, D26
- * Q31). Stored data, so `filter` is whatever the store held.
- */
-export function preCDashboardConfig(
-  filter: unknown,
-  overrides: Partial<DashboardViewConfig> = {},
-): DashboardViewConfig {
-  const board: Partial<DashboardViewConfig> = dashboardConfig(overrides);
-  delete board.fixed;
-  return { ...board, filter, filterMode: 'simple' } as DashboardViewConfig;
-}
-
-/**
- * A board as a store kept it between batch C and D27: its fixed scope, and
- * beside it a `filter` of its own — empty, as the engine wrote it, unless a
- * test says otherwise — with its editor mode: what the read boundary takes
- * out of the config (`migrateDashboardConfig`, D27).
- */
-export function preD27DashboardConfig(
-  overrides: Partial<DashboardViewConfig> = {},
-  filter: unknown = { op: 'and', children: [] },
-): DashboardViewConfig {
-  return {
-    ...dashboardConfig(overrides),
-    filter,
-    filterMode: 'simple',
-  } as DashboardViewConfig;
-}
-
 /** A saved record instance, the usual target of a dashboard panel. */
 export function savedInstance(
   overrides: Partial<ViewInstance> = {},

@@ -203,7 +203,7 @@ function metricTypeIssues(
       );
       if (metric.expression?.type === AggregationExpressionTypes.FIELD) {
         const entry = declared(metric.expression.field);
-        if (entry && !entry.functions.includes(metric.function as never))
+        if (entry && !entry.functions.includes(metric.function))
           issues.push(
             issue('analysis.function.unsupported', [...path, 'function'], {
               field: metric.expression.field,

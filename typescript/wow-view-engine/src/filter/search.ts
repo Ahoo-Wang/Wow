@@ -28,7 +28,7 @@ import { FilterOperators } from '../model/index.js';
  * neither reads it as its own nor overwrites it. `''` when there is none.
  */
 export function rootSearch(tree: FilterTree, field: string): string {
-  if (tree.op !== 'and') return '';
+  if (tree.op !== FilterOperators.AND) return '';
   const leaf = tree.children.find(
     (node): node is FilterLeaf => isLeaf(node) && node.field === field,
   );
@@ -52,9 +52,12 @@ export function withRootSearch(
 ): FilterTree {
   const blank = text.trim().length === 0;
   const root: FilterTree =
-    tree.op === 'and' || (blank && tree.children.length === 0)
+    tree.op === FilterOperators.AND || (blank && tree.children.length === 0)
       ? tree
-      : { op: 'and', children: tree.children.length > 0 ? [tree] : [] };
+      : {
+          op: FilterOperators.AND,
+          children: tree.children.length > 0 ? [tree] : [],
+        };
   const at = root.children.findIndex(
     node => isLeaf(node) && node.field === field,
   );

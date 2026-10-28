@@ -98,18 +98,18 @@ type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 interface AggregationFieldCapability {
     // (undocumented)
     any?: boolean;
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     expressionInput?: boolean;
     field: string;
     firstLast?: boolean;
     // (undocumented)
-    functions: AggregationFunction[];
+    functions: AggregationFunctionName[];
     // (undocumented)
-    groups: AggregationGroupType[];
+    groups: AggregationGroupTypeName[];
     inMetricFilter?: boolean;
     missingKey?: boolean;
     // (undocumented)
@@ -119,6 +119,9 @@ interface AggregationFieldCapability {
 
 // @public (undocumented)
 type AggregationFunctionName = `${AggregationFunction}`;
+
+// @public
+type AggregationGroupTypeName = `${AggregationGroupType}`;
 
 // @public
 export type AlertTone = 'error' | 'warning' | 'info';
@@ -863,6 +866,9 @@ interface ChartSpec {
 }
 
 // @public
+type ChartStage = 'load' | 'draw';
+
+// @public
 interface ChartTheme {
     axis: {
         color: string;
@@ -1407,7 +1413,6 @@ interface DashboardTimeGrouping {
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
     columns: typeof DASHBOARD_GRID_COLUMNS;
-    derivesTime?: true;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -3590,6 +3595,100 @@ export const en: {
     readonly 'config.filterMode.unknown': "This view has an unknown filter mode.";
     readonly 'config.filterMode.not-simple': "These conditions need the advanced editor to be shown in full.";
     readonly 'config.invalid': "This view could not be read.";
+    readonly 'filter.value.expected-duration': "A time since needs an earlier time, a comparison, an amount and a unit.";
+    readonly 'filter.value.duration-same-time': "A time cannot be measured since itself.";
+    readonly 'filter.value.duration-from-unknown': "The earlier time {field} is not a field here.";
+    readonly 'filter.value.duration-from-not-time': "{field} holds no time.";
+    readonly 'filter.element.duration': "A time since another moment cannot be asked of one entry.";
+    readonly 'filter.field.reference-without-source': "{field} is a reference field with no candidate source declared.";
+    readonly 'filter.field.duplicate-in-group': "{field} is already a condition in this group. Nest a group to ask it something else.";
+    readonly 'filter.field.unknown': "The field {field} no longer exists.";
+    readonly 'filter.group.unknown-operator': "A condition group must be AND or OR.";
+    readonly 'filter.kind.unregistered': "No editor is registered for the {kind} type.";
+    readonly 'filter.kind.unknown-editor': "The {kind} type asks for a {input} editor, which this engine does not have.";
+    readonly 'filter.kind.failed': "The condition on \"{label}\" couldn't be checked; ask whoever maintains this view.";
+    readonly 'filter.node.invalid': "This condition could not be read.";
+    readonly 'filter.operator.unsupported': "{field} does not support “{operator}”.";
+    readonly 'filter.presence.empty-is-missing': "On this source, an empty value of {field} counts as no value.";
+    readonly 'filter.tree.too-deep': "The conditions nest deeper than {max} levels.";
+    readonly 'filter.tree.too-many-nodes': "The conditions exceed {max} entries.";
+    readonly 'filter.value.expected-boolean': "Choose yes or no.";
+    readonly 'filter.value.expected-deletion-state': "Choose which records to show: not deleted, deleted only, or both.";
+    readonly 'filter.value.expected-date': "Enter a date.";
+    readonly 'filter.value.expected-id': "Enter an id, or pick a candidate.";
+    readonly 'filter.value.expected-id-list': "Enter one or more ids.";
+    readonly 'filter.value.expects-one': "This condition takes a single value.";
+    readonly 'filter.value.expected-text': "Type what to search for.";
+    readonly 'filter.element.root-filter': "{field} asks about the whole record, so it cannot be asked of one entry.";
+    readonly 'filter.value.expected-predicate': "Describe what an entry must match.";
+    readonly 'filter.field.holds-no-elements': "{field} holds no entries to match against.";
+    readonly 'filter.value.expected-entry-list': "Choose or enter one or more entries.";
+    readonly 'filter.value.expected-number': "Enter a number.";
+    readonly 'filter.value.expected-number-list': "Enter one or more numbers.";
+    readonly 'filter.value.expected-number-range': "Enter a range of two numbers.";
+    readonly 'filter.value.expected-option-list': "Choose one or more options.";
+    readonly 'filter.value.expected-reference-list': "Choose one or more records.";
+    readonly 'filter.value.expected-string': "Enter a value.";
+    readonly 'filter.value.expected-string-list': "Enter one or more values.";
+    readonly 'filter.value.inverted-range': "The range starts after it ends.";
+    readonly 'filter.value.relative-too-large': "A relative window can reach at most {max} units.";
+    readonly 'filter.value.required': "This condition needs a value.";
+    readonly 'filter.value.unknown-option': "{values} is no longer an option.";
+    readonly 'filter.value.unknown-time-zone': "{timeZone} is not a time zone this browser knows.";
+    readonly 'filter.value.unparsable-date': "That date cannot be read.";
+    readonly "label.operator.match-all": string;
+    readonly "label.operator.match-none": string;
+    readonly "label.operator.id": string;
+    readonly "label.operator.ids": string;
+    readonly "label.operator.aggregate-id": string;
+    readonly "label.operator.aggregate-ids": string;
+    readonly "label.operator.tenant-id": string;
+    readonly "label.operator.owner-id": string;
+    readonly "label.operator.space-id": string;
+    readonly "label.operator.and": string;
+    readonly "label.operator.or": string;
+    readonly "label.operator.nor": string;
+    readonly "label.operator.eq": string;
+    readonly "label.operator.ne": string;
+    readonly "label.operator.gt": string;
+    readonly "label.operator.gte": string;
+    readonly "label.operator.lt": string;
+    readonly "label.operator.lte": string;
+    readonly "label.operator.contains": string;
+    readonly "label.operator.starts-with": string;
+    readonly "label.operator.ends-with": string;
+    readonly "label.operator.in": string;
+    readonly "label.operator.not-in": string;
+    readonly "label.operator.between": string;
+    readonly "label.operator.contains-all": string;
+    readonly "label.operator.is-empty": string;
+    readonly "label.operator.is-empty-string": string;
+    readonly "label.operator.is-not-empty-string": string;
+    readonly "label.operator.is-null": string;
+    readonly "label.operator.is-not-null": string;
+    readonly "label.operator.exists": string;
+    readonly "label.operator.not-exists": string;
+    readonly "label.operator.deletion": string;
+    readonly "label.operator.element-match": string;
+    readonly "label.operator.search": string;
+    readonly "label.operator.today": string;
+    readonly "label.operator.before-today": string;
+    readonly "label.operator.tomorrow": string;
+    readonly "label.operator.this-week": string;
+    readonly "label.operator.next-week": string;
+    readonly "label.operator.last-week": string;
+    readonly "label.operator.this-month": string;
+    readonly "label.operator.last-month": string;
+    readonly "label.operator.yesterday": string;
+    readonly "label.operator.next-month": string;
+    readonly "label.operator.last-year": string;
+    readonly "label.operator.this-year": string;
+    readonly "label.operator.next-year": string;
+    readonly "label.operator.recent-days": string;
+    readonly "label.operator.earlier-days": string;
+    readonly "label.operator.before-now": string;
+    readonly "label.operator.after-now": string;
+    readonly "label.operator.expression": string;
     readonly 'label.filter.simple': "Simple";
     readonly 'label.filter.advanced': "Advanced";
     readonly 'label.filter.all-of': "All of";
@@ -3676,9 +3775,9 @@ export const en: {
     readonly 'label.filter.type-to-add': "Type a value and press Enter";
     readonly 'label.filter.already-listed': "Already in the list";
     readonly 'label.filter.not-a-number': "Not a number";
-    readonly 'label.deletion.active': "Not deleted";
-    readonly 'label.deletion.deleted': "Deleted only";
-    readonly 'label.deletion.all': "Deleted included";
+    readonly 'label.deletion.active': string;
+    readonly 'label.deletion.deleted': string;
+    readonly 'label.deletion.all': string;
     readonly 'label.boolean.true': "Yes";
     readonly 'label.boolean.false': "No";
     readonly 'label.filter.too-large': "This filter is too large to edit here.";
@@ -3756,100 +3855,6 @@ export const en: {
     readonly 'label.relative.preset.lastQuarterToDate': "same days last quarter";
     readonly 'label.relative.preset.yearToDate': "this year so far";
     readonly 'label.relative.preset.lastYearToDate': "same days last year";
-    readonly "label.operator.match-all": "matches every record";
-    readonly "label.operator.match-none": "matches no record";
-    readonly "label.operator.id": "is";
-    readonly "label.operator.ids": "is any of";
-    readonly "label.operator.aggregate-id": "is";
-    readonly "label.operator.aggregate-ids": "is any of";
-    readonly "label.operator.tenant-id": "is";
-    readonly "label.operator.owner-id": "is";
-    readonly "label.operator.space-id": "is";
-    readonly "label.operator.and": "and";
-    readonly "label.operator.or": "or";
-    readonly "label.operator.nor": "nor";
-    readonly "label.operator.eq": "is";
-    readonly "label.operator.ne": "is not";
-    readonly "label.operator.gt": "more than";
-    readonly "label.operator.gte": "at least";
-    readonly "label.operator.lt": "less than";
-    readonly "label.operator.lte": "at most";
-    readonly "label.operator.contains": "contains";
-    readonly "label.operator.starts-with": "starts with";
-    readonly "label.operator.ends-with": "ends with";
-    readonly "label.operator.in": "is any of";
-    readonly "label.operator.not-in": "is none of";
-    readonly "label.operator.between": "between";
-    readonly "label.operator.contains-all": "has all of";
-    readonly "label.operator.is-empty": "has no entries";
-    readonly "label.operator.is-empty-string": "is blank";
-    readonly "label.operator.is-not-empty-string": "is not blank";
-    readonly "label.operator.is-null": "is empty";
-    readonly "label.operator.is-not-null": "is not empty";
-    readonly "label.operator.exists": "exists";
-    readonly "label.operator.not-exists": "does not exist";
-    readonly "label.operator.deletion": "is";
-    readonly "label.operator.element-match": "has an entry where";
-    readonly "label.operator.search": "contains";
-    readonly "label.operator.today": "today";
-    readonly "label.operator.before-today": "before today";
-    readonly "label.operator.tomorrow": "tomorrow";
-    readonly "label.operator.this-week": "this week";
-    readonly "label.operator.next-week": "next week";
-    readonly "label.operator.last-week": "last week";
-    readonly "label.operator.this-month": "this month";
-    readonly "label.operator.last-month": "last month";
-    readonly "label.operator.yesterday": "yesterday";
-    readonly "label.operator.next-month": "next month";
-    readonly "label.operator.last-year": "last year";
-    readonly "label.operator.this-year": "this year";
-    readonly "label.operator.next-year": "next year";
-    readonly "label.operator.recent-days": "recent days";
-    readonly "label.operator.earlier-days": "earlier days";
-    readonly "label.operator.before-now": "before now";
-    readonly "label.operator.after-now": "after now";
-    readonly "label.operator.expression": "time since";
-    readonly 'filter.value.expected-duration': "A time since needs an earlier time, a comparison, an amount and a unit.";
-    readonly 'filter.value.duration-same-time': "A time cannot be measured since itself.";
-    readonly 'filter.value.duration-from-unknown': "The earlier time {field} is not a field here.";
-    readonly 'filter.value.duration-from-not-time': "{field} holds no time.";
-    readonly 'filter.element.duration': "A time since another moment cannot be asked of one entry.";
-    readonly 'filter.field.reference-without-source': "{field} is a reference field with no candidate source declared.";
-    readonly 'filter.field.duplicate-in-group': "{field} is already a condition in this group. Nest a group to ask it something else.";
-    readonly 'filter.field.unknown': "The field {field} no longer exists.";
-    readonly 'filter.group.unknown-operator': "A condition group must be AND or OR.";
-    readonly 'filter.kind.unregistered': "No editor is registered for the {kind} type.";
-    readonly 'filter.kind.unknown-editor': "The {kind} type asks for a {input} editor, which this engine does not have.";
-    readonly 'filter.kind.failed': "The condition on \"{label}\" couldn't be checked; ask whoever maintains this view.";
-    readonly 'filter.node.invalid': "This condition could not be read.";
-    readonly 'filter.operator.unsupported': "{field} does not support “{operator}”.";
-    readonly 'filter.presence.empty-is-missing': "On this source, an empty value of {field} counts as no value.";
-    readonly 'filter.tree.too-deep': "The conditions nest deeper than {max} levels.";
-    readonly 'filter.tree.too-many-nodes': "The conditions exceed {max} entries.";
-    readonly 'filter.value.expected-boolean': "Choose yes or no.";
-    readonly 'filter.value.expected-deletion-state': "Choose which records to show: not deleted, deleted only, or both.";
-    readonly 'filter.value.expected-date': "Enter a date.";
-    readonly 'filter.value.expected-id': "Enter an id, or pick a candidate.";
-    readonly 'filter.value.expected-id-list': "Enter one or more ids.";
-    readonly 'filter.value.expects-one': "This condition takes a single value.";
-    readonly 'filter.value.expected-text': "Type what to search for.";
-    readonly 'filter.element.root-filter': "{field} asks about the whole record, so it cannot be asked of one entry.";
-    readonly 'filter.value.expected-predicate': "Describe what an entry must match.";
-    readonly 'filter.field.holds-no-elements': "{field} holds no entries to match against.";
-    readonly 'filter.value.expected-entry-list': "Choose or enter one or more entries.";
-    readonly 'filter.value.expected-number': "Enter a number.";
-    readonly 'filter.value.expected-number-list': "Enter one or more numbers.";
-    readonly 'filter.value.expected-number-range': "Enter a range of two numbers.";
-    readonly 'filter.value.expected-option-list': "Choose one or more options.";
-    readonly 'filter.value.expected-reference-list': "Choose one or more records.";
-    readonly 'filter.value.expected-string': "Enter a value.";
-    readonly 'filter.value.expected-string-list': "Enter one or more values.";
-    readonly 'filter.value.inverted-range': "The range starts after it ends.";
-    readonly 'filter.value.relative-too-large': "A relative window can reach at most {max} units.";
-    readonly 'filter.value.required': "This condition needs a value.";
-    readonly 'filter.value.unknown-option': "{values} is no longer an option.";
-    readonly 'filter.value.unknown-time-zone': "{timeZone} is not a time zone this browser knows.";
-    readonly 'filter.value.unparsable-date': "That date cannot be read.";
     readonly 'label.export.title': "Export";
     readonly 'label.export.currency-column': "{field} (currency)";
     readonly 'label.export.data': "Export data…";
@@ -4228,6 +4233,9 @@ export interface ExportOffer {
     nameFile(): string;
 }
 
+// @public
+type ExportOperation = 'fetch' | 'deliver' | 'image';
+
 // @public (undocumented)
 interface ExportRowsOptions {
     max?: number;
@@ -4248,9 +4256,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     any?: boolean;
     // (undocumented)
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     // (undocumented)
@@ -4258,9 +4266,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     firstLast?: boolean;
     // (undocumented)
-    functions?: AggregationFunction[];
+    functions?: AggregationFunctionName[];
     // (undocumented)
-    groups?: AggregationGroupType[];
+    groups?: AggregationGroupTypeName[];
     // (undocumented)
     inMetricFilter?: boolean;
     // (undocumented)
@@ -4487,7 +4495,7 @@ interface FilterGroup {
 }
 
 // @public
-type FilterGroupOperator = 'and' | 'or' | 'nor';
+type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
 // @public (undocumented)
 interface FilterLeaf {
@@ -5718,6 +5726,9 @@ interface ProjectedRecord extends ProjectedBase {
 // @public
 type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
+// @public
+type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
+
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -6793,6 +6804,9 @@ export interface StatusStripProps {
     title: string;
     tone: AlertTone;
 }
+
+// @public
+type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' | 'changeAudience' | 'getPreferences' | 'setPreferences';
 
 // @public
 type StringComparisonName = `${StringComparison}`;
@@ -8461,33 +8475,59 @@ interface ViewEngineOptions {
 }
 
 // @public
-interface ViewErrorContext {
-    boundary?: string;
-    componentStack?: string;
+interface ViewErrorContexts {
+    action: ViewErrorPlace & {
+        operation: string;
+        recordKey: RecordKey;
+    };
+    chart: ViewErrorPlace & {
+        operation: ChartStage;
+        boundary: string;
+        componentStack?: string;
+    };
+    // (undocumented)
+    export: ViewErrorPlace & {
+        operation: ExportOperation;
+    };
+    query: (ViewErrorPlace & {
+        operation: Exclude<QueryOperation, 'labels'>;
+        violation?: QueryViolation;
+        errorCode?: string;
+    }) | (ViewErrorPlace & {
+        operation: 'labels';
+        remote: string;
+    });
+    render: ViewErrorPlace & {
+        operation: 'render';
+        boundary: string;
+        componentStack?: string;
+    };
+    store: ViewErrorPlace & {
+        operation: StoreOperation;
+        requestId?: string;
+    };
+}
+
+// @public
+type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
+    [P in K]: {
+        kind: P;
+        error: unknown;
+        context: ViewErrorContexts[P];
+    };
+}[K];
+
+// @public
+type ViewErrorKind = keyof ViewErrorContexts;
+
+// @public
+interface ViewErrorPlace {
     // (undocumented)
     definitionId?: string;
-    errorCode?: string;
     instanceId?: string;
-    operation: string;
     panelId?: string;
-    recordKey?: RecordKey;
-    remote?: string;
-    requestId?: string;
     runtimeId?: string;
-    violation?: QueryViolation;
 }
-
-// @public
-interface ViewErrorEvent {
-    // (undocumented)
-    context: ViewErrorContext;
-    error: unknown;
-    // (undocumented)
-    kind: ViewErrorKind;
-}
-
-// @public
-type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 export function ViewExpandExit(): JSX.Element;

@@ -103,6 +103,9 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `RecordAction.changesAt(row, ctx) => ms \| null`, `ActionHarness.changesAt(key?): number \| null` | `=> Date \| null` (e.g. `new Date(ms)`); a number is no longer read |
 | `RefreshController.now()` | `refreshNow()` |
 | `useRecordActions` read the system clock | it reads `options.environment.now()` (`useActionSurface` passes the engine's), so a pinned `RuntimeEnvironment.now` drives the rules |
+| `ViewErrorContext.operation: string`, `ViewErrorKind` | `ViewErrorEvent` is a union on `kind`, each with its typed `operation` (`QueryOperation`, `StoreOperation`, `ExportOperation`, `ChartStage`; an action's id); read `context.remote` / `requestId` / `boundary` / `recordKey` after narrowing |
+| `FilterSummaryItem.text` spelling operators raw (`Amount in 1, 7`, `… gt 48 hour`) | English words, never a wire value (`Amount is any of 1, 7`, `… > 48 hours`); a host that parsed it reads the item's parts instead |
+| a stored board without `columns`, with `filter`/`filterMode`, or without `derivesTime`, rewritten on read | read as stored: one without `columns` is refused (`dashboard.grid.unsupported`); `filter`/`filterMode` are no longer read; `derivesTime` is gone and a board's time wires are always derived |
 | `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
 | the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
 | `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |

@@ -239,11 +239,10 @@ export function setTimeGrouping(
 }
 
 /**
- * The board without its fixed scope: the condition a
- * board saved before its filters could not hold, taken out whole by its
- * author — never a reader's to take — and the empty tree left in its place,
- * so the member stays and the board is never read as pre-C again. A board
- * whose fixed scope is empty already comes back as it was.
+ * The board without its fixed scope: the condition every panel runs under,
+ * taken out whole by its author — never a reader's to take — and the empty
+ * tree left in its place, so the member stays. A board whose fixed scope is
+ * empty already comes back as it was.
  */
 export function removeFixedScope(
   config: DashboardViewConfig,

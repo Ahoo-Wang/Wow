@@ -15,14 +15,24 @@ import type { ViewStore } from '../../store/ViewStore.js';
 import { sourceFailure } from './sourceReason.js';
 import type { ViewRuntime } from '../viewRuntimeTypes.js';
 import type {
+  QueryOperation,
   RuntimeEnvironment,
-  ViewErrorContext,
+  ViewErrorContexts,
   ViewErrorEvent,
-  ViewErrorKind,
+  ViewErrorPlace,
 } from '../environment.js';
 
-/** Where a failure happened, less what it was doing. */
-type FailurePlace = Omit<ViewErrorContext, 'operation'>;
+/**
+ * The kinds whose context is a place and an operation alone, so a reporter
+ * for one needs nothing beyond them.
+ */
+export type PlacedKind = 'store' | 'export';
+
+/** What a reporter for one kind is told beside the operation. */
+type PlaceOf<K extends PlacedKind> = Omit<ViewErrorContexts[K], 'operation'>;
+
+/** A query whose failure a query reporter tells; `labels` says its remote. */
+export type QueryReadOperation = Exclude<QueryOperation, 'labels'>;
 
 /**
  * Hands one failure to the host's `onError`, and nothing else: no
@@ -68,27 +78,44 @@ export function isCalledOff(error: unknown, signal?: AbortSignal): boolean {
 }
 
 /** Tells the host of one failure of a kind already chosen. */
-export type FailureReporter = (
-  operation: string,
+export type FailureReporter<K extends PlacedKind> = (
+  operation: ViewErrorContexts[K]['operation'],
   error: unknown,
-  place?: FailurePlace,
+  place?: PlaceOf<K>,
 ) => void;
 
 /**
  * A reporter for one kind, with what is known of where it runs read at the
  * moment of the failure — a view saved since it opened says its id.
  */
-export function failureReporter(
+export function failureReporter<K extends PlacedKind>(
   environment: Pick<RuntimeEnvironment, 'onError'>,
-  kind: ViewErrorKind,
-  known: () => FailurePlace = () => ({}),
-): FailureReporter {
+  kind: K,
+  known: () => ViewErrorPlace = () => ({}),
+): FailureReporter<K> {
   return (operation, error, place) =>
-    reportError(environment, {
-      kind,
-      error,
-      context: { operation, ...known(), ...place },
-    });
+    reportError(
+      environment,
+      placedEvent(kind, operation, error, known(), place),
+    );
+}
+
+/**
+ * One failure of a placed kind. The operation is the kind's by the
+ * reporter's signature; a generic kind cannot be narrowed to say so here.
+ */
+function placedEvent<K extends PlacedKind>(
+  kind: K,
+  operation: ViewErrorContexts[K]['operation'],
+  error: unknown,
+  known: ViewErrorPlace,
+  place: PlaceOf<K> | undefined,
+): ViewErrorEvent {
+  return {
+    kind,
+    error,
+    context: { operation, ...known, ...place },
+  } as ViewErrorEvent;
 }
 
 /**
@@ -100,26 +127,30 @@ export function failureReporter(
  * and the promise it returns never rejects.
  */
 export type QueryFailureReporter = (
-  operation: string,
+  operation: QueryReadOperation,
   error: unknown,
-  place?: FailurePlace,
+  place?: ViewErrorPlace,
 ) => Promise<void>;
 
 /** A `query` reporter that reads the source's answer first; see above. */
 export function queryFailureReporter(
   environment: Pick<RuntimeEnvironment, 'onError'>,
-  known: () => FailurePlace = () => ({}),
+  known: () => ViewErrorPlace = () => ({}),
 ): QueryFailureReporter {
-  const report = failureReporter(environment, 'query', known);
   return async (operation, error, place) => {
     // Where the view stands is read when the failure lands, not after the
     // body: a view saved meanwhile says the id it failed under.
     const at = { ...known(), ...place };
     const { violation, errorCode } = await sourceFailure(error);
-    report(operation, error, {
-      ...at,
-      ...(errorCode ? { errorCode } : {}),
-      ...(violation ? { violation } : {}),
+    reportError(environment, {
+      kind: 'query',
+      error,
+      context: {
+        operation,
+        ...at,
+        ...(errorCode ? { errorCode } : {}),
+        ...(violation ? { violation } : {}),
+      },
     });
   };
 }
@@ -140,8 +171,8 @@ export function reportingStore(
   const report = failureReporter(environment, 'store');
   const watched = <T>(
     call: () => Promise<T>,
-    operation: string,
-    place: FailurePlace,
+    operation: ViewErrorContexts['store']['operation'],
+    place: PlaceOf<'store'>,
     signal?: AbortSignal,
   ): Promise<T> => {
     const failed = (error: unknown): never => {
@@ -227,22 +258,32 @@ export function reportingStore(
  * drawn — through the environment that view runs on, saying which view.
  * No view, no one to tell.
  */
-export function reportViewFailure(
+export function reportViewFailure<K extends PlacedKind>(
   runtime: ViewRuntime | null | undefined,
-  kind: ViewErrorKind,
-  operation: string,
+  kind: K,
+  operation: ViewErrorContexts[K]['operation'],
   error: unknown,
 ): void {
   if (!runtime) return;
-  reportError(runtime.environment, {
-    kind,
-    error,
-    context: { operation, ...viewPlace(runtime) },
-  });
+  reportError(
+    runtime.environment,
+    placedEvent(kind, operation, error, viewPlace(runtime), undefined),
+  );
+}
+
+/**
+ * One failure said where it happened: what the place knows first, what the
+ * failing part said over it. The kind and its context stay paired.
+ */
+export function placed<E extends ViewErrorEvent>(
+  event: E,
+  place: ViewErrorPlace,
+): E {
+  return { ...event, context: { ...place, ...event.context } };
 }
 
 /** Which view: its definition, its saved id if it has one, its runtime. */
-export function viewPlace(runtime: ViewRuntime): FailurePlace {
+export function viewPlace(runtime: ViewRuntime): ViewErrorPlace {
   const saved = runtime.getSnapshot().saved;
   return {
     definitionId: runtime.definition.id,

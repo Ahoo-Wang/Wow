@@ -42,7 +42,6 @@ import {
   nextTask,
   ordersDefinition,
   overviewDefinition,
-  preCDashboardConfig,
   recordConfig,
   testEnvironment,
   testSource,
@@ -133,30 +132,6 @@ const views: ViewInstance[] = [
       ],
       panels: [],
     }),
-  },
-  // The same board saved before batch C: its stage is a board condition,
-  // which reading it makes the filter's default (D23 Q16).
-  {
-    id: 'regional-old',
-    definitionId: 'overview',
-    title: 'Regional (old)',
-    scope: 'shared',
-    revision: 'r1',
-    config: preCDashboardConfig(
-      {
-        op: 'and',
-        children: [
-          { field: 'stage', operator: FilterOperator.IN, value: ['OPEN'] },
-        ],
-      },
-      {
-        fields: [
-          { name: 'area', label: 'Area', kind: 'string' },
-          { name: 'stage', label: 'Stage', kind: 'string' },
-        ],
-        panels: [],
-      },
-    ),
   },
 ];
 
@@ -549,25 +524,6 @@ describe('a press that opens another board (D23 Q17)', () => {
     expect(gone && 'to' in gone && gone.to).not.toHaveProperty('tab');
     expect(gone && 'to' in gone && gone.to).toMatchObject({
       kind: 'dashboard',
-    });
-  });
-
-  it('opens a board saved before batch C at the defaults its condition became', async () => {
-    const { runtime } = await harness(
-      board(
-        view('chart', 'by-warehouse', {
-          click: {
-            kind: 'dashboard',
-            instanceId: 'regional-old',
-            values: { area: { dimension: 'warehouse' } },
-          },
-        }),
-      ),
-    );
-    const went = await runtime.destination('chart', { warehouse: 'CN' });
-    expect(went && 'to' in went && went.to).toMatchObject({
-      kind: 'dashboard',
-      filters: { values: { area: ['CN'], stage: ['OPEN'] } },
     });
   });
 

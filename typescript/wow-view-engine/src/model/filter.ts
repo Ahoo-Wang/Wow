@@ -13,6 +13,7 @@
 
 import type { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import type { JsonValue } from './json.js';
+import { FilterOperators } from './wire.js';
 
 /**
  * Operator name as stored in a configuration: the same values as Wow's
@@ -27,12 +28,13 @@ export type FilterOperatorName = `${FilterOperator}`;
 export type FilterTree = FilterGroup;
 
 /**
- * How a group combines its children, as the same three Wow spells `AND`,
- * `OR` and `NOR`. `nor` means none of the children match, which is the only
- * way to express a negation here: leaves negate through their operator, and a
- * group has no operator of its own to negate with.
+ * How a group combines its children: Wow's `AND`, `OR` and `NOR`, as the
+ * values it spells them with. `nor` means none of the children match, which
+ * is the only way to express a negation here: leaves negate through their
+ * operator, and a group has no operator of its own to negate with.
  */
-export type FilterGroupOperator = 'and' | 'or' | 'nor';
+export type FilterGroupOperator =
+  `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
 /**
  * The three, in the order a group's select offers them.
@@ -43,9 +45,9 @@ export type FilterGroupOperator = 'and' | 'or' | 'nor';
  * `['and', 'or', 'nor']` is three chances for one of them to be behind.
  */
 export const FILTER_GROUP_OPERATORS: readonly FilterGroupOperator[] = [
-  'and',
-  'or',
-  'nor',
+  FilterOperators.AND,
+  FilterOperators.OR,
+  FilterOperators.NOR,
 ];
 
 /**

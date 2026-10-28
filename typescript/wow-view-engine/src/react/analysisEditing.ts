@@ -397,7 +397,7 @@ function durationEnds(scope: AnalysisScope | null): string[] {
   return [...(scope?.aggregations.values() ?? [])]
     .filter(
       entry =>
-        entry.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM as never) &&
+        entry.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM) &&
         entry.expressionInput !== false,
     )
     .map(entry => entry.field)

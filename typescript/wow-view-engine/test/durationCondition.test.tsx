@@ -221,7 +221,7 @@ describe('a time since another moment, in the kernel', () => {
         unit: DateDiffUnit.HOUR,
       },
     });
-    expect(item!.text).toBe('Shipped since Paid gt 48 hour');
+    expect(item!.text).toBe('Shipped since Paid > 48 hours');
   });
 
   it('names its earlier time wherever a tree’s fields are read or renamed', () => {

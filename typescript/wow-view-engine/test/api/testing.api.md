@@ -151,18 +151,18 @@ type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 interface AggregationFieldCapability {
     // (undocumented)
     any?: boolean;
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     expressionInput?: boolean;
     field: string;
     firstLast?: boolean;
     // (undocumented)
-    functions: AggregationFunction[];
+    functions: AggregationFunctionName[];
     // (undocumented)
-    groups: AggregationGroupType[];
+    groups: AggregationGroupTypeName[];
     inMetricFilter?: boolean;
     missingKey?: boolean;
     // (undocumented)
@@ -172,6 +172,9 @@ interface AggregationFieldCapability {
 
 // @public (undocumented)
 type AggregationFunctionName = `${AggregationFunction}`;
+
+// @public
+type AggregationGroupTypeName = `${AggregationGroupType}`;
 
 // @public (undocumented)
 interface AnalysisCapability {
@@ -678,7 +681,6 @@ interface DashboardTimeGrouping {
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
     columns: typeof DASHBOARD_GRID_COLUMNS;
-    derivesTime?: true;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -841,9 +843,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     any?: boolean;
     // (undocumented)
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     // (undocumented)
@@ -851,9 +853,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     firstLast?: boolean;
     // (undocumented)
-    functions?: AggregationFunction[];
+    functions?: AggregationFunctionName[];
     // (undocumented)
-    groups?: AggregationGroupType[];
+    groups?: AggregationGroupTypeName[];
     // (undocumented)
     inMetricFilter?: boolean;
     // (undocumented)
@@ -1024,7 +1026,7 @@ interface FilterGroup {
 }
 
 // @public
-type FilterGroupOperator = 'and' | 'or' | 'nor';
+type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
 // @public (undocumented)
 interface FilterLeaf {

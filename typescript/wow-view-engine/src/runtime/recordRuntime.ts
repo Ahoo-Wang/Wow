@@ -32,7 +32,7 @@ import {
 import { fetchRecord } from './fetchRecord.js';
 import { executeLanePage } from './kanban.js';
 import { fieldHolders, idsOf } from './labelIds.js';
-import { isCalledOff } from './failure/failures.js';
+import { failureReporter, isCalledOff, viewPlace } from './failure/failures.js';
 import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
 import type { SourceFailure } from './failure/sourceReason.js';
@@ -65,8 +65,15 @@ export class RecordDataViewRuntime
    * refusal and never a loop.
    */
   private restarted = false;
-  /** Tells the host of an export whose rows could not be fetched (D40). */
-  private readonly exportFailed = this.reporter('export');
+  /**
+   * Tells the host of an export whose rows could not be fetched, saying
+   * which view as it is at the moment of the failure.
+   */
+  private readonly exportFailed = failureReporter(
+    this.environment,
+    'export',
+    () => viewPlace(this),
+  );
 
   constructor(options: ViewRuntimeOptions<RecordViewConfig>) {
     super(options);

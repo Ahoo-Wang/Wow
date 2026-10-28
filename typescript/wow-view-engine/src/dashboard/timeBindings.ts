@@ -27,18 +27,12 @@
  * auto-connected (D22 G) and `ignoresTime`. Only a derived wire is ever
  * made again: one auto-connect made to a date filter is the author's, and
  * keeps its field when the board is down to that one date filter.
- *
- * A board stored before this carries no marker (`DashboardViewConfig
- * .derivesTime`), and was read with every unwired panel unwired: its
- * migration (`withTimeIgnored`) says so of each such panel, so its numbers
- * stay what they were.
  */
 
 import {
   filterTypeOf,
   sameFilterType,
   type DashboardField,
-  type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
   type FieldDefinition,
@@ -46,7 +40,7 @@ import {
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
 import { filtersOf } from './filters.js';
-import { bindingsOf, isViewPanel, panelsOf } from './panels.js';
+import { isViewPanel, panelsOf } from './panels.js';
 
 /**
  * The board's time filter: its one date filter. A board with two — when an
@@ -85,8 +79,7 @@ export type PanelTime = (
  * before that no longer follows taken off: one whose view says otherwise
  * now or is not known, one on a panel that reads whole, and every one while
  * the board has no single date filter. A wire auto-connect made is the
- * author's and is never touched. Without the storage marker; itself when
- * nothing changes — a panel whose wires come out as they were is the same
+ * author's and is never touched. Itself when nothing changes — a panel whose wires come out as they were is the same
  * panel.
  */
 export function withTimeBindings(
@@ -121,16 +114,12 @@ export function withTimeBindings(
     changed = true;
     return { ...panel, bindings: next as PanelBinding[] };
   });
-  const marked = 'derivesTime' in config;
-  if (!changed && !marked) return config;
-  const next = { ...config, panels: changed ? panels : config.panels };
-  delete next.derivesTime;
-  return next;
+  return changed ? { ...config, panels } : config;
 }
 
 /**
  * The board as it is stored: every wire derived from a view taken off —
- * it is made again when read — and the marker that says so.
+ * it is made again when read.
  */
 export function storedTimeWires(
   config: DashboardViewConfig,
@@ -143,35 +132,7 @@ export function storedTimeWires(
       ? panel
       : { ...panel, bindings: kept as PanelBinding[] };
   });
-  return { ...config, panels, derivesTime: true };
-}
-
-/**
- * A board stored before its time wires were derived, read as it was then:
- * unmarked, so each panel over data not wired to every one of its
- * date filters reads whole (`ignoresTime`) — nothing wires it on its own,
- * whichever of those filters is left the board's one. Its wires are the
- * author's, auto-connected ones included, and stay. Marked, so it happens
- * once; a marked board as it is.
- */
-export function withTimeIgnored(
-  config: DashboardViewConfig,
-): DashboardViewConfig {
-  const stored: unknown = config;
-  if (!isPlainObject(stored) || stored.derivesTime === true) return config;
-  const dated = dateFilters(config).map(filter => filter.name);
-  const panels = panelsOf(config).map((panel): DashboardPanel => {
-    if (dated.length === 0 || !isViewPanel(panel)) return panel;
-    const wired = new Set(bindingsOf(panel).map(entry => entry.globalField));
-    return dated.every(name => wired.has(name))
-      ? panel
-      : { ...panel, ignoresTime: true };
-  });
-  return {
-    ...config,
-    ...(Array.isArray(stored.panels) ? { panels } : {}),
-    derivesTime: true,
-  };
+  return { ...config, panels };
 }
 
 /** A panel's stored wires, whatever they hold, for admission to report on. */

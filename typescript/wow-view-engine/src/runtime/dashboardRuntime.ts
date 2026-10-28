@@ -233,10 +233,7 @@ export class DashboardViewRuntime
       showTab: tab => this.showTab(tab),
     });
 
-    // A stored board was read into the form this engine writes on its way
-    // out of the store (`readStored`), the baseline with the config, so it
-    // opens clean rather than dirty with its own migration (D22 E, D26 Q31).
-    // And it is read under the paths its panels' definitions rename
+    // A board is read under the paths its panels' definitions rename
     // aliases to, the baseline with it, as far as they are known yet: an
     // owned view's now, a referenced one's once it loads (`settled`).
     const saved = canonicalSaved(options.saved ?? null, this.canonical);

@@ -263,14 +263,14 @@ describe('string kind', () => {
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value in A, B');
+    ).toBe('Value is any of A, B');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.EQ, 'A'),
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value eq A');
+    ).toBe('Value is A');
   });
 });
 
@@ -348,14 +348,14 @@ describe('number kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value in 1, 2');
+    ).toBe('Value is any of 1, 2');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.GT, 1),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value gt 1');
+    ).toBe('Value more than 1');
   });
 });
 
@@ -386,7 +386,7 @@ describe('boolean kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value eq true');
+    ).toBe('Value is true');
   });
 });
 
@@ -438,7 +438,7 @@ describe('enum kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value in Alpha, Two, Z');
+    ).toBe('Value is any of Alpha, Two, Z');
   });
 });
 
@@ -481,7 +481,7 @@ describe('reference kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value in ACME');
+    ).toBe('Value is any of ACME');
   });
 });
 

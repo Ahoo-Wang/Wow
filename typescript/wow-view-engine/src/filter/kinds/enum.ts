@@ -14,6 +14,7 @@
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { type FieldKind } from '../fieldKind.js';
 import { type EnumFilterValue } from '../values.js';
+import { OPERATOR_TEXT } from '../operatorWords.js';
 import {
   namedLabels,
   optionLabelOf,
@@ -101,7 +102,7 @@ export const enumFieldKind: FieldKind = {
     // it into one would put it ahead of the field's own formatting.
     const labels = values.map(value => optionLabelOf(field.options, value));
     return {
-      text: `${field.label} ${leaf.operator} ${shownEntries(values, labels)}`,
+      text: `${field.label} ${OPERATOR_TEXT[leaf.operator]} ${shownEntries(values, labels)}`,
       value: { kind: 'list', values, ...namedLabels(labels) },
     };
   },

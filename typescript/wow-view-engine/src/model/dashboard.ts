@@ -184,14 +184,6 @@ export interface DashboardPanelBase {
  */
 export const DASHBOARD_GRID_COLUMNS = 24;
 
-/**
- * The grid a config was laid out in before it said so. A stored config with
- * no `columns` is in it, and is read into `DASHBOARD_GRID_COLUMNS` by doubling
- * every `x` and `w` (`migrateDashboardConfig`), which draws every panel at
- * the same pixels (D22 E).
- */
-export const LEGACY_GRID_COLUMNS = 12;
-
 /** Characters one markdown panel may hold; a config arrives from a store. */
 export const MAX_MARKDOWN_LENGTH = 20_000;
 
@@ -217,10 +209,9 @@ export type DashboardWidth = 'fixed' | 'full';
 export const DASHBOARD_WIDTHS: readonly DashboardWidth[] = ['fixed', 'full'];
 
 /**
- * The width a config lays its board out at. A board saved before it could
- * say (no `width`) keeps the full width it was built at, so a saved layout
- * never narrows on its own (D31); a value this release does not know is
- * read the same way, and admission says so (`dashboard.width.unknown`).
+ * The width a config lays its board out at. It is `fixed` where the config
+ * says so and `full` otherwise — with no `width`, or a value this release
+ * does not know, which admission reports (`dashboard.width.unknown`).
  */
 export function boardWidth(config: { width?: unknown }): DashboardWidth {
   return config.width === 'fixed' ? 'fixed' : 'full';
@@ -462,21 +453,15 @@ export interface DashboardViewConfig extends ViewConfigBase {
    * The board's fixed scope (「固定范围」, D23 Q16, D26 Q31): a condition in
    * the board's own field names that every data panel runs under, mapped
    * through its bindings like the rest — and that no reader changes, unlike
-   * a filter's value. It is what was left of a board condition written
-   * before batch C once the leaves a filter could hold became those
-   * filters' defaults; a board built since has an empty one.
+   * a filter's value. A new board has an empty one.
    *
-   * It is the board's only condition of its own: a board has no `filter`
-   * (D27), and the one a stored config still carries is read into this one
-   * (`migrateDashboardConfig`). Being here at all is also the mark that a
-   * config was read out of the pre-C form, so it is never taken apart
-   * again, whatever an author changes of its filters after.
+   * It is the board's only condition of its own: a board has no `filter`.
    */
   fixed: FilterTree;
   /**
-   * How wide the board is laid out (D31): a new board is `fixed`; one
-   * without it was saved before a board could say, and is read as `full`
-   * (`boardWidth`).
+   * How wide the board is laid out: `fixed`, held to a fixed width and
+   * centred, or `full`, the width of whatever holds it. A new board is
+   * `fixed`; left out, the board is `full` (`boardWidth`).
    */
   width?: DashboardWidth;
   /** In the order the tab bar shows them; see `DashboardTab`. */
@@ -486,15 +471,6 @@ export interface DashboardViewConfig extends ViewConfigBase {
   /** The board's time grouping; a board without one leaves it out. */
   timeGrouping?: DashboardTimeGrouping;
   panels: DashboardPanel[];
-  /**
-   * The storage marker of a board whose time wires are derived (D1, user
-   * 2026-09-28): written on every board a save stores
-   * (`storedTimeWires`), which stores no wire made from a view. A stored
-   * board without it was saved before, when an unwired panel stayed
-   * unwired, and is migrated on read (`withTimeIgnored`). A board as the
-   * engine reads it never carries it (`withTimeBindings`).
-   */
-  derivesTime?: true;
 }
 
 /**

@@ -32,5 +32,6 @@ export * from './limits.js';
 export * from './record.js';
 export * from './storeError.js';
 export * from './text.js';
+export * from './values.js';
 // Internal: the protocol's values; no entry names them.
 export * from './wire.js';

@@ -18,6 +18,7 @@ import type {
 import {
   CURRENCY_CODE_PATTERN,
   DEFAULT_SEARCH_MODE,
+  includesValue,
   isFieldName,
   MAX_NUMERIC_SCALE,
   isFieldlessKind,
@@ -242,8 +243,9 @@ function withDuration(
 ): ReadonlySet<string> {
   if (
     scope !== undefined ||
-    !context.descriptor.record.rootOperators.includes(
-      FilterOperators.EXPRESSION as never,
+    !includesValue(
+      context.descriptor.record.rootOperators,
+      FilterOperators.EXPRESSION,
     ) ||
     !described.aggregate?.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM)
   )
