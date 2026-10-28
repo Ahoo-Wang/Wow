@@ -340,10 +340,15 @@ class ConfigurationKeys(
             type.name.startsWith(WowProperties::class.java.packageName + ".") && !type.isEnum
 
         /**
-         * The keys of every [METADATA] and [ADDITIONAL_METADATA] resource of [classLoader], each module's, with the
-         * prefixes of the application's other properties beans ([prefixes]) that no metadata describes.
+         * The keys of every [METADATA] and [ADDITIONAL_METADATA] resource of [classLoader], each module's, and the
+         * [declared] keys no metadata needs to list (the `wow.<type>.<key>` options the node's providers declare), with
+         * the prefixes of the application's other properties beans ([prefixes]) that no metadata describes.
          */
-        fun of(classLoader: ClassLoader?, prefixes: Collection<String> = emptyList()): ConfigurationKeys {
+        fun of(
+            classLoader: ClassLoader?,
+            prefixes: Collection<String> = emptyList(),
+            declared: Collection<String> = emptyList(),
+        ): ConfigurationKeys {
             val resolver = PathMatchingResourcePatternResolver(classLoader)
             val resources = resolver.getResources("classpath*:$METADATA") +
                 resolver.getResources("classpath*:$ADDITIONAL_METADATA")
@@ -352,7 +357,7 @@ class ConfigurationKeys(
                     ?.mapNotNull { it["name"]?.asString() }
                     .orEmpty()
             }
-            val known = names.map { ConfigurationPropertyName.adapt(it, '.') }.filterNot { it.isEmpty }
+            val known = (names + declared).map { ConfigurationPropertyName.adapt(it, '.') }.filterNot { it.isEmpty }
             val owned = prefixes
                 .filter { it.startsWith(ROOT) }
                 .map { ConfigurationPropertyName.adapt(it, '.') }

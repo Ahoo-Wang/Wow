@@ -16,8 +16,10 @@ package me.ahoo.wow.spi.store
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.log.TailPolling
 import java.time.Clock
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * What a [StoreProvider] opens one store instance from: the store's [name] and [type], how it manages
@@ -50,8 +52,24 @@ class StoreConfig @InternalWowApi constructor(
     /** The configuration key of this store's settings, `wow.stores.<name>`, for a provider's failures to name. */
     val key: String get() = "wow.stores.$name"
 
+    private val read: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /** The setting [name] of [options], or null when it is not set or blank. */
-    fun option(name: String): String? = options[name]?.takeIf { it.isNotBlank() }
+    fun option(name: String): String? {
+        read += name
+        return options[name]?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
+     * value is not one of the option's type.
+     */
+    fun <T : Any> option(option: ProviderOption<T>): T? =
+        option(option.key)?.let { option.parse(it, "$key.options.${option.key}") } ?: option.default
+
+    /** The keys of [options] the store asked for, so a test can hold them to the options its provider declares. */
+    @InternalWowApi
+    val optionsRead: Set<String> get() = read.toSet()
 
     override fun toString(): String = "StoreConfig(name=$name, type=$type, ddl=$ddl, options=$options)"
 

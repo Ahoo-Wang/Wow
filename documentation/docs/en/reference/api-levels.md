@@ -99,6 +99,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.config.ProviderOption` | class | `wow-spi` |
 | `me.ahoo.wow.spi.id.GlobalIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |
@@ -143,6 +144,8 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.QueryBindings` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.CachedQueryBindings` | class | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetProvider` | interface | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetConfig` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |

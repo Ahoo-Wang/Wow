@@ -62,6 +62,49 @@ public final class me/ahoo/wow/spi/call/OutgoingCall$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/call/OutgoingCall$Companion;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/call/OutgoingCall;
 }
 
+public final class me/ahoo/wow/spi/config/ProviderOption {
+	public static final field Companion Lme/ahoo/wow/spi/config/ProviderOption$Companion;
+	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun duration-moChb0s (Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun getDefault ()Ljava/lang/Object;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/spi/config/ProviderOption$Scope;
+	public final fun getType ()Ljava/lang/Class;
+	public static final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun int (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun parse (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+	public final fun perStore ()Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/config/ProviderOption$Companion {
+	public final fun boolean (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun boolean (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static synthetic fun boolean$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun duration-moChb0s (Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static synthetic fun duration-moChb0s$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun int (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static synthetic fun int$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static synthetic fun string$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+}
+
+public final class me/ahoo/wow/spi/config/ProviderOption$Scope : java/lang/Enum {
+	public static final field PER_STORE Lme/ahoo/wow/spi/config/ProviderOption$Scope;
+	public static final field TYPE Lme/ahoo/wow/spi/config/ProviderOption$Scope;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Scope;
+	public static fun values ()[Lme/ahoo/wow/spi/config/ProviderOption$Scope;
+}
+
 public final class me/ahoo/wow/spi/config/WowConfigurationException : java/lang/IllegalStateException {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
 	public final fun getFix ()Ljava/lang/String;
@@ -1122,6 +1165,7 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -1145,6 +1189,7 @@ public abstract interface class me/ahoo/wow/spi/store/StorePool {
 
 public abstract interface class me/ahoo/wow/spi/store/StoreProvider {
 	public fun available (Lme/ahoo/wow/spi/store/StoreResources;)Z
+	public fun getOptions ()Ljava/util/List;
 	public fun getRequirement ()Ljava/lang/String;
 	public abstract fun getType ()Ljava/lang/String;
 	public abstract fun open (Lme/ahoo/wow/spi/store/StoreConfig;)Lme/ahoo/wow/spi/store/Store;

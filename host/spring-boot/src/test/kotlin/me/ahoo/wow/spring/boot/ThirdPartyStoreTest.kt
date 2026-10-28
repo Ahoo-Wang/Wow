@@ -33,6 +33,8 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -41,10 +43,12 @@ import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.concurrent.atomic.AtomicInteger
@@ -57,7 +61,14 @@ import kotlin.time.Duration.Companion.seconds
  * resources), or given as a bean of another type.
  */
 open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider {
-    override fun open(config: StoreConfig): Store = AcmeStore(config)
+    override val options: List<ProviderOption<*>> = listOf(REGION)
+
+    override fun open(config: StoreConfig): Store = AcmeStore(config).also { config.option(REGION) }
+
+    companion object {
+        /** Where an `acme` store lives: `wow.acme.region` for every one, or a store's own. */
+        val REGION: ProviderOption<String> = ProviderOption.string("region", "the region of an acme store.", "local")
+    }
 }
 
 /** An `acme` store: durable for the node, as a database would be, and remembering the settings it was opened with. */
@@ -119,6 +130,34 @@ class VendorStores {
 /** A community backend plugged into the host through the store provider SPI (review R3.3-1). */
 class ThirdPartyStoreTest {
     private val account = AggregateType(BANK, "account")
+
+    @Test
+    fun `a store should get its type's settings under its own, and fail on a setting its provider does not declare`() {
+        val providers = StoreProviders.load(javaClass.classLoader)
+        fun open(vararg options: Pair<String, String>) = StoreInstances.open(
+            WowProperties().apply {
+                stores["acme"] = WowProperties.Store().apply {
+                    type = "acme"
+                    this.options.putAll(options)
+                }
+            },
+            providers,
+            StoreResources.NONE,
+        ) { type ->
+            if (type == "acme") {
+                mapOf(
+                    "region" to "us-1",
+                    "undeclared" to "x"
+                )
+            } else {
+                emptyMap()
+            }
+        }.getValue("acme")
+        open().config.options.assert().isEqualTo(mapOf("region" to "us-1"))
+        open("region" to "eu-1").config.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
+        assertThrows<WowConfigurationException> { open("colour" to "red") }.key.assert()
+            .isEqualTo("wow.stores.acme.options.colour")
+    }
 
     @Test
     fun `a provider on the classpath backs the stores of its type, placed per aggregate`() {

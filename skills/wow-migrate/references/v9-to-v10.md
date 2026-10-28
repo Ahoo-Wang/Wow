@@ -579,6 +579,8 @@ V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.servi
 
 A target pinned to an earlier V10 pre-release renamed two things that are not 9.x keys: an aggregate type routed through its context's command topic is `wow.aggregates.[<context>.<aggregate>].routing: topic` (it was `kafka`), and the subscriptions that write the published streams are named `transport-sink.<aggregate>` (they were `kafka-sink.<aggregate>`). A subscription's name is its checkpoint key, so a service upgraded in place from such a pre-release writes every published stream again from the beginning; its consumers see each commit again and must deduplicate it by its aggregate and version.
 
+A target pinned to an earlier V10 pre-release that read `WowProperties.mongo` or `WowProperties.postgres` in its own code reads its store's options instead: those classes are gone, and the keys (`wow.mongo.*`, `wow.postgres.*`) are unchanged. A store's `wow.stores.<name>.options.*` now takes only the options its store type declares: any other key fails the start, naming the declared ones.
+
 ## REST clients
 
 | 9.x | V10 |

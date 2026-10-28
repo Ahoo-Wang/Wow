@@ -471,6 +471,27 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetChange$Replaced$Compani
 	public final fun of (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/QueryDataset;)Lme/ahoo/wow/query/dataset/QueryDatasetChange$Replaced;
 }
 
+public final class me/ahoo/wow/query/dataset/QueryDatasetConfig {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetConfig$Companion;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
+	public final fun getType ()Ljava/lang/String;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public static final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public static final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
+	public final fun options (Ljava/lang/String;)Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetConfig$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetConfig$Companion;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+}
+
 public final class me/ahoo/wow/query/dataset/QueryDatasetFiles {
 	public static final field CLASSPATH_DIRECTORY Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetFiles$Companion;
@@ -493,6 +514,13 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetFiles$Companion {
 public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetListener {
 	public abstract fun apply (Lme/ahoo/wow/query/dataset/QueryDatasetChange;)V
 	public fun validate (Lme/ahoo/wow/query/dataset/QueryDatasetChange;)V
+}
+
+public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetProvider {
+	public abstract fun available (Lme/ahoo/wow/query/dataset/QueryDatasetConfig;)Z
+	public fun getOptions ()Ljava/util/List;
+	public abstract fun getType ()Ljava/lang/String;
+	public abstract fun open (Lme/ahoo/wow/query/dataset/QueryDatasetConfig;)Lme/ahoo/wow/query/backend/QueryBindings;
 }
 
 public final class me/ahoo/wow/query/dataset/QueryDatasetScope {
@@ -2240,21 +2268,17 @@ public abstract interface class me/ahoo/wow/query/store/StoreQueries {
 public final class me/ahoo/wow/query/store/StoreQueryOptions {
 	public static final field Companion Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;
 	public static final field DEFAULT Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public final fun getEventsReadPreference ()Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getIndexDdl ()Lme/ahoo/wow/spi/Ddl;
-	public final fun getSnapshotsReadPreference ()Ljava/lang/String;
+	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public static final fun of (Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public static final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public static final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/store/StoreQueryOptions$Companion {
 	public final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public final fun of (Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-	public static synthetic fun of$default (Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;Lme/ahoo/wow/spi/Ddl;ILjava/lang/Object;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 }
 

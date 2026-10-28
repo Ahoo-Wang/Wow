@@ -56,6 +56,19 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `the options the providers declare for their types are known at runtime, any other key under a type refused`() {
+        val providers = StoreProviders.load(javaClass.classLoader).stores.values.map { it.type to it.options }
+        val keys = ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(providers))
+        keys.unknown(environment("wow.mongo.append-timeout" to "5s", "wow.acme.region" to "eu-1")).assert().isEmpty()
+        keys.unknown(environment("wow.mongo.nonsense" to "x", "wow.acme.colour" to "red"))
+            .assert().containsExactlyInAnyOrder("wow.mongo.nonsense", "wow.acme.colour")
+        // A third party's type (the test's `acme`, on the class path) has no metadata: its options are known from its
+        // provider alone.
+        ConfigurationKeys.of(javaClass.classLoader).unknown(environment("wow.acme.region" to "eu-1"))
+            .assert().containsExactly("wow.acme.region")
+    }
+
+    @Test
     fun `a mistyped key refuses the startup, naming each`() {
         val environment = environment("wow.cluster.forward-timout" to "30s", "wow.clustr.router" to "local")
         keys.unknown(environment).assert().containsExactlyInAnyOrder("wow.cluster.forward-timout", "wow.clustr.router")

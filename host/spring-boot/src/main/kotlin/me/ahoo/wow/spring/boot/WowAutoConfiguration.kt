@@ -174,19 +174,27 @@ import jakarta.validation.Validator as JakartaValidator
 @EnableConfigurationProperties(WowProperties::class)
 class WowAutoConfiguration {
     /**
-     * Checks the environment's `wow.*` keys against the configuration metadata at startup: warns of the
-     * unknown ones, and refuses an unknown key of the security settings ([ConfigurationKeys]).
+     * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
+     * declare (`wow.<type>.<key>`, [ProviderOptionKeys]) at startup, refusing the unknown ones ([ConfigurationKeys]).
      */
     @Bean
     @InternalWowApi
-    fun wowConfigurationKeys(environment: ConfigurableEnvironment, context: ApplicationContext): ConfigurationKeys {
+    fun wowConfigurationKeys(
+        environment: ConfigurableEnvironment,
+        context: ApplicationContext,
+        providers: StoreProviders,
+    ): ConfigurationKeys {
         val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
             context.findAnnotationOnBean(
                 name,
                 ConfigurationProperties::class.java
             )?.let { it.prefix.ifEmpty { it.value } }
         }
-        return ConfigurationKeys.of(context.classLoader, prefixes).also { it.check(environment) }
+        val declared = ProviderOptionKeys.of(
+            providers.stores.values.map { it.type to it.options } +
+                HostDatasets.providers(context.classLoader).map { it.type to it.options },
+        )
+        return ConfigurationKeys.of(context.classLoader, prefixes, declared).also { it.check(environment) }
     }
 
     /** Wow's JSON mapper; not a default candidate, so Spring's own mapper stays Spring's. */
@@ -272,6 +280,7 @@ class WowAutoConfiguration {
         models: WowModels,
         identity: ObjectProvider<NodeIdentity>,
         development: DevelopmentMode,
+        environment: Environment,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val node = identity.ifAvailable
@@ -281,7 +290,7 @@ class WowAutoConfiguration {
             BeanStoreResources(beanFactory),
             node?.service.orEmpty(),
             development.reason,
-        )
+        ) { type -> PortProviders.optionsOf(environment, type) }
         val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {

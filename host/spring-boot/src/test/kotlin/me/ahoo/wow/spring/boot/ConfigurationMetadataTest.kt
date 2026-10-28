@@ -15,7 +15,9 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.store.StoreProvider
 import org.junit.jupiter.api.Test
+import java.util.ServiceLoader
 
 /**
  * The host's Spring configuration metadata, `META-INF/spring-configuration-metadata.json`, generated
@@ -23,7 +25,10 @@ import org.junit.jupiter.api.Test
  * what the classes give, and `WOW_UPDATE_SNAPSHOTS=1` rewrites it.
  */
 class ConfigurationMetadataTest {
-    private val metadata = ConfigurationMetadata(ROOTS)
+    private val metadata = ConfigurationMetadata(
+        ROOTS,
+        providers = ServiceLoader.load(StoreProvider::class.java).filter { it.type in WOW_STORES }.sortedBy { it.type },
+    )
 
     @Test
     fun `the committed metadata should be what the properties classes give`() {
@@ -43,6 +48,10 @@ class ConfigurationMetadataTest {
             "wow.cosec.trust-injected-app",
             "wow.tenant.default",
             "wow.executor.max-in-flight",
+            "wow.mongo.append-timeout",
+            "wow.mongo.query-read-preference",
+            "wow.postgres.operation-timeout",
+            "wow.elasticsearch.refresh",
         )
     }
 
@@ -55,6 +64,9 @@ class ConfigurationMetadataTest {
     }
 
     private companion object {
+        /** Wow's own store types, whose options the host's metadata lists; a third party's ship their own. */
+        val WOW_STORES = setOf("postgres", "mongo", "elasticsearch")
+
         val ROOTS: List<Pair<Class<*>, String>> = listOf(
             WowProperties::class.java to WowProperties.PREFIX,
             QueryProperties::class.java to QueryProperties.PREFIX,

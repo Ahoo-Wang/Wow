@@ -251,7 +251,6 @@ class WowPropertiesTest {
         properties.wait.unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
         properties.http.manifest.enabled.assert().isTrue()
         properties.http.openapi.enabled.assert().isTrue()
-        properties.mongo.database.assert().isEqualTo("wow")
     }
 
     @Test
@@ -262,7 +261,6 @@ class WowPropertiesTest {
             "wow.node.address" to "10.0.0.1:9191",
             "wow.internal.port" to "9191",
             "wow.backend" to "mongo",
-            "wow.mongo.database" to "shop",
             "wow.log.partitions" to "16",
             "wow.cluster.router" to "local",
             "wow.cluster.lease-ttl" to "20s",
@@ -282,7 +280,6 @@ class WowPropertiesTest {
         properties.node.address.assert().isEqualTo("10.0.0.1:9191")
         properties.internal.port.assert().isEqualTo(9191)
         properties.backend.assert().isEqualTo("mongo")
-        properties.mongo.database.assert().isEqualTo("shop")
         properties.log.partitions.assert().isEqualTo(16)
         properties.cluster.router.assert().isEqualTo(Routing.LOCAL)
         properties.cluster.options().leaseTtl.assert().isEqualTo(20.seconds)

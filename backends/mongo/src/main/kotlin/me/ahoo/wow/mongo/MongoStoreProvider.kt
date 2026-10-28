@@ -25,6 +25,7 @@ import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -59,14 +60,25 @@ internal class MongoStoreProvider : StoreProvider {
 
     override fun available(resources: StoreResources): Boolean = resources.has(MongoClient::class.java)
 
+    override val options: List<ProviderOption<*>> = listOf(
+        CLIENT,
+        DATABASE,
+        APPEND_TIMEOUT,
+        SHARDING,
+        OPERATION_TIMEOUT,
+        POOL_GAUGE,
+        QUERY_READ_PREFERENCE,
+    )
+
     override fun open(config: StoreConfig): Store = MongoStore(
         config,
-        config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.$CLIENT"),
-        config.option(DATABASE) ?: DEFAULT_DATABASE,
-        config.option(APPEND_TIMEOUT)?.let(Duration::parse) ?: MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+        config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.${CLIENT.key}"),
+        checkNotNull(config.option(DATABASE)),
+        checkNotNull(config.option(APPEND_TIMEOUT)),
         MongoSharding.of(config.option(SHARDING)),
-        config.option(OPERATION_TIMEOUT)?.let(Duration::parse) ?: MongoTimeouts.OPERATION,
+        checkNotNull(config.option(OPERATION_TIMEOUT)),
         gaugeOf(config),
+        config.option(QUERY_READ_PREFERENCE),
     )
 
     /**
@@ -78,7 +90,7 @@ internal class MongoStoreProvider : StoreProvider {
             config.resources.resource(
                 MongoPoolGauge::class.java,
                 config.option(POOL_GAUGE),
-                "${config.key}.$POOL_GAUGE"
+                "${config.key}.${POOL_GAUGE.key}"
             )
         } else {
             null
@@ -97,24 +109,58 @@ internal class MongoStoreProvider : StoreProvider {
     companion object {
         const val TYPE = "mongo"
 
-        /** The option naming the store's `MongoClient` bean. */
-        const val CLIENT = "client"
-
-        /** The option naming the store's database. */
-        const val DATABASE = "database"
         const val DEFAULT_DATABASE = "wow"
 
-        /** The option bounding an append's insert, such as `5s`. */
-        const val APPEND_TIMEOUT = "append-timeout"
+        /** The option naming the store's `MongoClient` bean. */
+        val CLIENT = ProviderOption.string(
+            "client",
+            "the name of the MongoClient bean the store opens over; the only one when not set.",
+        ).perStore()
 
-        /** The option saying whether the store shards its collections on a sharded cluster: `auto` or `off`. */
-        const val SHARDING = "sharding"
+        /** The option naming the store's database. */
+        val DATABASE = ProviderOption.string(
+            "database",
+            "the database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow.",
+            DEFAULT_DATABASE,
+        )
 
-        /** The option bounding each of the store's calls besides appends and the schema's, such as `30s`. */
-        const val OPERATION_TIMEOUT = "operation-timeout"
+        /** The option bounding an append's insert. */
+        val APPEND_TIMEOUT = ProviderOption.duration(
+            "append-timeout",
+            "how long an append's insert may take: below the default wait timeout, so a command appending during an " +
+                "outage is answered before its wait ends.",
+            MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+        )
+
+        /** The option saying whether the store shards its collections on a sharded cluster. */
+        val SHARDING = ProviderOption.string(
+            "sharding",
+            "whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it " +
+                "creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard.",
+            "auto",
+        )
+
+        /** The option bounding each of the store's calls besides appends and the schema's. */
+        val OPERATION_TIMEOUT = ProviderOption.duration(
+            "operation-timeout",
+            "how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's " +
+                "commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever.",
+            MongoTimeouts.OPERATION,
+        )
 
         /** The option naming the store's [MongoPoolGauge] bean, when the application has several. */
-        const val POOL_GAUGE = "pool-gauge"
+        val POOL_GAUGE = ProviderOption.string(
+            "pool-gauge",
+            "the name of the MongoPoolGauge bean the store's client was built with, when the application has several.",
+        ).perStore()
+
+        /** The option of the read preference of the store's snapshot and `events` queries. */
+        val QUERY_READ_PREFERENCE = ProviderOption.string(
+            "query-read-preference",
+            "the read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so " +
+                "a free filter scans a secondary rather than the primary the log appends to; the primary when not " +
+                "set. A snapshot read from a secondary may be behind the one a command's wait waited for.",
+        )
 
         private val log = LoggerFactory.getLogger(MongoStoreProvider::class.java)
     }
@@ -133,6 +179,8 @@ internal class MongoStore(
     private val sharding: MongoSharding = MongoSharding.AUTO,
     private val operationTimeout: Duration = MongoTimeouts.OPERATION,
     gauge: MongoPoolGauge? = null,
+    /** The read preference of the store's snapshot and `events` queries; the primary when not set. */
+    val queryReadPreference: String? = null,
 ) : Store(config) {
     private val ddl = config.ddl
     private val pool = gauge?.let(::MongoPool)

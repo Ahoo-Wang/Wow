@@ -98,12 +98,11 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
             ConnectionDefaultsEnvironmentPostProcessor.MONGO_DATABASE to "orders",
         ).connections().getProperty(ConnectionDefaultsEnvironmentPostProcessor.MONGO_DATABASE).assert()
             .isEqualTo("orders")
-        // A connection string that names none leaves the default to WowProperties.
+        // A connection string that names none leaves the default to the MongoDB stores' own option.
         val none = environment(
             ConnectionDefaultsEnvironmentPostProcessor.MONGO_URI to "mongodb://mongo:27017/?replicaSet=rs0",
         ).connections()
         none.getProperty(ConnectionDefaultsEnvironmentPostProcessor.MONGO_DATABASE).assert().isNull()
-        WowProperties.of(none).mongo.database.assert().isEqualTo(WowProperties().mongo.database)
     }
 
     @Test

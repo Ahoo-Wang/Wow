@@ -14,14 +14,20 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetChange
+import me.ahoo.wow.query.dataset.QueryDatasetConfig
 import me.ahoo.wow.query.dataset.QueryDatasetFiles
 import me.ahoo.wow.query.dataset.QueryDatasetListener
+import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.store.StoreResources
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import java.nio.file.Path
+import java.util.ServiceLoader
 
 /**
  * The datasets a node serves from files: every `{context}.{dataset}.json` of the working
@@ -49,6 +55,32 @@ internal object HostDatasets {
             .mapNotNull { it.filename?.removeSuffix(QueryDatasetFiles.EXTENSION) }
             .map(QueryDataset::nameOf)
 
+    /** The dataset backends [classLoader] finds (`ServiceLoader`), by type. */
+    fun providers(classLoader: ClassLoader?): List<QueryDatasetProvider> =
+        ServiceLoader.load(QueryDatasetProvider::class.java, classLoader ?: javaClass.classLoader)
+            .sortedBy { it.type }
+
+    /**
+     * The bindings of the one of [providers] that is available over [resources] and its settings ([settings],
+     * `wow.<type>.*`); null when none is. Several available ones refuse the start, naming them: an application with
+     * more than one dataset backend gives the node its own `QueryBindings<QueryDataset>` bean.
+     */
+    fun provided(
+        providers: List<QueryDatasetProvider>,
+        resources: StoreResources,
+        settings: (type: String) -> Map<String, String>,
+    ): QueryBindings<QueryDataset>? {
+        val available = providers.map { it to QueryDatasetConfig(it.type, settings(it.type), resources) }
+            .filter { (provider, config) -> provider.available(config) }
+        configCheck(
+            available.size <= 1,
+            "wow.query.dataset",
+            available.map { it.first.type },
+            "Keep one dataset backend on the class path, or give the node a QueryBindings<QueryDataset> bean.",
+        ) { "Several dataset backends are available: ${available.map { it.first.type }}." }
+        return available.singleOrNull()?.let { (provider, config) -> provider.open(config) }
+    }
+
     /**
      * Makes [bindings] forget each dataset that leaves [datasets] (a replaced one is bound again on its own), so its
      * table metadata and statements are not kept for a dataset no longer served.
@@ -64,3 +96,7 @@ internal object HostDatasets {
         )
     }
 }
+
+/** The node's dataset bindings: the application's, or a dataset backend's; null when no backend serves datasets. */
+@InternalWowApi
+class HostDatasetBindings internal constructor(val bindings: QueryBindings<QueryDataset>?)

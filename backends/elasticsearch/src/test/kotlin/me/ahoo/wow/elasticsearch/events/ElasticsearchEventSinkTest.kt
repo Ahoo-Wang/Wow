@@ -155,7 +155,7 @@ class ElasticsearchEventSinkTest {
             StoreConfig.of(
                 name = "search",
                 type = ElasticsearchStoreProvider.TYPE,
-                options = mapOf(ElasticsearchStoreProvider.INDEX_PREFIX to "x"),
+                options = mapOf(ElasticsearchStoreProvider.INDEX_PREFIX.key to "x"),
                 resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
             ),
         )

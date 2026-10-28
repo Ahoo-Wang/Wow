@@ -450,6 +450,7 @@ object ArchitectureRules {
         "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema",
         "index.QueryIndexDeclaration", "index.QueryIndexPlan", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
         "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
+        "dataset.QueryDatasetProvider", "dataset.QueryDatasetConfig",
         // The read paths it hands out.
         "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
     ).map { "me.ahoo.wow.query.$it" }

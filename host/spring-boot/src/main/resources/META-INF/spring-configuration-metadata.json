@@ -48,6 +48,10 @@
     "description" : "The tenant-level callers, who read and write every aggregate of their tenant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
+    "name" : "wow.elasticsearch",
+    "type" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "description" : "The settings of every elasticsearch store; a store's own options override them."
+  }, {
     "name" : "wow.executor",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
     "description" : "How the node executes commands.",
@@ -143,9 +147,8 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.mongo",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
-    "description" : "The defaults of the MongoDB stores.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+    "type" : "me.ahoo.wow.mongo.MongoStoreProvider",
+    "description" : "The settings of every mongo store; a store's own options override them."
   }, {
     "name" : "wow.node",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Node",
@@ -187,9 +190,8 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer"
   }, {
     "name" : "wow.postgres",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
-    "description" : "The defaults of the PostgreSQL stores.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+    "type" : "me.ahoo.wow.postgres.PostgresStoreProvider",
+    "description" : "The settings of every postgres store; a store's own options override them."
   }, {
     "name" : "wow.query",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties",
@@ -534,6 +536,17 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
+    "name" : "wow.elasticsearch.index-prefix",
+    "type" : "java.lang.String",
+    "description" : "A prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a cluster several services or environments share; none when not set.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider"
+  }, {
+    "name" : "wow.elasticsearch.refresh",
+    "type" : "java.lang.String",
+    "description" : "When a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval).",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : "wait_for"
+  }, {
     "name" : "wow.executor.lane-capacity",
     "type" : "java.lang.Integer",
     "description" : "The commands one aggregate may have waiting in the executor.",
@@ -766,31 +779,31 @@
   }, {
     "name" : "wow.mongo.append-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
+    "description" : "How long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
+    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.mongo.database",
     "type" : "java.lang.String",
-    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
+    "description" : "The database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow.",
+    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "wow"
   }, {
     "name" : "wow.mongo.operation-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's `options.operation-timeout` overrides it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
+    "description" : "How long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever.",
+    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.mongo.query-read-preference",
     "type" : "java.lang.String",
-    "description" : "The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo"
+    "description" : "The read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for.",
+    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider"
   }, {
     "name" : "wow.mongo.sharding",
     "type" : "java.lang.String",
-    "description" : "Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
+    "description" : "Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard.",
+    "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.node.address",
@@ -934,8 +947,8 @@
   }, {
     "name" : "wow.postgres.operation-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own `statement_timeout`): a reply lost on the way fails the call, and its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
+    "description" : "How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
+    "sourceType" : "me.ahoo.wow.postgres.PostgresStoreProvider",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.abac.attribute-prefix",

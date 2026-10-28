@@ -83,7 +83,10 @@ class ElasticsearchQueriesTest {
         // Queries sharing the writes' pool take a quarter of it.
         StoreQueryBounds.maxConcurrent(shared.pool()).assert().isEqualTo(10)
         val own = store(
-            mapOf(ElasticsearchStoreProvider.CLIENT to "writes", ElasticsearchStoreProvider.QUERY_CLIENT to "queries"),
+            mapOf(
+                ElasticsearchStoreProvider.CLIENT.key to "writes",
+                ElasticsearchStoreProvider.QUERY_CLIENT.key to "queries"
+            ),
             mapOf("writes" to writes, "queries" to client(24)),
         )
         own.queriesShareWrites.assert().isFalse()
@@ -92,7 +95,10 @@ class ElasticsearchQueriesTest {
         StoreQueryBounds.maxConcurrent(own.pool()).assert().isEqualTo(24)
         // A query client that is the store's own client shares its pool.
         val same = store(
-            mapOf(ElasticsearchStoreProvider.CLIENT to "writes", ElasticsearchStoreProvider.QUERY_CLIENT to "writes"),
+            mapOf(
+                ElasticsearchStoreProvider.CLIENT.key to "writes",
+                ElasticsearchStoreProvider.QUERY_CLIENT.key to "writes"
+            ),
             mapOf("writes" to writes),
         )
         same.queriesShareWrites.assert().isTrue()

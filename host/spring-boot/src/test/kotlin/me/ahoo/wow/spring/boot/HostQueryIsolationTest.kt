@@ -207,30 +207,14 @@ class HostQueryIsolationTest {
     }
 
     @Test
-    fun `a store's read preference and ddl should be its queries', over the global ones`() {
-        (null as WowProperties?).storeQueryOptions("main").also {
-            it.indexDdl.assert().isEqualTo(Ddl.AUTO)
-            it.eventsReadPreference.assert().isNull()
-            it.snapshotsReadPreference.assert().isNull()
-        }
+    fun `a store's ddl should be its queries', over the global one`() {
+        (null as WowProperties?).storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.AUTO)
         val properties = WowProperties().apply {
             ddl = Ddl.VALIDATE
-            mongo.queryReadPreference = "secondaryPreferred"
-            stores["other"] = WowProperties.Store().apply {
-                ddl = Ddl.NONE
-                options[WowProperties.QUERY_READ_PREFERENCE] = "nearest"
-            }
+            stores["other"] = WowProperties.Store().apply { ddl = Ddl.NONE }
         }
-        properties.storeQueryOptions("main").also {
-            it.indexDdl.assert().isEqualTo(Ddl.VALIDATE)
-            it.eventsReadPreference.assert().isEqualTo("secondaryPreferred")
-            it.snapshotsReadPreference.assert().isEqualTo("secondaryPreferred")
-        }
-        properties.storeQueryOptions("other").also {
-            it.indexDdl.assert().isEqualTo(Ddl.NONE)
-            it.eventsReadPreference.assert().isEqualTo("nearest")
-            it.snapshotsReadPreference.assert().isEqualTo("nearest")
-        }
+        properties.storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.VALIDATE)
+        properties.storeQueryOptions("other").indexDdl.assert().isEqualTo(Ddl.NONE)
         WowProperties.Store().apply { queryDataSource = "reads" }.options()["query-data-source"]
             .assert().isEqualTo("reads")
     }

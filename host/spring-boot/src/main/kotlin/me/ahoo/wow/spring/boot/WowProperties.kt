@@ -59,7 +59,6 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.core.env.Environment
 import java.net.URI
 import java.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
@@ -113,12 +112,6 @@ class WowProperties {
      * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
      */
     var ddl: Ddl = Ddl.AUTO
-
-    /** The defaults of the MongoDB stores. */
-    var mongo: Mongo = Mongo()
-
-    /** The defaults of the PostgreSQL stores. */
-    var postgres: Postgres = Postgres()
 
     /** The aggregates' logs: their partitions, their store, and how their appends and tails run. */
     var log: Log = Log()
@@ -267,54 +260,6 @@ class WowProperties {
     }
 
     @InternalWowApi
-    class Postgres {
-        /**
-         * How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes)
-         * and the queries (their own `statement_timeout`): a reply lost on the way fails the call, and
-         * its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it.
-         */
-        var operationTimeout: Duration = 30.seconds.toJavaDuration()
-    }
-
-    @InternalWowApi
-    class Mongo {
-        /**
-         * The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one
-         * `spring.mongodb.uri` names ([ConnectionDefaultsEnvironmentPostProcessor]), else this default.
-         */
-        var database: String = DEFAULT_MONGO_DATABASE
-
-        /**
-         * How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the
-         * default wait timeout, so a command appending during an outage is answered before its wait
-         * ends.
-         */
-        var appendTimeout: Duration = 5.seconds.toJavaDuration()
-
-        /**
-         * Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it
-         * creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard;
-         * a store's `options.sharding` overrides it.
-         */
-        var sharding: String = "auto"
-
-        /**
-         * How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands
-         * (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's
-         * `options.operation-timeout` overrides it.
-         */
-        var operationTimeout: Duration = 30.seconds.toJavaDuration()
-
-        /**
-         * The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so
-         * a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A
-         * snapshot read from a secondary may be behind the one a command's wait waited for. A store's
-         * `options.query-read-preference` overrides it.
-         */
-        var queryReadPreference: String? = null
-    }
-
-    @InternalWowApi
     class Log {
         /**
          * The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096,
@@ -379,11 +324,21 @@ class WowProperties {
          * The settings its provider reads ([me.ahoo.wow.spi.store.StoreConfig.options]): [options] and the named ones.
          */
         internal fun options(): Map<String, String> = options + listOfNotNull(
-            dataSource?.let { "data-source" to it },
-            queryDataSource?.let { "query-data-source" to it },
-            client?.let { "client" to it },
-            database?.let { "database" to it },
+            dataSource?.let { DATA_SOURCE to it },
+            queryDataSource?.let { QUERY_DATA_SOURCE to it },
+            client?.let { CLIENT to it },
+            database?.let { DATABASE to it },
         )
+
+        internal companion object {
+            private const val DATA_SOURCE = "data-source"
+            private const val QUERY_DATA_SOURCE = "query-data-source"
+            private const val CLIENT = "client"
+            private const val DATABASE = "database"
+
+            /** The options a store names with a setting of its own rather than under `options.*`. */
+            val NAMED: Set<String> = setOf(DATA_SOURCE, QUERY_DATA_SOURCE, CLIENT, DATABASE)
+        }
     }
 
     /**
@@ -1528,12 +1483,8 @@ class WowProperties {
         fun of(environment: Environment): WowProperties =
             Binder.get(environment).bindOrCreate(PREFIX, WowProperties::class.java)
 
-        /** The store option of the MongoDB read preference of its queries, over `wow.mongo.query-read-preference`. */
-        const val QUERY_READ_PREFERENCE: String = "query-read-preference"
-
         const val DEFAULT_INTERNAL_PORT: Int = 9090
         const val DEFAULT_PARTITIONS: Int = 64
-        const val DEFAULT_MONGO_DATABASE: String = "wow"
         private val DEFAULT_CLUSTER = ClusterOptions()
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
         private val DEFAULT_TIMERS = TimerOptions()
