@@ -126,7 +126,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 123 — with its kind 
 | `useRecordExport` | function | Exporting the result: the rows that are picked, or everything the applied conditions match. | — |
 | `useRecordKanban` | function | — | — |
 | `useRecordTable` | function | A record view as a table renders it, with no vendor types in sight. | [React Hooks](./react#api-useRecordTable) |
-| `useReferenceLabels` | function | The version of what reference ids read as (`ViewRuntime.labels`, D354), followed: a component that calls it draws again when a name arrives, so an id it showed turns into that name. | — |
+| `useReferenceLabels` | function | The version of what reference ids read as (`ViewRuntime.labels`), followed: a component that calls it draws again when a name arrives, so an id it showed turns into that name. | — |
 | `useRefreshCountdown` | function | Whole seconds until the next automatic refresh, redrawn once a second. | — |
 | `useReleaseDeleted` | function | Lets the pinned view go once it is gone. | — |
 | `useSaveCommands` | function | The write commands of one open view, with the permissions that decide which buttons are live. | [React Hooks](./react#api-useSaveCommands) |
