@@ -78,20 +78,20 @@ export const PAID_THIS_WEEK: RecordViewConfig = {
   filter: {
     op: 'and',
     children: [
-      { field: 'state.status', operator: 'IN', value: ['PAID'] },
+      { field: 'state.status', operator: 'in', value: ['PAID'] },
       // "This week" is stored as intent and resolved on every run.
       {
         field: 'firstEventTime',
-        operator: 'BETWEEN',
+        operator: 'between',
         value: { type: 'preset', preset: 'thisWeek' },
       },
     ],
   },
   filterMode: 'simple',
   refresh: { interval: null },
-  sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+  sort: [{ field: 'firstEventTime', direction: 'desc' }],
   pageSize: 20,
-  summaries: [{ field: 'state.totalAmount', fn: 'SUM' }],
+  summaries: [{ field: 'state.totalAmount', fn: 'sum' }],
   layout: 'table',
   table: {
     columns: [

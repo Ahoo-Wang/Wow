@@ -25,23 +25,23 @@ The catalog reads a product's timeline, counts its commits that hold a given eve
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
 
 ```kotlin
-val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
+val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"id","value":"$product"}}""", BUYER)
     .assertOk().json
 events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
 events.values().map { it["events"][0]["name"].asString() }.assert()
     .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
 // On the unified engine: an event condition is an element match; per-event analytics expand.
-val published = """{"op":"ELEMENT_MATCH","field":"events","predicate":""" +
-    """{"op":"EQ","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
+val published = """{"op":"element-match","field":"events","predicate":""" +
+    """{"op":"eq","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
 catalog.post(
     PRODUCT_EVENTS,
-    """{"kind":"count","filter":{"op":"AND","operands":[{"op":"ID","value":"$product"},$published]}}""",
+    """{"kind":"count","filter":{"op":"and","operands":[{"op":"id","value":"$product"},$published]}}""",
     BUYER,
 ).assertOk().json["count"].asLong().assert().isEqualTo(1)
 val perEvent = catalog.post(
     PRODUCT_EVENTS,
-    """{"kind":"aggregate","filter":{"op":"ID","value":"$product"},"elements":[{"path":"events"}],""" +
-        """"groupBy":[{"type":"TERMS","field":"name","alias":"event"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+    """{"kind":"aggregate","filter":{"op":"id","value":"$product"},"elements":[{"path":"events"}],""" +
+        """"groupBy":[{"type":"terms","field":"name","alias":"event"}],"metrics":[{"type":"count","alias":"n"}]}""",
     BUYER,
 ).assertOk().json
 perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().containsExactly(

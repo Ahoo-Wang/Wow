@@ -38,10 +38,10 @@ function queue(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'state.paidAt', direction: 'DESC' }],
+    sort: [{ field: 'state.paidAt', direction: 'desc' }],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'state.paidAmount', fn: 'SUM' }],
+    summaries: [{ field: 'state.paidAmount', fn: 'sum' }],
     table: { columns: COLUMNS.map(field => ({ field })) },
     card: {
       title: 'state.orderNo',
@@ -60,8 +60,8 @@ export const ORDER_QUEUES: SystemView[] = [
     // board's date filter never reaches it, whoever places it.
     timeField: null,
     config: queue(
-      [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
-      { sort: [{ field: 'state.paidAt', direction: 'ASC' }] },
+      [{ field: 'state.status', operator: 'in', value: ['PAID'] }],
+      { sort: [{ field: 'state.paidAt', direction: 'asc' }] },
     ),
   },
   { id: 'all', title: text('orders.all'), config: queue([]) },
@@ -76,14 +76,14 @@ import type { FilterNode } from '@ahoo-wang/wow-view-engine';
 // A calendar preset: 'today', 'yesterday', 'lastWeek', 'monthToDate', …
 export const PAID_YESTERDAY: FilterNode = {
   field: 'state.paidAt',
-  operator: 'BETWEEN',
+  operator: 'between',
   value: { type: 'preset', preset: 'yesterday' },
 };
 
 // A window from now: the past unless `direction: 'future'` (what is due).
 export const PAID_LAST_7_DAYS: FilterNode = {
   field: 'state.paidAt',
-  operator: 'BETWEEN',
+  operator: 'between',
   value: { type: 'relative', amount: 7, unit: 'day' },
 };
 ```
@@ -107,7 +107,7 @@ const byChannel: AnalysisViewConfig = {
       {
         // The last 30 days, resolved on every run: never a date written in.
         field: 'state.paidAt',
-        operator: 'BETWEEN',
+        operator: 'between',
         value: { type: 'relative', amount: 30, unit: 'day' },
       },
     ],
@@ -115,32 +115,32 @@ const byChannel: AnalysisViewConfig = {
   filterMode: 'simple',
   refresh: { interval: null },
   groups: [
-    { type: 'TERMS', field: 'state.channel', alias: 'channel', label: text('orders.channel') },
+    { type: 'terms', field: 'state.channel', alias: 'channel', label: text('orders.channel') },
   ],
   metrics: [
-    { type: 'COUNT', alias: 'orders', label: text('orders.count') },
+    { type: 'count', alias: 'orders', label: text('orders.count') },
     {
-      type: 'NUMERIC',
+      type: 'numeric',
       alias: 'paid',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'state.paidAmount' },
+      function: 'sum',
+      expression: { type: 'field', field: 'state.paidAmount' },
       label: text('orders.paidAmount'),
     },
     {
       // A ratio is a metric over metrics, not a field.
-      type: 'DERIVED',
+      type: 'derived',
       alias: 'perOrder',
       label: text('orders.perOrder'),
       expression: {
-        type: 'BINARY',
-        operator: 'DIVIDE',
-        left: { type: 'METRIC_REF', metric: 'paid' },
-        right: { type: 'METRIC_REF', metric: 'orders' },
+        type: 'binary',
+        operator: 'divide',
+        left: { type: 'metric-ref', metric: 'paid' },
+        right: { type: 'metric-ref', metric: 'orders' },
       },
       format: { style: 'currency', currency: 'CNY' },
     },
   ],
-  sort: [{ alias: 'paid', direction: 'DESC' }],
+  sort: [{ alias: 'paid', direction: 'desc' }],
   limit: 20,
   layout: 'chart',
   table: { columns: [] },
@@ -198,19 +198,19 @@ function card(
 }
 
 const paid: AnalysisViewConfig['metrics'][number] = {
-  type: 'NUMERIC',
+  type: 'numeric',
   alias: 'paid',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'state.paidAmount' },
+  function: 'sum',
+  expression: { type: 'field', field: 'state.paidAmount' },
   label: text('orders.paidAmount'),
 };
 
 const dailyPaid: AnalysisViewConfig = {
   ...card(paid),
   groups: [
-    { type: 'DATE_HISTOGRAM', field: 'state.paidAt', alias: 'day', unit: 'DAY', label: text('orders.day') },
+    { type: 'date-histogram', field: 'state.paidAt', alias: 'day', unit: 'day', label: text('orders.day') },
   ],
-  sort: [{ alias: 'day', direction: 'ASC' }],
+  sort: [{ alias: 'day', direction: 'asc' }],
   // One row a day: room for the longest window a reader picks.
   limit: 92,
   chart: { type: 'line', cartesian: { x: 'day', series: [{ metric: 'paid' }] } },
@@ -264,8 +264,8 @@ export const overview: DashboardDefinition = {
             owned: {
               definitionId: 'orders',
               config: card(
-                { type: 'COUNT', alias: 'orders', label: text('orders.count') },
-                [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
+                { type: 'count', alias: 'orders', label: text('orders.count') },
+                [{ field: 'state.status', operator: 'in', value: ['PAID'] }],
               ),
             },
             // 「在工作台中打开」 opens the queue itself, not a count.
