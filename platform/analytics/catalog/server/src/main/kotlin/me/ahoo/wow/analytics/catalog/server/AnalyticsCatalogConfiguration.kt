@@ -31,7 +31,7 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.cosec.CoSecAuthorizers
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -80,9 +80,13 @@ import kotlin.time.toKotlinDuration
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AnalyticsCatalogProperties::class)
 class AnalyticsCatalogConfiguration {
+    /**
+     * Who sends what: steps aside when CoSec decides ([CoSecCommandAuthorizer], its policies alone, this one then having
+     * no objection); otherwise the catalog's roles decide ([AnalyticsCatalogAuthorizer]).
+     */
     @Bean
-    fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
-        AnalyticsCatalogAuthorizer(cosec.ifAvailable?.authorizer())
+    fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
+        if (cosec.ifAvailable == null) AnalyticsCatalogAuthorizer() else CommandAuthorizer.ALLOW_ALL
 
     @Bean
     fun analyticsCatalogQueryPolicy(): QueryPolicy = AnalyticsCatalogQueryPolicy()

@@ -93,10 +93,12 @@ public final class me/ahoo/wow/runtime/admission/CommandAction$Companion {
 public abstract interface class me/ahoo/wow/runtime/admission/CommandAuthorizer {
 	public static final field ALLOW_ALL Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
 	public static final field Companion Lme/ahoo/wow/runtime/admission/CommandAuthorizer$Companion;
+	public static fun allOf (Ljava/util/List;)Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
 	public abstract fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/CommandAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/runtime/admission/CommandAuthorizer$Companion {
+	public final fun allOf (Ljava/util/List;)Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
 }
 
 public abstract interface class me/ahoo/wow/runtime/admission/CommandBody {

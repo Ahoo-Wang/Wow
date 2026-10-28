@@ -25,7 +25,6 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
-import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.Authorization
@@ -164,15 +163,11 @@ class HostCallsTest {
     }
 
     @Test
-    fun `a call authorizer should authorize the services' commands, the host's authorizer every other`() {
-        val base = CommandAuthorizer.ALLOW_ALL
-        WowAutoConfiguration.authorizerOf(base, null).assert().isSameAs(base)
-        WowAutoConfiguration.authorizerOf(base, CallAuthorizer { _, _ -> Authorization.Denied("No.") }).assert()
-            .isNotSameAs(base)
-        // With a call authorizer bean (CoSec's, say), a service's call is that authorizer's.
+    fun `an authorizer of the service identities should decide their calls, and object to no other caller's`() {
+        // The services' authorizer is one of the node's: it denies a service's call.
         internalCall(denying, "/bank/account/open-account", """{"owner":"mallory"}""").assert()
             .isEqualTo(403 to "wow.auth.forbidden")
-        // A caller that is no service is the host's authorizer's, which allows all.
+        // A caller that is no service it has no objection to, as the node's other authorizers allow it.
         denying.post("/bank/account/open-account", """{"owner":"olga"}""").status.assert().isEqualTo(200)
     }
 
@@ -192,5 +187,7 @@ class HostCallsTest {
 @Configuration(proxyBeanMethods = false)
 class DenyingCalls {
     @Bean
-    fun callAuthorizer(): CallAuthorizer = CallAuthorizer { _, _ -> Authorization.Denied("No call is allowed here.") }
+    fun serviceCalls(): CommandAuthorizer = CommandAuthorizer { caller, _ ->
+        if (caller.service) Authorization.Denied("No call is allowed here.") else Authorization.Allowed
+    }
 }

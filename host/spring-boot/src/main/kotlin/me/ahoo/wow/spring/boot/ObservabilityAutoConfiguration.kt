@@ -38,7 +38,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -52,7 +51,7 @@ import kotlin.time.toKotlinDuration
  * [GlobalOpenTelemetry] (the Java agent's, or a no-op one); the metrics go to the application's [MeterRegistry] bean
  * (Spring Boot Actuator's), else Micrometer's global registry.
  *
- * - **Node**: an [OtelObserver], unless the application has an [Observer] of its own: the node's admissions,
+ * - **Node**: an [OtelObserver], beside any [Observer] of the application's (the node tells every one): the node's admissions,
  *   executions, decisions, appends, subscription handlings (consumptions of a topic among them) and timer firings
  *   are spans, in the trace each request, entry or message carries, with the commit latency, subscription lag and
  *   timer delay as timers.
@@ -70,7 +69,6 @@ import kotlin.time.toKotlinDuration
 @EnableConfigurationProperties(ObservabilityProperties::class)
 class ObservabilityAutoConfiguration {
     @Bean
-    @ConditionalOnMissingBean(Observer::class)
     fun wowObserver(openTelemetry: ObjectProvider<OpenTelemetry>, meters: ObjectProvider<MeterRegistry>): Observer =
         OtelObserver(openTelemetry.orGlobal(), meters.orGlobal())
 

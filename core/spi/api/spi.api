@@ -827,10 +827,12 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun observed (Lme/ahoo/wow/spi/observation/ObservedEvent;)V
+	public static fun of (Ljava/util/List;)Lme/ahoo/wow/spi/observation/Observer;
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
 }
 
 public final class me/ahoo/wow/spi/observation/Observer$Companion {
+	public final fun of (Ljava/util/List;)Lme/ahoo/wow/spi/observation/Observer;
 }
 
 public final class me/ahoo/wow/spi/observation/ObserverKt {

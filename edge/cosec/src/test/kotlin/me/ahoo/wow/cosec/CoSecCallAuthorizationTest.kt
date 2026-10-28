@@ -20,8 +20,8 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -45,11 +45,15 @@ class CoSecCallAuthorizationTest {
         Mono.just(if (allowed) AuthorizeResult.ALLOW else AuthorizeResult.deny("Not this service's."))
     }
 
-    private val calls = CoSecCommandAuthorizer(authorization, cartManifest(), Caller.DEFAULT_TENANT)
-        .let { CallAuthorizer(it::authorize) }
+    private val cosec = CoSecCommandAuthorizer(authorization, cartManifest(), Caller.DEFAULT_TENANT)
+
+    /** CoSec's decision on the service identities' calls; no objection to any other caller's command. */
+    private val calls = CommandAuthorizer { caller, action ->
+        if (caller.service) cosec.authorize(caller, action) else Authorization.Allowed
+    }
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions()),
-        authorizer = calls.over(CommandAuthorizer.ALLOW_ALL),
+        authorizer = CommandAuthorizer.allOf(listOf(calls, CommandAuthorizer.ALLOW_ALL)),
     )
     private val service = Caller(
         subject = "basket",
