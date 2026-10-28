@@ -150,9 +150,9 @@ These were exported for the default UI's own use, and the default UI still uses 
 
 | Before | After |
 | --- | --- |
-| `/react`: `failureReasons`, `ownedNavigation`, `kindMismatch`, `retryableOpen`, `VALUE_CANDIDATE_DEBOUNCE_MS` | not exported, no replacement export. A host's own UI reads the hooks' results instead: `BulkOutcome` for a bulk run's failures, `WorkbenchController.unopenable` for a view of a kind the workbench cannot draw, `OpenViewState.retry()` to open again |
-| `/react`: `toIssue` | not exported: every hook and controller already reports a failure as an `Issue` |
-| `/ui`: `useSurfaceTokens`, `useSurfaceColorMode`, `useSurfaceFont`, `useSurfaceHostTokens`, `useSurfaceAttributes` | not exported: the surface hands its tokens, colour mode, font and attributes to its own charts and popups. `useSurfaceDisplay` stays: the language and zone a host's own cell writes values in |
+| `@ahoo-wang/wow-view-engine/react`: `failureReasons`, `ownedNavigation`, `kindMismatch`, `retryableOpen`, `VALUE_CANDIDATE_DEBOUNCE_MS` | not exported, no replacement export. A host's own UI reads the hooks' results instead: `BulkOutcome` for a bulk run's failures, `WorkbenchController.unopenable` for a view of a kind the workbench cannot draw, `OpenViewState.retry()` to open again |
+| `@ahoo-wang/wow-view-engine/react`: `toIssue` | not exported: every hook and controller already reports a failure as an `Issue` |
+| `@ahoo-wang/wow-view-engine/ui`: `useSurfaceTokens`, `useSurfaceColorMode`, `useSurfaceFont`, `useSurfaceHostTokens`, `useSurfaceAttributes` | not exported: the surface hands its tokens, colour mode, font and attributes to its own charts and popups. `useSurfaceDisplay` stays: the language and zone a host's own cell writes values in |
 | root: `CARTESIAN_MISSING`, `DERIVED_KINDS`, `REFERENCE_STATISTICS`, `FIELD_METRIC_TYPES`, `DURATION_COMPARISONS`, `DASHBOARD_GRID_COLUMNS` | not exported. The types are written out as their literals: `CartesianMissing`, `DerivedKind`, `ReferenceStatistic`, `FieldMetricType`, `ComparisonOperatorName`; `DashboardViewConfig.columns` is the literal `24` |
 | root: `havingRows` | not exported: `AnalysisEditorController.having` is the rows (`HavingRow[] \| null`) |
 
