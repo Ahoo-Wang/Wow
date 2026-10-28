@@ -133,7 +133,7 @@ flowchart BT
 - 后端只依赖 `wow-spi`（实现查询后端时再依赖 `wow-query`），后端之间互不依赖。
 - Reactor 只出现在 `wow-reactor` 与 WebFlux 适配层；swagger 只出现在 `wow-openapi`；只有 `wow-spring-boot` 依赖 Spring Boot。
 - 观测只经固定接缝挂入，不改变处理结果。
-- 任何模块都不依赖 `wow-migrate-data`，也不出现 9.x 的类型名与配置键（[07](07-migration.md) §4），拒绝 9.x 遗留物的两处检测器除外（编译器的 `ModelNames.FRAMEWORK_PACKAGES` 与 Gradle 插件的 `WowPlugin.NINE_X_PROCESSORS`）；由架构测试 `PositiveRules`（`CORE_IMPORTS`、`NINE_X_NAMES`、`NINE_X_KEYS`、`NINE_X_DETECTORS`）强制（R5.C-10，#4937）。
+- 任何模块都不依赖 `wow-migrate-data`，也不出现 9.x 的类型名（[07](07-migration.md) §4），拒绝 9.x 遗留物的两处检测器除外（编译器的 `ModelNames.FRAMEWORK_PACKAGES` 与 Gradle 插件的 `WowPlugin.NINE_X_PROCESSORS`）；由架构测试 `PositiveRules`（`CORE_IMPORTS`、`NINE_X_NAMES`、`NINE_X_DETECTORS`）强制（R5.C-10，#4937）。配置键不按 9.x 名单检查：键名与作用范围只按语义与易用性定，仓库里配置文件出现的每个 `wow.*` 键都必须是已声明的 V10 键（`undeclaredConfigKeys`，#5095；运行时由 D302 拒绝未声明的键）。
 
 ## 4. 目录结构（D41）
 
