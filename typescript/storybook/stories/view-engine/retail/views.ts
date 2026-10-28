@@ -582,7 +582,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
           x: 'month',
           series: [
             { metric: 'gmv', type: 'bar', axis: 'left' },
-            { metric: 'aov', type: 'line', axis: 'right', smooth: true },
+            { metric: 'aov', type: 'line', axis: 'right', line: 'smooth' },
           ],
           yAxis: { right: { label: '客单价', min: 150 } },
         },

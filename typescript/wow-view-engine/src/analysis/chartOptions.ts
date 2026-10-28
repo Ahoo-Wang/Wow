@@ -180,20 +180,48 @@ export function withPercentStack(
     : without(spec, 'percentStack');
 }
 
-export function isSmooth(spec: CartesianSpec): boolean {
-  return (
-    spec.series.length > 0 &&
-    spec.series.every(series => series.smooth === true)
-  );
+/**
+ * How the chart's lines join their points, read as one choice: the line
+ * every series that draws one shares, or straight — unwritten — when they
+ * do not all say the same. Half the lines curved is not a curved chart,
+ * as half the series stacked is not a stacked one. A combo's bars draw no
+ * line and are not asked.
+ */
+export function lineOf(
+  spec: CartesianSpec,
+  type: ChartType,
+): CartesianSeries['line'] {
+  const lines = spec.series.filter(series => drawsLine(type, series));
+  const first = lines[0]?.line;
+  return lines.every(series => series.line === first) ? first : undefined;
 }
 
-export function withSmooth(spec: CartesianSpec, on: boolean): CartesianSpec {
+/**
+ * The line chosen for the whole chart: every series that draws one takes
+ * it, and straight leaves nothing written. A bar is left as it is.
+ */
+export function withLine(
+  spec: CartesianSpec,
+  line: CartesianSeries['line'],
+  type: ChartType,
+): CartesianSpec {
   return {
     ...spec,
     series: spec.series.map(series =>
-      on ? { ...series, smooth: true } : without(series, 'smooth'),
+      !drawsLine(type, series)
+        ? series
+        : line === undefined
+          ? without(series, 'line')
+          : { ...series, line },
     ),
   };
+}
+
+function drawsLine(
+  type: ChartType,
+  series: Pick<CartesianSeries, 'type'>,
+): boolean {
+  return seriesMark(type, series) !== 'bar';
 }
 
 /**

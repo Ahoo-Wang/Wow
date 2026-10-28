@@ -529,20 +529,35 @@ describe('cartesianOption: lines, areas and a combo', () => {
   it('draws a line with a dot on each point, a gap where one is missing', () => {
     const option = as('line', {
       ...bar({
-        series: [{ metric: 'orders', smooth: true }, { metric: 'total' }],
+        series: [{ metric: 'orders', line: 'smooth' }, { metric: 'total' }],
       }),
       type: 'line',
     });
     const [orders, total] = option.series;
     expect(orders.type).toBe('line');
     expect(orders.smooth).toBe(true);
+    expect(orders.step).toBe(false);
+    // Unwritten, a line runs straight from one point to the next.
     expect(total.smooth).toBe(false);
+    expect(total.step).toBe(false);
     expect(orders.showSymbol).toBe(true);
     expect(orders.connectNulls).toBe(false);
     expect(orders).not.toHaveProperty('areaStyle');
     expect(orders.lineStyle.color).toBe('resolved(var(--chart-1))');
     // A rule through the points rather than a band behind them.
     expect(option.tooltip.axisPointer.type).toBe('line');
+  });
+
+  it('holds each value of a step line or area until the next point', () => {
+    for (const type of ['line', 'area'] as const) {
+      const [orders] = as(type, {
+        ...bar({ series: [{ metric: 'orders', line: 'step' }] }),
+        type,
+      }).series;
+      // The value holds and then moves (`end`), never the other way about.
+      expect(orders.step).toBe('end');
+      expect(orders.smooth).toBe(false);
+    }
   });
 
   it('leaves the dots off once there are too many to tell apart', () => {

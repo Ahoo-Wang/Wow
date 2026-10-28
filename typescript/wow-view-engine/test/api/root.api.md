@@ -803,9 +803,8 @@ export type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
 export interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
+    line?: 'smooth' | 'step';
     metric: string;
-    // (undocumented)
-    smooth?: boolean;
     stack?: string;
     type?: 'bar' | 'line' | 'area';
 }
@@ -2948,9 +2947,6 @@ export function isSimpleTree(tree: FilterTree): boolean;
 export function isSingleStringField(field: FieldDefinition, registered?: {
     singleString?: boolean;
 }): boolean;
-
-// @public (undocumented)
-export function isSmooth(spec: CartesianSpec): boolean;
 
 // @public
 export function isStacked(spec: CartesianSpec, type?: ChartType): boolean;
@@ -5578,9 +5574,6 @@ export function withRootSearch(tree: FilterTree, field: string, text: string): F
 
 // @public
 export function withSlot<S extends object, K extends keyof S>(spec: S, at: K, other: K, alias: string): S;
-
-// @public (undocumented)
-export function withSmooth(spec: CartesianSpec, on: boolean): CartesianSpec;
 
 // @public
 export function withStacked(spec: CartesianSpec, on: boolean, type?: ChartType): CartesianSpec;

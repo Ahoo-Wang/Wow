@@ -433,11 +433,15 @@ function markOf(
   }
   // A line or an area: a dot on each point while there are few enough to
   // tell apart, a gap where a value is missing rather than a line drawn
-  // through it, and an area filled faintly under its own line.
+  // through it, and an area filled faintly under its own line. A step
+  // (`end`) holds each value until the next point, then moves: a balance
+  // stays what it was until the next reading changes it.
+  const line = entry.configured?.line;
   return {
     ...common,
     type: 'line',
-    smooth: entry.configured?.smooth === true,
+    smooth: line === 'smooth',
+    step: line === 'step' ? 'end' : false,
     symbol: 'circle',
     symbolSize: 6,
     showSymbol: data.points.length <= DOTS_UP_TO,

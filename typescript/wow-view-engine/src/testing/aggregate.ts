@@ -51,8 +51,10 @@ import type { RecordData } from '../model/record.js';
  *    step — each path relative to the step before, each gate filter naming
  *    the element's own fields; what is left is counted as if each element
  *    were a record.
- * 2. The groups key each record; a metric's own `filter` decides, per
- *    record, whether that record counts toward that one metric.
+ * 2. The groups key each record; a record joins the group of each
+ *    combination of its keys (a `TERMS` field over an array keys it once
+ *    per value); a metric's own `filter` decides, per record, whether that
+ *    record counts toward that one metric.
  * 3. A `dense` date group fills its empty buckets; the derived metrics are
  *    computed over each grouped row; `having` keeps the rows it admits.
  * 4. The rows are sorted by the query's sort, then by every group alias it
@@ -80,23 +82,23 @@ export function summarise(
   });
   // A ROOT group keys an element by the record it was expanded from.
   const keyers = groupBy.map(group => {
-    const keyOf = keyerOf(group);
+    const keysOf = keyerOf(group);
     return group.scope === AggregationGroupScope.ROOT
-      ? (unit: RecordData) => keyOf(rootOf.get(unit) ?? unit)
-      : keyOf;
+      ? (unit: RecordData) => keysOf(rootOf.get(unit) ?? unit)
+      : keysOf;
   });
   const groups = new Map<string, { keys: unknown[]; units: RecordData[] }>();
   if (groupBy.length === 0) groups.set('[]', { keys: [], units: [] });
   const denseAt = dense ? groupBy.indexOf(dense) : -1;
-  for (const unit of units) {
-    const keys = keyers.map(keyOf => keyOf(unit));
-    // Wow puts no record without a time into a dense histogram.
-    if (denseAt >= 0 && keys[denseAt] === null) continue;
-    const id = JSON.stringify(keys);
-    let group = groups.get(id);
-    if (!group) groups.set(id, (group = { keys, units: [] }));
-    group.units.push(unit);
-  }
+  for (const unit of units)
+    for (const keys of combinations(keyers.map(keysOf => keysOf(unit)))) {
+      // Wow puts no record without a time into a dense histogram.
+      if (denseAt >= 0 && keys[denseAt] === null) continue;
+      const id = JSON.stringify(keys);
+      let group = groups.get(id);
+      if (!group) groups.set(id, (group = { keys, units: [] }));
+      group.units.push(unit);
+    }
   let rows = [...groups.values()].map(({ keys, units: members }) =>
     rowOf(groupBy, keys, metrics, gates, members),
   );
@@ -159,10 +161,40 @@ function denseGroup(
 }
 
 /**
- * How one group keys a record, as the service answers the key:
+ * Every combination of one key from each group's keys, in group order: a
+ * record with two values under one group and three under another joins six
+ * groups.
+ */
+function combinations(keysByGroup: readonly unknown[][]): unknown[][] {
+  return keysByGroup.reduce<unknown[][]>(
+    (prefixes, keys) =>
+      prefixes.flatMap(prefix => keys.map(key => [...prefix, key])),
+    [[]],
+  );
+}
+
+/**
+ * The distinct values a `TERMS` field keys a record by: each value of an
+ * array once, null aside; the value itself otherwise. None — a missing or
+ * null field, an empty array, an array of nulls — keys the record by
+ * `missingKey`, or `null`.
+ */
+function termsOf(value: unknown, missingKey: string | undefined): unknown[] {
+  const values = (Array.isArray(value) ? value.flat(Infinity) : [value]).filter(
+    each => each !== null && each !== undefined,
+  );
+  const distinct = [
+    ...new Map(values.map(each => [JSON.stringify(each), each])).values(),
+  ];
+  return distinct.length > 0 ? distinct : [missingKey ?? null];
+}
+
+/**
+ * The keys one group gives a record, as the service answers them — one,
+ * but for a `TERMS` field over an array, which gives one per value:
  *
- * - `TERMS`: the value — `null` where the field is missing or null, or the
- *   group's `missingKey` there (`$ifNull`); an expression's number.
+ * - `TERMS`: each distinct value (`termsOf`) — `null` where there is none,
+ *   or the group's `missingKey` there; an expression's number.
  * - `HISTOGRAM`: the lower bound of the band of `interval` the number falls
  *   in, counted from zero.
  * - `DATE_HISTOGRAM`: the start of the unit in the group's zone, in epoch
@@ -171,18 +203,20 @@ function denseGroup(
  * - `DATE_PART`: the part's integer on the zone's wall clock — the ISO
  *   weekday 1 (Monday) to 7, the hour 0 to 23, the day, the month 1 to 12.
  */
-function keyerOf(group: AggregationGroup): (unit: RecordData) => unknown {
+function keyerOf(group: AggregationGroup): (unit: RecordData) => unknown[] {
+  if (group.type === AggregationGroupType.TERMS) {
+    const { field, expression, missingKey } = group;
+    return field === undefined
+      ? unit => [evaluated(expression, unit) ?? missingKey ?? null]
+      : unit => termsOf(valueAt(unit, field), missingKey);
+  }
+  const keyOf = singleKeyerOf(group);
+  return unit => [keyOf(unit)];
+}
+
+/** The one key every group but `TERMS` gives a record. */
+function singleKeyerOf(group: AggregationGroup): (unit: RecordData) => unknown {
   switch (group.type) {
-    case AggregationGroupType.TERMS: {
-      const { field, expression, missingKey } = group;
-      return unit => {
-        const value =
-          field === undefined
-            ? evaluated(expression, unit)
-            : valueAt(unit, field);
-        return value ?? missingKey ?? null;
-      };
-    }
     case AggregationGroupType.HISTOGRAM: {
       const { field, expression, interval } = group;
       return unit => {

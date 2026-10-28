@@ -19,6 +19,7 @@
  */
 
 import {
+  AggregationGroupType,
   filter,
   FilterOperator,
   QueryValueKind,
@@ -65,7 +66,14 @@ function withCustomer(
   });
 }
 
-function descriptor(): QueryModelDescriptor {
+function descriptor(
+  granted: Pick<
+    QueryModelDescriptor['dynamic'][number],
+    'sort' | 'aggregate'
+  > = {
+    sort: { paged: false, cursor: false },
+  },
+): QueryModelDescriptor {
   return ordersDescriptor({
     fields: [
       describedField('id'),
@@ -78,15 +86,18 @@ function descriptor(): QueryModelDescriptor {
         types: [QueryValueTypes.INTEGER],
         kind: QueryValueKind.SCALAR,
         filter: { operators: [FilterOperator.EQ, FilterOperator.GT] },
-        sort: { paged: false, cursor: false },
+        ...granted,
         excludedKeys: ['color'],
       },
     ],
   });
 }
 
-const define = (fields: Parameters<typeof defineView>[1]['fields']) =>
-  defineView(descriptor(), {
+const define = (
+  fields: Parameters<typeof defineView>[1]['fields'],
+  from: QueryModelDescriptor = descriptor(),
+) =>
+  defineView(from, {
     id: 'orders',
     source: 'orders',
     title: 'Orders',
@@ -142,8 +153,30 @@ describe('defineView on a dynamic key', () => {
     expect(
       definition.described?.findings.map(found => found.code),
     ).not.toContain('definition.field.kind-unknown');
-    // A pattern says nothing of sorting.
+    // The pattern grants no sort, nor any aggregation.
     expect(fieldOf(definition, 'state.tags.size')?.sortable).toBeUndefined();
+    expect(definition.analysis?.fields.map(entry => entry.field)).not.toContain(
+      'state.tags.size',
+    );
+  });
+
+  it('sorts and groups it where the pattern grants', () => {
+    const definition = define(
+      { id: 'Order', 'state.tags.size': 'Size' },
+      descriptor({
+        sort: { paged: true, cursor: false },
+        aggregate: {
+          ...describedField('status').aggregate!,
+          groups: [AggregationGroupType.TERMS],
+        },
+      }),
+    );
+    expect(fieldOf(definition, 'state.tags.size')?.sortable).toBe(true);
+    expect(
+      definition.analysis?.fields.find(
+        entry => entry.field === 'state.tags.size',
+      ),
+    ).toMatchObject({ groups: [AggregationGroupType.TERMS] });
   });
 
   it('finds no kind for a key the pattern excludes and nothing declares', () => {

@@ -18,15 +18,15 @@ import {
   PEAKS_ONLY_FROM,
   chartMarks,
   isPercentStacked,
-  isSmooth,
   isStacked,
+  lineOf,
   offersPercentStack,
   offersStacking,
   peaksOnlyLabels,
   stacks,
   valueLabelsOn,
+  withLine,
   withPercentStack,
-  withSmooth,
   withStacked,
 } from '../../analysis/index.js';
 import {
@@ -57,6 +57,8 @@ import {
 
 const LEGENDS = ['auto', 'top', 'bottom', 'right', 'none'] as const;
 const FORMATS = ['auto', 'compact', 'percent'] as const;
+/** How a line joins its points; straight is the one left unwritten. */
+const LINES = ['straight', 'smooth', 'step'] as const;
 
 /**
  * The display page: how the marks are drawn, family by family,
@@ -253,6 +255,7 @@ function CartesianDisplay(props: OptionsPageProps) {
   const update = (next: CartesianSpec) =>
     onChange({ ...chart, cartesian: next });
   const curved = chart.type !== 'bar';
+  const line = lineOf(spec, chart.type) ?? 'straight';
   // A stored value this package does not know reads as the default.
   const missing = spec.missing === 'gap' ? 'gap' : 'zero';
   // Only bars and areas stack (`stacks`): a line chart has no such box, and
@@ -325,11 +328,28 @@ function CartesianDisplay(props: OptionsPageProps) {
         }
       />
       {curved && (
-        <CheckField
-          data-slot="chart-smooth"
-          label={messages.label('label.chart.smooth')}
-          checked={isSmooth(spec)}
-          onChange={on => update(withSmooth(spec, on))}
+        <ChoiceField
+          data-slot="chart-line"
+          label={messages.label('label.chart.line')}
+          hint={
+            line === 'step'
+              ? messages.label('label.chart.line.step.hint')
+              : undefined
+          }
+          items={LINES.map(value => ({
+            value,
+            label: messages.label(`label.chart.line.${value}`),
+          }))}
+          value={line}
+          onChange={next =>
+            update(
+              withLine(
+                spec,
+                next === 'straight' ? undefined : next,
+                chart.type,
+              ),
+            )
+          }
         />
       )}
       {/*

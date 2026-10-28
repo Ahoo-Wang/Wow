@@ -38,6 +38,7 @@ import {
   type Issue,
 } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
+import { describedField as describedFieldOf } from '../src/capabilities/match.js';
 import { ordersDefinition } from './fixtures.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 
@@ -970,5 +971,121 @@ describe('4.4 analysis', () => {
       path: ['analysis'],
     });
     expect(findings.every(found => found.severity !== 'error')).toBe(true);
+  });
+});
+
+describe('a key under a dynamic pattern sorts and aggregates where it grants', () => {
+  const pattern = (
+    overrides: Partial<QueryModelDescriptor['dynamic'][number]> = {},
+  ): QueryModelDescriptor['dynamic'][number] => ({
+    pattern: 'tags.{key}',
+    types: [QueryValueTypes.STRING],
+    kind: QueryValueKind.SCALAR as never,
+    filter: { operators: [FilterOperator.EQ] },
+    sort: { paged: false, cursor: false },
+    ...overrides,
+  });
+  const declared = (paging: 'paged' | 'cursor' = 'paged') => {
+    const definition = ordersDefinition({
+      fields: [
+        ...ordersDefinition().fields,
+        { name: 'tags.color', label: 'Colour', kind: 'string', sortable: true },
+      ],
+      record: { rowKey: 'id', paging, layouts: ['table'] },
+    });
+    definition.analysis!.fields.push({
+      field: 'tags.color',
+      groups: [AggregationGroupType.TERMS, AggregationGroupType.HISTOGRAM],
+      functions: [],
+    });
+    return definition;
+  };
+  const terms = {
+    ...describedField('warehouse').aggregate!,
+    groups: [AggregationGroupType.TERMS],
+  };
+
+  it('sorts by the paging the pattern grants', () => {
+    const descriptor = ordersDescriptor({
+      dynamic: [pattern({ sort: { paged: true, cursor: false } })],
+    });
+    const paged = narrow(declared(), descriptor);
+    const cursor = narrow(declared('cursor'), descriptor);
+
+    expect(field(paged.definition, 'tags.color')?.sortable).toBe(true);
+    expect(codes(paged.findings)).not.toContain(
+      'warning capability.field.unsortable',
+    );
+    expect(field(cursor.definition, 'tags.color')?.sortable).toBe(false);
+    expect(codes(cursor.findings)).toContain(
+      'warning capability.field.unsortable',
+    );
+  });
+
+  it('groups by the terms the pattern grants, the rest narrowed away', () => {
+    const descriptor = ordersDescriptor({
+      dynamic: [pattern({ aggregate: terms })],
+    });
+    const { definition, findings } = narrow(declared(), descriptor);
+
+    expect(
+      definition.analysis?.fields.find(entry => entry.field === 'tags.color'),
+    ).toMatchObject({ groups: [AggregationGroupType.TERMS] });
+    expect(findings).toContainEqual(
+      expect.objectContaining({
+        code: 'capability.analysis.field-narrowed',
+        params: {
+          field: 'tags.color',
+          dropped: `label.group.type.${AggregationGroupType.HISTOGRAM}`,
+        },
+      }),
+    );
+  });
+
+  it('neither sorts nor aggregates where the pattern grants neither', () => {
+    const { definition, findings } = narrow(
+      declared(),
+      ordersDescriptor({ dynamic: [pattern()] }),
+    );
+
+    expect(field(definition, 'tags.color')?.sortable).toBe(false);
+    expect(codes(findings)).toContain('warning capability.field.unsortable');
+    expect(definition.analysis?.fields.map(entry => entry.field)).toEqual([
+      'warehouse',
+      'amount',
+    ]);
+  });
+
+  it('keeps only what every matched pattern grants', () => {
+    const descriptor = ordersDescriptor({
+      dynamic: [
+        pattern({ sort: { paged: true, cursor: true }, aggregate: terms }),
+        pattern({
+          sort: { paged: true, cursor: false },
+          aggregate: {
+            ...terms,
+            groups: [
+              AggregationGroupType.TERMS,
+              AggregationGroupType.HISTOGRAM,
+            ],
+            missingKey: false,
+          },
+        }),
+      ],
+    });
+
+    expect(describedFieldOf(descriptor, 'tags.color')).toMatchObject({
+      sort: { paged: true, cursor: false },
+      aggregate: { groups: [AggregationGroupType.TERMS], missingKey: false },
+    });
+    // One pattern that cannot be aggregated leaves the key unaggregated.
+    expect(
+      describedFieldOf(
+        ordersDescriptor({
+          dynamic: [pattern({ aggregate: terms }), pattern()],
+        }),
+        'tags.color',
+      )?.aggregate,
+    ).toBeUndefined();
   });
 });

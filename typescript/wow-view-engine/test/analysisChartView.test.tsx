@@ -287,7 +287,7 @@ describe('AnalysisChart', () => {
             type: 'combo',
             cartesian: {
               x: 'warehouse',
-              series: [{ metric: 'orders', type: 'line', smooth: true }],
+              series: [{ metric: 'orders', type: 'line', line: 'smooth' }],
               orientation: 'horizontal',
               referenceLines: [{ axis: 'left', value: 2, label: 'target' }],
             },
