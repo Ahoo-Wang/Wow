@@ -20,9 +20,12 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportUnavailableException
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.net.ConnectException
@@ -42,6 +45,7 @@ class FailureClassificationTest {
     fun `the runtime takes connection failures for systemic and anything else for recoverable`() {
         listOf(
             StorageUnavailableException("The store is unavailable; retry later."),
+            TransportUnavailableException("The broker is unavailable; retry later."),
             ConnectException("Connection refused"),
             SocketException("Connection reset"),
             UnknownHostException("views.internal"),
@@ -56,7 +60,16 @@ class FailureClassificationTest {
             SQLException("unique violation", "23505"),
             SQLException("no state"),
             HandlerTimeoutException("projection", cart("x"), 1, kotlin.time.Duration.parse("1s")),
+            StorageTimeoutException(java.time.Duration.ofSeconds(1)),
         ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.RECOVERABLE) }
+    }
+
+    @Test
+    fun `a value a store refused for good is unrecoverable, wherever it was wrapped`() {
+        val refused = StorageRefusedException("PostgreSQL refuses the value (SQLSTATE 22P05).")
+        classification.classify(refused, null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(IllegalStateException("The sink failed.", refused), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
     }
 
     @Test
@@ -90,11 +103,6 @@ class FailureClassificationTest {
         ).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         FailureClassifier.NONE.classify(unavailable).assert().isNull()
         BuiltInFailures.classify(IllegalStateException()).assert().isNull()
-    }
-
-    @Test
-    fun `the backends on the class path contribute no classifier to the runtime's own tests`() {
-        FailureClassification.LOADED.assert().isEmpty()
     }
 
     @Test

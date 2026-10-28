@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import java.sql.SQLException
 import java.sql.SQLRecoverableException
@@ -57,19 +58,19 @@ internal object PostgresFailures {
     fun isRefused(failure: SQLException): Boolean =
         failure.sqlState?.let { state -> REFUSED_CLASSES.any { state.startsWith(it) } } == true
 
-    /** [failure], a refusal ([isRefused]), as the [IllegalArgumentException] every backend refuses a value with. */
-    fun refusal(failure: SQLException): IllegalArgumentException =
-        IllegalArgumentException(
+    /** [failure], a refusal ([isRefused]), as the [StorageRefusedException] every backend refuses a value with. */
+    fun refusal(failure: SQLException): StorageRefusedException =
+        StorageRefusedException(
             "PostgreSQL refuses the value (SQLSTATE ${failure.sqlState}): ${failure.message}",
             failure
         )
 
     /** [failure] as a refusal ([refusal]) when PostgreSQL refused a value ([isRefused]); else [failure] is thrown. */
-    fun refusedOrThrow(failure: SQLException): IllegalArgumentException =
+    fun refusedOrThrow(failure: SQLException): StorageRefusedException =
         if (isRefused(failure)) refusal(failure) else throw failure
 
     /**
-     * [failure] as a [StorageUnavailableException] when it [isTransient], as an [IllegalArgumentException] when
+     * [failure] as a [StorageUnavailableException] when it [isTransient], as a [StorageRefusedException] when
      * PostgreSQL refused the value ([isRefused]), else as it is.
      */
     fun translate(failure: SQLException): Exception = when {

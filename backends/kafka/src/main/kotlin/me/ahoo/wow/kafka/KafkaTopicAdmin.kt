@@ -43,7 +43,8 @@ import kotlin.time.TimeSource
  * - [durability] reads what a topic's writes survive: its replication factor and its
  *   `min.insync.replicas`, which an `acks=all` producer's acknowledgement rests on.
  *
- * The admin's blocking futures are awaited on virtual threads. [close] closes the admin client.
+ * The admin's blocking futures are awaited on virtual threads; Kafka being unreachable fails a call as a
+ * [me.ahoo.wow.spi.transport.TransportUnavailableException] ([KafkaFailures]). [close] closes the admin client.
  */
 class KafkaTopicAdmin(
     private val admin: Admin,
@@ -66,7 +67,7 @@ class KafkaTopicAdmin(
                     topic to description.get().partitions().size
                 } catch (failure: ExecutionException) {
                     if (failure.cause !is UnknownTopicOrPartitionException) {
-                        throw failure.cause ?: failure
+                        throw KafkaFailures.translate(failure.cause ?: failure)
                     }
                     null
                 }
@@ -87,7 +88,7 @@ class KafkaTopicAdmin(
                     created.get()
                 } catch (failure: ExecutionException) {
                     if (failure.cause !is TopicExistsException) {
-                        throw failure.cause ?: failure
+                        throw KafkaFailures.translate(failure.cause ?: failure)
                     }
                 }
             }
@@ -109,7 +110,7 @@ class KafkaTopicAdmin(
                     topic to description.get().partitions().minOf { it.replicas().size }
                 } catch (failure: ExecutionException) {
                     if (failure.cause !is UnknownTopicOrPartitionException) {
-                        throw failure.cause ?: failure
+                        throw KafkaFailures.translate(failure.cause ?: failure)
                     }
                     null
                 }

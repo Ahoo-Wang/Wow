@@ -40,6 +40,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STATE_R
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_ID
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -485,7 +486,7 @@ class ElasticsearchSnapshotStore internal constructor(
                 ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.CONFLICT) -> false
                 // A document Elasticsearch cannot take (a field name it refuses, say) is refused as a value.
                 ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.BAD_REQUEST) ->
-                    throw IllegalArgumentException("Elasticsearch refused the document [$id] of [$index].", failure)
+                    throw StorageRefusedException("Elasticsearch refused the document [$id] of [$index].", failure)
                 else -> throw failure
             }
         }

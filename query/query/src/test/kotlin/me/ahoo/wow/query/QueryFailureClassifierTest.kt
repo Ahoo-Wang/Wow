@@ -19,23 +19,15 @@ import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryFailureClassifier
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
-import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.junit.jupiter.api.Test
-import java.util.ServiceLoader
 
 /** A busy query store is backpressure (D263), an unreachable one systemic (D243); the rest the runtime's. */
 class QueryFailureClassifierTest {
     @Test
     fun `a busy store is backpressure, an unreachable one systemic, others unknown to it`() {
-        val classifier = QueryFailureClassifier()
+        val classifier = QueryFailureClassifier
         classifier.classify(QueryBusyException("views", 4)).assert().isEqualTo(FailureClass.BACKPRESSURE)
         classifier.classify(QueryStorageUnavailableException()).assert().isEqualTo(FailureClass.SYSTEMIC)
         classifier.classify(QueryExecutionException("broken")).assert().isNull()
-    }
-
-    @Test
-    fun `the runtime finds it on the class path`() {
-        ServiceLoader.load(FailureClassifier::class.java).map { it.javaClass.name }.assert()
-            .contains(QueryFailureClassifier::class.java.name)
     }
 }

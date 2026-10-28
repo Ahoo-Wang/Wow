@@ -19,9 +19,15 @@ import java.io.File
  * A rule over what production sources of [modules] do, not what they import: no code outside comments names any of
  * the [forbidden] members (`crossScope`, `fixedTenant`, ...), whichever receiver they are read on. Where a
  * responsibility has one home in a core module (G3), an edge that reads the members the rule rests on is deciding it
- * a second time.
+ * a second time. A line that matches [allowed] is the one place a forbidden member may stand: a parameter's default,
+ * say.
  */
-data class SourceTokenRule(val name: String, val modules: List<String>, val forbidden: List<String>) {
+data class SourceTokenRule(
+    val name: String,
+    val modules: List<String>,
+    val forbidden: List<String>,
+    val allowed: Regex? = null,
+) {
     private val pattern = Regex("""(?<![\w$])(${forbidden.joinToString("|") { Regex.escape(it) }})(?![\w$])""")
 
     fun violations(repositoryRoot: File): List<String> =
@@ -32,7 +38,7 @@ data class SourceTokenRule(val name: String, val modules: List<String>, val forb
         }.sortedBy { it.path }.flatMap { file ->
             val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
             stripComments(file.readText()).lines().flatMapIndexed { index, line ->
-                pattern.findAll(line).map { "$path:${index + 1}: ${it.value}" }.toList()
+                pattern.findAll(allowed?.let { line.replace(it, "") } ?: line).map { "$path:${index + 1}: ${it.value}" }.toList()
             }
         }
 
@@ -68,5 +74,22 @@ object SourceTokenRules {
         forbidden = listOf("Spring"),
     )
 
-    val ALL = listOf(HTTP_DECIDES_NO_READ_SCOPE, CORE_NAMES_NO_HOST)
+    /**
+     * A backend decides what a `wow.ddl` mode does through `Ddl.ensure` or `Ddl.apply` (and `Ddl.creates`,
+     * `Ddl.checks`), so each mode means the same in every store: its code names no mode, but for a parameter's default.
+     */
+    val BACKENDS_BRANCH_NO_DDL_MODE = SourceTokenRule(
+        name = "the backends name no ddl mode outside Ddl.ensure and Ddl.apply",
+        modules = listOf(
+            ArchitectureRules.POSTGRES.dir,
+            ArchitectureRules.MONGO.dir,
+            ArchitectureRules.ELASTICSEARCH.dir,
+            ArchitectureRules.CLICKHOUSE.dir,
+            ArchitectureRules.KAFKA.dir,
+        ),
+        forbidden = listOf("Ddl.AUTO", "Ddl.VALIDATE", "Ddl.NONE"),
+        allowed = Regex(""":\s*Ddl\s*=\s*Ddl\.\w+"""),
+    )
+
+    val ALL = listOf(HTTP_DECIDES_NO_READ_SCOPE, CORE_NAMES_NO_HOST, BACKENDS_BRANCH_NO_DDL_MODE)
 }

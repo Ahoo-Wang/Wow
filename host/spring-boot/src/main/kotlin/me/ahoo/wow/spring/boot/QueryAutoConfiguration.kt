@@ -34,6 +34,7 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
+import me.ahoo.wow.query.error.QueryFailureClassifier
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
@@ -52,6 +53,7 @@ import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -62,6 +64,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import java.nio.file.Path
 
 /**
@@ -92,6 +96,15 @@ import java.nio.file.Path
 @ConditionalOnProperty(prefix = QueryProperties.PREFIX, name = ["enabled"], matchIfMissing = true)
 @EnableConfigurationProperties(QueryProperties::class)
 class QueryAutoConfiguration {
+    /**
+     * How the node classifies a subscription handler's failed query ([QueryFailureClassifier]): after the
+     * application's `FailureClassifier` beans, before the runtime's own.
+     */
+    @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    @InternalWowApi
+    fun wowQueryFailureClassifier(): FailureClassifier = QueryFailureClassifier
+
     /** The node's queries, once it has a [ServiceNode]. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnBean(ServiceNode::class)

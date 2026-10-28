@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.spi.subscription.FailureClass
-import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportUnavailableException
 import org.apache.kafka.common.errors.BrokerNotAvailableException
 import org.apache.kafka.common.errors.CoordinatorNotAvailableException
 import org.apache.kafka.common.errors.DisconnectException
@@ -24,14 +23,15 @@ import org.apache.kafka.common.errors.NotEnoughReplicasException
 import org.apache.kafka.common.errors.TimeoutException
 
 /**
- * Classifies Kafka's connection failures as systemic, for a handler that sends to Kafka itself: a
- * broker, leader or coordinator not available, a network failure or a disconnection, too few replicas in sync, a
- * request that timed out. Every aggregate of the partition would fail the same way, so the subscription pauses it.
+ * Tells Kafka being unreachable from a defect: the first is a [TransportUnavailableException], on which a
+ * subscription pauses its partition, the second stays the client's exception.
  *
- * Found by [java.util.ServiceLoader] (`META-INF/services`) when this backend is on the class path.
+ * Unavailable are a broker, leader or coordinator not available, a network failure or a disconnection, too few
+ * replicas in sync, a request that timed out.
  */
-internal class KafkaFailureClassifier : FailureClassifier {
-    override fun classify(failure: Throwable): FailureClass? = when (failure) {
+internal object KafkaFailures {
+    /** Whether [failure] says Kafka cannot be reached, or cannot take the request now. */
+    fun isUnavailable(failure: Throwable): Boolean = when (failure) {
         is BrokerNotAvailableException,
         is CoordinatorNotAvailableException,
         is LeaderNotAvailableException,
@@ -39,7 +39,15 @@ internal class KafkaFailureClassifier : FailureClassifier {
         is DisconnectException,
         is NotEnoughReplicasException,
         is TimeoutException,
-        -> FailureClass.SYSTEMIC
-        else -> null
+        -> true
+        else -> false
     }
+
+    /** [failure] as a [TransportUnavailableException] when it [isUnavailable], else as it is. */
+    fun translate(failure: Throwable): Throwable =
+        if (isUnavailable(failure)) {
+            TransportUnavailableException("Kafka is unavailable; retry later.", failure)
+        } else {
+            failure
+        }
 }

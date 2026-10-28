@@ -19,16 +19,17 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportUnavailableException
 import java.net.SocketException
 import java.net.UnknownHostException
 import java.net.http.HttpConnectTimeoutException
 import java.sql.SQLException
 import java.sql.SQLNonTransientConnectionException
 import java.sql.SQLTransientConnectionException
-import java.util.ServiceLoader
 import kotlin.time.Duration
 
 /**
@@ -36,7 +37,8 @@ import kotlin.time.Duration
  * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first, of the failure itself or, for an
  * [UnreadableEventException], of what the kernel could not read; then, for the failure and each of its causes
  * in turn, each of [classifiers] in order, the first class one gives deciding; [FailureClass.RECOVERABLE] when none
- * does.
+ * does. The backends classify nothing: they throw the SPI's typed failures, which the runtime's own classifier
+ * ([BuiltInFailures]) knows.
  */
 @InternalWowApi
 class FailureClassification(private val classifiers: List<FailureClassifier>) {
@@ -56,15 +58,10 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
         /** The causes a classification walks at most: the failure, its cause, and so on. */
         private const val MAX_CAUSES = 16
 
-        /** The classifiers on the class path ([ServiceLoader]): the backends'. */
-        val LOADED: List<FailureClassifier> by lazy {
-            ServiceLoader.load(FailureClassifier::class.java, FailureClassifier::class.java.classLoader).toList()
-        }
+        /** The runtime's own classifier alone ([BuiltInFailures]). */
+        val DEFAULT: FailureClassification = FailureClassification(listOf(BuiltInFailures))
 
-        /** The backends' classifiers ([LOADED]), then the runtime's own ([BuiltInFailures]). */
-        val DEFAULT: FailureClassification by lazy { FailureClassification(LOADED + BuiltInFailures) }
-
-        /** The [application]'s classifiers, then the backends' ([LOADED]), then the runtime's own. */
+        /** The [application]'s classifiers, then the runtime's own. */
         fun of(application: List<FailureClassifier> = emptyList()): FailureClassification =
             if (application.isEmpty()) DEFAULT else FailureClassification(application + DEFAULT.classifiers)
 
@@ -86,7 +83,8 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  * The failures the runtime classifies itself, whatever the backends:
  *
  * - [FailureClass.SYSTEMIC], a downstream that is down: a store a port could not reach ([StorageUnavailableException],
- *   or a command or call answered `wow.storage.unavailable`), a socket that could not connect or was reset
+ *   or a command or call answered `wow.storage.unavailable`), a transport it could not reach
+ *   ([TransportUnavailableException]), a socket that could not connect or was reset
  *   ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve, an HTTP connection
  *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
  *   [SQLNonTransientConnectionException], SQL state class `08`).
@@ -94,8 +92,12 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
  *   `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]).
  *
- * It takes nothing for unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
- * retries handle it once a version that can runs.
+ * - [FailureClass.UNRECOVERABLE], a value a store refused for good ([StorageRefusedException]): writing it again fails
+ *   the same way, so the aggregate is parked at once.
+ *
+ * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
+ * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
+ * aggregate's own, retried within its budget.
  */
 internal object BuiltInFailures : FailureClassifier {
     private const val CONNECTION_EXCEPTION_CLASS = "08"
@@ -113,7 +115,9 @@ internal object BuiltInFailures : FailureClassifier {
             failure.code == FrameworkErrors.STORAGE_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
+        is StorageRefusedException -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException,
+        is TransportUnavailableException,
         is SocketException,
         is UnknownHostException,
         is HttpConnectTimeoutException,

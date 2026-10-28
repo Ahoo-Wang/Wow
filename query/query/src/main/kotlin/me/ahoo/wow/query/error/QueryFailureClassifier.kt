@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.error
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 
@@ -20,11 +21,11 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
  * Classifies the failures of a query a subscription handler ran: a store whose bulkhead did not admit it
  * ([QueryBusyException], `wow.query.busy`) is backpressure, retried with backoff while the partition
  * is throttled; a store that is not reachable ([QueryStorageUnavailableException]) is systemic, which
- * pauses the partition. Any other query failure it leaves to the runtime.
- *
- * Found by [java.util.ServiceLoader] (`META-INF/services`) when the query module is on the class path.
+ * pauses the partition. Any other query failure it leaves to the runtime. The host gives it to the node with the
+ * application's classifiers, after them, when the query plane is on.
  */
-internal class QueryFailureClassifier : FailureClassifier {
+@InternalWowApi
+object QueryFailureClassifier : FailureClassifier {
     override fun classify(failure: Throwable): FailureClass? = when (failure) {
         is QueryBusyException -> FailureClass.BACKPRESSURE
         is QueryStorageUnavailableException -> FailureClass.SYSTEMIC

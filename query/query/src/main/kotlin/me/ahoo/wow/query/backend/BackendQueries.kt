@@ -48,6 +48,7 @@ import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.error.checkExecution
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
@@ -67,12 +68,14 @@ import java.time.Duration
 /**
  * [error] of a backend primitive as the caller sees it: a query error (a [QueryViolation] rejection, a
  * [QueryExecutionException]) as is, a storage that is unavailable ([StorageUnavailableException]) as a
- * [QueryStorageUnavailableException], anything else as `Query storage failed.`; [error] is kept as the server-side
+ * [QueryStorageUnavailableException], a statement the storage stopped at its timeout ([StorageTimeoutException]) as a
+ * [QueryTimeoutException], anything else as `Query storage failed.`; [error] is kept as the server-side
  * cause, since driver text can carry query values.
  */
 internal fun storageFault(error: Throwable): Throwable = when (error) {
     is QueryError -> error
     is StorageUnavailableException -> QueryStorageUnavailableException(error)
+    is StorageTimeoutException -> QueryTimeoutException(error.timeout, error)
     else -> QueryExecutionException("Query storage failed.", error)
 }
 

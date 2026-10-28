@@ -126,7 +126,7 @@ internal class ElasticsearchSnapshotQueries(
                 ElasticsearchSnapshotIndex.KIND,
                 ElasticsearchSnapshotIndex.FORMAT,
                 ElasticsearchSnapshotIndex.DEFINITION,
-                Ddl.AUTO,
+                indexDdl,
             )
         }
     }

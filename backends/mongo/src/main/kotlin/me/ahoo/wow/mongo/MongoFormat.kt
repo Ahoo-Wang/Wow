@@ -33,47 +33,38 @@ import org.bson.conversions.Bson
  */
 internal object MongoFormat {
     /**
-     * Makes sure of [structure] as [ddl] says: [claim]s it under [Ddl.AUTO], checks its record
-     * under [Ddl.VALIDATE] ([validate]), does nothing under [Ddl.NONE].
+     * Makes sure of [structure] as [ddl] says ([Ddl.ensure]): creating it [record]s it, validating it checks its
+     * record ([validate]).
      */
     fun claim(database: MongoDatabase, structure: String, version: Int, ddl: Ddl) {
-        when (ddl) {
-            Ddl.AUTO -> claim(MongoTimeouts.ddl(database), structure, version)
-            Ddl.VALIDATE -> validate(MongoTimeouts.ddl(database), structure, version)
-            Ddl.NONE -> Unit
+        val bounded = MongoTimeouts.ddl(database)
+        ddl.ensure(structure, create = { record(bounded, structure, version) }) {
+            validate(bounded, structure, version)
         }
     }
 
-    /** Checks that [structure] is recorded at [version], creating nothing ([Ddl.VALIDATE]). */
-    fun validate(database: MongoDatabase, structure: String, version: Int) {
+    /** Whether [structure] is recorded; refuses it when it is recorded at another [version]. */
+    fun validate(database: MongoDatabase, structure: String, version: Int): Boolean {
         val stored = database.getCollection(COLLECTION).find(Filters.eq(ID, structure)).first()?.getInteger(VERSION)
-        checkNotNull(stored) {
-            "$structure has no format record, and the store only validates its schema (ddl validate): create the " +
-                "schema first, with ddl auto once or the migration tool."
-        }
+            ?: return false
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
                 "Migrate it with the migration tool rather than opening it."
         }
+        return true
     }
 
     /**
-     * Makes sure of the index [options] names on [collection] as [ddl] says: creates it under [Ddl.AUTO], checks
-     * it exists under [Ddl.VALIDATE], does nothing under [Ddl.NONE].
+     * Makes sure of the index [options] names on [collection] as [ddl] says ([Ddl.ensure]): creating it is
+     * idempotent, validating it checks that the collection has it.
      */
     fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: Ddl) {
-        when (ddl) {
-            // Creating an index that exists is a no-op: auto creates it without asking whether it is there.
-            Ddl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
-            Ddl.VALIDATE -> {
-                val names = MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") }.toSet()
-                check(options.name in names) {
-                    "The index ${options.name} of ${collection.namespace.collectionName} is missing, and the store " +
-                        "only validates its schema (ddl validate)."
-                }
-            }
-
-            Ddl.NONE -> Unit
+        val bounded = MongoTimeouts.ddl(collection)
+        ddl.ensure(
+            "The index ${options.name} of ${collection.namespace.collectionName}",
+            create = { bounded.createIndex(keys, options) },
+        ) {
+            options.name in bounded.listIndexes().mapNotNull { it.getString("name") }.toSet()
         }
     }
 
@@ -85,9 +76,9 @@ internal object MongoFormat {
 
     /**
      * Records [structure], the collection about to be created in [database], at [version] when it has no version
-     * yet. Fails when it is recorded at another version, or when the collection already exists without a record.
+     * yet; [validate] checks the version recorded. Fails when the collection already exists without a record.
      */
-    fun claim(database: MongoDatabase, structure: String, version: Int) {
+    fun record(database: MongoDatabase, structure: String, version: Int) {
         val formats = database.getCollection(COLLECTION)
         if (formats.find(Filters.eq(ID, structure)).first() == null) {
             // The record is written before the collection is created, so one without a record predates them; a
@@ -105,11 +96,6 @@ internal object MongoFormat {
             if (!failure.isDuplicateKey()) {
                 throw failure
             }
-        }
-        val stored = formats.find(Filters.eq(ID, structure)).first()!!.getInteger(VERSION)
-        check(stored == version) {
-            "$structure is stored in format $stored; this version of Wow reads format $version. " +
-                "Migrate it with the migration tool rather than opening it."
         }
     }
 }

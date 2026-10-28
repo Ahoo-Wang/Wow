@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
-import me.ahoo.wow.query.error.StoreUnavailability
+import me.ahoo.wow.spi.StorageUnavailableException
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
@@ -161,8 +161,9 @@ class DefaultQueryModelSchemaProvider(
     }
 
     /**
-     * The storage's facts about [logicalSchema]: a storage that cannot be reached is a retryable 503
-     * ([QueryStorageUnavailableException]), not a broken schema, and the next query asks again.
+     * The storage's facts about [logicalSchema]: a storage that cannot be reached (a [StorageUnavailableException],
+     * wherever the backend wrapped it) is a retryable 503 ([QueryStorageUnavailableException]), not a broken schema,
+     * and the next query asks again.
      */
     @Suppress("TooGenericExceptionCaught") // Whatever the backend threw is classified, then propagates.
     private suspend fun factsOf(logicalSchema: LogicalQuerySchema, refresh: Boolean): QueryStorageFacts = try {
@@ -170,11 +171,16 @@ class DefaultQueryModelSchemaProvider(
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (failure: Exception) {
-        throw if (StoreUnavailability.of(failure)) QueryStorageUnavailableException(failure) else failure
+        val unavailable = generateSequence<Throwable>(failure) { it.cause.takeIf { cause -> cause !== it } }
+            .take(MAX_CAUSES)
+            .any { it is StorageUnavailableException }
+        throw if (unavailable) QueryStorageUnavailableException(failure) else failure
     }
 
     @InternalWowApi
     companion object {
+        private const val MAX_CAUSES = 16
+
         /** How long a provisional schema is answered before the storage is asked again. */
         @JvmField
         val DEFAULT_PROVISIONAL_TTL: Duration = Duration.ofSeconds(2)
