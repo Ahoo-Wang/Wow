@@ -82,3 +82,10 @@ dependencies {
     integrationTestImplementation(project(":elasticsearch"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
+
+// Spring Boot MongoDB is the host's to compile against, never on its tests' classpaths: there its auto-configuration
+// would make a MongoClient in every host test, and MongoDB would back each beside PostgreSQL. The integration test
+// layer runs on its compile classpath, so the module is kept off that too.
+configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
+    exclude(group = "org.springframework.boot", module = "spring-boot-mongodb")
+}
