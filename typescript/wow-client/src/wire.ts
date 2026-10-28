@@ -106,14 +106,25 @@ export interface Hop {
 }
 
 /** The kind of function that produced a result. */
-export type FunctionKind =
-  | 'command'
-  | 'project'
-  | 'react'
-  | 'saga'
-  | 'snapshot'
-  | 'reservation'
-  | 'timers';
+export const FunctionKind = {
+  /** The aggregate's command function. */
+  COMMAND: 'command',
+  /** A projection. */
+  PROJECT: 'project',
+  /** An event handler that reacts. */
+  REACT: 'react',
+  /** A saga. */
+  SAGA: 'saga',
+  /** The snapshot subscription. */
+  SNAPSHOT: 'snapshot',
+  /** A reservation. */
+  RESERVATION: 'reservation',
+  /** A timer. */
+  TIMERS: 'timers',
+} as const;
+
+/** A {@link FunctionKind} value. */
+export type FunctionKind = (typeof FunctionKind)[keyof typeof FunctionKind];
 
 /** Who produced a result: a function of `kind` in `context`. */
 export interface FunctionInfo {
@@ -151,7 +162,18 @@ export interface ErrorInfo {
 }
 
 /** How a command ended at a hop. */
-export type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
+export const CommandResultStatus = {
+  /** The command reached the hop. */
+  SUCCEEDED: 'succeeded',
+  /** The domain or admission refused the command. */
+  REJECTED: 'rejected',
+  /** A technical failure stopped the command. */
+  FAILED: 'failed',
+} as const;
+
+/** A {@link CommandResultStatus} value. */
+export type CommandResultStatus =
+  (typeof CommandResultStatus)[keyof typeof CommandResultStatus];
 
 /**
  * The command a request named before a transformer turned it into the one

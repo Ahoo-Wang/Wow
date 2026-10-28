@@ -14,6 +14,7 @@
 import { Fetcher } from "@ahoo-wang/fetcher";
 import {
   CommandRejectedError,
+  CommandResultStatus,
   WowHeaders,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
@@ -51,15 +52,13 @@ function service(answer: () => Response): Sent[] {
 
 const OK = () =>
   new Response(
-    JSON.stringify({
-      id: "c-1",
-      requestId: "r-1",
-      status: "succeeded",
-      outcome: "SUCCEEDED",
-      stage: "SNAPSHOT",
-      ref: { context: "ops", aggregate: "parked", tenantId: "(0)", id: ID },
-      version: 2,
-    }),
+    JSON.stringify(
+      commandResultOf({
+        type: { context: "ops", name: "parked" },
+        tenantId: "(0)",
+        id: ID,
+      }),
+    ),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 
@@ -173,7 +172,7 @@ describe("a problem's words", () => {
     const result = {
       ...commandResultOf(
         { type: { context: "c", name: "a" }, tenantId: "t", id: "1" },
-        { status: "rejected" },
+        { status: CommandResultStatus.REJECTED },
       ),
       error: { code: "c.a.refused", message: "Refused." },
     };

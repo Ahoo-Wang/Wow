@@ -378,7 +378,14 @@ export interface CommandResult<R = Record<string, unknown>> {
 }
 
 // @public
-export type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
+export const CommandResultStatus: {
+    readonly SUCCEEDED: "succeeded";
+    readonly REJECTED: "rejected";
+    readonly FAILED: "failed";
+};
+
+// @public
+export type CommandResultStatus = (typeof CommandResultStatus)[keyof typeof CommandResultStatus];
 
 // @public
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
@@ -1113,7 +1120,18 @@ export interface FunctionInfo {
 }
 
 // @public
-export type FunctionKind = 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers';
+export const FunctionKind: {
+    readonly COMMAND: "command";
+    readonly PROJECT: "project";
+    readonly REACT: "react";
+    readonly SAGA: "saga";
+    readonly SNAPSHOT: "snapshot";
+    readonly RESERVATION: "reservation";
+    readonly TIMERS: "timers";
+};
+
+// @public
+export type FunctionKind = (typeof FunctionKind)[keyof typeof FunctionKind];
 
 // @public
 export interface FunctionManifest {

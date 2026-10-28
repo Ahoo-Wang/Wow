@@ -14,6 +14,7 @@
 import { Fetcher } from "@ahoo-wang/fetcher";
 import {
   CommandRejectedError,
+  CommandResultStatus,
   WowHeaders,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
@@ -49,20 +50,13 @@ function service(answer: () => Response): Sent[] {
 
 const OK = () =>
   new Response(
-    JSON.stringify({
-      id: "c-1",
-      requestId: "r-1",
-      status: "succeeded",
-      outcome: "SUCCEEDED",
-      stage: "SNAPSHOT",
-      ref: {
-        context: "analytics-catalog",
-        aggregate: "source",
+    JSON.stringify(
+      commandResultOf({
+        type: { context: "analytics-catalog", name: "source" },
         tenantId: "(platform)",
         id: "x",
-      },
-      version: 2,
-    }),
+      }),
+    ),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 
@@ -167,7 +161,7 @@ describe("the data owner's commands", () => {
     const result = {
       ...commandResultOf(
         { type: { context: "c", name: "a" }, tenantId: "t", id: "1" },
-        { status: "rejected" },
+        { status: CommandResultStatus.REJECTED },
       ),
       error: { code: "c.a.refused", message: "Refused." },
     };

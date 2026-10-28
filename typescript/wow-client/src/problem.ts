@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { RefusedResult, Violation } from './wire.js';
+import {
+  CommandResultStatus,
+  type RefusedResult,
+  type Violation,
+} from './wire.js';
 
 /**
  * The framework's error codes,
@@ -341,7 +345,7 @@ export class CommandRejectedError extends Error {
       `${result.ref.type.context}.${result.ref.type.name}/${result.ref.id ?? '(no id)'} rejected the command` +
         (said ? `: ${said}` : '.'),
     );
-    if (result.status !== 'rejected') {
+    if (result.status !== CommandResultStatus.REJECTED) {
       throw new TypeError(
         `A rejection has a rejected result, not ${result.status}.`,
       );

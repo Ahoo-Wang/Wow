@@ -14,7 +14,7 @@ type  CommandRef
 value CommandRejectedError
 type  CommandRequest
 type  CommandResult
-type  CommandResultStatus
+value CommandResultStatus
 type  CommandResultStream
 type  CommitView
 type  ContextManifest
@@ -37,7 +37,7 @@ value FRAMEWORK_ERROR_PREFIX
 type  FrameworkErrorCode
 value FrameworkErrorCodes
 type  FunctionInfo
-type  FunctionKind
+value FunctionKind
 type  FunctionManifest
 type  Hop
 type  Including

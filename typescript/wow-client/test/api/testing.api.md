@@ -78,7 +78,14 @@ interface CommandResult<R = Record<string, unknown>> {
 export function commandResultOf<R = Record<string, unknown>>(ref: AggregateRef, overrides?: Partial<CommandResult<R>>): CommandResult<R>;
 
 // @public
-type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
+const CommandResultStatus: {
+    readonly SUCCEEDED: "succeeded";
+    readonly REJECTED: "rejected";
+    readonly FAILED: "failed";
+};
+
+// @public
+type CommandResultStatus = (typeof CommandResultStatus)[keyof typeof CommandResultStatus];
 
 // @public
 export interface DevelopmentCaller {
@@ -126,7 +133,18 @@ interface FunctionInfo {
 }
 
 // @public
-type FunctionKind = 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers';
+const FunctionKind: {
+    readonly COMMAND: "command";
+    readonly PROJECT: "project";
+    readonly REACT: "react";
+    readonly SAGA: "saga";
+    readonly SNAPSHOT: "snapshot";
+    readonly RESERVATION: "reservation";
+    readonly TIMERS: "timers";
+};
+
+// @public
+type FunctionKind = (typeof FunctionKind)[keyof typeof FunctionKind];
 
 // @public
 interface Hop {

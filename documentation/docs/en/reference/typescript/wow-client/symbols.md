@@ -28,7 +28,7 @@ Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the fir
 | `CommandRejectedError` | class | The command was rejected: its result's status is `rejected`, decided by its aggregate (a business outcome with the domain's code) or at admission (an unknown command, an invalid one, a caller the authorizer forbids). | — |
 | `CommandRequest` | interface | One command a `CommandClient` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
-| `CommandResultStatus` | type | How a command ended at a hop. | — |
+| `CommandResultStatus` | type, const | A `CommandResultStatus` value. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
 | `CommitView` | interface | One commit of a state trace: the events of a version and the aggregate after it. | — |
 | `ContextManifest` | interface | A bounded context: its aggregates, subscriptions, published streams, error codes and job commands. | — |
@@ -51,7 +51,7 @@ Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the fir
 | `FrameworkErrorCode` | type | A `FrameworkErrorCodes` value. | — |
 | `FrameworkErrorCodes` | const | The framework's error codes, each answered with the status of the Manifest's `errors` table. | — |
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
-| `FunctionKind` | type | The kind of function that produced a result. | — |
+| `FunctionKind` | type, const | A `FunctionKind` value. | — |
 | `FunctionManifest` | interface | The handler function of a subscription. | — |
 | `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is`handled`. | — |
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |

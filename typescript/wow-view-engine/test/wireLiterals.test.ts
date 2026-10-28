@@ -57,6 +57,15 @@ export const clock: Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'secon
 };
 export const word: string = 'day';
 `,
+  result: `${IMPORTS}
+import type { CommandResult } from '@ahoo-wang/wow-client';
+export const result: Pick<CommandResult, 'status' | 'hop' | 'function'> = {
+  status: 'succeeded',
+  hop: { stage: 'committed' },
+  function: { kind: 'saga', context: 'c', processor: 'p', name: 'n' },
+};
+export const settled = (of: CommandResult) => of.status === 'rejected';
+`,
   marker: `${IMPORTS}
 // ${WIRE_SPELLING_MARKER}: the JSON a host writes.
 export const unit: AggregationDateUnitName = 'day';
@@ -128,6 +137,15 @@ describe('wireLiterals', () => {
       '6 month',
       '6 quarter',
       '6 year',
+    ]);
+  });
+
+  it('knows the values of a command result: its status, stage and function kind', () => {
+    expect(found('result')).toEqual([
+      '6 succeeded',
+      '7 committed',
+      '8 saga',
+      '10 rejected',
     ]);
   });
 

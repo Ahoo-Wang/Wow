@@ -20,11 +20,12 @@ import {
   type WowClientOptions,
   WowHeaders,
 } from './http.js';
-import type {
-  AggregateType,
-  CommandResult,
+import {
+  type AggregateType,
+  type CommandResult,
   CommandResultStatus,
-  RefusedResult,
+  type RefusedResult,
+  Stage,
 } from './wire.js';
 import {
   checkManifest,
@@ -217,7 +218,7 @@ const ID = '{id}';
 
 /** Whether `plan` waits for acceptance alone. */
 function acceptedOnly(plan: WaitPlan): boolean {
-  return plan.hops.length === 1 && plan.hops[0].stage === 'accepted';
+  return plan.hops.length === 1 && plan.hops[0].stage === Stage.ACCEPTED;
 }
 
 /**
@@ -417,7 +418,7 @@ export class CommandClient {
       } catch (error) {
         if (
           error instanceof WowProblemError &&
-          error.result?.status === 'rejected'
+          error.result?.status === CommandResultStatus.REJECTED
         ) {
           throw new CommandRejectedError(error.result, {
             problem: error.problem,
@@ -511,7 +512,7 @@ export class CommandClient {
  * client does not know (a newer service's) with a {@link WowProblemError}.
  */
 function settled<R>(result: CommandResult<R>): CommandResult<R> {
-  if (result.status === 'rejected') {
+  if (result.status === CommandResultStatus.REJECTED) {
     throw new CommandRejectedError(result as RefusedResult);
   }
   if (!KNOWN_STATUSES.has(result.status)) {
@@ -527,8 +528,6 @@ function settled<R>(result: CommandResult<R>): CommandResult<R> {
   return result;
 }
 
-const KNOWN_STATUSES: ReadonlySet<string> = new Set<CommandResultStatus>([
-  'succeeded',
-  'rejected',
-  'failed',
-]);
+const KNOWN_STATUSES: ReadonlySet<string> = new Set(
+  Object.values(CommandResultStatus),
+);
