@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A service route (decision D359): an HTTP route of the module's bounded context whose handler is this function, not
+ * A service route: an HTTP route of the module's bounded context whose handler is this function, not
  * a command or a query. The model processor lists it in the context's Manifest (`routes`), with its parameters and
  * the schemas of its request and response, and generates its binding; the edge mounts it from the Manifest and admits
  * its caller as it admits a query's, so it is a route of the service's contract like any other.

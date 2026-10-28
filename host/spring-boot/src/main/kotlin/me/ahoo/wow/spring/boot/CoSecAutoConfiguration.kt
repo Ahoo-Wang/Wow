@@ -18,9 +18,9 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
-import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
+import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest

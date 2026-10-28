@@ -17,6 +17,7 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.RouteMethod
 import me.ahoo.wow.api.annotation.RouteQuery
@@ -65,7 +66,7 @@ internal data class ServiceRouteBinding(
 )
 
 /**
- * Reads `@ServiceRoute` functions (decision D359): a `suspend` member of a class, whose parameters are path
+ * Reads `@ServiceRoute` functions: a `suspend` member of a class, whose parameters are path
  * variables (named as in the path), `@RouteQuery` parameters, at most one [RouteCall] and, on a method with a body,
  * one body; scalars only in the path and the query; a body and an answer of a class, never a collection, a map or a
  * stream (`Flow`, a `Publisher`); `Unit` answers 204.
@@ -106,119 +107,134 @@ internal object ServiceRouteResolver {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == SERVICE_ROUTE
         }
         val argument = { name: String -> annotation.arguments.firstOrNull { it.name?.asString() == name }?.value }
-        val method = (argument("method") as? KSType)?.declaration?.simpleName?.asString()
-            ?.let(RouteMethod::valueOf)
-            ?: (argument("method") as? KSClassDeclaration)?.simpleName?.asString()
-                ?.let(RouteMethod::valueOf)
-            ?: RouteMethod.GET
+        val method = when (val value = argument("method")) {
+            is KSType -> RouteMethod.valueOf(value.declaration.simpleName.asString())
+            is KSClassDeclaration -> RouteMethod.valueOf(value.simpleName.asString())
+            else -> RouteMethod.GET
+        }
         val path = argument("path") as? String ?: ""
-        val functionName = function.simpleName.asString()
-        val name = (argument("name") as? String)?.ifBlank { null } ?: functionName
-        val errors = (argument("errors") as? List<*>).orEmpty().filterIsInstance<String>()
+        val name = (argument("name") as? String)?.ifBlank { null } ?: function.simpleName.asString()
         val owner = function.parentDeclaration as? KSClassDeclaration
-        val where = "${owner?.simpleName?.asString() ?: "?"}.$functionName"
+        val reading = Reading("${owner?.simpleName?.asString() ?: "?"}.${function.simpleName.asString()}", method)
+        reading.checkFunction(function, owner, name)
+        reading.checkPath(path)
+        val arguments = function.parameters.map(reading::argument)
+        reading.checkBound(arguments)
+        val returnType = function.returnType?.resolve()
+        val response = returnType?.takeUnless { it.declaration.qualifiedName?.asString() == "kotlin.Unit" }
+            ?.let { reading.schemaType(it, "answer") }
+        return ServiceRouteBinding(
+            handler = owner?.binaryName() ?: "",
+            handlerType = owner?.qualifiedName?.asString() ?: "",
+            function = function.simpleName.asString(),
+            name = name,
+            method = method,
+            path = path,
+            arguments = arguments,
+            parameterSchemas = reading.schemas,
+            request = reading.request,
+            response = response,
+            errors = (argument("errors") as? List<*>).orEmpty().filterIsInstance<String>(),
+            description = Descriptions.of(function),
+            deprecated = function.annotations.any {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.Deprecated"
+            },
+            problems = reading.problems,
+        )
+    }
+
+    /** The reading of one route function [where], of [method]: the problems found, the schemas and the body read. */
+    private class Reading(val where: String, val method: RouteMethod) {
         val problems = mutableListOf<String>()
-        if (owner == null || owner.classKind != ClassKind.CLASS) {
-            problems += "service route $where is not a member of a class: the host provides its handler as a bean"
-        }
-        if (Modifier.SUSPEND !in function.modifiers) problems += "service route $where is not a suspend function"
-        if (!NAME.matches(name)) problems += "service route $where is named $name: a route's name is lowerCamelCase"
-        val segments = path.split('/')
-        if (path.isEmpty() || path.startsWith('/') || segments.any { !SEGMENT.matches(it) }) {
-            problems += "service route $where has path '$path': a path below the context, its segments lower-kebab " +
-                "words or {variables}, with no leading slash"
-        }
-        val variables = VARIABLE.findAll(path).map { it.groupValues[1] }.toList()
-        variables.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
-            problems += "service route $where names the path variable {$it} twice"
-        }
         val schemas = linkedMapOf<String, Map<String, Any?>>()
         var request: String? = null
-        val arguments = function.parameters.map { parameter ->
+        private var variables: List<String> = emptyList()
+
+        fun checkFunction(function: KSFunctionDeclaration, owner: KSClassDeclaration?, name: String) {
+            if (owner == null || owner.classKind != ClassKind.CLASS) {
+                problems += "service route $where is not a member of a class: the host provides its handler as a bean"
+            }
+            if (Modifier.SUSPEND !in function.modifiers) problems += "service route $where is not a suspend function"
+            if (!NAME.matches(name)) problems += "service route $where is named $name: a route's name is lowerCamelCase"
+        }
+
+        fun checkPath(path: String) {
+            if (path.isEmpty() || path.startsWith('/') || path.split('/').any { !SEGMENT.matches(it) }) {
+                problems += "service route $where has path '$path': a path below the context, its segments " +
+                    "lower-kebab words or {variables}, with no leading slash"
+            }
+            variables = VARIABLE.findAll(path).map { it.groupValues[1] }.toList()
+            variables.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+                problems += "service route $where names the path variable {$it} twice"
+            }
+        }
+
+        fun argument(parameter: KSValueParameter): RouteArgument {
             val parameterName = parameter.name?.asString() ?: ""
             val type = parameter.type.resolve()
             val query = parameter.annotations.firstOrNull {
                 it.annotationType.resolve().declaration.qualifiedName?.asString() == ROUTE_QUERY
             }
-            when {
+            return when {
                 type.declaration.qualifiedName?.asString() == ROUTE_CALL -> RouteArgument.Call
                 query != null -> {
-                    val queryName = (query.arguments.firstOrNull()?.value as? String)?.ifBlank { null } ?: parameterName
-                    scalar(type, where, "query parameter $queryName", problems)?.let { schemas["query:$queryName"] = it }
-                    RouteArgument.Query(queryName, type.makeNotNullable().render(), required = !type.isMarkedNullable)
+                    val name = (query.arguments.firstOrNull()?.value as? String)?.ifBlank { null } ?: parameterName
+                    scalar(type, "query parameter $name")?.let { schemas["query:$name"] = it }
+                    RouteArgument.Query(name, type.makeNotNullable().render(), required = !type.isMarkedNullable)
                 }
                 parameterName in variables -> {
                     if (type.isMarkedNullable) problems += "service route $where: path variable {$parameterName} is nullable"
-                    scalar(type, where, "path variable {$parameterName}", problems)?.let { schemas["path:$parameterName"] = it }
+                    scalar(type, "path variable {$parameterName}")?.let { schemas["path:$parameterName"] = it }
                     RouteArgument.Path(parameterName, type.makeNotNullable().render())
                 }
-                else -> {
-                    if (!method.hasBody) {
-                        problems += "service route $where: parameter $parameterName binds nothing, and a " +
-                            "${method.name} takes no body"
-                    } else if (request != null) {
-                        problems += "service route $where takes two bodies; another parameter is a path variable, " +
-                            "a @RouteQuery or the RouteCall"
-                    }
-                    request = schemaType(type, where, "body", problems)
-                    RouteArgument.Body(type.render())
-                }
+                else -> body(parameterName, type)
             }
         }
-        (variables - arguments.filterIsInstance<RouteArgument.Path>().map { it.name }.toSet()).forEach {
-            problems += "service route $where: path variable {$it} binds no parameter"
-        }
-        if (arguments.count { it == RouteArgument.Call } > 1) problems += "service route $where takes two RouteCalls"
-        val returnType = function.returnType?.resolve()
-        val response = when {
-            returnType == null || returnType.declaration.qualifiedName?.asString() == "kotlin.Unit" -> null
-            else -> schemaType(returnType, where, "answer", problems)
-        }
-        return ServiceRouteBinding(
-            handler = owner?.binaryName() ?: "",
-            handlerType = owner?.qualifiedName?.asString() ?: "",
-            function = functionName,
-            name = name,
-            method = method,
-            path = path,
-            arguments = arguments,
-            parameterSchemas = schemas,
-            request = request,
-            response = response,
-            errors = errors,
-            description = Descriptions.of(function),
-            deprecated = function.annotations.any {
-                it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.Deprecated"
-            },
-            problems = problems,
-        )
-    }
 
-    /** The schema of a scalar parameter: a string, a number, a boolean or an enum's entries; null, told, otherwise. */
-    private fun scalar(type: KSType, where: String, what: String, problems: MutableList<String>): Map<String, Any?>? {
-        val declaration = type.declaration.classOf()
-        SCALARS[declaration?.qualifiedName?.asString()]?.let { return it }
-        if (declaration?.classKind == ClassKind.ENUM_CLASS) {
-            val entries = declaration.declarations.filterIsInstance<KSClassDeclaration>()
-                .filter { it.classKind == ClassKind.ENUM_ENTRY }.map { it.simpleName.asString() }.toList()
-            return mapOf("type" to "string", "enum" to entries)
+        private fun body(parameterName: String, type: KSType): RouteArgument {
+            if (!method.hasBody) {
+                problems += "service route $where: parameter $parameterName binds nothing, and a ${method.name} " +
+                    "takes no body"
+            } else if (request != null) {
+                problems += "service route $where takes two bodies; another parameter is a path variable, a " +
+                    "@RouteQuery or the RouteCall"
+            }
+            request = schemaType(type, "body")
+            return RouteArgument.Body(type.render())
         }
-        problems += "service route $where: $what is a ${type.render()}; it is a String, an Int, a Long, a Double, " +
-            "a Boolean or an enum"
-        return null
-    }
 
-    /** The binary name of a body's or an answer's class, which keys its schema; null, told, when it has none. */
-    private fun schemaType(type: KSType, where: String, what: String, problems: MutableList<String>): String? {
-        val declaration = type.declaration.classOf()
-        val name = declaration?.qualifiedName?.asString()
-        if (declaration == null || name in NOT_A_SCHEMA || declaration.classKind == ClassKind.INTERFACE ||
-            type.arguments.isNotEmpty()
-        ) {
-            problems += "service route $where: its $what is a ${type.render()}; it is a class of its own (wrap a " +
-                "list in one), not a collection, a map, a stream or a scalar"
+        fun checkBound(arguments: List<RouteArgument>) {
+            (variables - arguments.filterIsInstance<RouteArgument.Path>().map { it.name }.toSet()).forEach {
+                problems += "service route $where: path variable {$it} binds no parameter"
+            }
+            if (arguments.count { it == RouteArgument.Call } > 1) problems += "service route $where takes two RouteCalls"
+        }
+
+        /** The schema of a scalar parameter: a string, a number, a boolean or an enum's entries; null, told, else. */
+        fun scalar(type: KSType, what: String): Map<String, Any?>? {
+            val declaration = type.declaration.classOf()
+            SCALARS[declaration?.qualifiedName?.asString()]?.let { return it }
+            if (declaration?.classKind == ClassKind.ENUM_CLASS) {
+                val entries = declaration.declarations.filterIsInstance<KSClassDeclaration>()
+                    .filter { it.classKind == ClassKind.ENUM_ENTRY }.map { it.simpleName.asString() }.toList()
+                return mapOf("type" to "string", "enum" to entries)
+            }
+            problems += "service route $where: $what is a ${type.render()}; it is a String, an Int, a Long, a " +
+                "Double, a Boolean or an enum"
             return null
         }
-        return declaration.binaryName()
+
+        /** The binary name of a body's or an answer's class, which keys its schema; null, told, when it has none. */
+        fun schemaType(type: KSType, what: String): String? {
+            val declaration = type.declaration.classOf()
+            val ownSchema = declaration != null && declaration.qualifiedName?.asString() !in NOT_A_SCHEMA &&
+                declaration.classKind != ClassKind.INTERFACE
+            if (!ownSchema || type.arguments.isNotEmpty()) {
+                problems += "service route $where: its $what is a ${type.render()}; it is a class of its own (wrap a " +
+                    "list in one), not a collection, a map, a stream or a scalar"
+                return null
+            }
+            return declaration.binaryName()
+        }
     }
 }

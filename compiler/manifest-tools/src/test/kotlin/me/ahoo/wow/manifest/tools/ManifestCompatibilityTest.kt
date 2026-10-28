@@ -27,7 +27,9 @@ import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.RouteParameterManifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.ServiceRouteManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
@@ -747,5 +749,53 @@ class ManifestCompatibilityTest {
 
         ManifestJson.write(BASELINE, current)
         ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a service route's changes should be classified, its request an input and its response an output`() {
+        val summary = ServiceRouteManifest(
+            name = "summary",
+            route = RouteManifest("GET", "/shop/summaries/{day}"),
+            parameters = listOf(
+                RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
+                RouteParameterManifest("limit", RouteParameterManifest.Location.QUERY, INTEGER, required = false),
+            ),
+            request = Manifest.schemaRef("shop.Filter"),
+            response = Manifest.schemaRef("shop.Summary"),
+            errors = listOf("shop.summary.closed"),
+        )
+        val baseline = BASELINE.context { it.copyWith(routes = listOf(summary)) }
+            .def("shop.Filter", schema("status" to STRING))
+            .def("shop.Summary", schema("total" to INTEGER, required = listOf("total")))
+        fun changes(current: Manifest) = ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+        fun route(change: (ServiceRouteManifest) -> ServiceRouteManifest) =
+            baseline.context { it.copyWith(routes = it.routes.map(change)) }
+
+        changes(baseline.context { it.copyWith(routes = emptyList()) }).assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary]: service route removed")
+        changes(route { it.copyWith(route = RouteManifest("GET", "/shop/days/{day}")) }).assert().containsExactly(
+            "BREAKING contexts[shop].routes[summary].route: route changed from GET /shop/summaries/{day} to " +
+                "GET /shop/days/{day}",
+        )
+        changes(route { it.copyWith(parameters = it.parameters.map { p -> p.copyWith(required = true) }) }).assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary].parameters[limit]: parameter made required")
+        changes(
+            route {
+                it.copyWith(
+                    parameters = it.parameters +
+                        RouteParameterManifest("page", RouteParameterManifest.Location.QUERY, INTEGER, required = true),
+                )
+            },
+        ).assert().contains("BREAKING contexts[shop].routes[summary].parameters[page]: required parameter added")
+        // The request may accept more; the response may not produce more.
+        changes(baseline.def("shop.Filter", schema("status" to STRING, "since" to STRING))).assert()
+            .containsExactly("ADDITIVE contexts[shop].routes[summary].request.since: optional field added")
+        changes(baseline.def("shop.Summary", schema("total" to INTEGER))).assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary].response.total: field made optional")
+        changes(route { it.copyWith(response = null) }).assert()
+            .containsExactly("BREAKING contexts[shop].routes[summary].response: body removed")
+        changes(route { it.copyWith(errors = emptyList()) }).assert().containsExactly(
+            "ADDITIVE contexts[shop].routes[summary].errors: refusal code shop.summary.closed no longer listed",
+        )
     }
 }

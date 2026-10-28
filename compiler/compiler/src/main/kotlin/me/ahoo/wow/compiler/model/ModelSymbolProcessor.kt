@@ -28,8 +28,6 @@ import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.validate
-import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
-import me.ahoo.wow.compiler.model.route.ServiceRouteResolver
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.compiler.model.aggregate.AggregateAnalyzer
@@ -44,6 +42,8 @@ import me.ahoo.wow.compiler.model.aggregate.RootStateResolver
 import me.ahoo.wow.compiler.model.aggregate.UpgradeFunction
 import me.ahoo.wow.compiler.model.aggregate.UpgradeResolver
 import me.ahoo.wow.compiler.model.manifest.ManifestFragmentBuilder
+import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
+import me.ahoo.wow.compiler.model.route.ServiceRouteResolver
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.source.ModelSource
 import me.ahoo.wow.compiler.model.source.QueryPropertiesSource
@@ -147,7 +147,7 @@ internal class ModelSymbolProcessor(
     private val reportedUpgrades = mutableSetOf<UpgradeFunction>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
 
-    /** The module's `@ServiceRoute` functions without problems (decision D359). */
+    /** The module's `@ServiceRoute` functions without problems. */
     private val routes = mutableListOf<ServiceRouteBinding>()
 
     /** Reads each aggregate root into its binding, claiming the upgrade functions it names. */
@@ -419,7 +419,8 @@ internal class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (bindings.isEmpty() && subscriptions.isEmpty() && errorCodes.isEmpty() && routes.isEmpty()) {
+        val collected = listOf(bindings, subscriptions, errorCodes.values, routes)
+        if (collected.all { it.isEmpty() }) {
             return
         }
         // With the processor off, nothing was collected: the mode is report or generate.

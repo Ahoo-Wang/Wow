@@ -30,8 +30,6 @@ import me.ahoo.wow.http.command.CommandTarget
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
-import me.ahoo.wow.http.route.ServiceRouteHandling
-import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
@@ -39,6 +37,8 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
+import me.ahoo.wow.http.route.ServiceRouteHandling
+import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
@@ -99,7 +99,7 @@ import reactor.core.publisher.Mono
  * request that carries `Wow-Call` is refused (403 `wow.auth.forbidden`) whatever its credential: the services'
  * synchronous calls are taken on the internal port alone ([callRoutes]). Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). A context's service
- * routes ([ServiceRoutes], decision D359) are mounted from the Manifest too, each with the handler its module binds:
+ * routes ([ServiceRoutes]) are mounted from the Manifest too, each with the handler its module binds:
  * a route without one, or a handler of no route, fails here, so the node does not start. The host serves other
  * routes under a context's path only by composing them before these.
  *
@@ -137,7 +137,7 @@ fun wowRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
-    val serviceRoutes = ServiceRouteHandling(routes, authenticator, headers, statuses)
+    val serviceRoutes = ServiceRouteHandling(routes, authenticator, headers, statuses, targets)
     return coRouter {
         if (options.manifestEndpoint) {
             document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(manifest)), statuses, authenticator)

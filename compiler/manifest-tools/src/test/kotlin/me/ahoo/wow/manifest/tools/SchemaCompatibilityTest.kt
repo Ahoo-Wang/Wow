@@ -279,4 +279,32 @@ class SchemaCompatibilityTest {
         ManifestChange(ADDITIVE, "p", "d").toString().assert().isEqualTo("ADDITIVE p: d")
         ManifestChange(BREAKING, "p", "d").kind.assert().isEqualTo(BREAKING)
     }
+
+    @Test
+    fun `an output should only produce less`() {
+        fun output(old: Any?, new: Any?) = SchemaCompatibility(mapOf("t" to old), mapOf("t" to new))
+            .compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.OUTPUT)
+            .map { it.toString() }
+        output(obj("a" to STRING, required = listOf("a")), obj("a" to STRING))
+            .assert().containsExactly("BREAKING s.a: field made optional")
+        output(obj("a" to STRING), obj("a" to STRING, "b" to STRING, required = listOf("b")))
+            .assert().containsExactly("ADDITIVE s.b: required field added")
+        output(obj("a" to STRING, "b" to STRING), obj("a" to STRING))
+            .assert().containsExactly("ADDITIVE s.b: optional field removed")
+        output(obj("a" to STRING, "b" to STRING, required = listOf("b")), obj("a" to STRING))
+            .assert().containsExactly("BREAKING s.b: field removed")
+        output(obj("a" to mapOf("type" to "string")), obj("a" to mapOf("type" to listOf("string", "null"))))
+            .assert().containsExactly("BREAKING s.a: type widened from [string] to [null, string]")
+        output(obj("a" to mapOf("enum" to listOf("x"))), obj("a" to mapOf("enum" to listOf("x", "y"))))
+            .assert().containsExactly("BREAKING s.a: enum value y added")
+        output(obj("a" to mapOf("enum" to listOf("x", "y"))), obj("a" to mapOf("enum" to listOf("x"))))
+            .assert().containsExactly("ADDITIVE s.a: enum value y removed")
+        output(
+            obj("a" to mapOf("anyOf" to listOf(mapOf("type" to "string")))),
+            obj("a" to mapOf("anyOf" to listOf(mapOf("type" to "string"), mapOf("type" to "integer")))),
+        ).assert().containsExactly("BREAKING s.a.anyOf[1]: alternative added")
+        // An input reads the same changes the other way.
+        changes(obj("a" to STRING, required = listOf("a")), obj("a" to STRING))
+            .assert().containsExactly("ADDITIVE s.a: field made optional")
+    }
 }

@@ -2404,6 +2404,78 @@
               "$ref" : "#/components/schemas/wow.Manifest.Command"
             },
             "description" : "The context's own system commands: its job commands."
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.ServiceRoute"
+            },
+            "description" : "The context's service routes, whose handlers are its own code."
+          }
+        }
+      },
+      "wow.Manifest.ServiceRoute" : {
+        "type" : "object",
+        "description" : "A service route: a route whose handler is the service's own code, its parameters and schemas.",
+        "required" : [ "name", "route" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "The route's name in its context: its identity and its client's method."
+          },
+          "route" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Route"
+          },
+          "parameters" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.RouteParameter"
+            }
+          },
+          "request" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "response" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The codes the route refuses with, entries of the context's errors."
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "deprecated" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.RouteParameter" : {
+        "type" : "object",
+        "description" : "A path variable or query parameter of a service route, and its scalar schema.",
+        "required" : [ "name", "in", "schema", "required" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "in" : {
+            "type" : "string",
+            "enum" : [ "path", "query" ],
+            "description" : "Where the parameter is read from."
+          },
+          "schema" : {
+            "type" : "object",
+            "description" : "An inline JSON Schema of a scalar."
+          },
+          "required" : {
+            "type" : "boolean"
           }
         }
       },
@@ -3571,7 +3643,7 @@
         }
       },
       "eshop-inventory.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3579,7 +3651,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid", "wow.route.malformed" ]
       },
       "eshop-inventory.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3727,7 +3799,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3735,7 +3807,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid", "wow.route.malformed" ]
       },
       "wow.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

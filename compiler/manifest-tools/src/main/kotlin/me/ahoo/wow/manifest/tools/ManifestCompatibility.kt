@@ -230,7 +230,14 @@ private class Changes(val schemas: SchemaCompatibility) {
             ::comparePublished,
         )
         compareErrors("$path.errors", baseline.errors, current.errors)
-        compareNamed("$path.routes", baseline.routes, current.routes, { it.name }, "service route", ::compareServiceRoute)
+        compareNamed(
+            "$path.routes",
+            baseline.routes,
+            current.routes,
+            { it.name },
+            "service route",
+            ::compareServiceRoute
+        )
     }
 
     fun compareServiceRoute(path: String, baseline: ServiceRouteManifest, current: ServiceRouteManifest) {
@@ -244,16 +251,31 @@ private class Changes(val schemas: SchemaCompatibility) {
             { it.name },
             "parameter",
             { entry, old, new ->
-                if (old.location != new.location) breaking(entry, "parameter moved from ${old.location} to ${new.location}")
+                if (old.location != new.location) {
+                    breaking(
+                        entry,
+                        "parameter moved from ${old.location} to ${new.location}"
+                    )
+                }
                 if (new.required && !old.required) breaking(entry, "parameter made required")
-                if (old.schema != new.schema) breaking(entry, "parameter schema changed from ${old.schema} to ${new.schema}")
+                if (old.schema != new.schema) {
+                    breaking(
+                        entry,
+                        "parameter schema changed from ${old.schema} to ${new.schema}"
+                    )
+                }
             },
         )
         current.parameters.filter { new -> new.required && baseline.parameters.none { it.name == new.name } }
             .forEach { breaking("$path.parameters[${it.name}]", "required parameter added") }
         compareBody("$path.request", baseline.request, current.request, SchemaDirection.INPUT)
         compareBody("$path.response", baseline.response, current.response, SchemaDirection.OUTPUT)
-        (baseline.errors - current.errors.toSet()).forEach { additive("$path.errors", "refusal code $it no longer listed") }
+        (baseline.errors - current.errors.toSet()).forEach {
+            additive(
+                "$path.errors",
+                "refusal code $it no longer listed"
+            )
+        }
         (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
     }
 

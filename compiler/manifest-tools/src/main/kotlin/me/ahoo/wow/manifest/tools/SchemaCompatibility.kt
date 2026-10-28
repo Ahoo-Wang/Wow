@@ -44,7 +44,7 @@ import me.ahoo.wow.manifest.Manifest
  * number of its `type`, which the type rules already compare.
  */
 /**
- * Which way a schema's values flow (decision D349 ③): an [INPUT] is what old clients send, such as a command or a
+ * Which way a schema's values flow: an [INPUT] is what old clients send, such as a command or a
  * route's request, so it may only accept more; an [OUTPUT] is what old clients read, such as a route's response, so it
  * may only produce less: a type widened, an enum value added, a field made optional or an alternative added breaks
  * it, and a required field added or an optional one removed does not.

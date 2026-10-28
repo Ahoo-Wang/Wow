@@ -30,6 +30,7 @@ import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -239,6 +240,8 @@ class HttpNode(
     maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY,
     /** How long a state read of a minimum version waits for it (review R4-Q, Q-13). */
     minVersionWait: kotlin.time.Duration = KernelStateReads.DEFAULT_MIN_VERSION_WAIT,
+    /** The node's service routes: their handlers and authorizers. */
+    serviceRoutes: ServiceRoutes = ServiceRoutes.NONE,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -329,6 +332,7 @@ class HttpNode(
         callers,
         options,
         httpQueries,
+        routes = serviceRoutes,
     )
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(routes)

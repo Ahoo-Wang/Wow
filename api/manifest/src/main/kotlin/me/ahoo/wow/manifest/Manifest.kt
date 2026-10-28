@@ -129,7 +129,7 @@ class ServiceInfo @InternalWowApi constructor(val name: String, val version: Str
  *
  * [commands] are the context's own [system][CommandManifest.system] commands, which no aggregate of it names: the
  * commands of its schedule jobs (`wow.schedule.Enable`, ...), when a subscription of it runs a job. An aggregate's
- * system commands are among its own [AggregateManifest.commands]. [routes] are its service routes (decision D359):
+ * system commands are among its own [AggregateManifest.commands]. [routes] are its service routes:
  * routes whose handler is the service's own code, neither a command nor a query.
  *
  * Fields may be added: pass the constructor's arguments by name.
@@ -351,7 +351,7 @@ class CommandManifest @InternalWowApi constructor(
 }
 
 /**
- * A service route of a context (decision D359, `@ServiceRoute`): a route whose handler is the service's own code. Its
+ * A service route of a context (`@ServiceRoute`): a route whose handler is the service's own code. Its
  * [name] is its identity within the context, for compatibility and for its generated client; [route] is where the
  * edge serves it, below the context; [parameters] are its path variables and query parameters; [request] and
  * [response] are the schema references of its body and its answer, null when it takes none or answers

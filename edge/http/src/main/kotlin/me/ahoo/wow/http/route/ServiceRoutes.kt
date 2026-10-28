@@ -27,7 +27,6 @@ import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
-import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
@@ -35,6 +34,8 @@ import me.ahoo.wow.kernel.route.ServiceRouteHandler
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
+import me.ahoo.wow.query.admission.QueryTargetException
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
@@ -51,7 +52,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.javaType
 
 /**
- * The service routes a node serves (decision D359): the [handlers] the modules' model providers bind, the
+ * The service routes a node serves: the [handlers] the modules' model providers bind, the
  * [authorizers] every call passes, and the [commands] a handler sends as its caller.
  */
 @InternalWowApi
@@ -100,6 +101,7 @@ internal class ServiceRouteHandling(
     private val authenticator: Authenticator,
     private val headers: RequestHeaders,
     private val statuses: ErrorStatuses,
+    private val targets: QueryTargets,
 ) {
     private val authorizer = ServiceRouteAuthorizer.allOf(routes.authorizers)
     private val undeclared = ConcurrentHashMap.newKeySet<Pair<String, String>>()
@@ -110,37 +112,66 @@ internal class ServiceRouteHandling(
         route: ServiceRouteManifest,
         handler: ServiceRouteHandler,
     ): ServerResponse {
-        val caller = authenticator.authenticate(request)
-        if (request.headers().firstHeader(WowHeaders.CALL) != null) {
-            throw problem(FrameworkCodes.AUTH_FORBIDDEN, "A service's call (Wow-Call) is not taken on the public port.")
-        }
-        val target = headers.target(request, FrameworkCodes.ROUTE_MALFORMED)
-        if (target != null && !caller.crossScope) {
-            throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
-        }
-        val tenantId = target?.tenantId ?: caller.tenantId
-        val scope = target?.scope ?: caller.scope
-        val action = RouteAction(context.name, route.name, route.route.method, request.path(), tenantId, scope)
-        val decision = authorizer.authorize(caller, action)
-        if (decision is Authorization.Denied) throw problem(decision.code, decision.message)
+        val acting = admit(request, context, route)
         val body = if (route.request != null) request.awaitBodyOrNull<ByteArray>() else null
         val call = Call(
-            caller = caller.copyWith(tenantId = tenantId, scope = scope),
-            tenantId = tenantId,
-            scope = scope,
+            caller = acting,
+            tenantId = acting.tenantId,
+            scope = acting.scope,
             requestId = headers.requestId(request) ?: UUID.randomUUID().toString(),
             client = routes.commands,
         )
-        val answer = try {
-            handler.handle(call, Parameters(request, body))
+        val answer = answer(context, route) { handler.handle(call, Parameters(request, body)) }
+        if (answer == null || answer == Unit) return ServerResponse.noContent().buildAndAwait()
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(HttpJson.write(answer))
+    }
+
+    /**
+     * The caller of [request] as it acts on [route]: authenticated, in the scope it may name, allowed by the
+     * authorizers; a problem refusing it otherwise.
+     */
+    private suspend fun admit(request: ServerRequest, context: ContextManifest, route: ServiceRouteManifest): Caller {
+        val caller = authenticator.authenticate(request)
+        refuseCall(request)
+        val acting = try {
+            targets.acting(caller, headers.target(request, FrameworkCodes.ROUTE_MALFORMED))
+        } catch (refused: QueryTargetException) {
+            throw problem(FrameworkCodes.AUTH_FORBIDDEN, refused.errorMsg)
+        }
+        val action = RouteAction(
+            context.name,
+            route.name,
+            route.route.method,
+            request.path(),
+            acting.tenantId,
+            acting.scope,
+        )
+        val decision = authorizer.authorize(caller, action)
+        if (decision is Authorization.Denied) throw problem(decision.code, decision.message)
+        return acting
+    }
+
+    /** A service's call (`Wow-Call`) is taken on the internal port alone. */
+    private fun refuseCall(request: ServerRequest) {
+        if (request.headers().firstHeader(WowHeaders.CALL) != null) {
+            throw problem(FrameworkCodes.AUTH_FORBIDDEN, "A service's call (Wow-Call) is not taken on the public port.")
+        }
+    }
+
+    /** What [handle] answers, its refusal and its malformed parameter turned into their problems. */
+    private suspend fun answer(
+        context: ContextManifest,
+        route: ServiceRouteManifest,
+        handle: suspend () -> Any?
+    ): Any? =
+        try {
+            handle()
         } catch (malformed: MalformedRouteRequestException) {
+            val detail = malformed.message ?: "The request does not read."
             throw ProblemException(
-                statuses.problemOf(FrameworkCodes.ROUTE_MALFORMED, malformed.message ?: "The request does not read.")
-                    .copyWith(
-                        violations = listOf(
-                            Violation(malformed.parameter, FrameworkCodes.ROUTE_MALFORMED, malformed.message.orEmpty()),
-                        ),
-                    ),
+                statuses.problemOf(FrameworkCodes.ROUTE_MALFORMED, detail).copyWith(
+                    violations = listOf(Violation(malformed.parameter, FrameworkCodes.ROUTE_MALFORMED, detail)),
+                ),
             )
         } catch (refusal: RouteRefusal) {
             if (refusal.code !in route.errors && undeclared.add(route.name to refusal.code)) {
@@ -150,12 +181,13 @@ internal class ServiceRouteHandling(
                 }
             }
             throw ProblemException(
-                statuses.problemOf(refusal.code, refusal.message, context.name).copyWith(extensions = refusal.extensions),
+                statuses.problemOf(
+                    refusal.code,
+                    refusal.message,
+                    context.name
+                ).copyWith(extensions = refusal.extensions),
             )
         }
-        if (answer == null || answer == Unit) return ServerResponse.noContent().buildAndAwait()
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(HttpJson.write(answer))
-    }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
 

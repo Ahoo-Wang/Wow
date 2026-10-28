@@ -17,7 +17,7 @@ import me.ahoo.wow.compiler.model.route.RouteArgument
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
 
 /**
- * Renders a module's `routes` (decision D359): one `me.ahoo.wow.kernel.route.ServiceRouteHandler` per `@ServiceRoute`
+ * Renders a module's `routes`: one `me.ahoo.wow.kernel.route.ServiceRouteHandler` per `@ServiceRoute`
  * function, calling it on the instance of its class the host's `Dependencies` holds, with each parameter read from
  * the request as the function's type, so the edge reflects on nothing.
  */

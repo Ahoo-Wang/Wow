@@ -18,7 +18,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 /**
- * The handler of one service route (decision D359): the binding the compiler generates for a `@ServiceRoute`
+ * The handler of one service route: the binding the compiler generates for a `@ServiceRoute`
  * function, named as the Manifest names the route ([context], [name]). The edge mounts it at the route the Manifest
  * lists, admits the call, and asks it to [handle] the request.
  */

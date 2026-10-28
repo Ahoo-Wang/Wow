@@ -51,7 +51,7 @@ interface ModelProvider {
     fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> = emptyList()
 
     /**
-     * The handlers of the module's service routes (`@ServiceRoute`, decision D359), each bound to the instance of its
+     * The handlers of the module's service routes (`@ServiceRoute`), each bound to the instance of its
      * class that [dependencies] holds; a [MissingDependencyException] when it holds none. None by default: the
      * compiler overrides it for a module that declares routes.
      */

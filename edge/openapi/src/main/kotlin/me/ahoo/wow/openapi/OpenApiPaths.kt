@@ -148,7 +148,7 @@ internal class OpenApiPaths(
         }
     }
 
-    /** A context's service routes (decision D359): their parameters, body, answer and refusals. */
+    /** A context's service routes: their parameters, body, answer and refusals. */
     private fun serviceRoutes(context: ContextManifest) {
         context.routes.forEach { route ->
             val parameters = route.parameters.map { parameter ->

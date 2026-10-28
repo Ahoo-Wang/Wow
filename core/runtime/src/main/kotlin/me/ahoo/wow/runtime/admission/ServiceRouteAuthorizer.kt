@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 
 /**
- * What a caller asks of a service route (decision D359), as authorization sees it before the request is decoded:
+ * What a caller asks of a service route, as authorization sees it before the request is decoded:
  * the route [name] of [context], its [method] and the [path] it was called at, in [tenantId] and [scope].
  */
 class RouteAction @InternalWowApi constructor(
@@ -42,7 +42,14 @@ class RouteAction @InternalWowApi constructor(
     companion object {
         /** A RouteAction of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(context: String, name: String, method: String, path: String, tenantId: String, scope: Scope): RouteAction =
+        fun of(
+            context: String,
+            name: String,
+            method: String,
+            path: String,
+            tenantId: String,
+            scope: Scope
+        ): RouteAction =
             RouteAction(context, name, method, path, tenantId, scope)
     }
 }

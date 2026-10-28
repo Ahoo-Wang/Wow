@@ -21,7 +21,7 @@ import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
- * Authorizes a call of a service route (decision D359) with CoSec's policies, as [CoSecCommandAuthorizer] authorizes a
+ * Authorizes a call of a service route with CoSec's policies, as [CoSecCommandAuthorizer] authorizes a
  * command: the call is evaluated as the request of the route's own method and the path it was called at, so the
  * policy that guards the route over HTTP guards it here too. The attributes [ROUTE] (`context.name`),
  * [CoSecCommandAuthorizer.TENANT], [CoSecCommandAuthorizer.OWNER] and [CoSecCommandAuthorizer.SPACE] are there for

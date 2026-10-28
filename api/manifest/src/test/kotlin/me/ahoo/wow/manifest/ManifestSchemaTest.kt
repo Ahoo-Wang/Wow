@@ -81,7 +81,11 @@ class ManifestSchemaTest {
                             name = "summary",
                             route = RouteManifest("GET", "/shop/summary/{day}"),
                             parameters = listOf(
-                                RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
+                                RouteParameterManifest(
+                                    "day",
+                                    RouteParameterManifest.Location.PATH,
+                                    mapOf("type" to "string")
+                                ),
                                 RouteParameterManifest(
                                     "status",
                                     RouteParameterManifest.Location.QUERY,

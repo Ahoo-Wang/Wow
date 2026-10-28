@@ -50,7 +50,10 @@ object ManifestMerger {
             "${it.source} is of format ${it.manifest.format}, not ${Manifest.FORMAT}"
         }.toMutableList()
         val declared = fragments.flatMap { fragment -> fragment.manifest.contexts.map { fragment.source to it } }
-        declared.filterNot { it.second.routesOnly }.groupBy({ it.second.name }, { it.first }).filterValues { it.size > 1 }
+        declared.filterNot { it.second.routesOnly }.groupBy(
+            { it.second.name },
+            { it.first }
+        ).filterValues { it.size > 1 }
             .forEach { (name, sources) -> conflicts += "context $name is declared by ${sources.joinToString(" and ")}" }
         val contexts = withRoutesAdded(declared, conflicts)
         contexts.forEach { (source, context) -> conflicts += conflictsWithin(source, context) }
@@ -96,17 +99,19 @@ object ManifestMerger {
     private fun withRoutesAdded(
         declared: List<Pair<String, ContextManifest>>,
         conflicts: MutableList<String>,
-    ): List<Pair<String, ContextManifest>> = declared.groupBy { it.second.name }.values.map { entries ->
+    ): List<Pair<String, ContextManifest>> = declared.groupBy { it.second.name }.values.flatMap { entries ->
         val owner = entries.firstOrNull { !it.second.routesOnly } ?: entries.first()
-        val added = entries - owner
-        if (added.isEmpty()) return@map owner
+        // A context declared twice stays twice, so each declaration's conflicts are reported.
+        val added = entries.filter { it !== owner && it.second.routesOnly }
+        val others = entries.filter { it !== owner && !it.second.routesOnly }
+        if (added.isEmpty()) return@flatMap listOf(owner) + others
         added.flatMap { it.second.errors }.filter { error -> owner.second.errors.any { it.code == error.code } }
             .forEach { conflicts += "error ${it.code} of context ${owner.second.name} is declared by more than one fragment" }
         val context = owner.second.copyWith(
             errors = owner.second.errors + added.flatMap { it.second.errors },
             routes = owner.second.routes + added.flatMap { it.second.routes },
         )
-        entries.joinToString(" and ") { it.first } to context
+        listOf((listOf(owner) + added).joinToString(" and ") { it.first } to context) + others
     }
 
     /** The codes a service route refuses with that its context, every fragment's errors merged, does not declare. */

@@ -180,7 +180,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         /** The codes of the framework's own endpoints: the caller must be authenticated. */
         val FRAMEWORK: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED)
 
-        /** A service route's: its caller refused, a parameter that does not read, and a failure (decision D359). */
+        /** A service route's: its caller refused, a parameter that does not read, and a failure. */
         val ROUTE: List<String> = listOf(
             FrameworkErrors.AUTH_UNAUTHENTICATED,
             FrameworkErrors.AUTH_FORBIDDEN,
