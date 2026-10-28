@@ -100,14 +100,14 @@ public final class me/ahoo/wow/spring/boot/MongoPoolAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion;
 	public fun <init> ()V
-	public final fun wowObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spi/observation/Observer;
+	public final fun wowObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ListableBeanFactory;)Lme/ahoo/wow/spi/observation/Observer;
 	public final fun wowOtelQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/observe/QueryObserver;
 	public final fun wowParkedMetrics (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/subscription/ParkedNotifier;
-	public static final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
+	public static final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion {
-	public final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
+	public final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
 public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration {
@@ -157,11 +157,6 @@ public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Transport 
 	public final fun wowPartitionedSource (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/PartitionedSource;
 	public final fun wowTopicAdmin (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun wowTopicProducer (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicProducer;
-}
-
-public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$TransportMetrics {
-	public fun <init> ()V
-	public final fun wowOffsetGaps (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lio/micrometer/core/instrument/FunctionCounter;
 }
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {

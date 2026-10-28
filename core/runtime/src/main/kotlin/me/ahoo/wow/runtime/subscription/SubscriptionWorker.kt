@@ -420,7 +420,7 @@ internal class SubscriptionWorker(
     private suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
         val stream = sourced.stream
         val trace = sourced.transport?.trace.orEmpty()
-        val observed = observer.handling(subscription.name, subscription.context, stream, trace, source.topic)
+        val observed = observer.handling(group, subscription.name, subscription.context, stream, trace, source.topic)
         return observed.observe {
             retried(sourced).also { handled -> handled.exceptionOrNull()?.let { observed.failed(it) } }
         }

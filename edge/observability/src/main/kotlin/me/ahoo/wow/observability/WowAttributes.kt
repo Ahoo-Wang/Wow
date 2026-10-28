@@ -48,16 +48,23 @@ internal object WowAttributes {
     const val TIMER_ID: String = "wow.timer.id"
     const val QUERY_TYPE: String = "wow.query.type"
     const val OUTCOME: String = "wow.outcome"
+    const val GROUP: String = "wow.group"
+
+    /** OpenTelemetry's attribute of a failure's type: its full class name on a span. */
+    const val ERROR_TYPE: String = "error.type"
 
     /** OpenTelemetry's messaging attributes of a topic's span. */
+    const val MESSAGING_SYSTEM: String = "messaging.system"
     const val MESSAGING_DESTINATION: String = "messaging.destination.name"
+    const val MESSAGING_OPERATION_NAME: String = "messaging.operation.name"
     const val MESSAGING_OPERATION: String = "messaging.operation.type"
     const val MESSAGING_BATCH_COUNT: String = "messaging.batch.message_count"
 
     /** Every attribute of a span above. */
     val NAMES: List<String> = listOf(
         CONTEXT, AGGREGATE, AGGREGATE_ID, VERSION, DATASET, TENANT_ID, COMMAND, COMMAND_ID, REQUEST_ID, SUBSCRIPTION,
-        TIMER_ID, QUERY_TYPE, OUTCOME, MESSAGING_DESTINATION, MESSAGING_OPERATION, MESSAGING_BATCH_COUNT,
+        TIMER_ID, QUERY_TYPE, OUTCOME, GROUP, ERROR_TYPE, MESSAGING_SYSTEM, MESSAGING_DESTINATION, MESSAGING_OPERATION_NAME,
+        MESSAGING_OPERATION, MESSAGING_BATCH_COUNT,
     )
 }
 
@@ -91,12 +98,12 @@ object WowMetrics {
     const val REASON: String = "wow.reason"
     const val CAPABILITY: String = "wow.capability"
     const val KIND: String = "wow.kind"
-    const val GROUP: String = "wow.group"
+    const val GROUP: String = WowAttributes.GROUP
     const val PARTITION: String = "wow.partition"
     const val READ: String = "wow.read"
 
     /** OpenTelemetry's attribute of an error's type: the problem code of a refusal. */
-    const val ERROR_TYPE: String = "error.type"
+    const val ERROR_TYPE: String = WowAttributes.ERROR_TYPE
 
     /** The topic a message came from. */
     const val TOPIC: String = WowAttributes.MESSAGING_DESTINATION
@@ -244,7 +251,7 @@ object WowMetrics {
     val SUBSCRIPTION_LAG: MetricSpec = MetricSpec.timer(
         "wow.subscription.lag",
         "From a stream's commit to a subscription handling it.",
-        tags = listOf(CONTEXT, SUBSCRIPTION),
+        tags = listOf(GROUP, SUBSCRIPTION),
     )
 
     val POSITION: MetricSpec = MetricSpec.gauge(
@@ -268,14 +275,14 @@ object WowMetrics {
 
     val PARKED_AGGREGATES: MetricSpec = MetricSpec.gauge(
         "wow.subscription.parked.aggregates",
-        "The entries a subscription has parked.",
-        tags = listOf(SUBSCRIPTION),
+        "The entries a subscription has parked, counted up to the sampler's cap.",
+        tags = listOf(GROUP, SUBSCRIPTION),
     )
 
     val PARKED_NOTICES: MetricSpec = MetricSpec.counter(
         "wow.subscription.parked.notices",
         "The entries parked, and those whose automatic retries are spent.",
-        tags = listOf(SUBSCRIPTION, KIND),
+        tags = listOf(GROUP, SUBSCRIPTION, KIND),
         values = mapOf(KIND to ParkedNotice.Kind.entries.map { it.tagValue }),
     )
 
@@ -321,9 +328,10 @@ object WowMetrics {
     )
 
     val OFFSET_GAPS: MetricSpec = MetricSpec.counter(
-        "wow.kafka.offset.gaps",
-        "The offsets a read of another context's topic was to start from that its partition no longer holds.",
-        tags = emptyList(),
+        "wow.subscription.offset.gaps",
+        "The offsets a read of a topic was to start from that its partition no longer holds: messages lost to the " +
+            "topic's retention.",
+        tags = listOf(TOPIC),
     )
 
     val TIMER_DELAY: MetricSpec = MetricSpec.timer(

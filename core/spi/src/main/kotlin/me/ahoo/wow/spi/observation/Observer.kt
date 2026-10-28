@@ -66,10 +66,12 @@ interface Observer {
     fun appending(stream: EventStreamRecord): Observation = Observation.NONE
 
     /**
-     * [subscription] of [context] handling [stream], retries included; [trace] holds the propagation fields the entry
-     * carries. [topic] is the topic the entry was read from (a consumption), null for the context's log.
+     * [subscription] of [context], run in the log or lease [group], handling [stream], retries included; [trace] holds
+     * the propagation fields the entry carries. [topic] is the topic the entry was read from (a consumption), null for
+     * the context's log. A subscription is one by its group and its name: each context has its own `snapshot`.
      */
     fun handling(
+        group: String,
         subscription: String,
         context: String,
         stream: EventStreamRecord,

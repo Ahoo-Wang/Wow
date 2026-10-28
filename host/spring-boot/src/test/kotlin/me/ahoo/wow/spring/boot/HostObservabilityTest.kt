@@ -82,7 +82,7 @@ class HostObservabilityTest {
             }
         }
         val admit = beans.spans.finishedSpanItems.single { it.name == "admit $BANK.account" }
-        admit.kind.assert().isEqualTo(SpanKind.SERVER)
+        admit.kind.assert().isEqualTo(SpanKind.INTERNAL)
         admit.traceId.assert().isEqualTo(trace)
         admit.parentSpanId.assert().isEqualTo(caller)
         beans.spans.finishedSpanItems.single { it.name == "execute $BANK.account" }.parentSpanId

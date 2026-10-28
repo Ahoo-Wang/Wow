@@ -1088,7 +1088,8 @@ class Kernel(
     }
 
     /**
-     * Observes and logs that [command] of [commandType] on [type] was rejected: a business outcome, so at INFO.
+     * Observes and logs that [command] of [commandType] on [type] was rejected: a business outcome, so at INFO
+     * ([RejectionLog]).
      * [withEvents] is whether its events were committed with it.
      */
     private fun rejected(
@@ -1099,10 +1100,14 @@ class Kernel(
         withEvents: Boolean,
     ) {
         observer.observed(ObservedEvent.Rejected(type, commandType, rejection.code, withEvents))
-        logger.info {
-            "Rejected $commandType on ${command.ref} with ${rejection.code} (requestId=${command.requestId}, " +
-                "withEvents=$withEvents): ${rejection.message}"
-        }
+        RejectionLog.rejected(
+            command.ref,
+            commandType,
+            rejection.code,
+            command.requestId,
+            withEvents,
+            rejection.message
+        )
     }
 
     /** The command types whose creation was rejected with events, warned about once each. */

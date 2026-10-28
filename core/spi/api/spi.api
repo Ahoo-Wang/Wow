@@ -707,6 +707,11 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed$Outco
 	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed$Outcome;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$OffsetGap : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getPartition ()I
+	public final fun getTopic ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionPaused : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getGroup ()Ljava/lang/String;
 	public final fun getPartition ()I
@@ -859,7 +864,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun deciding (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun executing (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
-	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun handling (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun observed (Lme/ahoo/wow/spi/observation/ObservedEvent;)V
 	public static fun of (Ljava/util/List;)Lme/ahoo/wow/spi/observation/Observer;
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
@@ -1652,7 +1657,6 @@ public final class me/ahoo/wow/spi/transport/PartitionOffsets$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
-	public fun getOffsetGaps ()J
 	public abstract fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1730,6 +1734,7 @@ public final class me/ahoo/wow/spi/transport/TransportConfig {
 	public final fun getDevelopment ()Z
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
+	public final fun getObserver ()Lme/ahoo/wow/spi/observation/Observer;
 	public final fun getOptions ()Ljava/util/Map;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getType ()Ljava/lang/String;
@@ -1737,6 +1742,7 @@ public final class me/ahoo/wow/spi/transport/TransportConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ZLme/ahoo/wow/spi/observation/Observer;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
@@ -1750,7 +1756,8 @@ public final class me/ahoo/wow/spi/transport/TransportConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/transport/TransportConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/TransportConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ZILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ZLme/ahoo/wow/spi/observation/Observer;)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/TransportConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ZLme/ahoo/wow/spi/observation/Observer;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TransportConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/TransportProvider {

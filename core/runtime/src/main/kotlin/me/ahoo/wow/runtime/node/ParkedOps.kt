@@ -45,6 +45,33 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     val subscriptions: List<String> get() = scopes().flatMapTo(sortedSetOf()) { it.names() }.toList()
 
     /**
+     * The subscriptions whose entries this node reads, each by the log or lease group it runs in, ordered by group and
+     * name: a subscription is one by both, since each context has its own `snapshot`.
+     */
+    val groupedSubscriptions: List<ParkedSubscription>
+        get() = scopes().flatMapTo(sortedSetOf()) { scope -> scope.names().map { ParkedSubscription(scope.group, it) } }
+            .toList()
+
+    /** How many entries [subscription] has parked, up to [max]. */
+    suspend fun count(subscription: ParkedSubscription, max: Int): Int {
+        require(max >= 1) { "At least one parked entry is counted." }
+        var count = 0
+        for (scope in scopes().filter { it.group == subscription.group && subscription.name in it.names() }) {
+            var after: AggregateRef? = null
+            do {
+                val limit = minOf(MAX_LIMIT, max - count)
+                val page = scope.ledger.list(subscription.name, after, limit)
+                count += page.size
+                after = page.lastOrNull()?.ref
+            } while (page.size == limit && count < max)
+            if (count >= max) {
+                break
+            }
+        }
+        return count
+    }
+
+    /**
      * Up to [limit] entries, ordered by subscription name and then by aggregate as [FailureLedger.list] orders them:
      * [subscription]'s only when given, after [after] (exclusive) when given, and only those whose aggregate [visible]
      * admits (a caller's own tenant's, for one that may not act across tenants). [ParkedPage.next] is where the next
@@ -206,6 +233,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      * [contextOf] the context a subscription belongs to.
      */
     internal class Scope(
+        val group: String,
         val names: () -> Set<String>,
         val ledger: FailureLedger,
         val options: ParkedRetryOptions,
@@ -218,6 +246,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
         companion object {
             fun of(runtime: SubscriptionRuntime): Scope = Scope(
+                runtime.group,
                 { runtime.subscriptionNames },
                 runtime.ledger,
                 runtime.options.parked,
@@ -227,13 +256,13 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             )
 
             /**
-             * The parked timers of [context]'s log group sent by [timers] over a log of [partitions] partitions,
+             * The parked timers of [context]'s log [group] sent by [timers] over a log of [partitions] partitions,
              * each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
              * Nothing retries them automatically: they wait for an operator. Resuming or skipping changes the timers
              * in their store, so any node acts at once; the node that runs the target's partition of the group
              * publishes the entry.
              */
-            fun of(context: String, timers: TimerRunner, partitions: Int): Scope {
+            fun of(group: String, context: String, timers: TimerRunner, partitions: Int): Scope {
                 val names = setOf(TimerOptions.PARKED_SUBSCRIPTION)
                 val runner = object : Runner {
                     override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
@@ -252,6 +281,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                     }
                 }
                 return Scope(
+                    group,
                     { names },
                     timers.ledger,
                     ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0)),
@@ -275,6 +305,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             fun of(topic: TopicSubscriptions, options: ParkedRetryOptions): Scope {
                 val names = topic.subscriptions.mapTo(HashSet()) { it.name }
                 return Scope(
+                    topic.group.name,
                     { names },
                     topic.ledger,
                     options,
@@ -292,14 +323,17 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         const val MAX_LIMIT: Int = 1_000
 
         /**
-         * The entries of [runtimes]' subscriptions, and the parked timers of [timers], each runner with the partitions
-         * of its log group's log, for a host that runs them without a [ServiceNode].
+         * The entries of [runtimes]' subscriptions, and the parked timers of [timers], each runner with the runtime of
+         * its log group and the partitions of the group's log, for a host that runs them without a [ServiceNode].
          */
         @JvmStatic
         @JvmOverloads
-        fun of(runtimes: Collection<SubscriptionRuntime>, timers: Map<TimerRunner, Int> = emptyMap()): ParkedOps {
+        fun of(
+            runtimes: Collection<SubscriptionRuntime>,
+            timers: Map<TimerRunner, Pair<SubscriptionRuntime, Int>> = emptyMap(),
+        ): ParkedOps {
             val scopes = runtimes.map { Scope.of(it) } +
-                timers.map { (runner, partitions) -> Scope.of(runner.context, runner, partitions) }
+                timers.map { (runner, group) -> Scope.of(group.first.group, runner.context, runner, group.second) }
             return ParkedOps { scopes }
         }
 
@@ -325,6 +359,12 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             return one.hasNext().compareTo(other.hasNext())
         }
     }
+}
+
+/** A subscription whose entries park, by the log or lease [group] it runs in and its [name]. */
+@InternalWowApi
+data class ParkedSubscription(val group: String, val name: String) : Comparable<ParkedSubscription> {
+    override fun compareTo(other: ParkedSubscription): Int = compareValuesBy(this, other, { it.group }, { it.name })
 }
 
 /** Where a listing of parked entries stands: an entry of [subscription] parking [ref]. */

@@ -34,12 +34,12 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 
 | Metric | Type | Tags | Measures |
 | --- | --- | --- | --- |
-| `wow.subscription.lag` | Timer | `wow.context`, `wow.subscription` | From a commit to a subscription handling it |
+| `wow.subscription.lag` | Timer | `wow.group`, `wow.subscription` | From a commit to a subscription handling it |
 | `wow.subscription.position` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | The log position a subscription has handled up to |
 | `wow.subscription.backlog` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | The entries of the partition after that position |
 | `wow.subscription.progress` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | That position over the log's head, 0 to 1: a rebuild's progress |
-| `wow.subscription.parked.aggregates` | Gauge | `wow.subscription` | The aggregates the subscription has parked now |
-| `wow.subscription.parked.notices` | Counter | `wow.subscription`, `wow.kind` | Entries parked (`wow.kind=parked`), and entries whose automatic retries are spent (`wow.kind=exhausted`) |
+| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | The aggregates the subscription has parked now, counted up to `wow.observability.max-parked` (10,000) |
+| `wow.subscription.parked.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | Entries parked (`wow.kind=parked`), and entries whose automatic retries are spent (`wow.kind=exhausted`) |
 | `wow.subscription.paused.partitions` | Gauge | `wow.group`, `wow.subscription` | The subscription's partitions on this node paused on a systemic failure, 0 while all run |
 | `wow.subscription.paused.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | Pauses (`wow.kind=paused`) and resumes (`wow.kind=resumed`) |
 | `wow.subscription.throttled.partitions` | Gauge | `wow.group`, `wow.subscription` | The subscription's partitions on this node throttled on backpressure, 0 while all run at full speed |
@@ -47,7 +47,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.subscription.backpressure.refusals` | Counter | `wow.group`, `wow.subscription`, `error.type` | Handling attempts refused on backpressure, by problem code |
 | `wow.subscription.undecodable.messages` | Counter | `messaging.destination.name`, `wow.outcome` | Messages of a topic this version cannot decode, parked (`wow.outcome=parked`) or skipped (`wow.outcome=skipped`) |
 | `wow.timer.delay` | Timer | `wow.context` | How late a timer fires after its due time |
-| `wow.kafka.offset.gaps` | Counter | | Offset gaps met reading another context's topic |
+| `wow.subscription.offset.gaps` | Counter | `messaging.destination.name` | Reads of a topic that were to start from an offset its partition no longer holds: messages lost to its retention |
 
 ### Queries
 
@@ -73,17 +73,17 @@ The analytics catalog server reports two gauges of its own, in seconds, while it
 
 ## Spans
 
-The tracer is named `me.ahoo.wow`, at Wow's version. A stage that starts from what arrived, a request's trace or a message's propagation fields, is the child of the span they name; any other is the child of the current span. A span ends with its `wow.outcome`, and a failure is recorded on it.
+The tracer is named `me.ahoo.wow`, at Wow's version. A stage that starts from what arrived, a request's trace or a message's propagation fields, is the child of the span they name; any other is the child of the current span. The admission's parent is the current span when there is one, the request's server span. Every span ends with its `wow.outcome`, and a failure is recorded on it, its full class name as `error.type`. A subscription is one by its group and its name, `wow.group` and `wow.subscription`: each context has its own `snapshot`.
 
 | Span | Kind | Attributes |
 | --- | --- | --- |
-| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
+| `admit <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
 | `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command.name`, `wow.command.id`, `wow.request.id` |
 | `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id` |
 | `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.aggregate.version` |
-| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
-| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.destination.name`, `messaging.operation.type` |
-| `<topic> publish` | PRODUCER | `messaging.destination.name`, `messaging.operation.type`, `messaging.batch.message_count` |
+| `handle <subscription>` | INTERNAL | `wow.group`, `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `process <topic>` | CONSUMER | `wow.group`, `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.system`, `messaging.destination.name`, `messaging.operation.name`, `messaging.operation.type` |
+| `send <topic>` | PRODUCER | `messaging.system`, `messaging.destination.name`, `messaging.operation.name`, `messaging.operation.type`, `messaging.batch.message_count` |
 | `fire <command type>` | INTERNAL | `wow.context`, `wow.timer.id`, `wow.aggregate.id` |
 | `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name` (a dataset's query: `wow.dataset`), `wow.query.type` |
 

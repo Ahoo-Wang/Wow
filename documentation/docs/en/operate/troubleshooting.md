@@ -72,7 +72,7 @@ The ownership health component is `DOWN`, or commands for some aggregates are sl
 | Symptom | Cause | Do |
 | --- | --- | --- |
 | A node stays not ready after it starts | A topic it reads is still joining its lease group | Wait; or set `wow.health.topics.required: false` |
-| `wow.kafka.offset.gaps` is above zero | Retention deleted offsets a subscription had not read | Raise the topic's retention; decide on `wow.kafka.offset-gap` ([Kafka](./kafka#reading-other-contexts-streams)) |
+| `wow.subscription.offset.gaps` is above zero | Retention deleted offsets a subscription had not read | Raise the topic's retention; decide on `wow.kafka.offset-gap` ([Kafka](./kafka#reading-other-contexts-streams)) |
 | `wow.subscription.undecodable.messages` is above zero | Messages this version cannot decode | Upgrade the reading service's api, or the writer sends an unknown format |
 
 ## Queries are refused or slow

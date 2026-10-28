@@ -351,7 +351,9 @@ internal class NodeAssembly(
         contexts.values.flatMap { context ->
             (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) } +
                 context.logGroups.mapNotNull { group ->
-                    group.timers?.let { ParkedOps.Scope.of(context.context, it.runner, group.log.partitions) }
+                    group.timers?.let {
+                        ParkedOps.Scope.of(group.subscriptions.group, context.context, it.runner, group.log.partitions)
+                    }
                 }
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
     }

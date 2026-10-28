@@ -146,7 +146,7 @@ class TraceChainTest {
             spans.filter { it.name != CLIENT_SPAN }.map { it.traceId }.distinct().assert().containsExactly(trace)
 
             val admit = telemetry.single("admit $SALES.order")
-            admit.kind.assert().isEqualTo(SpanKind.SERVER)
+            admit.kind.assert().isEqualTo(SpanKind.INTERNAL)
             admit.parentSpanId.assert().isEqualTo(request.spanContext.spanId)
 
             val (place, cancel) = telemetry.named("execute $SALES.order").sortedBy { it.startEpochNanos }
@@ -160,10 +160,10 @@ class TraceChainTest {
             val saga = telemetry.named("handle $SAGA").single { it.parentSpanId == append.spanId }
 
             // The reservation goes to the stock context's command topic: a produce, and the intake's consumption.
-            val produce = telemetry.single("$COMMANDS publish")
+            val produce = telemetry.single("send $COMMANDS")
             produce.kind.assert().isEqualTo(SpanKind.PRODUCER)
             produce.parentSpanId.assert().isEqualTo(saga.spanId)
-            val intake = telemetry.single("$COMMANDS process")
+            val intake = telemetry.single("process $COMMANDS")
             intake.kind.assert().isEqualTo(SpanKind.CONSUMER)
             intake.attr(WowAttributes.SUBSCRIPTION).assert().isEqualTo("wow.commands")
             val reserve = telemetry.single("execute $STOCK.item")
@@ -179,10 +179,10 @@ class TraceChainTest {
             )
 
             // The receipt of the rejection comes back through the sales context's receipts topic, in the same trace.
-            val receipt = telemetry.single("$RECEIPTS process")
+            val receipt = telemetry.single("process $RECEIPTS")
             receipt.kind.assert().isEqualTo(SpanKind.CONSUMER)
             receipt.parentSpanId.assert().isEqualTo(intake.spanId)
-            telemetry.single("$RECEIPTS publish").parentSpanId.assert().isEqualTo(intake.spanId)
+            telemetry.single("send $RECEIPTS").parentSpanId.assert().isEqualTo(intake.spanId)
             telemetry.lineage(cancel).take(3).assert().containsExactly(cancel.name, receipt.name, intake.name)
 
             measured()
@@ -216,11 +216,11 @@ class TraceChainTest {
             "decide $SALES.order",
             "append $SALES.order",
             "handle $SAGA",
-            "$COMMANDS publish",
-            "$COMMANDS process",
+            "send $COMMANDS",
+            "process $COMMANDS",
             "execute $STOCK.item",
-            "$RECEIPTS publish",
-            "$RECEIPTS process",
+            "send $RECEIPTS",
+            "process $RECEIPTS",
         )
     }
 }

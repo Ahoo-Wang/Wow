@@ -254,6 +254,15 @@ sealed class ObservedEvent {
     }
 
     /**
+     * A read of [partition] of [topic] was to start from an offset the partition no longer holds (the topic's
+     * retention deleted it, or the topic was created again): messages were lost to its subscriptions, an error to
+     * alert on whatever the transport did about it.
+     */
+    class OffsetGap @InternalWowApi constructor(val topic: String, val partition: Int) : ObservedEvent() {
+        override fun fields() = listOf("topic" to topic, "partition" to partition)
+    }
+
+    /**
      * A message at [offset] of [partition] of [topic] this version cannot decode: [parked] when its key names an
      * aggregate, whose subscriptions park it there; otherwise passed over, the checkpoint moving past it.
      */

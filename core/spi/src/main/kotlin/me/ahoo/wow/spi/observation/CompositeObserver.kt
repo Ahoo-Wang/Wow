@@ -43,12 +43,13 @@ internal class CompositeObserver(private val observers: List<Observer>) : Observ
     override fun appending(stream: EventStreamRecord) = each { it.appending(stream) }
 
     override fun handling(
+        group: String,
         subscription: String,
         context: String,
         stream: EventStreamRecord,
         trace: Map<String, String>,
         topic: String?,
-    ) = each { it.handling(subscription, context, stream, trace, topic) }
+    ) = each { it.handling(group, subscription, context, stream, trace, topic) }
 
     override fun firing(timer: Timer) = each { it.firing(timer) }
 

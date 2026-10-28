@@ -14,18 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.micrometer.core.instrument.FunctionCounter
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Metrics
-import io.micrometer.core.instrument.Tags
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
@@ -38,7 +34,6 @@ import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -66,8 +61,8 @@ import kotlin.time.Duration
  *   other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
  *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker.
- * - **Offset gaps**: the reads that started past their partition's retention ([PartitionedSource.offsetGaps]), as the
- *   counter [WowMetrics.OFFSET_GAPS] when the application has Micrometer: each is an error to alert on.
+ * - **Offset gaps**: the transport is opened with the node's observers ([TransportConfig.observer]), which it tells of
+ *   every read that started past its partition's retention; wow-observability counts them.
  */
 @AutoConfiguration(after = [InMemoryTopicsAutoConfiguration::class])
 class TransportAutoConfiguration {
@@ -113,9 +108,23 @@ class TransportAutoConfiguration {
             return SelectedTransport(provider, config)
         }
 
+        /** The transport, opened with the node's observers. */
         @Bean(destroyMethod = "close")
-        internal fun wowTopicTransport(selected: SelectedTransport): TopicTransport =
-            PortProviders.configured(selected.config.key) { selected.provider.open(selected.config) }
+        internal fun wowTopicTransport(
+            selected: SelectedTransport,
+            observers: ObjectProvider<Observer>
+        ): TopicTransport {
+            val config = selected.config
+            val observed = TransportConfig.of(
+                config.name,
+                config.type,
+                config.options,
+                config.resources,
+                config.development,
+                Observer.of(observers.orderedStream().toList()),
+            )
+            return PortProviders.configured(config.key) { selected.provider.open(observed) }
+        }
 
         // The transport closes its ports itself: they are not closed again as beans.
         @Bean(destroyMethod = "")
@@ -170,28 +179,6 @@ class TransportAutoConfiguration {
     }
 
     /**
-     * The offset gaps the node's source met, as the counter [WowMetrics.OFFSET_GAPS], when the application has
-     * Micrometer.
-     *
-     * The counting function captures [sources], so the meter holds it strongly: Micrometer only
-     * weakly references a function counter's object.
-     */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = [MICROMETER])
-    @Conditional(TransportAutoConfiguration.OnTransport::class)
-    class TransportMetrics {
-        @Bean
-        fun wowOffsetGaps(
-            sources: ObjectProvider<PartitionedSource>,
-            meters: ObjectProvider<MeterRegistry>
-        ): FunctionCounter = WowMetrics.OFFSET_GAPS.functionCounter(
-            meters.getIfUnique { Metrics.globalRegistry },
-            sources,
-            Tags.empty(),
-        ) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
-    }
-
-    /**
      * Whether `wow.transport` selects a provider's transport ([TransportSelection.PROVIDER]): one a provider on the
      * classpath finds configured under `wow.<type>`, a [TransportProvider] bean of the application, or the type it names.
      */
@@ -208,8 +195,6 @@ class TransportAutoConfiguration {
 
     companion object {
         private val logger = KotlinLogging.logger {}
-
-        private const val MICROMETER = "io.micrometer.core.instrument.MeterRegistry"
 
         /** The name of the transport's [PublishedSinks] bean. */
         const val TRANSPORT_SINKS: String = "wowTransportSinks"

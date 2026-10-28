@@ -42,10 +42,10 @@ Put `wow-observability` on the class path. The spans go through the application'
 
 | Stage | Span |
 | --- | --- |
-| Admission | `admit <context>.<aggregate>`, a server span |
+| Admission | `admit <context>.<aggregate>`, an internal span, the child of the request's server span |
 | Execution, decision, append | `execute`, `decide`, `append <context>.<aggregate>` |
 | A subscription handling an entry of the log | `handle <subscription>` |
-| A subscription handling a message of a topic | `<topic> process`, a consumer span |
+| A subscription handling a message of a topic | `process <topic>`, a consumer span |
 | A timer firing | `fire <command type>` |
 | A query | A span per query |
 | A Kafka send | A producer span per send |
@@ -70,9 +70,11 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.timer.delay` | Timer | How late a timer fires after its due time |
 | `wow.query.duration` | Timer | A query, from its admission to its end |
 | `wow.query.limit.current` | Gauge | A store's current bound on concurrent queries |
-| `wow.kafka.offset.gaps` | Counter | Offset gaps on another context's topic ([Kafka](./kafka#reading-other-contexts-streams)) |
+| `wow.subscription.offset.gaps` | Counter | Offset gaps on another context's topic ([Kafka](./kafka#reading-other-contexts-streams)) |
 
 `wow.observability.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
+
+**Rejection log.** A command its aggregate rejects, and one admission refuses, are logged in one shape under the logger `wow.command.rejection`: a rejection at INFO, since it is a business outcome, and a refusal at DEBUG, since refusing is admission's ordinary work. The message reads as a sentence, and the fields are SLF4J key-values named as the spans' attributes: `wow.context`, `wow.aggregate.name`, `wow.command.name`, `error.type` (the code), `wow.request.id`, and `wow.with_events` on a rejection. A JSON encoder, such as Logback's or the Elastic Common Schema's, writes them as fields to search by. Set the logger's level to silence rejections, or to `DEBUG` to see refusals too.
 
 ## What to alert on
 
@@ -83,6 +85,6 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.subscription.paused.partitions` above 0 for long | A downstream store or service is down | The subscription's logs, the store |
 | `wow.subscription.backlog` growing | A subscription falls behind | Its lag, its handler's latency, the node's executor |
 | `wow.timer.delay` growing | Timers fire late | The node's load, the timers' store |
-| `wow.kafka.offset.gaps` above 0 | A subscription skipped or stopped at retained data | The topic's retention |
+| `wow.subscription.offset.gaps` above 0 | A subscription skipped or stopped at retained data | The topic's retention |
 | `wow.reservation.losses` above 0 | A unique key two aggregates now both rely on | The error log naming the key and its holder; the reservation time to live |
 | `wow.command.refusals` with `error.type=wow.command.busy` | Nodes refuse commands under load | The number of nodes, the store's latency |

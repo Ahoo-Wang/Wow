@@ -59,7 +59,7 @@ class KafkaTransportProvider : TransportProvider {
         val options = options(config)
         return KafkaTopicTransport(
             KafkaTopicProducer.create(options),
-            KafkaPartitionedSource.create(options, offsetGap(config)),
+            KafkaPartitionedSource.create(options, offsetGap(config), config.observer),
             KafkaTopicAdmin.create(options, replicationFactor(config), creationConfigs(config)),
             durability(config),
         )

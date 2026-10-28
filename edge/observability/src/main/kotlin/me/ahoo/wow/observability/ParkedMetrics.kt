@@ -21,12 +21,17 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
 
 /**
  * Counts what the node's subscriptions park: each [ParkedNotice] in the [WowMetrics.PARKED_NOTICES]
- * counter of [meters], by subscription and kind (`parked`, an entry parked; `exhausted`, one whose automatic retries
+ * counter of [meters], by group, subscription and kind (`parked`, an entry parked; `exhausted`, one whose automatic retries
  * are spent). How many are parked now is [NodeMetrics]'s gauge.
  */
 @InternalWowApi
 class ParkedMetrics(private val meters: MeterRegistry) : ParkedNotifier {
     override suspend fun notify(notice: ParkedNotice) {
-        WowMetrics.PARKED_NOTICES.counter(meters, notice.entry.subscription, notice.kind.tagValue).increment()
+        WowMetrics.PARKED_NOTICES.counter(
+            meters,
+            notice.group,
+            notice.entry.subscription,
+            notice.kind.tagValue
+        ).increment()
     }
 }

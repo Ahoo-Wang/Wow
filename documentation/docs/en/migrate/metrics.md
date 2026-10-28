@@ -19,7 +19,7 @@ V10 renames every metric and span of 9.x, and keeps no alias. A dashboard or an 
 | `wow.operation`, `component=snapshot_store`, `operation=save` or `load` | `context`, `aggregate` | Saving: the `snapshot` subscription's `wow.subscription.lag` and `wow.subscription.backlog`; loading: `wow.state_cache.lookups` |
 | `wow.operation`, `component=snapshot_strategy` | `context`, `aggregate` | No equivalent: snapshots are a subscription, measured as any other |
 | `wow.operation`, `component=domain_event_handler`, `projection_handler`, `stateless_saga_handler` or `snapshot_handler`, `operation=handle` | `processor`, `subscriber`, `outcome`, `exception` | `wow.subscription.lag` (`wow.subscription`); failures: `wow.subscription.parked.notices` and `wow.subscription.parked.aggregates` |
-| `wow.operation`, `operation=send` or `send_if_subscribed` (the buses) | `component`, `message` | Commands: `wow.command.duration`, `wow.command.forward.failures`; events: no metric, the `<topic> publish` span |
+| `wow.operation`, `operation=send` or `send_if_subscribed` (the buses) | `component`, `message` | Commands: `wow.command.duration`, `wow.command.forward.failures`; events: no metric, the `send <topic>` span |
 | `wow.operation`, `operation=receive` (the buses) | `component`, `subscriber` | `wow.subscription.lag`, `wow.subscription.backlog`, `wow.subscription.position` |
 | `wow.operation.items` | as `wow.operation` | No equivalent; the queued appends: `wow.log.append_queue.depth` |
 | `wow.stream.active`, `wow.stream.messages`, `wow.stream.terminations` | `component`, `subscriber` | No equivalent: a subscription's progress is `wow.subscription.position`, `wow.subscription.backlog`, `wow.subscription.progress`; its pauses `wow.subscription.paused.partitions` |
@@ -40,11 +40,11 @@ V10 also measures what 9.x did not: the waits (`wow.wait.timeouts`), the executo
 | 9.x span | V10 span |
 | --- | --- |
 | `<aggregate>.<Command>` (a command handled) | `admit <context>.<aggregate>` (SERVER), with `execute <context>.<aggregate>` and `decide <context>.<aggregate>` under it |
-| `<aggregate>.<Command>.command send` | Within the admission; through a topic: `<topic> publish` |
+| `<aggregate>.<Command>.command send` | Within the admission; through a topic: `send <topic>` |
 | `<aggregate>.<Event>.event.append` | `append <context>.<aggregate>` |
 | `<aggregate>.event.load`, `<aggregate>.event.existsRequestId` | No span: part of `execute` |
-| `<aggregate>.<Event>.event send`, `<aggregate>.<Event>.state_event send` | `<topic> publish` |
-| `<function>` (an event processor, projection or saga) | `handle <subscription>`; from a topic: `<topic> process` |
+| `<aggregate>.<Event>.event send`, `<aggregate>.<Event>.state_event send` | `send <topic>` |
+| `<function>` (an event processor, projection or saga) | `handle <subscription>`; from a topic: `process <topic>` |
 | `<aggregate>.snapshot` | `handle snapshot` |
 | `<aggregate>.snapshot.save`, `.snapshot.load`, `.snapshot.version` | No span |
 | `<aggregate>.<Command>.waiting` | No span: the wait's outcome ends the admission span (`wow.outcome`) |

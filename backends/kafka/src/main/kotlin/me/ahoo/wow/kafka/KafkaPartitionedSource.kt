@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -69,6 +70,8 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     private val dispatcher: CoroutineDispatcher,
     /** What a read does when its partition does not hold the offset it is to read from. */
     val offsetGap: OffsetGapPolicy,
+    /** The node's observer, told of every offset gap a read meets. */
+    observer: Observer = Observer.NONE,
 ) : PartitionedSource, AutoCloseable {
     constructor(
         consumers: (String) -> Consumer<String, ByteArray>,
@@ -76,10 +79,10 @@ class KafkaPartitionedSource @InternalWowApi constructor(
         dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     ) : this(consumers, pollTimeout, dispatcher, OffsetGapPolicy.FAIL)
 
-    private val gaps = OffsetGaps(offsetGap)
+    private val gaps = OffsetGaps(offsetGap, observer)
 
     /** The offset gaps this source's reads met, each logged as an error: a counter to alert on. */
-    override val offsetGaps: Long get() = gaps.count
+    val offsetGaps: Long get() = gaps.count
 
     private val lock = Mutex()
     private var metadata: Consumer<String, ByteArray>? = null
@@ -205,12 +208,20 @@ class KafkaPartitionedSource @InternalWowApi constructor(
         /** A source whose consumers have [options]' configuration ([KafkaOptions.consumerConfig]). */
         fun create(options: KafkaOptions): KafkaPartitionedSource = create(options, OffsetGapPolicy.FAIL)
 
-        /** A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says. */
-        fun create(options: KafkaOptions, offsetGap: OffsetGapPolicy): KafkaPartitionedSource = KafkaPartitionedSource(
+        /**
+         * A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says
+         * and telling [observer] of it.
+         */
+        fun create(
+            options: KafkaOptions,
+            offsetGap: OffsetGapPolicy,
+            observer: Observer = Observer.NONE,
+        ): KafkaPartitionedSource = KafkaPartitionedSource(
             { clientId -> KafkaConsumer<String, ByteArray>(options.consumerConfig(clientId)) },
             options.pollTimeout,
             VirtualThreads.dispatcher,
             offsetGap,
+            observer,
         )
     }
 }

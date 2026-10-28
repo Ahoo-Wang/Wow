@@ -22,10 +22,10 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * A stage observed as the OpenTelemetry [span], running in [context], the span's [OtelTraceContext].
  *
- * Its outcome is the span's `wow.outcome` attribute; a failure is recorded on the span and makes its status an
- * error, except a cancellation, which only sets the outcome [ObservedOutcome.CANCELLED]. When it ends, [ended] is told
- * the outcome ([ObservedOutcome.ERROR] after a failure, [ObservedOutcome.OK] when none was set) and the nanoseconds it
- * took, for the stage's metric.
+ * Every span ends with its outcome as `wow.outcome`: the one set, [ObservedOutcome.ERROR] after a failure,
+ * [ObservedOutcome.OK] when none was. A failure is recorded on the span, its full class name is `error.type`, and the
+ * span's status is an error, except a cancellation, which only sets the outcome [ObservedOutcome.CANCELLED]. When it
+ * ends, [ended] is told the outcome and the nanoseconds it took, for the stage's metric.
  */
 internal class OtelObservation(
     private val span: Span,
@@ -41,7 +41,6 @@ internal class OtelObservation(
 
     override fun outcome(outcome: ObservedOutcome) {
         this.outcome = outcome
-        span.setAttribute(WowAttributes.OUTCOME, outcome.value)
     }
 
     override fun failed(error: Throwable) {
@@ -50,12 +49,15 @@ internal class OtelObservation(
             return
         }
         outcome = ObservedOutcome.ERROR
+        span.setAttribute(WowAttributes.ERROR_TYPE, error.javaClass.name)
         span.recordException(error)
         span.setStatus(StatusCode.ERROR, error.message.orEmpty())
     }
 
     override fun end() {
+        val outcome = outcome ?: ObservedOutcome.OK
+        span.setAttribute(WowAttributes.OUTCOME, outcome.value)
         span.end()
-        ended?.invoke(outcome ?: ObservedOutcome.OK, System.nanoTime() - started)
+        ended?.invoke(outcome, System.nanoTime() - started)
     }
 }

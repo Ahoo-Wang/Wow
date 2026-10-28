@@ -86,9 +86,13 @@ class MetricsTest {
         val topics = InMemoryTopics(1)
         val producer = TracingTopicProducer(topics, telemetry.sdk)
         producer.send("orders", TopicMessage.of("o-1", "{}".toByteArray()))
-        val publish = telemetry.single("orders publish")
+        val publish = telemetry.single("send orders")
         publish.kind.assert().isEqualTo(SpanKind.PRODUCER)
+        publish.attr(WowAttributes.MESSAGING_SYSTEM).assert().isEqualTo(OtelObserver.MEMORY_SYSTEM)
         publish.attr(WowAttributes.MESSAGING_DESTINATION).assert().isEqualTo("orders")
+        publish.attr(WowAttributes.MESSAGING_OPERATION_NAME).assert().isEqualTo("send")
+        publish.attr(WowAttributes.MESSAGING_OPERATION).assert().isEqualTo("send")
+        publish.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.OK.value)
         publish.attributes.get(io.opentelemetry.api.common.AttributeKey.longKey(WowAttributes.MESSAGING_BATCH_COUNT))
             .assert().isEqualTo(1L)
         producer.toString().assert().isEqualTo("TracingTopicProducer($topics)")
@@ -99,7 +103,11 @@ class MetricsTest {
     fun `a produce that fails should be recorded on its span, and a cancelled one only ended`(): Unit = runBlocking {
         val topics = InMemoryTopics(1).apply { failure = IllegalStateException("The broker is down.") }
         assertThrows<IllegalStateException> {
-            TracingTopicProducer(topics, telemetry.sdk).send("orders", TopicMessage.of("o-1", "{}".toByteArray()))
+            TracingTopicProducer(
+                topics,
+                telemetry.sdk,
+                "kafka"
+            ).send("orders", TopicMessage.of("o-1", "{}".toByteArray()))
         }
         val leaving = object : TopicProducer {
             override suspend fun send(topic: String, messages: List<TopicMessage>) =
@@ -109,10 +117,14 @@ class MetricsTest {
         assertThrows<CancellationException> { cancelled.send("orders", TopicMessage.of("o-1", "{}".toByteArray())) }
         // A producer that holds nothing to close is closed as a no-op.
         cancelled.close()
-        val (failed, left) = telemetry.named("orders publish")
+        val (failed, left) = telemetry.named("send orders")
         failed.status.statusCode.assert().isEqualTo(StatusCode.ERROR)
         failed.status.description.assert().isEqualTo("The broker is down.")
+        failed.attr(WowAttributes.MESSAGING_SYSTEM).assert().isEqualTo("kafka")
+        failed.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.ERROR.value)
+        failed.attr(WowAttributes.ERROR_TYPE).assert().isEqualTo(IllegalStateException::class.java.name)
         left.status.statusCode.assert().isEqualTo(StatusCode.UNSET)
+        left.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.CANCELLED.value)
     }
 
     @Test
@@ -127,16 +139,18 @@ class MetricsTest {
     }
 
     @Test
-    fun `each parked notice should be counted by subscription and kind`(): Unit = runBlocking {
+    fun `each parked notice should be counted by group, subscription and kind`(): Unit = runBlocking {
         val parked = ParkedMetrics(telemetry.meters)
         val entry = ParkedAggregate("Board.onOrder", ORDER.ref("t", "o-1"), 1, "boom", 0)
         parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
         parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
         parked.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "g", entry, ParkedRetrySpec(), 0))
-        fun count(kind: String) = telemetry.meters.find(WowMetrics.PARKED_NOTICES.name)
-            .tags(WowMetrics.SUBSCRIPTION, "Board.onOrder", WowMetrics.KIND, kind).counter()!!.count()
-        count("parked").assert().isEqualTo(2.0)
-        count("exhausted").assert().isEqualTo(1.0)
+        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "other", entry, ParkedRetrySpec(), 0))
+        fun count(group: String, kind: String) = telemetry.meters.find(WowMetrics.PARKED_NOTICES.name)
+            .tags(WowMetrics.PARKED_NOTICES.tagsOf(group, "Board.onOrder", kind)).counter()!!.count()
+        count("g", "parked").assert().isEqualTo(2.0)
+        count("g", "exhausted").assert().isEqualTo(1.0)
+        count("other", "parked").assert().isEqualTo(1.0)
     }
 
     @Test
