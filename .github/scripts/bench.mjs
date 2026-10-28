@@ -576,6 +576,78 @@ export function mergeSignals(all) {
   return merged;
 }
 
+// A query its store's bulkhead refused: answered 429 `wow.query.busy`, whatever the adaptive bound was then. The load
+// generator's error kind ends with the code (`E4-list:read-http-429-wow.query.busy`); the report counts these on
+// their own, beside the bound that refused them, never as a silent error count.
+export const BUSY = 'wow.query.busy';
+
+/** How many of `errors` (kind → count) a store's bulkhead refused. */
+export function busyOf(errors) {
+  return Object.entries(errors ?? {})
+    .filter(([kind]) => kind.endsWith(`-${BUSY}`))
+    .reduce((sum, [, count]) => sum + count, 0);
+}
+
+/**
+ * The query bounds a server log's `bench-query-limits {json}` lines show in [from, to] (epoch milliseconds), per
+ * store: the lowest and highest bound, the ceiling, how often the adaptation lowered it, and the seconds it pressed.
+ * Undefined when no line falls in the window.
+ */
+export function queryLimitsWithin(log, from, to) {
+  const lines = [];
+  let before;
+  for (const line of log.split('\n')) {
+    const at = line.indexOf('bench-query-limits {');
+    const time =
+      /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:?\d\d))/.exec(
+        line,
+      );
+    if (at < 0 || !time) continue;
+    let limits;
+    try {
+      limits = JSON.parse(line.slice(at + 'bench-query-limits '.length));
+    } catch {
+      continue;
+    }
+    const when = Date.parse(time[1]);
+    if (when < from) before = limits;
+    else if (when <= to) lines.push(limits);
+  }
+  if (lines.length === 0) return undefined;
+  const stores = {};
+  for (const store of Object.keys(lines.at(-1)).filter(key => key !== 't')) {
+    const seen = lines.map(limits => limits[store]).filter(Boolean);
+    const bounds = seen.map(limit => limit.limit);
+    const decreases = seen.at(-1).decreases;
+    stores[store] = {
+      min: Math.min(...bounds),
+      max: Math.max(...bounds),
+      ceiling: seen.at(-1).ceiling,
+      ...(decreases === undefined
+        ? {}
+        : {
+            lowered:
+              decreases - (before?.[store]?.decreases ?? seen[0].decreases),
+            pressedSeconds: seen.filter(limit => limit.pressed).length,
+          }),
+    };
+  }
+  return stores;
+}
+
+/** The query bounds of a run in words: `mongo 12–25 of 50, lowered 3, pressed 8 s`, or `-`. */
+export function queryLimitsText(stores) {
+  const parts = Object.entries(stores ?? {}).map(([store, it]) => {
+    const bound = it.min === it.max ? `${it.min}` : `${it.min}–${it.max}`;
+    const adaptive =
+      it.lowered === undefined
+        ? ''
+        : `, lowered ${it.lowered}, pressed ${it.pressedSeconds} s`;
+    return `${store} ${bound} of ${it.ceiling}${adaptive}`;
+  });
+  return parts.join(' · ') || '-';
+}
+
 // The anomaly checks of a run, so a run surfaces defects and not only numbers. `overload` marks a run that went past
 // what the node keeps up with by design (a calibration or capacity probe, a cliff step that did not keep up), where
 // errors are expected; signals are flagged there too, since a pause or a store fallback is worth a look either way.
@@ -665,9 +737,15 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
       overloaded && Number.isFinite(m.inFlightCap)
         ? `; ${OVERLOAD}: ${m.inFlightCap} in flight at most (${m.inFlightBoundBy})`
         : '';
+    // The bulkhead's refusals are named as such, beside the bound that refused them: not the adaptive limit shedding
+    // unless the bound shows it lowered.
+    const busy =
+      m.busy > 0
+        ? `; ${m.busy} ${BUSY} (bulkhead), bound ${queryLimitsText(run.queryLimits)}`
+        : '';
     found.push({
       kind: 'error spike',
-      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}${cap}`,
+      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}${cap}${busy}`,
     });
   }
   if (m.weakSeconds > 0) {
@@ -1124,6 +1202,7 @@ export function metrics(result) {
     ok: results.ok ?? 0,
     failed: results.failed ?? 0,
     errors: results.errors ?? {},
+    busy: busyOf(results.errors),
     // The bound on the operations outstanding, and what set it: a run counting `generator-overload` hit it.
     inFlightCap: result?.load?.inFlightCap,
     inFlightBoundBy: result?.load?.inFlightBoundBy,
@@ -1398,6 +1477,12 @@ const propsText = props =>
         .join(', ')
     : 'defaults';
 
+/** The errors of a run other than the bulkhead's refusals, which a column of their own shows. */
+const otherErrors = errors =>
+  Object.fromEntries(
+    Object.entries(errors ?? {}).filter(([kind]) => !kind.endsWith(`-${BUSY}`)),
+  );
+
 const errorsText = errors =>
   Object.entries(errors ?? {})
     .sort((a, b) => b[1] - a[1])
@@ -1510,8 +1595,8 @@ function clusterTable(suite) {
 
 function runTable(runs) {
   const lines = [
-    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | Load generator | Busiest | CPU ms/op | Alloc/op | Errors |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    `| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | Load generator | Busiest | CPU ms/op | Alloc/op | ${BUSY} (bulkhead) | Query bound | Errors |`,
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of runs) {
     if (run.status !== 'ok') {
@@ -1531,7 +1616,8 @@ function runTable(runs) {
         `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ` +
         `${Number.isFinite(m.loadGeneratorCores) ? `${num(m.loadGeneratorCores, 2)} of ${m.loadGeneratorCpus}` : '-'} | ` +
         `${m.bottleneck && !run.handover ? `${m.bottleneck.side} ${num(m.bottleneck.cores, 2)}` : '-'} | ` +
-        `${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${bytes(m.allocatedBytesPerOp)} | ${errorsText(m.errors)} |`,
+        `${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${bytes(m.allocatedBytesPerOp)} | ${m.busy || '-'} | ` +
+        `${queryLimitsText(run.queryLimits)} | ${errorsText(otherErrors(m.errors))} |`,
     );
   }
   return lines;
@@ -1959,6 +2045,21 @@ export function runSuite(name, options) {
           ),
       );
       if (signals) run.signals = signals;
+      // The stores' query bounds over the measured phase, by the first node that logged them.
+      const limits = window
+        ? readdirSync(dir)
+            .filter(file => /^node-.*\.log$/.test(file))
+            .sort()
+            .map(file =>
+              queryLimitsWithin(
+                readFileSync(join(dir, file), 'utf8'),
+                window.from,
+                window.to,
+              ),
+            )
+            .find(Boolean)
+        : undefined;
+      if (limits) run.queryLimits = limits;
     }
     phase.into.push(run);
     save();

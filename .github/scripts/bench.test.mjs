@@ -40,6 +40,10 @@ import {
   roundOrder,
   lastSignals,
   signalsWithin,
+  BUSY,
+  busyOf,
+  queryLimitsWithin,
+  queryLimitsText,
   runSettings,
   runSuite,
   spread,
@@ -1312,5 +1316,69 @@ test('p99.9 is reported only with a thousand tail samples', () => {
   assert.deepEqual(
     [primed.primed, primed.primeSeconds, primed.settleSeconds],
     [true, 35, 12],
+  );
+});
+
+test('the bulkhead refusals are counted on their own, beside the query bound that refused them', () => {
+  const errors = {
+    [`E4-list:read-http-429-${BUSY}`]: 30,
+    [`E4-state:read-http-429-${BUSY}`]: 2,
+    'E1:http-409-wow.command.busy': 5,
+  };
+  assert.equal(busyOf(errors), 32);
+  assert.equal(busyOf({}), 0);
+  assert.equal(metrics({ results: { ok: 900, failed: 37, errors } }).busy, 32);
+
+  // The per-second lines of a node: the bound before the window, lowered twice within it, and once after.
+  const at = second =>
+    `2026-10-28T20:00:${String(second).padStart(2, '0')}.000Z`;
+  const line = (second, limit, decreases, pressed) =>
+    `${at(second)}  WARN 1 --- [x] BenchQueryLimits : bench-query-limits {"t":${second},` +
+    `"mongo":{"limit":${limit},"ceiling":50,"running":3,"queued":0,"floor":1,"pressed":${pressed},` +
+    `"decreases":${decreases},"appends":10,"waitingForConnection":0},` +
+    `"postgres":{"limit":8,"ceiling":8,"running":0,"queued":0}}`;
+  const log = [
+    line(1, 25, 4, false),
+    line(2, 12, 5, true),
+    line(3, 12, 5, true),
+    line(4, 6, 6, true),
+    line(5, 7, 6, false),
+    line(9, 3, 7, true),
+  ].join('\n');
+  const limits = queryLimitsWithin(log, Date.parse(at(2)), Date.parse(at(5)));
+  assert.deepEqual(limits, {
+    mongo: { min: 6, max: 12, ceiling: 50, lowered: 2, pressedSeconds: 3 },
+    postgres: { min: 8, max: 8, ceiling: 8 },
+  });
+  assert.equal(
+    queryLimitsText(limits),
+    'mongo 6–12 of 50, lowered 2, pressed 3 s · postgres 8 of 8',
+  );
+  assert.equal(
+    queryLimitsWithin(log, Date.parse(at(6)), Date.parse(at(8))),
+    undefined,
+  );
+  assert.equal(queryLimitsText(undefined), '-');
+
+  // An error spike names them as the bulkhead's, with the bound; other errors keep their kinds.
+  const spike = anomaliesOf({
+    name: 'r',
+    status: 'ok',
+    metrics: {
+      ok: 900,
+      failed: 37,
+      weakSeconds: 0,
+      p50: 5,
+      p99: 20,
+      errors,
+      busy: busyOf(errors),
+    },
+    queryLimits: {
+      mongo: { min: 25, max: 25, ceiling: 50, lowered: 0, pressedSeconds: 0 },
+    },
+  }).find(a => a.kind === 'error spike');
+  assert.match(
+    spike.detail,
+    /; 32 wow\.query\.busy \(bulkhead\), bound mongo 25 of 50, lowered 0, pressed 0 s$/,
   );
 });
