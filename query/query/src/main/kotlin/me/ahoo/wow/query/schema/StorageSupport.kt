@@ -17,8 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 
-/** How storage supports a query feature. */
-@InternalWowApi
+/** How a storage supports a query feature: natively, through the core after the storage, or not at all. */
 enum class SupportMode {
     /** The backend computes it natively. */
     NATIVE,
@@ -30,9 +29,11 @@ enum class SupportMode {
     NONE,
 }
 
-/** How a storage pages. Neither mode has a residual implementation, so each is NATIVE or NONE. */
-@InternalWowApi
-data class PagingSupport(
+/**
+ * How a storage pages. Neither mode has a residual implementation, so each is NATIVE or NONE. A storage declares it
+ * with [of].
+ */
+class PagingSupport @InternalWowApi constructor(
     /** Keyset pages ordered by the cursor sort (cursor queries). */
     val keyset: SupportMode = SupportMode.NATIVE,
     /** A list without a limit, streamed to the end. */
@@ -49,14 +50,35 @@ data class PagingSupport(
         }
         require(maxOffsetWindow == null || maxOffsetWindow >= 1) { "maxOffsetWindow must be greater than 0." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PagingSupport && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "PagingSupport(keyset=$keyset, unboundedStream=$unboundedStream, maxOffsetWindow=$maxOffsetWindow)"
+
+    private fun valueFields(): List<Any?> = listOf(keyset, unboundedStream, maxOffsetWindow)
+
+    companion object {
+        /** Paging with keyset pages, unbounded streams and an offset window as given; everything native by default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            keyset: SupportMode = SupportMode.NATIVE,
+            unboundedStream: SupportMode = SupportMode.NATIVE,
+            maxOffsetWindow: Int? = null,
+        ): PagingSupport = PagingSupport(keyset, unboundedStream, maxOffsetWindow)
+    }
 }
 
 /**
  * How a storage aggregates. HAVING, top-N by a metric, dense date-histogram fill and the windows may be RESIDUAL;
- * percentiles and distinct counts need the records themselves, so they are NATIVE or NONE.
+ * percentiles and distinct counts need the records themselves, so they are NATIVE or NONE. A storage declares it with
+ * [of].
  */
-@InternalWowApi
-data class AggregationSupport(
+class AggregationSupport @InternalWowApi constructor(
     val having: SupportMode = SupportMode.NATIVE,
     /** Ordering groups by a metric before the limit. */
     val topN: SupportMode = SupportMode.NATIVE,
@@ -93,17 +115,46 @@ data class AggregationSupport(
     /** How the storage supports [function]. */
     fun window(function: WindowFunction): SupportMode = windows[function] ?: SupportMode.NONE
 
-    @InternalWowApi
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AggregationSupport && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "AggregationSupport(having=$having, topN=$topN, denseFill=$denseFill, percentile=$percentile, " +
+            "distinctCount=$distinctCount, firstLast=$firstLast, windows=$windows, rootGroups=$rootGroups, " +
+            "termsTopN=$termsTopN)"
+
+    private fun valueFields(): List<Any?> =
+        listOf(having, topN, denseFill, percentile, distinctCount, firstLast, windows, rootGroups, termsTopN)
+
     companion object {
         /** Every window computed by the core, which any storage that groups supports. */
         @JvmField
         val RESIDUAL_WINDOWS: Map<WindowFunction, SupportMode> =
             WindowFunction.entries.associateWith { SupportMode.RESIDUAL }
+
+        /** Aggregation as given; everything native, and the windows computed by the core, by default. */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("LongParameterList") // One parameter per feature a storage declares.
+        fun of(
+            having: SupportMode = SupportMode.NATIVE,
+            topN: SupportMode = SupportMode.NATIVE,
+            denseFill: SupportMode = SupportMode.NATIVE,
+            percentile: SupportMode = SupportMode.NATIVE,
+            distinctCount: SupportMode = SupportMode.NATIVE,
+            firstLast: SupportMode = SupportMode.NATIVE,
+            windows: Map<WindowFunction, SupportMode> = RESIDUAL_WINDOWS,
+            rootGroups: SupportMode = SupportMode.NATIVE,
+            termsTopN: Set<MetricSpec> = emptySet(),
+        ): AggregationSupport = AggregationSupport(
+            having, topN, denseFill, percentile, distinctCount, firstLast, windows, rootGroups, termsTopN,
+        )
     }
 }
 
 /** How a storage's presence operators see a stored `null` and an empty array. */
-@InternalWowApi
 enum class AbsentValues {
     /** Distinct from a missing field: `EXISTS` matches them and `IS_EMPTY` matches only an empty array. */
     DISTINCT,
@@ -116,9 +167,11 @@ enum class AbsentValues {
     AS_MISSING,
 }
 
-/** What a storage declares beyond each field's native capabilities; bound into the schema by its adapter. */
-@InternalWowApi
-data class StorageSupport(
+/**
+ * What a storage declares beyond each field's native capabilities, bound into the schema by its adapter
+ * ([QueryStorageFacts.Builder.storage]); a storage declares it with [of], or takes [NATIVE].
+ */
+class StorageSupport @InternalWowApi constructor(
     val paging: PagingSupport = PagingSupport(),
     val aggregation: AggregationSupport = AggregationSupport(),
     /**
@@ -139,11 +192,32 @@ data class StorageSupport(
         require(arrayEquality != SupportMode.RESIDUAL) { "Array equality has no residual implementation." }
     }
 
-    @InternalWowApi
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StorageSupport && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "StorageSupport(paging=$paging, aggregation=$aggregation, parallelArraySort=$parallelArraySort, " +
+            "absentValues=$absentValues, arrayEquality=$arrayEquality)"
+
+    private fun valueFields(): List<Any?> = listOf(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
+
     companion object {
         /** Everything native: the default for a schema whose storage declares nothing else. */
         @JvmField
         val NATIVE = StorageSupport()
+
+        /** Paging, aggregation and the array and presence features as given; everything native by default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            paging: PagingSupport = PagingSupport(),
+            aggregation: AggregationSupport = AggregationSupport(),
+            parallelArraySort: SupportMode = SupportMode.NATIVE,
+            absentValues: AbsentValues = AbsentValues.DISTINCT,
+            arrayEquality: SupportMode = SupportMode.NATIVE,
+        ): StorageSupport = StorageSupport(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
     }
 }
 

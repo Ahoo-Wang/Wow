@@ -192,6 +192,7 @@ class AbacQueryPolicy(
          * match on it matches nothing and a permissive one is dropped.
          */
         @JvmStatic
+        @InternalWowApi
         fun Map<String, List<String>>.toFilterExpression(
             columns: Map<String, QueryField>,
             schema: QueryModelSchema,

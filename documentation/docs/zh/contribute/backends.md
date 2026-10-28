@@ -35,6 +35,48 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 
 每个查询侧都通过同一种形状 `QueryBindings`（`:query`）给出它的 binding，即查询后端及其存储的事实：`binding(key)` 的 key 可以是聚合类型（快照或事件）或数据集，不服务的 key 返回 null。`CachedQueryBindings` 为每个 key 只创建一次 binding，数据集重新声明时再创建，`forget(key)` 时丢弃。
 
+binding 的存储事实来自它的 `QueryStorageAdapter`。对模型 `LogicalQuerySchema` 中存储能服务的每条路径，适配器报告其原生结构能执行的能力以及每种能力存放在哪里（`QueryValueBindings`），再加上存储在整个模型层面的 `StorageSupport`；`QueryValueSchema.storageFamilies(capability)` 说明一个值要具备某种能力需要哪些存储族。它不报告任何无法正确执行的东西：漏报的能力会在准入时被拒绝。`test/spi-consumer` 中的第三方存储只用公开的词汇报告它的事实：
+
+<!-- sample: test/spi-consumer/src/main/kotlin/me/ahoo/wow/consumer/AcmeQueries.kt#facts -->
+
+```kotlin
+override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts.build {
+    logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.forEach { (path, value) ->
+        val stored = QueryFieldBindingTemplate.of(path, storageTypes = null)
+        binding(path, QueryValueBindings.of(capabilitiesOf(value).associateWith { stored }, path, path))
+    }
+    storage(
+        StorageSupport.of(
+            aggregation = AggregationSupport.of(
+                having = SupportMode.RESIDUAL,
+                topN = SupportMode.RESIDUAL,
+                denseFill = SupportMode.RESIDUAL,
+            ),
+        ),
+    )
+}
+```
+
+聚合的 `x-wow-index` 索引以 `QueryIndexPlan` 的形式交给快照查询：核心按模型的 schema 对声明统一规划一次，拒绝模型不认识的键、以及存储既不能匹配、也不能范围查询或排序的键，并给出每个键的物理字段、存储类型和基数。后端在此之上再施加自己的规则，比如 PostgreSQL 要求单值键、MongoDB 只允许一个多值键，并按 `ddl` 创建或报告索引：
+
+<!-- sample: test/spi-consumer/src/main/kotlin/me/ahoo/wow/consumer/AcmeQueries.kt#indexes -->
+
+```kotlin
+override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+    val declared = plan.indexes.map { index ->
+        // Acme's rule on top of the plan's: an index keys one value per record.
+        index.keys.forEach { key ->
+            require(key.cardinality == QueryCardinality.SINGLE) {
+                "Index [${index.name}] has the key [${key.field}], which holds many values."
+            }
+        }
+        index.name
+    }.toSet()
+    val existing = indexes.put(type, declared).orEmpty()
+    return QueryIndexReport(created = (declared - existing).toList())
+}
+```
+
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 
 ## 传输与 Sink 的提供者 {#transport-and-sink-providers}

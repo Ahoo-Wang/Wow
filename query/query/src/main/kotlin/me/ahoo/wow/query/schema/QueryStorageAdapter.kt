@@ -19,10 +19,15 @@ import me.ahoo.wow.api.annotation.WowSpi
 /**
  * A storage's port into the Catalog: it reports what its native structures (indexes, mappings,
  * validators) prove about a logical model, and nothing else. The Catalog merges the model's sources and compiles the
- * reported facts into a [QueryModelSchema], applying every rule that does not depend on the storage.
+ * reported facts into the model's schema, applying every rule that does not depend on the storage.
+ *
+ * An adapter walks [LogicalQuerySchema.values], and for each logical path its storage can serve it reports the
+ * capabilities it can execute and where each is stored ([QueryValueBindings]), with the storage's model-wide
+ * [StorageSupport], through [QueryStorageFacts.build]. It reports nothing it cannot run correctly: a capability left
+ * out is refused at admission, never run wrong. [QueryValueSchema.storageFamilies] says which storage families a
+ * logical value needs for a capability, so an adapter only maps its native types to those families.
  */
 @WowSpi
-@InternalWowApi
 interface QueryStorageAdapter {
     /** The storage's facts about [logicalSchema], from its current native structures. */
     suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts
@@ -45,10 +50,9 @@ internal class UnavailableQueryStorageAdapter(val message: String) : QueryStorag
  * path, the capabilities its native structures can execute and the physical location each binds to, with the
  * projection and response locations; and the storage's model-wide support. Which native types, index kinds or
  * mapping options prove a capability is the storage's knowledge; what a logical value must be for a capability to
- * apply at all is the Catalog's ([compile]).
+ * apply at all is the Catalog's. An adapter builds them with [build] (or [builder] from Java).
  */
-@InternalWowApi
-class QueryStorageFacts(
+class QueryStorageFacts @InternalWowApi constructor(
     val bindings: Map<QueryPathTemplate, QueryValueBindings>,
     /** The model-wide capabilities the storage proves, such as a full-text search over the whole record. */
     val capabilities: Set<QueryCapability> = emptySet(),
@@ -78,6 +82,7 @@ class QueryStorageFacts(
      *   group it by each of its values. A value inside an element scope is single-valued there: expand the element
      *   (`AggregationQuery.elements`) to aggregate it.
      */
+    @InternalWowApi
     @JvmOverloads
     fun compile(
         model: QueryModel,
@@ -107,6 +112,65 @@ class QueryStorageFacts(
             }
         }
         return if (admitted.size == bindings.size) this else QueryValueBindings(admitted, projectionPath, responsePath)
+    }
+
+    /**
+     * Collects the facts of one model: the [binding] of each logical path the storage serves, the model-wide
+     * [capabilities], whether a [fullProjection] is available, the [approximateMetrics], the [storage] support and
+     * whether the facts are [provisional].
+     */
+    class Builder internal constructor() {
+        private val bindings = LinkedHashMap<QueryPathTemplate, QueryValueBindings>()
+        private val capabilities = LinkedHashSet<QueryCapability>()
+        private var fullProjection = true
+        private val approximateMetrics = LinkedHashSet<String>()
+        private var storage = StorageSupport.NATIVE
+        private var provisional = false
+
+        /** What the storage serves at the logical [path]; a later call for the same path replaces it. */
+        fun binding(path: QueryPathTemplate, bindings: QueryValueBindings): Builder = apply {
+            this.bindings[path] = bindings
+        }
+
+        /** The model-wide capabilities the storage proves, such as a full-text search over the whole record. */
+        fun capabilities(vararg capabilities: QueryCapability): Builder = apply {
+            this.capabilities += capabilities
+        }
+
+        /** Whether native storage can deliver an unrestricted source projection; it can by default. */
+        fun fullProjection(available: Boolean): Builder = apply { fullProjection = available }
+
+        /** The metric types (`DISTINCT_COUNT`, `PERCENTILE`) the storage estimates rather than computes exactly. */
+        fun approximateMetrics(vararg metrics: String): Builder = apply { approximateMetrics += metrics }
+
+        /** How the storage pages and aggregates; [StorageSupport.NATIVE] by default. */
+        fun storage(storage: StorageSupport): Builder = apply { this.storage = storage }
+
+        /**
+         * Whether the facts describe storage that does not exist yet, such as an index before its first write, from
+         * what it will be created with: a provisional schema is never published, so the next load asks again.
+         */
+        @JvmOverloads
+        fun provisional(provisional: Boolean = true): Builder = apply { this.provisional = provisional }
+
+        fun build(): QueryStorageFacts = QueryStorageFacts(
+            bindings = LinkedHashMap(bindings),
+            capabilities = LinkedHashSet(capabilities),
+            fullProjectionAvailable = fullProjection,
+            approximateMetrics = LinkedHashSet(approximateMetrics),
+            storage = storage,
+            provisional = provisional,
+        )
+    }
+
+    companion object {
+        /** A [Builder] of a model's facts, as a Java adapter builds them. */
+        @JvmStatic
+        fun builder(): Builder = Builder()
+
+        /** The facts [block] declares: `QueryStorageFacts.build { binding(path, bindings); storage(support) }`. */
+        @JvmSynthetic
+        fun build(block: Builder.() -> Unit): QueryStorageFacts = Builder().apply(block).build()
     }
 }
 

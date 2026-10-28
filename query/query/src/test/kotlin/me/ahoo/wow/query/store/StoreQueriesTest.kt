@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.gatewaySchema
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
@@ -91,7 +92,10 @@ class StoreQueriesTest {
         queries.managesIndexes.assert().isFalse()
         queries.prepare(type)
         queries.binding(type).backend.aggregateType.assert().isEqualTo(type)
-        queries.manageIndexes(type, gatewaySchema(), emptyList()).assert().isSameAs(QueryIndexReport.NONE)
+        queries.manageIndexes(
+            type,
+            QueryIndexPlan.of(gatewaySchema(), emptyList())
+        ).assert().isSameAs(QueryIndexReport.NONE)
     }
 
     @Test

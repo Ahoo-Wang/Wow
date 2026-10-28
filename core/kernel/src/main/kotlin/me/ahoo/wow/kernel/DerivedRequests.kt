@@ -70,10 +70,14 @@ fun interface Derivation {
 }
 
 /** [context] as the [Derivation] of its execution; it must be the kernel's context of a deriving handler. */
-internal fun derivationOf(context: SubscriptionContext): Derivation =
-    context as? Derivation ?: throw IllegalArgumentException(
+internal fun derivationOf(context: SubscriptionContext): Derivation = when (context) {
+    is Derivation -> context
+    // The saga's context is public; it derives through its execution without naming the internal interface.
+    is ExecutionSagaContext -> Derivation(context::commandsOf)
+    else -> throw IllegalArgumentException(
         "$context derives no commands: a saga's handler gets the kernel's context of its kind (contextOf).",
     )
+}
 
 /**
  * The command requests a saga's handler returned: nothing (`null`, `Unit`, an empty `Mono`), one [CommandRequest], or

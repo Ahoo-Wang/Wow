@@ -126,6 +126,7 @@ class QueryDataset @InternalWowApi constructor(
     }
 
     /** The record layout of this dataset: its identity, event time and scope columns. */
+    @InternalWowApi
     val profile: DatasetQueryModelProfile by lazy { DatasetQueryModelProfile(this) }
 
     companion object {

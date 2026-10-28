@@ -76,6 +76,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.Temporal
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
@@ -168,7 +169,11 @@ abstract class DatasetQueryBackendSpec {
     protected open val semanticDivergences: Set<String> = emptySet()
 
     /** A dataset's backend with the schema its Catalog compiled. */
-    protected class Target(val dataset: QueryDataset, val backend: QueryBackend, val schema: QueryModelSchema) {
+    protected class Target @InternalWowApi constructor(
+        val dataset: QueryDataset,
+        val backend: QueryBackend,
+        @property:InternalWowApi val schema: QueryModelSchema,
+    ) {
         suspend fun list(query: ListQuery): List<ObjectNode> =
             backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
 
@@ -706,6 +711,13 @@ abstract class DatasetQueryBackendSpec {
     }
 }
 
+private fun AggregationSupport.withResidualWindows() = AggregationSupport(
+    having, topN, denseFill, percentile, distinctCount, firstLast, AggregationSupport.RESIDUAL_WINDOWS, rootGroups, termsTopN,
+)
+
+private fun StorageSupport.withAggregation(aggregation: AggregationSupport) =
+    StorageSupport(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
+
 /** This schema with every window computed by the core, so a spec can hold the storage's native windows to it. */
 internal fun QueryModelSchema.withResidualWindows() = QueryModelSchema(
     model,
@@ -714,7 +726,7 @@ internal fun QueryModelSchema.withResidualWindows() = QueryModelSchema(
     bindings,
     fullProjectionAvailable,
     approximateMetrics,
-    storage.copy(aggregation = storage.aggregation.copy(windows = AggregationSupport.RESIDUAL_WINDOWS)),
+    storage.withAggregation(storage.aggregation.withResidualWindows()),
     provisional,
     profile,
 )

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -61,7 +62,7 @@ interface DatasetQueryGateway : QueryGateway {
 
 /** A [DatasetQueryGateway] over [backend], admitting against the schema [schemaProvider] compiles. */
 @ExperimentalWowApi
-class DefaultDatasetQueryGateway @JvmOverloads constructor(
+class DefaultDatasetQueryGateway @InternalWowApi constructor(
     override val dataset: QueryDataset,
     backend: QueryBackend,
     schemaProvider: QueryModelSchemaProvider,
@@ -154,6 +155,7 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
          */
         @JvmStatic
         @JvmOverloads
+        @InternalWowApi
         @Suppress("LongParameterList")
         fun of(
             datasets: QueryDatasets,

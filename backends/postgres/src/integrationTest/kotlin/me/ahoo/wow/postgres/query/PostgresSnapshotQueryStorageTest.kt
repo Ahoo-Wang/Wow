@@ -52,6 +52,7 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -179,7 +180,7 @@ class PostgresSnapshotQueryStorageTest {
         val type = newType()
         val schema = schema(type)
         val declared = listOf(QueryIndexDeclaration("ix_order_state_status", listOf("state.status", "state.amount")))
-        val indexes = PostgresQueryIndexes.plan(type.context, type.name, schema, declared)
+        val indexes = PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, declared))
         storage(type, PostgresQueryOptions(Ddl.NONE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
         val name = indexes.single().name
         storage(type, PostgresQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
@@ -205,8 +206,10 @@ class PostgresSnapshotQueryStorageTest {
         val indexes = PostgresQueryIndexes.plan(
             type.context,
             type.name,
-            schema,
-            listOf(QueryIndexDeclaration("ix_order_state_status", listOf("state.status", "state.amount"))),
+            QueryIndexPlan.of(
+                schema,
+                listOf(QueryIndexDeclaration("ix_order_state_status", listOf("state.status", "state.amount"))),
+            ),
         )
         storage.manageIndexes(indexes)
         seed(storage.table(type.name), ROWS)

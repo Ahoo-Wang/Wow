@@ -26,9 +26,8 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
-import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -115,16 +114,9 @@ internal class ElasticsearchSnapshotQueries(
         }
     }
 
-    override fun manageIndexes(
-        type: AggregateType,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport = runBlocking {
-        stateMappings.manage(
-            names.snapshots(type.context, type.name),
-            schema.definition,
-            indexDdl.creates
-        )
+    // Elasticsearch maps the model's values rather than indexing keys: the plan's logical definition is what it reads.
+    override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport = runBlocking {
+        stateMappings.manage(names.snapshots(type.context, type.name), plan.logical, indexDdl.creates)
     }
 
     /** The snapshot documents as snapshot records. */

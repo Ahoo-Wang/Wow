@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
@@ -37,8 +36,11 @@ import me.ahoo.wow.query.resolve.jsonValueOrNull
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.TimeUnit
 
-/** Operations on primitive arrays use one member layer, without flattening the definition. */
-@InternalWowApi
+/**
+ * The values an operation on this value compares: the value itself, an array's items (one member layer, without
+ * flattening the definition) and a union's alternatives, each a non-union value. A storage adapter asks each one which
+ * storage families a capability needs ([storageFamilies]).
+ */
 fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
     QueryValueKind.ARRAY -> checkNotNull(items).alternativesOrSelf()
     QueryValueKind.UNION -> alternatives.flatMap { it.operationValues() }
@@ -46,7 +48,6 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
 }
 
 /** Flattens nested unions into their non-union alternatives; any other value is its own single alternative. */
-@InternalWowApi
 fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)
 

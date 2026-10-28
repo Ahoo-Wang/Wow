@@ -80,7 +80,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
     private val contextQueries: ContextQueries = ContextQueries.NONE,
-) : SagaContext, Derivation {
+) : SagaContext {
     /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
     constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
         this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
@@ -100,7 +100,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
     private val tenantId: String get() = executionId.ref.tenantId
 
     /** The commands of [requests], in order, then those [schedule] and [cancel] recorded, in the order of the calls. */
-    override fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> =
+    @InternalWowApi
+    fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> =
         requests.map(::commandOf) + synchronized(recorded) { recorded.toList() }
 
     /**

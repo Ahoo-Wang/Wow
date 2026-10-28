@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -141,7 +142,10 @@ abstract class QueryBackendSpec {
     private val context = QuerySchemaContext(type, QueryModel.SNAPSHOT)
 
     /** The backend under test and the schema compiled over its facts, once [snapshots] are stored. */
-    protected class Fixture(val backend: QueryBackend, val schema: QueryModelSchema) {
+    protected class Fixture @InternalWowApi constructor(
+        val backend: QueryBackend,
+        @property:InternalWowApi val schema: QueryModelSchema,
+    ) {
         suspend fun list(query: ListQuery): List<ObjectNode> =
             backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
 

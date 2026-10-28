@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
@@ -145,6 +146,7 @@ class QueryAdmission(
      * Returns [record], or `null` when the caller may not read it. Policies need the schema, so a read with policies
      * fails when [schema] is `null`. The record returned is masked by [schema]'s response masks ([maskRecord]).
      */
+    @InternalWowApi
     suspend fun admitRecord(
         selection: FilterExpression,
         record: ObjectNode,
@@ -240,6 +242,7 @@ class QueryAdmission(
      * and a count with its own limit. The caller gets exactly the query it wrote, validated, normalized and resolved.
      * A query from anyone but trusted code goes through a [QueryAdmission] instance, as the gateway does.
      */
+    @InternalWowApi
     object Trusted {
         @JvmStatic
         @JvmOverloads

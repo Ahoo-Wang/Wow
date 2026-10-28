@@ -42,6 +42,7 @@ import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.AbacQueryOptions
@@ -475,11 +476,8 @@ class HostQueryTest {
         SnapshotQueryBackend.NONE.managesIndexes.assert().isFalse()
         SnapshotQueryBackend(InMemoryQueryStorage()).managesIndexes.assert().isFalse()
         SnapshotQueryBackend(InMemoryQueryStorage())
-            .manageIndexes(
-                ACCOUNT,
-                runBlocking { catalogSchema() },
-                emptyList()
-            ).assert().isEqualTo(QueryIndexReport.NONE)
+            .manageIndexes(ACCOUNT, QueryIndexPlan.of(runBlocking { catalogSchema() }, emptyList()))
+            .assert().isEqualTo(QueryIndexReport.NONE)
     }
 
     @Test
@@ -489,7 +487,7 @@ class HostQueryTest {
         val catalog = QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage()))
         fun backend(report: QueryIndexReport) = SnapshotQueryBackend(
             InMemoryQueryStorage(),
-            indexes = { _, _, _ -> report },
+            indexes = { _, _ -> report },
             store = { "reads" },
         )
         val validated = QueryIndexReport(missing = listOf("ix_a"), invalid = listOf("ix_b"))
@@ -521,7 +519,7 @@ class HostQueryTest {
         val backend = SnapshotQueryBackend(
             InMemoryQueryStorage(),
             prepare = { steps += "prepare $it" },
-            indexes = { type, _, _ -> QueryIndexReport().also { steps += "indexes $type" } },
+            indexes = { type, _ -> QueryIndexReport().also { steps += "indexes $type" } },
         )
         QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend, catalog).start()
         steps.assert().containsExactly("prepare $ACCOUNT", "indexes $ACCOUNT")

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.backend
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -41,6 +42,9 @@ fun interface QueryBindings<in K : Any> {
  * [QueryBindings] that create each key's binding once and reuse it, by the key's name ([nameOf]): a key that no
  * longer equals the one its binding was created for (a dataset redeclared with another table or other columns) gets
  * a binding of its own, and [forget] drops a name's binding. A key it does not serve is asked again each time.
+ *
+ * [createBinding] must be cheap and free of side effects: callers racing on a name's first binding may each create
+ * one, and all but one are dropped. A binding that opens resources would need a cache that creates it once.
  */
 @WowSpi
 abstract class CachedQueryBindings<K : Any>(private val nameOf: (K) -> AggregateType) : QueryBindings<K> {
@@ -68,6 +72,7 @@ abstract class CachedQueryBindings<K : Any>(private val nameOf: (K) -> Aggregate
  * [datasets] from [datasetBindings]; `null` for a model without bindings, a key they do not serve, a dataset that is
  * not declared and any other model.
  */
+@InternalWowApi
 class QueryBackendStorages @JvmOverloads constructor(
     private val snapshots: QueryBindings<AggregateType>? = null,
     private val datasetBindings: QueryBindings<QueryDataset>? = null,

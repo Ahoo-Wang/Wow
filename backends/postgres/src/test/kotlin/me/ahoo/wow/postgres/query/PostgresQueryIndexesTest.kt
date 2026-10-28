@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
@@ -30,8 +31,10 @@ class PostgresQueryIndexesTest {
         val index = PostgresQueryIndexes.plan(
             "shop",
             "order",
-            schema,
-            listOf(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId", "state.amount"))),
+            QueryIndexPlan.of(
+                schema,
+                listOf(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId", "state.amount"))),
+            ),
         ).single()
         index.name.assert().isEqualTo("wow_snapshot__shop__order_ix_order_state_name")
         val name = PostgresSnapshotQueryExpressions.value(QueryField("state.name"), PostgresQueryType.TEXT)
@@ -45,7 +48,11 @@ class PostgresQueryIndexesTest {
     @Test
     fun `a key the backend cannot index is refused`() {
         fun refuses(key: String) = assertThrownBy<IllegalArgumentException> {
-            PostgresQueryIndexes.plan("shop", "order", schema, listOf(QueryIndexDeclaration("ix", listOf(key))))
+            PostgresQueryIndexes.plan(
+                "shop",
+                "order",
+                QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix", listOf(key))))
+            )
         }
         refuses("state.unknown")
         refuses("state.keywords")

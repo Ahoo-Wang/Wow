@@ -52,21 +52,30 @@ enum class MetricResult {
  * JSON `type`), what it reads and with which capabilities, its result type, whether `HAVING` may compare it and what
  * it costs. Admission, the entry gate, the descriptor and empty-group values read it, so a new metric type is added
  * here and every exhaustive `when` over [AggregationMetric] fails to compile until handled.
+ *
+ * Its constants are public: a storage names the metric types it orders one TERMS group by itself
+ * ([AggregationSupport.termsTopN][me.ahoo.wow.query.schema.AggregationSupport.termsTopN]). What each one reads and
+ * costs is the core's.
  */
-@InternalWowApi
 enum class MetricSpec(
+    @property:InternalWowApi
     val input: MetricInput,
     /** The capabilities a field input may be read with, the first one the field grants; empty when it reads none. */
+    @property:InternalWowApi
     val fieldCapabilities: List<QueryCapability>,
+    @property:InternalWowApi
     val result: MetricResult,
     /** Whether a `HAVING` condition may compare the metric's value. */
+    @property:InternalWowApi
     val havingOperand: Boolean,
     /**
      * The capability the ordering field must grant, for a metric that picks one record of the group by an order;
      * that field, like the input, must hold a single value per record.
      */
+    @property:InternalWowApi
     val orderCapability: QueryCapability? = null,
     /** The cost of the metric type in general; [cost] refines it for one metric. */
+    @property:InternalWowApi
     val baseCost: OperatorCost = OperatorCost.NORMAL,
 ) {
     COUNT(MetricInput.NONE, emptyList(), MetricResult.COUNT, havingOperand = true),
@@ -126,6 +135,7 @@ enum class MetricSpec(
     ;
 
     /** The cost of [metric]: an expression input other than a bare field is computed per record; otherwise [baseCost]. */
+    @InternalWowApi
     fun cost(metric: AggregationMetric): OperatorCost {
         require(of(metric) == this) { "Metric [${of(metric)}] does not match spec [$this]." }
         val expression = when (metric) {

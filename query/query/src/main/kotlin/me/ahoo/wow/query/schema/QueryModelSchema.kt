@@ -25,11 +25,24 @@ private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
 
 private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
 
-/** A storage's own name for a native type, such as a PostgreSQL `jsonb` cast or a MongoDB BSON type. */
-@InternalWowApi
-data class QueryStorageType(val value: String) {
+/**
+ * A storage's own name for a native type, such as a PostgreSQL `jsonb` cast or a MongoDB BSON type ([of]): a letter
+ * or `_`, then letters, digits, `_` and `-`.
+ */
+class QueryStorageType @InternalWowApi constructor(val value: String) {
     init {
         require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) { "Query storage type is invalid: [$value]." }
+    }
+
+    override fun equals(other: Any?): Boolean = this === other || other is QueryStorageType && value == other.value
+
+    override fun hashCode(): Int = value.hashCode()
+
+    override fun toString(): String = "QueryStorageType(value=$value)"
+
+    companion object {
+        @JvmStatic
+        fun of(value: String): QueryStorageType = QueryStorageType(value)
     }
 }
 
@@ -67,10 +80,10 @@ class QueryFieldBinding(
 
 /**
  * The logical definition of a model: the merged value tree of every source, shared unchanged with every
- * native binding snapshot, with the [sensitivity] policy its masked values are protected under.
+ * native binding snapshot, with the [sensitivity] policy its masked values are protected under. The core builds it; a
+ * storage adapter reads its [values], each logical path template with its value, to report its facts.
  */
-@InternalWowApi
-class LogicalQuerySchema(
+class LogicalQuerySchema @InternalWowApi constructor(
     val root: QueryValueSchema,
     val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) {

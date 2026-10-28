@@ -210,5 +210,10 @@ internal data class Reference(
  * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
  * it. [message] says why, or what to use instead; omitted when the declaration gave none.
  */
-@InternalWowApi
-data class QueryDeprecation(val message: String? = null)
+class QueryDeprecation @InternalWowApi constructor(val message: String? = null) {
+    override fun equals(other: Any?): Boolean = this === other || other is QueryDeprecation && message == other.message
+
+    override fun hashCode(): Int = message.hashCode()
+
+    override fun toString(): String = "QueryDeprecation(message=$message)"
+}

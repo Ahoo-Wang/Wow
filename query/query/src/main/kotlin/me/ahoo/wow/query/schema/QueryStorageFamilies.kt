@@ -20,7 +20,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * its own native types (BSON types, Elasticsearch field kinds); which families a logical value needs for a capability
  * is the Catalog's decision ([storageFamilies]).
  */
-@InternalWowApi
 enum class QueryStorageFamily {
     /** Any string representation, analyzed text included. */
     STRING,
@@ -45,10 +44,10 @@ enum class QueryStorageFamily {
 
 /**
  * Where a storage still departs from the strict table of [storageFamilies]. Each rule is a known divergence between
- * storages, kept so that every adapter reproduces today's capabilities exactly; the defaults are the strict table.
+ * storages, kept so that every adapter reproduces today's capabilities exactly; the defaults are the strict table
+ * ([STRICT]), and [of] gives another.
  */
-@InternalWowApi
-data class QueryStorageFamilyRules(
+class QueryStorageFamilyRules @InternalWowApi constructor(
     /**
      * Whether a [Temporal.Date] value supports the capabilities that compare operands to it (exact match, literal
      * match, range, numeric aggregation); `false` for a storage whose compilers cannot send an operand as a date.
@@ -61,11 +60,24 @@ data class QueryStorageFamilyRules(
      */
     val strictValueTypes: Boolean = true,
 ) {
-    @InternalWowApi
+    override fun equals(other: Any?): Boolean = this === other ||
+        other is QueryStorageFamilyRules && dateOperands == other.dateOperands &&
+        strictValueTypes == other.strictValueTypes
+
+    override fun hashCode(): Int = 31 * dateOperands.hashCode() + strictValueTypes.hashCode()
+
+    override fun toString(): String =
+        "QueryStorageFamilyRules(dateOperands=$dateOperands, strictValueTypes=$strictValueTypes)"
+
     companion object {
         /** The strict table: every rule on. */
         @JvmField
         val STRICT = QueryStorageFamilyRules()
+
+        /** The rules as given; each departs from the strict table where it is `false`. */
+        @JvmStatic
+        fun of(dateOperands: Boolean, strictValueTypes: Boolean): QueryStorageFamilyRules =
+            QueryStorageFamilyRules(dateOperands, strictValueTypes)
     }
 }
 
@@ -79,7 +91,6 @@ data class QueryStorageFamilyRules(
  * families: they are storage structure, not value types.
  */
 @Suppress("CyclomaticComplexMethod") // One exhaustive table: capability by logical value.
-@InternalWowApi
 fun QueryValueSchema.storageFamilies(
     capability: QueryCapability,
     rules: QueryStorageFamilyRules = QueryStorageFamilyRules.STRICT,

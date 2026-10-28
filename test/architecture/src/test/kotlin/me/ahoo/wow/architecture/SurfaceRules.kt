@@ -149,4 +149,57 @@ object SurfaceRules {
             }
         }.toList()
     }
+
+    /**
+     * The `me/ahoo/wow` types an ABI dump of [MODULES] names in a public signature while no dump declares them, each
+     * with the change that removes it. A dump leaves out every `@InternalWowApi` declaration, so such a type is one a
+     * third party cannot use without opting in to Wow's internals. A fix removes its entry: an entry no dump still
+     * names this way is stale and fails the rule.
+     */
+    val ABI_CLOSURE_ALLOWED: Map<String, String> = mapOf(
+        "me/ahoo/wow/manifest/CommandIndex" to "batch 3 (D348/D349 surface)",
+        "me/ahoo/wow/client/PeerClients" to "batch 3 (D348/D349 surface)",
+        "me/ahoo/wow/spring/boot/SpringdocDocument" to "batch 3 (D348/D349 surface)",
+        "me/ahoo/wow/api/read/TenantQueryApi" to "batch 3 (D348/D349 surface)",
+        "me/ahoo/wow/spring/boot/WowProperties" to "D350 P6 (E10)",
+        "me/ahoo/wow/spring/boot/QueryProperties" to "D350 P6 (E10)",
+        "me/ahoo/wow/spring/boot/ClickHouseProperties" to "D350 P6 (E10)",
+        "me/ahoo/wow/spring/boot/KafkaProperties" to "D350 P6 (E10)",
+        "me/ahoo/wow/query/engine/QueryEngine" to "D350 P6 (E10)",
+    )
+
+    private val ABI_REFERENCE = Regex("""me/ahoo/wow/[\w/$]+""")
+
+    private val ABI_SYNTHETIC = Regex("""^\s+public (?:static )?synthetic """)
+
+    /** A class an ABI dump declares, a protected one (a spec's protected companion) included. */
+    private val ABI_DECLARED_CLASS = Regex("""^(?:public|protected) [^{]*?\bclass ([\w/$]+)""")
+
+    private fun declaredClass(line: String): String? = ABI_DECLARED_CLASS.find(line)?.groupValues?.get(1)
+
+    /**
+     * The public signatures of the ABI dumps of [MODULES] that name a `me/ahoo/wow` type no dump declares, outside
+     * [ABI_CLOSURE_ALLOWED], as `dump: class: type`, and each allowed type no dump names that way any more (a stale
+     * entry): the public API is closed when every type it names is public too.
+     */
+    fun abiClosureViolations(repositoryRoot: File): List<String> {
+        val dumps = MODULES.map { "${it.dir}/api/${it.name}.api" to File(repositoryRoot, "${it.dir}/api/${it.name}.api") }
+            .filter { (_, dump) -> dump.isFile }
+            .map { (path, dump) -> path to dump.readLines() }
+        val declared = dumps.flatMap { (_, lines) -> lines.mapNotNull(::declaredClass) }.toSet()
+        val leaked = mutableSetOf<String>()
+        val violations = dumps.flatMap { (path, lines) ->
+            var owner = ""
+            lines.flatMap { line ->
+                declaredClass(line)?.let { owner = it }
+                // A synthetic default-arguments bridge mirrors a declaration the dump also lists, or one no other
+                // module can call (an internal constructor's): it promises nothing of its own.
+                if (ABI_SYNTHETIC.containsMatchIn(line)) return@flatMap emptyList()
+                ABI_REFERENCE.findAll(line).map { it.value }.filter { it !in declared }.map { owner to it }.toList()
+            }.distinct().onEach { (_, type) -> leaked += type }
+                .filter { (_, type) -> type !in ABI_CLOSURE_ALLOWED }
+                .map { (owner, type) -> "$path: $owner: $type" }
+        }
+        return violations + (ABI_CLOSURE_ALLOWED.keys - leaked).map { "stale entry: $it" }
+    }
 }

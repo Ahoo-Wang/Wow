@@ -134,8 +134,7 @@ class MaskRule private constructor(
  * Whether a filter or sort may compare a protected value. [displayComparable] lets queries compare
  * [SensitivityLevel.DISPLAY] values (the 9.x default); [SensitivityLevel.CONFIDENTIAL] values never compare.
  */
-@InternalWowApi
-data class QuerySensitivityPolicy(val displayComparable: Boolean = true) {
+class QuerySensitivityPolicy @InternalWowApi constructor(val displayComparable: Boolean = true) {
     /** Whether a filter or sort may compare a value protected at [level]; unprotected values always compare. */
     fun comparable(level: SensitivityLevel?): Boolean = when (level) {
         null -> true
@@ -143,9 +142,19 @@ data class QuerySensitivityPolicy(val displayComparable: Boolean = true) {
         SensitivityLevel.CONFIDENTIAL -> false
     }
 
-    @InternalWowApi
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QuerySensitivityPolicy && displayComparable == other.displayComparable
+
+    override fun hashCode(): Int = displayComparable.hashCode()
+
+    override fun toString(): String = "QuerySensitivityPolicy(displayComparable=$displayComparable)"
+
     companion object {
         @JvmField
         val DEFAULT = QuerySensitivityPolicy()
+
+        /** The policy that lets queries compare display-level values when [displayComparable]. */
+        @JvmStatic
+        fun of(displayComparable: Boolean): QuerySensitivityPolicy = QuerySensitivityPolicy(displayComparable)
     }
 }

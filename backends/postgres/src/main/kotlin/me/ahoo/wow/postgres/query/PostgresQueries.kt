@@ -19,8 +19,7 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
-import me.ahoo.wow.query.index.QueryIndexDeclaration
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -106,12 +105,8 @@ private class PostgresSnapshotQueries(private val store: PostgresStore, options:
         (store.snapshots(type.context) as? PostgresSnapshotStore)?.createTable(type.name)
     }
 
-    override fun manageIndexes(
-        type: AggregateType,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport {
-        val indexes = PostgresQueryIndexes.plan(type.context, type.name, schema, declarations)
+    override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+        val indexes = PostgresQueryIndexes.plan(type.context, type.name, plan)
         val report = storage(type.context).manageIndexes(indexes)
         return QueryIndexReport(report.created, report.missing, report.invalid)
     }

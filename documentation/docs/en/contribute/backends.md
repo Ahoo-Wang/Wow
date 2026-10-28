@@ -35,6 +35,48 @@ What a store offers beyond its ports it gives as facets (`Store.facet`): its que
 
 Each query side hands out its bindings, a query backend and its storage's facts, through one shape, `QueryBindings` (`:query`): `binding(key)` for an aggregate type's snapshots or events or for a dataset, null for a key it does not serve. `CachedQueryBindings` creates each key's binding once, again when a dataset is redeclared, and drops it on `forget(key)`.
 
+A binding's storage facts come from its `QueryStorageAdapter`. For each path of the model's `LogicalQuerySchema` its storage serves, the adapter reports the capabilities its native structures execute and where each is stored (`QueryValueBindings`), with the storage's model-wide `StorageSupport`; `QueryValueSchema.storageFamilies(capability)` says which storage families a value needs for a capability. It reports nothing it cannot run correctly: a capability it leaves out is refused at admission. The third-party store of `test/spi-consumer` reports its facts on the public vocabulary alone:
+
+<!-- sample: test/spi-consumer/src/main/kotlin/me/ahoo/wow/consumer/AcmeQueries.kt#facts -->
+
+```kotlin
+override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts.build {
+    logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.forEach { (path, value) ->
+        val stored = QueryFieldBindingTemplate.of(path, storageTypes = null)
+        binding(path, QueryValueBindings.of(capabilitiesOf(value).associateWith { stored }, path, path))
+    }
+    storage(
+        StorageSupport.of(
+            aggregation = AggregationSupport.of(
+                having = SupportMode.RESIDUAL,
+                topN = SupportMode.RESIDUAL,
+                denseFill = SupportMode.RESIDUAL,
+            ),
+        ),
+    )
+}
+```
+
+An aggregate's `x-wow-index` indexes reach the snapshot queries as a `QueryIndexPlan`: the core plans the declarations once against the model's schema, refusing a key the model does not know or the storage neither matches, ranges nor sorts, and gives each key's physical field, storage types and cardinality. A backend applies its own rules on top, such as PostgreSQL's single-valued keys or MongoDB's one multi-valued key, and creates or reports the indexes as `ddl` says:
+
+<!-- sample: test/spi-consumer/src/main/kotlin/me/ahoo/wow/consumer/AcmeQueries.kt#indexes -->
+
+```kotlin
+override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+    val declared = plan.indexes.map { index ->
+        // Acme's rule on top of the plan's: an index keys one value per record.
+        index.keys.forEach { key ->
+            require(key.cardinality == QueryCardinality.SINGLE) {
+                "Index [${index.name}] has the key [${key.field}], which holds many values."
+            }
+        }
+        index.name
+    }.toSet()
+    val existing = indexes.put(type, declared).orEmpty()
+    return QueryIndexReport(created = (declared - existing).toList())
+}
+```
+
 The host finds providers through Java's `ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`, and among the application's beans; a bean takes the place of a provider of the same type on the class path. A provider is stateless: each store instance gets its own `Store`, over the resources its configuration finds, a `DataSource` or a driver's client.
 
 ## Transport and Sink providers
