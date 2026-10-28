@@ -34,6 +34,20 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `topic`
   - `includeState`
 - `errors`: array of [`Error`](#error)
+- `commands`: array of [`Command`](#command); left out when absent or at its default
+
+## `Command`
+
+- `name`
+- `aliases`
+- `schema`
+- `creation`
+- `produces`
+- `routes`: array of [`Route`](#route)
+- `mounted`: left out when absent or at its default
+- `system`: left out when absent or at its default
+- `transformsTo`
+- `description`
 
 ## `Error`
 
@@ -51,23 +65,13 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `snapshot`: object
   - `enabled`
   - `stateRevision`: left out when absent or at its default
-- `commands`: array of objects
-  - `name`
-  - `aliases`
-  - `schema`
-  - `creation`
-  - `produces`
-  - `routes`: array of [`Route`](#route)
-  - `mounted`: left out when absent or at its default
-  - `transformsTo`
-  - `description`
+- `commands`: array of [`Command`](#command)
 - `events`: array of objects
   - `name`
   - `aliases`
   - `revision`
   - `schema`
   - `description`
-- `lifecycle`
 - `queries`: array of objects
   - `model`
   - `routes`: array of [`Route`](#route)
@@ -88,6 +92,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `context`
   - `aggregates`
   - `events`
+  - `eventSchemas`: left out when absent or at its default
   - `nullableState`: left out when absent or at its default
 - `function`: object
   - `kind`
@@ -107,6 +112,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `timeout`
   - `recoverable`
   - `unrecoverable`
+  - `multiplier`
 - `job`: object; left out when absent or at its default
   - `name`
   - `cron`

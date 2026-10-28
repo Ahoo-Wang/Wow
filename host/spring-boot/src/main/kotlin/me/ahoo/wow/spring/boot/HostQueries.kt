@@ -121,7 +121,7 @@ class SnapshotQueryBackend(
 }
 
 /**
- * The queries of a store in memory, built into the host, both only when `wow.query.memory.enabled` ([enabled]) is on:
+ * The queries of a store in memory, built into the host, both unless `wow.query.memory.enabled` is false ([enabled]):
  * its snapshots from the in-memory reference query backend it was given
  * ([MemoryStore.queries]), and its logs scanned in memory ([InMemoryEventQueryStorage.of]) for the `events` model.
  */

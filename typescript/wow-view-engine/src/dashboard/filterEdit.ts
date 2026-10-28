@@ -196,7 +196,7 @@ export function setFilterMultiple(
 }
 
 /**
- * Where a filter's choices come from (D22 G, 「值从哪来」): a list of its
+ * Where a filter's choices come from (「值从哪来」): a list of its
  * own, or — `null` — the values of the fields it is wired to.
  */
 export function setFilterOptions(
@@ -239,7 +239,7 @@ export function setTimeGrouping(
 }
 
 /**
- * The board without its fixed scope (D23 Q16, D26 Q31): the condition a
+ * The board without its fixed scope: the condition a
  * board saved before its filters could not hold, taken out whole by its
  * author — never a reader's to take — and the empty tree left in its place,
  * so the member stays and the board is never read as pre-C again. A board

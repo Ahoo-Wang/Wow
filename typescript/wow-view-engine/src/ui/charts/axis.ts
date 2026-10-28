@@ -56,7 +56,7 @@ function valueFormat(
  * A tick written to as many more digits as it takes to be itself, up to
  * three: ticks are round numbers, so a format that rounds one rounds it
  * into its neighbour — a trend between 99.95% and 100% labelled every tick
- * 「100%」 (R2-21) — where 「99.95%」 is the tick it is.
+ * 「100%」 — where 「99.95%」 is the tick it is.
  */
 export function formatTick(
   value: number,
@@ -117,7 +117,7 @@ const ONE_DECIMAL_PERCENT = {
  * A change, signed, as a ratio to one decimal always written — 「-15.0%」
  * beside an amount of 「-14.4」, not 「-15%」 that reads as rounder than it
  * is — and one too small for that decimal 「<+0.1%」, not 「+0%」 under an
- * arrow (R2-21).
+ * arrow.
  */
 export function formatChange(
   ratio: number,

@@ -14,8 +14,8 @@
 import { GeneratorError } from '../api/errors';
 
 /**
- * The part of a Wow V10 service Manifest (`GET /wow/manifest`, or the
- * merged `manifest.json` of the build; decisions D73, D74) the generator
+ * The part of a Wow V10 service Manifest (`GET /wow/manifest`, or the merged
+ * `manifest.json` of the build) the generator
  * reads. Members it does not read are left out; a Manifest carries more.
  */
 export interface ManifestDocument {
@@ -31,6 +31,8 @@ export interface ManifestContext {
   readonly name: string;
   readonly description?: string;
   readonly aggregates?: readonly ManifestAggregate[];
+  /** The context's own system commands: its job commands, when it has jobs. */
+  readonly commands?: readonly ManifestCommand[];
   readonly subscriptions?: readonly { readonly name: string }[];
   readonly errors?: readonly ManifestError[];
 }
@@ -43,7 +45,6 @@ export interface ManifestAggregate {
   readonly snapshot?: { readonly enabled?: boolean };
   readonly commands?: readonly ManifestCommand[];
   readonly events?: readonly ManifestEvent[];
-  readonly lifecycle?: readonly string[];
   readonly queries?: readonly { readonly model: string }[];
   readonly ownership?: string;
 }
@@ -60,6 +61,8 @@ export interface ManifestCommand {
   }[];
   readonly mounted?: boolean;
   readonly description?: string;
+  /** A system command (`wow.*`): a lifecycle command, the snapshot rebuild or a job command. */
+  readonly system?: boolean;
 }
 
 /** An event of an aggregate. */
@@ -79,7 +82,7 @@ export interface ManifestError {
 /** A JSON Schema 2020-12 of `$defs`, as the Manifest writes them. */
 export type JsonSchema = Readonly<Record<string, unknown>>;
 
-/** The Manifest format the generator reads (decision D59). */
+/** The Manifest format the generator reads. */
 export const MANIFEST_FORMAT = 1;
 
 const DEFS_PREFIX = '#/$defs/';

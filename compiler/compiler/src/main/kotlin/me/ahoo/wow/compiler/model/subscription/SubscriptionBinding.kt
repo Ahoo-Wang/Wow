@@ -40,6 +40,16 @@ internal data class SubscriptionBinding(
     val rejections: List<ReceiptBinding> = emptyList(),
     /** A saga's `@OnCommitted` handlers: bound with each of its handlers. */
     val commits: List<ReceiptBinding> = emptyList(),
+    /**
+     * Whether the processor or its constructor is `internal`, so the generated function that takes its services is
+     * too.
+     */
+    val internal: Boolean = false,
+    /**
+     * What compiles but leaves the Manifest short: a saga's handler whose return type names no command class and that
+     * declares no `@OnEvent(derives)`, so the Manifest cannot list what it derives.
+     */
+    val warnings: List<String> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
@@ -47,9 +57,12 @@ internal data class SubscriptionBinding(
 }
 
 internal data class HandlerBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     /** The subscription the handler is compiled into: `processor.function`. */
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The state type of the `StateEvent` it takes; null for a star projection. */
     val state: String?,
     /**
@@ -70,7 +83,7 @@ internal data class HandlerBinding(
      * read as its concrete subclasses.
      */
     val derives: List<String> = emptyList(),
-    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules. */
+    /** `@OnEvent(schedules)`: the binary names of the command classes a saga's handler declares it schedules. */
     val schedules: List<String> = emptyList(),
     /**
      * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with
@@ -103,13 +116,21 @@ internal data class HandlerBinding(
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
 
+    /** Whether the handler reads another context's events: an aggregate of it, or its events by type. */
+    fun readsPeer(context: String): Boolean =
+        (sourceContext != null && sourceContext != context) || event?.peerEvents.orEmpty().isNotEmpty()
+
     /**
      * Where its subscription starts, `BEGINNING` or `END`, in a module of [context]: its declared
-     * [start], else the beginning for a projection or a handler of another context's stream, the end for a reactor or
-     * a saga of its own context's log. [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
+     * [start], else the beginning for a projection, the end for a reactor or a saga of its own context's log; null for
+     * a reactor's or a saga's handler of another context's stream, which starts where its service joins the stream
+     * (the runtime's `StartFrom.JOIN`). [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
      */
-    fun startIn(context: String, kind: String): String =
-        start ?: if (kind == "PROJECT" || (sourceContext != null && sourceContext != context)) "BEGINNING" else "END"
+    fun startIn(context: String, kind: String): String? = start ?: when {
+        kind == "PROJECT" -> "BEGINNING"
+        readsPeer(context) -> null
+        else -> "END"
+    }
 }
 
 /**
@@ -153,8 +174,11 @@ internal enum class Receipt(
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
     val command: String?,
     val context: Boolean,

@@ -119,6 +119,16 @@
           "path" : "/analytics-catalog/dataset/{id}/rollback-dataset"
         } ],
         "description" : "Switch a dataset back to an earlier version"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/dataset/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "DatasetDrafted",
@@ -181,7 +191,6 @@
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetViewsDropped",
         "description" : "A retired dataset's views were dropped"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -296,6 +305,16 @@
           "path" : "/analytics-catalog/source/sync-source"
         } ],
         "description" : "Bring a source up to date with the warehouse"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/source/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "SensitivityChangeApproved",
@@ -364,7 +383,6 @@
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused",
         "description" : "A table's wow_catalog rows were refused"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -531,6 +549,10 @@
     "status" : 409,
     "description" : "The aggregate's current state refuses the command (a check of its decide function); the message says why."
   }, {
+    "code" : "wow.command.undeclared-event",
+    "status" : 500,
+    "description" : "The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing."
+  }, {
     "code" : "wow.node.closing",
     "status" : 503,
     "description" : "The node is shutting down; retry on another node."
@@ -582,6 +604,10 @@
     "code" : "wow.query.dataset-not-found",
     "status" : 404,
     "description" : "No dataset of that name is served to the caller."
+  }, {
+    "code" : "wow.query.too-many-groups",
+    "status" : 400,
+    "description" : "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit."
   }, {
     "code" : "wow.query.timeout",
     "status" : 504,
@@ -1615,6 +1641,18 @@
         "type" : "string",
         "enum" : [ "DISPLAY", "CONFIDENTIAL" ]
       } ]
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ]
     }
   }
 }

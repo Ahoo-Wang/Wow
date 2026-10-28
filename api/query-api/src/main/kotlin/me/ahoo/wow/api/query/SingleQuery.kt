@@ -16,18 +16,9 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Interface for single-item queries that retrieve at most one result.
- *
- * This interface extends [Queryable] and is designed for queries that expect
- * to return a single item or null, rather than a collection of items.
- */
-interface ISingleQuery : Queryable<ISingleQuery>
-
-/**
  * Data class representing a query for retrieving a single item with optional filtering, projection, and sorting.
  *
- * This class implements [ISingleQuery] and provides a concrete implementation for single-item queries.
- * It supports all standard query operations but is optimized for scenarios where only one result is expected.
+ * It supports all standard query operations ([Queryable]) and expects at most one result, or none.
  *
  * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the result.
@@ -45,14 +36,20 @@ class SingleQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
-) : ISingleQuery {
+) : Queryable<SingleQuery> {
+    init {
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
+        }
+    }
+
     /**
      * Creates a new SingleQuery with the specified filter.
      *
      * @param newFilter The new filter to apply.
      * @return A new SingleQuery with the updated filter.
      */
-    override fun withFilter(newFilter: FilterExpression): ISingleQuery = SingleQuery(newFilter, projection, sort)
+    override fun withFilter(newFilter: FilterExpression): SingleQuery = SingleQuery(newFilter, projection, sort)
 
     /**
      * Creates a new SingleQuery with the specified projection.
@@ -60,7 +57,7 @@ class SingleQuery @InternalWowApi constructor(
      * @param newProjection The new projection to apply.
      * @return A new SingleQuery with the updated projection.
      */
-    override fun withProjection(newProjection: Projection): ISingleQuery = SingleQuery(filter, newProjection, sort)
+    override fun withProjection(newProjection: Projection): SingleQuery = SingleQuery(filter, newProjection, sort)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is SingleQuery && valueFields() == other.valueFields()

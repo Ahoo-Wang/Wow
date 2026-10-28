@@ -18,11 +18,11 @@
  * service's own system views route, and optionally a service's datasets.
  * The suites of `@ahoo-wang/wow-view-store` run the real store and the
  * real generated clients over it, and the Storybook's V10 stories install it
- * as the page's `fetch` (it imports nothing but the platform, so a browser
- * runs it as it is).
+ * as the page's `fetch` (it imports nothing but the platform and
+ * `@ahoo-wang/wow-client`'s wire, so a browser runs it as it is).
  *
  * It answers as the service does, as far as the store can tell: the callers
- * of `ViewStoreCallers` (`X-User`, `X-Tenant`, `X-Role`, `CoSec-App-Id`, and
+ * the host gives a development run ({@link DevelopmentCallerHeaders}, and
  * `Wow-Scope` naming `(shared)` or `(system)` of `(platform)`), the write
  * rules of `ViewStoreAuthorizer`, request ids deduplicated before the
  * expected version is checked, `If-Match`, the share and claim moved by the
@@ -31,6 +31,13 @@
  * without a code for a route it does not serve. The real service is held to
  * the same behaviour by `typescript/integration-test/test/view-store/`.
  */
+
+import { DevelopmentCallerHeaders, WowHeaders } from '@ahoo-wang/wow-client';
+import {
+  commandResultOf,
+  problemOf,
+  problemResponse,
+} from '@ahoo-wang/wow-client/testing';
 
 /** A configured system view (`wow.view-store.system-views[n]`). */
 export interface ConfiguredSystemView {
@@ -157,16 +164,12 @@ export function problem(
   detail: string,
   extra: Record<string, unknown> = {},
 ): Response {
-  return new Response(
-    JSON.stringify({
-      type: code === undefined ? 'about:blank' : `urn:wow:error:${code}`,
+  return problemResponse(
+    problemOf(status, code, {
       title: code ?? 'Not Found',
-      status,
       detail,
-      ...(code === undefined ? {} : { code }),
-      ...extra,
+      extensions: extra,
     }),
-    { status, headers: { 'Content-Type': 'application/problem+json' } },
   );
 }
 
@@ -249,14 +252,21 @@ export function fakeViewStore(
   const tick = () => Math.max(now(), clock + 1);
 
   function callerOf(headers: Headers): Caller {
-    const user = headers.get('X-User')?.trim() || null;
-    const tenant = headers.get('X-Tenant')?.trim() || '(0)';
-    const roles = (headers.get('X-Role') ?? '')
-      .split(',')
-      .map(role => role.trim())
-      .filter(Boolean);
-    const app = headers.get('CoSec-App-Id')?.trim() || null;
-    const scope = headers.get('Wow-Scope');
+    const user = headers.get(DevelopmentCallerHeaders.USER)?.trim() || null;
+    // Without a user, the anonymous caller: the other identity headers are
+    // ignored, the application kept.
+    const tenant =
+      (user && headers.get(DevelopmentCallerHeaders.TENANT)?.trim()) || '(0)';
+    const owner =
+      (user && headers.get(DevelopmentCallerHeaders.OWNER)?.trim()) || null;
+    const roles = user
+      ? (headers.get(DevelopmentCallerHeaders.ROLES) ?? '')
+          .split(',')
+          .map(role => role.trim())
+          .filter(Boolean)
+      : [];
+    const app = headers.get(DevelopmentCallerHeaders.APP)?.trim() || null;
+    const scope = headers.get(WowHeaders.SCOPE);
     if (scope !== null) {
       const members = Object.fromEntries(
         [...scope.matchAll(/(\w+)="((?:[^"\\]|\\.)*)"/g)].map(m => [
@@ -291,7 +301,7 @@ export function fakeViewStore(
     }
     return {
       tenantId: tenant,
-      ownerId: user,
+      ownerId: owner,
       user,
       roles,
       app,
@@ -321,16 +331,14 @@ export function fakeViewStore(
     duplicate = false,
   ): Record<string, unknown> {
     const commandId = `command-${++sequence}`;
-    return {
-      format: 1,
+    const ref = {
+      type: { context: 'view-store', name: aggregate.name },
+      tenantId: aggregate.tenantId,
+      id: aggregate.id,
+    };
+    return commandResultOf(ref, {
       commandId,
       requestId,
-      correlationId: commandId,
-      ref: {
-        type: { context: 'view-store', name: aggregate.name },
-        tenantId: aggregate.tenantId,
-        id: aggregate.id,
-      },
       hop: {
         stage: 'HANDLED',
         context: 'view-store',
@@ -342,14 +350,10 @@ export function fakeViewStore(
         processor: 'snapshot',
         name: 'snapshot',
       },
-      status: 'SUCCEEDED',
       version,
       duplicate,
-      error: null,
-      results: {},
-      derived: [],
       signalTime: now(),
-    };
+    }) as unknown as Record<string, unknown>;
   }
 
   function reject(
@@ -448,7 +452,8 @@ export function fakeViewStore(
         "A view's owner changes only by sharing or claiming it.",
       );
     authorize(caller, name, command);
-    const requestId = headers.get('Wow-Request-Id') ?? `request-${++sequence}`;
+    const requestId =
+      headers.get(WowHeaders.REQUEST_ID) ?? `request-${++sequence}`;
     const first = answered.get(`${caller.tenantId}\u0000${requestId}`);
     if (first) {
       if (
@@ -594,7 +599,7 @@ export function fakeViewStore(
     const admitted = admit('view', command, caller, headers, id);
     if (admitted.duplicate) return duplicateOf(admitted.duplicate);
     const { requestId, expected } = admitted;
-    const waitsForMove = (headers.get('Wow-Wait') ?? '').includes(SAGA);
+    const waitsForMove = (headers.get(WowHeaders.WAIT) ?? '').includes(SAGA);
     if (command === 'CreateView') {
       const viewId = id || `view-${++sequence}`;
       const ref = {

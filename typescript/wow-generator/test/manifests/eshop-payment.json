@@ -93,6 +93,81 @@
                 }
               ],
               "description": "Request a payment"
+            },
+            {
+              "name": "wow.lifecycle.ApplyTags",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.ApplyTags",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/wow.lifecycle.apply-tags"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.DeleteAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
+              "creation": "NONE",
+              "routes": [
+                { "method": "DELETE", "path": "/eshop-payment/payment/{id}" }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.RestoreAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.RestoreAggregate",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/wow.lifecycle.restore-aggregate"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.TransferOwner",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.TransferOwner",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/wow.lifecycle.transfer-owner"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.TransferSpace",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.TransferSpace",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/wow.lifecycle.transfer-space"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.snapshot.Rebuild",
+              "aliases": [],
+              "schema": "#/$defs/wow.snapshot.Rebuild",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/wow.snapshot.rebuild"
+                }
+              ],
+              "system": true
             }
           ],
           "events": [
@@ -124,13 +199,6 @@
               "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded",
               "description": "The gateway approved a payment"
             }
-          ],
-          "lifecycle": [
-            "wow.lifecycle.ApplyTags",
-            "wow.lifecycle.DeleteAggregate",
-            "wow.lifecycle.RestoreAggregate",
-            "wow.lifecycle.TransferOwner",
-            "wow.lifecycle.TransferSpace"
           ],
           "queries": [
             {
@@ -529,6 +597,13 @@
       "properties": { "spaceId": { "type": "string" } },
       "required": ["spaceId"],
       "description": "Moves the aggregate to the space spaceId."
+    },
+    "wow.snapshot.Rebuild": {
+      "type": "object",
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["ids"]
     }
   }
 }

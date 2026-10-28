@@ -309,7 +309,7 @@ export interface AxisSpec {
 /**
  * A horizontal rule across the plot: at a constant `value`, or at a
  * `statistic` of one drawn metric's measured values — its average or its
- * median over the points drawn, a filled-in 0 left out (D33 batch B). One of
+ * median over the points drawn, a filled-in 0 left out (batch B). One of
  * the two places it; a statistic names its `metric`.
  */
 export interface ReferenceLine {
@@ -397,7 +397,7 @@ export interface WaterfallSpec {
 /**
  * A treemap: a whole cut into tiles whose areas are the groups' shares of
  * it — the reading for a composition of more categories than the palette
- * has colours (D33 Q56), since every tile carries its own name. One
+ * has colours, since every tile carries its own name. One
  * dimension is one level of tiles; a second nests them, the tiles of
  * `category` inside a block for each value of `parent`. Areas are parts of
  * a sum, so only a metric that adds up draws one.

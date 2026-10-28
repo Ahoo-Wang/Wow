@@ -97,7 +97,6 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.querySchema
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Assumptions
@@ -441,7 +440,11 @@ abstract class QueryBackendSpec {
     @Test
     fun `list without a limit streams every record`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.unboundedStream != SupportMode.NONE)
+        assumeSupported(
+            fixture.schema.storage.paging.unboundedStream,
+            "storage.paging.unboundedStream",
+            "unbounded streams"
+        )
         fixture.list(ListQuery(MatchAllFilter)).assert().hasSize(5)
         Unit
     }
@@ -575,7 +578,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `cursor traverses tied records once each in sort order`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.DESC))
         val pages = mutableListOf<List<String>>()
         var cursor: String? = null
@@ -592,7 +595,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `cursor supports descending multi field sort`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(QueryField("state.quantity"), Sort.Direction.DESC), Sort(AMOUNT, Sort.Direction.DESC))
         val first = fixture.backend.cursor(
             QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 3), fixture.schema)
@@ -620,7 +623,7 @@ abstract class QueryBackendSpec {
                 snapshot("solo", shared),
             ),
         )
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.ASC))
         val seen = mutableListOf<Pair<String, String>>()
         var cursor: String? = null
@@ -643,7 +646,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `cursor returns an empty terminal page`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val page = fixture.backend.cursor(
             QueryAdmission.Trusted.cursor(CursorQuery(AggregateIdFilter("none"), size = 2), fixture.schema),
         )
@@ -655,7 +658,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `cursor token issued for another sort is the invalid cursor`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val byAmount = CursorQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.ASC)), size = 1)
         val token = checkNotNull(
             fixture.backend.cursor(QueryAdmission.Trusted.cursor(byAmount, fixture.schema)).nextCursor
@@ -677,9 +680,9 @@ abstract class QueryBackendSpec {
     @Test
     fun `a stream reads keyset chunks, each record with its position, and resumes strictly after one`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.DESC))
-        fun chunks(size: Int, after: String? = null, limit: Int = 0) = fixture.backend.chunks(
+        fun chunks(size: Int, after: String? = null, limit: Int? = null) = fixture.backend.chunks(
             QueryAdmission.Trusted.cursor(
                 CursorQuery(MatchAllFilter, sort = sort, size = size, cursor = after),
                 fixture.schema
@@ -706,7 +709,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `a stream sees a record written after its position, between two chunks`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(AMOUNT, Sort.Direction.ASC))
         val read = fixture.backend.chunks(
             QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), fixture.schema),
@@ -800,6 +803,24 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `aggregation without a sort refuses more groups than its limit, and returns every group within it`() =
+        blocking {
+            val fixture = given(orders())
+            fun byStatus(limit: Int) = AggregationQuery(
+                filter = MatchAllFilter,
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                limit = limit,
+            )
+            val refused = runCatching { fixture.aggregate(byStatus(2)) }.exceptionOrNull()
+            refused.assert().isInstanceOf(QueryRequestException::class.java)
+            (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.TooManyGroups(2))
+            fixture.aggregate(byStatus(3)).map { it.path("status").stringValue() }
+                .assert().containsExactly("CANCELLED", "NEW", "PAID")
+            Unit
+        }
+
+    @Test
     fun `aggregation HAVING keeps the matching groups`() = blocking {
         val fixture = given(orders())
         val rows = fixture.aggregate(
@@ -817,7 +838,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `aggregation HAVING that matches no group returns no row`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.aggregation.having != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.aggregation.having, "storage.aggregation.having", "HAVING")
         val byStatus = AggregationQuery(
             filter = MatchAllFilter,
             groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
@@ -882,7 +903,11 @@ abstract class QueryBackendSpec {
     @Test
     fun `aggregation groups the elements by a field of their root record`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.aggregation.rootGroups != SupportMode.NONE)
+        assumeSupported(
+            fixture.schema.storage.aggregation.rootGroups,
+            "storage.aggregation.rootGroups",
+            "groups by a root field"
+        )
         val rows = fixture.aggregate(
             AggregationQuery(
                 filter = MatchAllFilter,
@@ -901,7 +926,11 @@ abstract class QueryBackendSpec {
     @Test
     fun `aggregation counts distinct values`() = blocking {
         val fixture = given(orders())
-        Assumptions.assumeTrue(fixture.schema.storage.aggregation.distinctCount != SupportMode.NONE)
+        assumeSupported(
+            fixture.schema.storage.aggregation.distinctCount,
+            "storage.aggregation.distinctCount",
+            "distinct counts"
+        )
         val row = fixture.aggregate(
             AggregationQuery(
                 filter = MatchAllFilter,
@@ -918,7 +947,12 @@ abstract class QueryBackendSpec {
     fun `aggregation groups an epoch field by day`() = blocking {
         val fixture = given(orders())
         val createdAt = fixture.schema.field(QueryField("state.createdAt"))
-        Assumptions.assumeTrue(createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL) != null)
+        assumeBound(
+            createdAt?.binding(QueryCapability.AGGREGATE_TEMPORAL),
+            "state.createdAt",
+            QueryCapability.AGGREGATE_TEMPORAL,
+            "temporal grouping",
+        )
         val rows = fixture.aggregate(
             AggregationQuery(
                 filter = GreaterThanOrEqualFilter(QueryField("state.createdAt"), T0 + DAY),
@@ -973,7 +1007,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `a query within its timeout runs as without one`() = blocking {
         val fixture = given(orders())
-        val admitted: AdmittedQuery<me.ahoo.wow.api.query.ICountQuery> =
+        val admitted: AdmittedQuery<me.ahoo.wow.api.query.CountQuery> =
             QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), fixture.schema).withTimeout(GENEROUS)
         admitted.timeout.assert().isEqualTo(GENEROUS)
         fixture.backend.countBounded(admitted).assert().isEqualTo(CountResult(5, exact = true))

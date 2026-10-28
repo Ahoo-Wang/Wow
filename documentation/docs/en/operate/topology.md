@@ -78,13 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
 ```
 
-A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP (decision D319). The headless service is named after the service, `eshop-ordering-service-cluster`: its SRV records name every node's address, the nodes that are not ready included, and the other services find its nodes there by the service's name alone (D305). The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
+A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP. The headless service is named after the service, `eshop-ordering-service-cluster`: its SRV records name every node's address, the nodes that are not ready included, and the other services find its nodes there by the service's name alone. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 
@@ -107,7 +107,7 @@ A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved k
 
 `auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or its internal port binds the loopback interface alone; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:
@@ -118,8 +118,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 The host creates its tables and collections at startup, unless `wow.ddl` says `validate` or `none`. The log and the snapshots are stored per aggregate type (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`). Named stores, `wow.stores`, split the data per aggregate instead: one aggregate's log on PostgreSQL, another's snapshots on Elasticsearch.

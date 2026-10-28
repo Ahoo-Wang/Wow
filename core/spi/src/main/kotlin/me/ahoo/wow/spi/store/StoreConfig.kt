@@ -17,13 +17,15 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.TailPolling
+import java.time.Clock
 
 /**
  * What a [StoreProvider] opens one store instance from: the store's [name] and [type], how it manages
  * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([options]), how the tails
  * of its logs poll ([polling], `wow.log.poll-interval`), the [service] whose failure ledger it keeps (the key of its
- * entries), the application's [resources], and whether the node runs for [development], where a store
- * may accept a deployment it refuses for production (a standalone MongoDB server, say).
+ * entries), the application's [resources], whether the node runs for [development], where a store
+ * may accept a deployment it refuses for production (a standalone MongoDB server, say), and the [clock] its ports read
+ * the time from: the leases' and the reservations' expiry, the store's one time source, so a test fixes it in one place.
  *
  * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
@@ -38,6 +40,7 @@ class StoreConfig @InternalWowApi constructor(
     val service: String = "",
     val resources: StoreResources = StoreResources.NONE,
     val development: Boolean = false,
+    val clock: Clock = Clock.systemUTC(),
 ) {
     init {
         require(name.isNotBlank()) { "A store needs a name." }
@@ -65,7 +68,8 @@ class StoreConfig @InternalWowApi constructor(
             service: String = "",
             resources: StoreResources = StoreResources.NONE,
             development: Boolean = false,
-        ): StoreConfig = StoreConfig(name, type, ddl, options, polling, service, resources, development)
+            clock: Clock = Clock.systemUTC(),
+        ): StoreConfig = StoreConfig(name, type, ddl, options, polling, service, resources, development, clock)
     }
 }
 

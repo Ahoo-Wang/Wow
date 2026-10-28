@@ -54,7 +54,7 @@ abstract class TopicTransportSpec {
         }
 
     private fun message(key: String, value: String, headers: Map<String, String> = emptyMap()) =
-        TopicMessage(key, value.toByteArray(), headers)
+        TopicMessage.of(key, value.toByteArray(), headers)
 
     private val SourceMessage.text: String get() = String(value)
 
@@ -99,7 +99,7 @@ abstract class TopicTransportSpec {
     @Test
     fun `a message naming its partition should land in it whatever its key`(): Unit = runBlocking {
         val topic = newTopic(3)
-        producer.send(topic, (0 until 3).map { TopicMessage("same-key", "p-$it".toByteArray(), partition = it) })
+        producer.send(topic, (0 until 3).map { TopicMessage.of("same-key", "p-$it".toByteArray(), partition = it) })
         (0 until 3).forEach { partition ->
             read(topic, partition, 0, 1).single().text.assert().isEqualTo("p-$partition")
         }
@@ -119,9 +119,9 @@ abstract class TopicTransportSpec {
     @Test
     fun `the offsets should run from the first message retained to the next one written`(): Unit = runBlocking {
         val topic = newTopic(1)
-        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets(0, 0))
+        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets.of(0, 0))
         producer.send(topic, (0 until 3).map { message("k", "v-$it") })
-        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets(0, 3))
+        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets.of(0, 3))
     }
 
     @Test

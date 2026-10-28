@@ -19,11 +19,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.StateTypedEvent
@@ -87,8 +86,8 @@ class TypedEventsTest {
         )
         context.invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4")
         // Each kind of context keeps its kind.
-        (invocationOf(context, 1) is ReactContext).assert().isTrue()
-        (invocationOf(contextOf(FunctionKind.PROJECT, "Board.onPlaced", stream), 1) is ProjectContext).assert()
+        (invocationOf(context, 1) is SubscriptionContext).assert().isTrue()
+        (invocationOf(contextOf(FunctionKind.PROJECT, "Board.onPlaced", stream), 1) is SubscriptionContext).assert()
             .isTrue()
         val plain = object : SubscriptionContext {
             override val executionId = context.executionId
@@ -121,8 +120,8 @@ class TypedEventsTest {
         ) { event, context ->
             eachEvent(event, Placed::class.java, context) { typed, invocation ->
                 check(typed.event.item != failOn) { "The gateway is down." }
-                invocation.call(invocation.command(inventory.ref("t", typed.event.item), "reserve"))
-                derivedOf(invocation.command(typed.ref, "confirm ${typed.event.item}"))
+                invocation.call(CommandRequest.to(inventory.ref("t", typed.event.item), "reserve"))
+                requestsOf(CommandRequest.to(typed.ref, "confirm ${typed.event.item}"))
             }.flatten()
         }
         val succeeded = mockk<CommandResult> { every { status } returns CommandResult.Status.SUCCEEDED }
@@ -143,10 +142,10 @@ class TypedEventsTest {
         // The first call is made again with its request id, then the second one's.
         called.map { it.requestId }.assert().isEqualTo(firstAttempt + called.drop(1).map { it.requestId })
         called[0].requestId.assert().isEqualTo(called[1].requestId)
-        // The commands are numbered across the stream: call, command, call, command.
+        // Each command is keyed by its target and type: the two confirmations, one target, two occurrences.
         derived.map { it.id }.assert().containsExactly(
-            ExecutionSagaContext.derivedId(context().executionId, 1),
-            ExecutionSagaContext.derivedId(context().executionId, 3),
+            ExecutionSagaContext.derivedId(context().executionId, derived[0].ref, String::class.java, 0),
+            ExecutionSagaContext.derivedId(context().executionId, derived[0].ref, String::class.java, 1),
         )
         val again = binding.invoke(stream, context())
         again.map { it.requestId }.assert().isEqualTo(derived.map { it.requestId })

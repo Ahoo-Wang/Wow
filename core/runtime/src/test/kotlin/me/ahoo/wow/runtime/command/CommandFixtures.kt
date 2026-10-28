@@ -16,10 +16,12 @@ package me.ahoo.wow.runtime.command
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -34,6 +36,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
@@ -146,21 +149,23 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         "OrderSaga",
         "onReserveRejected",
         Reserve::class.java
-    ) { rejected, context ->
+    ) { rejected, _ ->
         rejections += rejected
-        listOf(context.command(rejected.executionId.ref, CancelOrder()))
+        listOf(CommandRequest.to(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",
         "onOrderPlaced",
         OrderState::class.java,
         rejections = listOf(onReserveRejected),
-    ) { event, context ->
-        event.events.filterIsInstance<OrderPlaced>().map {
-            context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
-        }
-    }
+    ) { event, _ -> reservationsOf(event) }
 }
+
+/** The order saga's handler: each placed order reserves its quantity of its item. */
+private fun reservationsOf(event: StateEvent<OrderState>): List<CommandRequest<*>> =
+    event.events.filterIsInstance<OrderPlaced>().map {
+        CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
+    }
 
 /**
  * The order saga with an `@OnCommitted` handler of its reservations too (decision D192): each reservation the stock
@@ -170,9 +175,9 @@ fun committingOrderSaga(
     commits: MutableList<CommandCommitted<*>> = CopyOnWriteArrayList(),
     rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList(),
 ): ProcessorBinding<OrderState> {
-    val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
+    val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, _ ->
         commits += committed
-        listOf(context.command(committed.executionId.ref, ConfirmOrder()))
+        listOf(CommandRequest.to(committed.source, ConfirmOrder()))
     }
     val saga = orderSaga(rejections)
     return ProcessorBinding.saga(
@@ -181,19 +186,22 @@ fun committingOrderSaga(
         OrderState::class.java,
         rejections = saga.rejections,
         commits = listOf(onReserved),
-    ) { event, context -> saga.invoke(event, context) }
+    ) { event, _ -> reservationsOf(event) }
 }
 
-private fun aggregateManifest(name: String, commands: List<Pair<Class<*>, ManifestCreation>>, events: List<Class<*>>) =
-    AggregateManifest(
-        name,
-        state = StateManifest(Manifest.schemaRef("${name}State")),
-        commands = commands.map { (command, creation) ->
-            CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
-        },
-        events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
-        lifecycle = Lifecycle.COMMANDS.keys.toList(),
-    )
+private fun aggregateManifest(
+    context: String,
+    name: String,
+    commands: List<Pair<Class<*>, ManifestCreation>>,
+    events: List<Class<*>>,
+) = AggregateManifest(
+    name,
+    state = StateManifest(Manifest.schemaRef("${name}State")),
+    commands = commands.map { (command, creation) ->
+        CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
+    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
+    events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
+)
 
 /** The sales service's Manifest: its orders. */
 fun salesManifest(): Manifest = Manifest(
@@ -203,6 +211,7 @@ fun salesManifest(): Manifest = Manifest(
             SALES,
             aggregates = listOf(
                 aggregateManifest(
+                    SALES,
                     "order",
                     listOf(
                         PlaceOrder::class.java to ManifestCreation.REQUIRED,
@@ -224,6 +233,7 @@ fun stockManifest(): Manifest = Manifest(
             STOCK,
             aggregates = listOf(
                 aggregateManifest(
+                    STOCK,
                     "item",
                     listOf(Reserve::class.java to ManifestCreation.ALLOWED),
                     listOf(Reserved::class.java)

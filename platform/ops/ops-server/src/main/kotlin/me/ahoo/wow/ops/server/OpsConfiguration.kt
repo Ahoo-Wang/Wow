@@ -13,27 +13,25 @@
 
 package me.ahoo.wow.ops.server
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.SignedInCallerResolver
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
  * The ops service's beans: who calls it, and what each caller may send.
  *
- * Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
- * headers name ([OpsCallers]), for local runs, demos and tests only, with a warning at startup: any client names any
- * operator and tenant there. Otherwise CoSec's: the edge's resolver reads the operator from the security context
- * CoSec put on the request, which the `cosec` profile has CoSec's inject mode parse from the token the gateway verified
- * and forwarded (only the gateway reaches the service); without CoSec (`cosec.enabled=false`, the
- * default profile) no request has one, and each is answered 401, never served on a client's word. The header switch
- * is refused outside development ([DevelopmentMode]).
+ * Who calls it: CoSec's callers, the operator the edge's resolver reads from the security context CoSec put on the
+ * request, which the `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded
+ * (only the gateway reaches the service). In development without CoSec, the host's, from the `Wow-*` identity headers
+ * any client sets (`DevelopmentCallerResolver`), of which a request without a user is no caller here
+ * ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without CoSec does not
+ * start.
  *
  * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
  * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else
@@ -41,17 +39,6 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration(proxyBeanMethods = false)
 class OpsConfiguration {
-    @Bean
-    @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "true")
-    fun opsCallers(development: DevelopmentMode): CallerResolver {
-        development.require(TRUST_IDENTITY_HEADERS, true, "takes the callers from headers any client sets")
-        logger.warn {
-            "$TRUST_IDENTITY_HEADERS=true: the ops service takes its callers from the X-User, X-Tenant and X-Role " +
-                "headers, which any client sets: for local runs, demos and tests only (${development.reason})."
-        }
-        return OpsCallers()
-    }
-
     /**
      * What each caller may send: CoSec's policies decide who is an operator when CoSec authorizes the requests itself,
      * as the host hands its decision out ([CoSecAuthorizers]); else the operator's role ([OperatorRole]).
@@ -62,11 +49,16 @@ class OpsConfiguration {
 
     companion object {
         /**
-         * The switch that takes the callers from the request headers ([OpsCallers]), off by default: a condition only,
-         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         * Requires a signed-in caller: in development, a request without a user is no caller here
+         * ([DevelopmentCallerResolver] gives the anonymous one), so the edge answers it 401 on every route, as CoSec's
+         * resolver has it answered, and the console asks who calls. The health probes and the console's assets are
+         * not the edge's routes, and answer without a caller.
          */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        private val logger = KotlinLogging.logger {}
+        @Bean
+        @JvmStatic
+        fun requireSignedInCaller(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
+                if (bean is DevelopmentCallerResolver) SignedInCallerResolver(bean) else bean
+        }
     }
 }

@@ -30,7 +30,7 @@ interface TabMemoryHost {
 }
 
 /**
- * Where each reader last read each dashboard (D22 E): kept in their
+ * Where each reader last read each dashboard: kept in their
  * preferences for the board's definition (`ViewPreferences.lastTabs`), by
  * instance id, and where a board opens when its host names no tab.
  *

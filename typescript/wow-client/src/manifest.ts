@@ -28,7 +28,7 @@ export interface RouteManifest {
 /** Whether a command creates its aggregate. */
 export type Creation = 'NONE' | 'REQUIRED' | 'ALLOWED';
 
-/** A command of an aggregate (decisions D104, D176, D182). */
+/** A command of an aggregate. */
 export interface CommandManifest {
   readonly name: string;
   readonly aliases?: readonly string[];
@@ -39,6 +39,11 @@ export interface CommandManifest {
   readonly routes?: readonly RouteManifest[];
   readonly mounted?: boolean;
   readonly transformsTo?: readonly string[];
+  /**
+   * A system command (`wow.*`): a lifecycle command, the snapshot rebuild or
+   * a job command, its routes the framework's.
+   */
+  readonly system?: boolean;
 }
 
 /** An event of an aggregate and its revision. */
@@ -49,7 +54,7 @@ export interface EventManifest {
   readonly schema: string;
 }
 
-/** A query model of an aggregate: `snapshot` or `events` (decision D128). */
+/** A query model of an aggregate: `snapshot` or `events`. */
 export interface QueryManifest {
   readonly model: string;
   readonly routes?: readonly RouteManifest[];
@@ -63,13 +68,12 @@ export interface AggregateManifest {
   readonly snapshot?: { readonly enabled?: boolean };
   readonly commands?: readonly CommandManifest[];
   readonly events?: readonly EventManifest[];
-  readonly lifecycle?: readonly string[];
   readonly queries?: readonly QueryManifest[];
   readonly schedules?: readonly string[];
   readonly ownership?: Ownership;
 }
 
-/** A subscription of a bounded context (design 04 §1). */
+/** A subscription of a bounded context. */
 export interface SubscriptionManifest {
   /** `processor.function`, as a `handled` hop names it. */
   readonly name: string;
@@ -97,6 +101,8 @@ export interface ContextManifest {
   readonly name: string;
   readonly description?: string;
   readonly aggregates?: readonly AggregateManifest[];
+  /** The context's own system commands: its job commands, when it has jobs. */
+  readonly commands?: readonly CommandManifest[];
   readonly subscriptions?: readonly SubscriptionManifest[];
   readonly published?: readonly {
     readonly aggregate: string;
@@ -107,7 +113,7 @@ export interface ContextManifest {
 }
 
 /**
- * A service's Manifest (decisions D17, D73–D76): its contexts, aggregates,
+ * A service's Manifest: its contexts, aggregates,
  * commands, events, routes and error codes, and the JSON Schemas they refer
  * to under `$defs`. `wow-generator` generates typed clients from it.
  */

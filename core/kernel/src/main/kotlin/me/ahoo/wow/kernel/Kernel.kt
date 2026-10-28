@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.Observer
@@ -152,6 +153,11 @@ class Kernel(
     private val blocking: CoroutineContext = BlockingDispatcher.dispatcher,
     /** The kernel's tuning: attempts, purity check, reservations, early waits, recent requests, replays. */
     private val options: KernelOptions = KernelOptions(),
+    /**
+     * The one-round-trip read of each aggregate type's snapshot with its tail, for the types whose log and primary
+     * snapshots are on one store that reads them together; none, the reads are done apart.
+     */
+    private val snapshotTailReaders: (AggregateType) -> SnapshotTailReader? = { null },
 ) {
     /** The reads of a committed state at a version or a time, and of its history. */
     private val history = StateHistory(this, log, codec)
@@ -163,7 +169,7 @@ class Kernel(
     private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
 
     /** How a cache miss reads the snapshot with the tail: in one round trip where the log can. */
-    private val snapshotTails = SnapshotTailReads(log, observer)
+    private val snapshotTails = SnapshotTailReads(log, snapshotTailReaders, observer)
 
     /**
      * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
@@ -1055,12 +1061,38 @@ class Kernel(
             Decision.NoOp -> emptyList()
             is Decision.Rejected -> return decision
         }
+        declared(model, body, decided, decider.produces, "decide function")
         val afters = model.afterFunctions(body.javaClass)
         if (afters.isEmpty()) {
             return decision
         }
-        val domain = decided + afters.flatMap { after(it, scope, state, body) }
+        val domain = decided + afters.flatMap { hook ->
+            after(hook, scope, state, body).also { declared(model, body, it, hook.produces, "after hook") }
+        }
         return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
+    }
+
+    /**
+     * [events], which a [function] of [model] produced for [command]; an [UndeclaredEventException] when one is not of
+     * [produces], the events it declares. Not checked when they are unknown.
+     */
+    private fun declared(
+        model: AggregateModel<*>,
+        command: Any,
+        events: List<Any>,
+        produces: Set<Class<*>>?,
+        function: String,
+    ) {
+        if (produces == null) return
+        val undeclared = events.firstOrNull { it.javaClass !in produces } ?: return
+        val commandClass = command.javaClass
+        throw UndeclaredEventException(
+            model.type,
+            commandClass,
+            undeclared.javaClass,
+            "${model.type}'s $function of ${commandClass.simpleName} produced ${undeclared.javaClass.simpleName}, " +
+                "which it does not declare: neither its return type nor its produces lists it.",
+        )
     }
 
     /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections]). */

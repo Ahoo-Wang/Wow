@@ -45,9 +45,9 @@ public final class me/ahoo/wow/client/ForwardedHeaders$Key : kotlin/coroutines/C
 
 public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client/CommandClient {
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
-	public fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lkotlinx/coroutines/flow/Flow;
-	public fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun send (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Lme/ahoo/wow/api/client/CommandRequest;)Lkotlinx/coroutines/flow/Flow;
+	public fun wait (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
@@ -156,37 +156,27 @@ public final class me/ahoo/wow/client/java/JavaCommandClient {
 	public static final field Companion Lme/ahoo/wow/client/java/JavaCommandClient$Companion;
 	public final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/client/java/JavaCommandClient;
 	public static final fun of (Lme/ahoo/wow/api/client/CommandClient;)Lme/ahoo/wow/client/java/JavaCommandClient;
-	public static final fun options ()Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
-	public final fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun send$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
-	public final fun sendAndWait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
-	public final fun sendAndWait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun sendAndWait$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
-	public final fun sendAndWaitAsync (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/concurrent/CompletableFuture;
-	public final fun sendAndWaitAsync (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Ljava/util/concurrent/CompletableFuture;
-	public static synthetic fun sendAndWaitAsync$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
-	public final fun sendAsync (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/concurrent/CompletableFuture;
-	public final fun sendAsync (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Ljava/util/concurrent/CompletableFuture;
-	public static synthetic fun sendAsync$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
-	public final fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/stream/Stream;
-	public final fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Ljava/util/stream/Stream;
-	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Ljava/util/stream/Stream;
+	public final fun send (Ljava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun send (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun send (Lme/ahoo/wow/api/client/CommandRequest;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun send$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun sendAndWait (Ljava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun sendAndWait (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun sendAndWait (Lme/ahoo/wow/api/client/CommandRequest;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun sendAndWait$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun sendAndWaitAsync (Ljava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+	public final fun sendAndWaitAsync (Ljava/lang/Object;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+	public final fun sendAndWaitAsync (Lme/ahoo/wow/api/client/CommandRequest;)Ljava/util/concurrent/CompletableFuture;
+	public static synthetic fun sendAndWaitAsync$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+	public final fun sendAsync (Ljava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+	public final fun sendAsync (Ljava/lang/Object;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+	public final fun sendAsync (Lme/ahoo/wow/api/client/CommandRequest;)Ljava/util/concurrent/CompletableFuture;
+	public static synthetic fun sendAsync$default (Lme/ahoo/wow/client/java/JavaCommandClient;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+	public final fun stream (Lme/ahoo/wow/api/client/CommandRequest;)Ljava/util/stream/Stream;
 }
 
 public final class me/ahoo/wow/client/java/JavaCommandClient$Companion {
 	public final fun of (Lme/ahoo/wow/api/client/CommandClient;)Lme/ahoo/wow/client/java/JavaCommandClient;
-	public final fun options ()Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-}
-
-public final class me/ahoo/wow/client/java/JavaCommandClient$Options {
-	public final fun build ()Lme/ahoo/wow/api/client/SendOptions;
-	public final fun expectedVersion (I)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun requestId (Ljava/lang/String;)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun targetScope (Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun targetTenant (Ljava/lang/String;)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun timeout (Ljava/time/Duration;)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
-	public final fun wait (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/client/java/JavaCommandClient$Options;
 }
 
 public class me/ahoo/wow/client/java/JavaModelQueries : me/ahoo/wow/client/java/JavaRowQueries {
@@ -215,19 +205,19 @@ public final class me/ahoo/wow/client/java/JavaQueryApi$Companion {
 public class me/ahoo/wow/client/java/JavaRowQueries {
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Ljava/util/List;
 	public final fun aggregateAsync (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
-	public final fun count (Lme/ahoo/wow/api/query/ICountQuery;)Lme/ahoo/wow/api/query/CountResult;
-	public final fun countAsync (Lme/ahoo/wow/api/query/ICountQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
-	public final fun cursorAsync (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun list (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/List;
-	public final fun listAsync (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Lme/ahoo/wow/api/query/PagedList;
-	public final fun pagedAsync (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
-	public final fun singleAsync (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun stream (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/stream/Stream;
-	public final fun stream (Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;)Ljava/util/stream/Stream;
-	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaRowQueries;Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/stream/Stream;
+	public final fun count (Lme/ahoo/wow/api/query/CountQuery;)Lme/ahoo/wow/api/query/CountResult;
+	public final fun countAsync (Lme/ahoo/wow/api/query/CountQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun cursor (Lme/ahoo/wow/api/query/CursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
+	public final fun cursorAsync (Lme/ahoo/wow/api/query/CursorQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun list (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/List;
+	public final fun listAsync (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun paged (Lme/ahoo/wow/api/query/PagedQuery;)Lme/ahoo/wow/api/query/PagedList;
+	public final fun pagedAsync (Lme/ahoo/wow/api/query/PagedQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun single (Lme/ahoo/wow/api/query/SingleQuery;)Ljava/lang/Object;
+	public final fun singleAsync (Lme/ahoo/wow/api/query/SingleQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun stream (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/stream/Stream;
+	public final fun stream (Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;)Ljava/util/stream/Stream;
+	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaRowQueries;Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/stream/Stream;
 }
 
 public final class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {

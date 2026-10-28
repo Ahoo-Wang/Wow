@@ -28,6 +28,10 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-metadata`, `wow-schema` | `wow-kernel` and `wow-runtime`, `wow-http`, `wow-manifest` |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | The Gradle plugin `id("me.ahoo.wow")`, which applies KSP and the Manifest tasks |
 | `wow-query` in domain code | `wow-query-api`: the query types, the Kotlin DSL and the field annotations |
+| `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList`, built with their `of` factories or the DSL; code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>` |
+| `ListQuery(limit = 0)`, every match on the query gateway | `limit` left out takes the entry's default list size, and `0` is refused; every match is `queryApi.trusted().unbounded()` or `stream` |
+| An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `TOO_MANY_GROUPS` |
+| `Pagination.offset()` as an `Int` | A `Long` |
 | `wow-test` (`AggregateSpec`) | `wow-test`, with the functional `aggregateSpec` and `sagaSpec` |
 | `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-cocache`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
 | Handlers returning `Mono` or `Flux` | `suspend` functions, or Reactor through `wow-reactor` |
@@ -48,7 +52,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`, `@ProjectionProcessor`, `@EventProcessor` | `@Saga`, `@Projection`, `@Reactor` |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent`, one handler kind taking a `StateEvent` |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<processor.function>].parked.*` |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<processor.function>].parked.*` (`executionTimeout` as `timeout`) |
 | `@OnError` | Removed: return a rejection, compensate in a `@Saga` |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
@@ -62,7 +66,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 
 A command body holds business data only. The aggregate is `command.ref`, taken from the route; the owner and space are `command.scope`, taken from the authenticated caller. Delete the identity fields and the route annotations; what is left is the business data. The eShop's order is created by a command that carries only its items, the id coming from the route (a command left with no fields becomes an `object`):
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -84,7 +88,7 @@ In decide, `CommandMessage<X>` is `Command<X>`, `command.aggregateId.id` is `com
 
 A `require`, a `check` or a thrown domain exception becomes `Decision.reject(code, message)`, with the code declared once by `@ErrorCode` beside the aggregate. Its HTTP status defaults to 422; a 9.x code whose status clients rely on keeps it with `status`:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -100,11 +104,10 @@ object Rejections {
 }
 ```
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 A rejection carries a code and a message: 9.x `bindingErrors` go into the message, and the clients that read them change. A 9.x `CommandValidator`, or a `require` on the command's own fields, becomes a Jakarta constraint on the command class, as `SubmitOrder`'s `@field:NotEmpty @field:Valid` items above: the gateway checks it at admission and answers `wow.command.invalid` (400) with the violations. A rule that needs the state stays a rejection.
@@ -118,16 +121,15 @@ A rejection carries a code and a message: 9.x `bindingErrors` go into the messag
 
 ## Processors
 
-A saga, a projection or a reactor carries exactly one of `@Saga`, `@Projection`, `@Reactor`; each handler is its own subscription named `processor.function`. A handler takes the commit's `StateEvent` (or one event of it, `StateTypedEvent<S, E>`), and a saga returns the commands it derives, built with `context.command(…)` so their ids are deterministic:
+A saga, a projection or a reactor carries exactly one of `@Saga`, `@Projection`, `@Reactor`; each handler is its own subscription named `processor.function`. A handler takes the commit's `StateEvent` (or one event of it, `StateTypedEvent<S, E>`), and a saga returns the commands it derives as `CommandRequest`s, which the runtime turns into commands with deterministic ids:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
 fun onOrderSubmitted(
-    event: StateTypedEvent<OrderState, OrderSubmitted>,
-    context: SagaContext,
-): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+    event: StateTypedEvent<OrderState, OrderSubmitted>
+): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
 A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
@@ -136,16 +138,15 @@ A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejecte
 
 A 9.x `PrepareKey` becomes a reservation taken in the decide function; the kernel confirms it once the events are appended. A 9.x key was global, a V10 key is unique per aggregate type and tenant unless reserved with `ReservationTenancy.SYSTEM`, so decide the tenancy of every key, and write the same namespace and tenancy into the map's `reservations`. A 9.x key that aggregates of several types shared becomes an aggregate of its own that holds the keys ([Unique Keys](../guide/unique-keys#a-key-unique-across-aggregate-types)). A brand's name, unique within its tenant:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a name another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? =
-    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        null
-    } else {
-        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+/** Takes [name] for this brand, or rejects the command when another brand holds it. */
+private suspend fun take(name: String, scope: DecideScope) {
+    if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
+}
 ```
 
 [Unique Keys](../guide/unique-keys) explains reservations.

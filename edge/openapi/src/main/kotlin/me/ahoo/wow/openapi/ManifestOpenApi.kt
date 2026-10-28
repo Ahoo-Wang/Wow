@@ -49,9 +49,11 @@ object ManifestOpenApi {
 
     /** The document of [manifest]'s routes, as the host serves them per [options]. */
     fun write(manifest: Manifest, options: OpenApiOptions = OpenApiOptions()): Map<String, Any?> {
-        // A lifecycle command's body the Manifest holds (keyed by its name) is the Manifest's, in place of the framework's.
+        // A lifecycle command's body the Manifest holds (keyed by its name) is the Manifest's, in place of the
+        // framework's; the framework's describes the other system commands' bodies, with their bounds.
         val framework = WowSchemas.all().filterKeys { it !in WowSchemas.LIFECYCLE || it !in manifest.defs }
-        val schemas = SchemaComponents(manifest.defs, framework.keys)
+        val defs = manifest.defs.filterKeys { it !in WowSchemas.SYSTEM_COMMANDS || it in WowSchemas.LIFECYCLE }
+        val schemas = SchemaComponents(defs, framework.keys)
         val routes = OpenApiPaths(manifest, options, schemas)
         val paths = routes.write()
         return Json.obj(
@@ -88,11 +90,7 @@ object ManifestOpenApi {
             Json.obj(
                 "name" to "${context.name}.${WowSchemas.JOB_AGGREGATE}",
                 "description" to "The context's scheduled jobs.",
-            ).takeIf { context.subscriptions.any { it.job != null } },
-            Json.obj(
-                "name" to "${context.name}.${WowSchemas.REBUILD_AGGREGATE}",
-                "description" to "The rebuild of the context's snapshots.",
-            ).takeIf { context.aggregates.any { it.snapshot.enabled } },
+            ).takeIf { context.commands.isNotEmpty() },
         )
     } + Json.obj("name" to FRAMEWORK_TAG, "description" to "The framework's own endpoints.")
 

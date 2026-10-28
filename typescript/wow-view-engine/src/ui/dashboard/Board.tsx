@@ -81,7 +81,7 @@ interface DashboardBoardProps {
 }
 
 /**
- * The board and its building (D22 A, B, D): the edit bar over the grid while
+ * The board and its building (B, D): the edit bar over the grid while
  * it is built, the first things to add on an empty one, and the two dialogs
  * a panel is chosen or written in. Every edit is one of the runtime's
  * `DashboardEditing` commands, written into the draft and onto the screen

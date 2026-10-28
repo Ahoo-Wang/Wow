@@ -21,8 +21,9 @@ import me.ahoo.wow.openapi.OpenApiSecurityScheme
  * the document's security schemes, by name, and its global `security`, any one of them, so that Swagger UI's
  * "Try it out" sends the identity.
  *
- * The host fills it from its [CallerResolver] ([of]): CoSec's resolver takes a bearer token ([COSEC]); the anonymous
- * caller, and an application's own resolver, declare none. An application with a resolver of its own declares how it
+ * The host fills it from its [CallerResolver] ([of]): CoSec's resolver takes a bearer token ([COSEC]); the host's
+ * development callers take the `Wow-*` identity headers ([DEVELOPMENT]), each its own scheme, so Swagger UI's Authorize
+ * sets those a request needs; the anonymous caller, and an application's own resolver, declare none. An application with a resolver of its own declares how it
  * authenticates by a bean of this type, which replaces the host's.
  */
 class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
@@ -46,11 +47,31 @@ class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
             mapOf(BEARER to OpenApiSecurityScheme.bearer("JWT", "CoSec's access token.")),
         )
 
+        /**
+         * The host's development callers' ([DevelopmentCallerResolver]): the identity headers, by their names, any
+         * of them a request sends.
+         */
+        val DEVELOPMENT: WowOpenApiSecurity = WowOpenApiSecurity(
+            listOf(
+                DevelopmentCallerResolver.USER to "The caller's subject; without it, the anonymous caller.",
+                DevelopmentCallerResolver.OWNER to "The owner of the caller's scope; without it, a tenant-level caller.",
+                DevelopmentCallerResolver.ROLES to "The caller's roles, comma-separated.",
+                DevelopmentCallerResolver.TENANT to "The caller's tenant; wow.tenant.default without it.",
+                DevelopmentCallerResolver.APP to "The application the caller calls in.",
+            ).associate { (header, description) -> header to OpenApiSecurityScheme.header(header, description) },
+        )
+
         /** wow-cosec's resolver, by name: the host does not depend on wow-cosec. */
         internal const val COSEC_CALLER_RESOLVER = "me.ahoo.wow.cosec.CoSecCallerResolver"
 
-        /** The schemes of [callers]: [COSEC] for CoSec's resolver, [NONE] for any other. */
-        fun of(callers: CallerResolver): WowOpenApiSecurity = ofType(callers.javaClass.name)
+        /**
+         * The schemes of [callers], through the resolvers that decorate another ([DecoratingCallerResolver]): [COSEC]
+         * for CoSec's resolver, [DEVELOPMENT] for the host's development callers, [NONE] for any other.
+         */
+        fun of(callers: CallerResolver): WowOpenApiSecurity {
+            val credentials = generateSequence(callers) { (it as? DecoratingCallerResolver)?.decorated }.last()
+            return if (credentials is DevelopmentCallerResolver) DEVELOPMENT else ofType(credentials.javaClass.name)
+        }
 
         /** The schemes of the resolver class [type]. */
         internal fun ofType(type: String): WowOpenApiSecurity = if (type == COSEC_CALLER_RESOLVER) COSEC else NONE

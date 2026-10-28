@@ -33,7 +33,7 @@ const SHELL = {
     signedOut: "No caller",
     callerTitle: "Local run: who is calling",
     callerDescription:
-      "Only a catalog run with wow.platform.trust-identity-headers reads the caller from request headers, standing in for CoSec: X-User names the data owner, X-Tenant its tenant, X-Role its roles. An analyst needs analytics.catalog.editor, a reviewer analytics.catalog.approver.",
+      "Only a development run of the catalog (a dev profile) reads the caller from request headers, standing in for CoSec: Wow-User names the data owner, Wow-Tenant its tenant, Wow-Roles its roles. An analyst needs analytics.catalog.editor, a reviewer analytics.catalog.approver.",
     signInTitle: "Sign in with CoSec",
     signInDescription:
       "Paste an access token your CoSec issued. The catalog verifies it and reads the data owner from it: its tenant, its id and its roles. Reading the catalog needs one of the analytics.catalog roles.",
@@ -139,7 +139,7 @@ const SHELL = {
     signedOut: "未指定调用者",
     callerTitle: "本地运行：调用者",
     callerDescription:
-      "只有开启 wow.platform.trust-identity-headers 的数据目录才从请求头读取调用者（代替 CoSec）：X-User 为数据负责人，X-Tenant 为其租户，X-Role 为其角色。分析师需要 analytics.catalog.editor，审查者需要 analytics.catalog.approver。",
+      "只有以开发模式运行的数据目录（dev profile）才从请求头读取调用者（代替 CoSec）：Wow-User 为数据负责人，Wow-Tenant 为其租户，Wow-Roles 为其角色。分析师需要 analytics.catalog.editor，审查者需要 analytics.catalog.approver。",
     signInTitle: "使用 CoSec 登录",
     signInDescription:
       "粘贴 CoSec 签发的访问令牌。数据目录验证令牌并从中读取数据负责人：租户、标识与角色。查看目录需要任一 analytics.catalog 角色。",

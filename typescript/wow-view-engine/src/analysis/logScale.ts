@@ -15,7 +15,7 @@ import type { CartesianSpec } from '../model/index.js';
 import type { CartesianData } from './cartesian.js';
 
 /**
- * Whether a log scale can carry these numbers (D33 batch E): every one of
+ * Whether a log scale can carry these numbers (batch E): every one of
  * them above zero. A log axis steps by powers of ten and has no place for 0
  * or a negative number — the library drops such a mark without a word — so
  * over values that hold one the choice is greyed with why, and a saved log

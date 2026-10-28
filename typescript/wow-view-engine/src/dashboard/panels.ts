@@ -65,7 +65,7 @@ export function isPresentationMember(
 }
 
 /**
- * The members a data panel's override of how it looks sets (D22 D), read as
+ * The members a data panel's override of how it looks sets, read as
  * untrusted: none for a content panel, an override that is no object, or
  * one that names only what no view has. Whether they fit its view is the
  * runtime's to find out (`presentedConfig`).

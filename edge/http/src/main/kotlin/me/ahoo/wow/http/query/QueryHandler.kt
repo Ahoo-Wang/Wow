@@ -28,11 +28,11 @@ import kotlinx.coroutines.selects.select
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.ScopeHeader
@@ -264,20 +264,20 @@ internal class QueryHandler(
             val query = (body.query as ListQuery).withListDefault(gateway.entryPolicy.http)
             json(gateway.list(query, caller).toList(), rebuilding)
         }
-        QueryKind.PAGED -> json(gateway.paged(body.query as IPagedQuery, caller), rebuilding)
-        QueryKind.CURSOR -> json(gateway.cursor(body.query as ICursorQuery, caller), rebuilding)
+        QueryKind.PAGED -> json(gateway.paged(body.query as PagedQuery, caller), rebuilding)
+        QueryKind.CURSOR -> json(gateway.cursor(body.query as CursorQuery, caller), rebuilding)
         QueryKind.SINGLE ->
-            single(gateway.single(body.query as ISingleQuery, caller), gateway.aggregateType, rebuilding)
-        QueryKind.COUNT -> json(gateway.count(body.query as ICountQuery, caller), rebuilding)
+            single(gateway.single(body.query as SingleQuery, caller), gateway.aggregateType, rebuilding)
+        QueryKind.COUNT -> json(gateway.count(body.query as CountQuery, caller), rebuilding)
         QueryKind.AGGREGATE -> json(gateway.aggregate(body.query as AggregationQuery, caller).toList(), rebuilding)
     }
 
-    /** The list default of [queries] under [budget]: what a list naming no limit runs with (0, every match). */
+    /** The list default of [queries] under [budget]: what a list naming no limit runs with (null, every match). */
     private fun QueryBudget.listDefault(): Int? = listDefault(queries.defaultListSize)
 
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
-        return if (limit != 0 || default == null) this else ListQuery(filter, projection, sort, default)
+        return if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =

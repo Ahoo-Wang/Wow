@@ -74,6 +74,68 @@
                 }
               ],
               "description": "Reserve stock for an order"
+            },
+            {
+              "name": "wow.lifecycle.ApplyTags",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.ApplyTags",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-inventory/stock/{id}/wow.lifecycle.apply-tags"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.DeleteAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
+              "creation": "NONE",
+              "routes": [
+                { "method": "DELETE", "path": "/eshop-inventory/stock/{id}" }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.RestoreAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.RestoreAggregate",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-inventory/stock/{id}/wow.lifecycle.restore-aggregate"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.TransferSpace",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.TransferSpace",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-inventory/stock/{id}/wow.lifecycle.transfer-space"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.snapshot.Rebuild",
+              "aliases": [],
+              "schema": "#/$defs/wow.snapshot.Rebuild",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-inventory/stock/wow.snapshot.rebuild"
+                }
+              ],
+              "system": true
             }
           ],
           "events": [
@@ -105,12 +167,6 @@
               "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved",
               "description": "Stock was reserved for an order"
             }
-          ],
-          "lifecycle": [
-            "wow.lifecycle.ApplyTags",
-            "wow.lifecycle.DeleteAggregate",
-            "wow.lifecycle.RestoreAggregate",
-            "wow.lifecycle.TransferSpace"
           ],
           "queries": [
             {
@@ -166,6 +222,47 @@
           "code": "eshop-inventory.stock.no-reservation",
           "status": 409,
           "description": "Nothing is reserved for the order."
+        }
+      ],
+      "commands": [
+        {
+          "name": "wow.schedule.Enable",
+          "aliases": [],
+          "schema": "#/$defs/wow.schedule.Enable",
+          "creation": "NONE",
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/eshop-inventory/wow.schedule/{id}/enable"
+            }
+          ],
+          "system": true
+        },
+        {
+          "name": "wow.schedule.Reschedule",
+          "aliases": [],
+          "schema": "#/$defs/wow.schedule.Reschedule",
+          "creation": "NONE",
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/eshop-inventory/wow.schedule/{id}/reschedule"
+            }
+          ],
+          "system": true
+        },
+        {
+          "name": "wow.schedule.Disable",
+          "aliases": [],
+          "schema": "#/$defs/wow.schedule.Disable",
+          "creation": "NONE",
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/eshop-inventory/wow.schedule/{id}/disable"
+            }
+          ],
+          "system": true
         }
       ]
     }
@@ -397,6 +494,29 @@
       "properties": { "spaceId": { "type": "string" } },
       "required": ["spaceId"],
       "description": "Moves the aggregate to the space spaceId."
+    },
+    "wow.schedule.Disable": { "type": "object" },
+    "wow.schedule.Enable": {
+      "type": "object",
+      "properties": {
+        "job": { "type": "string" },
+        "partition": { "type": ["integer", "null"] },
+        "rule": { "$ref": "#/$defs/me.ahoo.wow.api.schedule.JobRule-nullable" }
+      },
+      "required": ["job"]
+    },
+    "wow.schedule.Reschedule": {
+      "type": "object",
+      "properties": {
+        "rule": { "$ref": "#/$defs/me.ahoo.wow.api.schedule.JobRule-nullable" }
+      }
+    },
+    "wow.snapshot.Rebuild": {
+      "type": "object",
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["ids"]
     }
   }
 }

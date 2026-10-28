@@ -61,6 +61,8 @@ sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `an
 ./gradlew :analytics-catalog-server:run --args='--wow.clickhouse.endpoint=http://localhost:8123 --wow.analytics.catalog.trusted-writers.default=shop'
 ```
 
+Swagger UI: http://localhost:8087/swagger-ui.html
+
 `wow.analytics.catalog.*`: `connection` (`default`), `engine` (`clickhouse`), `databases` (`wow.clickhouse.database` when empty),
 `trusted-writers.<account>` (the contexts it is trusted for), `refresh-interval` (30s), `watch` (on).
 `wow.analytics.catalog.datasets.*`: `database` (`wow_datasets`; the account needs `CREATE DATABASE`, `CREATE VIEW` and

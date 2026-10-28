@@ -2,16 +2,8 @@
 
 import { CommandGateway, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ApplyTags, CreateBrand, RenameBrand, TransferSpace } from '../types.js';
-import { BrandAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-catalog.brand`. */
-export const BrandCommandPaths = {
-  CREATE_BRAND: '/eshop-catalog/brand/{id}/create-brand',
-  CREATE_BRAND_WITHOUT_ID: '/eshop-catalog/brand/create-brand',
-  RENAME_BRAND: '/eshop-catalog/brand/{id}/rename-brand',
-} as const;
-
-/** Sends the commands of `eshop-catalog.brand`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-catalog.brand`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class BrandCommandClient {
   readonly gateway: CommandGateway;
 
@@ -27,12 +19,12 @@ export class BrandCommandClient {
    * Produces `BrandCreated`.
    */
   createBrand(body: CreateBrand, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? BrandCommandPaths.CREATE_BRAND_WITHOUT_ID : BrandCommandPaths.CREATE_BRAND, body, options);
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.brand.CreateBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/create-brand' }, { method: 'POST', path: '/eshop-catalog/brand/create-brand' }], body });
   }
 
   /** `CreateBrand`, answered as one result per hop of its wait (`text/event-stream`). */
   createBrandStream(body: CreateBrand, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? BrandCommandPaths.CREATE_BRAND_WITHOUT_ID : BrandCommandPaths.CREATE_BRAND, body, options);
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.brand.CreateBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/create-brand' }, { method: 'POST', path: '/eshop-catalog/brand/create-brand' }], body });
   }
 
   /**
@@ -41,12 +33,12 @@ export class BrandCommandClient {
    * Produces `BrandRenamed`.
    */
   renameBrand(id: string, body: RenameBrand, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(BrandCommandPaths.RENAME_BRAND, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.brand.RenameBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/rename-brand' }], body, id });
   }
 
   /** `RenameBrand`, answered as one result per hop of its wait (`text/event-stream`). */
   renameBrandStream(id: string, body: RenameBrand, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(BrandCommandPaths.RENAME_BRAND, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.brand.RenameBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/rename-brand' }], body, id });
   }
 
   /**
@@ -54,7 +46,7 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BrandAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -62,7 +54,7 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BrandAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-catalog/brand/{id}' }], id });
   }
 
   /**
@@ -70,7 +62,7 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BrandAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -78,6 +70,6 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BrandAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

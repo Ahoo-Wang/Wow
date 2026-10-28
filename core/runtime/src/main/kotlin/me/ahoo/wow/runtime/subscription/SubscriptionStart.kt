@@ -93,11 +93,16 @@ sealed interface SubscriptionStart {
         private const val BEGINNING = "beginning"
         private const val END = "end"
 
-        /** The start of a handler that starts [from]. */
+        /**
+         * The start of a handler that starts [from]: for [StartFrom.JOIN], [End] when the service had [joined] the
+         * stream already (another of its subscriptions has a checkpoint in it), [Beginning] when it joins it now.
+         */
         @JvmStatic
-        fun of(from: StartFrom): SubscriptionStart = when (from) {
+        @JvmOverloads
+        fun of(from: StartFrom, joined: Boolean = false): SubscriptionStart = when (from) {
             StartFrom.BEGINNING -> Beginning
             StartFrom.END -> End
+            StartFrom.JOIN -> if (joined) End else Beginning
         }
 
         /** `beginning`, `end` (in any case) or an ISO-8601 instant such as `2026-10-01T00:00:00Z`. */

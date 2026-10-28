@@ -110,16 +110,17 @@ const ordering = await import('./ordering/index.js');
 const payment = await import('./payment/index.js');
 const products = new catalog.ProductCommandClient({ fetcher });
 await products.createProduct({ name: 'n', price: 1 });
-await products.createProduct({ name: 'n', price: 1 }, { id: 'p-1', wait: { plan: [catalog.eshopCatalogWait.committed()] } });
+await products.createProduct({ name: 'n', price: 1 }, { id: 'p-1', wait: [catalog.eshopCatalogWait.committed()] });
 await products.changeProductPrice('p-1', { price: 2 }, { requestId: 'r-1', expectedVersion: 1 });
 await products.publishProduct('p-1');
 await products.deleteAggregate('p-1');
 await products.applyTags('p-1', { tags: { region: ['eu'] } });
 await new catalog.ProductSnapshotQueryClient({ fetcher }).list({ filter: { op: 'EQ', field: 'state.status', value: 'PUBLISHED' }, limit: 2 });
 await new catalog.ProductStateClient({ fetcher }).get('p-1', { version: 1 });
-const orders = new ordering.OrderCommandClient({ fetcher });
+const orders = new ordering.EshopOrderingClient({ fetcher }).order.commands;
 await orders.cancelOrder('o-1', { reason: 'r' }, {
-  wait: { plan: [ordering.eshopOrderingWait.committed(), ordering.eshopOrderingWait.handled('OrderProcessSaga.onOrderCancelled')], timeout: 5000 },
+  wait: [ordering.eshopOrderingWait.committed(), ordering.eshopOrderingWait.handled('OrderProcessSaga.onOrderCancelled')],
+  timeout: 5000,
 });
 await new ordering.OrderEventQueryClient({ fetcher }).paged({ filter: { op: 'EQ', field: 'aggregateId', value: 'o-1' } });
 await new payment.PaymentCommandClient({ fetcher }).chargebackNotified({ merchantReference: 'o-1', disputeId: 'd', reason: 'x' });

@@ -112,10 +112,13 @@ class ManifestTreeTest {
             "snapshot",
             "commands",
             "events",
-            "lifecycle",
             "queries",
         )
-        aggregate["lifecycle"].assert().isEqualTo(Manifests.LIFECYCLE)
+        // A system command is a command, flagged: its route is listed like any command's.
+        val delete = (aggregate["commands"] as List<*>).map { it as Map<*, *> }
+            .single { it["name"] == SystemCommands.DELETE_AGGREGATE }
+        delete["system"].assert().isEqualTo(true)
+        delete["routes"].assert().isEqualTo(listOf(mapOf("method" to "DELETE", "path" to "/shop/cart/{id}")))
         aggregate["queries"].assert().isEqualTo(
             listOf(
                 mapOf(
@@ -195,7 +198,12 @@ class ManifestTreeTest {
             state = StateManifest(Manifest.schemaRef("sample.Product")),
             ownership = Ownership.TENANT,
         )
-        val retry = RetryManifest(maxAttempts = 3, timeout = "PT2S", unrecoverable = listOf("sample.InvalidAddress"))
+        val retry = RetryManifest(
+            maxAttempts = 3,
+            timeout = "PT2S",
+            unrecoverable = listOf("sample.InvalidAddress"),
+            multiplier = 1.5,
+        )
         val subscription = SubscriptionManifest(
             "Notifier.onEvent",
             SubscriptionKind.REACTOR,
@@ -220,7 +228,12 @@ class ManifestTreeTest {
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert()
             .isEqualTo(
-                mapOf("maxAttempts" to 3, "timeout" to "PT2S", "unrecoverable" to listOf("sample.InvalidAddress"))
+                mapOf(
+                    "maxAttempts" to 3,
+                    "timeout" to "PT2S",
+                    "unrecoverable" to listOf("sample.InvalidAddress"),
+                    "multiplier" to 1.5,
+                )
             )
         ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
             .subscriptions[0].retry!!.copyWith(recoverable = listOf("sample.Busy")).recoverable.assert()
@@ -413,7 +426,6 @@ class ManifestTreeTest {
                 aggregate.snapshot.enabled.assert().isTrue()
                 aggregate.commands.assert().isEmpty()
                 aggregate.events.assert().isEmpty()
-                aggregate.lifecycle.assert().isEmpty()
                 aggregate.queries.assert().isEmpty()
                 aggregate.state.fingerprint.assert().isNull()
             }
@@ -475,10 +487,13 @@ class ManifestTreeTest {
         val fragment = Manifests.fragment()
         // A command a subscription derives or handles the rejection of, which the module does not decide, has its
         // schema in $defs too.
-        fragment.schemaRefs.assert().hasSize(7)
+        fragment.schemaRefs.assert().hasSize(9)
+        // A system command's body is a schema too, keyed by its system name.
         fragment.unresolvedSchemaRefs.assert().containsExactly(
             "#/\$defs/sample.CreateCart",
             "#/\$defs/sample.AddItem",
+            "#/\$defs/wow.lifecycle.ApplyTags",
+            "#/\$defs/wow.lifecycle.DeleteAggregate",
             "#/\$defs/sample.CartCreated",
             "#/\$defs/sample.ItemAdded",
             "#/\$defs/sales.Refund",

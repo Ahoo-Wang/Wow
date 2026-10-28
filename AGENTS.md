@@ -66,6 +66,8 @@ Domain tests use the test DSL (`:test-dsl`, artifact `wow-test`); the eShop's do
 
 CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 2 retries and 20 max failures. Domain modules enforce Jacoco coverage, commonly 80% minimum.
 
+Coverage measures tested behaviour; it never decides a code shape. Do not change a declaration to move a coverage number: not `inline` versus non-inline, not merging, removing or reordering branches, not restructuring for JaCoCo. Decide each shape on its design (an `inline` function, for one, runs its lambdas in the caller's context, suspending or blocking, and allocates none). A test that executes a line without asserting behaviour does not count. When a coverage gate fails only because the tool cannot see code (an `inline` or `reified` body, which JaCoCo attributes to no line, or a branch only container tests reach), cover the behaviour with real tests, and if the tool still cannot credit them, exclude exactly that file in `codecov.yml` with a comment naming the limit and the test that covers it; the coordinator decides each exclusion.
+
 ## Project Structure
 
 ```text
@@ -96,11 +98,14 @@ edge/http/                  :http           Routes from the Manifest, problem+js
 edge/cosec/                 :cosec          CoSec: the caller from CoSec's security context, command authorization
 host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiring only
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the log
+test/test-dsl/              :test-dsl       The test DSL, artifact `wow-test`: aggregate and processor specs on the kernel
+test/test-query/            :test-query     A real in-memory QueryApi for the test DSL's processor specs (`memoryQueries`)
+test/test-spring-boot/      :test-spring-boot  A Wow application started for a test (`wowServer`), its ports and HTTP client
 test/architecture/          :architecture   Module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
 test/benchmarks/            :benchmark-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)
-example/eshop/<context>/    :eshop-<context>-{api,domain,server}: the example, the eShop's five contexts (D159, D204); never published
-example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
+examples/eshop/<context>/    :eshop-<context>-{api,domain,server}: the example, the eShop's five contexts (D159, D204); never published
+examples/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
 ```
 
 - Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). `:architecture` forbids including or depending on a deleted 9.x project (`DELETED_9X`).
@@ -122,6 +127,7 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 - ID generation uses CosId and existing Wow ID helpers.
 - Logging uses kotlin-logging, SLF4J, and Logback.
 - Detekt uses `config/detekt/detekt.yml`; line-length and several style rules are intentionally relaxed.
+- `inline` (and `reified`) is a design choice, made where the function needs the caller's context for its lambdas (a helper called from suspending and blocking code alike), needs a reified type, or must not allocate its lambdas on a hot path; never to satisfy, or to avoid, a coverage tool (see Testing).
 
 Typical Kotlin API style, a port of `:spi`:
 
@@ -135,7 +141,7 @@ interface StoreProvider {
 }
 ```
 
-The apps (`platform/ops/console`, `example/eshop/web`) use React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`, and each app's `components.json` holds its shadcn configuration. Their Wow clients are generated under `src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the services' Manifests (each app's `generate` script); commit the generator output byte for byte, including `.wow-generator.json`, and never hand-edit it.
+The apps (`platform/ops/console`, `examples/eshop/web`) use React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`, and each app's `components.json` holds its shadcn configuration. Their Wow clients are generated under `src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the services' Manifests (each app's `generate` script); commit the generator output byte for byte, including `.wow-generator.json`, and never hand-edit it.
 
 ## Version Management
 
@@ -217,7 +223,7 @@ Each kind of document has one home, chosen by its reader; [Documentation Governa
 - User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
 - Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
-- Ledgers of decided work: the JVM's in `documentation/designs/roadmap.md` §6, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
+- Ledgers of decided work: the JVM's in `documentation/designs/roadmap.md` §6, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `examples/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
 - Performance evidence: `test/benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
 - Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.

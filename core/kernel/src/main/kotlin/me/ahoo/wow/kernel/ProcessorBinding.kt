@@ -13,12 +13,13 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.Ticked
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
+import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -87,7 +88,7 @@ class ProcessorBinding<S> private constructor(
      * the only ones its calls take. Empty for any other handler.
      */
     val calls: List<Class<*>> = emptyList(),
-    private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
+    private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<CommandRequest<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -134,6 +135,16 @@ class ProcessorBinding<S> private constructor(
      */
     fun skips(events: List<Any>): Boolean = eventType != null && events.none { eventType.isInstance(it) }
 
+    /**
+     * This handler reading [aggregates], `context.aggregate`: those of another context whose events it takes by type
+     * without naming them, which the service's Manifest finds from the peer contracts.
+     */
+    @InternalWowApi
+    fun reading(aggregates: List<String>): ProcessorBinding<S> = ProcessorBinding(
+        processor, function, kind, stateType, startFrom, blocking, rejections, aggregates, nullableState, retry,
+        commits, job, eventType, calls, call,
+    )
+
     /** The subscription the handler is compiled into: `processor.function`. */
     val name: String = "$processor.$function"
 
@@ -145,20 +156,26 @@ class ProcessorBinding<S> private constructor(
 
     /**
      * Where the subscription starts, in a partition it has no checkpoint in yet, when its module's context is
-     * [context]: [startFrom] when the handler declares it; otherwise from the beginning for a
-     * projection or a handler of another context's stream ([isSourced]), from the end for a reactor or a saga of its
-     * own context's log.
+     * [context]: [startFrom] when the handler declares it; otherwise from the beginning for a projection, where the
+     * service joins the stream for a reactor's or a saga's handler of another context's stream ([isSourced],
+     * [StartFrom.JOIN]), from the end for a reactor or a saga of its own context's log.
      */
-    fun startIn(context: String): StartFrom =
-        startFrom ?: if (kind == FunctionKind.PROJECT || isSourced(context)) StartFrom.BEGINNING else StartFrom.END
+    fun startIn(context: String): StartFrom = startFrom ?: when {
+        kind == FunctionKind.PROJECT -> StartFrom.BEGINNING
+        isSourced(context) -> StartFrom.JOIN
+        else -> StartFrom.END
+    }
 
     /**
      * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
-     * the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
+     * the caller's coroutine: running a [blocking] one elsewhere is the runtime's. A saga's requests become the commands its
+     * context's [Derivation] makes of them.
      */
     @Suppress("UNCHECKED_CAST") // The subscription reads only the aggregates whose state is a stateType.
-    suspend fun invoke(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> =
-        call(event as StateEvent<S>, context)
+    suspend fun invoke(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> {
+        val requests = call(event as StateEvent<S>, context)
+        return if (kind == FunctionKind.SAGA) derivationOf(context).commandsOf(requests) else emptyList()
+    }
 
     override fun toString(): String = "ProcessorBinding($name, $kind)"
 
@@ -181,7 +198,7 @@ class ProcessorBinding<S> private constructor(
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
+            handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -197,7 +214,7 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 eventType = eventType,
             ) { e, c ->
-                handle(e, c as ProjectContext)
+                handle(e, c)
                 emptyList()
             }
 
@@ -214,7 +231,7 @@ class ProcessorBinding<S> private constructor(
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, ReactContext) -> Unit,
+            handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -230,12 +247,12 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 eventType = eventType,
             ) { e, c ->
-                handle(e, c as ReactContext)
+                handle(e, c)
                 emptyList()
             }
 
         /**
-         * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
+         * A `@Saga`'s handler [function] of [processor]: it returns the requests of the commands it derives ([requestsOf]); the saga's
          * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
          * handlers, the [commits], their success receipts. Its `SagaContext.call` takes only commands of the classes
          * [calls] lists (`@OnEvent(calls)`).
@@ -255,7 +272,7 @@ class ProcessorBinding<S> private constructor(
             commits: List<CommittedBinding<*>> = emptyList(),
             calls: List<Class<*>> = emptyList(),
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
+            handle: suspend (StateEvent<S>, SagaContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -290,7 +307,7 @@ class ProcessorBinding<S> private constructor(
             rejections: List<RejectionBinding<*>> = emptyList(),
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
-            handle: suspend (ScheduleTick, SagaContext) -> List<Command<*>>,
+            handle: suspend (ScheduleTick, JobContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<JobState> =
             ProcessorBinding(
                 processor,
@@ -319,7 +336,7 @@ class ProcessorBinding<S> private constructor(
                             due = ticked.due,
                             partition = state.partition,
                         )
-                        handle(tick, ScheduleJobSagaContext(context as SagaContext, "$processor.$function"))
+                        handle(tick, ExecutionJobContext(context as SagaContext, tick))
                     }
                 }
             }
@@ -333,19 +350,11 @@ enum class StartFrom {
 
     /** After the entries already committed when the subscription first starts in the partition (its log head). */
     END,
-}
 
-/**
- * The commands a saga's handler returned: nothing (`null`, `Unit`, an empty `Mono`), one [Command], or
- * an iterable of them, such as the list a `Flux` was collected into. Anything else is a handler that does not return
- * commands, which fails it.
- */
-fun derivedOf(result: Any?): List<Command<*>> = when (result) {
-    null, Unit -> emptyList()
-    is Command<*> -> listOf(result)
-    is Iterable<*> -> result.map { element ->
-        element as? Command<*> ?: throw IllegalStateException("A saga derives commands, not $element.")
-    }
-
-    else -> throw IllegalStateException("A saga derives commands, not $result.")
+    /**
+     * From the first entry when the service joins the stream's topic with it, no other subscription of the service
+     * having read it yet; otherwise [END], so a handler added later to a service that reads the stream does not act
+     * on its history again: a reactor's or a saga's handler of another context's stream.
+     */
+    JOIN,
 }

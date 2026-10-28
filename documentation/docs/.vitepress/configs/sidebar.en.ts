@@ -95,6 +95,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Overview', link: 'index.html'},
             {text: 'Root entry', link: 'symbols'},
             {text: '/dsl', link: 'symbols-dsl'},
+            {text: '/testing', link: 'symbols-testing'},
         ],
     },
     {

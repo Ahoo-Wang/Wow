@@ -17,8 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
+import me.ahoo.wow.runtime.node.PlacedStores
+import me.ahoo.wow.runtime.node.SnapshotTailReaders
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.store.Store
 
 /**
@@ -87,7 +93,7 @@ class StoreLayout(
             placed,
             snapshotDefault,
         )
-        return ContextBackends(
+        val backends = ContextBackends(
             log = default.log(context, partitions),
             checkpoints = default.checkpoints,
             leases = default.leases,
@@ -97,6 +103,27 @@ class StoreLayout(
             timers = default.timers(context, partitions),
             store = log,
             groups = groups,
+        )
+        val logStores = setOf(log) + groups.map { it.store }
+        val primaries = setOf(snapshotDefault.primary) + placed.values.map { it.primary }
+        val writePath = (logStores + primaries).mapTo(LinkedHashSet(), stores::getValue)
+        return backends.copyWith(
+            stores = PlacedStores(writePath, names.map(stores::getValue).toSet() - writePath),
+            snapshotTails = snapshotTailsOf(context, stores),
+        )
+    }
+
+    /**
+     * The one-round-trip reads of [context]'s snapshots with their tails: of each aggregate type whose log store holds
+     * its primary snapshots, that store's ([Store.snapshotTails]).
+     */
+    private fun snapshotTailsOf(context: String, stores: Map<String, Store>): SnapshotTailReaders {
+        fun readerOf(logStore: String, primary: String): SnapshotTailReader? =
+            if (logStore == primary) stores.getValue(logStore).snapshotTails(context) else null
+        val types = (logs.keys + placements.keys).filter { it.context == context }
+        return SnapshotTailReaders(
+            readerOf(log, snapshotDefault.primary),
+            types.associateWith { readerOf(logStoreOf(it), snapshotStoreOf(it)) },
         )
     }
 
@@ -115,10 +142,7 @@ class StoreLayout(
             serves: Collection<AggregateType>,
         ): StoreLayout {
             require(stores.isNotEmpty()) { "The node has no store." }
-            val log = placements.log?.takeIf { it.isNotBlank() } ?: stores.keys.singleOrNull()
-                ?: throw IllegalStateException(
-                    "wow.stores names ${stores.keys}: set wow.log.store to the one the logs are on by default.",
-                )
+            val log = defaultLogStore(placements, stores)
             val snapshot = placements.snapshot?.takeIf { it.isNotBlank() } ?: log
             stores.checked("wow.log.store", log, Store::holdsLogs, "log")
             stores.checked("wow.snapshot.stores", snapshot, Store::holdsSnapshots, "snapshots")
@@ -138,8 +162,12 @@ class StoreLayout(
                 if (logStore == null && !placed) {
                     return@forEach
                 }
-                val type = checkNotNull(served[key]) {
-                    "wow.aggregates.[$key] names the stores of no aggregate type this node serves; it serves ${served.keys}."
+                val type = configNotNull(
+                    served[key],
+                    "wow.aggregates.[$key]",
+                    "Name an aggregate type the node serves."
+                ) {
+                    "The store placement of $key names no aggregate type this node serves; it serves ${served.keys}."
                 }
                 logStore?.let { logs[type] = stores.checked("wow.aggregates.[$key].log.store", it, Store::holdsLogs, "log") }
                 if (placed) {
@@ -168,6 +196,16 @@ class StoreLayout(
             }
         }
 
+        /** The store the logs are on by default: the one named for them, else the node's only store. */
+        private fun defaultLogStore(placements: StorePlacements, stores: Map<String, Store>): String =
+            placements.log?.takeIf { it.isNotBlank() } ?: stores.keys.singleOrNull()
+                ?: throw WowConfigurationException(
+                    "wow.log.store",
+                    null,
+                    "The node has several stores, ${stores.keys}, and none is named for its logs.",
+                    "Name the store the logs are on by default.",
+                )
+
         /** [name], once [key] is found to name one of these stores, which [holds] [what]. */
         private fun Map<String, Store>.checked(
             key: String,
@@ -175,8 +213,12 @@ class StoreLayout(
             holds: (Store) -> Boolean,
             what: String
         ): String {
-            val store = checkNotNull(this[name]) { "$key names the store $name, which wow.stores does not: $keys." }
-            check(holds(store)) { "$key names the store $name, of type ${store.type}, which holds no $what." }
+            val store = configNotNull(this[name], key, "Name one of the node's stores: $keys.", name) {
+                "The store placement names the store $name, which is none of the node's stores."
+            }
+            configCheck(holds(store), key, name, "Name a store that holds $what.") {
+                "The store placement names the store $name, of type ${store.type}, which holds no $what."
+            }
             return name
         }
 
@@ -196,13 +238,19 @@ class StoreLayout(
             val chosen = listed.ifEmpty { fallback }
             val explicit = primary?.takeIf { it.isNotBlank() }
             val first = explicit ?: chosen.first()
-            check(first in chosen) { "$key.primary names $first, which is not one of its targets $chosen." }
+            configCheck(first in chosen, "$key.primary", first, "Name one of its targets: $chosen.") {
+                "The snapshot placement's primary store $first is not one of its targets $chosen."
+            }
             val store = getValue(first)
-            check(store.primarySnapshots) {
-                "${if (explicit != null) "$key.primary" else "$key.$list"} makes $first, of type ${store.type}, the " +
-                    "primary snapshot store, which the commands load their state from and which holds only a copy: " +
-                    "list a mongo or postgres store first in $key.$list, and point " +
-                    "wow.aggregates.[<context>.<aggregate>].query.snapshot.store at $first to query it."
+            configCheck(
+                store.primarySnapshots,
+                if (explicit != null) "$key.primary" else "$key.$list",
+                first,
+                "List a mongo or postgres store first, and query $first through the aggregate type's query " +
+                    "snapshot store.",
+            ) {
+                "The snapshot placement makes $first, of type ${store.type}, the primary snapshot store, which the " +
+                    "commands load their state from and which holds only a copy."
             }
             return SnapshotPlacement(chosen, first)
         }

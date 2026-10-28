@@ -18,24 +18,26 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.QueryNotServedException
+import me.ahoo.wow.query.schema.QueryModel
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /** The catalog knows an aggregate some Wow source is of, read from the sources' snapshots as trusted code. */
 class QueriedKnownAggregatesTest {
-    private val source = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
+    private val source = AnalyticsCatalogContract.Source.TYPE
 
     @Test
     fun `an aggregate should be known when a source of it is found`(): Unit = runBlocking {
-        val asked = mutableListOf<ISingleQuery>()
+        val asked = mutableListOf<SingleQuery>()
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { single(any()) } answers {
-                asked += firstArg<ISingleQuery>()
+                asked += firstArg<SingleQuery>()
                 if (asked.size == 1) mockk() else null
             }
         }
@@ -48,7 +50,15 @@ class QueriedKnownAggregatesTest {
 
     @Test
     fun `a node that serves no snapshot query should know of no aggregate`(): Unit = runBlocking {
-        val api = mockk<QueryApi> { every { trusted().snapshots(source) } throws IllegalArgumentException("none") }
+        val api = mockk<QueryApi> {
+            every { trusted().snapshots(source) } throws QueryNotServedException(source, QueryModel.SNAPSHOT)
+        }
         QueriedKnownAggregates { api }.knows("shop", "order").assert().isFalse()
+    }
+
+    @Test
+    fun `a query the node got wrong should fail, not pass for a node without queries`(): Unit = runBlocking {
+        val api = mockk<QueryApi> { every { trusted().snapshots(source) } throws IllegalArgumentException("wrong") }
+        assertThrows<IllegalArgumentException> { QueriedKnownAggregates { api }.knows("shop", "order") }
     }
 }

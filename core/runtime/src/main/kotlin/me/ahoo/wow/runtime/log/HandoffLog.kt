@@ -98,7 +98,10 @@ class HandoffOptions @InternalWowApi constructor(
  * - on an overflow: a tail holding [HandoffOptions.capacity] entries it has not taken drops the next ones, so a slow
  *   subscription never holds up an append;
  * - after [HandoffOptions.probeInterval] without a hand-over, when the head is past its position: entries other nodes
- *   appended.
+ *   appended. The head may also show a commit of this node whose append has not returned yet (the store's answer on its
+ *   way back): while an append of this node is in flight, the probe waits for it to hand its entry over, as on a gap,
+ *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
+ *   append returns without the entry the tail needs.
  *
  * Each read of the store is reported to [observer] ([Observer.tailRead]) with its reason. A node that does not own a
  * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
@@ -244,11 +247,19 @@ class HandoffLog(
             }
         }
 
-        /** Reads the store from the cursor up to the partition's head, when the head is past it. */
+        /**
+         * Reads the store from the cursor up to the partition's head, when the head is past it; for a probe ([IDLE]),
+         * not while an append of this node in flight hands over what the head shows ([ownCommitAhead]).
+         */
         private suspend fun FlowCollector<LogEntry>.fromStore(reason: String) {
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
             val head = log.head(partition) ?: 0L
+            if (head > cursor && reason == IDLE && ownCommitAhead()) {
+                // This node's own commits first, from memory; what the head shows past them is other nodes', read now
+                // rather than a probe interval later.
+                deliverRun()
+            }
             if (head > cursor) {
                 reads.incrementAndGet()
                 observer.tailRead(context, partition, reason)
@@ -262,14 +273,29 @@ class HandoffLog(
             pending.headMap(cursor, true).clear()
         }
 
+        /**
+         * Whether an append of this node in flight hands over the entry the run needs next: the head a probe read may
+         * show its commit before its append returned. Waits for it as for a gap ([awaitGap]); false at once when no
+         * append of this node is in flight, so the entries past the cursor are other nodes'.
+         */
+        private suspend fun ownCommitAhead(): Boolean {
+            val appends = inFlight[partition]
+            return !appends.returnedBefore(appends.horizon()) && awaitGap()
+        }
+
+        /** Delivers the run of entries handed over that continues from the cursor. */
+        private suspend fun FlowCollector<LogEntry>.deliverRun() {
+            while (true) {
+                val next = pending.remove(cursor + 1) ?: return
+                deliver(next)
+                handedOver.incrementAndGet()
+            }
+        }
+
         /** Continues the run from memory; returns why the store must be read. */
         private suspend fun FlowCollector<LogEntry>.fromMemory(): String {
             while (true) {
-                while (true) {
-                    val next = pending.remove(cursor + 1) ?: break
-                    deliver(next)
-                    handedOver.incrementAndGet()
-                }
+                deliverRun()
                 if (listener.overflowed.get()) {
                     return OVERFLOW
                 }

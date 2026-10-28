@@ -19,8 +19,9 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommittedBinding
@@ -50,12 +51,12 @@ class ProcessorForkTest {
     private fun sagaHandlers(quantities: Quantities): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
             RejectionBinding.of("OrderSaga", "onRejected", Reserve::class.java) { rejected, context ->
-                listOf(context.command(rejected.executionId.ref, Cancel(rejected.error.message)))
+                listOf(CommandRequest.to(rejected.source, Cancel(rejected.error.message)))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
             CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
-                listOf(context.command(committed.executionId.ref, Confirm(committed.version)))
+                listOf(CommandRequest.to(committed.source, Confirm(committed.version)))
             },
         )
         return listOf(
@@ -67,7 +68,7 @@ class ProcessorForkTest {
                 commits = commits,
             ) { event: StateEvent<Order>, context ->
                 val placed = event.events.filterIsInstance<OrderPlaced>().single()
-                listOf(context.command(stock, Reserve(event.ref.id, quantities.of(placed.total))))
+                listOf(CommandRequest.to(stock, Reserve(event.ref.id, quantities.of(placed.total))))
             },
         )
     }
@@ -130,18 +131,18 @@ class ProcessorForkTest {
                 Order::class.java,
                 calls = listOf(Check::class.java),
             ) { event: StateEvent<Order>, context ->
-                context.call(context.command(stock, Check(event.ref.id)))
+                context.call(CommandRequest.to(stock, Check(event.ref.id)))
                 emptyList()
             },
         )
         sagaSpec(calling) {
             answerCalls { rejectedResult(it, "stock.closed") }
             fork {
-                whenEvent(placed(1)) { expectError<CallRejectedException>() }
+                whenEvent(placed(1)) { expectError<CommandRejectedException>() }
                 answerCalls { committedResult(it) }
                 whenEvent(placed(1)) { expectCalls(Check("order-1")) }
             }
-            whenEvent(placed(1)) { expectError<CallRejectedException>() }
+            whenEvent(placed(1)) { expectError<CommandRejectedException>() }
         }
     }
 
@@ -149,7 +150,7 @@ class ProcessorForkTest {
     fun `a call of a class the handler does not declare should fail its handling`() {
         val undeclared = listOf(
             ProcessorBinding.saga("Checker", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
-                context.call(context.command(stock, Check(event.ref.id)))
+                context.call(CommandRequest.to(stock, Check(event.ref.id)))
                 emptyList()
             },
         )

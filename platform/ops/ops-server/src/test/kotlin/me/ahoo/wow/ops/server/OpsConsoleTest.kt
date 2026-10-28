@@ -21,11 +21,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.env.YamlPropertySourceLoader
 import org.springframework.core.io.ClassPathResource
-import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Duration
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 
@@ -44,14 +41,8 @@ class OpsConsoleTest {
 
     private val ops: OpsNode = startOps(
         "spring.web.resources.static-locations" to console.toUri().toString(),
-        "wow.query.memory.enabled" to true,
         sources = listOf(LedgerSimulatorRoutes::class.java),
     )
-
-    private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl("http://127.0.0.1:${ops.context.environment.getRequiredProperty("local.server.port")}")
-        .responseTimeout(Duration.ofSeconds(30))
-        .build()
 
     @AfterAll
     fun close() {
@@ -61,12 +52,8 @@ class OpsConsoleTest {
 
     @Test
     fun `the server should serve the console's files to anyone, and its routes to callers alone`() {
-        client.get().uri("/").exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java).value { it.assert().contains(MARKER) }
-        client.get().uri("/assets/index.js").exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java).value { it.assert().contains(MARKER) }
+        ops.server.http.get("/").assertOk().text.assert().contains(MARKER)
+        ops.server.http.get("/assets/index.js").assertOk().text.assert().contains(MARKER)
         // The console's files are public; what it reads is not.
         ops.post(OpsContract.QUERY, """{"kind":"list"}""", Who.NOBODY).status.assert().isEqualTo(UNAUTHORIZED)
     }
@@ -84,15 +71,14 @@ class OpsConsoleTest {
         val entry = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",
             "aggregate":$aggregate,"fromVersion":2,"reason":"The gateway is unreachable.",
             "failedAt":${OpsContract.FAILED_AT},"retries":3,
-            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","executionTimeout":"PT2M"},
+            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","timeout":"PT2M"},
             "status":"${ParkedStatus.EXHAUSTED}","recordedAt":${OpsContract.FAILED_AT + 1}}"""
         val id = simulate("parked", entry)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", Who.OPERATOR).status == OK }
 
         ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertOk()
         eventually("the resume sent to $context") {
-            client.get().uri("${LedgerSimulatorRoutes.PATH}/commands/$context").exchange()
-                .expectStatus().isOk.expectBody(String::class.java).returnResult().responseBody!!
+            ops.server.http.get("${LedgerSimulatorRoutes.PATH}/commands/$context").assertOk().text
                 .contains("wow.ledger.Resume")
         }
 
@@ -106,13 +92,7 @@ class OpsConsoleTest {
     }
 
     private fun simulate(what: String, body: String): String =
-        client.post().uri("${LedgerSimulatorRoutes.PATH}/$what")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(body)
-            .exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java).returnResult().responseBody!!
-            .let { json.readTree(it)["id"].asString() }
+        ops.server.http.post("${LedgerSimulatorRoutes.PATH}/$what", body).assertOk().json["id"].asString()
 
     private companion object {
         const val MARKER = "ops-console-under-test"

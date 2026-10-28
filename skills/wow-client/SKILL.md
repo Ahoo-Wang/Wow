@@ -28,7 +28,7 @@ The job: an application written in TypeScript has to send a Wow V10 service comm
 - **Time zones.** A relative-time filter (`today`, `recentDays`, `beforeToday`, …) without `zoneId` reads its calendar days in UTC on the server; pass `zoneId` (`'Asia/Shanghai'`) for a local day.
 - **Projected types.** A query written with a literal `projection: { include: [...] }` answers records narrowed to those paths; one built by a factory, or with an exclusion only, answers whole records.
 - **Errors reject.** Every refused request and every command that did not succeed rejects with `WowProblemError` (`code`, `status`, `violations`, `retry`); switch on `FrameworkErrorCodes` and the domain's codes in the generated `boundedContext.ts`. Retry only as `error.retry` says, with the same request id when it says so; a `wow.wait.timeout` may have committed.
-- **No identity in paths or bodies.** The service takes the tenant and owner from the caller; `RequestOptions.scope` (`Wow-Scope`) and `space` (`Wow-Space`) only for a caller allowed to act elsewhere.
+- **No identity in paths or bodies.** The service takes the tenant and owner from the caller; `RequestOptions.scope` (`Wow-Scope`; a command's `targetTenant` and `targetScope`) and `space` (`Wow-Space`) only for a caller allowed to act elsewhere.
 - **Snapshot fields are `state.<path>`** in filters and sorts; system fields (`aggregateId`, `version`, `tags`, …) are at the root.
 
 ## References

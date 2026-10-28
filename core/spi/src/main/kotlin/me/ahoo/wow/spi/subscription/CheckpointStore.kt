@@ -31,6 +31,13 @@ interface CheckpointStore {
     /** The checkpoint of [subscription] in [group] for [partition], or null when it has none yet. */
     suspend fun load(group: String, subscription: String, partition: Int): Long?
 
+    /**
+     * Every checkpoint of [group], of each subscription and partition, in no order: the subscriptions of the group
+     * that have read its stream. A subscription that starts where its service joins a stream reads it from the
+     * beginning only when no other subscription of the group did.
+     */
+    suspend fun list(group: String): List<Checkpoint>
+
     /** Moves the checkpoint to [position] if that is ahead of the stored one; otherwise does nothing. */
     suspend fun save(group: String, subscription: String, partition: Int, position: Long)
 

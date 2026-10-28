@@ -77,16 +77,16 @@ class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) :
 }
 
 /**
- * The stand-in for CoSec's command authorizer: a caller with the role [OpsCallers.OPERATOR] may send the ledger's
+ * The stand-in for CoSec's command authorizer: a caller with the role [OpsRoles.OPERATOR] may send the ledger's
  * system commands, and no other caller may.
  */
 class OperatorRole : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =
-        if (OpsCallers.OPERATOR in caller.attributes[OpsCallers.ROLES_ATTRIBUTE].orEmpty()) {
+        if (OpsRoles.OPERATOR in caller.attributes[OpsRoles.ROLES_ATTRIBUTE].orEmpty()) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(
-                "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs ${OpsCallers.OPERATOR}."
+                "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs ${OpsRoles.OPERATOR}."
             )
         }
 }

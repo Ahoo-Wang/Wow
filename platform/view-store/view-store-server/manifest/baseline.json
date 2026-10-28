@@ -45,6 +45,16 @@
           "path" : "/view-store/dataset_wording/set-dataset-wording"
         } ],
         "description" : "Set the wording of a dataset"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "DatasetWordingCleared",
@@ -59,7 +69,6 @@
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.DatasetWordingSet",
         "description" : "A dataset's wording was set"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -148,6 +157,36 @@
           "path" : "/view-store/view/{id}/share-view"
         } ],
         "description" : "Make a view shared"
+      }, {
+        "name" : "wow.lifecycle.DeleteAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "DELETE",
+          "path" : "/view-store/view/{id}"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferOwner",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/wow.lifecycle.transfer-owner"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "ViewAudienceChanged",
@@ -186,7 +225,6 @@
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewShared",
         "description" : "A view was made shared; its owner becomes (shared)"
       } ],
-      "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.TransferOwner" ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -230,6 +268,16 @@
           "path" : "/view-store/view_preferences/set-view-preferences"
         } ],
         "description" : "Set the view preferences of a definition"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view_preferences/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "ViewPreferencesSet",
@@ -238,7 +286,6 @@
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet",
         "description" : "A definition's view preferences were set"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -384,6 +431,10 @@
     "status" : 409,
     "description" : "The aggregate's current state refuses the command (a check of its decide function); the message says why."
   }, {
+    "code" : "wow.command.undeclared-event",
+    "status" : 500,
+    "description" : "The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing."
+  }, {
     "code" : "wow.node.closing",
     "status" : 503,
     "description" : "The node is shutting down; retry on another node."
@@ -435,6 +486,10 @@
     "code" : "wow.query.dataset-not-found",
     "status" : 404,
     "description" : "No dataset of that name is served to the caller."
+  }, {
+    "code" : "wow.query.too-many-groups",
+    "status" : 400,
+    "description" : "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit."
   }, {
     "code" : "wow.query.timeout",
     "status" : 504,
@@ -796,6 +851,18 @@
     },
     "wow.lifecycle.TransferOwner" : {
       "$ref" : "#/$defs/me.ahoo.wow.api.lifecycle.TransferOwner"
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ]
     }
   }
 }

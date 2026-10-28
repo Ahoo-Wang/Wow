@@ -11,20 +11,20 @@ The job: something must happen because something was committed. Choose the kind 
 | Calls the outside world (mail, a payment gateway, a webhook) | `@Reactor` | Nothing; it sends no command |
 | Runs on a clock, not on an event | `@Saga` with `@OnSchedule(name, cron, …)` | The commands it derives |
 
-One kind per class. Each handler (`@OnEvent` or named `onEvent`) is its own subscription `<processor>.<function>`, with its own checkpoint, retries and parked entries. Constructor parameters are beans.
+One kind per class. Each handler (`@OnEvent`) is its own subscription `<processor>.<function>` (or `<processor>.<name>` with `@Name` on the function, which keeps a renamed handler's subscription), with its own checkpoint, retries and parked entries. Constructor parameters are beans.
 
 ## Handler input
 
 - `StateEvent<S>`: the commit (`ref`, `version`, `events`, `state` after the commit, `commandId`, `requestId`, `commandType`, `commitTime`, `scope`, `causation`, `headers`, `id`, `correlationId`).
 - For one kind of event, prefer `StateTypedEvent<S, E>` (adds `event`, `eventIndex`) or `E` itself: called once per `E` of the commit, with the state after the whole commit. The compiler infers the aggregate from `E`, and the node skips commits without one. Avoid `event.events.filterIsInstance<E>()`.
-- Optionally the context: `SagaContext`, `ProjectContext`, `ReactContext`. Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
+- Optionally the context: a saga's `SagaContext`, a projection's or a reactor's `SubscriptionContext`; an `@OnRejected`/`@OnCommitted` handler's `ReceiptContext` (with `source`), an `@OnSchedule` job's `JobContext` (with `tick`). Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
 - `suspend`, or a Reactor return type (needs `wow-reactor`), or `@Blocking` for a handler that blocks its thread (JDBC): it then runs on a virtual thread.
 
 ## Sagas
 
 A whole saga of the eShop: typed handlers, a receipt of a committed command (`@OnCommitted`), a compensation (`@OnRejected`), and a rejection accepted with `Unit`.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.ordering.domain.order
@@ -33,10 +33,9 @@ import me.ahoo.wow.api.annotation.OnCommitted
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -75,40 +74,36 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 class OrderProcessSaga {
     @OnEvent
     fun onOrderSubmitted(
-        event: StateTypedEvent<OrderState, OrderSubmitted>,
-        context: SagaContext,
-    ): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+        event: StateTypedEvent<OrderState, OrderSubmitted>
+    ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 
     @OnEvent
     fun onOrderAwaitingValidation(
-        event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
-        context: SagaContext,
-    ): List<Command<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
-        context.command(productId, ReserveStock(event.ref.id, quantity))
+        event: StateTypedEvent<OrderState, OrderAwaitingValidation>
+    ): List<CommandRequest<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
+        CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
     }
 
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
     fun onReserveCommitted(
-        committed: CommandCommitted<ReserveStock>,
-        context: SagaContext
-    ): Command<ConfirmOrderStock> =
-        context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+        committed: CommandCommitted<ReserveStock>
+    ): CommandRequest<ConfirmOrderStock> =
+        CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
-        context.command(
-            rejected.executionId.ref.id,
+    fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<CancelOrder> =
+        CommandRequest.of(
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
+            rejected.source.id,
         )
 
     @OnEvent
     fun onOrderCancelled(
-        event: StateTypedEvent<OrderState, OrderCancelled>,
-        context: SagaContext,
-    ): List<Command<ReleaseReservation>> = event.state.products().map { productId ->
-        context.command(productId, ReleaseReservation(event.ref.id))
+        event: StateTypedEvent<OrderState, OrderCancelled>
+    ): List<CommandRequest<ReleaseReservation>> = event.state.products().map { productId ->
+        CommandRequest.of(ReleaseReservation(event.ref.id), productId)
     }
 
     /**
@@ -122,19 +117,18 @@ class OrderProcessSaga {
 
     @OnEvent
     fun onOrderShipped(
-        event: StateTypedEvent<OrderState, OrderShipped>,
-        context: SagaContext,
-    ): List<Command<CommitReservation>> = event.state.products().map { productId ->
-        context.command(productId, CommitReservation(event.ref.id))
+        event: StateTypedEvent<OrderState, OrderShipped>
+    ): List<CommandRequest<CommitReservation>> = event.state.products().map { productId ->
+        CommandRequest.of(CommitReservation(event.ref.id), productId)
     }
 }
 ```
 
-- Commands come from `SagaContext.command(...)`, with deterministic ids, so a handler run twice derives the same commands, which the target deduplicates. The target type may be left out: `command(id, body)`, or `command(body)` for a creation without an id, goes to the aggregate the local Manifest or a peer api jar's contract assigns to the body's class, in the handled commit's tenant. A command to another tenant, or a class several aggregates decide, names the full ref.
+- A saga returns `CommandRequest`s (one, or an `Iterable`, a `Sequence` or a `Flow` of them); the runtime gives each a deterministic id, so a handler run twice derives the same commands, which the target deduplicates. `CommandRequest.of(body, id)`, or `CommandRequest.of(body)` for a creation without an id, goes to the aggregate the local Manifest or a peer api jar's contract assigns to the body's class, in the handled commit's tenant; `CommandRequest.to(ref, body)` names the full ref (another tenant, a class several aggregates decide). A `requestId` is a business key for the id; `wait` and `timeout` are refused.
 - `@OnEvent(derives = [A::class, B::class])` (command classes, or a sealed type) when the return type does not name the commands; the build fails on a class neither the service nor a peer contract decides.
 - **Rejections:** `@OnRejected` taking `CommandRejected<C>` (and optionally `SagaContext`) returns compensating commands, or `Unit` to accept the rejection. Without one, a rejected derived command **parks the aggregate** for the saga. Decide for each derived command which rejections are expected.
 - **Committed receipts:** `@OnCommitted` taking `CommandCommitted<C>`: the derived command committed, possibly in another context.
-- **Scheduled commands:** `SagaContext.schedule(key, at|after, target, command)` / `cancel`; at least once, never early. `@OnSchedule(name, cron, zone, scope, sharded, misfire)` for a cron job, overridden by the host with `wow.schedules.<name>.*`.
+- **Scheduled commands:** `SagaContext.schedule(key, at|after, request)` / `cancel(key, target)` record into the context, sent after the returned commands; at least once, never early. `@OnSchedule(name, cron, zone, scope, sharded, misfire)` for a cron job, overridden by the host with `wow.schedules.<name>.*`.
 
 ## Projections
 
@@ -150,7 +144,7 @@ Without a checkpoint, projections and handlers of another context's stream start
 
 ## Failures: retry, then park
 
-1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<name>].retry.*`). An exception classified unrecoverable is not retried.
+1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<name>].retry.*`). An exception classified unrecoverable is not retried.
 2. **Parked:** then the **aggregate** (not the event) is parked in the failure ledger for that subscription: its later commits wait, other aggregates go on. The long-horizon retries follow `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<name>].parked.*`). A resume handles its commits from the failed version on, including ones already handled, so handlers must tolerate redelivery.
 3. **Systemic:** when several aggregates fail within a window (`wow.subscription.systemic.*`), the subscription pauses its partition and probes until a handling succeeds, instead of parking everything.
 4. **Backpressure:** a downstream that pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) throttles the partition and retries, then parks; it never pauses the partition.

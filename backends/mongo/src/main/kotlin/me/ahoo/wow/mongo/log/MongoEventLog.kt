@@ -113,8 +113,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate collection: a request id reused
  * by two aggregate types commits twice (makes the reuse the caller's error). The kernel's pre-check, the
- * [findByRequestId] taking the aggregate type, reads that type's collection alone; the context-wide one searches
- * every aggregate collection this log knows.
+ * [findByRequestId] taking the aggregate type, reads that type's collection alone.
  *
  * A stream's facts are fields of its document; the document has no aggregate name, the collection is the aggregate
  * type. The transport is a field of its own, `transport`, binary data holding the bytes the runtime
@@ -428,33 +427,6 @@ class MongoEventLog(
      */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.mongo { lookups.findByRequestIdIn(collections.of(type), everyPartition, tenantId, requestId) }
-
-    /**
-     * The stream committed for [requestId] within [tenantId] in any aggregate collection of the context this log
-     * knows (the registry as last read, and the collections it touched since), the earliest committed when two
-     * aggregate types hold it: one aggregation over every collection, through `$unionWith`.
-     */
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.mongo {
-            val known = collections.known()
-            if (known.isEmpty()) return@mongo null
-            fun branch(index: Int) = listOf(
-                Aggregates.match(
-                    Filters.and(everyPartition, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
-                ),
-                Aggregates.limit(1),
-                Aggregates.addFields(Field(BRANCH, index)),
-            )
-            val pipeline = branch(0) +
-                known.withIndex().drop(1).map { (index, it) -> Aggregates.unionWith(it.name, branch(index)) } +
-                listOf(
-                    Aggregates.sort(Sorts.ascending(COMMIT_TIME, BRANCH)),
-                    Aggregates.limit(1),
-                    Aggregates.project(FACTS),
-                )
-            known.first().committed.aggregate(pipeline).firstOrNull()
-                ?.let { documents.streamOf(known[it.getInteger(BRANCH)].aggregate, it) }
-        }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

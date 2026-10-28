@@ -67,7 +67,7 @@ import {
 
 /**
  * One metric: the field and how it is summarised, in the one list Wow's
- * six ways of measuring a field collapse to (D20 汇总方式); a percentile
+ * six ways of measuring a field collapse to; a percentile
  * grows a third control. The record count is the first card and names no
  * field. A change of summary swaps the whole metric (`replaceMetric`).
  */

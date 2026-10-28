@@ -23,6 +23,16 @@ export const BasketAggregate = {
       AddBasketItem: { unitPrice: true },
     },
   },
+  Errors: {
+    /** 422: An empty basket cannot be checked out. */
+    EMPTY: 'eshop-basket.basket.empty',
+    /** 422: A basket's quantity is positive, and its price not negative. */
+    INVALID_ITEM: 'eshop-basket.basket.invalid-item',
+    /** 404: The basket does not hold the product. */
+    ITEM_NOT_FOUND: 'eshop-basket.basket.item-not-found',
+    /** 403: A basket belongs to the buyer whose id it has. */
+    NOT_OWNER: 'eshop-basket.basket.not-owner',
+  },
 } as const;
 
 /** The `state.*` paths of `basket`'s snapshots a query filters, sorts and projects on. */

@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeKind
@@ -228,7 +229,7 @@ class CommandIntakeTest {
         receipt.key.assert().isEqualTo(ORDER.ref(TENANT, "o-2").toString())
         rejections.single().commandId.assert().isEqualTo(rejected.commandId)
         // A copy of the receipt is dropped by its command id.
-        topics.send(RECEIPTS, receipt.let { TopicMessage(it.key!!, it.value, it.headers) })
+        topics.send(RECEIPTS, receipt.let { TopicMessage.of(it.key!!, it.value, it.headers) })
         val group = sales.topicSubscriptions.getValue(RECEIPTS).group.name
         eventually {
             (0 until 2).sumOf {
@@ -465,7 +466,7 @@ class CommandIntakeTest {
         val node = stockNode().also { it.start() }
         val ref = ITEM.ref(TENANT, "i-garbled")
         val partition = Partitioner.partitionOf(ref, PARTITIONS)
-        topics.send(COMMANDS, TopicMessage(ref.toString(), "not an envelope".toByteArray(), partition = partition))
+        topics.send(COMMANDS, TopicMessage.of(ref.toString(), "not an envelope".toByteArray(), partition = partition))
         val after = reserve("c-after-garbled", 1, item = "i-garbled")
         val ledger = stockBackends.backends(STOCK).ledger
         eventually { ledger.isParked(CommandIntake.NAME, ref) }
@@ -557,6 +558,8 @@ class CommandIntakeTest {
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {
         override suspend fun load(group: String, subscription: String, partition: Int): Long? = null
+
+        override suspend fun list(group: String): List<Checkpoint> = emptyList()
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
     }

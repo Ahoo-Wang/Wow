@@ -22,9 +22,11 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
@@ -86,7 +88,7 @@ class HttpCommandClientTest {
             peer.reply(Reply.json(committed()))
             val result = client().of(
                 alice
-            ).wait(DeliverItems(listOf("mug")), ref, SendOptions.of(wait = WaitPlan.DEFAULT))
+            ).wait(CommandRequest.builder(ref, DeliverItems(listOf("mug"))).wait(WaitPlan.DEFAULT).build())
             result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val request = peer.taken.single()
             request.method.assert().isEqualTo("POST")
@@ -104,13 +106,37 @@ class HttpCommandClientTest {
         }
 
     @Test
+    fun `a request's type should come from the contracts, its tenant be the caller's unless it targets another`(): Unit =
+        runBlocking {
+            peer.reply(Reply.json(committed()), Reply.json(committed()), Reply.json(committed()))
+            client().of(alice).wait(DeliverItems(listOf("mug")), "a b")
+            // A creation names no id: the peer assigns it.
+            client().of(alice).wait(DeliverItems(emptyList()))
+            // A ref of another tenant targets it, acting elsewhere, as the in-process client does.
+            client().of(alice).wait(CommandRequest.to(BOX.ref("t2", "x"), DeliverItems(emptyList())))
+            peer.taken.map { it.path }.assert()
+                .containsExactly(
+                    "/mail/box/a%20b/deliver-items",
+                    "/mail/box/deliver-items",
+                    "/mail/box/x/deliver-items"
+                )
+            val roots = peer.taken.map { CallWires.decode(it.headers.getValue(WowHeaders.CALL)) }
+            roots.map { it.tenantId }.assert().containsExactly("t1", "t1", "t2")
+            roots.map { it.operator!!.crossScope }.assert().containsExactly(false, false, true)
+            caught<IllegalArgumentException> { runBlocking { client().wait("no command of a contract") } }
+                .message.assert().contains("decided by no aggregate")
+            caught<IllegalArgumentException> { runBlocking { client().wait(DeleteAggregate, "a b") } }
+                .message.assert().contains("lifecycle command")
+        }
+
+    @Test
     fun `a command sent while deciding should carry a request id derived from the deciding command`(): Unit =
         runBlocking {
             peer.reply(Reply.json(committed()))
             peer.reply(Reply.json(committed()))
             withContext(DecidingCommand("deciding")) {
-                client().of(alice).send(DeliverItems(listOf("mug")), ref)
-                client().of(alice).send(DeliverItems(listOf("cup")), ref)
+                client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("mug"))))
+                client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("cup"))))
             }
             peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.assert().containsExactly(
                 DecidingCommand.requestIdOf("deciding", 0),
@@ -121,13 +147,13 @@ class HttpCommandClientTest {
     @Test
     fun `a service-mode command to another scope should assert that scope, acting elsewhere`(): Unit = runBlocking {
         peer.reply(Reply.json(committed()))
-        val options = SendOptions.of(
-            targetTenant = "t2",
-            targetScope = Scope("bob"),
-            requestId = "r-9",
-            expectedVersion = 4
-        )
-        client().of(alice).send(DeliverItems(listOf("mug")), ref, options)
+        val sent = CommandRequest.builder(ref, DeliverItems(listOf("mug")))
+            .targetTenant("t2")
+            .targetScope(Scope("bob"))
+            .requestId("r-9")
+            .expectedVersion(4)
+            .build()
+        client().of(alice).send(sent)
         val request = peer.taken.single()
         request.headers[WowHeaders.REQUEST_ID].assert().isEqualTo("r-9")
         request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"4\"")
@@ -142,16 +168,16 @@ class HttpCommandClientTest {
     fun `a user-mode command should go to the public routes with the forwarded credential and the wait`(): Unit =
         runBlocking {
             peer.reply(Reply.json(committed()))
-            val options = SendOptions.of(
-                wait = WaitPlan.of(Hop.committed(), Hop.snapshot()),
-                timeout = 3.seconds,
-                targetTenant = "t2",
-                expectedVersion = 2,
-            )
+            val sent = CommandRequest.builder(ref, DeliverItems(emptyList()))
+                .wait(WaitPlan.of(Hop.committed(), Hop.snapshot()))
+                .timeout(3.seconds)
+                .targetTenant("t2")
+                .expectedVersion(2)
+                .build()
             withContext(ForwardedHeaders(mapOf("Authorization" to "Bearer user", "CoSec-App-Id" to "console"))) {
                 client(
                     ClientMode.User(UserCredential.FORWARDED)
-                ).of(alice).wait(DeliverItems(emptyList()), ref, options)
+                ).of(alice).wait(sent)
             }
             val request = peer.taken.single()
             request.headers["Authorization"].assert().isEqualTo("Bearer user")
@@ -166,13 +192,20 @@ class HttpCommandClientTest {
     @Test
     fun `a user-mode send should wait for the peer to accept the command`(): Unit = runBlocking {
         peer.reply(Reply.json(resultOf(ref, hop = Hop.accepted("mail")), status = 202))
-        val result = client(ClientMode.User(UserCredential.NONE)).send(DeliverItems(emptyList()), BOX.unassigned("t1"))
+        val result = client(
+            ClientMode.User(UserCredential.NONE)
+        ).send(CommandRequest.to(BOX.unassigned("t1"), DeliverItems(emptyList())))
         result.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
         val request = peer.taken.single()
         request.path.assert().isEqualTo("/mail/box/deliver-items")
         request.headers[WowHeaders.WAIT].assert().isEqualTo("accepted")
         request.headers.containsKey(WowHeaders.WAIT_TIMEOUT).assert().isFalse()
         request.headers.containsKey("Authorization").assert().isFalse()
+        // A request that waits for more fails before anything is sent.
+        caught<IllegalArgumentException> {
+            runBlocking { client().send(CommandRequest.of(DeliverItems(emptyList()), wait = WaitPlan.SNAPSHOT)) }
+        }.message.assert().contains("use wait() for the plan snapshot")
+        peer.taken.assert().hasSize(1)
     }
 
     @Test
@@ -180,10 +213,16 @@ class HttpCommandClientTest {
         val rejected = committed(CommandResult.Status.REJECTED, ErrorInfo("mail.box.full", "Full."))
         peer.reply(Reply.problem(422, mapOf("code" to "mail.box.full", "result" to rejected)))
         caught<CommandRejectedException> {
-            runBlocking { client().wait(DeliverItems(emptyList()), ref) }
+            runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
         }.code.assert().isEqualTo("mail.box.full")
         peer.reply(Reply.json(rejected))
-        assertThrownBy<CommandRejectedException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        assertThrownBy<CommandRejectedException> {
+            runBlocking {
+                client().wait(
+                    CommandRequest.to(ref, DeliverItems(emptyList()))
+                )
+            }
+        }
         peer.taken.assert().hasSize(2)
     }
 
@@ -191,7 +230,14 @@ class HttpCommandClientTest {
     fun `a failure should be a WowProblemException with the hint of its code`() {
         val failed = committed(CommandResult.Status.FAILED, ErrorInfo("wow.command.failed", "Boom."))
         peer.reply(Reply.problem(500, mapOf("code" to "wow.command.failed", "detail" to "Boom.", "result" to failed)))
-        val problem = caught<WowProblemException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        val problem =
+            caught<WowProblemException> {
+                runBlocking {
+                    client().wait(
+                        CommandRequest.to(ref, DeliverItems(emptyList()))
+                    )
+                }
+            }
         problem.code.assert().isEqualTo("wow.command.failed")
         problem.status.assert().isEqualTo(500)
         problem.retryHint.retryable.assert().isFalse()
@@ -203,7 +249,14 @@ class HttpCommandClientTest {
     @Test
     fun `a problem that is only HTTP's should be a WowProblemException of its status`() {
         peer.reply(Reply(401, mapOf("Content-Type" to "text/plain"), "who are you".toByteArray()))
-        val problem = caught<WowProblemException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        val problem =
+            caught<WowProblemException> {
+                runBlocking {
+                    client().wait(
+                        CommandRequest.to(ref, DeliverItems(emptyList()))
+                    )
+                }
+            }
         problem.code.assert().isEqualTo("http.401")
         problem.message.assert().contains("who are you")
     }
@@ -214,7 +267,9 @@ class HttpCommandClientTest {
             Reply.problem(429, mapOf("code" to "wow.command.busy"), retryAfter = "0"),
             Reply.json(committed()),
         )
-        client().wait(DeliverItems(emptyList()), ref).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        client().wait(
+            CommandRequest.to(ref, DeliverItems(emptyList()))
+        ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         peer.taken.assert().hasSize(2)
         peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.distinct().assert().hasSize(1)
         peer.taken.map { it.headers[WowHeaders.CALL] }.distinct().assert().hasSize(1)
@@ -223,7 +278,14 @@ class HttpCommandClientTest {
     @Test
     fun `a Retry-After longer than the policy honors should not be waited for`() {
         peer.reply(Reply.problem(429, mapOf("code" to "wow.command.busy"), retryAfter = "60"))
-        val problem = caught<WowProblemException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        val problem =
+            caught<WowProblemException> {
+                runBlocking {
+                    client().wait(
+                        CommandRequest.to(ref, DeliverItems(emptyList()))
+                    )
+                }
+            }
         problem.retryHint.retryAfter.assert().isEqualTo(60.seconds)
         peer.taken.assert().hasSize(1)
     }
@@ -231,7 +293,14 @@ class HttpCommandClientTest {
     @Test
     fun `a code that keeps the request id should be retried until the attempts run out`() {
         peer.reply(Reply.problem(503, mapOf("code" to "wow.command.unknown")))
-        val problem = caught<WowProblemException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        val problem =
+            caught<WowProblemException> {
+                runBlocking {
+                    client().wait(
+                        CommandRequest.to(ref, DeliverItems(emptyList()))
+                    )
+                }
+            }
         problem.retryHint.sameRequestId.assert().isTrue()
         peer.taken.assert().hasSize(3)
         peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.distinct().assert().hasSize(1)
@@ -240,11 +309,18 @@ class HttpCommandClientTest {
     @Test
     fun `a proxy's 503 without a code should be retried, a 504 never`() {
         peer.reply(Reply(503), Reply.json(committed()))
-        runBlocking { client().wait(DeliverItems(emptyList()), ref) }
+        runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
         peer.taken.assert().hasSize(2)
         peer.taken.clear()
         peer.reply(Reply.problem(504, mapOf("code" to "wow.wait.timeout")))
-        val problem = caught<WowProblemException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        val problem =
+            caught<WowProblemException> {
+                runBlocking {
+                    client().wait(
+                        CommandRequest.to(ref, DeliverItems(emptyList()))
+                    )
+                }
+            }
         problem.retryHint.sameRequestId.assert().isTrue()
         peer.taken.assert().hasSize(1)
     }
@@ -257,30 +333,46 @@ class HttpCommandClientTest {
                 .retry(RetryPolicy.of(maxAttempts = 2, backoff = 1.milliseconds))
                 .contracts(contractOf(BOX, DeliverItems::class.java)).build().commands
             // Refused, or never answered, as the platform has it: either way the connection was not made.
-            caught<IOException> { runBlocking { client.wait(DeliverItems(emptyList()), ref) } }
+            caught<IOException> { runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) } }
         }
     }
 
     @Test
     fun `a context without a URL or a command without a contract should not be sent`() {
         caught<IllegalStateException> {
-            runBlocking { client(endpoints = EndpointResolver.NONE).wait(DeliverItems(emptyList()), ref) }
+            runBlocking {
+                client(
+                    endpoints = EndpointResolver.NONE
+                ).wait(CommandRequest.to(ref, DeliverItems(emptyList())))
+            }
         }.message.assert().contains("wow.peers.mail.url")
         caught<IllegalStateException> {
             runBlocking {
                 client(ClientMode.User(UserCredential.NONE), endpoints = EndpointResolver.NONE)
-                    .wait(DeliverItems(emptyList()), ref)
+                    .wait(CommandRequest.to(ref, DeliverItems(emptyList())))
             }
         }.message.assert().contains("wow.peers.mail.public-url")
         val unnamed = WowClient.builder().contracts(emptyList()).build().commands
-        assertThrownBy<IllegalArgumentException> { runBlocking { unnamed.wait(DeliverItems(emptyList()), ref) } }
+        assertThrownBy<IllegalArgumentException> {
+            runBlocking {
+                unnamed.wait(
+                    CommandRequest.to(ref, DeliverItems(emptyList()))
+                )
+            }
+        }
         peer.taken.assert().isEmpty()
     }
 
     @Test
     fun `a 2xx answer that holds no result should fail`() {
         peer.reply(Reply(200, mapOf("Content-Type" to "application/json"), "not json".toByteArray()))
-        assertThrownBy<IllegalStateException> { runBlocking { client().wait(DeliverItems(emptyList()), ref) } }
+        assertThrownBy<IllegalStateException> {
+            runBlocking {
+                client().wait(
+                    CommandRequest.to(ref, DeliverItems(emptyList()))
+                )
+            }
+        }
     }
 
     @Test
@@ -294,7 +386,9 @@ class HttpCommandClientTest {
                 "data: $done\n\n"
             )
         )
-        val results = client(ClientMode.User(UserCredential.NONE)).stream(DeliverItems(emptyList()), ref).toList()
+        val results = client(
+            ClientMode.User(UserCredential.NONE)
+        ).stream(CommandRequest.to(ref, DeliverItems(emptyList()))).toList()
         results.map { it.hop.stage }.assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
         peer.taken.single().headers["Accept"].assert().isEqualTo("text/event-stream")
     }
@@ -310,25 +404,37 @@ class HttpCommandClientTest {
         )
         peer.reply(Reply.problem(400, mapOf("code" to "wow.command.invalid", "result" to refused)))
         user.stream(
-            DeliverItems(emptyList()),
-            ref
+            CommandRequest.to(ref, DeliverItems(emptyList()))
         ).toList().single().status.assert().isEqualTo(CommandResult.Status.REJECTED)
         peer.reply(Reply.problem(403, mapOf("code" to "wow.auth.forbidden")))
-        assertThrownBy<WowProblemException> { runBlocking { user.stream(DeliverItems(emptyList()), ref).toList() } }
+        assertThrownBy<WowProblemException> {
+            runBlocking {
+                user.stream(
+                    CommandRequest.to(ref, DeliverItems(emptyList()))
+                ).toList()
+            }
+        }
         peer.reply(Reply.json(committed()))
         user.stream(
-            DeliverItems(emptyList()),
-            ref
+            CommandRequest.to(ref, DeliverItems(emptyList()))
         ).toList().single().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
     @Test
     fun `a service-mode stream should be the one committed result`(): Unit = runBlocking {
         peer.reply(Reply.json(committed()))
-        client().stream(DeliverItems(emptyList()), ref).toList().single().hop.stage.assert().isEqualTo(Stage.COMMITTED)
+        client().stream(
+            CommandRequest.to(ref, DeliverItems(emptyList()))
+        ).toList().single().hop.stage.assert().isEqualTo(Stage.COMMITTED)
         peer.taken.single().headers["Accept"].assert().isEqualTo("application/json, application/problem+json")
         peer.reply(Reply.problem(403, mapOf("code" to "wow.auth.forbidden")))
-        assertThrownBy<WowProblemException> { runBlocking { client().stream(DeliverItems(emptyList()), ref).toList() } }
+        assertThrownBy<WowProblemException> {
+            runBlocking {
+                client().stream(
+                    CommandRequest.to(ref, DeliverItems(emptyList()))
+                ).toList()
+            }
+        }
     }
 
     private companion object {

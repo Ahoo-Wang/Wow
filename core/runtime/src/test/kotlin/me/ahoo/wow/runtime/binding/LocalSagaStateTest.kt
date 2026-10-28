@@ -22,6 +22,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -34,7 +35,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.log.HandoffLog
@@ -83,7 +84,7 @@ class LocalSagaStateTest {
     /** An order placed adds its items to the cart named by its first item. */
     private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
         event.events.filterIsInstance<Placed>().map {
-            c.command(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
+            CommandRequest.to(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
         }
     }
 
@@ -117,7 +118,7 @@ class LocalSagaStateTest {
     fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
 
     private fun request(aggregate: String, command: String, items: List<String>, id: String, wait: WaitPlan) =
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = aggregate,
             command = command,

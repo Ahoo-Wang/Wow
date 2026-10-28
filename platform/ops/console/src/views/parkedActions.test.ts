@@ -107,7 +107,7 @@ describe("the operator's actions", () => {
     expect(harness.form("applyRetrySpec")?.map((field) => field.name)).toEqual([
       "maxRetries",
       "initialBackoff",
-      "executionTimeout",
+      "timeout",
     ]);
   });
 
@@ -122,7 +122,7 @@ describe("the operator's actions", () => {
     await harness.run("applyRetrySpec", "exhausted", {
       maxRetries: 5,
       initialBackoff: " 2m ",
-      executionTimeout: "",
+      timeout: "",
     });
     // Each names the parking the row shows, which the service refuses once
     // the entry was parked again (`ops.parked.stale`).
@@ -167,9 +167,9 @@ describe("the operator's actions", () => {
 describe("the retry spec of the form", () => {
   it("leaves out what was left blank", () => {
     expect(retrySpecOf({})).toEqual({});
-    expect(retrySpecOf({ maxRetries: "7", executionTimeout: "PT3M" })).toEqual({
+    expect(retrySpecOf({ maxRetries: "7", timeout: "PT3M" })).toEqual({
       maxRetries: 7,
-      executionTimeout: "PT3M",
+      timeout: "PT3M",
     });
     expect(retrySpecOf({ maxRetries: Number.NaN, initialBackoff: "  " })).toEqual(
       {},

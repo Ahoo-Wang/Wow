@@ -17,20 +17,15 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.schedule.CancelSchedule
-import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.spi.id.IdGenerators
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * One `@OnRejected` handler of a saga, bound to its processor instance: what the compiler
@@ -41,8 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * - [commandType] is the `C` of the `CommandRejected<C>` it takes: it handles the rejections of the commands of that
  *   class (or a subclass); null for `CommandRejected<*>`, every command the saga derives ([handles]).
  * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
- * - [invoke] calls the handler directly and returns the commands that compensate, as a saga's handler returns those it
- *   derives ([derivedOf]).
+ * - [invoke] calls the handler directly and returns the commands that compensate, of the requests it returns
+ *   ([requestsOf]), as a saga's handler derives its commands.
  *
  * Built with [of].
  */
@@ -53,7 +48,7 @@ class RejectionBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
-    private val call: suspend (CommandRejected<C>, SagaContext) -> List<Command<*>>,
+    private val call: suspend (CommandRejected<C>, ReceiptContext) -> List<CommandRequest<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -71,8 +66,8 @@ class RejectionBinding<C : Any> private constructor(
      * ([rejectionContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
     @Suppress("UNCHECKED_CAST") // The runtime hands a handler only the rejections it handles.
-    suspend fun invoke(rejected: CommandRejected<*>, context: SagaContext): List<Command<*>> =
-        call(rejected as CommandRejected<C>, context)
+    suspend fun invoke(rejected: CommandRejected<*>, context: ReceiptContext): List<Command<*>> =
+        derivationOf(context).commandsOf(call(rejected as CommandRejected<C>, context))
 
     override fun toString(): String = "RejectionBinding($name, ${commandType?.name ?: "*"})"
 
@@ -84,7 +79,7 @@ class RejectionBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
-            handle: suspend (CommandRejected<C>, SagaContext) -> List<Command<*>>,
+            handle: suspend (CommandRejected<C>, ReceiptContext) -> List<CommandRequest<*>>,
         ): RejectionBinding<C> = RejectionBinding(processor, function, commandType, blocking, handle)
 
         /**
@@ -101,13 +96,13 @@ class RejectionBinding<C : Any> private constructor(
 /**
  * The context an `@OnRejected` handler gets for [rejected]: its execution is (handler,
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
- * [ReceiptSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
+ * [ExecutionReceiptContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
     rejected: CommandRejected<*>,
     ids: Ids = IdGenerators.DEFAULT,
-): SagaContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
+): ReceiptContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
 
 /**
  * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
@@ -120,7 +115,7 @@ fun rejectionContextOf(
     ids: Ids,
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
-): SagaContext = ReceiptSagaContext(
+): ReceiptContext = ExecutionReceiptContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
     rejected.causation,
@@ -149,14 +144,15 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
 /**
  * The context of a saga's handler of a receipt: of the rejection of the command
  * [receiptOf], by an `@OnRejected` handler, or of its commit, by an `@OnCommitted` one. Handling the same receipt
- * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: the
- * n-th [command]'s id and request id are [compensationId] of [receiptOf], this execution and the call's index. Each
+ * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: each
+ * command's id and request id are [compensationId] of [receiptOf], this execution, and what it asks (its target,
+ * its command type and its business key or occurrence), as a saga's derived commands are keyed ([ExecutionSagaContext.derivedId]). Each
  * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
  * its operator and scope are that command's, and so are its [headers], the request facts it
  * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]).
  */
 @InternalWowApi
-class ReceiptSagaContext(
+class ExecutionReceiptContext(
     override val executionId: ExecutionId,
     /** The command whose receipt the handler takes. */
     private val receiptOf: String,
@@ -169,64 +165,75 @@ class ReceiptSagaContext(
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     /** The handler's queries, of the commit's tenant. */
     private val contextQueries: ContextQueries = ContextQueries.NONE,
-) : SagaContext {
-    private val calls = AtomicInteger()
+) : ReceiptContext, Derivation {
+    private val derived = DerivedRequests()
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
-    /** A receipt's handler derives its compensation; it does not call another context synchronously. */
-    override suspend fun call(command: Command<*>): CommandResult =
-        throw UnsupportedOperationException("A receipt's handler cannot call another context synchronously.")
+    /** The commands of [requests], in order. */
+    override fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> = requests.map(::commandOf)
 
     /**
-     * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
-     * tenant of the commit whose saga execution derived the receipt's command.
+     * The command of [request] to its [derivedTarget], in the tenant of the commit whose saga execution derived the
+     * receipt's command unless it names another; its scope is that command's unless it names its target scope.
      */
-    override fun <C : Any> command(id: String, body: C): Command<C> = command(
-        commandTypes.omittedTargetOf(body.javaClass, executionId.subscription).ref(executionId.ref.tenantId, id),
-        body,
-    )
-
-    /** A creation without an id of the type that decides [body]'s class. */
-    override fun <C : Any> command(body: C): Command<C> =
-        command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
-
-    override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-        val id = compensationId(executionId, receiptOf, calls.getAndIncrement())
+    private fun commandOf(request: CommandRequest<*>): Command<*> {
+        val ref = request.derivedTarget(executionId.subscription, executionId.ref.tenantId, commandTypes)
+        val body = request.command
+        val key = derived.next(ref, body.javaClass, request.requestId)
+        val id = compensationIdOf(executionId, receiptOf, ref, body.javaClass, key)
         return Command(
             id = id,
             requestId = id,
             ref = ref,
             body = body,
-            scope = scope,
+            expectedVersion = request.expectedVersion,
+            scope = request.targetScope ?: scope,
             headers = headers,
             causation = Causation(causation.correlationId, receiptOf),
             operator = operator,
         )
     }
 
-    /** A receipt's handler acts now; it does not schedule. */
-    override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> =
-        unsupported()
-
-    /** A receipt's handler acts now; it does not schedule. */
-    override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> = unsupported()
-
-    private fun unsupported(): Nothing = throw UnsupportedOperationException(
-        "An @OnRejected or @OnCommitted handler derives commands; it does not schedule them.",
-    )
-
     @InternalWowApi
     companion object {
         /**
-         * The id, and request id, of the [index]-th command (from 0) derived by [execution] for the receipt of
-         * [receiptCommandId]: a name-based UUID of `execution!receiptCommandId#index`, stable for that receipt.
+         * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
+         * [execution] for the receipt of [receiptCommandId]: a name-based UUID of the execution, the receipt's command,
+         * the target, the command type and the occurrence, stable for that receipt.
          */
         @JvmStatic
-        fun compensationId(execution: ExecutionId, receiptCommandId: String, index: Int): String {
-            require(index >= 0) { "A call index is never negative." }
-            return UUID.nameUUIDFromBytes("$execution!$receiptCommandId#$index".toByteArray(Charsets.UTF_8))
-                .toString()
+        @JvmOverloads
+        fun compensationId(
+            execution: ExecutionId,
+            receiptCommandId: String,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            occurrence: Int = 0,
+        ): String {
+            require(occurrence >= 0) { "An occurrence is never negative." }
+            return compensationIdOf(execution, receiptCommandId, ref, commandType, occurrence.toString())
         }
+
+        /**
+         * The id, and request id, of the command to [ref] of [commandType] derived by [execution] for the receipt of
+         * [receiptCommandId] from a request whose business key is [requestId] ([CommandRequest.requestId]).
+         */
+        @JvmStatic
+        fun compensationId(
+            execution: ExecutionId,
+            receiptCommandId: String,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            requestId: String,
+        ): String = compensationIdOf(execution, receiptCommandId, ref, commandType, DerivedRequests.keyed(requestId))
+
+        private fun compensationIdOf(
+            execution: ExecutionId,
+            receiptCommandId: String,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            key: String,
+        ): String = DerivedRequests.idOf("$execution!$receiptCommandId#${DerivedRequests.keyOf(ref, commandType)}#$key")
     }
 }

@@ -13,60 +13,68 @@
 
 package me.ahoo.wow.ops.domain.parked
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
-import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.ops.api.OpsContext
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
+import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
+import me.ahoo.wow.ops.api.parked.RecordParked
+import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.ops.api.parked.ResumeRequested
+import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
+import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.sagaSpec
-import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 
 /** An operator's request on an entry goes back to its owning service as the ledger's system command (D141). */
 class ParkedOperationSagaTest {
-    private val handlers = parkedOperationSagaHandlers(Dependencies.of())
-    private val parked = AggregateType(OpsContext.NAME, OpsContext.PARKED).ref("(0)", ParkedSpec.ID)
-    private val state = ParkedState().apply { onSourcing(ParkedRecorded(ParkedSpec.ENTRY)) }
+    private val handlers = parkedOperationSagaHandlers()
     private val target = Ledger.targetOf("eshop-payment", ParkedSpec.ID)
 
-    private fun requested(event: Any) = stateEvent(parked, state, event, version = 2)
+    /** The entry, as the owning service recorded it. */
+    private fun ProcessorSpec.recorded() = givenAggregate(
+        parkedModel(),
+        ParkedSpec.ID,
+        ParkedRecorded(ParkedSpec.ENTRY)
+    )
 
     @Test
     fun `a resume and a skip go to the context that holds the entry`() = sagaSpec(handlers) {
-        whenEvent(requested(ResumeRequested())) {
+        recorded()
+        whenEvent(ResumeRequested(), by = Resume::class) {
             expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
             expectDeterministic()
         }
-        whenEvent(requested(SkipRequested("not needed"))) {
+        whenEvent(SkipRequested("not needed"), by = Skip::class) {
             expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
         }
         // The parking the operator acted on goes with it, for the owning service to refuse another.
-        whenEvent(requested(SkipRequested(failedAt = 100))) {
+        whenEvent(SkipRequested(failedAt = 100), by = Skip::class) {
             expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
         }
-        whenEvent(requested(ResumeRequested(failedAt = 100))) {
+        whenEvent(ResumeRequested(failedAt = 100), by = Resume::class) {
             expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
         }
     }
 
     @Test
     fun `a mark and a retry spec carry what the operator asked`() = sagaSpec(handlers) {
-        whenEvent(requested(MarkRecoverableRequested("RECOVERABLE"))) {
+        recorded()
+        whenEvent(MarkRecoverableRequested("RECOVERABLE"), by = MarkRecoverable::class) {
             expectCommand(
                 MarkParkedRecoverable.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), "RECOVERABLE"),
                 to = target
             )
         }
-        whenEvent(requested(ApplyRetrySpecRequested(1, "PT1M", null))) {
+        whenEvent(ApplyRetrySpecRequested(1, "PT1M", null), by = ApplyRetrySpec::class) {
             expectCommand(
                 ApplyParkedRetrySpec.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 1, "PT1M", null),
                 to = target,
@@ -76,12 +84,13 @@ class ParkedOperationSagaTest {
 
     @Test
     fun `a command the owning service refuses is recorded on the entry (D226)`() = sagaSpec(handlers) {
-        whenEvent(requested(ResumeRequested())) {
+        val parked = recorded()
+        whenEvent(ResumeRequested(), by = Resume::class) {
             val resume = commands.single()
-            whenRejected(resume, "wow.auth.forbidden", "Not from the ops saga.", commandType = Ledger.RESUME) {
+            whenRejected(resume, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga.", commandType = Ledger.RESUME) {
                 expectCommand(
-                    RecordActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga."),
-                    to = parked,
+                    RecordActionRefused(Ledger.RESUME, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga."),
+                    to = parked.ref,
                 )
             }
         }
@@ -89,6 +98,7 @@ class ParkedOperationSagaTest {
 
     @Test
     fun `a record of the service sends nothing back`() = sagaSpec(handlers) {
-        whenEvent(stateEvent(parked, state, ParkedRecorded(ParkedSpec.ENTRY))) { expectNoCommand() }
+        givenAggregate(parkedModel(), ParkedSpec.ID)
+        whenEvent(ParkedRecorded(ParkedSpec.ENTRY), by = RecordParked::class) { expectNoCommand() }
     }
 }

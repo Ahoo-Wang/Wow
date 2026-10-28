@@ -61,6 +61,7 @@ class HandlerRetryTest {
         HandlerRetry.of(maxAttempts = 0, timeout = " ").assert().isNull()
         HandlerRetry.NONE.isEmpty.assert().isTrue()
         HandlerRetry(maxAttempts = 1).isEmpty.assert().isFalse()
+        HandlerRetry.of(multiplier = 1.5).assert().isEqualTo(HandlerRetry(multiplier = 1.5))
     }
 
     @Test
@@ -76,6 +77,8 @@ class HandlerRetryTest {
         assertThrows<IllegalArgumentException> { HandlerRetry.of(timeout = "soon") }
             .message.assert().contains("timeout").contains("soon")
         assertThrownBy<IllegalArgumentException> { HandlerRetry.of(maxAttempts = -1) }
+        assertThrownBy<IllegalArgumentException> { HandlerRetry.of(multiplier = 0.5) }
+            .hasMessageContaining("@Retry(multiplier)")
         assertThrownBy<IllegalArgumentException> { HandlerRetry(maxAttempts = 0) }
         assertThrownBy<IllegalArgumentException> { HandlerRetry(initialBackoff = (-1).seconds) }
         assertThrownBy<IllegalArgumentException> { HandlerRetry(maxBackoff = (-1).seconds) }

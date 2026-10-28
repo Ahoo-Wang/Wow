@@ -66,8 +66,8 @@ spec:
             # The node id is the pod's name: a replaced pod is a new member.
             - name: WOW_NODE_ID
               value: $(POD_NAME)
-            # D173: the internal port binds the pod's private address only, and the node advertises that address,
-            # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+            # The internal port binds the pod's private address only, and the node advertises that address,
+            # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
             - name: WOW_INTERNAL_HOST
               value: $(POD_IP)
           # endregion

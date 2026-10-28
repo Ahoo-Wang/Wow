@@ -34,6 +34,20 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `topic`
   - `includeState`
 - `errors`: 数组，元素为 [`Error`](#error)
+- `commands`: 数组，元素为 [`Command`](#command); 缺省或取默认值时省略
+
+## `Command`
+
+- `name`
+- `aliases`
+- `schema`
+- `creation`
+- `produces`
+- `routes`: 数组，元素为 [`Route`](#route)
+- `mounted`: 缺省或取默认值时省略
+- `system`: 缺省或取默认值时省略
+- `transformsTo`
+- `description`
 
 ## `Error`
 
@@ -51,23 +65,13 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `snapshot`: 对象
   - `enabled`
   - `stateRevision`: 缺省或取默认值时省略
-- `commands`: 对象数组
-  - `name`
-  - `aliases`
-  - `schema`
-  - `creation`
-  - `produces`
-  - `routes`: 数组，元素为 [`Route`](#route)
-  - `mounted`: 缺省或取默认值时省略
-  - `transformsTo`
-  - `description`
+- `commands`: 数组，元素为 [`Command`](#command)
 - `events`: 对象数组
   - `name`
   - `aliases`
   - `revision`
   - `schema`
   - `description`
-- `lifecycle`
 - `queries`: 对象数组
   - `model`
   - `routes`: 数组，元素为 [`Route`](#route)
@@ -88,6 +92,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `context`
   - `aggregates`
   - `events`
+  - `eventSchemas`: 缺省或取默认值时省略
   - `nullableState`: 缺省或取默认值时省略
 - `function`: 对象
   - `kind`
@@ -107,6 +112,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `timeout`
   - `recoverable`
   - `unrecoverable`
+  - `multiplier`
 - `job`: 对象; 缺省或取默认值时省略
   - `name`
   - `cron`

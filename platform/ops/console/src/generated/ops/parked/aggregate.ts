@@ -28,10 +28,18 @@ export const ParkedAggregate = {
       Skip: { failedAt: true },
     },
   },
+  Errors: {
+    /** 422: The action's arguments are not valid. */
+    INVALID: 'ops.parked.invalid',
+    /** 409: The entry is resolved: nothing is parked to act on. */
+    RESOLVED: 'ops.parked.resolved',
+    /** 409: The action names a parking the entry no longer records: it was parked again since; read it again. */
+    STALE: 'ops.parked.stale',
+  },
 } as const;
 
 /** The `state.*` paths of `parked`'s snapshots a query filters, sorts and projects on. */
-export type ParkedStateField = 'state.aggregate' | 'state.aggregate.context' | 'state.aggregate.id' | 'state.aggregate.name' | 'state.aggregate.tenantId' | 'state.context' | 'state.errorType' | 'state.failedAt' | 'state.fromPosition' | 'state.fromVersion' | 'state.nextRetryAt' | 'state.outcome' | 'state.reason' | 'state.recordedAt' | 'state.recoverable' | 'state.refusalCode' | 'state.refusalReason' | 'state.refusedAction' | 'state.request' | 'state.requested' | 'state.resolvedAt' | 'state.retries' | 'state.retryAt' | 'state.retrySpec' | 'state.retrySpec.applied' | 'state.retrySpec.executionTimeout' | 'state.retrySpec.initialBackoff' | 'state.retrySpec.maxRetries' | 'state.service' | 'state.status' | 'state.subscription';
+export type ParkedStateField = 'state.aggregate' | 'state.aggregate.context' | 'state.aggregate.id' | 'state.aggregate.name' | 'state.aggregate.tenantId' | 'state.context' | 'state.errorType' | 'state.failedAt' | 'state.fromPosition' | 'state.fromVersion' | 'state.nextRetryAt' | 'state.outcome' | 'state.reason' | 'state.recordedAt' | 'state.recoverable' | 'state.refusalCode' | 'state.refusalReason' | 'state.refusedAction' | 'state.request' | 'state.requested' | 'state.resolvedAt' | 'state.retries' | 'state.retryAt' | 'state.retrySpec' | 'state.retrySpec.applied' | 'state.retrySpec.initialBackoff' | 'state.retrySpec.maxRetries' | 'state.retrySpec.timeout' | 'state.service' | 'state.status' | 'state.subscription';
 
 /** The events of `parked`, named as the server sends them, `ops.parked.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type ParkedEvent = EventView<'ops.parked.ActionRefused', ActionRefused> | EventView<'ops.parked.ApplyRetrySpecRequested', ApplyRetrySpecRequested> | EventView<'ops.parked.MarkRecoverableRequested', MarkRecoverableRequested> | EventView<'ops.parked.ParkedRecorded', ParkedRecorded> | EventView<'ops.parked.ParkedResolved', ParkedResolved> | EventView<'ops.parked.ResumeRequested', ResumeRequested> | EventView<'ops.parked.SkipRequested', SkipRequested> | SystemEvent;

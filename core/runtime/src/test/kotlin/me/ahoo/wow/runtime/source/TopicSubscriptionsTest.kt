@@ -176,7 +176,7 @@ class TopicSubscriptionsTest {
     fun `a message without a key that holds no state event should be passed over`(): Unit = runBlocking {
         start("node-1")
         val partition = partitionOf("o-1")
-        topics.send(ORDER_TOPIC, TopicMessage("not a ref", "not an envelope".toByteArray(), partition = partition))
+        topics.send(ORDER_TOPIC, TopicMessage.of("not a ref", "not an envelope".toByteArray(), partition = partition))
         topics.publish(orderRecord("o-1", 1))
         eventually { handled.size == 1 }
         eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) == 2L }
@@ -191,7 +191,7 @@ class TopicSubscriptionsTest {
             val subscriptions = start("node-1")
             topics.publish(orderRecord("o-1", 1))
             eventually { handled.versionsOf("o-1") == listOf(1) }
-            topics.send(ORDER_TOPIC, TopicMessage(order("o-1").toString(), BAD.toByteArray()))
+            topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
             topics.publish(orderRecord("o-1", 2))
             eventually { ledger.parked(BOARD, order("o-1")) != null }
             val parked = ledger.parked(BOARD, order("o-1"))!!
@@ -369,7 +369,7 @@ class TopicSubscriptionsTest {
             topics.grow(topic, PARTITIONS)
             eventually { growing.ownership?.owned == (0 until PARTITIONS).toSet() }
             val record = EnvelopeCodec.message(orderRecord("o-3", 1))
-            topics.send(topic, TopicMessage(record.key, record.value, record.headers, PARTITIONS - 1))
+            topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
             eventually { handled.versionsOf("o-3") == listOf(1) }
             delay(50.milliseconds)
             // Nothing read before the partitions were added was handled again.
@@ -432,7 +432,7 @@ class TopicSubscriptionsTest {
         flaky.failures.get().assert().isEqualTo(3)
         growing.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.READING)
         val record = EnvelopeCodec.message(orderRecord("o-3", 1))
-        topics.send(topic, TopicMessage(record.key, record.value, record.headers, PARTITIONS - 1))
+        topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
         eventually { handled.versionsOf("o-3") == listOf(1) }
     }
 

@@ -45,7 +45,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -71,9 +71,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
+import me.ahoo.wow.manifest.SystemCommands
 
 /**
- * The `Kafka` router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
+ * The topic router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
  * command is still committed): the node that accepts the commands of a type routed through Kafka writes them to the
  * context's command topic, which it creates (decision D168), and answers ACCEPTED once the broker acknowledged them.
  * It is then killed before it executes any; the node that takes its partitions over executes every one from the
@@ -124,7 +125,7 @@ class KafkaRouterTest {
         ids.forEach { doomed.gates[it] = CompletableDeferred() }
         val accepted = ids.map { id ->
             first.gateway.execute(
-                CommandRequest(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""), aggregateId = id, wait = WaitPlan.ACCEPTED),
+                ServerCommandRequest(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""), aggregateId = id, wait = WaitPlan.ACCEPTED),
             )
         }
         accepted.forEach {
@@ -240,9 +241,8 @@ class KafkaRouterTest {
                                     schema = Manifest.schemaRef(Reserve::class.java.name),
                                     creation = ManifestCreation.ALLOWED,
                                 ),
-                            ),
+                            ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(STOCK, "item", it) },
                             events = listOf(EventManifest("Reserved", schema = Manifest.schemaRef(Reserved::class.java.name))),
-                            lifecycle = Lifecycle.COMMANDS.keys.toList(),
                         ),
                     ),
                 ),
@@ -264,7 +264,7 @@ class KafkaRouterTest {
                 checkpointInterval = 20.milliseconds,
                 readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 10.milliseconds, maxBackoff = 100.milliseconds),
             ),
-            kafkaRouted = setOf(ITEM),
+            topicRouted = setOf(ITEM),
         )
     }
 }

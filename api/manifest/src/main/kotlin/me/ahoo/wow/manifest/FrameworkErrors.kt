@@ -49,6 +49,7 @@ object FrameworkErrors {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val COMMAND_REFUSED: String = "wow.command.refused"
+    const val COMMAND_UNDECLARED_EVENT: String = "wow.command.undeclared-event"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -66,6 +67,7 @@ object FrameworkErrors {
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
+    const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
@@ -118,6 +120,12 @@ object FrameworkErrors {
             409,
             "The aggregate's current state refuses the command (a check of its decide function); the message says why.",
         ),
+        ErrorManifest(
+            COMMAND_UNDECLARED_EVENT,
+            500,
+            "The command's handling produced an event its decide function or after hooks do not declare: a bug in " +
+                "the model, which the message names; it committed nothing.",
+        ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
         ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
         ErrorManifest(
@@ -164,6 +172,12 @@ object FrameworkErrors {
             "A single query matched no record: a query result, not a statement that an aggregate does not exist.",
         ),
         ErrorManifest(QUERY_DATASET_NOT_FOUND, 404, "No dataset of that name is served to the caller."),
+        ErrorManifest(
+            QUERY_TOO_MANY_GROUPS,
+            400,
+            "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise " +
+                "limit.",
+        ),
         ErrorManifest(
             QUERY_TIMEOUT,
             504,
@@ -214,6 +228,7 @@ object FrameworkErrors {
         COMMAND_UNKNOWN to "Command outcome unknown",
         COMMAND_FAILED to "Command failed",
         COMMAND_REFUSED to "Command refused",
+        COMMAND_UNDECLARED_EVENT to "Undeclared event",
         NODE_CLOSING to "Node closing",
         NODE_STANDBY to "Node on standby",
         STORAGE_UNAVAILABLE to "Storage unavailable",
@@ -227,6 +242,7 @@ object FrameworkErrors {
         QUERY_FAILED to "Query failed",
         QUERY_NOT_FOUND to "No matching record",
         QUERY_DATASET_NOT_FOUND to "Dataset not found",
+        QUERY_TOO_MANY_GROUPS to "Too many groups",
         QUERY_TIMEOUT to "Query timed out",
         QUERY_MIN_VERSION_NOT_REACHED to "Version not reached",
         QUERY_BUSY to "Query busy",

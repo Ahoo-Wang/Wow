@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -49,6 +50,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -130,7 +132,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         Reserve::class.java,
     ) { rejected, context ->
         rejections += rejected
-        listOf(context.command(rejected.executionId.ref, CancelOrder()))
+        listOf(CommandRequest.to(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",
@@ -139,7 +141,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         rejections = listOf(onReserveRejected),
     ) { event, context ->
         event.events.filterIsInstance<OrderPlaced>().map {
-            context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
+            CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
         }
     }
 }
@@ -159,9 +161,8 @@ private fun aggregateManifest(
             creation = creation,
             routes = CommandRoutes.of(context, name, command.simpleName, creation),
         )
-    },
+    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
     events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
-    lifecycle = Lifecycle.COMMANDS.keys.toList(),
 )
 
 /** The sales service's Manifest: its orders, with their routes. */

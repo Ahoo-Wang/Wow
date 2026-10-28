@@ -50,7 +50,7 @@ const active = await carts.list(
 ```
 
 `single`, `list`, `paged`, `cursor`, `count` and `aggregate` each answer one
-operation; `listStream` reads a list as server-sent events and resumes a
+operation; `stream` reads a list as server-sent events and resumes a
 stream the service cut off where it stopped. `describe(version?)` reads the
 query model's capability descriptor (`GET` on the same route): the fields
 with the operators, sorts and aggregation each admits, and the limits;
@@ -82,25 +82,37 @@ declare const fetcher: Fetcher;
 import { CommandGateway, wait } from '@ahoo-wang/wow-client';
 
 const commands = new CommandGateway({ fetcher });
-const result = await commands.send(
-  '/shop/cart/{id}/add-cart-item',
-  { productId: 'p-1', quantity: 1 },
-  { id: 'cart-42', wait: { plan: [wait.snapshot()], timeout: 10_000 } },
-);
+const result = await commands.wait({
+  command: 'shop.cart.AddCartItem',
+  body: { productId: 'p-1', quantity: 1 },
+  id: 'cart-42',
+  wait: [wait.snapshot()],
+  timeout: 10_000,
+});
 ```
 
-The route is `POST /{context}/{aggregate}/{id}/{command}`; a command that may
-create its aggregate leaves `{id}` out. `wait` says how far the command
-goes before the call answers (`accepted`, `committed`, `snapshot`, or a
-subscription's `handled`, also across a saga's derived commands); `stream`
-answers one `CommandResult` per hop. Every command carries a request id
+`command` is the full type name, `context.aggregate.Command`. The command is
+sent by its route as the service's Manifest lists it: the request's `routes`
+(a generated client sets them), else those of the Manifest the gateway was
+given, else the service's, fetched once (`GET /wow/manifest`). A command that
+may create its aggregate leaves `id` out and goes by the route without one. As with Kotlin's `CommandClient`,
+`send` answers once the command is accepted, `wait` with the result its plan
+ends with (the server's default plan when there is none), and `stream` one
+`CommandResult` per hop. `wait` lists the hops (`accepted`, `committed`,
+`snapshot`, or a subscription's `handled`, also across a saga's derived
+commands), and `timeout` is in milliseconds. `targetTenant` and `targetScope`
+(`{ ownerId?, spaceId? }`) act in another tenant, owner or space. Every command carries a request id
 (`Wow-Request-Id`), given or generated: a retry with the same one is answered
 as the first commit's duplicate, and `requestIdOf(error)` hands back the one
-a failure was sent with. `lifecycle` sends the lifecycle commands an
-aggregate lists (delete, restore, transfer, tags).
+a failure was sent with. A system command, such as a lifecycle
+command an aggregate lists (`LifecycleCommands.DELETE_AGGREGATE`, …), also
+names the aggregate's `type: { context, name }`, and a lifecycle command its
+`id`.
 
 `StateClient` reads an aggregate's state, at a version or a time, and its
-trace; `fetchManifest` reads the service's Manifest (`GET /wow/manifest`).
+trace; `find(id, options?)` answers `undefined` for an aggregate that does
+not exist (404 `wow.aggregate.not-found`), where `get` and `read` reject, and
+any other 404 still rejects; `fetchManifest` reads the service's Manifest (`GET /wow/manifest`).
 
 ## Errors
 
@@ -137,6 +149,40 @@ without the clients: no Fetcher, and none of the stream patches
 `fetcher-eventstream` installs. Use it where a bundle only builds queries.
 `aggregation.query()` admits a whole aggregation against the rules Wow
 enforces on arrival, so a bad query fails where it was built.
+
+## Test against a service: `@ahoo-wang/wow-client/testing`
+
+A development run of a Wow service reads its caller from headers
+(`DevelopmentCallerHeaders`); `developmentCaller` sends them on every request
+of a fetcher. `commandResultOf`, `problemOf`, `problemResponse` and
+`stateViewOf` build the service's answers for a fake. The entry loads no test
+runner.
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  commandResultOf,
+  developmentCaller,
+  problemOf,
+  problemResponse,
+} from '@ahoo-wang/wow-client/testing';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+fetcher.interceptors.request.use(
+  developmentCaller({ user: 'alice', owner: 'alice', tenant: 'acme' }),
+);
+
+const mug = {
+  type: { context: 'eshop-catalog', name: 'product' },
+  tenantId: 'acme',
+  id: 'mug',
+};
+const refused = problemResponse(
+  problemOf(409, 'wow.command.refused', {
+    result: commandResultOf(mug, { status: 'REJECTED' }),
+  }),
+);
+```
 
 ## Documentation
 

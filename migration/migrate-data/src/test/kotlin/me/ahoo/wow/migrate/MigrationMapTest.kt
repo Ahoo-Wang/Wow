@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.ReservationTenancy
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.migrate.example.NineXExample
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -83,14 +84,37 @@ class MigrationMapTest {
     }
 
     @Test
-    fun `an event mapping's owner field is named, and not on a dropped event`() {
-        EventMapping(
-            "order_handed_over",
-            to = "OrderHandedOver",
-            owner = "toOwnerId"
-        ).owner.assert().isEqualTo("toOwnerId")
-        assertThrows<IllegalArgumentException> { EventMapping("e", to = "E", owner = " ") }
-        assertThrows<IllegalArgumentException> { EventMapping("e", drop = true, owner = "toOwnerId") }
+    fun `an event mapping's lifecycle event is a lifecycle event with its fields, not beside a dropped one`() {
+        val transfer = LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId"))
+        EventMapping("order_handed_over", to = "OrderHandedOver", lifecycle = transfer).lifecycle.assert()
+            .isEqualTo(transfer)
+        LifecycleMapping.REQUIRED.keys.assert().containsExactlyInAnyOrder(
+            Lifecycle.AGGREGATE_DELETED,
+            Lifecycle.AGGREGATE_RESTORED,
+            Lifecycle.OWNER_TRANSFERRED,
+            Lifecycle.SPACE_TRANSFERRED,
+            Lifecycle.TAGS_APPLIED,
+        )
+        assertThrows<IllegalArgumentException> { LifecycleMapping("example.order.OrderCancelled") }
+        assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.DELETE_AGGREGATE) }
+        assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.OWNER_TRANSFERRED) }
+        assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf(" " to "tags")) }
+        assertThrows<IllegalArgumentException> {
+            LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf("tags" to "tags", "note" to " "))
+        }
+        EventMapping("e", to = "E", lifecycle = null).lifecycle.assert().isNull()
+        assertThrows<IllegalArgumentException> { EventMapping("e", drop = true, lifecycle = transfer) }
+        assertThrows<IllegalArgumentException> { EventMapping("e", to = "E", retire = true, lifecycle = transfer) }
+    }
+
+    @Test
+    fun `a lifecycle event reads from the map's JSON`() {
+        val map = MigrationMap.read(
+            """{"format":1,"aggregates":[{"from":"s.order","to":"example.order","events":[
+                {"from":"order_cancelled","to":"OrderCancelled","lifecycle":{"to":"wow.lifecycle.AggregateDeleted"}}]}]}""",
+        )
+        map.aggregates.single().events.single().lifecycle.assert()
+            .isEqualTo(LifecycleMapping(Lifecycle.AGGREGATE_DELETED))
     }
 
     @Test

@@ -102,7 +102,7 @@ fun peerReadRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
-    val document = HttpJson.write(ManifestTree.write(withTransformedRoutes(manifest, gateway)))
+    val document = HttpJson.write(ManifestTree.write(manifest))
     return coRouter {
         GET(WowPaths.MANIFEST) { request ->
             roots.reading(request, model = null) {

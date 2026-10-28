@@ -65,7 +65,7 @@ function useChartMap(named: string | undefined): {
 
 /**
  * A map, drawn by ECharts from `mapOption` over the geography the host
- * registered (D41). Until it has arrived the frame stands empty; when the
+ * registered. Until it has arrived the frame stands empty; when the
  * host registered none, or not the one the spec names, or it failed to
  * load, that is said over the frame. A region the map has no area for is
  * counted and said, never guessed at. A pressed region is its group.

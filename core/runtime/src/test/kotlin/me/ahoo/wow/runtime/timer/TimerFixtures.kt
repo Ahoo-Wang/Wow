@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.timer
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -35,6 +36,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.Reserve
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -140,11 +142,10 @@ fun shopManifest(): Manifest = Manifest(
                             schema = Manifest.schemaRef(command.name),
                             creation = creation
                         )
-                    },
+                    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(SHOP, "order", it) },
                     events = listOf(OrderPlaced::class.java, OrderPaid::class.java, OrderCancelled::class.java).map {
                         EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name))
                     },
-                    lifecycle = Lifecycle.COMMANDS.keys.toList(),
                 ),
             ),
         ),
@@ -162,12 +163,13 @@ fun reminderSaga(afterMillis: Long = 100): ProcessorBinding<OrderState> = Proces
     OrderState::class.java,
 ) { event, context ->
     if (event.events.any { it is OrderPlaced }) {
-        listOf(
-            context.schedule("remind", ScheduleRule.after(afterMillis.milliseconds), event.ref, CancelOrder("reminder"))
+        context.schedule(
+            "remind",
+            ScheduleRule.after(afterMillis.milliseconds),
+            CommandRequest.to(event.ref, CancelOrder("reminder")),
         )
-    } else {
-        emptyList()
     }
+    emptyList()
 }
 
 /** In-memory stores of every context, a timer store included, shared by the nodes given this factory. */

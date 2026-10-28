@@ -16,8 +16,7 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -56,86 +55,88 @@ import kotlin.time.Duration
 @AggregateRoot(lifecycle = [], ownership = Ownership.TENANT)
 @Description("One service's parked entry, as its failure ledger publishes it, and an operator's actions on it")
 class Parked(private val state: ParkedState) {
-    @OnCommand(produces = [ParkedRecorded::class])
-    fun onCommand(command: RecordParked): Decision = recorded(command.entry)
+    fun onCommand(command: RecordParked): ParkedRecorded? = recorded(command.entry)
 
-    private fun recorded(entry: ParkedEntry): Decision = when {
-        state.holds(entry) -> Decision.NoOp
+    private fun recorded(entry: ParkedEntry): ParkedRecorded? = when {
+        state.holds(entry) -> null
         // A parking at or before the one resolved: a record sent before the resolution, delivered after it.
-        state.resolved && entry.failedAt <= state.failedAt -> Decision.NoOp
-        !state.resolved && entry.recordedAt < state.recordedAt -> Decision.NoOp
-        else -> Decision.events(ParkedRecorded(entry))
+        state.resolved && entry.failedAt <= state.failedAt -> null
+        !state.resolved && entry.recordedAt < state.recordedAt -> null
+        else -> ParkedRecorded(entry)
     }
 
-    @OnCommand(produces = [ParkedResolved::class])
-    fun onCommand(command: RecordResolved): Decision {
+    fun onCommand(command: RecordResolved): ParkedResolved? {
         val resolution = command.resolution
         val failedAt = resolution.failedAt
         // Resolved already, or the resolution of an older parking than the one recorded.
         if (state.resolved || (failedAt != null && failedAt < state.failedAt)) {
-            return Decision.NoOp
+            return null
         }
-        return Decision.events(ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt))
+        return ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt)
     }
 
     /** The owning service refused the last request; a resolved entry has none to refuse. */
-    @OnCommand(produces = [ActionRefused::class])
-    fun onCommand(command: RecordActionRefused): Decision = if (state.resolved) {
-        Decision.NoOp
-    } else {
-        Decision.events(ActionRefused(command.action, command.code, command.reason))
+    fun onCommand(command: RecordActionRefused): ActionRefused? =
+        if (state.resolved) null else ActionRefused(command.action, command.code, command.reason)
+
+    fun onCommand(command: Resume): ResumeRequested {
+        rejectResolved()
+        rejectStale(command.failedAt)
+        return ResumeRequested(command.reason, state.failedAt)
     }
 
-    @OnCommand(produces = [ResumeRequested::class])
-    fun onCommand(command: Resume): Decision = acting {
-        stale(command.failedAt)?.let { return it }
-        ResumeRequested(command.reason, state.failedAt)
-    }
-
-    @OnCommand(produces = [SkipRequested::class])
-    fun onCommand(command: Skip): Decision = acting {
-        stale(command.failedAt)?.let { return it }
-        SkipRequested(command.reason, state.failedAt)
+    fun onCommand(command: Skip): SkipRequested {
+        rejectResolved()
+        rejectStale(command.failedAt)
+        return SkipRequested(command.reason, state.failedAt)
     }
 
     /**
-     * The refusal of an action on the parking at [failedAt], the one the operator saw, when the entry now records
+     * Refuses an action on the parking at [failedAt], the one the operator saw, when the entry now records
      * another: a resume or a skip acts on the parking the operator looked at, or not at all.
      */
-    private fun stale(failedAt: Long?): Decision? = failedAt?.takeIf { it != state.failedAt }?.let {
-        Decision.reject(
-            ParkedRejections.STALE,
-            "${state.subscription} parked ${state.aggregate.id} again at ${state.failedAt}, after the parking at $it " +
-                "the action names; read the entry again.",
-        )
+    private fun rejectStale(failedAt: Long?) {
+        if (failedAt != null && failedAt != state.failedAt) {
+            reject(
+                ParkedRejections.STALE,
+                "${state.subscription} parked ${state.aggregate.id} again at ${state.failedAt}, after the parking at " +
+                    "$failedAt the action names; read the entry again.",
+            )
+        }
     }
 
-    @OnCommand(produces = [MarkRecoverableRequested::class])
-    fun onCommand(command: MarkRecoverable): Decision = acting {
+    fun onCommand(command: MarkRecoverable): MarkRecoverableRequested {
+        rejectResolved()
         val recoverable = command.recoverable.uppercase()
         if (recoverable !in RECOVERABLES) {
-            return invalid("Not a recoverable: '${command.recoverable}'; one of ${RECOVERABLES.joinToString()}.")
+            reject(
+                ParkedRejections.INVALID,
+                "Not a recoverable: '${command.recoverable}'; one of ${RECOVERABLES.joinToString()}."
+            )
         }
-        MarkRecoverableRequested(recoverable)
+        return MarkRecoverableRequested(recoverable)
     }
 
-    @OnCommand(produces = [ApplyRetrySpecRequested::class])
-    fun onCommand(command: ApplyRetrySpec): Decision = acting {
-        command.maxRetries?.takeIf { it < 0 }?.let { return invalid("maxRetries is never negative: $it.") }
-        listOfNotNull(command.initialBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
-            return invalid("Not a duration (PT3M, 3m): '$it'.")
+    fun onCommand(command: ApplyRetrySpec): ApplyRetrySpecRequested {
+        rejectResolved()
+        command.maxRetries?.takeIf { it < 0 }?.let {
+            reject(
+                ParkedRejections.INVALID,
+                "maxRetries is never negative: $it."
+            )
         }
-        ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.executionTimeout)
+        listOfNotNull(command.initialBackoff, command.timeout).firstOrNull { !isDuration(it) }?.let {
+            reject(ParkedRejections.INVALID, "Not a duration (PT3M, 3m): '$it'.")
+        }
+        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.timeout)
     }
 
-    /** The event [request] gives, unless the entry is resolved. */
-    private inline fun acting(request: () -> Any): Decision = if (state.resolved) {
-        Decision.reject(ParkedRejections.RESOLVED, "${state.subscription} no longer parks ${state.aggregate.id}.")
-    } else {
-        Decision.events(request())
+    /** Refuses an operator's action on a resolved entry. */
+    private fun rejectResolved() {
+        if (state.resolved) {
+            reject(ParkedRejections.RESOLVED, "${state.subscription} no longer parks ${state.aggregate.id}.")
+        }
     }
-
-    private fun invalid(message: String): Decision = Decision.reject(ParkedRejections.INVALID, message)
 
     private companion object {
         val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", ParkedEntry.UNKNOWN)

@@ -80,22 +80,22 @@ class PublishedSinks(
     override fun toString(): String = "PublishedSinks($processor)"
 
     companion object {
-        /** The processor name of the Kafka Sink's subscriptions: `kafka-sink.<aggregate>`. */
-        const val KAFKA_SINK: String = "kafka-sink"
+        /** The processor name of the transport sink's subscriptions: `transport-sink.<aggregate>`. */
+        const val TRANSPORT_SINK: String = "transport-sink"
 
         /** The streams [manifest]'s contexts publish, by context; a context that publishes none is left out. */
         fun publishedOf(manifest: Manifest): Map<String, List<PublishedManifest>> =
             manifest.contexts.filter { it.published.isNotEmpty() }.associate { it.name to it.published }
 
         /**
-         * The Kafka Sink: every stream [manifest] publishes, written to its topic
+         * The transport sink: every stream [manifest] publishes, written to its topic
          * ([PublishedManifest.topic], after [topicPrefix]) through [producer].
          */
         fun topics(
             manifest: Manifest,
             producer: TopicProducer,
             topicPrefix: String = "",
-            processor: String = KAFKA_SINK,
+            processor: String = TRANSPORT_SINK,
         ): PublishedSinks = PublishedSinks(publishedOf(manifest), processor) { _, stream ->
             TopicSink(producer, topicPrefix + stream.topic)
         }

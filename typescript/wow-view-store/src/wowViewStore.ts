@@ -14,7 +14,6 @@
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { asc, filter, listQuery, singleQuery } from '@ahoo-wang/wow-client/dsl';
 import {
-  FrameworkErrorCodes,
   type CommandOptions,
   type CommandResult,
   type WowClientOptions,
@@ -44,9 +43,9 @@ import {
   type SystemViewBody,
 } from './views.js';
 import {
-  ViewStoreErrorCodes,
+  ViewStoreContract,
   viewStoreWait,
-} from './generated/view-store/boundedContext.js';
+} from './generated/view-store/contract.js';
 import { ViewCommandClient } from './generated/view-store/view/commandClient.js';
 import {
   ViewSnapshotQueryClient,
@@ -361,24 +360,17 @@ export class WowViewStore implements ViewStore {
     signal?: AbortSignal,
   ): Promise<ViewPreferences> {
     return guard(async () => {
-      try {
-        const record = await request(() =>
-          this.preferenceSnapshots.single(
-            singleQuery({
-              filter: filter.eq('state.definitionId', definitionId),
-            }),
-            { signal },
-          ),
-        );
-        return toPreferences({ ...record.state, version: record.version });
-      } catch (thrown) {
-        if (
-          thrown instanceof Failure &&
-          thrown.problemCode === FrameworkErrorCodes.QUERY_NOT_FOUND
-        )
-          return emptyPreferences();
-        throw thrown;
-      }
+      const record = await request(() =>
+        this.preferenceSnapshots.single(
+          singleQuery({
+            filter: filter.eq('state.definitionId', definitionId),
+          }),
+          { signal },
+        ),
+      );
+      // None written yet: the port's empty preferences.
+      if (record === undefined) return emptyPreferences();
+      return toPreferences({ ...record.state, version: record.version });
     });
   }
 
@@ -445,7 +437,7 @@ export class WowViewStore implements ViewStore {
             place === 'system'
               ? await this.systemVersion(id, revision, signal)
               : versionOf(revision),
-          ...(write.moves ? { wait: { plan: AUDIENCE_WAIT } } : {}),
+          ...(write.moves ? { wait: AUDIENCE_WAIT } : {}),
         });
         let result: CommandResult;
         try {
@@ -569,6 +561,7 @@ export class WowViewStore implements ViewStore {
       for (const place of order) {
         try {
           const instance = await this.readAt(place, id, signal);
+          if (instance === undefined) continue;
           this.places.set(id, place);
           return { place, instance };
         } catch (thrown) {
@@ -581,12 +574,15 @@ export class WowViewStore implements ViewStore {
     throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
   }
 
-  /** The view as it is now at `place`; a `NOT_FOUND` failure when it is not there. */
+  /**
+   * The view as it is now at `place`: `undefined` when no stored view has
+   * that id there, a `NOT_FOUND` failure when the system views lack it.
+   */
   private async readAt(
     place: Place,
     id: string,
     signal: AbortSignal | undefined,
-  ): Promise<ViewInstance> {
+  ): Promise<ViewInstance | undefined> {
     if (place === 'system')
       return systemInstance(
         this.rememberSystem(await this.systemViews.one(id, signal)),
@@ -597,7 +593,7 @@ export class WowViewStore implements ViewStore {
         ...(signal === undefined ? {} : { signal }),
       }),
     );
-    return toInstance(recordOf(record));
+    return record === undefined ? undefined : toInstance(recordOf(record));
   }
 
   /** Keeps the version of a stored system view at its revision; a configured one as read-only. */
@@ -624,6 +620,8 @@ export class WowViewStore implements ViewStore {
     const key = revisionKey(id, revision);
     if (!this.systemVersions.has(key)) {
       const instance = await this.readAt('system', id, signal);
+      if (instance === undefined)
+        throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
       if (instance.revision !== revision && instance.stored)
         throw new ViewStoreError(
           'CONFLICT',
@@ -643,8 +641,14 @@ export class WowViewStore implements ViewStore {
     { requestId, signal }: WriteContext,
     more: Partial<CommandOptions> = {},
   ): CommandOptions {
+    const scope = scopeAt(place);
     return {
-      ...optionsAt(place),
+      ...(scope?.tenantId === undefined
+        ? {}
+        : { targetTenant: scope.tenantId }),
+      ...(scope === undefined
+        ? {}
+        : { targetScope: { ownerId: scope.ownerId, spaceId: scope.spaceId } }),
       requestId,
       ...(signal === undefined ? {} : { signal }),
       ...more,
@@ -720,7 +724,8 @@ function readOnly(message: string): never {
  */
 function refusal(failure: Failure): ViewStoreError {
   if (
-    failure.problemCode !== ViewStoreErrorCodes.REFERENCED_BY_SHARED_DASHBOARD
+    failure.problemCode !==
+    ViewStoreContract.Errors.REFERENCED_BY_SHARED_DASHBOARD
   )
     return failure.toStoreError();
   return new ViewStoreError('INVALID', failure.message, {

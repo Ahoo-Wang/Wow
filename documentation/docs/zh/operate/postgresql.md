@@ -14,7 +14,7 @@ outline: deep
 
 自己定义了 `DataSource` Bean 的应用保留它；引入了 Spring Boot JDBC 模块（`spring-boot-starter-jdbc`）的应用，使用 Spring Boot 用同样的属性建的那个。eShop 的服务只在它们的 `postgres` profile 中设置这些属性：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:
@@ -25,8 +25,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 `wow.backend: postgres` 直接指明后端，而不是交给应用拥有的 Bean 来决定。每个服务有自己的数据库；两个服务从不共用一个。
@@ -78,7 +76,7 @@ SELECT pg_reload_conf();
 
 默认值跟随操作系统，通常要静默两小时才发第一次探测。
 
-**Wow 在事务内设置的上限。** 存储开启的每个事务，开头都有一批 `SET LOCAL`，由连接的超时（`wow.postgres.operation-timeout`，默认 30 秒）推导，没有单独的配置项：
+**Wow 在事务内设置的上限。** 存储开启的每个事务，开头都有一批 `SET LOCAL`，与事务的第一条语句在同一次往返中发送（第一条语句若是批量写入，则先单独发送），由连接的超时（`wow.postgres.operation-timeout`，默认 30 秒）推导，没有单独的配置项：
 
 | 设置 | 取值 | 作用 |
 | --- | --- | --- |

@@ -2,19 +2,8 @@
 
 import { CommandGateway, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ClaimView, CreateView, RenameView, SaveView, ShareView, WowLifecycleTransferOwner } from '../types.js';
-import { ViewAggregate } from './aggregate.js';
 
-/** The command routes of `view-store.view`. */
-export const ViewCommandPaths = {
-  CLAIM_VIEW: '/view-store/view/{id}/claim-view',
-  CREATE_VIEW: '/view-store/view/{id}/create-view',
-  CREATE_VIEW_WITHOUT_ID: '/view-store/view/create-view',
-  RENAME_VIEW: '/view-store/view/{id}/rename-view',
-  SAVE_VIEW: '/view-store/view/{id}/save-view',
-  SHARE_VIEW: '/view-store/view/{id}/share-view',
-} as const;
-
-/** Sends the commands of `view-store.view`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `view-store.view`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class ViewCommandClient {
   readonly gateway: CommandGateway;
 
@@ -29,12 +18,12 @@ export class ViewCommandClient {
    * Produces `ViewClaimed`.
    */
   claimView(id: string, body: ClaimView = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ViewCommandPaths.CLAIM_VIEW, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'view-store.view.ClaimView', routes: [{ method: 'POST', path: '/view-store/view/{id}/claim-view' }], body, id });
   }
 
   /** `ClaimView`, answered as one result per hop of its wait (`text/event-stream`). */
   claimViewStream(id: string, body: ClaimView = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ViewCommandPaths.CLAIM_VIEW, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'view-store.view.ClaimView', routes: [{ method: 'POST', path: '/view-store/view/{id}/claim-view' }], body, id });
   }
 
   /**
@@ -44,12 +33,12 @@ export class ViewCommandClient {
    * Produces `ViewCreated`.
    */
   createView(body: CreateView, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ViewCommandPaths.CREATE_VIEW_WITHOUT_ID : ViewCommandPaths.CREATE_VIEW, body, options);
+    return this.gateway.wait({ ...options, command: 'view-store.view.CreateView', routes: [{ method: 'POST', path: '/view-store/view/{id}/create-view' }, { method: 'POST', path: '/view-store/view/create-view' }], body });
   }
 
   /** `CreateView`, answered as one result per hop of its wait (`text/event-stream`). */
   createViewStream(body: CreateView, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ViewCommandPaths.CREATE_VIEW_WITHOUT_ID : ViewCommandPaths.CREATE_VIEW, body, options);
+    return this.gateway.stream({ ...options, command: 'view-store.view.CreateView', routes: [{ method: 'POST', path: '/view-store/view/{id}/create-view' }, { method: 'POST', path: '/view-store/view/create-view' }], body });
   }
 
   /**
@@ -58,12 +47,12 @@ export class ViewCommandClient {
    * Produces `ViewRenamed`.
    */
   renameView(id: string, body: RenameView, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ViewCommandPaths.RENAME_VIEW, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'view-store.view.RenameView', routes: [{ method: 'POST', path: '/view-store/view/{id}/rename-view' }], body, id });
   }
 
   /** `RenameView`, answered as one result per hop of its wait (`text/event-stream`). */
   renameViewStream(id: string, body: RenameView, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ViewCommandPaths.RENAME_VIEW, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'view-store.view.RenameView', routes: [{ method: 'POST', path: '/view-store/view/{id}/rename-view' }], body, id });
   }
 
   /**
@@ -72,12 +61,12 @@ export class ViewCommandClient {
    * Produces `ViewSaved`.
    */
   saveView(id: string, body: SaveView, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ViewCommandPaths.SAVE_VIEW, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'view-store.view.SaveView', routes: [{ method: 'POST', path: '/view-store/view/{id}/save-view' }], body, id });
   }
 
   /** `SaveView`, answered as one result per hop of its wait (`text/event-stream`). */
   saveViewStream(id: string, body: SaveView, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ViewCommandPaths.SAVE_VIEW, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'view-store.view.SaveView', routes: [{ method: 'POST', path: '/view-store/view/{id}/save-view' }], body, id });
   }
 
   /**
@@ -86,12 +75,12 @@ export class ViewCommandClient {
    * Produces `ViewShared`.
    */
   shareView(id: string, body: ShareView = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ViewCommandPaths.SHARE_VIEW, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'view-store.view.ShareView', routes: [{ method: 'POST', path: '/view-store/view/{id}/share-view' }], body, id });
   }
 
   /** `ShareView`, answered as one result per hop of its wait (`text/event-stream`). */
   shareViewStream(id: string, body: ShareView = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ViewCommandPaths.SHARE_VIEW, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'view-store.view.ShareView', routes: [{ method: 'POST', path: '/view-store/view/{id}/share-view' }], body, id });
   }
 
   /**
@@ -99,11 +88,11 @@ export class ViewCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ViewAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/view-store/view/{id}' }], id });
   }
 
   /** The lifecycle command `wow.lifecycle.TransferOwner`. */
   transferOwner(id: string, body: WowLifecycleTransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ViewAggregate.path, id, LifecycleCommands.TRANSFER_OWNER, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, routes: [{ method: 'POST', path: '/view-store/view/{id}/wow.lifecycle.transfer-owner' }], id, body });
   }
 }

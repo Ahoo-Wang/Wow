@@ -42,6 +42,7 @@ import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
@@ -63,7 +64,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 
 /**
- * Admits commands: turns a [CommandRequest] into an immutable [Command] and hands
+ * Admits commands: turns a [ServerCommandRequest] into an immutable [Command] and hands
  * it to the [WaitCoordinator] of its context, which checks its wait plan, routes it and waits for it.
  *
  * Admission runs in this order, and the first step that refuses answers the request:
@@ -76,7 +77,7 @@ import kotlin.time.Duration
  *    [FrameworkCodes.COMMAND_UNHANDLED].
  * 2. Decide the identity, each fact by one rule (–); a fact given twice, or missing, is
  *    [FrameworkCodes.COMMAND_MALFORMED]:
- *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
+ *    - the tenant and the scope are the caller's; a [ServerCommandRequest.target] replaces them only for a caller with
  *      [Caller.crossScope][me.ahoo.wow.api.caller.Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any
  *      other, never ignored;
  *    - an aggregate type whose tenant [tenants] fixes is in that tenant whoever the caller is; a target
@@ -89,7 +90,7 @@ import kotlin.time.Duration
  *    - the command id is always a new global one from [ids]; the request id is the request's, or the command id;
  *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator]): its subject in its
  *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
- *    - a synchronous call's [CommandRequest.call] is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
+ *    - a synchronous call's [ServerCommandRequest.call] is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
  *      is a [service][me.ahoo.wow.api.caller.Caller.service] identity, and [FrameworkCodes.COMMAND_MALFORMED] beside a target;
  *      from a service, the command's id, tenant, scope, operator, causation and propagating request facts
  *      ([CallContext.facts]) are the call's: a derived command, executed with the
@@ -103,7 +104,7 @@ import kotlin.time.Duration
  * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
  *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.COMMAND_MALFORMED]. A command object is
  *    not decoded: it must be of the command type, and is checked as the JSON [mapper] writes it as. A request whose
- *    ref names another tenant than the one decided ([CommandRequest.tenantId]) is [FrameworkCodes.COMMAND_MALFORMED] too.
+ *    ref names another tenant than the one decided ([ServerCommandRequest.tenantId]) is [FrameworkCodes.COMMAND_MALFORMED] too.
  * 5. Transform the command with the one of [transformers] that takes its type, if any ([CommandTransformer]). The
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.COMMAND_UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
@@ -179,11 +180,23 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
+     * The aggregate types that take [command], a command class, for a request that leaves its type out: the ones this
+     * node decides or mounts it on, and the ones a peer context's contract lists it for.
+     */
+    @InternalWowApi
+    fun aggregatesOf(command: Class<*>): List<AggregateType> {
+        val local = registry.models.filter { model ->
+            model.findCommandType(command) != null || model.mountedCommandTypes.any { it.type == command }
+        }.map { it.type }
+        return (local + peers?.aggregatesOf(command).orEmpty()).distinct()
+    }
+
+    /**
      * Admits [request] and emits its results: an admission refusal alone, or what its wait emits for each hop as it is
      * reached (see [WaitCoordinator.stream]); for a plan with only an ACCEPTED hop, that result alone. The command is
      * admitted when the flow is collected.
      */
-    fun send(request: CommandRequest): Flow<CommandResult> = flow {
+    fun send(request: ServerCommandRequest): Flow<CommandResult> = flow {
         dispatch(request, streaming = true) { emit(it) }
     }
 
@@ -192,7 +205,7 @@ class CommandGateway @InternalWowApi constructor(
      * without the flow of every hop.
      */
     private suspend fun dispatch(
-        received: CommandRequest,
+        received: ServerCommandRequest,
         streaming: Boolean,
         emit: suspend (CommandResult) -> Unit,
     ) {
@@ -238,10 +251,10 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * [request] naming its command type, when it was built from a command object that names it by its class
-     * ([CommandRequest.of]): the type of that class the aggregate decides or mounts, on this node, or
+     * ([ServerCommandRequest.of]): the type of that class the aggregate decides or mounts, on this node, or
      * the one its peer context's contract lists. A class neither has is left as it is, and admission refuses it.
      */
-    private fun named(request: CommandRequest): CommandRequest {
+    private fun named(request: ServerCommandRequest): ServerCommandRequest {
         val value = (request.body as? CommandBody.Value)?.command ?: return request
         val type = value.javaClass
         if (request.command != type.name) {
@@ -287,14 +300,6 @@ class CommandGateway @InternalWowApi constructor(
         if (trace === EmptyCoroutineContext) block() else withContext(trace) { block() }
 
     /**
-     * Whether a request of [command] to [type] (its model name, or the part of it after the aggregate type) is
-     * transformed: an edge then accepts it without an aggregate id, as it accepts a creation command.
-     */
-    @InternalWowApi
-    fun transforms(type: AggregateType, command: String): Boolean =
-        registry.find(type)?.resolve(type, command)?.let { it.name in transformers } ?: false
-
-    /**
      * The timeout of a command of [context] whose request names none: its coordinator's
      * [default][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout], capped by its maximum; [WaitPlan.DEFAULT_TIMEOUT]
      * for a context this gateway does not admit. An edge whose request names a plan but no timeout gives the plan
@@ -313,7 +318,7 @@ class CommandGateway @InternalWowApi constructor(
     var standby: Boolean = false
 
     /** Admits [request] and returns the result its wait ends with: the last one [send] emits. */
-    suspend fun execute(request: CommandRequest): CommandResult {
+    suspend fun execute(request: ServerCommandRequest): CommandResult {
         var last: CommandResult? = null
         dispatch(request, streaming = false) { last = it }
         return checkNotNull(last) { "Request ${request.requestId} ended without a result." }
@@ -353,7 +358,7 @@ class CommandGateway @InternalWowApi constructor(
      * is unavailable refuses it, FAILED with [FrameworkCodes.STORAGE_UNAVAILABLE]: nothing ran, so a retry with the
      * same request id is safe.
      */
-    private suspend fun admitting(request: CommandRequest): Admission {
+    private suspend fun admitting(request: ServerCommandRequest): Admission {
         // A service's call keeps the id its saga derived; any other command gets a new one.
         val facts = Facts(request, request.call?.takeIf { request.caller.service }?.commandId ?: ids.global.next())
         return try {
@@ -365,7 +370,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
-    private suspend fun admit(request: CommandRequest, facts: Facts): Admission {
+    private suspend fun admit(request: ServerCommandRequest, facts: Facts): Admission {
         if (closed) {
             return facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
         }
@@ -404,7 +409,8 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val scope = target?.scope ?: request.caller.scope
+        val origin = CallerAdmission.of(request.caller, target)
+        val scope = origin.scope
         val inputId = request.aggregateId ?: if (transformer == null) {
             creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
         } else {
@@ -501,7 +507,7 @@ class CommandGateway @InternalWowApi constructor(
             scope = scope,
             headers = command.headers,
             causation = call?.causation,
-            operator = if (call != null) call.operator else request.caller.toOperator(actingElsewhere = target != null),
+            operator = if (call != null) call.operator else origin.operator,
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
@@ -518,7 +524,7 @@ class CommandGateway @InternalWowApi constructor(
      * ([peerPlanProblem]) waits for ACCEPTED, or for the peer's COMMITTED, the default.
      */
     @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
-    private suspend fun admitPeer(request: CommandRequest, facts: Facts): Admission {
+    private suspend fun admitPeer(request: ServerCommandRequest, facts: Facts): Admission {
         val type = facts.type
         val aggregate = peers?.aggregateOf(type)
             ?: return facts.refuse(FrameworkCodes.COMMAND_UNHANDLED, "No aggregate $type is served here.")
@@ -533,8 +539,7 @@ class CommandGateway @InternalWowApi constructor(
         val relay = peers.relayOf(peer.name) ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
-                "topic, and this node has no command transport (with Spring Boot, set " +
-                "wow.kafka.bootstrap-servers).",
+                "topic, and this node has no command transport.",
         )
         // 2. The identity.
         identityConflict(request, peer.creation, transformed = false)?.let {
@@ -556,7 +561,8 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val scope = target?.scope ?: request.caller.scope
+        val origin = CallerAdmission.of(request.caller, target)
+        val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
         AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
@@ -588,7 +594,7 @@ class CommandGateway @InternalWowApi constructor(
             expectedVersion = request.expectedVersion,
             scope = scope,
             headers = request.headers,
-            operator = request.caller.toOperator(actingElsewhere = target != null),
+            operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
         )
         return Admission.Relayed(admitted, facts.function, relay)
@@ -612,7 +618,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
-    private fun tenantConflict(request: CommandRequest, tenantId: String): String? =
+    private fun tenantConflict(request: ServerCommandRequest, tenantId: String): String? =
         request.tenantId?.takeIf { it != tenantId }?.let {
             "The command's ref names tenant $it, but it is sent in tenant $tenantId: a ref's tenant is the caller's, " +
                 "a cross-scope target's or the one fixed for its type."
@@ -622,7 +628,7 @@ class CommandGateway @InternalWowApi constructor(
      * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
      * propagate ([CallContext.facts]) in place of the ones the edge recorded for the calling service.
      */
-    private fun headersOf(request: CommandRequest): Map<String, String> {
+    private fun headersOf(request: ServerCommandRequest): Map<String, String> {
         val call = request.call ?: return request.headers
         return request.headers.filterKeys { it !in RequestFacts.PROPAGATED } + call.facts
     }
@@ -632,7 +638,7 @@ class CommandGateway @InternalWowApi constructor(
      * make it: only a service identity asserts the root command a call acts for, and it names the call's scope in
      * the call alone.
      */
-    private fun callProblem(request: CommandRequest): Pair<String, String>? = when {
+    private fun callProblem(request: ServerCommandRequest): Pair<String, String>? = when {
         request.call == null -> null
         !request.caller.service ->
             FrameworkCodes.AUTH_FORBIDDEN to
@@ -643,7 +649,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /** The authorizer's denial of [action], or null when it allows it. */
-    private suspend fun authorize(request: CommandRequest, action: CommandAction): Authorization.Denied? =
+    private suspend fun authorize(request: ServerCommandRequest, action: CommandAction): Authorization.Denied? =
         authorizer.authorize(request.caller, action) as? Authorization.Denied
 
     /** The model that decides commands of [type], with its decide function; null when none does. */
@@ -654,7 +660,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /** Why [request]'s identity facts cannot be decided, or null when they can. */
-    private fun identityConflict(request: CommandRequest, creation: Creation, transformed: Boolean): String? {
+    private fun identityConflict(request: ServerCommandRequest, creation: Creation, transformed: Boolean): String? {
         val reserved = request.headers.keys.firstOrNull(::isReservedHeader)
         return when {
             reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
@@ -710,7 +716,7 @@ class CommandGateway @InternalWowApi constructor(
     )
 
     /** The facts decided so far about a request, to refuse it with. */
-    private inner class Facts(private val request: CommandRequest, val commandId: String) {
+    private inner class Facts(private val request: ServerCommandRequest, val commandId: String) {
         val type = AggregateType(request.context, request.aggregate)
         val requestId: String = request.requestId?.takeIf { it.isNotBlank() } ?: commandId
         var ref: AggregateRef = type.ref(

@@ -127,7 +127,7 @@ function answerCommand(
   if (!state)
     return problem('wow.aggregate.not-found', `No execution ${id}.`, 404);
   switch (command) {
-    case 'prepare_compensation':
+    case 'prepare-compensation':
       if (state.isRetryable !== true || state.isBelowRetryThreshold !== true)
         return problem(
           'compensation.retry-threshold-reached',
@@ -136,12 +136,12 @@ function answerCommand(
         );
       state.status = 'PREPARED';
       return SUCCEEDED;
-    case 'force_prepare_compensation':
+    case 'force-prepare-compensation':
       if (state.isRetryable !== true)
         return problem('compensation.not-retryable', 'Not retryable.', 409);
       state.status = 'PREPARED';
       return SUCCEEDED;
-    case 'mark_recoverable':
+    case 'mark-recoverable':
       state.recoverable = body.recoverable;
       return SUCCEEDED;
   }

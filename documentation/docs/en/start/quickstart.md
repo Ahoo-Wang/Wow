@@ -84,7 +84,7 @@ The plugin is published to Maven Central with its marker, so `pluginManagement` 
 
 Name the context once, with `@BoundedContext`. Commands and events are data classes. A command carries no aggregate id: the id comes from the route. A deposit and a withdrawal are of a positive amount: that is the command's shape, a Jakarta constraint the host checks before the account decides.
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -121,15 +121,14 @@ data class Withdrawn(val amount: Long)
 
 The state applies each event in an `onSourcing` function. The aggregate decides each command in an `onCommand` function: it returns events, or a `Decision` that rejects the command with an error code, in which case nothing is written. It rejects only what needs its state, a withdrawal the balance does not cover.
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 
 class AccountState {
     var owner: String = ""
@@ -156,13 +155,12 @@ class Account(private val state: AccountState) {
 
     fun onCommand(command: Deposit): Deposited = Deposited(command.amount)
 
-    @OnCommand(produces = [Withdrawn::class])
-    fun onCommand(command: Withdraw): Decision =
+    fun onCommand(command: Withdraw): Withdrawn {
         if (command.amount > state.balance) {
-            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-        } else {
-            Decision.events(Withdrawn(command.amount))
+            reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
         }
+        return Withdrawn(command.amount)
+    }
 
     /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.insufficient-balance`. */
     object Rejections {
@@ -172,13 +170,13 @@ class Account(private val state: AccountState) {
 }
 ```
 
-`@OnCommand(produces = ...)` tells the contract which events a function that returns `Decision` can produce. [Write an Aggregate](../guide/aggregates) covers every rule.
+Each function returns the event it produces, and `Withdraw` rejects by throwing a `RejectedException`; the contract reads the events from the return types. [Write an Aggregate](../guide/aggregates) covers every rule.
 
 ## Test it
 
 The compiler generated `accountModel` beside `Account`. `aggregateSpec` runs it on the real kernel with an in-memory log: given these events, when this command, expect these events and this state.
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -188,7 +186,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {
@@ -229,7 +227,7 @@ class AccountSpec {
 
 The server is a Spring Boot application. The host finds the generated models on the class path and serves them:
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -247,7 +245,7 @@ fun main(args: Array<String>) {
 
 `src/main/resources/application.yaml` runs one node with its data in memory, and serves the snapshot queries from memory too:
 
-<!-- sample: example/quickstart/src/main/resources/application.yaml -->
+<!-- sample: examples/quickstart/src/main/resources/application.yaml -->
 
 ```yaml
 spring:
@@ -258,11 +256,6 @@ server:
 wow:
   # One node, its data in memory: for trying the service out, not for production. The `mongo` profile keeps it on
   # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
-  backend: memory
-  # Serve the snapshot queries from memory too.
-  query:
-    memory:
-      enabled: true
   internal:
     port: 9090
 ---
@@ -326,26 +319,20 @@ The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; 
 
 Application code sends command objects through the host's `CommandClient`, with the same admission as the HTTP routes:
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
 
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
 import org.springframework.stereotype.Service
 
 /** Deposits from application code, through the host's [CommandClient]: the same admission as the HTTP routes. */
 @Service
 class Teller(private val commands: CommandClient) {
-    suspend fun deposit(accountId: String, amount: Long): CommandResult =
-        commands.wait(Deposit(amount), ACCOUNT.ref(Caller.DEFAULT_TENANT, accountId))
-
-    private companion object {
-        val ACCOUNT = AggregateType("bank", "account")
-    }
+    suspend fun deposit(accountId: String, amount: Long): CommandResult = commands.wait(Deposit(amount), accountId)
 }
 ```
 
@@ -356,5 +343,5 @@ class Teller(private val commands: CommandClient) {
 - **The concepts.** [Architecture Overview](../concepts/) explains what the host did for you.
 - **A real service.** [Add Wow to an Existing Service](./existing-project) lays a service out in modules.
 - **The guide.** [Developer Guide](../guide/) shows each task: sagas, projections, queries, tests.
-- **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) is five services on PostgreSQL, Kafka and ClickHouse, with sagas between contexts, scheduled commands, datasets and a web UI.
-- **This sample** is [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/example/quickstart), built and tested with every change.
+- **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) is five services on PostgreSQL, Kafka and ClickHouse, with sagas between contexts, scheduled commands, datasets and a web UI.
+- **This sample** is [`examples/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/examples/quickstart), built and tested with every change.

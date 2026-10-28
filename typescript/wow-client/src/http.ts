@@ -21,8 +21,7 @@ import {
 import { toWowProblemError } from './problem.js';
 
 /**
- * The request headers of a Wow service's public port (decisions D95,
- * D96, D98, D99).
+ * The request headers of a Wow service's public port.
  */
 export const WowHeaders = {
   /** The caller's id of the request: a retry with the same one is deduplicated. */
@@ -60,7 +59,7 @@ export interface WowClientOptions {
 
 /**
  * The scope a caller allowed to act across scopes acts in: the `Wow-Scope`
- * header (decision D95).
+ * header.
  */
 export interface TargetScope {
   readonly tenantId?: string;
@@ -116,20 +115,6 @@ export interface Call {
   readonly options?: RequestOptions;
   /** Answers a 304 rather than rejecting with it. */
   readonly notModified?: boolean;
-}
-
-/** `{name}` segments of `path` filled from `params`, each encoded. */
-export function expandPath(
-  path: string,
-  params: Readonly<Record<string, string>>,
-): string {
-  return path.replace(/\{([^}]+)\}/g, (segment, name: string) => {
-    const value = params[name];
-    if (value === undefined || value === '') {
-      throw new TypeError(`The path ${path} needs ${name}.`);
-    }
-    return encodeURIComponent(value);
-  });
 }
 
 function queryString(
@@ -196,7 +181,7 @@ export async function send(
 
 /**
  * The JSON body of a 2xx response; the numbers `numbers` marks come back as
- * their exact text (review R4-Q, Q-9), and without marks it is
+ * their exact text, and without marks it is
  * `response.json()` itself.
  */
 export async function json<T>(

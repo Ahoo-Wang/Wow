@@ -13,9 +13,6 @@
     "name" : "eshop-inventory.schedule",
     "description" : "The context's scheduled jobs."
   }, {
-    "name" : "eshop-inventory.snapshot",
-    "description" : "The rebuild of the context's snapshots."
-  }, {
     "name" : "wow",
     "description" : "The framework's own endpoints."
   } ],
@@ -1099,6 +1096,86 @@
         }
       }
     },
+    "/eshop-inventory/stock/wow.snapshot.rebuild" : {
+      "post" : {
+        "tags" : [ "eshop-inventory.stock" ],
+        "summary" : "Rebuild",
+        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-inventory.stock.wow.snapshot.Rebuild",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
     "/eshop-inventory/stock/{id}/state" : {
       "get" : {
         "tags" : [ "eshop-inventory.stock" ],
@@ -1588,7 +1665,7 @@
         }
       }
     },
-    "/eshop-inventory/schedule/{id}/wow.schedule.enable" : {
+    "/eshop-inventory/wow.schedule/{id}/enable" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
         "summary" : "Enable",
@@ -1675,7 +1752,7 @@
         }
       }
     },
-    "/eshop-inventory/schedule/{id}/wow.schedule.reschedule" : {
+    "/eshop-inventory/wow.schedule/{id}/reschedule" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
         "summary" : "Reschedule",
@@ -1762,7 +1839,7 @@
         }
       }
     },
-    "/eshop-inventory/schedule/{id}/wow.schedule.disable" : {
+    "/eshop-inventory/wow.schedule/{id}/disable" : {
       "post" : {
         "tags" : [ "eshop-inventory.schedule" ],
         "summary" : "Disable",
@@ -1796,93 +1873,6 @@
             "application/json" : {
               "schema" : {
                 "$ref" : "#/components/schemas/wow.schedule.Disable"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
-        }
-      }
-    },
-    "/eshop-inventory/snapshot/{id}/wow.snapshot.rebuild" : {
-      "post" : {
-        "tags" : [ "eshop-inventory.snapshot" ],
-        "summary" : "Rebuild",
-        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregate type the path's id names, in the caller's tenant: `stock`.",
-        "operationId" : "eshop-inventory.snapshot.wow.snapshot.Rebuild",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
               }
             }
           }
@@ -2634,7 +2624,7 @@
       },
       "wow.snapshot.Rebuild" : {
         "type" : "object",
-        "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, in the caller's tenant.",
+        "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the caller's tenant.",
         "properties" : {
           "ids" : {
             "type" : "array",
@@ -2646,6 +2636,25 @@
           }
         },
         "required" : [ "ids" ]
+      },
+      "me.ahoo.wow.api.schedule.JobRule-nullable" : {
+        "type" : [ "object", "null" ],
+        "properties" : {
+          "expression" : {
+            "type" : [ "string", "null" ]
+          },
+          "misfire" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string",
+              "enum" : [ "COALESCE", "CATCH_UP" ]
+            } ]
+          },
+          "zone" : {
+            "type" : [ "string", "null" ]
+          }
+        }
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation" : {
         "type" : "object",
@@ -2858,7 +2867,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -2866,7 +2875,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.dataset-query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3180,7 +3189,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "eshop-inventory.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3188,7 +3197,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "eshop-inventory.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
@@ -3326,7 +3335,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "wow.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3334,7 +3343,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
@@ -3456,7 +3465,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3464,7 +3473,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

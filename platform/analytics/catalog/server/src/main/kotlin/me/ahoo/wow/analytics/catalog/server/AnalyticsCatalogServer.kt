@@ -30,7 +30,8 @@ import org.springframework.boot.runApplication
  * - the sources are read through the query routes (`POST /analytics-catalog/source/snapshot/query`), on a backend
  *   that serves snapshot queries.
  *
- * Who calls is [AnalyticsCatalogCallers]'s to say; a deployment puts CoSec's resolver in its place. The data plane
+ * Who calls is CoSec's to say behind the gateway (the `cosec` profile), the host's development callers' in development,
+ * each of a role of [AnalyticsCatalogRoles]. The data plane
  * (dataset queries, the Sink) never calls this service on its own path.
  */
 @SpringBootApplication(proxyBeanMethods = false)

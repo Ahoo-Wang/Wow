@@ -15,7 +15,7 @@ outline: deep
 | 决定函数 | 调用方得到 |
 | --- | --- |
 | 返回 `Decision.reject(code, message)` | 该错误码及其状态（默认 422） |
-| 调用作用域的 `reject(code, message)`，或抛出 `RejectedException(Rejection.of(code, message))`（Java） | 与返回拒绝相同 |
+| 调用 `reject(code, message)`（`me.ahoo.wow.api.decide` 的顶层函数，或作用域的），或抛出 `RejectedException(Rejection.of(code, message))`（Java） | 与返回拒绝相同 |
 | 调用 `require`、`requireNotNull`（`IllegalArgumentException`） | `wow.command.invalid`（400） |
 | 调用 `check`、`checkNotNull` 或 `error`（`IllegalStateException`） | `wow.command.refused`（409）：聚合的当前状态拒绝该命令 |
 | 抛出其他任何异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败 |
@@ -35,7 +35,7 @@ outline: deep
 
 错误码是一个标注了 `@ErrorCode`、类型为 `String` 的 `const val`，放在嵌套于根类中的一个 `object` 里：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -60,18 +60,17 @@ object Rejections {
 
 命令函数用错误码的本地名和一条给人看的消息返回拒绝：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
 
 ```kotlin
-@OnCommand(produces = [StockReserved::class])
-fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
-    command.orderId in state.reservations -> Decision.NoOp
-    command.quantity > state.available -> Decision.reject(
+fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
+    command.orderId in state.reservations -> null
+    command.quantity > state.available -> reject(
         Rejections.INSUFFICIENT,
         "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
     )
 
-    else -> Decision.events(StockReserved(command.orderId, command.quantity))
+    else -> StockReserved(command.orderId, command.quantity)
 }
 ```
 
@@ -85,13 +84,12 @@ fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
 
 **在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，聚合的拒绝和准入时的拒绝都一样：
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
 val rejected = runCatching {
-    basket.bean<CommandClient>().of(alice)
-        .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
+    basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
 }.exceptionOrNull() as CommandRejectedException
 rejected.code.assert().isEqualTo("wow.command.invalid")
 rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
@@ -116,7 +114,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 ## 决定函数里的远程调用 {#remote-calls-in-a-decide-function}
 
-版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`SendOptions.requestId` 可以覆盖它）。同一次决定里并发发出的命令，其序号没有稳定的顺序，所以要逐个发送，或者在重发必须去重时传入 `SendOptions.requestId`；`JavaCommandClient` 的 future 不会推导任何东西，所以在那里也要显式传入请求 ID；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
+版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`CommandRequest.requestId` 可以覆盖它）。同一次决定里并发发出的命令，其序号没有稳定的顺序，所以要逐个发送，或者在重发必须去重时传入 `CommandRequest.requestId`；`JavaCommandClient` 的 future 不会推导任何东西，所以在那里也要显式传入请求 ID；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
 
 ## 框架用来拒绝的错误码 {#codes-the-framework-rejects-with}
 

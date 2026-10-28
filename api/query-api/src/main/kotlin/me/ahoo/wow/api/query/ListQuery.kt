@@ -16,31 +16,16 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Interface for list queries that retrieve multiple items with a limit.
- *
- * This interface extends [Queryable] and adds a limit parameter to control
- * the maximum number of items returned by the query.
- */
-interface IListQuery : Queryable<IListQuery> {
-    /**
-     * The maximum number of items to return in the query result.
-     * Must be >= 0. A value of 0 returns unlimited results on the query gateway;
-     * over HTTP the server replaces 0 with its configured default list size,
-     * unless list caps are disabled.
-     */
-    val limit: Int
-}
-
-/**
  * Data class representing a query for retrieving a list of items with optional filtering, projection, sorting, and limiting.
  *
- * This class implements [IListQuery] and provides a concrete implementation for list-based queries.
- * It supports all standard query operations including conditions, projections, sorting, and result limiting.
+ * It supports all standard query operations ([Queryable]) and limits how many items it returns.
  *
  * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
- * @property limit The maximum number of items to return. Defaults to the standard pagination size.
+ * @property limit The most items to return, at least 1; `null`, the default, takes the entry's default list size.
+ * Only trusted code that dropped the budget (`trusted().unbounded()`) lists every match with `null`; a stream
+ * (`stream`) reads every match in chunks.
  *
  * ```
  * val query = ListQuery(
@@ -55,15 +40,24 @@ class ListQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val limit: Int = 0
-) : IListQuery {
+    val limit: Int? = null,
+) : Queryable<ListQuery> {
+    init {
+        require(limit == null || limit >= 1) {
+            "limit must be at least 1."
+        }
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
+        }
+    }
+
     /**
      * Creates a new ListQuery with the specified filter.
      *
      * @param newFilter The new filter to apply.
      * @return A new ListQuery with the updated filter.
      */
-    override fun withFilter(newFilter: FilterExpression): IListQuery = ListQuery(newFilter, projection, sort, limit)
+    override fun withFilter(newFilter: FilterExpression): ListQuery = ListQuery(newFilter, projection, sort, limit)
 
     /**
      * Creates a new ListQuery with the specified projection.
@@ -71,7 +65,7 @@ class ListQuery @InternalWowApi constructor(
      * @param newProjection The new projection to apply.
      * @return A new ListQuery with the updated projection.
      */
-    override fun withProjection(newProjection: Projection): IListQuery = ListQuery(filter, newProjection, sort, limit)
+    override fun withProjection(newProjection: Projection): ListQuery = ListQuery(filter, newProjection, sort, limit)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ListQuery && valueFields() == other.valueFields()
@@ -90,7 +84,7 @@ class ListQuery @InternalWowApi constructor(
             filter: FilterExpression,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
-            limit: Int = 0,
+            limit: Int? = null,
         ): ListQuery = ListQuery(filter, projection, sort, limit)
     }
 }

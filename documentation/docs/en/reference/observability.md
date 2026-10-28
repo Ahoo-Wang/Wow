@@ -26,8 +26,8 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle` |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | State cache lookups: `hit`, `miss` (a snapshot and a tail read) |
 | `wow.state_cache.evictions` | Counter | `wow.context` | States evicted from the state cache |
-| `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | Times a store fell back from an optional capability and did the work the way every store can. `wow.capability`: `snapshot-tail-read` (a log's one-round-trip read of a snapshot with its tail), `snapshot-rebuild` (a snapshot store's in-place rebuild). `wow.reason`: `failed` (the capability failed; the first failure is logged as a warning), `unavailable` (it cannot serve this case, such as a snapshot store in another database than the log), `unsupported` (the store has no such capability) |
-| `wow.reservation.losses` | Counter | `wow.context` | Unique keys a committed fact lost to another owner after its pending reservation expired (decision D50): the kernel's confirm after an append, or the `reservation` subscription's |
+| `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | Times a store fell back from an optional capability and did the work the way every store can. `wow.capability`: `snapshot-tail-read` (a store's one-round-trip read of a snapshot with its log's tail), `snapshot-rebuild` (a snapshot store's in-place rebuild). `wow.reason`: `failed` (the capability failed; the first failure is logged as a warning), `unsupported` (the store has no such capability) |
+| `wow.reservation.losses` | Counter | `wow.context` | Unique keys a committed fact lost to another owner after its pending reservation expired: the kernel's confirm after an append, or the `reservation` subscription's |
 
 ### Subscriptions
 

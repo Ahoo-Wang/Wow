@@ -59,7 +59,7 @@ object PeerContracts {
         val refs = contract.schemaRefs.toMutableList().apply { withheld.forEach { remove(it) } }
         val reached = referenced(refs, defs)
         val opaque = withheld.map(Manifest::schemaKey).filterNot { it in reached }.associateWith { WITHHELD_STATE }
-        return contract.withDefs((reached + opaque).toSortedMap())
+        return contract.copyWith(defs = (reached + opaque).toSortedMap())
     }
 
     /** The state references of [context]'s aggregates whose streams are published without their states. */
@@ -74,44 +74,25 @@ object PeerContracts {
      */
     private val WITHHELD_STATE: Map<String, Any?> = mapOf("type" to "object")
 
-    private fun contractOf(context: ContextManifest): ContextManifest = ContextManifest(
-        name = context.name,
-        description = context.description,
+    /**
+     * [context] as its contract carries it: a copy, so a field added later is carried unless it is withheld here,
+     * explicitly. The commands keep their routes, the system commands' included: a peer's client sends a command to
+     * the route its contract lists. Withheld: the query models' routes, the mounted commands and what a command
+     * transforms to (the serving node's edge), the schedules and retired names of an aggregate (its node's own), and a
+     * subscription's start, schedules, retry and job (how its node runs it).
+     */
+    private fun contractOf(context: ContextManifest): ContextManifest = context.copyWith(
         aggregates = context.aggregates.map { aggregate ->
-            AggregateManifest(
-                name = aggregate.name,
-                description = aggregate.description,
-                state = aggregate.state,
-                snapshot = aggregate.snapshot,
-                ownership = aggregate.ownership,
-                queries = aggregate.queries.map { QueryManifest(model = it.model) },
-                commands = aggregate.commands.filterNot { it.mounted }.map {
-                    CommandManifest(
-                        name = it.name,
-                        aliases = it.aliases,
-                        schema = it.schema,
-                        creation = it.creation,
-                        produces = it.produces,
-                        description = it.description,
-                    )
-                },
-                events = aggregate.events,
+            aggregate.copyWith(
+                queries = aggregate.queries.map { it.copyWith(routes = emptyList()) },
+                commands = aggregate.commands.filterNot { it.mounted }.map { it.copyWith(transformsTo = null) },
+                schedules = null,
+                retired = emptyList(),
             )
         },
         subscriptions = context.subscriptions.map {
-            SubscriptionManifest(
-                name = it.name,
-                kind = it.kind,
-                source = it.source,
-                function = it.function,
-                derives = it.derives,
-                rejected = it.rejected,
-                committed = it.committed,
-                calls = it.calls,
-            )
+            it.copyWith(start = null, schedules = null, retry = null, job = null)
         },
-        published = context.published,
-        errors = context.errors,
     )
 
     /** The [defs] the schema references [refs] point to, and those their schemas point to, by key. */
@@ -121,7 +102,7 @@ object PeerContracts {
             when (node) {
                 is Map<*, *> -> node.values.forEach(::visit)
                 is List<*> -> node.forEach(::visit)
-                is String -> if (node.startsWith(DEFS_PREFIX)) {
+                is String -> if (Manifest.isSchemaRef(node)) {
                     val key = Manifest.schemaKey(node)
                     if (key in defs && key !in reached) {
                         reached[key] = defs[key]
@@ -136,8 +117,8 @@ object PeerContracts {
 
     /** The binary names of the classes of [context]'s commands and events, the classes its api module holds. */
     fun classesOf(context: ContextManifest): List<String> = context.aggregates.flatMap { aggregate ->
-        aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
-    }.filter { it.startsWith(DEFS_PREFIX) }.map(Manifest::schemaKey).distinct()
+        aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema }
+    }.filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey).distinct()
 
     /**
      * The contract the api module [owner] carries: of the contexts of the domain modules' [contracts], those whose
@@ -197,7 +178,7 @@ object PeerContracts {
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
         )
-        return contract.withDefs(referenced(contract.schemaRefs, defs))
+        return contract.copyWith(defs = referenced(contract.schemaRefs, defs))
     }
 
     /**
@@ -215,7 +196,7 @@ object PeerContracts {
             when {
                 contexts.size == contract.manifest.contexts.size -> contract
                 contexts.isEmpty() -> null
-                else -> ManifestFragment(contract.source, contract.manifest.withContexts(contexts))
+                else -> ManifestFragment(contract.source, contract.manifest.copyWith(contexts = contexts))
             }
         }.distinctBy { it.manifest }
     }
@@ -228,6 +209,4 @@ object PeerContracts {
             .map { (context, sources) ->
                 "context $context is declared by the contracts " + sources.joinToString(" and ")
             }
-
-    private const val DEFS_PREFIX = "#/\$defs/"
 }

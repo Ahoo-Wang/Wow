@@ -24,7 +24,7 @@ A schedule belongs to an aggregate, under a key. Setting the key again replaces 
 
 A command function schedules with the `DecideScope`. When the order's last product is confirmed, it schedules its own cancellation once the payment grace period has passed:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -32,9 +32,10 @@ A command function schedules with the `DecideScope`. When the order's last produ
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -58,11 +59,11 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 - `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.ScheduleSet`; a decision that only schedules commits just that.
 - `scope.cancelSchedule(key)` cancels it. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
-- The function declares the scheduled commands' full type names in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them.
+- The function declares the scheduled commands' classes in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them by full type name.
 
 ## Schedule from a saga
 
-A saga returns the schedule as a command for its target: `context.schedule(key, rule, target, command)` asks `target` to schedule `command` for itself, and `context.cancel(key, target)` cancels it. The target must exist; otherwise it rejects the request, which the saga's `@OnRejected` handler gets. The handler declares the scheduled commands in `@OnEvent(schedules = [...])`.
+A saga records the schedule in its context: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancel(key, target)` cancels it; the runtime sends both after the commands the handler returns. The target must exist; otherwise it rejects the request, which the saga's `@OnRejected` handler gets. The handler declares the scheduled commands in `@OnEvent(schedules = [...])`.
 
 ## How a scheduled command is delivered
 
@@ -75,18 +76,19 @@ A saga returns the schedule as a command for its target: `context.schedule(key, 
 
 ## Run a recurring job
 
-A job that is not about one aggregate, such as a nightly import, is an `@OnSchedule` handler of a saga. It takes a `ScheduleTick` and the `SagaContext`, and returns the commands it derives. Every morning, the inventory receives the suppliers' deliveries of the day before into stock:
+A job that is not about one aggregate, such as a nightly import, is an `@OnSchedule` handler of a saga. It takes a `ScheduleTick` and the `JobContext`, and returns the commands it derives. Every morning, the inventory receives the suppliers' deliveries of the day before into stock:
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: SagaContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-        context.command(STOCK.ref(tick.tenantId, delivery.productId), ReceiveStock(delivery.quantity))
+        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
+        CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
     }
 }
 ```
@@ -114,7 +116,7 @@ The job's instances also take commands over HTTP, `POST /<context>/schedule/{id}
 
 A test of a decision that schedules expects the schedule with the aggregate's events ([Test Domain Code](./testing#scheduled-commands)). A job is tested with `scheduleSpec`, against the real job aggregate: enable the instance, move the clock, and check the commands its handler derived:
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
 
 ```kotlin
 @Test

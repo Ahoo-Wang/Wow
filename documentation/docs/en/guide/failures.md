@@ -15,13 +15,13 @@ A saga, a projection or a reactor will sometimes fail: the mail service is down,
 3. **Retry later.** The parked aggregate is retried over a longer horizon: 10 times, the first after 3 minutes, each attempt allowed 2 minutes.
 4. **Resume or skip.** When those retries are spent too, the aggregate waits for an operator, who resumes it, reading its stream again from the version it stopped at, or skips it, moving past the events it held back.
 
-A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)).
+A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)). A `CommandRejectedException` the handler lets through, from `context.call` or from a `CommandClient` it uses, parks the aggregate at once, without a retry: a rejection is never retried.
 
 ## Give a handler its own budget
 
 A handler that calls a slow or flaky system needs a budget of its own. `@Retry` on a processor class applies to all its handlers; on a handler, it overrides its processor's, setting by setting:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -42,7 +42,7 @@ A handler that calls a slow or flaky system needs a budget of its own. `@Retry` 
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }
@@ -117,7 +117,7 @@ This page so far is about handlers. A command is retried at several layers too, 
 | Source | Who retries | How |
 | --- | --- | --- |
 | An HTTP caller | The caller | The server never retries a request. A 409 `wow.command.contended`, a 503 or a 429 is sent again with the same `Wow-Request-Id` ([Retry safely](./http#retry-safely)). Wow's Kotlin client does so itself: 3 attempts, 200 ms apart and doubling, waiting a `Retry-After` up to 5 s (`wow.peer.retry.*`), and it moves to another node of the peer when one cannot be reached or is closing. |
-| A saga | Its subscription | A derived command's request id comes from the commit and the order of the calls, so handling the commit again sends the same requests. A rejection goes to `@OnRejected`. Any other failure fails the handling, which is retried within its budget and then parks the commit's aggregate, as [above](#what-happens-when-a-handler-throws). A busy target is backpressure. |
+| A saga | Its subscription | A derived command's request id comes from the commit, its target and its command type, so handling the commit again sends the same requests. Each derived command is settled on its own: a rejection goes to `@OnRejected` and stops none of the others. Any other failure fails the handling, which is retried within its budget and then parks the commit's aggregate, as [above](#what-happens-when-a-handler-throws). A busy target is backpressure. |
 | A timer | The timer | A fired command's request id is the timer's and its slot's. A rejection settles the timer: it is not retried, and no `@OnRejected` sees it. A failure leaves the timer pending, tried again from 1 s, doubling up to 5 min, 10 times in all (`wow.timers.max-attempts`), then parked. A busy target is tried again a second later, spending no attempt, up to 20 times in a row; the next refusal spends one, so a target that stays busy parks the timer in the end. |
 | The Kafka command intake | Its subscription | A command delivered again is a duplicate. A rejection goes back to the sender as a receipt. A failure is retried within the subscription's budget and then parks the target aggregate at the command's offset, holding its later commands. A busy target is backpressure. |
 
@@ -129,15 +129,19 @@ This page so far is about handlers. A command is retried at several layers too, 
 
 A test fails a handler through its fake port and checks the error with `expectError`. Handling the same commit again is how a test shows that a retry is safe:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
 
 ```kotlin
 @Test
 fun `a failed notification should be asked for again with the same key`() = reactorSpec(handlers) {
+    val order = paid()
     failures += IllegalStateException("The mail service is down.")
-    whenEvent(shipped()) { expectError<IllegalStateException>() }
-    whenEvent(shipped()) { expectNoError() }
-    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:$order@6:0")
+    whenEvent(OrderShipped, by = ShipOrder::class) {
+        // Within the notifier's own budget, the runtime asks again.
+        expectRetried().assert().isInstanceOf(IllegalStateException::class.java)
+    }
+    whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```
 

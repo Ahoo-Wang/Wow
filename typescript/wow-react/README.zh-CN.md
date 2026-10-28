@@ -131,16 +131,16 @@ export function PaidOrders() {
 
 ## 流式读取列表
 
-`useListStreamQuery` 与 `useFetcherListStreamQuery` 以服务端推送事件（SSE）读取列表，
-行一到就保存下来。服务端中途切断的流会从断点续传，与 wow-client 的 `listStream` 一致。
+`useStreamQuery` 与 `useFetcherStreamQuery` 以服务端推送事件（SSE）读取列表，
+行一到就保存下来。服务端中途切断的流会从断点续传，与 wow-client 的 `stream` 一致。
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
+import { useFetcherStreamQuery } from '@ahoo-wang/wow-react';
 
 export function PaidOrderFeed() {
-  const { items, done, loading, error, abort } = useFetcherListStreamQuery<
+  const { items, done, loading, error, abort } = useFetcherStreamQuery<
     SnapshotRecord<OrderState>
   >({
     fetcher,
@@ -176,9 +176,9 @@ export function PaidOrderFeed() {
 
 流由 hook 自己持有：它负责读取，无论到达多少行，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
-也是安全的。`useFetcherListStreamQuery` 会发送 `Accept: text/event-stream`——Wow
-服务要看到这个请求头才会以流的形式响应；用 `useListStreamQuery` 时，把客户端的
-`listStream` 作为 `execute` 传入。
+也是安全的。`useFetcherStreamQuery` 会发送 `Accept: text/event-stream`——Wow
+服务要看到这个请求头才会以流的形式响应；用 `useStreamQuery` 时，把客户端的
+`stream` 作为 `execute` 传入。
 
 ## 状态与错误
 
@@ -218,13 +218,13 @@ if (
 
 ## Hook 一览
 
-| Hook                                              | 查询                        | 结果                               |
-| ------------------------------------------------- | --------------------------- | ---------------------------------- |
-| `useSingleQuery`、`useFetcherSingleQuery`         | `singleQuery(…)`            | `result`：一条                     |
-| `useListQuery`、`useFetcherListQuery`             | `listQuery(…)`              | `result`：若干行                   |
-| `usePagedQuery`、`useFetcherPagedQuery`           | `pagedQuery(…)`             | `result`：`{ total, exact, list }` |
-| `useCountQuery`、`useFetcherCountQuery`           | `{ filter, limit? }`        | `result`：`{ count, exact }`       |
-| `useListStreamQuery`、`useFetcherListStreamQuery` | `listQuery(…)`，以 SSE 事件 | `items` 陆续到达，结束后 `done`    |
+| Hook                                      | 查询                        | 结果                               |
+| ----------------------------------------- | --------------------------- | ---------------------------------- |
+| `useSingleQuery`、`useFetcherSingleQuery` | `singleQuery(…)`            | `result`：一条                     |
+| `useListQuery`、`useFetcherListQuery`     | `listQuery(…)`              | `result`：若干行                   |
+| `usePagedQuery`、`useFetcherPagedQuery`   | `pagedQuery(…)`             | `result`：`{ total, exact, list }` |
+| `useCountQuery`、`useFetcherCountQuery`   | `{ filter, limit? }`        | `result`：`{ count, exact }`       |
+| `useStreamQuery`、`useFetcherStreamQuery` | `listQuery(…)`，以 SSE 事件 | `items` 陆续到达，结束后 `done`    |
 
 查询用 `@ahoo-wang/wow-client/dsl` 的 DSL 构造。
 

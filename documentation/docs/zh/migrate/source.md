@@ -28,6 +28,10 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `wow-core`、`wow-spring`、`wow-webflux`、`wow-metadata`、`wow-schema` | `wow-kernel` 和 `wow-runtime`、`wow-http`、`wow-manifest` |
 | 手工添加的 `ksp("me.ahoo.wow:wow-compiler")` | Gradle 插件 `id("me.ahoo.wow")`，它应用 KSP 和 Manifest 任务 |
 | 领域代码中的 `wow-query` | `wow-query-api`：查询类型、Kotlin DSL 和字段注解 |
+| `ISingleQuery`、`IListQuery`、`IPagedQuery`、`ICursorQuery`、`ICountQuery`、`IPagedList` | 类 `SingleQuery`、`ListQuery`、`PagedQuery`、`CursorQuery`、`CountQuery`、`PagedList`，用它们的 `of` 工厂或 DSL 构建；对查询泛型的代码接收 `Queryable<Q>` 或 `FilterCapable<Q>` |
+| `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
+| 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `TOO_MANY_GROUPS` 失败 |
+| 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
 | `wow-redis`、`wow-bi`、`wow-apiclient`、`wow-cocache`、`wow-compensation-*` | 已移除：没有 Redis 后端，改用 ClickHouse Sink、`CommandClient` 和 `QueryApi` 客户端、每个节点的失败台账 |
 | 返回 `Mono` 或 `Flux` 的处理函数 | `suspend` 函数，或通过 `wow-reactor` 使用 Reactor |
@@ -48,7 +52,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | `@Saga`、`@Projection`、`@Reactor` |
 | `@OnEvent(vararg aggregates)`、`@OnStateEvent`、`@OnMessage` | `@OnEvent`，一种接收 `StateEvent` 的处理函数 |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<processor.function>].parked.*` |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<processor.function>].parked.*`（`executionTimeout` 对应 `timeout`） |
 | `@OnError` | 已移除：返回拒绝，在 `@Saga` 中补偿 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |
@@ -62,7 +66,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 命令体只保存业务数据。聚合是 `command.ref`，取自路由；所有者和空间是 `command.scope`，取自已认证的调用方。删除身份字段和路由注解，剩下的就是业务数据。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -84,7 +88,7 @@ data class SubmitOrder(
 
 `require`、`check` 或抛出的领域异常变成 `Decision.reject(code, message)`，错误码在聚合旁边用 `@ErrorCode` 声明一次。它的 HTTP 状态默认为 422；客户端依赖其状态的 9.x 错误码，用 `status` 保留它：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -100,11 +104,10 @@ object Rejections {
 }
 ```
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 拒绝携带一个错误码和一条消息：9.x 的 `bindingErrors` 放进消息里，读取它们的客户端要随之改变。9.x 的 `CommandValidator`，或者对命令自身字段的 `require`，变成命令类上的 Jakarta 约束，就像上面 `SubmitOrder` 带 `@field:NotEmpty @field:Valid` 的条目：网关在准入时检查它，并回答 `wow.command.invalid`（400）及其违反项。需要状态的规则仍是拒绝。
@@ -118,16 +121,15 @@ fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(c
 
 ## 处理器 {#processors}
 
-Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 返回它推导出的命令，用 `context.command(…)` 构建，让它们的 ID 是确定的：
+Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 以 `CommandRequest` 的形式返回它推导出的命令，运行时把它们转成 ID 确定的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
 fun onOrderSubmitted(
-    event: StateTypedEvent<OrderState, OrderSubmitted>,
-    context: SagaContext,
-): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+    event: StateTypedEvent<OrderState, OrderSubmitted>
+): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
 处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
@@ -136,16 +138,15 @@ fun onOrderSubmitted(
 
 9.x 的 `PrepareKey` 变成在 decide 函数中获取的预留；事件追加之后，内核会确认它。9.x 的键是全局的，V10 的键在每个聚合类型和租户内唯一，除非用 `ReservationTenancy.SYSTEM` 预留，所以要决定每个键的租户范围，并把同样的命名空间和租户范围写进映射的 `reservations`。多种类型的聚合共用的 9.x 键，变成一个持有这些键的独立聚合（[唯一键](../guide/unique-keys#a-key-unique-across-aggregate-types)）。品牌名，在其租户内唯一：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a name another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? =
-    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        null
-    } else {
-        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+/** Takes [name] for this brand, or rejects the command when another brand holds it. */
+private suspend fun take(name: String, scope: DecideScope) {
+    if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
+}
 ```
 
 [跨聚合的唯一键](../guide/unique-keys)解释预留。

@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.migrate
 
+import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.lifecycle.Lifecycle
+
 /** A 9.x event type as streams record it: its name and 9.x revision. */
 internal data class NineXEventType(val name: String, val revision: String) {
     override fun toString(): String = "$name@$revision"
@@ -219,7 +222,9 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             event.to?.let {
                 if (event.retire) aggregate.retiredProblem(it) else aggregate.eventProblem(it, event.toRevision)
             }?.let { "${event.from}: $it" }
-        }
+        } + mapping.events.filter {
+            it.lifecycle?.to == Lifecycle.OWNER_TRANSFERRED && aggregate.ownership == Ownership.TENANT
+        }.map { "${it.from}: writes ${Lifecycle.OWNER_TRANSFERRED}, but the V10 aggregate belongs to its tenant" }
         return duplicates + (commands + events).map { "$subject: $it" }
     }
 

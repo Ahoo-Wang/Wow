@@ -192,6 +192,8 @@ export const viewMessages = {
     'Add a condition first: the service will not count every record.',
   'runtime.query.failed.residual_groups_exceeded':
     'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
+  'runtime.query.failed.too_many_groups':
+    'This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.',
   'runtime.query.failed.explicit_entry_required':
     'The query named no entry to run against: {reason}',
   'runtime.query.failed.replay_too_long':

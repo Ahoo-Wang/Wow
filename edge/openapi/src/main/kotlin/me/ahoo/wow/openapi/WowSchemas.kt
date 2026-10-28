@@ -94,9 +94,12 @@ internal object WowSchemas {
             description = "An instance's own rule of a job; each part that is null follows the job's default.",
         )
 
-    /** The schema of the lifecycle command [name]'s body. */
-    fun lifecycle(name: String): Map<String, Any?> =
-        if (name in LIFECYCLE) schemaRef(name) else objectSchema(emptyMap())
+    /**
+     * The names of the system commands whose bodies the framework describes: a Manifest that holds the body of a
+     * lifecycle command (keyed by its name) describes it in place of the framework.
+     */
+    val SYSTEM_COMMANDS: Set<String>
+        get() = LIFECYCLE.keys + JOB_COMMANDS.keys + REBUILD
 
     private val TAGS: Map<String, Any?>
         get() = map(array(type("string")))
@@ -106,9 +109,6 @@ internal object WowSchemas {
     private val INTEGER: Map<String, Any?> get() = type("integer")
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
-    /** The name of the snapshot rebuild aggregate of a context: `<context>.snapshot`. */
-    const val REBUILD_AGGREGATE: String = "snapshot"
-
     /** The snapshot rebuild command, by its full name. */
     const val REBUILD: String = "wow.snapshot.Rebuild"
 
@@ -116,8 +116,8 @@ internal object WowSchemas {
         get() = objectSchema(
             mapOf("ids" to obj("type" to "array", "items" to STRING, "minItems" to 1, "maxItems" to 1_000)),
             listOf("ids"),
-            "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, " +
-                "in the caller's tenant.",
+            "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the " +
+                "caller's tenant.",
         )
 
     /** Every framework schema, by name. */

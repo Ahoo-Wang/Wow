@@ -21,13 +21,15 @@ A store holds a node's durable state. Its ports are in `:spi`:
 | `ReservationStore` | The reserved unique keys | `ReservationStoreSpec` |
 | `TimerStore` | The commands scheduled for later | `TimerStoreSpec` |
 
-A port's abstract members are what a backend must implement; a member with a default is an optional optimization whose default is correct, such as `EventLog.appendAll` and `SnapshotStore.saveAll`. Two capabilities are optional and offered explicitly: a log that can read an aggregate's snapshot together with its tail in one round trip returns a `SnapshotTailReader` from `EventLog.snapshotTails`, and a snapshot store that can rebuild its snapshots in place returns a `SnapshotRebuildStore` (the table claims, stale marks and rewrites of a state revision change) from `SnapshotStore.rebuilds`. Without them the node reads the snapshot and the tail apart, and leaves snapshots of another state revision until a commit replaces them. When a capability cannot serve or fails, the node falls back the same way, logs the first time and counts it (`wow.store.fallbacks`).
+A port's abstract members are what a backend must implement; a member with a default is an optional optimization whose default is correct, such as `EventLog.appendAll` and `SnapshotStore.saveAll`. Two capabilities are optional and offered explicitly: a store that holds a context's log and its snapshots in one database and can read an aggregate's snapshot together with its tail in one round trip returns a `SnapshotTailReader` from `Store.openSnapshotTails` (the node uses it for the aggregate types whose log and primary snapshots are both on that store), and a snapshot store that can rebuild its snapshots in place returns a `SnapshotRebuildStore` (the table claims, stale marks and rewrites of a state revision change) from `SnapshotStore.rebuilds`. Without them the node reads the snapshot and the tail apart, and leaves snapshots of another state revision until a commit replaces them. When a capability fails, the node falls back the same way, logs the first time and counts it (`wow.store.fallbacks`).
 
 A store may hold logs, snapshots or both: an Elasticsearch store holds snapshots and never a log. Beside the stores, a `Sink` copies commits somewhere else (`SinkSpec`), a topic transport carries published streams and commands between contexts (`TopicTransportSpec`), and a query backend serves a model's queries (`QueryBackendSpec`, `EventQueryBackendSpec` and `DatasetQueryBackendSpec` in `:query-tck`).
 
 ## The provider
 
-A backend gives the host a `StoreProvider`: the `type` a configuration names (`wow.stores.<name>.type`), what it needs from the application, whether it is available from the application's resources alone (what `wow.backend: auto` chooses by), and `open`, which returns a `Store` for one configured instance. `open` touches nothing in the database: the store opens each port on its first use, one log per context, and remembers what creates its schemas, so `wow.ddl` decides whether they are created, validated or left alone.
+A backend gives the host a `StoreProvider`: the `type` a configuration names (`wow.stores.<name>.type`), what it needs from the application, whether it is available from the application's resources alone (what `wow.backend: auto` chooses by), and `open`, which returns a `Store` for one configured instance. `open` touches nothing in the database: the store opens each port on its first use, one log per context. Each `open*` returns the port with what creates its schema, `Opened.of(port, port::createSchema)` (or `Opened.of(port)` for one without), and the node creates the schemas when it starts, each once, so `wow.ddl` decides whether they are created, validated or left alone. `Ddl.apply(describe, exists, create, validate)` runs a structure's native checks as the mode says, and `EnsuredOnce` makes sure of each structure once, on its first use, however many ask at once.
+
+The node probes each store it placed (`Store.probe`: a pooled connection's validity, a `ping`, a cluster's info) for its health: a store holding a log or a type's primary snapshots decides whether the node is ready, any other only shows how it is. Once the node stopped it closes each store once (`Store.closeStore`); the resources the host gave it are the host's to close.
 
 The host finds providers through Java's `ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`, and among the application's beans; a bean takes the place of a provider of the same type on the class path. A provider is stateless: each store instance gets its own `Store`, over the resources its configuration finds, a `DataSource` or a driver's client.
 
@@ -39,7 +41,7 @@ Until the configuration surface is final, a provider of type `<type>` reads the 
 
 ## The contract tests
 
-A backend's correctness is the contract, not its own tests. The TCK holds one abstract spec per port, and a backend proves itself by running the specs of the ports it implements against a fresh, empty store of its own. Wow's backends are held to this before they merge (decision D196), and a backend outside the repository is held to the same specs (decision D12).
+A backend's correctness is the contract, not its own tests. The TCK holds one abstract spec per port, and a backend proves itself by running the specs of the ports it implements against a fresh, empty store of its own. Wow's backends are held to this before they merge, and a backend outside the repository is held to the same specs.
 
 ### Run the TCK on your backend {#run-the-tck}
 
@@ -56,7 +58,23 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
    }
    ```
 
-2. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, so the test class opts in with `@OptIn(WowSpi::class)`. The PostgreSQL log's test is the whole of what a log needs, with the two optional hooks that run the snapshot-tail and refused-stream tests:
+2. **Run the whole store through `StoreTck`.** Give it the configuration of a store, and the kit opens it through your `StoreProvider` (found by `ServiceLoader` from its type, as the host finds it) and runs every port's spec against what the store opens: `EventLogSpec` when the store holds logs, `SnapshotStoreSpec` when it holds snapshots, and the control plane (timers, checkpoints, leases, the failure ledger, reservations) wherever it holds logs. A store that holds no log must refuse the log and the control plane with an `UnsupportedOperationException` that names it, and the kit checks that it does. A port the provider forgets to open, or opens wrong, fails here, where the per-port specs, fed the backend's own classes, cannot see it. The kit reads the time through the store (`StoreConfig.clock`), so pass `config.clock` to every port that reads the current time. The report names the backend's class and the port, `PostgresStoreTck > EventLog > ...`.
+
+   <!-- sample: fragment -->
+
+   ```kotlin
+   class PostgresStoreTck : StoreTck() {
+       override fun config(): StoreConfig = StoreConfig.of(
+           name = "tck",
+           type = PostgresStoreProvider.TYPE,
+           resources = StoreResources.of(mapOf("dataSource" to PostgresFixture.dataSource)),
+       )
+   }
+   ```
+
+   Override `provider(type)` for a provider the class path does not list, and `refused(stream)` as in the log's spec.
+
+3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, so the test class opts in with `@OptIn(WowSpi::class)`. The PostgreSQL log's test is the whole of what a log needs, with the two optional hooks that run the snapshot-tail and refused-stream tests:
 
    <!-- sample: fragment -->
 
@@ -74,12 +92,13 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
    }
    ```
 
-3. **Give each test its own storage, or keep them apart.** The log and snapshot specs pass each test a context of its own, so a backend that keeps a table or a collection per context isolates them; the checkpoint spec uses a group per test. The timer spec calls `createStore()` more than once in one test and expects each call to give a store over the same storage: return one store, or one per call over the same database.
+4. **Give each test its own storage, or keep them apart.** The log and snapshot specs pass each test a context of its own, so a backend that keeps a table or a collection per context isolates them; the checkpoint spec uses a group per test. The timer spec calls `createStore()` more than once in one test and expects each call to give a store over the same storage: return one store, or one per call over the same database.
 
-4. **Run them in CI.** Wow's backends run the specs in the `integrationTest` source set against `WowContainers` (`postgres`, `mongo`, `kafka`, `clickHouse`, `elasticsearch`, each started once and shared; `newPostgres()` and the others give an unstarted one). A backend with containers of its own runs them the same way.
+5. **Run them in CI.** Wow's backends run the specs in the `integrationTest` source set against `WowContainers` (`postgres`, `mongo`, `kafka`, `clickHouse`, `elasticsearch`, each started once and shared; `newPostgres()` and the others give an unstarted one). A backend with containers of its own runs them the same way.
 
 | Spec | Artifact | Implement | Optional |
 | --- | --- | --- | --- |
+| `StoreTck` | `wow-tck` | `config()`: a store of the backend's type | `provider(type)`, `refused(stream)` |
 | `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`, `refused(stream)` |
 | `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
 | `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
@@ -93,19 +112,19 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetQueryBackendFactory()`, `createTable(table)` | `semanticDivergences` |
 
-Run the specs of the ports the backend implements, not all of them. Among Wow's own, PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
+Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
 
 ### Capabilities and skipped tests {#capabilities}
 
 A backend declares what it can do on the ports themselves, and the spec skips, through a JUnit assumption that names the reason, the tests of what it does not:
 
-- **A store's optional capabilities.** `EventLog.snapshotTails` (a `SnapshotTailReader`) runs the snapshot-tail tests through it, and must serve the store `createSnapshots` returns; without it the spec reads the snapshot and the tail apart, as the node does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **A store's optional capabilities.** `Store.openSnapshotTails` (a `SnapshotTailReader`) runs the snapshot-tail tests through it, over the snapshots `createSnapshots` returns; without it the spec reads the snapshot and the tail apart, as the node does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
 - **What a store refuses.** `refused` returns a stream the backend's storage cannot hold, such as a NUL in a PostgreSQL `jsonb` string, and the spec expects its append to be rejected (`AppendOutcome.Rejected`) and, in an `appendAll`, to fail alone; without it the spec skips that test.
-- **A query backend's storage.** The binding's storage facts say which features the storage serves natively, partly or not at all: keyset pages, unbounded streams, percentiles, temporal aggregation and the others. The spec skips the tests of a feature the storage does not serve. A known divergence from the filter semantics is listed by its case id in `semanticDivergences`, and its test is skipped as a known divergence rather than hidden.
+- **A query backend's storage.** The binding's storage facts say which features the storage serves natively, partly or not at all: keyset pages, unbounded streams, percentiles, temporal aggregation and the others. The spec skips the tests of a feature the storage does not serve, and says which fact declined it and its value: `Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` A known divergence from the filter semantics is listed by its case id in `semanticDivergences`, and its test is skipped as a known divergence rather than hidden.
 
 ### From the 9.x TCK {#from-9x}
 
-9.x had message buses and dispatchers with specs of their own. V10 has no buses (decision D5): subscriptions read the log, and traffic between contexts goes through the topic transport and the Sinks. A backend ported from 9.x runs these instead:
+9.x had message buses and dispatchers with specs of their own. V10 has no buses: subscriptions read the log, and traffic between contexts goes through the topic transport and the Sinks. A backend ported from 9.x runs these instead:
 
 | 9.x spec | V10 |
 | --- | --- |

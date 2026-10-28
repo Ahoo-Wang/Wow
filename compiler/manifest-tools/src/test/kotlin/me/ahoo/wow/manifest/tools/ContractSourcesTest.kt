@@ -27,6 +27,7 @@ import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -86,7 +87,8 @@ class ContractSourcesTest {
         val states = aggregates.map { Manifest.schemaKey(it.state.schema) }
             .filter { runCatching { Class.forName(it) }.isSuccess }
         val fragment = Manifest(contexts = listOf(context))
-            .withDefs(
+            .copyWith(
+                defs =
                 mapOf(
                     "shop.api.order.PlaceOrder" to mapOf("type" to "object"),
                     "shop.api.OrderPlaced" to mapOf("type" to "object")
@@ -94,9 +96,9 @@ class ContractSourcesTest {
             )
         val completed = SchemaIntrospector(javaClass.classLoader).complete(
             Manifest(contexts = listOf(ContextManifest("probe", aggregates = states.map { aggregate(state = it) })))
-                .withDefs(fragment.defs),
+                .copyWith(defs = fragment.defs),
         )
-        return fragment.withDefs(completed.defs)
+        return fragment.copyWith(defs = completed.defs)
     }
 
     @Test
@@ -173,8 +175,20 @@ class ContractSourcesTest {
             "public const val SNAPSHOT: Boolean = true",
             "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
+            "public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)",
+            "public const val QUALIFIED_NAME: String = \"shop-ordering.order\"",
+            "public object Commands {",
+            "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
         )
+    }
+
+    @Test
+    fun `command constants are named in upper snake case`() {
+        ContractSources.commandName("SubmitOrder").assert().isEqualTo("SUBMIT_ORDER")
+        ContractSources.commandName("ApplyHTTPSpec").assert().isEqualTo("APPLY_HTTP_SPEC")
+        ContractSources.commandName("V2Import").assert().isEqualTo("V2_IMPORT")
+        ContractSources.commandName("2fa-reset").assert().isEqualTo("_2FA_RESET")
     }
 
     @Test
@@ -207,10 +221,41 @@ class ContractSourcesTest {
         val plain = ContractSources.of(contract(aggregate()), queryFields = false).single().text
         plain.assert().contains("public object Order {").doesNotContain("QueryField", "SnapshotProperties")
         val withheld = contract(aggregate()).let {
-            it.withDefs(it.defs + (OrderState::class.java.name to mapOf("type" to "object")))
+            it.copyWith(defs = it.defs + (OrderState::class.java.name to mapOf("type" to "object")))
         }
         ContractSources.of(withheld, queryFields = true).single().text.assert()
             .contains("public object Order : SnapshotProperties() {").doesNotContain("STATE__")
+    }
+
+    @Test
+    fun `an aggregate's commands are constants of its Commands object, mounted ones left out, none without commands`() {
+        fun source(vararg commands: CommandManifest) = ContractSources.of(
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "inventory",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                name = "stock",
+                                state = StateManifest(Manifest.schemaRef("StockState")),
+                                commands = commands.toList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            queryFields = false,
+        ).single().text
+        source(
+            CommandManifest("Reserve", schema = Manifest.schemaRef("Reserve")),
+            CommandManifest("Release", schema = Manifest.schemaRef("Release")),
+            CommandManifest("Import", schema = Manifest.schemaRef("Import"), mounted = true),
+        ).assert().contains(
+            "public const val RELEASE: String = \"inventory.stock.Release\"\n\n" +
+                "            /** `Reserve` */\n" +
+                "            public const val RESERVE: String = \"inventory.stock.Reserve\"",
+        ).doesNotContain("IMPORT")
+        source().assert().doesNotContain("object Commands")
     }
 
     @Test

@@ -24,16 +24,15 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
@@ -47,6 +46,7 @@ import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -61,6 +61,7 @@ import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.policy.queryTenantOf
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -95,7 +96,7 @@ class InProcessQueryApi @InternalWowApi constructor(
     private val latest: CommittedStates = CommittedStates.NONE,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE,
-) : QueryApi {
+) : TenantQueryApi {
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(chunkSize >= 1) { "A stream reads at least one record per chunk, not $chunkSize." }
@@ -112,8 +113,7 @@ class InProcessQueryApi @InternalWowApi constructor(
      * scope pins [tenantId], so it reads that whole tenant and no other, and [SubscriptionQueries.trusted] for the
      * rest. A type whose tenant is fixed to another one shows such queries nothing.
      */
-    @InternalWowApi
-    fun tenant(tenantId: String): SubscriptionQueries = TenantScoped(tenantId)
+    override fun tenant(tenantId: String): SubscriptionQueries = TenantScoped(tenantId)
 
     /** The queries of [caller]; a state read by id reads in the [pinned] tenant when given, else in the caller's. */
     private open inner class Scoped(val caller: QueryCaller, val pinned: String? = null) : Queries {
@@ -160,17 +160,17 @@ class InProcessQueryApi @InternalWowApi constructor(
         private val check: (Any) -> Unit = {},
         private val row: (ObjectNode) -> R,
     ) : RowQueries<R> {
-        override suspend fun single(query: ISingleQuery): R? {
+        override suspend fun single(query: SingleQuery): R? {
             check(query)
             return gateway.single(query, caller)?.let(row)
         }
 
-        override fun list(query: IListQuery): Flow<R> = flow {
+        override fun list(query: ListQuery): Flow<R> = flow {
             check(query)
             emitAll(gateway.list(query.withListDefault(), caller).map(row))
         }
 
-        override fun stream(query: IListQuery, after: String?): Flow<Positioned<R>> = flow {
+        override fun stream(query: ListQuery, after: String?): Flow<Positioned<R>> = flow {
             check(query)
             if (gateway.resumes(query)) {
                 emitAll(
@@ -182,27 +182,27 @@ class InProcessQueryApi @InternalWowApi constructor(
             }
         }
 
-        override suspend fun paged(query: IPagedQuery): PagedList<R> {
+        override suspend fun paged(query: PagedQuery): PagedList<R> {
             check(query)
             val page = gateway.paged(query, caller)
             return PagedList(page.total, page.list.map(row), page.exact)
         }
 
-        override suspend fun cursor(query: ICursorQuery): CursorPage<R> {
+        override suspend fun cursor(query: CursorQuery): CursorPage<R> {
             check(query)
             val page = gateway.cursor(query, caller)
             return CursorPage(page.list.map(row), page.nextCursor)
         }
 
-        override suspend fun count(query: ICountQuery): CountResult = gateway.count(query, caller)
+        override suspend fun count(query: CountQuery): CountResult = gateway.count(query, caller)
 
         override fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> =
             gateway.aggregate(query, caller).map { decode(it, groupType) }
 
-        /** This list with the budget's list default when it names no limit (`0`), as the public port runs it. */
-        private fun IListQuery.withListDefault(): IListQuery {
+        /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
+        private fun ListQuery.withListDefault(): ListQuery {
             val default = gateway.entryPolicy.budget(caller.entry)?.listDefault(defaultListSize)
-            return if (limit != 0 || default == null) {
+            return if (limit != null || default == null) {
                 this
             } else {
                 ListQuery(filter = filter, projection = projection, sort = sort, limit = default)
@@ -299,10 +299,10 @@ class InProcessQueryApi @InternalWowApi constructor(
     }
 
     private fun snapshotGateway(type: AggregateType): QueryGateway =
-        requireNotNull(engine.snapshots(type)) { "No snapshot query of $type is served on this node." }
+        engine.snapshots(type) ?: throw QueryNotServedException(type, QueryModel.SNAPSHOT)
 
     private fun eventGateway(type: AggregateType): QueryGateway =
-        requireNotNull(engine.events(type)) { "No events query of $type is served on this node." }
+        engine.events(type) ?: throw QueryNotServedException(type, QueryModel.EVENTS)
 
     companion object {
         /** The list size a `list` that names none runs with by default, the public port's. */

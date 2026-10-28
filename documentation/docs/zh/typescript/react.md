@@ -7,7 +7,7 @@ description: 用 wow-react 在 React 组件中通过生成的查询客户端运�
 
 `@ahoo-wang/wow-react` 在组件中保存一个 Wow 查询：查询本身、它的结果、是否正在加载，以及它失败时的错误。hook 在挂载时运行查询，查询改变时再次运行，取消被更新的查询替换掉的请求，并在卸载时取消请求。这些查询就是[读取与查询](./queries)中的那些，通过生成的查询客户端运行。
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## 安装 {#install}
 
@@ -75,18 +75,18 @@ export function PaidOrders({
 | `useListQuery` | `listQuery(…)` | 记录列表 |
 | `usePagedQuery` | `pagedQuery(…)` | `{ total, exact, list }` |
 | `useCountQuery` | `{ filter, limit? }` | `{ count, exact }` |
-| `useListStreamQuery` | `listQuery(…)`，以服务端推送事件 | 陆续到达的 `items`，然后是 `done` |
+| `useStreamQuery` | `listQuery(…)`，以服务端推送事件 | 陆续到达的 `items`，然后是 `done` |
 
 聚合查询和游标查询没有自己的 hook。游标查询通过 `useSingleQuery` 运行，以这一页作为它的结果；聚合则在一个清理时会中止的 effect 中用 `client.aggregate(query, { signal })` 运行。
 
 ## 流式读取长列表 {#stream-a-long-list}
 
-`useListStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。服务切断的流会从停下的地方续读，就像 `listStream` 那样：
+`useStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。服务切断的流会从停下的地方续读，就像 `stream` 那样：
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useListStreamQuery } from '@ahoo-wang/wow-react';
+import { useStreamQuery } from '@ahoo-wang/wow-react';
 import type {
   OrderSnapshotQueryClient,
   OrderState,
@@ -94,12 +94,12 @@ import type {
 } from './generated/ordering/index.js';
 
 export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) {
-  const { items, done, loading, error, abort } = useListStreamQuery<
+  const { items, done, loading, error, abort } = useStreamQuery<
     SnapshotRecord<OrderState>,
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),
-    execute: (query, options) => orders.listStream(query, options),
+    execute: (query, options) => orders.stream(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;

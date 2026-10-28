@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.sql.Connection
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicReferenceArray
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -85,23 +86,75 @@ object PostgresTimeouts {
      * lock waits by [serverMillis], its idle time, between two statements, by twice the network timeout. A query's
      * transaction gives its own budget instead ([statementMillis]) and is [readOnly]. One round trip,
      * before the transaction's first statement; nothing on a connection without a network timeout that is given
-     * neither.
+     * neither. A store's own transaction sends them with its first statement instead ([inTransaction]).
      */
     fun boundTransaction(connection: Connection, statementMillis: Long? = null, readOnly: Boolean = false) {
+        val bound = transactionBound(connection, statementMillis, readOnly) ?: return
+        connection.createStatement().use { it.execute(bound.alone) }
+    }
+
+    /**
+     * The bound of a transaction of [connection], as [boundTransaction] sends it; none to send. One instance for each
+     * network timeout, statement budget and read-only flag seen lately: a store's transactions take theirs without
+     * building it again.
+     */
+    internal fun transactionBound(
+        connection: Connection,
+        statementMillis: Long?,
+        readOnly: Boolean,
+    ): TransactionBound? {
         val network = connection.networkTimeout
-        val server = serverMillis(network)
-        val settings = buildList {
+        val millis = statementMillis ?: NO_BUDGET
+        val slot = (31 * (31 * network + millis.hashCode()) + readOnly.hashCode()).mod(BOUNDS)
+        val known = bounds.get(slot)
+        val bound = if (known != null && known.isFor(network, millis, readOnly)) {
+            known
+        } else {
+            TransactionBound(network, millis, readOnly).also { bounds.set(slot, it) }
+        }
+        return bound.takeIf { it.count > 0 }
+    }
+
+    /** No statement budget of its own: the transaction's statements are bounded by the network timeout. */
+    private const val NO_BUDGET = -1L
+
+    /** How many bounds [transactionBound] keeps: a few data sources' stores and their queries' budgets. */
+    private const val BOUNDS = 16
+
+    private val bounds = AtomicReferenceArray<TransactionBound>(BOUNDS)
+
+    /**
+     * The statements that bound a transaction on a connection whose client waits [network] milliseconds: its
+     * statements by [statementMillis] (or [NO_BUDGET]: the server's bound) and [readOnly]; [count] of them, as a
+     * statement's [prefix] or [alone].
+     */
+    internal class TransactionBound(
+        private val network: Int,
+        private val statementMillis: Long,
+        private val readOnly: Boolean,
+    ) {
+        private val statements: List<String> = buildList {
+            val server = serverMillis(network)
             if (readOnly) add("SET TRANSACTION READ ONLY")
-            (statementMillis ?: server.toLong().takeIf { it > 0 })?.let { add("SET LOCAL statement_timeout = $it") }
+            val budget = if (statementMillis == NO_BUDGET) server.toLong() else statementMillis
+            if (budget > 0) add("SET LOCAL statement_timeout = $budget")
             if (server > 0) {
                 add("SET LOCAL lock_timeout = $server")
                 add("SET LOCAL idle_in_transaction_session_timeout = ${2L * network}")
             }
         }
-        if (settings.isEmpty()) {
-            return
-        }
-        connection.createStatement().use { it.execute(settings.joinToString("; ")) }
+
+        /** How many statements, each answering one result before the statement they prefix. */
+        val count: Int = statements.size
+
+        /** The statements on their own. */
+        val alone: String = statements.joinToString("; ")
+
+        /** The statements as the start of another statement's text. */
+        val prefix: String = statements.joinToString("") { "$it; " }
+
+        fun isFor(network: Int, statementMillis: Long, readOnly: Boolean): Boolean =
+            this.network == network && this.statementMillis == statementMillis && this.readOnly == readOnly
     }
 }
 

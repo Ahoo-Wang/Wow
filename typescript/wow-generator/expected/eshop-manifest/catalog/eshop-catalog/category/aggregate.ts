@@ -13,6 +13,12 @@ export const CategoryAggregate = {
   path: '/eshop-catalog/category',
   ownership: 'TENANT',
   snapshot: true,
+  Errors: {
+    /** 422: A category's name is never blank. */
+    BLANK_NAME: 'eshop-catalog.category.blank-name',
+    /** 409: Another category has this name. */
+    NAME_TAKEN: 'eshop-catalog.category.name-taken',
+  },
 } as const;
 
 /** The `state.*` paths of `category`'s snapshots a query filters, sorts and projects on. */

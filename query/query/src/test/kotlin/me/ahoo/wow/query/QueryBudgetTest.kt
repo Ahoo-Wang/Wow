@@ -36,11 +36,6 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
@@ -104,8 +99,6 @@ class QueryBudgetTest {
         listOf(
             rule { check(ListQuery(MatchAllFilter, limit = 1001)) } to
                 Triple(size, "limit", "HTTP list query limit[1001] must be between 1 and 1000."),
-            rule { check(PagedQuery(id, pagination = Pagination(index = 0))) } to
-                Triple(size, "pagination.index", "HTTP page index[0] must be greater than or equal to 1."),
             rule { check(PagedQuery(id, pagination = Pagination(index = 1, size = 101))) } to
                 Triple(size, "pagination.size", "HTTP page size[101] must be between 1 and 100."),
             rule { check(PagedQuery(id, pagination = Pagination(index = 200, size = 100))) } to
@@ -141,7 +134,7 @@ class QueryBudgetTest {
     @Test
     fun zeroCapsDisableInputLimits() {
         val budget = budget(maxListSize = 0, maxPageSize = 0)
-        budget.check(ListQuery(MatchAllFilter, limit = 0))
+        budget.check(ListQuery(MatchAllFilter))
         budget.check(PagedQuery(IdFilter("id"), pagination = Pagination(size = 1000)))
         budget.check(CursorQuery(IdFilter("id"), size = 1000))
         val ids = IdsFilter(List(1500) { "$it" })
@@ -209,7 +202,6 @@ class QueryBudgetTest {
     @Test
     fun enforcesPageCursorAndCountingBudgets() {
         listOf(
-            Pagination(index = 0, size = 1),
             Pagination(index = 1, size = 101),
             Pagination(index = 101, size = 100),
             Pagination(index = Int.MAX_VALUE, size = 100),
@@ -646,11 +638,11 @@ class QueryBudgetTest {
 
     /** Routes a test query to the typed check its gateway method uses. */
     private fun QueryBudget.checkFor(queryType: QueryType, query: Any, scope: FilterExpression) = when (queryType) {
-        QueryType.SINGLE -> check(query as ISingleQuery, scope)
-        QueryType.LIST -> check(query as IListQuery, scope)
-        QueryType.PAGED -> check(query as IPagedQuery, scope)
-        QueryType.CURSOR -> check(query as ICursorQuery, scope)
-        QueryType.COUNT -> check(query as ICountQuery, scope)
+        QueryType.SINGLE -> check(query as SingleQuery, scope)
+        QueryType.LIST -> check(query as ListQuery, scope)
+        QueryType.PAGED -> check(query as PagedQuery, scope)
+        QueryType.CURSOR -> check(query as CursorQuery, scope)
+        QueryType.COUNT -> check(query as CountQuery, scope)
         QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
         QueryType.STATE, QueryType.TRACE -> error("A state read has no query budget.")
     }

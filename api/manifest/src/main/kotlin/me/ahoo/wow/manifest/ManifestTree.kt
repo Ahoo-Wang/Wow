@@ -44,6 +44,20 @@ object ManifestTree {
             obj("aggregate" to it.aggregate, "topic" to it.topic, "includeState" to it.includeState)
         },
         "errors" to context.errors.map(::writeError),
+        "commands" to context.commands.map(::writeCommand).ifEmpty { null },
+    )
+
+    private fun writeCommand(command: CommandManifest): Map<String, Any?> = obj(
+        "name" to command.name,
+        "aliases" to command.aliases,
+        "schema" to command.schema,
+        "creation" to command.creation.name,
+        "produces" to command.produces,
+        "routes" to command.routes.map(::writeRoute),
+        "mounted" to command.mounted.takeIf { it },
+        "system" to command.system.takeIf { it },
+        "transformsTo" to command.transformsTo,
+        "description" to command.description,
     )
 
     private fun writeError(error: ErrorManifest): Map<String, Any?> =
@@ -58,19 +72,7 @@ object ManifestTree {
             // Written only when raised, so a Manifest of an aggregate that never raised it reads as before.
             "stateRevision" to aggregate.snapshot.stateRevision.takeIf { it != 1 },
         ),
-        "commands" to aggregate.commands.map {
-            obj(
-                "name" to it.name,
-                "aliases" to it.aliases,
-                "schema" to it.schema,
-                "creation" to it.creation.name,
-                "produces" to it.produces,
-                "routes" to it.routes.map(::writeRoute),
-                "mounted" to it.mounted.takeIf { mounted -> mounted },
-                "transformsTo" to it.transformsTo,
-                "description" to it.description,
-            )
-        },
+        "commands" to aggregate.commands.map(::writeCommand),
         "events" to aggregate.events.map {
             obj(
                 "name" to it.name,
@@ -80,7 +82,6 @@ object ManifestTree {
                 "description" to it.description,
             )
         },
-        "lifecycle" to aggregate.lifecycle,
         "queries" to aggregate.queries.map {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
@@ -99,6 +100,7 @@ object ManifestTree {
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
             "events" to subscription.source.events,
+            "eventSchemas" to subscription.source.eventSchemas.ifEmpty { null },
             "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
@@ -121,6 +123,7 @@ object ManifestTree {
                 "timeout" to it.timeout,
                 "recoverable" to it.recoverable,
                 "unrecoverable" to it.unrecoverable,
+                "multiplier" to it.multiplier,
             )
         },
         "job" to subscription.job?.let {
@@ -173,6 +176,20 @@ object ManifestTree {
             )
         },
         errors = node.objects("errors").map(::readError),
+        commands = if (node.has("commands")) node.objects("commands").map(::readCommand) else emptyList(),
+    )
+
+    private fun readCommand(node: Node): CommandManifest = CommandManifest(
+        name = node.string("name"),
+        aliases = node.strings("aliases"),
+        schema = node.string("schema"),
+        creation = Creation.valueOf(node.string("creation")),
+        produces = if (node.has("produces")) node.strings("produces") else null,
+        routes = node.objects("routes").map(::readRoute),
+        mounted = node.booleanOrNull("mounted") ?: false,
+        transformsTo = if (node.has("transformsTo")) node.strings("transformsTo") else null,
+        description = node.stringOrNull("description"),
+        system = node.booleanOrNull("system") ?: false,
     )
 
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
@@ -192,19 +209,7 @@ object ManifestTree {
                     snapshot?.intOrNull("stateRevision") ?: 1,
                 )
             },
-            commands = node.objects("commands").map {
-                CommandManifest(
-                    name = it.string("name"),
-                    aliases = it.strings("aliases"),
-                    schema = it.string("schema"),
-                    creation = Creation.valueOf(it.string("creation")),
-                    produces = if (it.has("produces")) it.strings("produces") else null,
-                    routes = it.objects("routes").map(::readRoute),
-                    mounted = it.booleanOrNull("mounted") ?: false,
-                    transformsTo = if (it.has("transformsTo")) it.strings("transformsTo") else null,
-                    description = it.stringOrNull("description"),
-                )
-            },
+            commands = node.objects("commands").map(::readCommand),
             events = node.objects("events").map {
                 EventManifest(
                     name = it.string("name"),
@@ -214,7 +219,6 @@ object ManifestTree {
                     description = it.stringOrNull("description"),
                 )
             },
-            lifecycle = node.strings("lifecycle"),
             queries = node.objects("queries").map {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
@@ -234,6 +238,7 @@ object ManifestTree {
                 context = source.stringOrNull("context"),
                 aggregates = source.strings("aggregates"),
                 events = source.strings("events"),
+                eventSchemas = source.stringsOrNull("eventSchemas").orEmpty(),
                 nullableState = source.booleanOrNull("nullableState") ?: false,
             ),
             function = FunctionManifest(
@@ -256,6 +261,7 @@ object ManifestTree {
                     timeout = it.stringOrNull("timeout"),
                     recoverable = if (it.has("recoverable")) it.strings("recoverable") else null,
                     unrecoverable = if (it.has("unrecoverable")) it.strings("unrecoverable") else null,
+                    multiplier = it.doubleOrNull("multiplier"),
                 )
             },
             job = node.objOrNull("job")?.let {
@@ -290,6 +296,7 @@ object ManifestTree {
         fun stringOrNull(field: String): String? = typed<String>(field, "a string")
         fun string(field: String): String = required(field, stringOrNull(field))
         fun intOrNull(field: String): Int? = typed<Number>(field, "a number")?.toInt()
+        fun doubleOrNull(field: String): Double? = typed<Number>(field, "a number")?.toDouble()
         fun int(field: String): Int = required(field, intOrNull(field))
         fun booleanOrNull(field: String): Boolean? = typed<Boolean>(field, "a boolean")
         fun objOrNull(field: String): Node? = typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field") }

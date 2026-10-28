@@ -14,7 +14,7 @@ Put `wow-postgres` and HikariCP on the class path and set `spring.datasource.url
 
 An application that defines a `DataSource` bean of its own keeps it, and one with Spring Boot's JDBC module (`spring-boot-starter-jdbc`) gets the one Spring Boot makes of the same properties. The eShop's services set only the properties, in their `postgres` profile:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:
@@ -25,8 +25,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 `wow.backend: postgres` names the backend instead of leaving it to the beans the application has. Each service has a database of its own; two services never share one.
@@ -78,7 +76,7 @@ SELECT pg_reload_conf();
 
 The defaults follow the operating system, often two hours of silence before the first probe.
 
-**Wow's bounds inside its transactions.** Each transaction a store opens starts with one batch of `SET LOCAL`, derived from the connection's timeout (`wow.postgres.operation-timeout`, 30 seconds by default), with no setting of its own:
+**Wow's bounds inside its transactions.** Each transaction a store opens starts with one batch of `SET LOCAL`, sent with its first statement in the same round trip (a first statement that batches rows sends it on its own first), and derived from the connection's timeout (`wow.postgres.operation-timeout`, 30 seconds by default), with no setting of its own:
 
 | Setting | Value | So that |
 | --- | --- | --- |

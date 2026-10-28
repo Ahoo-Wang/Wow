@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 
 /**
@@ -45,12 +46,17 @@ fun interface ContextQueries {
         }
 
         /**
-         * The queries of [api] by tenant: a tenant's are [QueryApi.of] a caller of that tenant with no owner, space,
-         * subject or attribute, the rest [QueryApi.trusted]. For an API that cannot pin a tenant itself, such as a
-         * test's fake; the node's pins it as trusted code.
+         * The queries of [api] by tenant, as a node and a test alike build them: those of a [TenantQueryApi], the
+         * node's, which pins the tenant as trusted code ([TenantQueryApi.tenant]); for any other API, a test's fake
+         * say, [QueryApi.of] a caller of that tenant with no owner, space, subject or attribute, the rest
+         * [QueryApi.trusted].
          */
         @JvmStatic
-        fun of(api: QueryApi): ContextQueries = ContextQueries { tenantId -> TenantQueries(api, tenantId) }
+        fun of(api: QueryApi): ContextQueries = if (api is TenantQueryApi) {
+            ContextQueries(api::tenant)
+        } else {
+            ContextQueries { tenantId -> TenantQueries(api, tenantId) }
+        }
     }
 }
 

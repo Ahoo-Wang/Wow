@@ -29,7 +29,7 @@ This service runs without a topic transport, so it does not publish its streams 
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
 
 ```yaml
 wow:
@@ -86,7 +86,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 ## 持久的命令摄入 {#durable-command-intake}
 
-默认情况下，命令经集群通道路由到它的聚合的属主，`ACCEPTED` 只表示它通过了准入：执行它之前停止的节点会丢掉它。对于一旦被接收就不能丢的命令，例如异步摄入或吸收负载高峰，用 `wow.aggregates.[<context>.<aggregate>].routing: kafka` 让它们的聚合类型经 Kafka 路由：
+默认情况下，命令经集群通道路由到它的聚合的属主，`ACCEPTED` 只表示它通过了准入：执行它之前停止的节点会丢掉它。对于一旦被接收就不能丢的命令，例如异步摄入或吸收负载高峰，用 `wow.aggregates.[<context>.<aggregate>].routing: topic` 让它们的聚合类型经 Kafka 路由：
 
 - 准入这种命令的节点把它写进上下文的命令主题，并等待 broker 确认。只等待 `accepted` 的请求在 broker 确认后以 202 返回；从此这条命令就是持久的。
 - 聚合所在分区的属主从主题读取并执行它，所以一个聚合的命令保持顺序。更长的等待，例如 `snapshot`，照常继续。

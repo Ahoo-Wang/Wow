@@ -99,16 +99,20 @@ class DependencyQualifierTest {
     fun `a qualified parameter should be its own dependency, found by its qualifier`() {
         val (compilation, result) = compileModel("generate", options, wallet, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        // The factory defaults to the module's context, and the aggregate's names are an object beside it.
         generated(compilation, "WalletModel.kt").readText().assert().contains(
-            "public fun walletModel(context: String, rateFxPrimary: sample.fx.Rate, rateBackup: sample.fx.Rate, " +
-                "rate: sample.fx.Rate, configure:",
+            "public fun walletModel(context: String = \"bank\", rateFxPrimary: sample.fx.Rate, " +
+                "rateBackup: sample.fx.Rate, rate: sample.fx.Rate, configure:",
             ".afterCommand(command as sample.fx.Convert, rateBackup, rate)",
+            "public object WalletModel {",
+            "public const val CONTEXT: String = \"bank\"",
+            "public val TYPE: me.ahoo.wow.api.aggregate.AggregateType = me.ahoo.wow.api.aggregate.AggregateType(CONTEXT, NAME)",
         )
         generated(compilation, "BankDomainModelProvider.kt").readText().assert().contains(
             "sample.fx.walletModel(context, " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"/fx/primary\"), " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"backup\"), " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType)),",
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"/fx/primary\", \"the Wallet model\"), " +
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"backup\", \"the Wallet model\"), " +
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, null, \"the Wallet model\")),",
         )
 
         val resources = generated(compilation, ModelProviderSource.MODEL_PROVIDER).parentFile.parentFile.parentFile

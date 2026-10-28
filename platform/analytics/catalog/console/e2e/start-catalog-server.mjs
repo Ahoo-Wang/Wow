@@ -18,8 +18,8 @@
  * `webServer` starts it and stops it when the run ends. It runs on the memory
  * backend with:
  *
- * - `wow.query.memory.enabled` (D209): the in-memory reference query
- *   backend serves the snapshot queries on the memory backend;
+ * - its snapshot queries, which the memory backend serves by default from the
+ *   in-memory reference query backend;
  * - from the server's test classes, `WarehouseSimulatorRoutes`: the warehouse
  *   in memory in place of ClickHouse, and `POST /testing/warehouse/tables`,
  *   which the suite puts the tables it drafts sources of through.
@@ -85,12 +85,11 @@ const server = spawn(
     "--wow.subscription.checkpoint-interval=100ms",
     "--wow.analytics.catalog.refresh-interval=500ms",
     "--wow.analytics.catalog.datasets.refresh-interval=200ms",
-    "--wow.query.memory.enabled=true",
     ...(cosec
       ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
         ["--spring.profiles.active=cosec"]
-      : // The console names its caller in headers, which the server trusts only when told to (a local run).
-        ["--wow.platform.trust-identity-headers=true"]),
+      : // The console names its caller in headers, which the server reads in development alone (a local run).
+        ["--spring.profiles.active=dev"]),
     `--spring.main.sources=${SOURCES.join(",")}`,
     `--spring.web.resources.static-locations=${new URL(`file://${CONSOLE}`).href}`,
   ],

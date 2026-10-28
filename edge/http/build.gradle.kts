@@ -28,7 +28,7 @@ dependencies {
     testImplementation(project(":query-tck"))
     // The typed clients, as a peer calls the routes (the main code shares only the wire grammar of `:api`, D286).
     testImplementation(project(":client"))
-    testImplementation(testFixtures(project(":manifest")))
+    testImplementation(project(":manifest"))
     // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
     testImplementation(libs.json.schema.validator)
 }

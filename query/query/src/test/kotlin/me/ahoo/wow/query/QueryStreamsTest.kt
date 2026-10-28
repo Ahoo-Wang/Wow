@@ -26,7 +26,6 @@ import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
@@ -248,11 +247,11 @@ class QueryStreamsTest {
         schema.describe(null, null).record.stream.resumable.assert().isTrue()
         // A gateway that does not stream says so.
         val plain = object : QueryGateway by gateway {
-            override suspend fun resumes(query: IListQuery): Boolean =
+            override suspend fun resumes(query: ListQuery): Boolean =
                 super<QueryGateway>.resumes(query)
 
             override fun stream(
-                query: IListQuery,
+                query: ListQuery,
                 caller: QueryCaller,
                 after: String?,
                 chunkSize: Int,

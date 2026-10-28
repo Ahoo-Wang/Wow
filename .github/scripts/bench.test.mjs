@@ -18,7 +18,13 @@ import {
   planMatrix,
   parseJob,
   bootstrapRatio,
+  calibratedGeneratorBound,
   confidence,
+  cpuSplit,
+  GENERATOR_BOUND,
+  generatorBound,
+  PG_LOAD_CPUS,
+  saturationRatioBound,
   halves,
   noiseFile,
   propertiesOf,
@@ -432,6 +438,94 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
       'utf8',
     ),
     /\| r1-base \| base \| 120\.0\/s \| 120\.0\/s/,
+  );
+});
+
+test('cpuSplit gives the load generator the last CPUs and the servers the others', () => {
+  assert.deepEqual(cpuSplit(4), { load: '3', server: '0-2' });
+  assert.deepEqual(cpuSplit(4, 2), { load: '2-3', server: '0-1' });
+  assert.deepEqual(cpuSplit(8, 2), { load: '6-7', server: '0-5' });
+  // Below four CPUs, or a split that would leave the servers less than two, nothing is pinned.
+  assert.deepEqual(cpuSplit(2), {});
+  assert.deepEqual(cpuSplit(4, 3), {});
+  assert.deepEqual(cpuSplit(Number.NaN), {});
+  for (const name of ['e1-pg-uniform', 'e3-pg', 'mixed-pg'])
+    assert.equal(SUITES[name].loadCpus, PG_LOAD_CPUS);
+  assert.equal(SUITES['e1-mongo-uniform'].loadCpus, undefined);
+});
+
+test('runSuite pins a PostgreSQL suite with its own split of the runner', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  runSuite('e1-pg-uniform', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    cpus: { total: 4 },
+    installs: { base: '/builds/base/benchmark-server' },
+    refs: { baseRef: 'base', baseSha: 'b1', headRef: 'v10', headSha: 'h1' },
+    out: join(dir, 'results', 'e1-pg-uniform'),
+  });
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.match(calls, /--load-cpus=2-3 --server-cpus=0-1/);
+  assert.doesNotMatch(calls, /--load-cpus=3 /);
+});
+
+test('a ratio the load generator capped is shown as invalid, not as a ratio', () => {
+  assert.equal(generatorBound(0.97, 1), true);
+  assert.equal(generatorBound(0.8, 1), false);
+  assert.equal(generatorBound(1.85, 2), true);
+  assert.equal(generatorBound(undefined, 1), false);
+  assert.equal(generatorBound(0.97, undefined), false);
+
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  runSuite('e1-mongo-uniform', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 2,
+    fraction: 0.8,
+    installs: { base: '/builds/base/benchmark-server' },
+    refs: { baseRef: 'base', baseSha: 'b1', headRef: 'v10', headSha: 'h1' },
+    out: join(dir, 'results', 'e1-mongo-uniform'),
+  });
+  const [suite] = readSuites(join(dir, 'results'));
+  assert.equal(saturationRatioBound(suite), false);
+  assert.equal(calibratedGeneratorBound(suite), false);
+  const clean = renderReport([suite], suite.refs);
+  assert.doesNotMatch(clean, new RegExp(GENERATOR_BOUND));
+
+  // The head's saturation step used 0.98 of its one core, and so did a calibrated run of the baseline.
+  suite.saturation.head = {
+    ...suite.saturation.head,
+    generatorCores: 0.98,
+    generatorCpus: 1,
+  };
+  const run = suite.runs.find(r => r.arm === 'base' && r.mode !== 'equal');
+  run.metrics = {
+    ...run.metrics,
+    loadGeneratorCores: 0.97,
+    loadGeneratorCpus: 1,
+  };
+  assert.equal(saturationRatioBound(suite), true);
+  assert.equal(calibratedGeneratorBound(suite), true);
+  const report = renderReport([suite], suite.refs);
+  // The saturation ratio and every calibrated ratio; the equal-rate rows still compare.
+  assert.match(
+    report,
+    /\| e1-mongo-uniform@100k \| head\/base \| calibrated \(unequal load\) \| invalid: generator-bound \| invalid: generator-bound \|/,
+  );
+  assert.match(
+    report,
+    /\| e1-mongo-uniform@100k \| head\/base \| equal rate 90\.0\/s \| invalid: generator-bound \| 1\.000/,
+  );
+  assert.match(report, /invalid: generator-bound, 0\.98 of 1 cores/);
+  assert.match(
+    report,
+    /\| e1-mongo-uniform@100k \| head\/base \| throughput \| calibrated \| .* \| invalid: generator-bound \|/,
   );
 });
 

@@ -131,8 +131,8 @@ export type Say = (value: string) => string;
 /**
  * How a definition's keys (`text(key)`) are said here: in the wording in
  * force — the nearest provider's `messages`, merged over the ones above —
- * else in the words the engine was built with, else as the key itself
- * (D2). Every label a definition carries passes through this where it is
+ * else in the words the engine was built with, else as the key itself.
+ * Every label a definition carries passes through this where it is
  * shown or leaves the engine — a cell, a chart's option, an export, an
  * accessible name — and nowhere else: the state, the snapshots and what an
  * editor takes and gives back keep their keys. A change of language is a
@@ -147,7 +147,7 @@ export function useSay(messages?: ViewMessages): Say {
 /**
  * `value` with every string in it as `say` shows it: a drawing's input —
  * a chart's series, lines and stages, its spec's axis names — said as it
- * reaches the code that draws it, and never kept (D2). The same object
+ * reaches the code that draws it, and never kept. The same object
  * where nothing in it is a key; a class instance, a `Date` or a `Map` is
  * left as it is.
  */

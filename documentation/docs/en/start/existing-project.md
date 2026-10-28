@@ -6,7 +6,7 @@ outline: deep
 
 # Add Wow to an Existing Service
 
-The [Quickstart](./quickstart) fits a service in one module. A real service splits into three, so that other services can depend on its contract without its domain, and its domain on the kernel without the host. This page sets that up, with the eShop's catalog as the example; every service of the [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) has the same shape.
+The [Quickstart](./quickstart) fits a service in one module. A real service splits into three, so that other services can depend on its contract without its domain, and its domain on the kernel without the host. This page sets that up, with the eShop's catalog as the example; every service of the [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) has the same shape.
 
 ## What you need
 
@@ -121,7 +121,8 @@ The `wow { }` block configures it:
 | `context` | The module's one `@BoundedContext` | The context of the module's aggregates and processors |
 | `addCompilerDependency` | `true` | Whether the plugin adds `wow-compiler` to `ksp` |
 | `schemaOverrides` | Empty | A JSON Schema per JVM class name, for a type a custom serializer writes |
-| `serviceName`, `serviceVersion` | The project's name and version | The service the merged Manifest describes |
+| `serviceName` | The service the contracts of its contexts name, else the project's name | The service the merged Manifest describes; set it when its contexts' contracts name different services |
+| `serviceVersion` | The project's version | The version of the service the merged Manifest describes |
 | `manifestBaseline` | `manifest/baseline.json` | The committed baseline of the compatibility check |
 
 `catalog-server/build.gradle.kts`:
@@ -161,7 +162,7 @@ The host brings Spring Boot and WebFlux with it. Choose `wow-mongo` instead of `
 
 A domain module declares its bounded context once, on an object of its own:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.domain
@@ -186,7 +187,7 @@ The api module holds the commands and events, data classes without identity fiel
 
 The server is an ordinary Spring Boot application. The catalog's needs nothing more than its class:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.server

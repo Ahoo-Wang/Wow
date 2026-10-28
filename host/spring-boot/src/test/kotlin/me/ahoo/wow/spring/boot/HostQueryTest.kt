@@ -135,8 +135,8 @@ class HostQueryTest {
     }
 
     @Test
-    fun `on the memory backend neither the snapshots nor the events should be served by default`() {
-        startHost().use { host ->
+    fun `on the memory backend neither the snapshots nor the events should be served when turned off`() {
+        startHost("wow.query.memory.enabled" to false).use { host ->
             val queries = host.context.getBean(HttpQueries::class.java)
             // The in-memory events scan follows wow.query.memory.enabled, as the snapshots do (review R3.4-1).
             queries.events(ACCOUNT).assert().isNull()
@@ -156,6 +156,7 @@ class HostQueryTest {
     @Test
     fun `without a snapshot query gateway the events model should stay under ABAC`() {
         startHost(
+            "wow.query.memory.enabled" to false,
             "wow.query.abac.enabled" to true,
             "wow.query.abac.match-missing-tag-key" to false,
             sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
@@ -176,11 +177,8 @@ class HostQueryTest {
     }
 
     @Test
-    fun `an application's own backend factory should get no events scan, even with wow-query-memory-enabled`() {
-        startHost(
-            "wow.query.memory.enabled" to true,
-            sources = listOf(HostTestApp::class.java, ApplicationBackends::class.java),
-        ).use { host ->
+    fun `an application's own backend factory should get no events scan, though memory queries are on`() {
+        startHost(sources = listOf(HostTestApp::class.java, ApplicationBackends::class.java)).use { host ->
             host.context.getBean(HostBackends::class.java).layout.assert().isNull()
             host.context.getBean(EventQueryBackend::class.java).binding(ACCOUNT).assert().isNull()
             host.context.getBean(HttpQueries::class.java).events(ACCOUNT).assert().isNull()
@@ -192,7 +190,7 @@ class HostQueryTest {
 
     @Test
     fun `the memory events scan should serve only the node's own contexts`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+        startHost().use { host ->
             val events = host.context.getBean(EventQueryBackend::class.java)
             events.binding(ACCOUNT).assert().isNotNull()
             events.binding(AggregateType("elsewhere", "thing")).assert().isNull()
@@ -201,28 +199,33 @@ class HostQueryTest {
 
     @Test
     fun `an application's query policy should hide events without a snapshot query gateway, ABAC off`() {
-        startHost(sources = listOf(HostTestApp::class.java, ScannedEvents::class.java, HideFromMallory::class.java))
-            .use { host ->
-                val id = host.openAccount("mona")
-                val queries = host.context.getBean(HttpQueries::class.java)
-                queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
-                val events = queries.events(ACCOUNT)!!
-                fun eventsOf(subject: String, aggregate: String = id) = runBlocking {
-                    events.list(
-                        ListQuery(AggregateIdFilter(aggregate), limit = 10),
-                        QueryCaller(Caller(subject = subject))
-                    ).toList()
-                }
-                eventsOf("mallory").assert().isEmpty()
-                eventsOf("alice").map { it["version"].asInt() }.assert().containsExactly(1)
-                // An aggregate with no committed state has no streams.
-                eventsOf("alice", "no-such-account").assert().isEmpty()
+        startHost(
+            "wow.query.memory.enabled" to false,
+            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java, HideFromMallory::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val queries = host.context.getBean(HttpQueries::class.java)
+            queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
+            val events = queries.events(ACCOUNT)!!
+            fun eventsOf(subject: String, aggregate: String = id) = runBlocking {
+                events.list(
+                    ListQuery(AggregateIdFilter(aggregate), limit = 10),
+                    QueryCaller(Caller(subject = subject))
+                ).toList()
             }
+            eventsOf("mallory").assert().isEmpty()
+            eventsOf("alice").map { it["version"].asInt() }.assert().containsExactly(1)
+            // An aggregate with no committed state has no streams.
+            eventsOf("alice", "no-such-account").assert().isEmpty()
+        }
     }
 
     @Test
     fun `without ABAC or a query policy no snapshot policy gateway is built`() {
-        startHost(sources = listOf(HostTestApp::class.java, ScannedEvents::class.java)).use { host ->
+        startHost(
+            "wow.query.memory.enabled" to false,
+            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
+        ).use { host ->
             val id = host.openAccount("mona")
             val queries = host.context.getBean(HttpQueries::class.java)
             queries.visibility(ACCOUNT).assert().isNull()
@@ -241,7 +244,6 @@ class HostQueryTest {
             "wow.query.budgets.http.timeout" to "5s",
             "wow.query.abac.enabled" to true,
             // The events of the log in memory are scanned (review R3.4-1).
-            "wow.query.memory.enabled" to true,
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
         ).use { host ->
             listOf("mona", "lisa", "nina").forEach { host.openAccount(it) }
@@ -325,8 +327,8 @@ class HostQueryTest {
     }
 
     @Test
-    fun `wow-query-memory-enabled should serve the snapshots and the events of the memory backend`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+    fun `the memory backend should serve its snapshots and its events by default`() {
+        startHost().use { host ->
             val id = listOf("mona", "lisa").map { host.openAccount(it) }.first()
             host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT).assert().isNotNull()
 
@@ -379,7 +381,7 @@ class HostQueryTest {
 
     @Test
     fun `the node's QueryApi should read the snapshots, events and states of its models as a caller`() {
-        startHost("wow.query.memory.enabled" to true, "wow.query.budgets.in-process.max-list-size" to 5).use { host ->
+        startHost("wow.query.budgets.in-process.max-list-size" to 5).use { host ->
             val id = host.openAccount("mona")
             host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
             val api = host.context.getBean(QueryApi::class.java)
@@ -404,7 +406,7 @@ class HostQueryTest {
 
     @Test
     fun `the handlers' queries should read the whole tenant of a commit through the node`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+        startHost().use { host ->
             val id = host.openAccount("mona")
             val node = host.context.getBean(ServiceNode::class.java)
             // The node resolves the query plane's ContextQueries when a handler first reads (decision D259).
@@ -458,7 +460,8 @@ class HostQueryTest {
         policy.requireExplicitEntry.assert().isFalse()
         properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
-        properties.memory.enabled.assert().isFalse()
+        // Unset: on wherever the store is in memory.
+        properties.memory.enabled.assert().isNull()
         properties.budgets.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.IN_PROCESS_DEFAULT.maxListSize)
         policy.inProcess!!.label.assert().isEqualTo(QueryBudget.IN_PROCESS_LABEL)

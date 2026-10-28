@@ -20,9 +20,6 @@ interface Endpoint {
 }
 
 // @public
-export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
-
-// @public
 export type QueryExecutor<Q, R> = (query: Q, options: RequestOptions & {
     readonly signal: AbortSignal;
 }) => Promise<R>;
@@ -53,6 +50,9 @@ export interface QueryHookReturn<Q, R, E = Error> {
 
 // @public
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
+
+// @public
+export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 
 // @public
 export function useCountQuery<FIELDS extends string = string, E = Error>(options: UseCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>): UseCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
@@ -97,20 +97,6 @@ export interface UseFetcherListQueryReturn<R, FIELDS extends string = string, E 
 }
 
 // @public
-export function useFetcherListStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseFetcherListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
-
-// @public
-export function useFetcherListStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
-
-// @public
-export interface UseFetcherListStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>, Endpoint {
-}
-
-// @public
-export interface UseFetcherListStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends UseListStreamQueryReturn<R, FIELDS, E, Q> {
-}
-
-// @public
 export function useFetcherPagedQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 
 // @public
@@ -131,11 +117,25 @@ export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Err
 export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
 
 // @public
-export interface UseFetcherSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R, E>, 'execute'>, Endpoint {
+export interface UseFetcherSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R | undefined, E>, 'execute'>, Endpoint {
 }
 
 // @public
-export interface UseFetcherSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R, E> {
+export interface UseFetcherSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
+}
+
+// @public
+export function useFetcherStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseFetcherStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+
+// @public
+export function useFetcherStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseFetcherStreamQueryOptions<R, FIELDS, E, Q>): UseFetcherStreamQueryReturn<R, FIELDS, E, Q>;
+
+// @public
+export interface UseFetcherStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<UseStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>, Endpoint {
+}
+
+// @public
+export interface UseFetcherStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends UseStreamQueryReturn<R, FIELDS, E, Q> {
 }
 
 // @public
@@ -150,23 +150,6 @@ export interface UseListQueryOptions<R, FIELDS extends string = string, E = Erro
 
 // @public
 export interface UseListQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookReturn<Q, R[], E> {
-}
-
-// @public
-export function useListStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
-
-// @public
-export function useListStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseListStreamQueryOptions<R, FIELDS, E, Q>): UseListStreamQueryReturn<R, FIELDS, E, Q>;
-
-// @public
-export interface UseListStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
-    execute: ListStreamExecutor<R, Q>;
-}
-
-// @public
-export interface UseListStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
-    done: boolean;
-    items: R[];
 }
 
 // @public
@@ -190,11 +173,28 @@ export function useSingleQuery<R, FIELDS extends string = string, E = Error>(opt
 export function useSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseSingleQueryOptions<R, FIELDS, E, Q>): UseSingleQueryReturn<R, FIELDS, E, Q>;
 
 // @public
-export interface UseSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R, E> {
+export interface UseSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R | undefined, E> {
 }
 
 // @public
-export interface UseSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R, E> {
+export interface UseSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
+}
+
+// @public
+export function useStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+
+// @public
+export function useStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseStreamQueryOptions<R, FIELDS, E, Q>): UseStreamQueryReturn<R, FIELDS, E, Q>;
+
+// @public
+export interface UseStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
+    execute: StreamExecutor<R, Q>;
+}
+
+// @public
+export interface UseStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
+    done: boolean;
+    items: R[];
 }
 
 // (No @packageDocumentation comment for this package)

@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: eshop-inventory-service
+server:
+  port: 8084
+wow:
+  # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
+  # profile from PostgreSQL; the `kafka` profile connects it to the other contexts.
+  internal:
+    port: 9094
+# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in a development profile
+# (`dev`, which `./gradlew run` adds) takes its callers from the Wow-* identity headers (the host's development callers),
+# one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
+# node does not start (decision D301).
+wow.cosec.mode: "off"
+---
+# On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
+# the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
+# (WOW_INTERNAL_HOST).
+spring:
+  config:
+    activate:
+      on-cloud-platform: none
+wow:
+  internal:
+    host: 127.0.0.1
+---
+# region mongo
+# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a
+# database of its own.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+wow:
+  mongo:
+    database: eshop_inventory
+# endregion
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_inventory
+    username: postgres
+    password: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    bootstrap-servers: localhost:9092
+    # Execute the commands the ordering context sends to wow.eshop-inventory.commands, which has as many partitions as
+    # the context's log (wow.log.partitions, 64 by default).
+    command-intake:
+      enabled: true
+---
+# region cosec
+# Behind the CoSec gateway (decisions D295, D296): the gateway verifies each request's CoSec token (Authorization:
+# Bearer) and forwards it; CoSec's inject mode here reads the principal from it, with no secret, and wow-cosec's
+# resolver makes it the caller (decision D301): its tenant, its id, its roles. Only the gateway may reach the public
+# port (the deployment's NetworkPolicy). CoSec does not authorize the paths itself: what a caller may do is the
+# service's to say.
+spring:
+  config:
+    activate:
+      on-profile: cosec
+wow:
+  cosec:
+    mode: gateway
+    # An employee is a tenant-level caller (decision D189): no owner, so it reaches every aggregate of the tenant. Any
+    # other principal is a buyer, an owner-level caller that reaches its own.
+    tenant-level:
+      roles: employee
+# endregion

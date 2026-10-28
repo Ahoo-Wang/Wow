@@ -68,8 +68,8 @@ interface FilterValuesHost {
 }
 
 /**
- * What a board's filters hold, and how a change of it reaches the panels
- * (D22 F): admitted against the board on screen — what it refuses is
+ * What a board's filters hold, and how a change of it reaches the panels:
+ * admitted against the board on screen — what it refuses is
  * answered and nothing changes — shown at once, and run a moment later, so a
  * burst of keystrokes is one query per panel (「改了就跑」, the analysis's
  * `AUTO_APPLY_DELAY_MS`). Also what a text filter offers to pick from.

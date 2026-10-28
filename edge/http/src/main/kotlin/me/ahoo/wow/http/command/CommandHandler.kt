@@ -34,7 +34,7 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
@@ -44,8 +44,17 @@ import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 
-/** The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId]. */
-internal data class CommandTarget(val context: String, val aggregate: String, val command: String, val byId: Boolean)
+/**
+ * The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId], or
+ * to the aggregate [id] when the route names it (a built-in aggregate's instance, such as the snapshot rebuild's).
+ */
+internal data class CommandTarget(
+    val context: String,
+    val aggregate: String,
+    val command: String,
+    val byId: Boolean,
+    val id: String? = null,
+)
 
 /**
  * Sends the command of a route through [gateway] (–):
@@ -101,13 +110,13 @@ internal class CommandHandler(
         Negotiation.checkAcceptable(request, alsoEventStream = true)
         Negotiation.checkJsonBody(request)
         val expectedVersion = headers.expectedVersion(request)
-        val command = CommandRequest(
+        val command = ServerCommandRequest(
             context = target.context,
             aggregate = target.aggregate,
             command = target.command,
             body = CommandBody.Bytes(request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
             caller = caller,
-            aggregateId = if (target.byId) request.pathVariable(ID) else null,
+            aggregateId = target.id ?: if (target.byId) request.pathVariable(ID) else null,
             target = headers.target(request),
             requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,
@@ -120,7 +129,7 @@ internal class CommandHandler(
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
     }
 
-    private suspend fun execute(command: CommandRequest, ifMatch: Boolean): ServerResponse {
+    private suspend fun execute(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
         val result = gateway.execute(command)
         if (result.status != CommandResult.Status.SUCCEEDED) {
             return statuses.problemOf(result, ifMatch).respond()
@@ -131,7 +140,7 @@ internal class CommandHandler(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the results of one collection, handed to the response.
-    private suspend fun stream(command: CommandRequest, ifMatch: Boolean): ServerResponse {
+    private suspend fun stream(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
         val results = scope.produce { gateway.send(command).collect { send(it) } }
         // A wait's results end with a final one: a stream never ends without a first result.
         val first = checkNotNull(results.receiveFirst()) { "The command's results ended without one." }

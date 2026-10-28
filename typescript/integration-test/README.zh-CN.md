@@ -7,8 +7,10 @@
 
 `test/view-store/` 拿服务检验存储：视图引擎的端口一致性套件
 （`../wow-view-engine/test/conformance/viewStoreConformance.ts`，按工作区路径导入，
-所以 `tsconfig.json` 把 `rootDir` 设为 `..`）、租户与应用隔离、存储的与配置的系统视图、
-服务的写入角色、租户的数据集措辞、错误、查询路由上的 `viewSourceOf`，以及引擎端到端
+所以 `tsconfig.json` 把 `rootDir` 设为 `..`）；服务自己的规则
+（`../wow-view-store/test/conformance/wowViewStoreService.ts`，存储的假服务也跑它）：
+租户与应用隔离、存储的与配置的系统视图、服务的写入角色、租户的数据集措辞和它的错误码；
+只有网络才能体现的错误；查询路由上的 `viewSourceOf`；以及引擎端到端
 （保存、冲突、结果未知后的重试、共享与认领、偏好、经 查询路由的记录视图和分析）。
 
 ## 运行

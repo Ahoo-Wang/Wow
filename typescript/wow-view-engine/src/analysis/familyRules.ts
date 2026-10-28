@@ -105,8 +105,8 @@ export interface ShapeInput {
 
 /**
  * What the analysis kernel does with a chart of one family: everything that
- * used to be a `switch` over the chart's type or family, one row a family
- * (R2-94). What a family *is* — its options pages, its legend and value
+ * used to be a `switch` over the chart's type or family, one row a family.
+ * What a family *is* — its options pages, its legend and value
  * labels, the shapes it can draw — is the public `CHART_FAMILIES`
  * (`chartFamilies.ts`), a leaf every kernel file may read; this is what the
  * kernel *runs* for it, and it imports each family's code, so it sits above

@@ -31,8 +31,6 @@ import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -105,7 +103,7 @@ class DatasetQueryGatewayTest {
             .list(ListQuery(EqualFilter(QueryField("city"), "Hangzhou"), limit = 10), caller).toList()
             .assert().hasSize(1)
         val admitted = backend.admitted.single()
-        val tenant = ((admitted.query as IListQuery).filter as AndFilter).operands.single { it is TenantIdFilter }
+        val tenant = ((admitted.query as ListQuery).filter as AndFilter).operands.single { it is TenantIdFilter }
         admitted.systemPath(tenant).assert().isEqualTo("tenant_id")
     }
 
@@ -444,9 +442,9 @@ class DatasetQueryGatewayTest {
                 .assert().isEqualTo(CountResult(1, exact = true))
         }
         count(QueryDatasetScope.PLATFORM_TENANT)
-        ((backend.admitted.last().query as ICountQuery).filter).assert().isEqualTo(city)
+        ((backend.admitted.last().query as CountQuery).filter).assert().isEqualTo(city)
         count("t1")
-        ((backend.admitted.last().query as ICountQuery).filter).assert().isSameAs(MatchNoneFilter)
+        ((backend.admitted.last().query as CountQuery).filter).assert().isSameAs(MatchNoneFilter)
 
         val authenticated = QueryEntryPolicy(requireAuthenticatedScope = true)
         assertThrows<QueryScopeRequiredException> {
@@ -577,7 +575,7 @@ class DatasetQueryGatewayTest {
         val admitted = mutableListOf<AdmittedQuery<*>>()
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> {
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> {
             admitted += query
             return flowOf(row())
         }
@@ -587,7 +585,7 @@ class DatasetQueryGatewayTest {
             return BackendPage(listOf(row()), total = 1, positions = listOf(CursorPosition(listOf("o1"))))
         }
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             admitted += query
             return 1
         }

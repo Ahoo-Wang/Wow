@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -28,10 +29,10 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.test.commandCommitted
 import me.ahoo.wow.test.commandRejected
 import me.ahoo.wow.test.commandTypeOf
@@ -67,34 +68,37 @@ class ProcessorSpecTest {
 
     /** A saga, as a user writes it. */
     class OrderSaga {
-        fun onOrder(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
+        fun onOrder(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> {
             val placed = event.events.filterIsInstance<OrderPlaced>().firstOrNull() ?: return emptyList()
             require(placed.total >= 0) { "A total is never negative." }
-            return listOf(
-                context.command(STOCK, Reserve(event.ref.id, placed.total)),
-                context.schedule("remind", ScheduleRule.after(10.minutes), event.ref, Remind(event.ref.id)),
+            context.schedule(
+                "remind",
+                ScheduleRule.after(10.minutes),
+                CommandRequest.to(event.ref, Remind(event.ref.id))
             )
+            return listOf(CommandRequest.to(STOCK, Reserve(event.ref.id, placed.total)))
         }
 
-        fun onCancelled(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
+        fun onCancelled(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> {
             if (event.events.none { it is OrderCancelled }) return emptyList()
-            return listOf(context.cancel("remind", event.ref), context.command(STOCK, Release(event.ref.id)))
+            context.cancel("remind", event.ref)
+            return listOf(CommandRequest.to(STOCK, Release(event.ref.id)))
         }
 
-        fun onQuote(event: StateEvent<Quote>, context: SagaContext): Command<Cancel>? =
+        fun onQuote(event: StateEvent<Quote>): CommandRequest<Cancel>? =
             if (event.events.any { it is PublishedEvent && it.name == "pay.payment.Declined" }) {
-                context.command(ORDER.ref(event.ref.tenantId, event.ref.id), Cancel("declined"))
+                CommandRequest.to(ORDER.ref(event.ref.tenantId, event.ref.id), Cancel("declined"))
             } else {
                 null
             }
 
-        fun onReserveRejected(rejected: CommandRejected<Reserve>, context: SagaContext): Command<Cancel> =
-            context.command(rejected.executionId.ref, Cancel(rejected.error.message))
+        fun onReserveRejected(rejected: CommandRejected<Reserve>): CommandRequest<Cancel> =
+            CommandRequest.to(rejected.source, Cancel(rejected.error.message))
 
-        fun onReserved(committed: CommandCommitted<Reserve>, context: SagaContext): Command<Confirm> =
-            context.command(
-                committed.executionId.ref,
-                Confirm(committed.aggregateId, committed.version, committed.result.duplicate),
+        fun onReserved(committed: CommandCommitted<Reserve>): CommandRequest<Confirm> =
+            CommandRequest.to(
+                committed.source,
+                Confirm(committed.ref.id, committed.version, committed.result.duplicate),
             )
 
         companion object {
@@ -107,13 +111,13 @@ class ProcessorSpecTest {
     private fun orderSagaHandlers(): List<ProcessorBinding<*>> {
         val processor = OrderSaga()
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
-                derivedOf(processor.onReserveRejected(rejected, context))
+            RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, _ ->
+                requestsOf(processor.onReserveRejected(rejected))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
-            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
-                derivedOf(processor.onReserved(committed, context))
+            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, _ ->
+                requestsOf(processor.onReserved(committed))
             },
         )
         return listOf(
@@ -124,10 +128,10 @@ class ProcessorSpecTest {
                 rejections = rejections,
                 commits = commits,
             ) { event, context ->
-                derivedOf(processor.onOrder(event, context))
+                requestsOf(processor.onOrder(event, context))
             },
             ProcessorBinding.saga("OrderSaga", "onCancelled", Order::class.java, rejections = rejections) { e, c ->
-                derivedOf(processor.onCancelled(e, c))
+                requestsOf(processor.onCancelled(e, c))
             },
             ProcessorBinding.saga(
                 "OrderSaga",
@@ -135,7 +139,7 @@ class ProcessorSpecTest {
                 Quote::class.java,
                 rejections = rejections,
                 aggregates = listOf("pay.payment"),
-            ) { e, c -> derivedOf(processor.onQuote(e, c)) },
+            ) { e, _ -> requestsOf(processor.onQuote(e)) },
         )
     }
 
@@ -151,12 +155,24 @@ class ProcessorSpecTest {
             expectCommand<Reserve> {
                 ref.assert().isEqualTo(stock)
                 causation.assert().isEqualTo(Causation("command-3", "shop.order/tenant/order-1@3"))
-                id.assert().isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 0))
+                id.assert().isEqualTo(
+                    ExecutionSagaContext.derivedId(
+                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        stock,
+                        Reserve::class.java
+                    ),
+                )
             }
             expectScheduled("remind", Remind("order-1"), ScheduleRule.after(10.minutes), target = order)
             expectScheduled("remind", Remind("order-1"))
             schedules.single().id.assert()
-                .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 1))
+                .isEqualTo(
+                    ExecutionSagaContext.derivedId(
+                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        order,
+                        me.ahoo.wow.api.schedule.SetSchedule::class.java,
+                    ),
+                )
             expectNoError()
             expectDeterministic()
         }
@@ -309,7 +325,7 @@ class ProcessorSpecTest {
         var calls = 0
         val handlers = listOf(
             ProcessorBinding.saga<Any>("Flaky", "onAny", null) { event, context ->
-                listOf(context.command(event.ref, Remind("${calls++}")))
+                listOf(CommandRequest.to(event.ref, Remind("${calls++}")))
             },
         )
         sagaSpec(handlers) {
@@ -319,7 +335,8 @@ class ProcessorSpecTest {
         }
         val scheduling = listOf(
             ProcessorBinding.saga<Any>("Flaky", "onAny", null) { event, context ->
-                listOf(context.schedule("k", ScheduleRule.after((calls++).minutes), event.ref, Remind("r")))
+                context.schedule("k", ScheduleRule.after((calls++).minutes), CommandRequest.to(event.ref, Remind("r")))
+                emptyList()
             },
         )
         sagaSpec(scheduling) {
@@ -388,7 +405,7 @@ class ProcessorSpecTest {
     fun `a projection writes what its port's fake then holds`() {
         val views = OrderViews()
         val handlers = listOf(
-            ProcessorBinding.project("OrderView", "onOrder", Order::class.java) { event, _: ProjectContext ->
+            ProcessorBinding.project("OrderView", "onOrder", Order::class.java) { event, _: SubscriptionContext ->
                 event.events.filterIsInstance<OrderPlaced>().forEach { views.totals[event.ref.id] = it.total }
             },
         )

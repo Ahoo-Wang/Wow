@@ -37,7 +37,7 @@ interface VisualizationFocus {
 }
 
 /**
- * The keyboard follows the level (A1).
+ * The keyboard follows the level.
  *
  * The panel replaces its own contents as the level changes, so every one of
  * those changes would leave the focus on an element that is no longer on the
@@ -107,7 +107,7 @@ interface VisualizationPanelProps {
 }
 
 /**
- * The visualization panel (D20 屏 I／J) as the workbench and a dashboard
+ * The visualization panel (／J) as the workbench and a dashboard
  * panel's own look both draw it: the chart types, then the chosen type's
  * options, both fitting the question's shape. The options stand over the
  * question, so they work before the first answer and after it failed: the

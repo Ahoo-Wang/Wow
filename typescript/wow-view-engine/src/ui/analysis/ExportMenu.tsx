@@ -44,7 +44,7 @@ const FORMATS = [
 ] as const satisfies readonly (readonly [ImageFormat, string])[];
 
 /**
- * The picture items of an export menu (D33 Q58): PNG and SVG, each a
+ * The picture items of an export menu: PNG and SVG, each a
  * press that hands the file over at once — there is nothing to choose and
  * nothing to wait for. Shared by the result's toolbar and a panel's 「⋯」.
  */
@@ -93,8 +93,8 @@ export function ImageFailed({ offer }: { offer: ChartImageOffer }) {
 }
 
 /**
- * The analysis toolbar's 「导出」 while a chart is drawn (D25 Q28, D33
- * Q58): one menu — 「导出数据…」, which opens the export window over the
+ * The analysis toolbar's 「导出」 while a chart is drawn: one menu — 「导出数据…」,
+ * which opens the export window over the
  * groups, and the chart as a PNG or an SVG. Over a table there is no
  * picture, and the toolbar keeps the plain button that opens the window.
  *

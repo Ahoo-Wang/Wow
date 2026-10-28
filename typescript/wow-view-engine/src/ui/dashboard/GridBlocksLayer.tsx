@@ -15,7 +15,7 @@ import { useId } from 'react';
 import type { gridBlocks } from './gridBlocks.js';
 
 /**
- * The cells of a board being built (D34): one row of blocks as an SVG
+ * The cells of a board being built: one row of blocks as an SVG
  * pattern, repeated down the whole layer from the grid's padding — one
  * drawing, not one element a cell; nothing to walk past, nothing to press.
  *

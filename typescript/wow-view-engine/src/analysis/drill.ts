@@ -220,8 +220,8 @@ export function drillGroups(
 
 /**
  * The smallest set of conditions that selects the records behind two groups
- * and every bucket between them along time (D33 Q52: a brushed stretch of a
- * time axis, or a range of rows picked from the table): a date dimension
+ * and every bucket between them along time (a brushed stretch of a time axis,
+ * or a range of rows picked from the table): a date dimension
  * becomes one range from the earlier bucket's start to the later bucket's
  * end — `[first start, last end)`, each end where `bucketRange` puts it, so
  * a stretch across a daylight-saving change is as long as the calendar
@@ -387,7 +387,7 @@ function equal(
 }
 
 /**
- * The two follow-up questions that stay analyses (D20 追问): "only this
+ * The two follow-up questions that stay analyses: "only this
  * group" narrows the range to the row, "split by" narrows it and asks the
  * same question by another dimension. Each is a patch over the config that
  * ran; the workbench opens the patched config as a view of its own beside

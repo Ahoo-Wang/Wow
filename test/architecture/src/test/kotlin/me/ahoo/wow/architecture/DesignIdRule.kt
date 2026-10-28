@@ -15,7 +15,7 @@ package me.ahoo.wow.architecture
 
 import java.io.File
 
-/** The rule that keeps design IDs out of what users read: the production sources and the READMEs. */
+/** The rule that keeps design IDs out of what users read: the production sources, the READMEs and the user documentation. */
 object DesignIdRule {
     /**
      * A design ID: a decision or a review finding as [DECISION_OR_REVIEW_ID] reads them, a finding of a review round
@@ -33,19 +33,17 @@ object DesignIdRule {
 
     /**
      * Whether the design-ID rule reads [path], relative to the repository root: every production source (`src/main`,
-     * Kotlin or Java) and every README, which their readers take as they are and cannot look an ID up from. Out of it,
-     * each for its reason:
+     * Kotlin or Java), every README and every page of the user documentation (`documentation/docs`), which their
+     * readers take as they are and cannot look an ID up from. Out of it, each for its reason:
      * - `documentation/designs`: the design records themselves, where the IDs live;
      * - a README under `test/` or under a package's `docs/design`: contributor notes of unpublished modules, and a
      *   package's own design records;
      * - `skills/wow-migrate/evals/`: the 9.x sources the migration skill's evals start from, kept as 9.x wrote them.
-     *
-     * The user documentation (`documentation/docs`) stays out until its own cleanup lands (the generated TypeScript
-     * reference and the samples its pages quote); that change brings it in.
      */
     internal fun designIdScope(path: String): Boolean = when {
         path.startsWith("documentation/designs/") || path.startsWith("skills/wow-migrate/evals/") -> false
         PRODUCTION_SOURCE.containsMatchIn(path) -> true
+        path.startsWith("documentation/docs/") -> path.endsWith(".md")
         path.substringAfterLast('/') == "README.md" -> !path.startsWith("test/") && "/docs/design/" !in path
         else -> false
     }
@@ -53,7 +51,7 @@ object DesignIdRule {
     private val PRODUCTION_SOURCE = Regex("""(^|/)src/main/(kotlin|java)/.+\.(kt|java)$""")
 
     /**
-     * The lines of the production sources and READMEs ([designIdScope]) that cite a design ID ([DESIGN_ID]): the text
+     * The lines of the production sources, READMEs and user documentation ([designIdScope]) that cite a design ID ([DESIGN_ID]): the text
      * states the reason instead, and the IDs stay in `documentation/designs`. Comments count as much as strings.
      */
     fun designIds(repositoryRoot: File): List<String> =

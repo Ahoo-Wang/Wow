@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.compiler.model.manifest
 
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.compiler.model.aggregate.AfterBinding
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
@@ -38,6 +40,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.SystemCommands
 
 /**
  * The Manifest fragment of a module: the structure and the type list the model processor read,
@@ -47,9 +50,10 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *
  * Names follow the generated model: a command or an event is named by its `@Name`, or its class's
  * simple name. A command's routes follow from its name and whether it creates its aggregate ([CommandRoutes]).
- * An aggregate lists the lifecycle commands its model handles by their system names
- * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list, so no command
- * gets them here.
+ * The system commands are listed with their routes too ([SystemCommands]), after the domain's: an aggregate's
+ * lifecycle commands its model handles ([AggregateBinding.lifecycle]) and, when it keeps snapshots, its snapshot
+ * rebuild; a context's schedule job commands when a handler of it runs a job. The edge serves, and a client sends,
+ * every command from these routes alone.
  *
  * What M6 adds:
  *
@@ -75,6 +79,10 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * routes with and without an id and the `transformsTo` they declare.
  */
 internal object ManifestFragmentBuilder {
+    /** The system events' names, by Kotlin name. */
+    private val SYSTEM_EVENT_NAMES: Map<String, String> =
+        (Lifecycle.EVENTS + Schedules.EVENTS).entries.associate { (name, type) -> type.canonicalName to name }
+
     fun build(
         context: String,
         description: String?,
@@ -82,8 +90,8 @@ internal object ManifestFragmentBuilder {
         subscriptions: List<SubscriptionBinding>,
         errors: List<ErrorManifest>,
     ): Manifest {
-        val aggregateManifests = aggregates.map { aggregate(context, it) }.sortedBy { it.name }
         val commands = CommandNames(context, aggregates)
+        val aggregateManifests = aggregates.map { aggregate(context, it, commands) }.sortedBy { it.name }
         return Manifest(
             contexts = listOf(
                 ContextManifest(
@@ -100,6 +108,11 @@ internal object ManifestFragmentBuilder {
                         )
                     }.sortedBy { it.aggregate },
                     errors = errors.sortedBy { it.code },
+                    commands = if (subscriptions.any { binding -> binding.handlers.any { it.job != null } }) {
+                        SystemCommands.jobs(context)
+                    } else {
+                        emptyList()
+                    },
                 ),
             ),
         )
@@ -151,7 +164,7 @@ internal object ManifestFragmentBuilder {
             "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
         }
 
-    private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
+    private fun aggregate(context: String, binding: AggregateBinding, commands: CommandNames): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
         val snapshot = SnapshotManifest(enabled = binding.snapshot, stateRevision = binding.stateRevision)
         return AggregateManifest(
@@ -179,11 +192,12 @@ internal object ManifestFragmentBuilder {
                         schema = Manifest.schemaRef(mounted.type),
                         routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, unaddressed = true),
                         mounted = true,
-                        transformsTo = mounted.transformsTo.distinct().sorted().ifEmpty { null },
+                        transformsTo = mounted.transformsTo.map(commands::referenceOf).distinct().sorted()
+                            .ifEmpty { null },
                         description = mounted.description,
                     )
                 }
-                ).sortedBy { it.name },
+                ).sortedBy { it.name } + systemCommands(context, binding),
             events = binding.sourcing.map { sourcing ->
                 EventManifest(
                     name = eventNames.getValue(sourcing.event),
@@ -193,13 +207,18 @@ internal object ManifestFragmentBuilder {
                     description = sourcing.description,
                 )
             }.sortedBy { it.name },
-            lifecycle = binding.lifecycle,
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
-            schedules = binding.commands.flatMap { it.schedules }.distinct().sorted().ifEmpty { null },
+            schedules = binding.commands.flatMap { it.schedules }.map(commands::referenceOf).distinct().sorted()
+                .ifEmpty { null },
             ownership = Ownership.valueOf(binding.ownership),
             retired = binding.retiredEvents.sorted(),
         )
     }
+
+    /** The system commands of [binding]: its lifecycle commands, then its snapshot rebuild when it keeps snapshots. */
+    private fun systemCommands(context: String, binding: AggregateBinding): List<CommandManifest> =
+        binding.lifecycle.map { SystemCommands.lifecycle(context, binding.aggregateName, it) } +
+            listOfNotNull(SystemCommands.rebuild(context, binding.aggregateName).takeIf { binding.snapshot })
 
     /**
      * The events [command] can produce: what its function yields and what the after hooks that run after it yield,
@@ -212,7 +231,8 @@ internal object ManifestFragmentBuilder {
     ): List<String>? {
         val yields = listOf(command.yields) + afters.filter { it.appliesTo(command.command) }.map { it.yields }
         val classes = yields.flatMap { it ?: return null }.distinct()
-        return classes.map { eventNames[it] ?: return null }.distinct().sorted()
+        // A system event a command composes is listed by its system name.
+        return classes.map { eventNames[it] ?: SYSTEM_EVENT_NAMES[it] ?: return null }.distinct().sorted()
     }
 
     /**
@@ -235,8 +255,8 @@ internal object ManifestFragmentBuilder {
                 source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
-                start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
-                schedules = handler.schedules.distinct().sorted().ifEmpty { null },
+                start = handler.startIn(context, binding.kind)?.let(SubscriptionStart::valueOf),
+                schedules = handler.schedules.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 calls = handler.calls.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
                 job = handler.job?.manifest(),
@@ -285,6 +305,13 @@ internal object ManifestFragmentBuilder {
                 handler.aggregates.map { it.substringAfter('.') },
                 events = handler.event?.names.orEmpty(),
                 nullableState = nullable,
+            )
+        }
+        handler.event?.peerEvents?.takeIf { it.isNotEmpty() }?.let { peerEvents ->
+            return SubscriptionSource(
+                events = handler.event.names,
+                nullableState = nullable,
+                eventSchemas = peerEvents.map(Manifest::schemaRef),
             )
         }
         val aggregate = aggregates.firstOrNull { it.state == handler.state }

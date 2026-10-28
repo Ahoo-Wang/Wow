@@ -40,7 +40,7 @@ import { useCaller, useServices } from "./services.tsx";
 /**
  * Signs in with a CoSec access token, which a deployment of the catalog service
  * verifies and reads the data owner from; or, for a local run, names the
- * caller the console sends as headers (`X-User`, `X-Tenant`, `X-Role`), the
+ * caller the console sends as headers (`Wow-User`, `Wow-Tenant`, `Wow-Roles`), the
  * catalog's stand-in for CoSec, kept on this machine.
  */
 export function CallerForm({ onDone }: { onDone?: () => void }) {
@@ -144,7 +144,7 @@ function TokenForm({ onDone }: { onDone?: () => void }) {
 
 /**
  * Names the caller the console sends as headers, for a local run of the catalog
- * (`wow.platform.trust-identity-headers`).
+ * (a development profile, `dev`).
  */
 function HeadersForm({ onDone }: { onDone?: () => void }) {
   const { t } = useI18n();

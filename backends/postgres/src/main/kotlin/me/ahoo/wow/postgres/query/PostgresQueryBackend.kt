@@ -21,8 +21,8 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.autoCommitted
@@ -84,7 +84,7 @@ class PostgresQueryBackend internal constructor(
      * log appends through. The admission bounds the list (`maxListSize`); a budget without that bound
      * (`maxListSize = 0`) holds a whole unbounded list in memory.
      */
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val statement = records.list(query)
         val projection = query.query.projection
         val read = transaction(query.timeout, { emptyList() }) { connection ->
@@ -140,7 +140,7 @@ class PostgresQueryBackend internal constructor(
         }
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long = withContext(dispatcher) {
         val statement = records.count(query, query.query.filter, query.query.limit?.let { it + 1L })
         transaction(query.timeout, { 0L }) { connection -> count(connection, statement) }
     }
@@ -184,8 +184,8 @@ class PostgresQueryBackend internal constructor(
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.autoCommitted { connection ->
-            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) {
-                block(connection)
+            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) { bound ->
+                block(bound)
             }
         }
     } catch (error: SQLException) {

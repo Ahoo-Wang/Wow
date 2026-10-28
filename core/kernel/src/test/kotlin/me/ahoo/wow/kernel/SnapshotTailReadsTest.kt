@@ -21,7 +21,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
-import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTail
@@ -33,8 +32,8 @@ import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 
 /**
- * A cache miss reads the snapshot with the tail through the log's capability, and reads apart, counting the fallback,
- * when the capability cannot serve or fails (findings R5.B-9, R5.B-16).
+ * A cache miss reads the snapshot with the tail through its type's reader, and reads apart, counting the fallback,
+ * when the reader fails (findings R5.B-9, R5.B-16).
  */
 class SnapshotTailReadsTest {
     private val type = AggregateType("shop", "cart")
@@ -49,9 +48,8 @@ class SnapshotTailReadsTest {
     }
     private val served = SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList()))
 
-    private fun reading(reader: SnapshotTailReader): EventLog = object : EventLog by memory {
-        override val snapshotTails: SnapshotTailReader = reader
-    }
+    private fun reads(reader: SnapshotTailReader): SnapshotTailReads =
+        SnapshotTailReads(memory, { if (it == type) reader else null }, observer)
 
     private suspend fun appendOne() {
         memory.append(
@@ -69,34 +67,23 @@ class SnapshotTailReadsTest {
     }
 
     @Test
-    fun `a log without the capability is read apart, which is no fallback`() = runTest {
+    fun `a type without a reader is read apart, which is no fallback`() = runTest {
         appendOne()
-        SnapshotTailReads(memory, observer).read(ref, snapshots, 2).tail.streams.map { it.version }
+        SnapshotTailReads(memory, { null }, observer).read(ref, snapshots, 2).tail.streams.map { it.version }
             .assert().containsExactly(1)
         fallbacks.assert().isEmpty()
     }
 
     @Test
     fun `a reader that serves is read through, with no fallback`() = runTest {
-        SnapshotTailReads(reading { _, _, _ -> served }, observer).read(ref, snapshots, 2).assert().isSameAs(served)
+        reads { _, _ -> served }.read(ref, snapshots, 2).assert().isSameAs(served)
         fallbacks.assert().isEmpty()
-    }
-
-    @Test
-    fun `a reader that cannot serve the store is read apart and counted, every time`() = runTest {
-        appendOne()
-        val reads = SnapshotTailReads(reading { _, _, _ -> null }, observer)
-        repeat(2) { reads.read(ref, snapshots, 2).tail.streams.map { it.version }.assert().containsExactly(1) }
-        fallbacks.assert().containsExactly(
-            Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.UNAVAILABLE),
-            Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.UNAVAILABLE),
-        )
     }
 
     @Test
     fun `a reader that fails is read apart and counted, never failing the load`() = runTest {
         appendOne()
-        val reads = SnapshotTailReads(reading { _, _, _ -> throw IOException("The statement failed.") }, observer)
+        val reads = reads { _, _ -> throw IOException("The statement failed.") }
         repeat(2) { reads.read(ref, snapshots, 2).tail.streams.map { it.version }.assert().containsExactly(1) }
         fallbacks.assert().containsExactly(
             Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
@@ -106,7 +93,7 @@ class SnapshotTailReadsTest {
 
     @Test
     fun `a cancelled read is cancelled, never read apart`() = runTest {
-        val reads = SnapshotTailReads(reading { _, _, _ -> throw CancellationException("cancelled") }, observer)
+        val reads = reads { _, _ -> throw CancellationException("cancelled") }
         assertThrows<CancellationException> { reads.read(ref, snapshots, 2) }
         fallbacks.assert().isEmpty()
     }

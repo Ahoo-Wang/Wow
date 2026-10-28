@@ -30,6 +30,7 @@ import org.springframework.core.env.Environment
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.sql.Connection
+import java.sql.PreparedStatement
 import java.sql.Statement
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -40,8 +41,9 @@ import javax.sql.DataSource
 
 /**
  * A HikariCP pool whose query statements wait at a [gate] while it is set, holding their connections as a slow query
- * does: a query transaction is the one that starts with `SET LOCAL statement_timeout`. It says its size and the threads
- * awaiting a connection as HikariCP does, so the store derives its queries' bound and its write pressure from it.
+ * does: a query transaction is the one whose first statement starts read-only ([QUERY_START]). It says its size and
+ * the threads awaiting a connection as HikariCP does, so the store derives its queries' bound and its write pressure
+ * from it.
  */
 class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, AutoCloseable {
     /** While set, every query waits until it is counted down. */
@@ -67,22 +69,36 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
 
     private fun gated(connection: Connection): Connection = proxy(connection) { method, args ->
         val result = method.invoke(connection, *args)
-        if (method.name == "createStatement") gated(result as Statement) else result
+        when {
+            method.name == "createStatement" -> gated(result as Statement)
+            // A query's first statement carries its transaction's start in its own text.
+            method.name == "prepareStatement" && (args.firstOrNull() as? String)?.startsWith(QUERY_START) == true ->
+                gatedQuery(result as PreparedStatement)
+            else -> result
+        }
     }
 
     private fun gated(statement: Statement): Statement = proxy(statement) { method, args ->
-        if (method.name == "execute" && (args.firstOrNull() as? String)?.startsWith(QUERY_START) == true) {
-            queries.incrementAndGet()
-            gate.get()?.let { latch ->
-                held.incrementAndGet()
-                try {
-                    latch.await(HOLD_SECONDS, TimeUnit.SECONDS)
-                } finally {
-                    held.decrementAndGet()
-                }
+        if (method.name == "execute" && (args.firstOrNull() as? String)?.startsWith(QUERY_START) == true) hold()
+        method.invoke(statement, *args)
+    }
+
+    private fun gatedQuery(statement: PreparedStatement): PreparedStatement = proxy(statement) { method, args ->
+        if (method.name.startsWith("execute") && args.isEmpty()) hold()
+        method.invoke(statement, *args)
+    }
+
+    /** Counts a query, and holds it at the [gate] while one is set. */
+    private fun hold() {
+        queries.incrementAndGet()
+        gate.get()?.let { latch ->
+            held.incrementAndGet()
+            try {
+                latch.await(HOLD_SECONDS, TimeUnit.SECONDS)
+            } finally {
+                held.decrementAndGet()
             }
         }
-        method.invoke(statement, *args)
     }
 
     private inline fun <reified T : Any> proxy(target: T, crossinline call: (java.lang.reflect.Method, Array<Any?>) -> Any?): T =
@@ -96,8 +112,8 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
 
     private companion object {
         /**
-         * How a query's transaction starts (finding F10): read-only, with its bounds in one batch. Every transaction of
-         * the stores bounds itself (`SET LOCAL statement_timeout`), so only a query's starts read-only.
+         * How a query's transaction starts: read-only, with its bounds, in the text of its first statement. Every
+         * transaction of the stores bounds itself (`SET LOCAL statement_timeout`), so only a query's starts read-only.
          */
         const val QUERY_START = "SET TRANSACTION READ ONLY"
         const val HOLD_SECONDS = 30L

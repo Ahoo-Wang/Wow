@@ -68,9 +68,9 @@ internal class NodeWiring(
     /** The `@OnCommitted` handlers of a context's sagas: hops of its waits. */
     val committedHandlers: (String) -> Set<String>,
 ) {
-    /** The contexts of the types the `Kafka` router takes: each takes the commands of its topic. */
-    private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
+    /** The contexts of the types the topic router takes: each takes the commands of its topic. */
+    private val topicRoutedContexts: Set<String> = options.topicRouted.mapTo(LinkedHashSet()) { it.context }
 
     /** Whether [context] takes the commands of its topic: the node takes them from topics, or routes some through Kafka. */
-    fun takesCommands(context: String): Boolean = topics?.intake == true || context in kafkaRoutedContexts
+    fun takesCommands(context: String): Boolean = topics?.intake == true || context in topicRoutedContexts
 }

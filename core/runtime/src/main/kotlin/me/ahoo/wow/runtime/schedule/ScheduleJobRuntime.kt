@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.wait.Settlement
+import me.ahoo.wow.spi.config.WowConfigurationException
 
 /**
  * The host's override of a job's default rule, `wow.schedules.<job>.*`: each part that is null keeps
@@ -78,8 +79,11 @@ internal object ScheduleJobRuntime {
     ): Map<String, List<ScheduleJob>> {
         val names = declared.values.flatten().mapTo(HashSet()) { it.name }
         options.keys.filterNot { it in names }.forEach {
-            throw IllegalArgumentException(
-                "wow.schedules.$it configures a job no @OnSchedule handler of the node runs: ${names.sorted()}.",
+            throw WowConfigurationException(
+                "wow.schedules.$it",
+                null,
+                "The options of the job $it configure a job no @OnSchedule handler of the node runs: ${names.sorted()}.",
+                "Name one of the node's jobs.",
             )
         }
         return declared.filterValues { it.isNotEmpty() }.mapValues { (context, jobs) ->

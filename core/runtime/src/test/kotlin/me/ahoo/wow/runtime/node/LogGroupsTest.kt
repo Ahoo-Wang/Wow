@@ -42,6 +42,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -147,7 +148,7 @@ class LogGroupsTest {
         eventually { stores.snapshots.load(invoice)?.version == 1 }
         val again = node.send(invoice, Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT)
         again.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        node.context(CONTEXT).log.findByRequestId(TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
+        node.context(CONTEXT).log.findByRequestId(INVOICE, TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
     }
 
     @Test
@@ -389,11 +390,10 @@ class LogGroupsTest {
             commands = listOf(create to ManifestCreation.REQUIRED, Close::class.java to ManifestCreation.NONE)
                 .map { (command, creation) ->
                     CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
-                },
+                } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(CONTEXT, name, it) },
             events = listOf(created, Closed::class.java).map {
                 EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name))
             },
-            lifecycle = Lifecycle.COMMANDS.keys.toList(),
         )
     }
 }

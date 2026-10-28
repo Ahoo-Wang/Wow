@@ -43,17 +43,17 @@ metadata:
 data:
   # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
   # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
-  # callers from the CoSec gateway in front of the service (decisions D296, D301). The postgres component (postgres/)
+  # callers from the CoSec gateway in front of the service. The postgres component (postgres/)
   # puts the service on PostgreSQL instead.
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
+  # The topics the service owns are created by the operator; the node only validates them. The kafka
   # profile's auto is for trying the service out.
   WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
-  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
   # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
   # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
   # collector below over OTLP, and bridges Micrometer's global registry.
@@ -105,14 +105,14 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
 ```
 
 - **节点 ID** 就是 Pod 的名字。替换后的 Pod 作为新成员加入；旧成员的租约会过期。
-- **内部端口**绑定 Pod 自己的地址，节点公布的也是这个地址 `<Pod IP>:9093`：这是宿主的默认值，所以清单不设置 `wow.node.address`（决定 D319）。Deployment 的 Pod 没有属于自己的 DNS 名字：headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>` 记录，而 Deployment 无法给每个 Pod 各自的 hostname。只有当 Pod 自己的地址不是同伴访问它的地址时才设置 `wow.node.address`，例如 Pod 有稳定名字的 StatefulSet（`serviceName` 和 `hostname`），或者有多块网卡的主机。
+- **内部端口**绑定 Pod 自己的地址，节点公布的也是这个地址 `<Pod IP>:9093`：这是宿主的默认值，所以清单不设置 `wow.node.address`。Deployment 的 Pod 没有属于自己的 DNS 名字：headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>` 记录，而 Deployment 无法给每个 Pod 各自的 hostname。只有当 Pod 自己的地址不是同伴访问它的地址时才设置 `wow.node.address`，例如 Pod 有稳定名字的 StatefulSet（`serviceName` 和 `hostname`），或者有多块网卡的主机。
 
 ## 两个 Service {#two-services}
 
@@ -135,12 +135,12 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# The internal port's headless service, named after the service (spring.application.name) with
 # -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
-# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
+# node advertises (its pod IP), and the other services find the nodes through them. It publishes
 # the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
-# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
-# D300), and only the shop's own pods reach it (networkpolicy.yaml).
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service),
+# and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
@@ -162,7 +162,7 @@ spec:
 两者都以服务的名字，即它的 `spring.application.name` 命名。
 
 - `eshop-ordering-service` 向网关提供公开端口，客户端经网关访问它。
-- `eshop-ordering-service-cluster` 是 headless 的：它的 SRV 记录 `_internal._tcp.eshop-ordering-service-cluster` 列出每个节点的地址，其他服务只凭服务名就能通过它们找到这些节点（对端发现，决定 D305）。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能被找到。
+- `eshop-ordering-service-cluster` 是 headless 的：它的 SRV 记录 `_internal._tcp.eshop-ordering-service-cluster` 列出每个节点的地址，其他服务只凭服务名就能通过它们找到这些节点（对端发现）。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能被找到。
 
 绝不要把内部端口暴露到集群之外。它不用令牌：每个请求都声明自己的服务（`Wow-Service`），网络策略就是边界。`networkpolicy.yaml` 里有两条：`eshop-ordering-service-public` 只允许网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签）访问 HTTP 端口，`eshop-ordering-service-internal` 只允许商店自己的 Pod（带 `app.kubernetes.io/part-of: eshop` 标签）访问内部端口（[保护部署](./security#close-the-internal-port)）。给你的网关 Pod 打上这个标签，或者修改选择器去匹配它们。不执行 NetworkPolicy 的网络插件会忽略它们；这时要用别的办法让内部端口只在平台的网络上可达。
 

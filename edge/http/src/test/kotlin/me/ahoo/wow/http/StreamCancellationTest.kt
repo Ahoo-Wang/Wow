@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.query.QueryCaller
@@ -60,7 +60,7 @@ class StreamCancellationTest {
         snapshots = { delegate ->
             object : QueryGateway by delegate {
                 override fun stream(
-                    query: IListQuery,
+                    query: ListQuery,
                     caller: QueryCaller,
                     after: String?,
                     chunkSize: Int,

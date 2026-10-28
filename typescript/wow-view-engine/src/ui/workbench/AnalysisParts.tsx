@@ -66,7 +66,7 @@ import { SearchBox } from './SearchBox.js';
 /**
  * What the analysis parts read of the workbench around them: the data
  * workbench's own controller, or — for an analysis made inside a dashboard
- * (D22 C) — the few members a dialog holding its own view supplies.
+ * — the few members a dialog holding its own view supplies.
  */
 export type AnalysisHost = Pick<
   WorkbenchController,

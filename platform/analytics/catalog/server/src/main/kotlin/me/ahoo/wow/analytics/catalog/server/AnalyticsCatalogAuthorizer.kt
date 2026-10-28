@@ -13,20 +13,7 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication
-import me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset
-import me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset
-import me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication
-import me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset
-import me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset
-import me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset
-import me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange
-import me.ahoo.wow.analytics.catalog.api.source.ApproveSource
-import me.ahoo.wow.analytics.catalog.api.source.DraftSource
-import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
-import me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity
-import me.ahoo.wow.analytics.catalog.api.source.ReviseSource
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -34,25 +21,25 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
  * Who sends what to the analytics catalog: every command changes what the platform's datasets are built on, so only
- * the catalog's roles send them ([AnalyticsCatalogCallers]):
+ * the catalog's roles send them ([AnalyticsCatalogRoles]):
  *
  * - an analyst's work, `DraftSource`, `ReviseSource`, `ReviewSourceSensitivity`, and a dataset's `DraftDataset`,
- *   `ReviseDataset`, `PublishDataset`, `RollbackDataset` and `RetireDataset`, an [AnalyticsCatalogCallers.EDITOR] or an
- *   [AnalyticsCatalogCallers.ADMIN] (analysts run their own wide tables);
- * - `MarkSourceReviewed`, an [AnalyticsCatalogCallers.APPROVER] or an [AnalyticsCatalogCallers.ADMIN];
+ *   `ReviseDataset`, `PublishDataset`, `RollbackDataset` and `RetireDataset`, an [AnalyticsCatalogRoles.EDITOR] or an
+ *   [AnalyticsCatalogRoles.ADMIN] (analysts run their own wide tables);
+ * - `MarkSourceReviewed`, an [AnalyticsCatalogRoles.APPROVER] or an [AnalyticsCatalogRoles.ADMIN];
  * - `ApproveSensitivityChange`, the privileged review of a lower protection, `ApproveSource` and a
  *   dataset's `ApproveDatasetPublication` and `RefuseDatasetPublication`, only an
- *   [AnalyticsCatalogCallers.APPROVER];
+ *   [AnalyticsCatalogRoles.APPROVER];
  * - every other command of the catalog (`SyncSource`, `DropDatasetViews`, `RecompileDataset`), and the framework's own system commands (`wow.*`), an
- *   [AnalyticsCatalogCallers.ADMIN].
+ *   [AnalyticsCatalogRoles.ADMIN].
  *
  * Where CoSec authorizes the requests itself, [policies] decides instead, by the command's type.
  */
 class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null) : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         policies?.let { return it.authorize(caller, action) }
-        val needed = ROLES[action.type.name] ?: setOf(AnalyticsCatalogCallers.ADMIN)
-        return if (AnalyticsCatalogCallers.rolesOf(caller).any { it in needed }) {
+        val needed = ROLES[action.type.name] ?: setOf(AnalyticsCatalogRoles.ADMIN)
+        return if (AnalyticsCatalogRoles.rolesOf(caller).any { it in needed }) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(
@@ -62,31 +49,28 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
     }
 
     companion object {
-        private val EDITORS = setOf(AnalyticsCatalogCallers.EDITOR, AnalyticsCatalogCallers.ADMIN)
+        private val EDITORS = setOf(AnalyticsCatalogRoles.EDITOR, AnalyticsCatalogRoles.ADMIN)
 
         /** The roles that may send each command of the catalog, by its type's name; admin else. */
         @JvmField
         val ROLES: Map<String, Set<String>> = mapOf(
-            nameOf(AnalyticsCatalogContext.SOURCE, DraftSource::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.SOURCE, ReviseSource::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.SOURCE, ReviewSourceSensitivity::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.SOURCE, MarkSourceReviewed::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER, AnalyticsCatalogCallers.ADMIN),
-            nameOf(AnalyticsCatalogContext.SOURCE, ApproveSensitivityChange::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
-            nameOf(AnalyticsCatalogContext.SOURCE, ApproveSource::class.java) to setOf(AnalyticsCatalogCallers.APPROVER),
-            nameOf(AnalyticsCatalogContext.DATASET, DraftDataset::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.DATASET, ReviseDataset::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.DATASET, PublishDataset::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.DATASET, RollbackDataset::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.DATASET, RetireDataset::class.java) to EDITORS,
-            nameOf(AnalyticsCatalogContext.DATASET, ApproveDatasetPublication::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
-            nameOf(AnalyticsCatalogContext.DATASET, RefuseDatasetPublication::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
+            AnalyticsCatalogContract.Source.Commands.DRAFT_SOURCE to EDITORS,
+            AnalyticsCatalogContract.Source.Commands.REVISE_SOURCE to EDITORS,
+            AnalyticsCatalogContract.Source.Commands.REVIEW_SOURCE_SENSITIVITY to EDITORS,
+            AnalyticsCatalogContract.Source.Commands.MARK_SOURCE_REVIEWED to
+                setOf(AnalyticsCatalogRoles.APPROVER, AnalyticsCatalogRoles.ADMIN),
+            AnalyticsCatalogContract.Source.Commands.APPROVE_SENSITIVITY_CHANGE to
+                setOf(AnalyticsCatalogRoles.APPROVER),
+            AnalyticsCatalogContract.Source.Commands.APPROVE_SOURCE to setOf(AnalyticsCatalogRoles.APPROVER),
+            AnalyticsCatalogContract.Dataset.Commands.DRAFT_DATASET to EDITORS,
+            AnalyticsCatalogContract.Dataset.Commands.REVISE_DATASET to EDITORS,
+            AnalyticsCatalogContract.Dataset.Commands.PUBLISH_DATASET to EDITORS,
+            AnalyticsCatalogContract.Dataset.Commands.ROLLBACK_DATASET to EDITORS,
+            AnalyticsCatalogContract.Dataset.Commands.RETIRE_DATASET to EDITORS,
+            AnalyticsCatalogContract.Dataset.Commands.APPROVE_DATASET_PUBLICATION to
+                setOf(AnalyticsCatalogRoles.APPROVER),
+            AnalyticsCatalogContract.Dataset.Commands.REFUSE_DATASET_PUBLICATION to
+                setOf(AnalyticsCatalogRoles.APPROVER),
         )
-
-        private fun nameOf(aggregate: String, type: Class<*>): String =
-            "${AnalyticsCatalogContext.NAME}.$aggregate.${type.simpleName}"
     }
 }

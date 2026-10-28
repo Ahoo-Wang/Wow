@@ -14,13 +14,14 @@
 package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 
 /**
@@ -39,7 +40,11 @@ data class ExecutionId(val subscription: String, val ref: AggregateRef, val vers
     override fun toString(): String = "$subscription:$ref@$version"
 }
 
-/** What every subscription handler can ask of the runtime besides the [StateEvent] it handles. */
+/**
+ * What every subscription handler can ask of the runtime besides the [StateEvent] it handles: the context of a
+ * [me.ahoo.wow.api.annotation.Projection]'s or a [me.ahoo.wow.api.annotation.Reactor]'s handler, and what every other
+ * context adds to.
+ */
 interface SubscriptionContext {
     /**
      * This execution: stable across every time the same commit is handled by the same subscription. It is per stream:
@@ -49,9 +54,10 @@ interface SubscriptionContext {
     val executionId: ExecutionId
 
     /**
-     * The idempotency key of this call of the handler: [executionId] for a handler of the whole stream,
-     * `executionId:eventIndex` for a handler of one event of the stream ([StateTypedEvent.eventIndex]). Stable across
-     * every time the same commit is handled again, so a payment gateway, say, takes the same call once.
+     * The idempotency key of this call of the handler, the one key an outside call takes: [executionId] for a handler
+     * of the whole stream, `executionId:eventIndex` for a handler of one event of the stream
+     * ([StateTypedEvent.eventIndex]). Stable across every time the same commit is handled again, so a payment gateway,
+     * say, takes the same call once.
      */
     val invocationKey: String
         get() = executionId.toString()
@@ -66,14 +72,32 @@ interface SubscriptionContext {
     val queries: SubscriptionQueries
 }
 
-/** The context of a [me.ahoo.wow.api.annotation.Projection]'s handler. */
-interface ProjectContext : SubscriptionContext
-
-/** The context of a [me.ahoo.wow.api.annotation.Reactor]'s handler. */
-interface ReactContext : SubscriptionContext
-
-/** The context of a [me.ahoo.wow.api.annotation.Saga]'s handler: it derives commands from the commit. */
-interface SagaContext : SubscriptionContext {
+/**
+ * The context of a handler that derives commands: a [SagaContext] (`@OnEvent`), a [ReceiptContext] (`@OnRejected`,
+ * `@OnCommitted`) and a [JobContext] (`@OnSchedule`). The handler returns the commands it derives as
+ * [CommandRequest]s, one, several (an `Iterable`, a `Sequence`, a `Flow`) or none, and the subscription sends each,
+ * deterministic, so handling the same commit, receipt or tick again derives the same requests, which their targets
+ * decide once:
+ *
+ * - its target is the request's: [CommandRequest.type], else the aggregate type the local Manifest and the peer
+ *   contracts on the class path (each api jar's `META-INF/wow/contract.json`) assign the command's class; its tenant
+ *   [CommandRequest.targetTenant], else this execution's (the commit's, the receipt's or the job instance's); its id
+ *   [CommandRequest.id], else none: a creation whose id the target's admission gives, the id of the aggregate the
+ *   request already created when it is handled again, so the target keeps the first one;
+ * - its id and request id are name-based on [executionId], the target, the command's class and, when the request
+ *   gives a [CommandRequest.requestId], that business key, else how many such requests to the same target the
+ *   execution derived before it; the order the handler builds them in does not matter;
+ * - its scope is [CommandRequest.targetScope], else the commit's, so an aggregate it creates belongs to the owner the
+ *   chain acts for; its operator is the commit's, and its causation links it to the commit and to the root of the
+ *   chain; its [CommandRequest.expectedVersion] is kept;
+ * - a request with a [CommandRequest.wait] or a [CommandRequest.timeout] fails the handler with an
+ *   [IllegalArgumentException]: the subscription sends derived commands and waits for none.
+ *
+ * Derived commands are trusted: the target's scope guard does not check one it changes, so a wrong target is not
+ * refused; test the targets in a saga spec. A command class no contract assigns, or several aggregates decide, fails
+ * the handler with an [IllegalArgumentException] naming them: give the request its [CommandRequest.type].
+ */
+interface DerivingContext : SubscriptionContext {
     /**
      * The ids this execution takes: the node's generators, each aggregate type's the one the host
      * configures for it (`wow.aggregates.<ctx.agg>.id-generator`), fixed ids in the test DSL.
@@ -81,87 +105,74 @@ interface SagaContext : SubscriptionContext {
      * Handling the commit again (a retry, a replay) takes new ones: an id drawn here for an aggregate a derived
      * command creates may be used only for that same creation command, whose request id is the same every time, so
      * the target creates it once and keeps the first id; any other use would see the id change. To
-     * leave the id to the target, derive the command with [command] of an [AggregateType] instead.
+     * leave the id to the target, derive the creation without an id instead.
      */
     val ids: Ids
+}
 
+/** The context of a [me.ahoo.wow.api.annotation.Saga]'s `@OnEvent` handler: it derives commands from the commit. */
+interface SagaContext : DerivingContext {
     /**
-     * A command to the aggregate [ref] asking [body], derived from this execution. Its id and request id are
-     * deterministic (from [executionId] and the order of the calls), so handling the commit again derives the same
-     * requests and they are not decided twice; its causation links it to the commit and to the root of the chain.
-     * Its operator and its scope (owner and space) are the commit's, so an aggregate it
-     * creates belongs to the owner the chain acts for, and one it changes is guarded as for that owner.
+     * Schedules [request]'s command on its target under [key] as [rule] says: the execution derives the system
+     * command `wow.schedule.Set` to that target with the commands the handler returns, after them, keyed as a
+     * returned request is (see [DerivingContext]), so handling the commit again derives the same request. The target
+     * must exist: otherwise it rejects the command, which the saga's `@OnRejected` handler for [SetSchedule] gets.
+     * [key] names the schedule among the target's: setting it again replaces it, and [cancel] cancels it. An `after`
+     * rule counts from the commit that sets it on the target.
      */
-    fun <C : Any> command(ref: AggregateRef, body: C): Command<C>
+    fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>)
 
     /**
-     * A creation command asking [body] of a new aggregate of [type], in the tenant of the commit this execution
-     * handles, that leaves its id to the target's admission: the target gives it the id of the
-     * aggregate its request already created, or a new one from [type]'s configured generator, so handling the commit
-     * again keeps the first id. The command must create its aggregate; otherwise the target refuses it.
+     * Cancels the schedule [key] of [target]: the execution derives the system command `wow.schedule.Cancel` to it,
+     * after the commands the handler returns; see [schedule].
      */
-    fun <C : Any> command(type: AggregateType, body: C): Command<C> =
-        command(type.unassigned(executionId.ref.tenantId), body)
+    fun cancel(key: String, target: AggregateRef)
 
     /**
-     * A command asking [body] of the aggregate [id] of the type that decides [body]'s class, in the tenant of the
-     * upstream commit: the local Manifest and the peer contracts on the class path (each api jar's
-     * `META-INF/wow/contract.json`) assign each command class its aggregate, so the target's type can be left out.
-     * Otherwise it is [command] of the full ref, `command(type.ref(executionId.ref.tenantId, id), body)`.
-     *
-     * Only an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler leaves the ref out: it inherits the tenant of the
-     * commit or receipt it handles. An `@OnSchedule` job writes the full ref (its tick belongs to the job, not to a
-     * tenant's commit), and so does a command to another tenant.
-     *
-     * @throws IllegalArgumentException when no contract on the class path assigns [body]'s class (its context's api
-     * module is not a dependency), when several aggregates decide it (the message names them: write the full ref),
-     * or when the handler is an `@OnSchedule` job's.
-     */
-    fun <C : Any> command(id: String, body: C): Command<C>
-
-    /**
-     * A creation command asking [body] of a new aggregate of the type that decides [body]'s class, in the tenant of
-     * the upstream commit, that leaves its id to the target's admission as [command] of an [AggregateType] does:
-     * `command(type, body)` with the type the contracts assign to [body]'s class. The same
-     * rules as [command] of an id apply: an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler only, one aggregate
-     * type deciding the class, and its contract on the class path.
-     */
-    fun <C : Any> command(body: C): Command<C>
-
-    /**
-     * The system command `wow.schedule.Set` to [target], asking it to schedule [command] for itself under [key] as
-     * [rule] says, derived from this execution as [command] derives one: its id and request id come
-     * from [executionId] and the order of the calls, so handling the commit again derives the same request. Return
-     * it with the commands the handler derives. [target] must exist: otherwise it rejects the command, which the
-     * saga's `@OnRejected` handler for [SetSchedule] gets. [key] names the schedule among [target]'s: setting it
-     * again replaces it, and [cancel] cancels it. An `after` rule counts from the commit that sets it on [target].
-     */
-    fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule>
-
-    /** The system command `wow.schedule.Cancel` to [target]: cancels its schedule [key]; see [schedule]. */
-    fun cancel(key: String, target: AggregateRef): Command<CancelSchedule>
-
-    /**
-     * Sends [command], to an aggregate of another bounded context, through that context's HTTP command gateway and
+     * Sends [request], to an aggregate of another bounded context, through that context's HTTP command gateway and
      * returns its result once it is committed there: the aggregate it acted on (the id the target
      * gave a creation without one), its version, `duplicate` when the target had already committed the
-     * request. Build [command] with [command] first: its deterministic request id makes every retry and replay of
-     * this execution the same request, which the target decides once and answers with the same aggregate; its
-     * operator, scope and causation are the root command's, which the client asserts with the service's credential.
+     * request. It becomes a command as a returned request does (see [DerivingContext]): its deterministic request id
+     * makes every retry and replay of this execution the same request, which the target decides once and answers with
+     * the same aggregate; its operator, scope and causation are the root command's, which the client asserts on the
+     * target's internal port, naming its service, a port only the platform's own services reach.
      * A wait that follows the saga goes on with it: the target signals the next hops as for a derived command.
      *
      * The default is to derive the command (return it), which its context's command topic delivers. Call only
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
-     * host's configuration (`wow.peers.<context>.url`). The handler declares the class of [command] in its
+     * host's configuration (`wow.peers.<context>.url`). The handler declares the class of the command in its
      * `@OnEvent(calls)`, which puts it in the Manifest; a command of a class it does not declare is
      * refused with an [IllegalArgumentException].
      *
      * It is a `suspend` function, so a Java saga cannot call it (a blocking bridge is planned for
      * 10.x): a Java saga derives its commands instead.
      *
-     * @throws CallRejectedException when the target refuses it, a business outcome that is not retried.
-     * @throws CallFailedException when it reaches no result: the handler fails, is retried within its subscription's
-     * budget, then parks its aggregate.
+     * @throws CommandRejectedException when the target refuses it, a business outcome that is not retried.
+     * @throws WowProblemException when it reaches no result or fails there: the handler fails, is retried within its
+     * subscription's budget, then parks its aggregate.
      */
-    suspend fun call(command: Command<*>): CommandResult
+    suspend fun call(request: CommandRequest<*>): CommandResult
+}
+
+/**
+ * The context of a saga's `@OnRejected` or `@OnCommitted` handler: it derives the commands that compensate or follow
+ * a command an `@OnEvent` handler of the saga derived, from the receipt of it ([CommandRejected], [CommandCommitted]).
+ */
+interface ReceiptContext : DerivingContext {
+    /**
+     * The aggregate whose commit derived the command the receipt is of ([ExecutionId.ref] of the execution that
+     * derived it): the order a saga compensates, say.
+     */
+    val source: AggregateRef
+        get() = executionId.ref
+}
+
+/**
+ * The context of a saga's `@OnSchedule` handler: it derives the commands a [tick] of its job asks, in the tenant of
+ * the job's instance ([ScheduleTick.tenantId]): a command of an id or a body names its target's type by its class
+ * alone, as from a commit.
+ */
+interface JobContext : DerivingContext {
+    /** The tick this execution handles: the job, its slot and the instance's tenant. */
+    val tick: ScheduleTick
 }

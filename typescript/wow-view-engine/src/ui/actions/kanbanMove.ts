@@ -22,7 +22,7 @@ import {
 import type { KanbanMove } from '../record/kanbanDrag.js';
 
 /**
- * A kanban's drag bound to the host's declared move (D83): the action that
+ * A kanban's drag bound to the host's declared move: the action that
  * sets the lane field (`RecordAction.moves`), asked for the lane a card is
  * held over with that lane's value as its input, and run through the
  * surface's controller — the same path a press on the card's menu takes, so

@@ -109,7 +109,7 @@ class CommandValueAdmissionTest {
     private val cart = AggregateType(CONTEXT, "cart")
 
     private fun request(command: Any, ref: String? = "cart-1", tenant: String = TENANT, caller: Caller = alice) =
-        CommandRequest.builder(command, if (ref == null) cart.unassigned(tenant) else cart.ref(tenant, ref))
+        ServerCommandRequest.builder(command, if (ref == null) cart.unassigned(tenant) else cart.ref(tenant, ref))
             .caller(caller)
             .wait(WaitPlan.COMMITTED)
             .build()
@@ -139,19 +139,19 @@ class CommandValueAdmissionTest {
         result.ref.isAssigned.assert().isTrue()
         // A command that does not create its aggregate needs an id.
         val refused = gateway().execute(
-            CommandRequest.builder(Unwritable(), cart.unassigned(TENANT)).caller(alice).build()
+            ServerCommandRequest.builder(Unwritable(), cart.unassigned(TENANT)).caller(alice).build()
         )
         refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test
     fun `a request naming the command type by name takes an object of that type only`(): Unit = runBlocking {
-        val named = CommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(AddItem("pear")))
+        val named = ServerCommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(AddItem("pear")))
             .caller(alice)
             .aggregateId("cart-1")
             .build()
         gateway().execute(named).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val mismatched = CommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(OpenCart()))
+        val mismatched = ServerCommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(OpenCart()))
             .caller(alice)
             .aggregateId("cart-1")
             .build()
@@ -166,7 +166,7 @@ class CommandValueAdmissionTest {
         unknown.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknown.error!!.message.assert().contains(Unknown::class.java.name)
         val elsewhere = gateway().execute(
-            CommandRequest.builder(
+            ServerCommandRequest.builder(
                 AddItem("x"),
                 AggregateType("elsewhere", "cart").ref(TENANT, "c")
             ).caller(alice).build()
@@ -232,7 +232,7 @@ class CommandValueAdmissionTest {
             )
             val gateway = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to warm))
             fun retried(body: Any, requestId: String) =
-                CommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
+                ServerCommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
                     .wait(WaitPlan.COMMITTED).build()
             gateway.execute(retried(OpenCart("hi"), "open")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val added = gateway.execute(retried(AddItem("apple"), "add"))
@@ -261,8 +261,8 @@ class CommandValueAdmissionTest {
     @Test
     fun `a request of a command object is a value with its facts`() {
         val body = AddItem("apple")
-        val request = CommandRequest.of(body, cart.ref(TENANT, "cart-1"))
-        request.assert().isEqualTo(CommandRequest.of(body, cart.ref(TENANT, "cart-1")))
+        val request = ServerCommandRequest.of(body, cart.ref(TENANT, "cart-1"))
+        request.assert().isEqualTo(ServerCommandRequest.of(body, cart.ref(TENANT, "cart-1")))
         request.body.assert().isEqualTo(CommandBody.Value(AddItem("apple")))
         request.toString().assert().contains("tenantId=$TENANT")
         request.copyWith(tenantId = null).tenantId.assert().isNull()

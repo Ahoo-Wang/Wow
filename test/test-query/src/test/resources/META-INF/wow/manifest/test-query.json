@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "inventory",
+      "aggregates": [
+        {
+          "name": "stock",
+          "state": { "schema": "#/$defs/Stock" },
+          "commands": [],
+          "events": [],
+          "lifecycle": [],
+          "queries": [{ "model": "snapshot", "routes": [] }],
+          "ownership": "TENANT"
+        },
+        {
+          "name": "cart",
+          "state": { "schema": "#/$defs/Cart" },
+          "commands": [],
+          "events": [],
+          "lifecycle": [],
+          "queries": [{ "model": "snapshot", "routes": [] }],
+          "ownership": "OWNER"
+        }
+      ],
+      "subscriptions": [],
+      "published": [],
+      "errors": []
+    }
+  ],
+  "errors": [],
+  "$defs": {
+    "Stock": {
+      "type": "object",
+      "properties": { "available": { "type": "integer" } }
+    },
+    "Cart": {
+      "type": "object",
+      "properties": { "items": { "type": "integer" } }
+    }
+  }
+}

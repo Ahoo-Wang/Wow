@@ -25,7 +25,7 @@ import type {
 type FailurePlace = Omit<ViewErrorContext, 'operation'>;
 
 /**
- * Hands one failure to the host's `onError` (D40), and nothing else: no
+ * Hands one failure to the host's `onError`, and nothing else: no
  * console, no rethrow. The hook is the host's code running inside the
  * engine's own paths — a query settling, a write being recorded, a boundary
  * catching — so whatever it throws, or a promise it returns rejects with,
@@ -93,7 +93,7 @@ export function failureReporter(
 
 /**
  * Tells the host of one failed query, once the source's answer has been
- * read (D40): the report says the service's `errorCode` as it gave it, and
+ * read: the report says the service's `errorCode` as it gave it, and
  * which rule a Wow service said the query broke and where
  * (`context.violation`), so it waits for the body. The read is the
  * one the Issue on screen reads too (`sourceFailure` reads a failure once),

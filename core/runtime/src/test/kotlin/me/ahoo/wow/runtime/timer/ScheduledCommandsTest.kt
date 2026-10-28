@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -241,7 +242,13 @@ class ScheduledCommandsTest {
         val set = streams[1]
         set.commandType.assert().isEqualTo(Schedules.SET)
         set.requestId.assert()
-            .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1), 0))
+            .isEqualTo(
+                ExecutionSagaContext.derivedId(
+                    ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1),
+                    order("o-1"),
+                    SetSchedule::class.java,
+                ),
+            )
         val timer = checkNotNull(node.timer(order("o-1"), "remind"))
         timer.id.assert().isEqualTo("${order("o-1")}#remind@2")
         timer.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
@@ -263,10 +270,13 @@ class ScheduledCommandsTest {
             ),
         ) { event, context ->
             if (event.events.any { it is OrderPlaced }) {
-                listOf(context.schedule("ghost", ScheduleRule.after(1.seconds), order("ghost"), CancelOrder("ghost")))
-            } else {
-                emptyList()
+                context.schedule(
+                    "ghost",
+                    ScheduleRule.after(1.seconds),
+                    CommandRequest.to(order("ghost"), CancelOrder("ghost"))
+                )
             }
+            emptyList()
         }
         val node = node(
             "node-1",

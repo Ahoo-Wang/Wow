@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.seconds
  * that runs longer than [timeout] is cancelled and counts as failed; infinite by default.
  */
 class RetryPolicy @InternalWowApi constructor(
-    val maxAttempts: Int = 5,
+    val maxAttempts: Int = HandlerRetry.DEFAULT_MAX_ATTEMPTS,
     val initialBackoff: Duration = 100.milliseconds,
     val maxBackoff: Duration = 5.seconds,
     val multiplier: Double = 2.0,
@@ -97,7 +97,7 @@ class RetryPolicy @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            maxAttempts: Int = 5,
+            maxAttempts: Int = HandlerRetry.DEFAULT_MAX_ATTEMPTS,
             initialBackoff: Duration = 100.milliseconds,
             maxBackoff: Duration = 5.seconds,
             multiplier: Double = 2.0,

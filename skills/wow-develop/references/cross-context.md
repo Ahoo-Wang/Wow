@@ -4,7 +4,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 
 ## Reading another context's events
 
-- `@OnEvent(aggregates = ["ctx.agg"])` with the handler's own view type, or a typed handler `StateTypedEvent<View, E>` / `E` of the upstream api's event classes.
+- A typed handler `StateTypedEvent<View, E>` of the upstream api's event class: the service's Manifest finds the aggregate from the upstream contract. `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])` names it for a handler of the whole stream (`StateEvent<View>`) or an event two aggregates share.
 - Events arrive as the upstream api's classes when their revision is the one its contract (in the api jar, `META-INF/wow/contract.json`) declares; otherwise as `PublishedEvent` (`name`, `revision`, JSON text). A typed handler is not called for a `PublishedEvent`: keep one that is, when the reaction must not miss a newer revision.
 - Nullable state (`StateEvent<View?>`) when the upstream publishes no state (`publishState = false`).
 - Needs `wow-kafka`, `wow.kafka.bootstrap-servers`, and the upstream's `*-api` module on the class path.
@@ -12,7 +12,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 
 ## Sending another context commands
 
-- A saga sends with `SagaContext.command(...)` as for its own context; the target's `*-api` module on the class path carries the contract that names the target aggregate.
+- A saga returns a `CommandRequest` as for its own context; the target's `*-api` module on the class path carries the contract that names the target aggregate.
 - Transport: the command goes to the target's command topic `wow.<target>.commands`; the target runs with `wow.kafka.command-intake.enabled: true` and its command topic must exist with exactly `wow.log.partitions` partitions. Rejections and commits return as receipts on `wow.<sender>.receipts`, to `@OnRejected` and `@OnCommitted`.
 - A node without a command transport refuses to start when a saga sends, schedules or handles receipts of another context's commands (`Node … has no command transport …`). Production needs Kafka; tests give an `InMemoryTopics` bean, local runs `wow.transport=memory`.
 

@@ -45,7 +45,7 @@ import { DerivedLines } from './DerivedLines.js';
 type LineKind = 'value' | (typeof REFERENCE_STATISTICS)[number];
 
 /**
- * What the display page draws over a cartesian chart's marks (D33 batch B):
+ * What the display page draws over a cartesian chart's marks (batch B):
  * reference lines — at a number, the average or the median of a drawn
  * metric — target bands, the highest and lowest points, and the lines
  * computed from a metric along the time axis. Every number is the kernel's

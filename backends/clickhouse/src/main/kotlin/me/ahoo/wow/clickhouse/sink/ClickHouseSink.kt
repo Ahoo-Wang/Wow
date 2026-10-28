@@ -151,7 +151,7 @@ class ClickHouseSink internal constructor(
      * since the last time.
      */
     suspend fun prepare() {
-        if (ddl == Ddl.NONE && !catalogTried) {
+        if (!ddl.checks && !catalogTried) {
             preparation.withLock {
                 if (!catalogTried) {
                     describe()
@@ -166,7 +166,7 @@ class ClickHouseSink internal constructor(
             if (!due()) {
                 return
             }
-            val lineage = if (ddl == Ddl.AUTO) create() else lineage()
+            val lineage = if (ddl.creates) create() else lineage()
             validate(lineage)
             describe()
             checkedAt = clock()
@@ -207,7 +207,7 @@ class ClickHouseSink internal constructor(
     }
 
     private fun due(): Boolean {
-        if (ddl == Ddl.NONE) {
+        if (!ddl.checks) {
             return false
         }
         val last = checkedAt ?: return true

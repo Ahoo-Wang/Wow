@@ -27,11 +27,11 @@ import {
   useCountQuery,
   useFetcherCountQuery,
   useFetcherListQuery,
-  useFetcherListStreamQuery,
+  useFetcherStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
   useListQuery,
-  useListStreamQuery,
+  useStreamQuery,
   usePagedQuery,
   useSingleQuery,
 } from '../src';
@@ -42,16 +42,16 @@ import type {
   UseFetcherCountQueryReturn,
   UseFetcherListQueryOptions,
   UseFetcherListQueryReturn,
-  UseFetcherListStreamQueryOptions,
-  UseFetcherListStreamQueryReturn,
+  UseFetcherStreamQueryOptions,
+  UseFetcherStreamQueryReturn,
   UseFetcherPagedQueryOptions,
   UseFetcherPagedQueryReturn,
   UseFetcherSingleQueryOptions,
   UseFetcherSingleQueryReturn,
   UseListQueryOptions,
   UseListQueryReturn,
-  UseListStreamQueryOptions,
-  UseListStreamQueryReturn,
+  UseStreamQueryOptions,
+  UseStreamQueryReturn,
   UsePagedQueryOptions,
   UsePagedQueryReturn,
   UseSingleQueryOptions,
@@ -79,11 +79,11 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
     FilterListQuery<Fields>
   >();
   expectTypeOf<
-    InitialQuery<UseListStreamQueryOptions<Item, Fields>>
+    InitialQuery<UseStreamQueryOptions<Item, Fields>>
   >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseListStreamQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
+  expectTypeOf<SetQuery<UseStreamQueryReturn<Item, Fields>>>().toEqualTypeOf<
+    FilterListQuery<Fields>
+  >();
   expectTypeOf<
     InitialQuery<UsePagedQueryOptions<Item, Fields>>
   >().toEqualTypeOf<PagedQuery<Fields>>();
@@ -119,10 +119,10 @@ it('defaults Fetcher hooks to filter request subtypes', () => {
     SetQuery<UseFetcherListQueryReturn<Item, Fields>>
   >().toEqualTypeOf<FilterListQuery<Fields>>();
   expectTypeOf<
-    InitialQuery<UseFetcherListStreamQueryOptions<Item, Fields>>
+    InitialQuery<UseFetcherStreamQueryOptions<Item, Fields>>
   >().toEqualTypeOf<FilterListQuery<Fields>>();
   expectTypeOf<
-    SetQuery<UseFetcherListStreamQueryReturn<Item, Fields>>
+    SetQuery<UseFetcherStreamQueryReturn<Item, Fields>>
   >().toEqualTypeOf<FilterListQuery<Fields>>();
   expectTypeOf<
     InitialQuery<UseFetcherPagedQueryOptions<Item, Fields>>
@@ -151,7 +151,7 @@ it('accepts filter request subtypes in custom-executor hooks', () => {
     Error,
     FilterListQuery<Fields>
   >;
-  type StreamOptions = UseListStreamQueryOptions<
+  type StreamOptions = UseStreamQueryOptions<
     Item,
     Fields,
     Error,
@@ -175,7 +175,7 @@ it('accepts filter request subtypes in custom-executor hooks', () => {
     useListQuery<Item, Fields, Error>(options),
   ).toBeFunction();
   expectTypeOf((options: StreamOptions) =>
-    useListStreamQuery<Item, Fields, Error>(options),
+    useStreamQuery<Item, Fields, Error>(options),
   ).toBeFunction();
   expectTypeOf((options: PagedOptions) =>
     usePagedQuery<Item, Fields, Error>(options),
@@ -195,7 +195,7 @@ it('accepts filter request subtypes in Fetcher hooks', () => {
     Error,
     FilterListQuery<Fields>
   >;
-  type StreamOptions = UseFetcherListStreamQueryOptions<
+  type StreamOptions = UseFetcherStreamQueryOptions<
     Item,
     Fields,
     Error,
@@ -223,7 +223,7 @@ it('accepts filter request subtypes in Fetcher hooks', () => {
     useFetcherListQuery<Item, Fields, Error>(options),
   ).toBeFunction();
   expectTypeOf((options: StreamOptions) =>
-    useFetcherListStreamQuery<Item, Fields, Error>(options),
+    useFetcherStreamQuery<Item, Fields, Error>(options),
   ).toBeFunction();
   expectTypeOf((options: PagedOptions) =>
     useFetcherPagedQuery<Item, Fields, Error>(options),

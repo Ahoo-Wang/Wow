@@ -20,7 +20,7 @@ import type { ViewDensity, ViewPreset } from '../kit/presets.js';
 import type { ViewSurfaceProps, ViewTheme } from '../kit/ViewSurface.js';
 
 /**
- * How far a reader may go with an embed (D22, D36). Either way nothing is
+ * How far a reader may go with an embed. Either way nothing is
  * written: an embed never saves a view, a board or a preference — defining
  * views, building boards and saving them are the workbenches' (D36).
  *

@@ -41,8 +41,10 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -86,6 +88,16 @@ class ContextBackends @InternalWowApi constructor(
     val store: String = DEFAULT_STORE,
     /** The context's other log groups, each on a store of its own. */
     val groups: List<LogGroupBackends> = emptyList(),
+    /**
+     * The store instances these ports were opened on, which the node creates the schemas of when it starts, probes for
+     * its health and closes once it stopped; none for backends an application opened itself.
+     */
+    val stores: PlacedStores = PlacedStores.NONE,
+    /**
+     * The one-round-trip reads of a snapshot with its tail, by aggregate type: one for each type whose log and
+     * primary snapshots are on one store that reads them together ([Store.snapshotTails]).
+     */
+    val snapshotTails: SnapshotTailReaders = SnapshotTailReaders.NONE,
 ) {
     /** The snapshots the write side and the state readers read: each type's primary target. */
     val primarySnapshots: SnapshotStore? get() = snapshots?.primary
@@ -120,6 +132,8 @@ class ContextBackends @InternalWowApi constructor(
         timers: TimerStore? = this.timers,
         store: String = this.store,
         groups: List<LogGroupBackends> = this.groups,
+        stores: PlacedStores = this.stores,
+        snapshotTails: SnapshotTailReaders = this.snapshotTails,
     ): ContextBackends = ContextBackends(
         log,
         checkpoints,
@@ -130,6 +144,8 @@ class ContextBackends @InternalWowApi constructor(
         timers,
         store,
         groups,
+        stores,
+        snapshotTails,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -139,10 +155,10 @@ class ContextBackends @InternalWowApi constructor(
 
     override fun toString(): String =
         "ContextBackends(log=$log, checkpoints=$checkpoints, leases=$leases, ledger=$ledger, snapshots=$snapshots, " +
-            "reservations=$reservations, timers=$timers, store=$store, groups=$groups)"
+            "reservations=$reservations, timers=$timers, store=$store, groups=$groups, stores=$stores)"
 
     private fun valueFields(): List<Any?> =
-        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups)
+        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups, stores, snapshotTails)
 
     companion object {
         /** The name of the store of a context's default log group when the host names none. */
@@ -172,6 +188,60 @@ class ContextBackends @InternalWowApi constructor(
             reservations,
             timers,
         )
+    }
+}
+
+/**
+ * The store instances a context's ports were opened on: those its [writePath] needs (each store holding one of its
+ * logs, each type's primary snapshot store), whose outage makes the node not ready, and the [others] (additional
+ * snapshot stores, query and search stores), whose outage the node's health shows without taking it out of service.
+ */
+class PlacedStores @InternalWowApi constructor(val writePath: Set<Store>, val others: Set<Store> = emptySet()) {
+    /** Every placed store, the write path's first. */
+    val all: Set<Store> get() = writePath + others
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PlacedStores && writePath == other.writePath && others == other.others
+
+    override fun hashCode(): Int = 31 * writePath.hashCode() + others.hashCode()
+
+    override fun toString(): String = "PlacedStores(writePath=$writePath, others=$others)"
+
+    @InternalWowApi
+    companion object {
+        /** No store: backends an application opened itself. */
+        @JvmField
+        val NONE: PlacedStores = PlacedStores(emptySet())
+    }
+}
+
+/**
+ * The one-round-trip reads of a context's snapshots with their tails ([Store.snapshotTails]): the [default] one, of the
+ * aggregate types the layout places nowhere in particular, when their log store holds their primary snapshots, and
+ * the one of each type [placed] elsewhere, null when its log and primary snapshots are on different stores.
+ */
+class SnapshotTailReaders @InternalWowApi constructor(
+    private val default: SnapshotTailReader?,
+    private val placed: Map<AggregateType, SnapshotTailReader?> = emptyMap(),
+) {
+    /** The reader of [type]'s snapshots with their tails; null when they are read apart. */
+    fun of(type: AggregateType): SnapshotTailReader? = if (type in placed) placed[type] else default
+
+    /** These readers, each wrapped by [wrap]. */
+    @InternalWowApi
+    fun map(wrap: (AggregateType?, SnapshotTailReader) -> SnapshotTailReader): SnapshotTailReaders =
+        SnapshotTailReaders(
+            default?.let { wrap(null, it) },
+            placed.mapValues { (type, it) -> it?.let { wrap(type, it) } }
+        )
+
+    override fun toString(): String = "SnapshotTailReaders(default=${default != null}, placed=${placed.keys})"
+
+    @InternalWowApi
+    companion object {
+        /** No reader: every snapshot is read apart from its tail. */
+        @JvmField
+        val NONE: SnapshotTailReaders = SnapshotTailReaders(null)
     }
 }
 
@@ -256,7 +326,7 @@ enum class Routing {
  *   a name no `@OnSchedule` handler of the node runs fails its assembly.
  * - [snapshots]: the snapshot maintenance of each context: how often it claims the state revisions,
  *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
- * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes: an
+ * - [topicRouted]: the aggregate types whose commands the topic router takes: an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
@@ -281,7 +351,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
     val schedules: Map<String, JobOptions> = emptyMap(),
-    val kafkaRouted: Set<AggregateType> = emptySet(),
+    val topicRouted: Set<AggregateType> = emptySet(),
     val ledger: LedgerPublishing? = null,
     /** The snapshot maintenance of each context: claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
@@ -300,7 +370,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         stateViews: StateViewOptions = this.stateViews,
         timers: TimerOptions = this.timers,
         schedules: Map<String, JobOptions> = this.schedules,
-        kafkaRouted: Set<AggregateType> = this.kafkaRouted,
+        topicRouted: Set<AggregateType> = this.topicRouted,
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
         handoff: HandoffOptions = this.handoff,
@@ -315,7 +385,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         stateViews,
         timers,
         schedules,
-        kafkaRouted,
+        topicRouted,
         ledger,
         snapshots,
         handoff,
@@ -329,12 +399,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
     override fun toString(): String =
         "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
             "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, stateViews=$stateViews, " +
-            "timers=$timers, schedules=$schedules, kafkaRouted=$kafkaRouted, ledger=$ledger, snapshots=$snapshots, " +
+            "timers=$timers, schedules=$schedules, topicRouted=$topicRouted, ledger=$ledger, snapshots=$snapshots, " +
             "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, wait, subscription, appendQueue, executor, stateCache, stateViews, timers, schedules,
-        kafkaRouted, ledger, snapshots, handoff,
+        topicRouted, ledger, snapshots, handoff,
     )
 }
 
@@ -510,7 +580,7 @@ class SourceTopics @InternalWowApi constructor(
 ) {
     init {
         require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
-        require(ddl == Ddl.NONE || admin != null) { "Topics are validated or created through an admin: $ddl." }
+        require(!ddl.checks || admin != null) { "Topics are validated or created through an admin: $ddl." }
         require(partitionRefresh.isPositive()) { "The partitions of a topic are refreshed at a positive interval." }
     }
 

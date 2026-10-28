@@ -25,6 +25,7 @@ export const PACKAGE_ROOT = join(import.meta.dirname, '../..');
 export const ENTRIES = {
   '@ahoo-wang/wow-client': 'src/index.ts',
   '@ahoo-wang/wow-client/dsl': 'src/dsl.ts',
+  '@ahoo-wang/wow-client/testing': 'src/testing.ts',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;

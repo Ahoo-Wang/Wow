@@ -17,7 +17,7 @@ One entry, `@ahoo-wang/wow-react`. Its [symbol index](./symbols) lists every nam
 | `useListQuery`, `useFetcherListQuery` | A list query | Same |
 | `usePagedQuery`, `useFetcherPagedQuery` | A paged query | Same |
 | `useCountQuery`, `useFetcherCountQuery` | A count | Same |
-| `useListStreamQuery`, `useFetcherListStreamQuery` | A list, as server-sent events | Same |
+| `useStreamQuery`, `useFetcherStreamQuery` | A list, as server-sent events | Same |
 
 Each hook takes a `Use…Options` and returns a `Use…Return`, both exported. The `use*Query` hooks run your `execute`, a generated client's method; the `useFetcher*Query` hooks post the query to a query route through a Fetcher. Every hook has a second overload typed by a query of your own, a subtype of its query type.
 

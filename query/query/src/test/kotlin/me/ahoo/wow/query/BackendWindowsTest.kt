@@ -31,10 +31,10 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RunningFunction
@@ -82,6 +82,8 @@ class BackendWindowsTest {
 
     private val province = AggregationGroup.Terms(QueryField("province"), "province")
     private val city = AggregationGroup.Terms(QueryField("city"), "city")
+    private val byProvinceAndCity =
+        listOf(Sort(QueryField("province"), Sort.Direction.ASC), Sort(QueryField("city"), Sort.Direction.ASC))
     private val month = AggregationGroup.DateHistogram(QueryField("createdAt"), "month", AggregationDateUnit.MONTH)
     private val gmv = AggregationMetric.Numeric(
         AggregationFunction.SUM,
@@ -117,6 +119,7 @@ class BackendWindowsTest {
                     derived("rank", DerivedExpression.Rank("gmv", listOf("province"))),
                 ),
                 having = HavingExpression.Condition("rank", ComparisonOperator.LTE, 1.0),
+                sort = byProvinceAndCity,
                 limit = 2,
             )
             val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
@@ -310,6 +313,7 @@ class BackendWindowsTest {
             val query = AggregationQuery(
                 groupBy = listOf(province, city),
                 metrics = listOf(gmv, derived("total", DerivedExpression.Total("gmv"))),
+                sort = byProvinceAndCity,
                 limit = 3,
             )
             val native = schema.withAggregation(
@@ -373,12 +377,12 @@ class BackendWindowsTest {
         val windows = mutableListOf<GroupWindow>()
         val aggregations = mutableListOf<AggregationQuery>()
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = emptyFlow()
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = emptyFlow()
 
         override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage =
             BackendPage(emptyList())
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = 0
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long = 0
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
             aggregations += query.query

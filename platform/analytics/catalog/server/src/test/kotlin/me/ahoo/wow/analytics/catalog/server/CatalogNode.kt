@@ -14,65 +14,55 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
-import org.springframework.boot.builder.SpringApplicationBuilder
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.springframework.context.ConfigurableApplicationContext
-import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpMethod
-import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
-val json: JsonMapper = JsonMapper.builder().build()
+private const val OK = 200
 
-/** A response: its status, its headers and its body as JSON (null when it has none). */
-class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
-    val json: JsonNode get() = requireNotNull(body) { "The response has no body." }
+/** The body as JSON, which the response must have. */
+val Answer.json: JsonNode get() = requireNotNull(body) { "The response has no body." }
 
-    /** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
-    fun assertProblem(status: Int, code: String): Answer {
-        this.status.assert().describedAs(body.toString()).isEqualTo(status)
-        json["code"].asString().assert().describedAs(body.toString()).isEqualTo(code)
-        return this
-    }
-
-    fun assertOk(): Answer {
-        status.assert().describedAs(body.toString()).isEqualTo(OK)
-        return this
-    }
-
-    private companion object {
-        const val OK = 200
-    }
+/** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
+fun Answer.assertProblem(status: Int, code: String): Answer {
+    this.status.assert().describedAs(text).isEqualTo(status)
+    json["code"].asString().assert().describedAs(text).isEqualTo(code)
+    return this
 }
 
-/** Who sends a request: the headers [AnalyticsCatalogCallers] reads. */
+fun Answer.assertOk(): Answer {
+    status.assert().describedAs(text).isEqualTo(OK)
+    return this
+}
+
+/** Who sends a request: the headers the host's development callers read, a caller of the catalog's tenant. */
 data class Who(val headers: Map<String, String>) {
     companion object {
-        val ADMIN: Who = of("ada", AnalyticsCatalogCallers.ADMIN)
-        val APPROVER: Who = of("abe", AnalyticsCatalogCallers.APPROVER)
-        val EDITOR: Who = of("eve", AnalyticsCatalogCallers.EDITOR)
-        val VIEWER: Who = of("vic", AnalyticsCatalogCallers.VIEWER)
+        val ADMIN: Who = of("ada", AnalyticsCatalogRoles.ADMIN)
+        val APPROVER: Who = of("abe", AnalyticsCatalogRoles.APPROVER)
+        val EDITOR: Who = of("eve", AnalyticsCatalogRoles.EDITOR)
+        val VIEWER: Who = of("vic", AnalyticsCatalogRoles.VIEWER)
         val NOBODY_IN_PARTICULAR: Who = of("nat", "someone")
 
         fun of(user: String, roles: String): Who =
-            Who(mapOf(AnalyticsCatalogCallers.USER to user, AnalyticsCatalogCallers.ROLES to roles))
+            Who(mapOf(USER to user, ROLES to roles, TENANT to AnalyticsCatalogContext.TENANT_ID))
     }
 }
 
 /** The analytics catalog started in this JVM, called over HTTP on its public port. */
-class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
-    private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+class CatalogNode(val server: WowServer) : AutoCloseable {
+    val context: ConfigurableApplicationContext get() = server.context
 
-    private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl("http://127.0.0.1:$port")
-        .responseTimeout(Duration.ofSeconds(30))
-        .build()
+    fun post(path: String, body: String, who: Who): Answer = server.http.post(path, body, who.headers)
 
-    fun post(path: String, body: String, who: Who): Answer = send(HttpMethod.POST, path, body, who)
-
-    fun get(path: String, who: Who): Answer = send(HttpMethod.GET, path, null, who)
+    fun get(path: String, who: Who): Answer = server.http.get(path, who.headers)
 
     /** Sends the source command [command] (`draft-source`, ...) of [id] with [body]. */
     fun command(id: String, command: String, body: String, who: Who = Who.ADMIN): Answer =
@@ -94,20 +84,8 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     fun state(id: String, who: Who = Who.VIEWER): JsonNode =
         get("/analytics-catalog/source/$id/state", who).assertOk().json
 
-    private fun send(method: HttpMethod, path: String, body: String?, who: Who): Answer {
-        val request = client.method(method).uri(path)
-            .headers { http -> who.headers.forEach { (name, value) -> http.set(name, value) } }
-        val spec = if (body == null) request else request.contentType(MediaType.APPLICATION_JSON).bodyValue(body)
-        val result = spec.exchange().expectBody(String::class.java).returnResult()
-        return Answer(
-            status = result.status.value(),
-            headers = result.responseHeaders,
-            body = result.responseBody?.takeIf { it.isNotBlank() }?.let { json.readTree(it) },
-        )
-    }
-
     override fun close() {
-        context.close()
+        server.close()
     }
 
     companion object {
@@ -118,26 +96,17 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
 /** Starts the analytics catalog on random ports of the loopback interface, with [properties] and further [sources]. */
 fun startCatalog(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
-): CatalogNode {
-    val arguments = mapOf(
-        "spring.main.banner-mode" to "off",
-        "server.port" to 0,
-        "server.address" to "127.0.0.1",
-        "wow.internal.port" to 0,
-        "wow.internal.host" to "127.0.0.1",
-        "wow.log.partitions" to 2,
-        "wow.cluster.drain-timeout" to "1s",
-        "wow.subscription.stop-timeout" to "2s",
-        "wow.wait.max-timeout" to "15s",
-        AnalyticsCatalogConfiguration.TRUST_IDENTITY_HEADERS to true,
-    ) + properties.toMap()
-    val context = SpringApplicationBuilder(AnalyticsCatalogServer::class.java, *sources.toTypedArray())
-        .profiles(*profiles.toTypedArray())
-        .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
-    return CatalogNode(context)
-}
+): CatalogNode = CatalogNode(
+    wowServer(
+        AnalyticsCatalogServer::class.java,
+        profiles,
+        mapOf("wow.log.partitions" to 2) + properties.toMap(),
+        sources,
+    ),
+)
 
 /** Waits until [condition] holds, polling, for at most [timeout]. */
 fun eventually(what: String, timeout: Duration = Duration.ofSeconds(30), condition: () -> Boolean) {

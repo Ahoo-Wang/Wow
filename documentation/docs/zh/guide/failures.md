@@ -15,13 +15,13 @@ Saga、投影或反应器有时会失败：邮件服务不可用、某一行违�
 3. **稍后重试。** 停放的聚合在更长的周期内重试：10 次，第一次在 3 分钟后，每次尝试允许 2 分钟。
 4. **恢复或跳过。** 这些重试也用尽后，聚合等待运维人员处理：恢复它，即从它停下的版本开始重新读取它的流；或者跳过它，即越过它扣下的那些事件。
 
-Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 的 `@OnRejected` 处理函数（[编写 Saga](./sagas#handle-a-rejection)）。
+Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 的 `@OnRejected` 处理函数（[编写 Saga](./sagas#handle-a-rejection)）。处理函数放过的 `CommandRejectedException`，无论来自 `context.call` 还是它使用的 `CommandClient`，都会立即停放这个聚合，不做重试：拒绝从不重试。
 
 ## 给处理函数它自己的预算 {#give-a-handler-its-own-budget}
 
 调用缓慢或不稳定的系统的处理函数，需要它自己的预算。写在处理器类上的 `@Retry` 适用于它所有的处理函数；写在处理函数上的，则逐项覆盖处理器的设置：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -42,7 +42,7 @@ Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }
@@ -117,7 +117,7 @@ wow:
 | 来源 | 谁来重试 | 怎样重试 |
 | --- | --- | --- |
 | HTTP 调用方 | 调用方 | 服务端从不重试请求。409 `wow.command.contended`、503 或 429 要用同一个 `Wow-Request-Id` 再次发送（[安全地重试](./http#retry-safely)）。Wow 的 Kotlin 客户端会自己这样做：共 3 次，间隔从 200 ms 起倍增，`Retry-After` 不超过 5 s 时按它等待（`wow.peer.retry.*`）；某个节点连不上或正在关闭时，换到对端的另一个节点。 |
-| Saga | 它的订阅 | 派生命令的请求 ID 来自提交和调用的顺序，所以再次处理这次提交会发出同样的请求。拒绝交给 `@OnRejected`。其他失败会使这次处理失败，在预算内重试，之后停放这次提交的聚合，与[上文](#what-happens-when-a-handler-throws)相同。目标繁忙属于背压。 |
+| Saga | 它的订阅 | 派生命令的请求 ID 来自提交、它的目标和它的命令类型，所以再次处理这次提交会发出同样的请求。每条派生命令各自结算：拒绝交给 `@OnRejected`，不会阻止其他命令。其他失败会使这次处理失败，在预算内重试，之后停放这次提交的聚合，与[上文](#what-happens-when-a-handler-throws)相同。目标繁忙属于背压。 |
 | 定时器 | 定时器 | 触发的命令的请求 ID 由定时器和它的时间槽构成。拒绝使定时器结束：不再重试，也不会交给任何 `@OnRejected`。失败使定时器保持待触发，从 1 s 起倍增到 5 min 重试，共 10 次（`wow.timers.max-attempts`），之后停放。目标繁忙时一秒后再试，不计入尝试次数，最多连续 20 次；再被拒绝一次就计入一次尝试，所以一直繁忙的目标最终会使定时器停放。 |
 | Kafka 命令摄入 | 它的订阅 | 再次投递的命令是重复请求。拒绝以回执发回给发送方。失败在订阅的预算内重试，之后在这条命令的偏移处停放目标聚合，挡住它后面的命令。目标繁忙属于背压。 |
 
@@ -129,15 +129,19 @@ wow:
 
 测试通过假端口让处理函数失败，并用 `expectError` 检查错误。再处理一次同一次提交，就能说明重试是安全的：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
 
 ```kotlin
 @Test
 fun `a failed notification should be asked for again with the same key`() = reactorSpec(handlers) {
+    val order = paid()
     failures += IllegalStateException("The mail service is down.")
-    whenEvent(shipped()) { expectError<IllegalStateException>() }
-    whenEvent(shipped()) { expectNoError() }
-    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:$order@6:0")
+    whenEvent(OrderShipped, by = ShipOrder::class) {
+        // Within the notifier's own budget, the runtime asks again.
+        expectRetried().assert().isInstanceOf(IllegalStateException::class.java)
+    }
+    whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```
 

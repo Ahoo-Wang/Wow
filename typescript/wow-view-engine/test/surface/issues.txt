@@ -1,4 +1,4 @@
-# Issue codes — 522.
+# Issue codes — 523.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -446,6 +446,7 @@ runtime.query.failed.storage_unsupported
 runtime.query.failed.temporal_aggregation_unsupported
 runtime.query.failed.temporal_configuration_conflict
 runtime.query.failed.temporal_representation_required
+runtime.query.failed.too_many_groups
 runtime.query.failed.unknown_field
 runtime.query.failed.unknown_property
 runtime.query.failed.unknown_type

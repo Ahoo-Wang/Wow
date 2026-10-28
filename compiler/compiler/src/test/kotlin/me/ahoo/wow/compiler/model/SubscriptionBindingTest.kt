@@ -30,8 +30,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.ExecutionProjectContext
-import me.ahoo.wow.kernel.ExecutionReactContext
+import me.ahoo.wow.kernel.ExecutionContext
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
@@ -63,10 +62,11 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
-        import me.ahoo.wow.api.subscribe.ProjectContext
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.ReceiptContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
@@ -84,7 +84,7 @@ class SubscriptionBindingTest {
             fun onEvent(event: StateEvent<OrderState>) { rows.put("sync", event.state.id) }
 
             @OnEvent
-            suspend fun withContext(event: StateEvent<OrderState>, context: ProjectContext) {
+            suspend fun withContext(event: StateEvent<OrderState>, context: SubscriptionContext) {
                 audit.put("suspend", context.executionId.toString())
             }
 
@@ -103,33 +103,35 @@ class SubscriptionBindingTest {
         object Notifier {
             val seen = mutableListOf<String>()
 
-            fun onEvent(event: StateEvent<OrderState>, context: ReactContext) { seen += context.executionId.subscription }
+            @OnEvent
+            fun onEvent(event: StateEvent<OrderState>, context: SubscriptionContext) { seen += context.executionId.subscription }
         }
 
         @Saga
         class CartSaga {
-            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<Command<*>> =
-                listOf(context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
-                    context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
+            @OnEvent
+            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<*>> =
+                listOf(CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
+                    CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
 
             @OnEvent
-            fun single(event: StateEvent<OrderState>, context: SagaContext): Command<Remove>? =
-                context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-3"))
+            fun single(event: StateEvent<OrderState>, context: SagaContext): CommandRequest<Remove>? =
+                CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-3"))
 
             @OnEvent
-            suspend fun none(event: StateEvent<OrderState>): List<Command<*>>? = null
+            suspend fun none(event: StateEvent<OrderState>): List<CommandRequest<*>>? = null
 
             @OnEvent
-            fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<Command<Remove>> =
-                Flux.just(context.command(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
+            fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<CommandRequest<Remove>> =
+                Flux.just(CommandRequest.to(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
 
             @OnRejected
-            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: SagaContext): Command<Restore> =
-                context.command(rejected.ref, Restore(rejected.commandId))
+            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: ReceiptContext): CommandRequest<Restore> =
+                CommandRequest.to(rejected.ref, Restore(rejected.commandId))
 
             @Blocking
             @OnRejected
-            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<Command<*>> = Flux.empty()
+            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<CommandRequest<*>> = Flux.empty()
         }
 
         data class Restore(val commandId: String)
@@ -195,10 +197,22 @@ class SubscriptionBindingTest {
             "override fun processors(",
             "sample.shop.cartSagaHandlers(dependencies),",
         )
+        // The handlers built from the host's Dependencies, by type and @Name, and from the services themselves,
+        // named as the constructor names them.
         generated(compilation, "OrderProjectionSubscriptions.kt")!!.readText().assert().contains(
-            "sample.shop.OrderProjection(dependencies.get(sample.shop.Rows::class.javaObjectType), " +
-                "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\"))",
+            "dependencies.get(sample.shop.Rows::class.javaObjectType, null, \"OrderProjection\"),",
+            "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\", \"OrderProjection\"),",
+            "public fun orderProjectionHandlers(\n    rows: sample.shop.Rows,\n    audit: sample.shop.Rows,\n)",
+            "val processor = sample.shop.OrderProjection(rows, audit)",
         )
+        // A processor that takes no service, an object or a class, is built with none.
+        generated(compilation, "NotifierSubscriptions.kt")!!.readText().assert().contains(
+            "): List<me.ahoo.wow.kernel.ProcessorBinding<*>> = notifierHandlers()",
+            "public fun notifierHandlers(\n): List<me.ahoo.wow.kernel.ProcessorBinding<*>> {",
+            "val processor = sample.shop.Notifier",
+        )
+        generated(compilation, "CartSagaSubscriptions.kt")!!.readText().assert()
+            .contains("val processor = sample.shop.CartSaga()")
         val provider = provider(compilation, result)
         provider.context.assert().isEqualTo("shop")
         val rows = linkedMapOf<String, String>()
@@ -218,10 +232,10 @@ class SubscriptionBindingTest {
         val event = event(result)
         runBlocking {
             handlers.filter { it.kind == FunctionKind.PROJECT }.forEach {
-                it.invoke(event, ExecutionProjectContext(execution(it, event))).assert().isEmpty()
+                it.invoke(event, ExecutionContext(execution(it, event))).assert().isEmpty()
             }
             val notifier = handlers.single { it.kind == FunctionKind.REACT }
-            notifier.invoke(event, ExecutionReactContext(execution(notifier, event))).assert().isEmpty()
+            notifier.invoke(event, ExecutionContext(execution(notifier, event))).assert().isEmpty()
         }
         // A binding calls its handler in the caller's coroutine: moving a blocking one to a virtual thread is the
         // runtime's, which reads the binding's blocking flag.
@@ -299,7 +313,129 @@ class SubscriptionBindingTest {
     fun `a missing dependency should fail the binding, naming its type`() {
         val (compilation, result) = compile(processors)
         assertThrownBy<MissingDependencyException> { provider(compilation, result).processors(Dependencies.NONE) }
-            .hasMessageContaining("sample.shop.Rows")
+            .hasMessageContaining("No dependency of sample.shop.Rows to build OrderProjection with")
+    }
+
+    @Test
+    fun `an internal processor should take its services through an internal function`() {
+        val internal = SourceFile.kotlin(
+            "Audit.kt",
+            """
+            package sample.audit
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            internal fun interface Journal {
+                fun write(line: String)
+            }
+
+            @Projection
+            internal class AuditProjection(private val journal: Journal) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = journal.write(event.ref.id)
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(internal)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, "AuditProjectionSubscriptions.kt")!!.readText().assert().contains(
+            "public fun auditProjectionHandlers(\n    dependencies: me.ahoo.wow.kernel.Dependencies,",
+            "internal fun auditProjectionHandlers(\n    journal: sample.audit.Journal,\n)",
+        )
+    }
+
+    @Test
+    fun `a processor with an internal constructor should take its services through an internal function`() {
+        val sources = SourceFile.kotlin(
+            "Idle.kt",
+            """
+            package sample.idle
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            fun interface Journal {
+                fun write(line: String)
+            }
+
+            @Projection
+            class GuardedProjection internal constructor(private val journal: Journal) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = journal.write(event.ref.id)
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(sources)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, "GuardedProjectionSubscriptions.kt")!!.readText().assert()
+            .contains("internal fun guardedProjectionHandlers(\n    journal: sample.idle.Journal,\n)")
+    }
+
+    @Test
+    fun `a handler's @Name should name its subscription, the generated binding calling its function`() {
+        val renamed = SourceFile.kotlin(
+            "Renamed.kt",
+            """
+            package sample.renamed
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Saga
+            class RenamedSaga {
+                @OnEvent
+                @Name("onPlaced")
+                fun onOrderPlaced(event: StateEvent<*>) = Unit
+
+                @OnRejected
+                @Name("onRefused")
+                fun onAnyRejected(rejected: CommandRejected<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(renamed)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val source = generated(compilation, "RenamedSagaSubscriptions.kt")!!.readText()
+        source.assert().contains(
+            "\"RenamedSaga\", \"onPlaced\"",
+            "processor.onOrderPlaced(",
+            "\"RenamedSaga\", \"onRefused\""
+        )
+        source.assert().contains("processor.onAnyRejected(")
+        provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert()
+            .containsExactly("RenamedSaga.onPlaced")
+    }
+
+    @Test
+    fun `a handler's blank @Name should fail the compilation`() {
+        val blank = SourceFile.kotlin(
+            "Blank.kt",
+            """
+            package sample.blank
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Projection
+            class BlankProjection {
+                @OnEvent
+                @Name(" ")
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, blank)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("handler BlankProjection.onEvent has a blank @Name")
     }
 
     @Test
@@ -422,5 +558,28 @@ class SubscriptionBindingTest {
                 "handler Qualified.onEvent takes a StateEvent of sample.Box<kotlin.String>: an aggregate's state " +
                     "takes no type arguments",
             )
+    }
+
+    @Test
+    fun `a processor that takes the host's Dependencies should fail the compilation`() {
+        val source = SourceFile.kotlin(
+            "TakesDependencies.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Reactor
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Reactor
+            class TakesDependencies(val dependencies: me.ahoo.wow.kernel.Dependencies) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, source)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("processor TakesDependencies takes the host's Dependencies")
     }
 }

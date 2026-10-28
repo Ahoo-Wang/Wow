@@ -53,7 +53,7 @@ import {
 } from './optionControls.js';
 
 /**
- * The data page (D20 屏 J): the chart's slots, each filled from the one
+ * The data page: the chart's slots, each filled from the one
  * list that fits it — a position slot lists the dimensions, a measure slot
  * the metrics — so a slot cannot be filled with the wrong kind of column.
  * Entering, every slot is already filled by `fitChartSlots`; the analyst

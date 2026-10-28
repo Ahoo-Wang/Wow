@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -109,6 +110,11 @@ internal class ElasticsearchStore(
     /** The client of Wow's JSON: a state's numbers are read and written exactly. */
     val client: ElasticsearchAsyncClient by lazy { client(restClient) }
 
+    /** The cluster's info, a `GET /`: the store answers. */
+    override suspend fun probe() {
+        client.info().awaitElasticsearch()
+    }
+
     /** The client of the store's queries: its own pool's when it has one, else [client]. */
     val queryClient: ElasticsearchAsyncClient by lazy { queryRestClient?.let(::client) ?: client }
 
@@ -126,25 +132,28 @@ internal class ElasticsearchStore(
      */
     override val primarySnapshots: Boolean get() = false
 
-    override fun openSnapshots(context: String): SnapshotStore =
+    override fun openSnapshots(context: String): Opened<SnapshotStore> =
         ElasticsearchSnapshotStore(client, names, context, ddl = config.ddl, refresh = refresh)
-            .also { schema(it::createSchema) }
+            .let { Opened.of(it, it::createSchema) }
 
-    override fun openCheckpoints(): CheckpointStore = throw noLog()
+    override fun openCheckpoints(): Opened<CheckpointStore> = throw noLog()
 
-    override fun openLeases(): LeaseStore = throw noLog()
+    override fun openLeases(): Opened<LeaseStore> = throw noLog()
 
-    override fun openLedger(): FailureLedger = throw noLog()
+    override fun openLedger(): Opened<FailureLedger> = throw noLog()
 
-    override fun openReservations(): ReservationStore = throw noLog()
+    override fun openReservations(): Opened<ReservationStore> = throw noLog()
 
-    override fun openLog(context: String, partitions: Int): EventLog = throw noLog()
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> = throw noLog()
 
-    override fun openTimers(context: String, partitions: Int): TimerStore = throw noLog()
+    override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = throw noLog()
 
     private fun noLog(): UnsupportedOperationException =
         UnsupportedOperationException(
-            "The Elasticsearch store $name holds no log: snapshots only."
+            "The Elasticsearch store $name holds no log: snapshots only. Keep the log and the control plane " +
+                "(timers, checkpoints, leases, the failure ledger, reservations) on a PostgreSQL or MongoDB store " +
+                "(wow.log.store), and name $name among a type's snapshot stores " +
+                "(wow.aggregates.[<context>.<aggregate>].snapshot.stores).",
         )
 
     companion object {

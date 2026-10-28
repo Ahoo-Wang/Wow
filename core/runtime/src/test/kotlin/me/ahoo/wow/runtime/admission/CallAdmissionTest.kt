@@ -155,7 +155,7 @@ class CallAdmissionTest {
         requestId: String = "request-1",
         target: TargetScope? = null,
         headers: Map<String, String> = emptyMap(),
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = CONTEXT,
         aggregate = "cart",
         command = "AddItem",

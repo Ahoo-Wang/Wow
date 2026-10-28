@@ -23,7 +23,7 @@ The compiler reads the domain module at build time and generates the aggregate's
 
 A command is a data class of the api module. It holds what the caller asks, never who the aggregate is: the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -45,7 +45,7 @@ data class SubmitOrder(
 
 A rule about the command alone, such as a positive quantity, a name that is not blank or an order that has items, is a Jakarta Bean Validation constraint on the command class, with Kotlin's `@field:` target:
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -80,11 +80,10 @@ Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the comm
 
 The root is a class annotated `@AggregateRoot`, built from its state. Its command functions decide: each takes a command and returns what it decided.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 The compiler finds every non-private function annotated `@OnCommand`, or named `onCommand`. The first parameter is the command; the return value is the decision:
@@ -115,17 +114,16 @@ A command function that needs what admission learned about the request takes `Co
 
 The basket's id is its buyer's user id, so its first command checks the caller against it:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
@@ -135,7 +133,7 @@ The parameters after the command are domain services, or the `DecideScope`. A se
 
 The order takes its payment policy as a service, and schedules its own cancellation with the `DecideScope` once its stock is confirmed:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -143,9 +141,10 @@ The order takes its payment policy as a service, and schedules its own cancellat
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -188,24 +187,23 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 
 A checkout answers the caller with the id of the order it submits:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-@OnCommand(produces = [BasketCheckedOut::class])
-fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
     if (state.items.isEmpty()) {
-        return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+        reject(Rejections.EMPTY, "The basket is empty.")
     }
     val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
     scope.putResult(ORDER_ID_RESULT, orderId)
-    return Decision.events(BasketCheckedOut(orderId, state.items))
+    return BasketCheckedOut(orderId, state.items)
 }
 ```
 
 The caller reads it from the result's `results`, `{"orderId": "alice-1"}`.
 
-A function that schedules a command declares the command's full type name in `@OnCommand(schedules = [...])`, as the order does with `eshop-ordering.order.CancelOrder`: the compiler cannot read the calls in a function's body, and the Manifest lists them.
+A function that schedules a command declares the command's class in `@OnCommand(schedules = [...])`, as the order does with `CancelOrder::class`: the compiler cannot read the calls in a function's body, and the Manifest lists them by full type name.
 
 ## Undo an outside act
 
@@ -243,7 +241,7 @@ It does not run when the append's outcome is unknown. The kernel first reads the
 
 The state class holds a sourcing function for each event, annotated `@OnSourcing` or named `onSourcing`. A sourcing function applies one event: it takes no service and does no I/O.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
 
 ```kotlin
 fun onSourcing(event: OrderSubmitted) {

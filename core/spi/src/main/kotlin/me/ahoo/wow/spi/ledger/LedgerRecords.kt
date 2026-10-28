@@ -124,7 +124,7 @@ class LedgerEntry @InternalWowApi constructor(
 
 /**
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
- * failure, each allowed [executionTimeout] (durations); [applied] when an operator applied it, rather than
+ * failure, each allowed [timeout] (durations); [applied] when an operator applied it, rather than
  * the subscription's.
  *
  * Fields may be added: construct it with [of]; the constructor is internal to Wow.
@@ -133,7 +133,7 @@ class LedgerEntry @InternalWowApi constructor(
 class LedgerRetrySpec @InternalWowApi constructor(
     val maxRetries: Int,
     val initialBackoff: String,
-    val executionTimeout: String,
+    val timeout: String,
     val applied: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
@@ -142,22 +142,22 @@ class LedgerRetrySpec @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "LedgerRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, executionTimeout=$executionTimeout, " +
+        "LedgerRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, timeout=$timeout, " +
             "applied=$applied)"
 
-    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, executionTimeout, applied)
+    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, timeout, applied)
 
     @InternalWowApi
     companion object {
-        /** At most [maxRetries] retries, the first [initialBackoff] after the failure, each allowed [executionTimeout]. */
+        /** At most [maxRetries] retries, the first [initialBackoff] after the failure, each allowed [timeout]. */
         @JvmStatic
         @JvmOverloads
         fun of(
             maxRetries: Int,
             initialBackoff: String,
-            executionTimeout: String,
+            timeout: String,
             applied: Boolean = false,
-        ): LedgerRetrySpec = LedgerRetrySpec(maxRetries, initialBackoff, executionTimeout, applied)
+        ): LedgerRetrySpec = LedgerRetrySpec(maxRetries, initialBackoff, timeout, applied)
     }
 }
 

@@ -27,7 +27,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DialogContent } from '../kit/popups.js';
 
 /**
- * 「放进仪表盘…」 (R2-98): the boards this reader may change, and a press on
+ * 「放进仪表盘…」: the boards this reader may change, and a press on
  * one puts the open view on it as one more panel (`addToDashboard`) — the
  * board's own save, at the first free place of its first tab. The boards
  * are read as the dialog opens; one that cannot take the view says why in

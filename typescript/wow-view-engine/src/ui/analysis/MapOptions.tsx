@@ -16,7 +16,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SlotSelect, type OptionsPageProps } from './optionControls.js';
 
 /**
- * A map's options (D41): the dimension whose values are its regions, the
+ * A map's options: the dimension whose values are its regions, the
  * number that shades them, and — where the host registered more than one —
  * which map; left unchosen, the first one registered.
  */

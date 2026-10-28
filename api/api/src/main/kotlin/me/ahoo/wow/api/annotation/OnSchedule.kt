@@ -20,7 +20,7 @@ import java.lang.annotation.Inherited
 
 /**
  * A job of a [Saga] run by a cron rule: the handler takes a [me.ahoo.wow.api.schedule.ScheduleTick]
- * and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
+ * and, optionally, the `JobContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
  * The compiler writes the job into the Manifest. Each job is kept by the built-in aggregate `<context>.schedule`, whose
  * id is the job's [name] in its tenant: each time the rule is due it commits `Ticked(slot)`, and its subscription,
  * `processor.function`, hands the tick to the handler, retried and parked as any subscription's.

@@ -78,7 +78,7 @@ interface AnalysisToolbarProps {
 }
 
 /**
- * The first row of the analysis result (D12 Ⅳ): on the left, what the
+ * The first row of the analysis result: on the left, what the
  * numbers below are — the dimensions, the metrics and which groups were
  * kept, in one line, as the result was actually shaped; on the right, how
  * they are looked at. Looking is the result's business, not the question's,

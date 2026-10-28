@@ -25,7 +25,6 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoShards
@@ -44,6 +43,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION_KEY
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.bson.BsonType
 import org.bson.Document
 import java.util.concurrent.TimeUnit
@@ -82,7 +82,7 @@ internal class MongoLogCollections(
     private val appendMillis: Long,
 ) {
     /** The aggregate collections whose creation and registration this log has made sure of, each once. */
-    private val ensured = EnsuredCollections<AggregateCollection>()
+    private val ensured = EnsuredOnce<String, AggregateCollection>()
 
     /** The aggregate collections of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -132,7 +132,7 @@ internal class MongoLogCollections(
             // Sharded by partition, one chunk each, spread over the shards while the collection is new.
             MongoShards.shardLog(client, database, log, partitions)
         }
-        if (ddl != Ddl.AUTO) {
+        if (!ddl.creates) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
         }

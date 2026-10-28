@@ -21,12 +21,19 @@ import org.springframework.core.env.Environment
  * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`)
  * is active, or its internal port binds a loopback address alone. It is the one exemption the host's safeguards
  * share, so a laptop starts as it is and a deployment cannot: `wow.backend=auto` falls back to memory, the public port
- * serves without a `CallerResolver` bean, and a platform service may take its callers from request
- * headers. [reason] says why, null outside development.
+ * serves without a `CallerResolver` bean, and, in a development profile alone ([profiles]), takes its callers from
+ * request headers. [reason] says why, null outside development.
+ *
+ * The profiles in effect are the active ones, or Spring's default profiles (`spring.profiles.default`) when none is
+ * active, as Spring itself takes them: [profiles] are those of `wow.dev-profiles` among them, empty when the node runs
+ * for development by its loopback internal port alone.
  */
-class DevelopmentMode(val reason: String?) {
+class DevelopmentMode(val reason: String?, val profiles: List<String> = emptyList()) {
     /** Whether the node runs for development. */
     val active: Boolean get() = reason != null
+
+    /** Whether a profile of `wow.dev-profiles` is in effect: an explicit choice to run for development. */
+    val byProfile: Boolean get() = profiles.isNotEmpty()
 
     /**
      * Refuses a setting meant for development alone outside it: a [WowConfigurationException] of [key] set to [value],
@@ -57,8 +64,12 @@ class DevelopmentMode(val reason: String?) {
             properties: WowProperties,
             environment: Environment,
             bindHost: String? = NodeIdentity.bindHostOf(properties),
-        ): DevelopmentMode = DevelopmentMode(
-            BackendSelection.memoryOptIn(environment.activeProfiles.toList(), properties.devProfiles, bindHost),
-        )
+        ): DevelopmentMode {
+            val effective = environment.activeProfiles.ifEmpty { environment.defaultProfiles }.toList()
+            return DevelopmentMode(
+                BackendSelection.memoryOptIn(effective, properties.devProfiles, bindHost),
+                effective.filter { it in properties.devProfiles },
+            )
+        }
     }
 }

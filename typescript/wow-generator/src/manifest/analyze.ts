@@ -24,6 +24,7 @@ import { compareNames } from '../naming/order';
 import {
   type JsonSchema,
   type ManifestAggregate,
+  type ManifestCommand,
   type ManifestContext,
   type ManifestDocument,
   schemaKey,
@@ -79,9 +80,11 @@ export type TextNumbersModel =
 export interface CommandModel {
   readonly name: string;
   readonly method: string;
-  /** The `PATHS` member of its route by id, and of its route without one. */
-  readonly byIdPath?: { readonly member: string; readonly path: string };
-  readonly unaddressedPath?: { readonly member: string; readonly path: string };
+  /** Its routes, as the Manifest lists them: the client sends it by them. */
+  readonly routes: readonly Route[];
+  /** Its route by id, and its route without one. */
+  readonly byIdPath?: { readonly path: string };
+  readonly unaddressedPath?: { readonly path: string };
   /** The body's type name, or undefined when its schema is unknown. */
   readonly bodyType: string;
   /** The body may be left out: its schema requires nothing. */
@@ -95,6 +98,12 @@ export interface CommandModel {
   readonly bodyNumbers?: boolean;
 }
 
+/** A route of the Manifest: a method and a path, `{id}` the aggregate id. */
+export interface Route {
+  readonly method: string;
+  readonly path: string;
+}
+
 /** A lifecycle command an aggregate lists. */
 export interface LifecycleModel {
   /** `wow.lifecycle.DeleteAggregate`, … */
@@ -102,6 +111,8 @@ export interface LifecycleModel {
   /** The `LifecycleCommands` member. */
   readonly member: string;
   readonly method: string;
+  /** Its routes, as the Manifest lists them. */
+  readonly routes: readonly Route[];
   /**
    * The body's type, or undefined for a command without one: the type
    * generated from the Manifest's `$defs` entry of the command's name when it
@@ -160,7 +171,6 @@ export interface ContextModel {
   readonly constantName: string;
   readonly directory: string;
   readonly errors: readonly {
-    readonly member: string;
     readonly code: string;
     readonly status: number;
     readonly description?: string;
@@ -591,13 +601,30 @@ function emptyBody(
   return !Array.isArray(resolved.required) || resolved.required.length === 0;
 }
 
+/** The domain commands of `aggregate`: its system commands left out. */
+function domainCommands(
+  aggregate: ManifestAggregate,
+): readonly ManifestCommand[] {
+  return (aggregate.commands ?? []).filter(command => command.system !== true);
+}
+
+/** The lifecycle commands `aggregate` lists among its system commands. */
+function lifecycleCommands(
+  aggregate: ManifestAggregate,
+): readonly ManifestCommand[] {
+  return (aggregate.commands ?? []).filter(
+    command =>
+      command.system === true && command.name.startsWith('wow.lifecycle.'),
+  );
+}
+
 function aggregateRoots(
   types: SchemaTypes,
   aggregate: ManifestAggregate,
 ): string[] {
   return [
     aggregate.state.schema,
-    ...(aggregate.commands ?? []).map(command => command.schema),
+    ...domainCommands(aggregate).map(command => command.schema),
     ...(aggregate.events ?? []).map(event => event.schema),
   ]
     .map(schemaKey)
@@ -613,9 +640,11 @@ function lifecycleBodies(
   types: SchemaTypes,
   aggregate: ManifestAggregate,
 ): string[] {
-  return (aggregate.lifecycle ?? []).filter(
-    name => LIFECYCLE_BODIES[name] !== undefined && types.schemaOf(name),
-  );
+  return lifecycleCommands(aggregate)
+    .map(command => command.name)
+    .filter(
+      name => LIFECYCLE_BODIES[name] !== undefined && types.schemaOf(name),
+    );
 }
 
 /**
@@ -698,7 +727,6 @@ function contextModel(
   types: SchemaTypes,
   context: ManifestContext,
 ): ContextModel {
-  const prefix = `${context.name}.`;
   return {
     name: context.name,
     ...(context.description ? { description: context.description } : {}),
@@ -706,13 +734,6 @@ function contextModel(
     constantName: upperSnakeCase(context.name),
     directory: context.name,
     errors: (context.errors ?? []).map(error => ({
-      member:
-        upperSnakeCase(
-          (error.code.startsWith(prefix)
-            ? error.code.slice(prefix.length)
-            : error.code
-          ).split(/[^A-Za-z0-9]+/),
-        ) || 'ERROR',
       code: error.code,
       status: error.status,
       ...(error.description ? { description: error.description } : {}),
@@ -724,6 +745,14 @@ function contextModel(
       aggregateModel(types, context, aggregate),
     ),
   };
+}
+
+/** The routes of `command`, as the Manifest lists them. */
+function routesOf(command: ManifestCommand): readonly Route[] {
+  return (command.routes ?? []).map(route => ({
+    method: route.method,
+    path: route.path,
+  }));
 }
 
 function typeOfRef(types: SchemaTypes, ref: string, where: string): string {
@@ -739,15 +768,17 @@ function aggregateModel(
   const where = `${context.name}.${aggregate.name}`;
   const typeName = toTypeIdentifier(pascalCase(aggregate.name));
   const generated = new Set(lifecycleBodies(types, aggregate));
-  const lifecycle: LifecycleModel[] = (aggregate.lifecycle ?? [])
-    .filter(name => LIFECYCLE_COMMANDS.has(name))
-    .map(name => {
+  const lifecycle: LifecycleModel[] = lifecycleCommands(aggregate)
+    .filter(command => LIFECYCLE_COMMANDS.has(command.name))
+    .map(command => {
+      const name = command.name;
       const simple = name.split('.').pop()!;
       const description = types.schemaOf(name)?.description;
       return {
         name,
         member: upperSnakeCase(simple),
         method: toIdentifier(camelCase(simple)),
+        routes: routesOf(command),
         ...(generated.has(name)
           ? { bodyType: types.refType(name, where), bodyGenerated: true }
           : LIFECYCLE_BODIES[name]
@@ -757,11 +788,10 @@ function aggregateModel(
       };
     });
   const taken = new Set(lifecycle.map(item => item.method));
-  const commands: CommandModel[] = (aggregate.commands ?? []).map(command => {
+  const commands: CommandModel[] = domainCommands(aggregate).map(command => {
     let method = toIdentifier(camelCase(command.name));
     if (taken.has(method) || method === 'gateway') method = `${method}Command`;
     taken.add(method);
-    const member = upperSnakeCase(command.name);
     const routes = (command.routes ?? []).filter(
       route => route.method === 'POST',
     );
@@ -771,15 +801,9 @@ function aggregateModel(
     return {
       name: command.name,
       method,
-      ...(byId ? { byIdPath: { member, path: byId.path } } : {}),
-      ...(unaddressed
-        ? {
-            unaddressedPath: {
-              member: byId ? `${member}_WITHOUT_ID` : member,
-              path: unaddressed.path,
-            },
-          }
-        : {}),
+      routes: routesOf(command),
+      ...(byId ? { byIdPath: { path: byId.path } } : {}),
+      ...(unaddressed ? { unaddressedPath: { path: unaddressed.path } } : {}),
       bodyType: typeOfRef(types, command.schema, `${where}.${command.name}`),
       bodyOptional: emptyBody(
         types,
@@ -804,7 +828,7 @@ function aggregateModel(
     }),
   );
   const commandNumbers = Object.fromEntries(
-    (aggregate.commands ?? []).flatMap(command => {
+    domainCommands(aggregate).flatMap(command => {
       const mark = types.textNumbers({ $ref: command.schema });
       return mark === undefined ? [] : [[command.name, mark]];
     }),

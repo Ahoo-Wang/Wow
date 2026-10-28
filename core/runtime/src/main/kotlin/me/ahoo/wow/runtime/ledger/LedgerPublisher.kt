@@ -282,7 +282,7 @@ class LedgerPublisher internal constructor(
         }
         open = now
         if (now) {
-            logger.info { "${options.context} takes the failure ledger now: $service publishes it (wow.ops.publish)." }
+            logger.info { "${options.context} takes the failure ledger now: $service publishes it (the ops publication)." }
             try {
                 scan()
             } catch (cancelled: CancellationException) {
@@ -313,7 +313,7 @@ class LedgerPublisher internal constructor(
             retrySpec = LedgerRetrySpec(
                 maxRetries = view.spec.maxRetries,
                 initialBackoff = view.spec.initialBackoff.toIsoString(),
-                executionTimeout = view.spec.executionTimeout.toIsoString(),
+                timeout = view.spec.timeout.toIsoString(),
                 applied = entry.retrySpec != null,
             ),
             recoverable = entry.recoverable.name,

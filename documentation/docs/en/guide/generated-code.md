@@ -15,7 +15,7 @@ build/generated/ksp/main/
 ├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
 │   ├── EshopOrderingDomainModelProvider.kt    the binding index
 │   ├── OrderModel.kt                          fun orderModel(context, paymentPolicy, configure)
-│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(dependencies)
+│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(services… | dependencies)
 │   └── OrderStateProperties.kt                the state's query fields
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
@@ -24,11 +24,11 @@ build/generated/ksp/main/
 
 ## Model factories
 
-Each aggregate root gets a function named after it, `<root>Model` with a lower-case first letter: `Order` gives `orderModel`. Its parameters are the context, then one per domain service the command functions take, then an optional `configure` block on the model builder. A test builds the model with it directly: `orderModel("eshop-ordering", PaymentPolicy(30.minutes))`. The host passes the services from the application's beans.
+Each aggregate root gets a function named after it, `<root>Model` with a lower-case first letter: `Order` gives `orderModel`. Its parameters are the context, which defaults to the module's, then one per domain service the command functions take, then an optional `configure` block on the model builder. A test builds the model with it directly: `orderModel(paymentPolicy = PaymentPolicy(30.minutes))`. The host passes the services from the application's beans. Beside it, `<Root>Model` (`OrderModel`) holds the aggregate's `CONTEXT`, `NAME` and `TYPE`, for the domain module, which does not see its own contract.
 
 ## Processor handlers
 
-Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(dependencies)`: `OrderProcessSaga` gives `orderProcessSagaHandlers`. It builds the processor once from its constructor's dependencies and returns one binding per handler, named `<processor>.<function>`, with the saga's `@OnRejected` and `@OnCommitted` handlers attached. A processor test passes its fakes through `Dependencies.of(...)` ([Test Domain Code](./testing)).
+Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(services…)`, which takes its constructor's services as named parameters, and `<processor>Handlers(dependencies)`, which finds them in the host's `Dependencies`: `OrderProcessSaga` gives `orderProcessSagaHandlers`. Each builds the processor once and returns one binding per handler, named `<processor>.<function>`, with the saga's `@OnRejected` and `@OnCommitted` handlers attached. A processor test passes its fakes as the services (`orderSummaryProjectionHandlers(summaries = …)`, [Test Domain Code](./testing)); a missing dependency names the processor or model it was building.
 
 ## Query fields
 
@@ -56,7 +56,7 @@ wow {
 }
 ```
 
-A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugin, declare it with the build's equivalent, `extra["wowContractService"]`.
+A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes the same name, so the server module that hosts the contexts does not repeat it (`wow { serviceName }` overrides it). The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugin, declare it with the build's equivalent, `extra["wowContractService"]`.
 
 An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
 

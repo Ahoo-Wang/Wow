@@ -47,13 +47,14 @@ interface DecideScope {
     /**
      * Refuses the command with the rejection [code] and [message], as returning
      * `Decision.reject(code, message)` does: it throws a [RejectedException], which the kernel answers as that
-     * rejection. [message] is shown to the caller.
+     * rejection. [message] is shown to the caller. The same as the top-level `reject(code, message)`, which a decide
+     * function without a scope calls.
      */
-    fun reject(code: String, message: String): Nothing = reject(code, message, emptyMap())
+    fun reject(code: String, message: String): Nothing = me.ahoo.wow.api.decide.reject(code, message)
 
     /** Refuses the command with the rejection [code], [message] and structured [extensions]; see [reject]. */
     fun reject(code: String, message: String, extensions: Map<String, Any?>): Nothing =
-        throw RejectedException(Rejection.of(code, message, extensions))
+        me.ahoo.wow.api.decide.reject(code, message, extensions)
 
     /** Registers [compensation] to run when this attempt's events are surely not appended. */
     fun onAppendFailure(compensation: suspend () -> Unit)

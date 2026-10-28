@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -32,8 +34,8 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
@@ -52,8 +54,8 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -102,8 +104,8 @@ class SagaCallBindingTest {
     ) { event, context ->
         val owner = checkNotNull(event.scope.ownerId)
         event.events.filterIsInstance<Placed>().flatMap {
-            context.call(context.command(BOX.ref(event.ref.tenantId, owner), Deliver(it.items)))
-            listOf(context.command(CART.ref(event.ref.tenantId, owner), AddItems(it.items)))
+            context.call(CommandRequest.to(BOX.ref(event.ref.tenantId, owner), Deliver(it.items)))
+            listOf(CommandRequest.to(CART.ref(event.ref.tenantId, owner), AddItems(it.items)))
         }
     }
 
@@ -133,7 +135,7 @@ class SagaCallBindingTest {
         wait: WaitPlan,
         headers: Map<String, String> = emptyMap(),
     ) = node.gateway.send(
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = "order",
             command = "Place",
@@ -156,8 +158,8 @@ class SagaCallBindingTest {
         handled.status.assert().describedAs(all.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
         val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-1"), 1)
         handled.derived.assert().containsExactly(
-            ExecutionSagaContext.derivedId(execution, 0),
-            ExecutionSagaContext.derivedId(execution, 1),
+            ExecutionSagaContext.derivedId(execution, BOX.ref(TENANT, "alice"), Deliver::class.java),
+            ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), AddItems::class.java),
         )
         val call = calls.single()
         call.type.assert().isEqualTo("mail.box.Deliver")
@@ -178,7 +180,7 @@ class SagaCallBindingTest {
             answer = { call ->
                 val command = call.command
                 mail.execute(
-                    CommandRequest(
+                    ServerCommandRequest(
                         context = "mail",
                         aggregate = "box",
                         command = call.name,
@@ -222,7 +224,7 @@ class SagaCallBindingTest {
 
     @Test
     fun `a call that fails should be retried within the saga's budget, then park the order`(): Unit = runBlocking {
-        answer = { throw CallFailedException("The mail service is down.") }
+        answer = { throw CommandCalls.failure("The mail service is down.") }
         node.start()
         val last = place("o-3", "carol", toSaga).toList().last()
         last.status.assert().isEqualTo(CommandResult.Status.FAILED)
@@ -257,14 +259,15 @@ class SagaCallBindingTest {
         assertThrownBy<IllegalArgumentException> {
             runBlocking { calls.call(Command("c", "r", AggregateType("mail", "other").ref(TENANT, "a"), "x")) }
         }
-        // One without a causation is its own root; a failed one is not reported.
-        val failed = calls.call(Command("c-1", "r-1", BOX.ref(TENANT, "alice"), Deliver(emptyList())))
+        // A call carries its chain; a failed one is not reported.
+        val root = Causation("root", "shop.order/$TENANT/o-1@1")
+        val failed = calls.call(Command("c-1", "r-1", BOX.ref(TENANT, "alice"), Deliver(emptyList()), causation = root))
         failed.status.assert().isEqualTo(CommandResult.Status.FAILED)
-        recorded.single().command.causation.assert().isEqualTo(Causation("c-1", "c-1"))
+        recorded.single().command.causation.assert().isEqualTo(root)
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
         val none = SagaCalls(null, setOf(SHOP), names, null, listOf(Deliver::class.java))
-        assertThrownBy<CallFailedException> {
+        assertThrownBy<WowProblemException> {
             runBlocking { none.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
         }
     }

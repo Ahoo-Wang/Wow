@@ -330,6 +330,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 recentRequests = options.stateCache.recentRequests,
                 maxEarlyWait = options.timers.maxEarlyWait
             ),
+            snapshotTailReaders = backends.snapshotTails::of,
         )
 
     /**
@@ -450,9 +451,9 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         }
     }
 
-    /** The `Kafka` router of [context]'s types in [ServiceNodeOptions.kafkaRouted], if any. */
+    /** The topic router of [context]'s types in [ServiceNodeOptions.topicRouted], if any. */
     private fun topicRouterOf(context: String, backends: ContextBackends): TopicRouter? {
-        val types = options.kafkaRouted.filterTo(LinkedHashSet()) { it.context == context }
+        val types = options.topicRouted.filterTo(LinkedHashSet()) { it.context == context }
         if (types.isEmpty()) {
             return null
         }

@@ -147,8 +147,8 @@ export function storedTimeWires(
 }
 
 /**
- * A board stored before its time wires were derived, read as it was then
- * (D1): unmarked, so each panel over data not wired to every one of its
+ * A board stored before its time wires were derived, read as it was then:
+ * unmarked, so each panel over data not wired to every one of its
  * date filters reads whole (`ignoresTime`) — nothing wires it on its own,
  * whichever of those filters is left the board's one. Its wires are the
  * author's, auto-connected ones included, and stay. Marked, so it happens

@@ -26,7 +26,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    testImplementation(testFixtures(project(":manifest")))
+    testImplementation(project(":manifest"))
     testImplementation(testFixtures(project(":runtime")))
     // The end-to-end trace from an HTTP request: the routes of wow-http, served through WebTestClient.
     testImplementation(project(":http"))

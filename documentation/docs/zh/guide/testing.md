@@ -20,7 +20,7 @@ JUnit 测试函数必须返回 `Unit`。这些规格函数返回 `Unit`，所以
 
 快速开始里的银行账户，这样测试：
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -30,7 +30,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {
@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel("bank")` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字，以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是 `tenant` 中的 `aggregate-1`）。
+`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是 `tenant` 中的 `aggregate-1`）。
 
 ### 准备与执行 {#arrange-and-act}
 
@@ -70,7 +70,9 @@ class AccountSpec {
 | `given(vararg events, scope = null)` | 把这些事件作为一条流提交，就像之前的某条命令产生了它们；`scope` 让聚合处于该所有者和空间。 |
 | `givenState(state, version, scope)`、`givenState(version, scope) { … }` | 让聚合从某个版本的某个状态开始，不重放历史；块形式修改初始状态。必须是规格的第一步。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
-| `whenCommand(command, requestId, expectedVersion, scope, …) { … }` | 以 `scope` 中的调用方，把命令送进内核，并在块中检查它的结果。 |
+| `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。 |
+| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
 | `ref(name)`、`fork(name, from) { … }` | 标记一个位置；在聚合的副本上运行一个场景，从现在或从标记的位置开始。 |
@@ -105,7 +107,7 @@ class AccountSpec {
 
 当一个场景从一段很长的历史会留下的状态开始时，直接从那个状态开始，不必重放历史。之后的命令基于它做决定，它们的流从它的版本接着往下：
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
 
 ```kotlin
 @Test
@@ -127,19 +129,19 @@ fun `a payment given as succeeded should be refunded`() = paymentSpec {
 
 开头相同的场景从这个开头分叉，而不是重复它。每个分叉运行在聚合自己的副本上：它的日志、定时器、预留、ID 和时钟。分叉里做的事留在分叉里，分叉之前的步骤也不会再运行，所以决定函数之前调用过的领域服务不会再被调用。`ref` 标记一个之后可以从它分叉的位置：
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
 
 ```kotlin
 @Test
 fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-    whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+    givenCommands(RequestPayment(ORDER, AMOUNT))
     ref("requested")
     fork("confirmed") {
-        whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+        givenCommands(ConfirmPayment(TRANSACTION))
         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
     }
     fork("failed") {
-        whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+        givenCommands(FailPayment(DECLINED))
         whenCommand(ConfirmPayment(TRANSACTION)) {
             expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
@@ -160,12 +162,12 @@ fork 内部的失败会说明它所在的 fork，以及它检查的步骤和命�
 
 fork 还可以换一套服务来运行：给它同一个模型、用编译器生成的工厂和另一个领域服务构建，这样一条分支就能看到服务给出不同的回答。聚合的副本由这个模型读取，它必须是同一个聚合类型：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
 
 ```kotlin
 // One branch runs with another payment policy: the same model the compiler generated, built with other
 // services, on a copy of the order so far.
-fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))) {
     whenCommand(ConfirmOrderStock(CAP)) {
         expectScheduled(
             Order.PAYMENT_GRACE_PERIOD,
@@ -180,7 +182,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
 
 `aggregateSpecTests` 把同一种规格作为一棵测试树运行，供 JUnit 的 `@TestFactory` 使用：每条命令是一个测试，每个分叉是一个包含它所运行测试的容器。失败的检查只让它自己的测试失败；其他步骤和分叉照常运行，各自报告：
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
 
 ```kotlin
 /**
@@ -188,7 +190,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
  * of the request, so a failing branch is reported on its own and the others still run.
  */
 @TestFactory
-fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentContract.NAME), id = ORDER) {
+fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(), id = ORDER) {
     whenCommand(RequestPayment(ORDER, AMOUNT)) {
         expectEventTypes(PaymentRequested::class)
         fork("confirmed") {
@@ -216,7 +218,7 @@ fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentCont
 
 为自己的聚合定时一条命令的命令函数，靠拨动时钟来测试。`advanceTime` 像运行时的定时器那样，发送每条到期的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
 
 ```kotlin
 @Test
@@ -239,19 +241,21 @@ cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽
 
 ## Saga {#sagas}
 
-处理器通过编译器为它生成的处理函数来测试：对每个 `@Saga`、`@Projection` 或 `@Reactor` 类，在它的包里有一个函数 `<processor>Handlers(dependencies)`。它只构建这一个处理器，并从 `dependencies` 取它自己的服务。
+处理器通过编译器为它生成的处理函数来测试：对每个 `@Saga`、`@Projection` 或 `@Reactor` 类，在它的包里有一个函数 `<processor>Handlers(services…)`。它只构建这一个处理器，使用测试传入的服务（`orderSummaryProjectionHandlers(summaries = …)`；不需要服务的处理器什么也不传）。
 
-`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`stateEvent(ref, state, vararg events, version, …)` 构建这次提交：
+`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。模块里没有模型来溯源的对端视图状态，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
 ```kotlin
 @Test
 fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
-        commands.map { it.ref to it.body }.assert().containsExactly(
-            stock.ref(TENANT, "mug") to ReserveStock(ORDER, 5),
-            stock.ref(TENANT, "cap") to ReserveStock(ORDER, 1),
+    // The order's model sources its state from its history; the commit after it is version 2.
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
+        expectCommands(
+            stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
+            stock.ref(order.ref.tenantId, "cap") to ReserveStock(ORDER, 1),
         )
         // Handling the commit again derives the same requests, which the inventory decides once: the spec
         // gives each handling a fresh context, as the runtime does.
@@ -264,18 +268,22 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 ### 拒绝与回执 {#rejections-and-receipts}
 
-Saga 发出的命令可能被目标拒绝，或者带回执地提交。`whenRejected` 和 `whenCommitted` 像运行时那样，把这个结果交回给 Saga 的 `@OnRejected` 或 `@OnCommitted` 处理函数：
+Saga 发出的命令可能被目标拒绝，或者带回执地提交。`whenRejected` 和 `whenCommitted` 像运行时那样，把这个结果交回给 Saga 的 `@OnRejected` 或 `@OnCommitted` 处理函数。拒绝码须是目标可能给出的：它的契约生成的常量，或 `FrameworkCodes` 中的码；其他码会失败：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
 fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
         val cap = commands.single { it.ref.id == "cap" }
-        whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+        whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
             expectHandledBy("onReserveRejected")
-            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+            expectCommand(
+                CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."),
+                to = order.ref
+            )
             // The same receipt again derives the same request.
             expectDeterministic()
         }
@@ -287,14 +295,15 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 同步调用另一个服务的 Saga，从 `answerCalls` 拿到回答：一个结果、一个拒绝，或者模拟服务宕机的异常。`expectCalls` 和 `calls` 检查它调用了什么：
 
-<!-- sample: example/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
+<!-- sample: examples/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
 
 ```kotlin
 @Test
 fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
-    whenEvent(event(checkedOut)) {
-        expectError<CallRejectedException> {
+    basket()
+    whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
+        expectError<CommandRejectedException> {
             code.assert().isEqualTo(
                 EshopOrderingContract.Order.Errors.WRONG_STATUS
             )
@@ -332,7 +341,7 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec` 测试，针对的是真�
 
 领域模块里的测试可以加载编译器为它生成的东西，检查模块的绑定索引和 Manifest 片段：它指明哪个上下文、构建哪些模型、它的处理器变成哪些订阅。
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
 
 ```kotlin
 @Test

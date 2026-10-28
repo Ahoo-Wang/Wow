@@ -52,7 +52,7 @@ const FILTER_DRAG_WORDING = {
 } as const;
 
 /**
- * The filters on the bar as a list to arrange (D22 G): each chip carried by
+ * The filters on the bar as a list to arrange: each chip carried by
  * a handle (`DragHandle`, as the tab bar's), dragged by a pointer or moved a
  * place by ←/→ on the handle, the place it lands said once — 「「仓库」现在是
  * 第 2 个筛选，共 3 个」.

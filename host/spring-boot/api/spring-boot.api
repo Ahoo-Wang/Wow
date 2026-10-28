@@ -40,11 +40,35 @@ public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
 }
 
+public abstract interface class me/ahoo/wow/spring/boot/DecoratingCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public abstract fun getDecorated ()Lme/ahoo/wow/http/caller/CallerResolver;
+}
+
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public static final field APP Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion;
+	public static final field OWNER Ljava/lang/String;
+	public static final field ROLES Ljava/lang/String;
+	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public static final field USER Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
 	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;
-	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getActive ()Z
+	public final fun getByProfile ()Z
+	public final fun getProfiles ()Ljava/util/List;
 	public final fun getReason ()Ljava/lang/String;
 	public final fun require (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;)V
 	public fun toString ()Ljava/lang/String;
@@ -115,6 +139,12 @@ public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration$NodeQueries {
 
 public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
 	public abstract fun onStep (Lme/ahoo/wow/runtime/node/ServiceNode$Step;)V
+}
+
+public final class me/ahoo/wow/spring/boot/SignedInCallerResolver : me/ahoo/wow/spring/boot/DecoratingCallerResolver {
+	public fun <init> (Lme/ahoo/wow/http/caller/CallerResolver;)V
+	public fun getDecorated ()Lme/ahoo/wow/http/caller/CallerResolver;
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spring/boot/SinkAutoConfiguration {
@@ -200,6 +230,7 @@ public final class me/ahoo/wow/spring/boot/WowOpenApiSecurity {
 
 public final class me/ahoo/wow/spring/boot/WowOpenApiSecurity$Companion {
 	public final fun getCOSEC ()Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
+	public final fun getDEVELOPMENT ()Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
 	public final fun getNONE ()Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
 	public final fun of (Lme/ahoo/wow/http/caller/CallerResolver;)Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
 }

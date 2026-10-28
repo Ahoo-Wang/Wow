@@ -136,7 +136,7 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
                         ?: Math.floorMod(message.key.hashCode(), partitions.size)
                     val partition = partitions[index]
                     val offset = starts[index] + partition.size
-                    partition += SourceMessage(offset, message.key, message.headers, message.value)
+                    partition += SourceMessage.of(offset, message.key, message.headers, message.value)
                 }
                 appended.value += 1
             }
@@ -150,7 +150,7 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
 
         fun offsets(partition: Int): PartitionOffsets = lock.withLock {
             requirePartition(partition)
-            PartitionOffsets(starts[partition], starts[partition] + partitions[partition].size)
+            PartitionOffsets.of(starts[partition], starts[partition] + partitions[partition].size)
         }
 
         fun retain(partition: Int, from: Long) = lock.withLock {

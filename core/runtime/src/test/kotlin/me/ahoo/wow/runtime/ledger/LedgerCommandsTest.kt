@@ -79,7 +79,7 @@ class LedgerCommandsTest {
         if (failing.get()) error("${entry.ref.id} is broken")
         handled += entry.ref.id
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, executionTimeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,
@@ -215,10 +215,10 @@ class LedgerCommandsTest {
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
 
-        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, initialBackoff = "PT5M", executionTimeout = "30s")))
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, initialBackoff = "PT5M", timeout = "30s")))
             .assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.retrySpec.assert()
-            .isEqualTo(ParkedRetrySpec(maxRetries = 2, initialBackoff = 5.minutes, executionTimeout = 30.seconds))
+            .isEqualTo(ParkedRetrySpec(maxRetries = 2, initialBackoff = 5.minutes, timeout = 30.seconds))
         lastRecord()["retrySpec"]["applied"].asBoolean().assert().isTrue()
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.retrySpec!!.maxRetries.assert().isEqualTo(0)

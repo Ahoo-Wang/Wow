@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Uses the generated CartCommandClient.addCartItem(body, { id: cartId, wait: { plan: [wait.snapshot()] } }) (or CommandGateway.send on /{context}/cart/{id}/add-cart-item), with no ownerId in the path: the service takes the owner from the caller
+1. Uses the generated CartCommandClient.addCartItem(body, { id: cartId, wait: [wait.snapshot()] }) (or CommandGateway.wait({ command: '<context>.cart.AddCartItem', body, id: cartId, wait: [wait.snapshot()] }), which posts to /{context}/cart/{id}/add-cart-item), with no ownerId in the path: the service takes the owner from the caller
 2. Handles a refusal as a rejected promise: catch WowProblemError and show its detail or map its code, since a failed command no longer resolves with errorCode
 3. Notes that if price is a BigDecimal in the service, the V10 type is a string ('19.90'), sent exactly through the generated client
 4. Notes the error code strings changed (wow.* and <context>.cart.<code>) and that the type check, lint and a call against the V10 service are the gates

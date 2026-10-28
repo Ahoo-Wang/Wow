@@ -18,7 +18,7 @@ From a clone of the Wow repository, with JDK 21, start the eShop's five services
 Then add an item to Alice's basket and check it out, waiting until the order the checkout submits is committed in the ordering context:
 
 ```bash
-BUYER=(-H 'X-User: alice')
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" \
@@ -27,13 +27,13 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-The eShop's servers read the caller from an `X-User` header to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) runs the services apart, on Kafka and PostgreSQL.
+In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
 
 ## 1. The basket decides
 
 A command states the shape it must have with Jakarta constraints, checked when it is admitted, before any aggregate sees it; one that breaks them is refused with `wow.command.invalid`:
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -52,34 +52,32 @@ data class AddBasketItem(
 
 The basket context's `Basket` aggregate then takes the command, looks at its state, and decides the events. Adding an item checks only what needs the state: that the basket is the caller's own:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
 Checking out refuses an empty basket, names the order it will become, and returns that id to the caller through the command's result:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-@OnCommand(produces = [BasketCheckedOut::class])
-fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
     if (state.items.isEmpty()) {
-        return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+        reject(Rejections.EMPTY, "The basket is empty.")
     }
     val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
     scope.putResult(ORDER_ID_RESULT, orderId)
-    return Decision.events(BasketCheckedOut(orderId, state.items))
+    return BasketCheckedOut(orderId, state.items)
 }
 ```
 
@@ -89,39 +87,38 @@ Neither function writes anything. The kernel appends the events in one commit, a
 
 The basket context does not create orders: the ordering context owns them. A saga in the basket context handles `BasketCheckedOut` and calls the ordering context's `SubmitOrder`, whose class it knows from the ordering context's `*-api` jar:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        context.command(
-            ORDER.ref(event.ref.tenantId, checkedOut.orderId),
+        CommandRequest.of(
             SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+            checkedOut.orderId,
         ),
     )
 }
 ```
 
-`context.command` gives the derived command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
+`context.call` gives the command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
 
 In the ordering context, `SubmitOrder`'s constraints were checked on admission, so the `Order` aggregate records the order:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
-From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)).
+From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop#the-order-flow)).
 
 ## 3. A read model follows
 
 Every order is queryable from its snapshot without a line of code, but a buyer's order list wants its own shape. A projection follows the ordering context's log and keeps a summary per order, guarded by the version so a replayed commit never moves it back:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
 ```kotlin
 @Blocking
@@ -161,7 +158,7 @@ The eShop's web UI calls the services through TypeScript clients generated from 
 
 <!-- typecheck: skip — compiled with the rest of the eShop web UI -->
 
-<!-- sample: example/eshop/web/src/shop/checkout.ts#checkout -->
+<!-- sample: examples/eshop/web/src/shop/checkout.ts#checkout -->
 
 ```ts
 /**
@@ -176,14 +173,12 @@ export async function checkout(
   basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.baskets.checkoutBasketStream(
+  const stream = await clients.basket.basket.commands.checkoutBasketStream(
     basketId,
     {},
     {
-      wait: {
-        plan: CHECKOUT_TO_PAID.map((step) => step.hop),
-        timeout: CHECKOUT_TIMEOUT,
-      },
+      wait: CHECKOUT_TO_PAID.map((step) => step.hop),
+      timeout: CHECKOUT_TIMEOUT,
     },
   );
   const results: CommandResult[] = [];

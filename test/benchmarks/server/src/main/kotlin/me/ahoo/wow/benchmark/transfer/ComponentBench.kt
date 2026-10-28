@@ -22,7 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
@@ -128,10 +128,9 @@ class ComponentRun(
     fun run(client: CommandClient, counter: StoreCounter): Map<String, Any?> = runBlocking(Dispatchers.Default) {
         val seedStarted = System.nanoTime()
         loop(accounts) { index ->
+            val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
             client.wait(
-                OpenAccount("owner-${index % OWNERS}", BALANCE),
-                ACCOUNT_TYPE.ref(TENANT, accountId(index)),
-                SendOptions.of(wait = WaitPlan.SNAPSHOT),
+                CommandRequest.builder(ACCOUNT_TYPE.ref(TENANT, accountId(index)), open).wait(WaitPlan.SNAPSHOT).build()
             )
         }
         val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
@@ -190,9 +189,12 @@ class ComponentRun(
         val account = index % accounts
         val ref = ACCOUNT_TYPE.ref(TENANT, accountId(account))
         return when (scenario) {
-            "E1" -> client.wait(Deposit(1), ref, SendOptions.of(wait = WaitPlan.COMMITTED))
-            "E3" -> client.wait(Prepare(accountId((account + 1) % accounts), 1), ref, SendOptions.of(wait = e3Plan))
-            "E1-large" -> client.wait(Annotate(notes), ref, SendOptions.of(wait = WaitPlan.COMMITTED))
+            "E1" -> client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
+            "E3" -> {
+                val prepare = Prepare(accountId((account + 1) % accounts), 1)
+                client.wait(CommandRequest.builder(ref, prepare).wait(e3Plan).build())
+            }
+            "E1-large" -> client.wait(CommandRequest.builder(ref, Annotate(notes)).wait(WaitPlan.COMMITTED).build())
             else -> throw IllegalArgumentException("Unknown scenario '$scenario': E1, E3 or E1-large.")
         }
     }

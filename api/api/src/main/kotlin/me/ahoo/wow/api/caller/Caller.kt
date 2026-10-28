@@ -30,8 +30,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *   `abac.` attributes). They live only as long as the request: none of them is written into a fact,
  *   but for the standard attribute [APP], the calling application, which the edge records as the
  *   command's request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
- * - [service] says the caller is a service identity: another service of the system, authenticated by
- *   its service credential, calling for a saga of its own. Only such a caller may assert the root command a call
+ * - [service] says the caller is a service identity: another service of the system, which names itself on the
+ *   internal port that only the platform's own services reach, calling for a saga of its own. Only such a caller may assert the root command a call
  *   acts for (its tenant, scope, operator and causation, the `Wow-Call` header); the edge refuses that header from
  *   any other caller. A service identity has a [subject].
  *

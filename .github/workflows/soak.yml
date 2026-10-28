@@ -75,7 +75,7 @@ jobs:
         run: |
           # report-<yyyyMMdd-HHmmss>.json: the last in glob order is the newest.
           report=
-          for file in example/eshop/e2e/build/eshop-soak/report-*.json; do
+          for file in examples/eshop/e2e/build/eshop-soak/report-*.json; do
             [ -e "$file" ] && report=$file
           done
           if [ -z "$report" ]; then
@@ -109,6 +109,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: eshop-soak
-          path: example/eshop/e2e/build/eshop-soak/
+          path: examples/eshop/e2e/build/eshop-soak/
           if-no-files-found: warn
           retention-days: 14

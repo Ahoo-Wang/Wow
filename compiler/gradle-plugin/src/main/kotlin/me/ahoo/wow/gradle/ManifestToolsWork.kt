@@ -65,6 +65,7 @@ internal object ManifestToolsWork {
         interface Parameters : WorkParameters {
             val classpath: ConfigurableFileCollection
             val serviceName: Property<String>
+            val defaultServiceName: Property<String>
             val serviceVersion: Property<String>
             val output: RegularFileProperty
         }
@@ -74,7 +75,8 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "merge",
                 parameters.classpath.files.toList<File>(),
-                parameters.serviceName.get(),
+                parameters.serviceName.orNull,
+                parameters.defaultServiceName.get(),
                 parameters.serviceVersion.orNull,
                 parameters.output.get().asFile,
             )

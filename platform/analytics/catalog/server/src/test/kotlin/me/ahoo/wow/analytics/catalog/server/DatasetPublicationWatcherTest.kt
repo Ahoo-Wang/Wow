@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
@@ -35,7 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.FilterOperator
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.read.QueryApi
@@ -51,10 +52,10 @@ import java.time.ZoneOffset
 @OptIn(ExperimentalWowApi::class)
 class DatasetPublicationWatcherTest {
     private var rows: List<Snapshot<DatasetState>> = emptyList()
-    private val queries = mutableListOf<IListQuery>()
+    private val queries = mutableListOf<ListQuery>()
     private val api = mockk<QueryApi> {
         every { trusted().unbounded().snapshots(DatasetState::class.java).list(any()) } answers {
-            queries += firstArg<IListQuery>()
+            queries += firstArg<ListQuery>()
             flowOf(*rows.toTypedArray())
         }
     }
@@ -209,7 +210,7 @@ class DatasetPublicationWatcherTest {
             if (retired) onSourcing(DatasetRetired(version))
             revision?.let { onSourcing(DatasetNeedsRevision(listOf("a source changed"), serving = it)) }
         }
-        val type = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+        val type = AnalyticsCatalogContract.Dataset.TYPE
         return Snapshot.of(
             type.ref(
                 AnalyticsCatalogContext.TENANT_ID,

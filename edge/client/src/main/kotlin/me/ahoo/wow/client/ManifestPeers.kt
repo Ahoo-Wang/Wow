@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.client
 
-import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.CommandManifest
@@ -53,16 +53,15 @@ internal class ManifestPeers(
     }
 
     /**
-     * The command [command] is, in the Manifest of the context [ref] names, read as [caller] asserting [call] in
-     * service mode; an [IllegalArgumentException] when the Manifest does not declare it.
+     * The command [command] is, in the Manifest of the context of [type], the aggregate type it is sent to, read as
+     * [caller] asserting [call] in service mode; an [IllegalArgumentException] when the Manifest does not declare it.
      */
     suspend fun commandOf(
         command: NamedCommand,
-        ref: AggregateRef,
+        type: AggregateType,
         caller: Caller,
         call: CallWire?,
     ): CommandManifest {
-        val type = ref.type
         require(command.target == type.toString()) {
             "The named command ${command.type} is not one of $type, the aggregate it is sent to."
         }
@@ -70,16 +69,16 @@ internal class ManifestPeers(
         val fresh = reads[context]?.takeIf { it.at.elapsedNow() < ttl }
         val manifest = fresh?.manifest ?: fetch(context, caller, call)
         // A Manifest kept from before may not know a command the peer was deployed with since: read it again once.
-        return declared(manifest, command, ref)
-            ?: fresh?.let { declared(fetch(context, caller, call), command, ref) }
+        return declared(manifest, command, type)
+            ?: fresh?.let { declared(fetch(context, caller, call), command, type) }
             ?: throw IllegalArgumentException(
                 "The Manifest of $context does not declare the command ${command.name} of $type."
             )
     }
 
-    private fun declared(manifest: Manifest, command: NamedCommand, ref: AggregateRef): CommandManifest? =
-        manifest.contexts.firstOrNull { it.name == ref.type.context }
-            ?.aggregates?.firstOrNull { it.name == ref.type.name }
+    private fun declared(manifest: Manifest, command: NamedCommand, type: AggregateType): CommandManifest? =
+        manifest.contexts.firstOrNull { it.name == type.context }
+            ?.aggregates?.firstOrNull { it.name == type.name }
             ?.commands?.firstOrNull { it.name == command.name || command.name in it.aliases || command.type in it.aliases }
 
     private suspend fun fetch(context: String, caller: Caller, call: CallWire?): Manifest {

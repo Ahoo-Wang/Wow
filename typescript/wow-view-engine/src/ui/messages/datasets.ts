@@ -12,7 +12,7 @@
  */
 
 /**
- * The standalone dataset view (D93): the picker of the datasets served, and
+ * The standalone dataset view: the picker of the datasets served, and
  * what it says while none is.
  */
 export const datasetMessages = {

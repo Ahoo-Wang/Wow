@@ -108,7 +108,7 @@ object PostgresQueryIndexes {
         mode: Ddl,
         indexes: List<PostgresQueryIndex>
     ): PostgresQueryIndexReport {
-        if (mode == Ddl.NONE) return PostgresQueryIndexReport()
+        if (!mode.checks) return PostgresQueryIndexReport()
         val reports = indexes.groupBy { it.table }.map { (table, planned) -> manage(dataSource, mode, table, planned) }
         return PostgresQueryIndexReport(
             created = reports.flatMap { it.created },

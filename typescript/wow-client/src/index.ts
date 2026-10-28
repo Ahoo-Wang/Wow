@@ -24,7 +24,7 @@ export {
   type ApplyTags,
   CommandGateway,
   type CommandOptions,
-  commandSegment,
+  type CommandRequest,
   type CreateCommandOptions,
   type LifecycleCommand,
   LifecycleCommands,
@@ -39,6 +39,12 @@ export {
   textNumbersBy,
   type TextNumbersByName,
 } from './exactJson.js';
+export {
+  type DevelopmentCaller,
+  developmentCaller,
+  developmentCallerHeaders,
+  DevelopmentCallerHeaders,
+} from './developmentCaller.js';
 export {
   formatScope,
   type RequestOptions,
@@ -82,7 +88,7 @@ export {
   DatasetClient,
   type DescriptorResult,
   EventQueryClient,
-  type ListStreamOptions,
+  type StreamOptions,
   type Including,
   type PagedQuery,
   type PagedResult,
@@ -110,5 +116,4 @@ export {
   formatWaitTimeout,
   SNAPSHOT_SUBSCRIPTION,
   wait,
-  type WaitOptions,
 } from './wait.js';

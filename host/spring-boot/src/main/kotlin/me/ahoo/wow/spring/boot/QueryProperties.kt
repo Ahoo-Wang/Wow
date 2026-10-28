@@ -305,9 +305,10 @@ class QueryProperties {
     class Memory {
         /**
          * Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of
-         * a log in memory scanned: for local runs, demos and tests, not for production.
+         * a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the
+         * store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there.
          */
-        var enabled: Boolean = false
+        var enabled: Boolean? = null
     }
 
     /**

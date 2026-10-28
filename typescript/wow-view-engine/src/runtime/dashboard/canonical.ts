@@ -41,8 +41,8 @@ export type BoardReading = (config: DashboardViewConfig) => DashboardViewConfig;
 /**
  * The reading of a board whose panels' views `viewOf` knows so far: under
  * the paths they rename aliases to, then with the board's time filter
- * wired to each panel it reaches on its own (`withTimeBindings`, todo D,
- * D1) — a panel whose view is not known yet is wired once it is.
+ * wired to each panel it reaches on its own (`withTimeBindings`) — a panel
+ * whose view is not known yet is wired once it is.
  */
 export function canonicalBoard(
   viewOf: (panel: DataPanelSource) => PanelView | null,

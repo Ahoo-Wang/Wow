@@ -59,6 +59,12 @@ object ArchitectureRules {
     /** The test DSL (artifact `wow-test`; a project named `:test` would clash with the `test` task, decision D87). */
     val TEST_DSL = WowProject("test-dsl", "test/test-dsl")
 
+    /** A real in-memory query side for the test DSL's processor specs: the bridge from [TEST_DSL] to the query engine. */
+    val TEST_QUERY = WowProject("test-query", "test/test-query")
+
+    /** A Wow application started for a test, on its own ports (`wowServer`): the server-side test kit, on the host. */
+    val TEST_SPRING_BOOT = WowProject("test-spring-boot", "test/test-spring-boot")
+
     /** The SPI contract specs every backend runs (decision D196). */
     val TCK = WowProject("tck", "test/tck")
 
@@ -72,7 +78,7 @@ object ArchitectureRules {
      * The test modules (decision D196), the gate of every iteration: any module's tests may build on them, through a
      * test configuration (`testImplementation`, `integrationTestImplementation`, ...); no module's main code may.
      */
-    val TEST_MODULES = listOf(TEST_DSL, TCK, QUERY_TCK, TCK_CONTAINERS)
+    val TEST_MODULES = listOf(TEST_DSL, TEST_QUERY, TEST_SPRING_BOOT, TCK, QUERY_TCK, TCK_CONTAINERS)
 
     /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
     val OPS_API = WowProject("ops-api", "platform/ops/ops-api")
@@ -121,19 +127,19 @@ object ArchitectureRules {
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
     val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
 
-    /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in example/eshop/<context>, and `:eshop-e2e`. */
+    /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in examples/eshop/<context>, and `:eshop-e2e`. */
     val ESHOP = ESHOP_CONTEXTS.flatMap { context ->
-        listOf("api", "domain", "server").map { WowProject("eshop-$context-$it", "example/eshop/$context/$context-$it") }
-    } + WowProject("eshop-e2e", "example/eshop/e2e")
+        listOf("api", "domain", "server").map { WowProject("eshop-$context-$it", "examples/eshop/$context/$context-$it") }
+    } + WowProject("eshop-e2e", "examples/eshop/e2e")
 
     /**
      * The quickstart (decision D217): the sample of the quickstart page, one module that is both the domain and the
      * server of a tiny service.
      */
-    val QUICKSTART = WowProject("quickstart", "example/quickstart")
+    val QUICKSTART = WowProject("quickstart", "examples/quickstart")
 
     /** The Java smoke test (decision D229 G-8): a domain module written in Java, built on the kernel only. */
-    val JAVA_SMOKE = WowProject("java-smoke", "example/java-smoke")
+    val JAVA_SMOKE = WowProject("java-smoke", "examples/java-smoke")
 
     /**
      * The examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):
@@ -265,6 +271,10 @@ object ArchitectureRules {
         MANIFEST_TOOLS to setOf("manifest", "spi", "query-api", "kernel"),
         // The test DSL runs a domain on the kernel, and only on it (06 §1).
         TEST_DSL to setOf("kernel"),
+        // The test DSL's specs over the query engine: the test DSL stays on the kernel, and this module bridges them.
+        TEST_QUERY to setOf("test-dsl", "query"),
+        // A test's application on the host: the test DSL stays on the kernel, and this kit starts what the host runs.
+        TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
         // The query backend specs test the query engine's backend SPI, and only it.
@@ -374,7 +384,7 @@ object ArchitectureRules {
 
     /**
      * The server does not build on its client (decision D286): the wire grammar both ends share, the Wow headers,
-     * `Wow-Wait`, `Wow-Scope` and `Wow-Call`'s framing, and the service credential are `:api`'s (`me.ahoo.wow.api.wire`,
+     * `Wow-Wait`, `Wow-Scope` and `Wow-Call`'s framing, and the service header are `:api`'s (`me.ahoo.wow.api.wire`,
      * `me.ahoo.wow.api.client`).
      */
     val HTTP_IGNORES_CLIENT = DependencyRule(
@@ -389,20 +399,6 @@ object ArchitectureRules {
         modules = listOf(CLIENT.dir),
         forbidden = listOf("me.ahoo.wow.http"),
     )
-
-    /**
-     * The read side's scope authorization has one home, `:query`'s `QueryTargets` (review R5.C-1): which scope a
-     * caller may name (`Caller.crossScope`), the cross-tenant switch and the fixed tenants. wow-http passes on what a
-     * request names; it reads none of the members those rules rest on, and builds no `QueryCaller` itself: its callers
-     * come from `QueryTargets.of`.
-     */
-    val HTTP_DECIDES_NO_READ_SCOPE = SourceTokenRule(
-        name = "wow-http reads no crossScope, decides no tenant and builds no QueryCaller",
-        modules = listOf(HTTP.dir),
-        forbidden = listOf("crossScope", "fixedTenant", "tenantOf", "QueryCaller("),
-    )
-
-    val SOURCE_TOKEN_RULES = listOf(HTTP_DECIDES_NO_READ_SCOPE)
 
     /** The kernel knows nothing of clusters, subscriptions or waits: those are the runtime's. */
     val KERNEL_IGNORES_RUNTIME = DependencyRule(
@@ -486,10 +482,10 @@ object ArchitectureRules {
         forbidden = listOf("io.opentelemetry", "io.micrometer"),
     )
 
-    /** Only the host depends on Spring Boot. */
+    /** Only the host, and the kit that starts it for a test, depend on Spring Boot. */
     val ONLY_HOST_USES_SPRING_BOOT = DependencyRule(
-        name = "only wow-spring-boot imports Spring Boot",
-        modules = (MODULES - SPRING_BOOT).map { it.dir },
+        name = "only wow-spring-boot and wow-test-spring-boot import Spring Boot",
+        modules = (MODULES - SPRING_BOOT - TEST_SPRING_BOOT).map { it.dir },
         forbidden = listOf("org.springframework.boot"),
     )
 
@@ -557,7 +553,7 @@ object ArchitectureRules {
      */
     val TEST_MODULES_ARE_FRAMEWORK_FREE = DependencyRule(
         name = "wow-test and wow-tck import no Spring, Reactor, HTTP, driver or Testcontainers types",
-        modules = listOf(TEST_DSL, TCK, QUERY_TCK).map { it.dir },
+        modules = listOf(TEST_DSL, TEST_QUERY, TCK, QUERY_TCK).map { it.dir },
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("org.testcontainers"),
     )
 
@@ -589,13 +585,12 @@ object ArchitectureRules {
     )
 
     /**
-     * The Manifest model, or its test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`), declared
-     * in a test configuration: a domain's tests read the Manifest fragment the compiler writes, which the kernel does not
-     * bring (decision D231). Every module whose main code reads a Manifest declares `:manifest` in its main
-     * dependencies.
+     * The Manifest model declared in a test configuration: a domain's tests read the Manifest fragment the compiler
+     * writes, which the kernel does not bring (decision D231). Every module whose main code reads a Manifest declares
+     * `:manifest` in its main dependencies.
      */
-    private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
-        """\b(?:test\w*|\w+Test\w*)\(\s*(?:testFixtures\(\s*)?project\(\s*":${MANIFEST.name}"\s*\)\s*\)?\s*\)""",
+    private val TEST_SCOPED_MANIFEST = Regex(
+        """\b(?:test\w*|\w+Test\w*)\(\s*project\(\s*":${MANIFEST.name}"\s*\)\s*\)""",
     )
 
     /**
@@ -619,14 +614,14 @@ object ArchitectureRules {
 
     /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
-     * ([TEST_MODULES]) and the Manifest or its test fixtures in a test configuration ([TEST_SCOPED_MANIFEST_FIXTURES]):
+     * ([TEST_MODULES]) and the Manifest in a test configuration ([TEST_SCOPED_MANIFEST]):
      * those are allowed to every module.
      */
     fun projectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
         PROJECT_DEPENDENCY.findAll(
             File(repositoryRoot, "${module.dir}/build.gradle.kts").readText()
                 .replace(TEST_SCOPED_TEST_MODULE, "")
-                .replace(TEST_SCOPED_MANIFEST_FIXTURES, ""),
+                .replace(TEST_SCOPED_MANIFEST, ""),
         )
             .map { it.groupValues[1] }
             .toSet()

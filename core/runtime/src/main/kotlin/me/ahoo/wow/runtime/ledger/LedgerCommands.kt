@@ -79,8 +79,8 @@ internal class LedgerCommands(
         if (wire.causation == null || wire.replyTo?.context != opsContext) {
             logger.warn {
                 "Refused the ${wire.type} ${wire.id} on $ref: it comes from ${wire.replyTo?.context ?: "no saga"}, " +
-                    "not the $opsContext saga; if the ops service runs as another context, set wow.ops.publish.context " +
-                    "to its name."
+                    "not the $opsContext saga; if the ops service runs as another context, make that the ops " +
+                    "publication context."
             }
             return ErrorInfo(
                 FrameworkCodes.AUTH_FORBIDDEN,
@@ -195,8 +195,8 @@ internal class LedgerCommands(
         fun specOf(command: ApplyParkedRetrySpec, current: ParkedRetrySpec): ParkedRetrySpec = ParkedRetrySpec(
             maxRetries = command.maxRetries ?: current.maxRetries,
             initialBackoff = command.initialBackoff?.let { durationOf("initialBackoff", it) } ?: current.initialBackoff,
-            executionTimeout = command.executionTimeout?.let { durationOf("executionTimeout", it) }
-                ?: current.executionTimeout,
+            timeout = command.timeout?.let { durationOf("timeout", it) }
+                ?: current.timeout,
         )
 
         private fun durationOf(name: String, value: String): Duration =

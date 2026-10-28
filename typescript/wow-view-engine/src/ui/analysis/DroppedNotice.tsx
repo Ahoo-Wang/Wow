@@ -28,7 +28,7 @@ import { groupReference, metricReference } from './editing.js';
 
 /**
  * What an edit took out of the question beyond what it was asked to, said
- * with an undo (D71): 「展开 商品 后去掉了 2 个指标：本月至今 GMV、上月同期
+ * with an undo: 「展开 商品 后去掉了 2 个指标：本月至今 GMV、上月同期
  * GMV」. A step into the chain takes every dimension and metric outside the
  * new counting unit with it (D20: they follow rather than fail), and a
  * metric removed takes what was calculated from it; neither asks first — a

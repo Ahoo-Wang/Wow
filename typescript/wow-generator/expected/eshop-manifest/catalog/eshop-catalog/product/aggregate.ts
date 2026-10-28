@@ -24,6 +24,16 @@ export const ProductAggregate = {
       CreateProduct: { price: true },
     },
   },
+  Errors: {
+    /** 422: A product's name is never blank. */
+    BLANK_NAME: 'eshop-catalog.product.blank-name',
+    /** 409: A published product has a brand and a category. */
+    INCOMPLETE: 'eshop-catalog.product.incomplete',
+    /** 422: A product's price is more than zero. */
+    INVALID_PRICE: 'eshop-catalog.product.invalid-price',
+    /** 409: Only a published product can be delisted. */
+    NOT_PUBLISHED: 'eshop-catalog.product.not-published',
+  },
 } as const;
 
 /** The `state.*` paths of `product`'s snapshots a query filters, sorts and projects on. */

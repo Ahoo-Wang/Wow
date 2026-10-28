@@ -14,6 +14,9 @@
 package me.ahoo.wow.runtime.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import java.net.InetAddress
@@ -42,9 +45,12 @@ object StoreTypes {
      * when it is missing.
      */
     fun provider(providers: Map<String, StoreProvider>, type: String, key: String): StoreProvider =
-        providers[type] ?: throw IllegalStateException(
-            MODULES[type]?.let { "$key is $type, which needs $it on the classpath." }
-                ?: "$key is $type, which no store provider offers: ${providers.keys.joinToString()}.",
+        providers[type] ?: throw WowConfigurationException(
+            key,
+            type,
+            MODULES[type]?.let { "The store type $type needs $it on the classpath." }
+                ?: "No store provider offers the store type $type: ${providers.keys.joinToString()}.",
+            MODULES[type]?.let { "Add $it to the dependencies." } ?: "Name a store type a provider offers.",
         )
 }
 
@@ -71,14 +77,21 @@ object BackendSelection {
         if (type == StoreTypes.AUTO) {
             val available = providers.values.filter { it.type != StoreTypes.MEMORY && it.available(resources) }
                 .map(StoreProvider::type)
-            check(available.size <= 1) {
-                "Several backends can back Wow (${available.joinToString()}): set wow.backend to one of them."
+            configCheck(available.size <= 1, BACKEND, configured, "Name one of them.") {
+                "Several backends can back Wow: ${available.joinToString()}."
             }
-            return available.singleOrNull() ?: StoreTypes.MEMORY.also { checkNotNull(memoryOptIn) { NO_DURABLE_BACKEND } }
+            return available.singleOrNull() ?: StoreTypes.MEMORY.also {
+                configNotNull(memoryOptIn, BACKEND, NO_DURABLE_BACKEND_FIX, configured) { NO_DURABLE_BACKEND }
+            }
         }
-        val provider = StoreTypes.provider(providers, type, "wow.backend")
-        check(type == StoreTypes.MEMORY || provider.available(resources)) {
-            "wow.backend=$type needs ${provider.requirement}."
+        val provider = StoreTypes.provider(providers, type, BACKEND)
+        configCheck(
+            type == StoreTypes.MEMORY || provider.available(resources),
+            BACKEND,
+            type,
+            "Give it what it needs, or name another backend."
+        ) {
+            "The backend $type needs ${provider.requirement}."
         }
         return type
     }
@@ -103,10 +116,16 @@ object BackendSelection {
         false
     }
 
+    /** The key of the node's backend. */
+    const val BACKEND: String = "wow.backend"
+
     const val NO_DURABLE_BACKEND: String =
-        "No durable backend for Wow: wow.backend is auto, but neither PostgreSQL (wow-postgres on the classpath and a " +
-            "DataSource bean) nor MongoDB (wow-mongo and a MongoClient bean) is available, and a node in memory loses " +
-            "every command it committed when it stops. Add the backend's module and its DataSource or " +
-            "MongoClient, or set wow.backend=memory to keep the data in memory on purpose. A profile of " +
-            "wow.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
+        "No durable backend for Wow: the backend is auto, but neither PostgreSQL (wow-postgres on the classpath and a " +
+            "DataSource) nor MongoDB (wow-mongo and a MongoClient) is available, and a node in memory loses " +
+            "every command it committed when it stops."
+
+    const val NO_DURABLE_BACKEND_FIX: String =
+        "Add the backend's module and its DataSource or MongoClient, or name the memory backend to keep the data in " +
+            "memory on purpose. A development profile, or an internal port bound to the loopback interface alone, " +
+            "also runs in memory."
 }

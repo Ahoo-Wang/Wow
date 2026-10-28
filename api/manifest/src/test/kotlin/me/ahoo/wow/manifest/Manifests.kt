@@ -34,7 +34,7 @@ object Manifests {
                 produces = null,
                 routes = CommandRoutes.of(context, aggregate, "PutItem", Creation.NONE),
             ),
-        ),
+        ) + LIFECYCLE.map { SystemCommands.lifecycle(context, aggregate, it) },
         events = listOf(
             EventManifest(name = "CartCreated", schema = Manifest.schemaRef("sample.CartCreated")),
             EventManifest(
@@ -44,11 +44,10 @@ object Manifests {
                 schema = Manifest.schemaRef("sample.ItemAdded"),
             ),
         ),
-        lifecycle = LIFECYCLE,
         queries = QueryRoutes.queries(context, aggregate, snapshots = true),
     )
 
-    /** The lifecycle commands every sample aggregate lists. */
+    /** The lifecycle commands every sample aggregate lists, among its system commands. */
     val LIFECYCLE: List<String> = listOf("wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate")
 
     fun fragment(

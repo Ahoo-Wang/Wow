@@ -13,19 +13,16 @@
 
 /*
  * The callers the suites act as. The view store service takes the
- * caller from the request through its `CallerResolver`; the one it ships,
- * `ViewStoreCallers`, stands in for CoSec and reads headers — `X-User`,
- * `X-Tenant`, `X-Role` — beside `CoSec-App-Id`, the application. A caller is
+ * caller from the request through its `CallerResolver`; in development, the
+ * host's stands in for CoSec and reads headers — `Wow-User`, `Wow-Owner`,
+ * `Wow-Tenant`, `Wow-Roles` — and `Wow-App`, the application. A caller is
  * a fetcher whose interceptor sends them, as a host's CoSec interceptors
  * send its token; the store adds `Wow-Scope` itself where it acts as
  * `(shared)` or `(system)`.
  */
 
-import {
-  Fetcher,
-  type FetchExchange,
-  type RequestInterceptor,
-} from '@ahoo-wang/fetcher';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { inject } from 'vitest';
 
 /** The definition the service serves a configured system view for (globalSetup.ts). */
@@ -45,20 +42,6 @@ export interface Caller {
   roles?: readonly string[];
 }
 
-class CallerHeaders implements RequestInterceptor {
-  readonly name = 'ServiceCaller';
-  readonly order = 0;
-  constructor(private readonly caller: Caller) {}
-  intercept(exchange: FetchExchange): void {
-    const headers = exchange.ensureRequestHeaders();
-    headers['X-User'] = this.caller.user;
-    headers['X-Tenant'] = this.caller.tenantId;
-    headers['CoSec-App-Id'] = this.caller.appId;
-    if (this.caller.roles?.length)
-      headers['X-Role'] = this.caller.roles.join(',');
-  }
-}
-
 /** The service's base URL, as the global setup provides it. */
 export function serviceURL(): string {
   return inject('viewStoreURL');
@@ -67,6 +50,14 @@ export function serviceURL(): string {
 /** A fetcher on the service that asks as `caller`. */
 export function actingAs(caller: Caller): Fetcher {
   const fetcher = new Fetcher({ baseURL: serviceURL() });
-  fetcher.interceptors.request.use(new CallerHeaders(caller));
+  fetcher.interceptors.request.use(
+    developmentCaller({
+      user: caller.user,
+      owner: caller.user,
+      tenant: caller.tenantId,
+      app: caller.appId,
+      roles: caller.roles,
+    }),
+  );
   return fetcher;
 }

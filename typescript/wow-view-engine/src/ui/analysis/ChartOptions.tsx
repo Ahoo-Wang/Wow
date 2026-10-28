@@ -76,7 +76,7 @@ interface ChartOptionsProps {
 }
 
 /**
- * The visualization panel's second level (D20 屏 J): the options of the
+ * The visualization panel's second level: the options of the
  * chart type in force, on up to three pages — data, display, axes — the
  * same pages whichever family it is, with each family filling them with
  * its own slots and settings. A change here redraws the rows on screen;

@@ -27,7 +27,7 @@ class HostCrossTenantQueryTest {
     @Test
     fun `cross-tenant queries are off by default and the key turns them on`() {
         QueryProperties().crossTenant.enabled.assert().isFalse()
-        val host = startHost("wow.query.memory.enabled" to true, "wow.query.cross-tenant.enabled" to true)
+        val host = startHost("wow.query.cross-tenant.enabled" to true)
         try {
             host.context.getBean(HttpQueries::class.java).crossTenant.assert().isTrue()
         } finally {

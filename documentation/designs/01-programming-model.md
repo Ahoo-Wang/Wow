@@ -102,7 +102,7 @@ class CartState(val id: String) {
 
 V10 注解在 V10 的 `wow-api` 模块里按上表原样定义（D85 修订 D79）：包名与 9.x 相同（`me.ahoo.wow.api.annotation`），所以同名注解的全名不变、迁移只需换依赖，但不再带 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`）；没有模块同时依赖新旧两边，类路径上不会冲突；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
 
-实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId` 与调用顺序生成确定的命令 ID 与请求 ID，并带上因果；生成的工厂函数最后一个参数 `configure` 是通用扩展口。订阅处理器的绑定（D149）：KSP 生成与运行时无关的 `ProcessorBinding`（类型在 `wow-kernel`，领域模块仍只依赖它），经 `ModelProvider.processors(dependencies)` 暴露，由 `wow-runtime` 适配成订阅。
+实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId`、目标（类型、租户与 ID，未指定 ID 的创建记作 `unassigned`）、命令类型，以及该执行内同一目标同一类型的出现序号，生成确定的命令 ID 与请求 ID（回执处理函数的补偿另含回执所属的命令 ID），并带上因果（D346）；生成的工厂函数最后一个参数 `configure` 是通用扩展口。订阅处理器的绑定（D149）：KSP 生成与运行时无关的 `ProcessorBinding`（类型在 `wow-kernel`，领域模块仍只依赖它），经 `ModelProvider.processors(dependencies)` 暴露，由 `wow-runtime` 适配成订阅。
 
 删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
 

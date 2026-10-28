@@ -55,7 +55,7 @@ internal class SchemaComponents(defs: Map<String, Any?>, reserved: Set<String>) 
     private fun rewrite(node: Any?): Any? = when (node) {
         is Map<*, *> -> node.entries.associateTo(LinkedHashMap<String, Any?>()) { (key, value) ->
             val name = key.toString()
-            name to if (name == Json.REF && value is String && value.startsWith(DEFS_PREFIX)) {
+            name to if (name == Json.REF && value is String && Manifest.isSchemaRef(value)) {
                 ref(value).getValue(Json.REF)
             } else {
                 rewrite(value)
@@ -68,6 +68,5 @@ internal class SchemaComponents(defs: Map<String, Any?>, reserved: Set<String>) 
 
     private companion object {
         val NOT_ALLOWED = Regex("[^A-Za-z0-9._-]")
-        val DEFS_PREFIX = Manifest.schemaRef("")
     }
 }

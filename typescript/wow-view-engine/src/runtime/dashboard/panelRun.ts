@@ -71,7 +71,7 @@ interface PanelRun {
  * What one data panel runs on this board: the view's own config with the
  * panel's override of how it looks laid over it (`presentedConfig`), its
  * time dimension at the board's unit where its definition allows that
- * (`regrouped`, D22 F), and under the board's standing condition and
+ * (`regrouped`), and under the board's standing condition and
  * every filter wired to it that holds a value — each in the
  * panel's own field names (`panelFilterTree`) — but one whose value was
  * pressed on this panel (`DashboardFilters.from`). A trend card whose axis
@@ -117,7 +117,7 @@ export function panelRun(
 
 /**
  * The one condition a data panel runs under, in its own field names: the
- * board's fixed scope (`boardCondition`: `fixed`, D26 Q31), mapped through
+ * board's fixed scope (`boardCondition`: `fixed`), mapped through
  * the panel's bindings, ANDed with every filter wired to it that holds a
  * value in `filters` (`panelFilterTree`) — but one whose value was pressed
  * on this panel (`DashboardFilters.from`). The panel runs under it with

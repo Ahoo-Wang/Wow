@@ -15,7 +15,6 @@ package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -43,7 +42,7 @@ import org.junit.jupiter.api.Test
 /** The ops view of one parked entry (decision D141): the records of its service, and an operator's actions. */
 class ParkedSpec {
     private fun parkedSpec(block: AggregateSpec<ParkedState>.() -> Unit) =
-        aggregateSpec(parkedModel(OpsContext.NAME), id = ID, block = block)
+        aggregateSpec(parkedModel(), id = ID, block = block)
 
     @Test
     fun `a record creates the entry, and one that says nothing new changes nothing`() {
@@ -160,15 +159,15 @@ class ParkedSpec {
             // A parking the operator saw before the one the entry records now is stale.
             whenCommand(Resume("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
             whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
-            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", executionTimeout = "30s")) {
+            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", timeout = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
             whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
             whenCommand(ApplyRetrySpec(maxRetries = -1)) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(initialBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(executionTimeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(executionTimeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(timeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(timeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.
             whenCommand(RecordParked(entry("request" to "RESUME", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }

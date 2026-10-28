@@ -4,17 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { AddBasketItem, ApplyTags, ChangeBasketItemQuantity, CheckoutBasket, ClearBasket, RemoveBasketItem, TransferOwner, TransferSpace } from '../types.js';
 import { BasketAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-basket.basket`. */
-export const BasketCommandPaths = {
-  ADD_BASKET_ITEM: '/eshop-basket/basket/{id}/add-basket-item',
-  ADD_BASKET_ITEM_WITHOUT_ID: '/eshop-basket/basket/add-basket-item',
-  CHANGE_BASKET_ITEM_QUANTITY: '/eshop-basket/basket/{id}/change-basket-item-quantity',
-  CHECKOUT_BASKET: '/eshop-basket/basket/{id}/checkout-basket',
-  CLEAR_BASKET: '/eshop-basket/basket/{id}/clear-basket',
-  REMOVE_BASKET_ITEM: '/eshop-basket/basket/{id}/remove-basket-item',
-} as const;
-
-/** Sends the commands of `eshop-basket.basket`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-basket.basket`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class BasketCommandClient {
   readonly gateway: CommandGateway;
 
@@ -30,12 +20,12 @@ export class BasketCommandClient {
    * Produces `BasketItemAdded`.
    */
   addBasketItem(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, { ...options, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.AddBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/add-basket-item' }, { method: 'POST', path: '/eshop-basket/basket/add-basket-item' }], body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /** `AddBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   addBasketItemStream(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, { ...options, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.AddBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/add-basket-item' }, { method: 'POST', path: '/eshop-basket/basket/add-basket-item' }], body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /**
@@ -44,12 +34,12 @@ export class BasketCommandClient {
    * Produces `BasketItemQuantityChanged`.
    */
   changeBasketItemQuantity(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(BasketCommandPaths.CHANGE_BASKET_ITEM_QUANTITY, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/change-basket-item-quantity' }], body, id });
   }
 
   /** `ChangeBasketItemQuantity`, answered as one result per hop of its wait (`text/event-stream`). */
   changeBasketItemQuantityStream(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(BasketCommandPaths.CHANGE_BASKET_ITEM_QUANTITY, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/change-basket-item-quantity' }], body, id });
   }
 
   /**
@@ -58,12 +48,12 @@ export class BasketCommandClient {
    * Produces `BasketCheckedOut`.
    */
   checkoutBasket(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(BasketCommandPaths.CHECKOUT_BASKET, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.CheckoutBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/checkout-basket' }], body, id });
   }
 
   /** `CheckoutBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   checkoutBasketStream(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(BasketCommandPaths.CHECKOUT_BASKET, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.CheckoutBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/checkout-basket' }], body, id });
   }
 
   /**
@@ -72,12 +62,12 @@ export class BasketCommandClient {
    * Produces `BasketCleared`.
    */
   clearBasket(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(BasketCommandPaths.CLEAR_BASKET, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ClearBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/clear-basket' }], body, id });
   }
 
   /** `ClearBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   clearBasketStream(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(BasketCommandPaths.CLEAR_BASKET, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ClearBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/clear-basket' }], body, id });
   }
 
   /**
@@ -86,12 +76,12 @@ export class BasketCommandClient {
    * Produces `BasketItemRemoved`.
    */
   removeBasketItem(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(BasketCommandPaths.REMOVE_BASKET_ITEM, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/remove-basket-item' }], body, id });
   }
 
   /** `RemoveBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   removeBasketItemStream(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(BasketCommandPaths.REMOVE_BASKET_ITEM, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/remove-basket-item' }], body, id });
   }
 
   /**
@@ -99,7 +89,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BasketAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -107,7 +97,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BasketAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-basket/basket/{id}' }], id });
   }
 
   /**
@@ -115,7 +105,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BasketAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -123,7 +113,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BasketAggregate.path, id, LifecycleCommands.TRANSFER_OWNER, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner' }], id, body });
   }
 
   /**
@@ -131,6 +121,6 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(BasketAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

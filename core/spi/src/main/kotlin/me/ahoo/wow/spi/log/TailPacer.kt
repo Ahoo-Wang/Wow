@@ -63,7 +63,10 @@ class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Durati
     suspend fun await(partition: Int, mark: Long, found: Boolean, idle: Duration, woken: Boolean = false): Pace {
         val fast = found && !woken
         val wait = if (fast) interval else idle
-        val cut = withTimeoutOrNull(wait) { commits[partition].first { it != mark } } != null
+        // A commit counted since the mark cuts the wait whatever the timing: the timeout runs on another thread, and
+        // could fire before a wait that has nothing to wait for reads the counter.
+        val cut = commits[partition].value != mark ||
+            withTimeoutOrNull(wait) { commits[partition].first { it != mark } } != null
         val next = when {
             fast -> interval
             found -> idle

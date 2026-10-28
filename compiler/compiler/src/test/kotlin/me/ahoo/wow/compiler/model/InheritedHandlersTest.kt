@@ -176,7 +176,7 @@ import me.ahoo.wow.kernel.KernelOptions
         result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null)
             .assert().isEqualTo(expectedRun)
         val aggregate = fragment(compilation).contexts.single().aggregates.single()
-        aggregate.commands.associate { it.name to (it.creation.name to it.produces) }.assert().isEqualTo(
+        aggregate.domainCommands.associate { it.name to (it.creation.name to it.produces) }.assert().isEqualTo(
             mapOf(
                 // A `Decision` does not say what it produces; the resolved return type does.
                 "AddEntry" to ("ALLOWED" to null),

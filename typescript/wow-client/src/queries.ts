@@ -17,6 +17,7 @@ import type { Projected } from './dsl/projection.js';
 import { eventNumbers, type TextNumbers } from './exactJson.js';
 import type { QueryModelDescriptor } from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
+import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   FilterListQuery,
   FilterPagedQuery,
@@ -46,12 +47,12 @@ import {
 } from './streams.js';
 
 /** How a list is streamed: the request's options, and how it resumes. */
-export interface ListStreamOptions extends RequestOptions {
+export interface StreamOptions extends RequestOptions {
   /** How the stream resumes (decision D253); `false` never resumes it. */
   readonly resume?: StreamResumeOptions | false;
 }
 
-/** How a paged query counts its total (`TotalMode`, decision D150). */
+/** How a paged query counts its total (`TotalMode`). */
 export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
 
 /** A paged query of a query route: a page, and how its total is counted. */
@@ -62,7 +63,7 @@ export interface PagedQuery<
   total?: TotalMode;
 }
 
-/** A count of a query route (decision D150). */
+/** A count of a query route. */
 export interface CountQuery<
   FIELDS extends string = string,
 > extends FilterCapable<FIELDS> {
@@ -101,7 +102,7 @@ export type DescriptorResult =
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body
  * whose `kind` names the operation, `GET {path}` for the capability
- * descriptor (decisions D127, D145). A query written with literal `include`
+ * descriptor. A query written with literal `include`
  * paths answers records narrowed to them ({@link Projected}, review R4-Q,
  * Q-14).
  *
@@ -154,19 +155,19 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * problem: see {@link StreamResumeOptions}. A `limit` counts every record
    * read, resumed or not.
    */
-  listStream<const INCLUDE extends FIELDS>(
+  stream<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<Projected<R, INCLUDE>>>;
-  listStream(
+  stream(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<R>>;
-  async listStream(
+  async stream(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<unknown> {
-    return (await this.listStreamRows(query, options)).pipeThrough(
+    return (await this.streamRows(query, options)).pipeThrough(
       new TransformStream<StreamedRow<R>, R>({
         transform(row, controller) {
           controller.enqueue(row.record);
@@ -176,30 +177,30 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   }
 
   /**
-   * The records that match as {@link listStream} reads them, each with its
+   * The records that match as {@link stream} reads them, each with its
    * position: keep the last one read to resume the stream later
    * ({@link StreamResumeOptions.lastEventId}), on another page or after a
-   * restart.
+   * restart. Kotlin's `RowQueries.stream` answers these rows (`Positioned`).
    */
-  listStreamRows<const INCLUDE extends FIELDS>(
+  streamRows<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
-  listStreamRows(
+  streamRows(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<StreamedRow<R>>>;
-  async listStreamRows(
+  async streamRows(
     query: FilterListQuery<FIELDS>,
-    options: ListStreamOptions = {},
+    options: StreamOptions = {},
   ): Promise<ReadableStream<StreamedRow<R>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
-    const limit = query.limit ?? 0;
+    const limit = query.limit;
     const open = (lastEventId: string | undefined, received: number) => {
       return this.post(
         'list',
-        limit > 0 ? { ...query, limit: limit - received } : query,
+        limit === undefined ? query : { ...query, limit: limit - received },
         options,
         'text/event-stream',
         lastEventId,
@@ -209,7 +210,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     return resumableQueryRows<R>(
       first,
       (lastEventId, received) =>
-        limit > 0 && received >= limit
+        limit !== undefined && received >= limit
           ? Promise.resolve(undefined)
           : open(lastEventId, received),
       {
@@ -258,20 +259,30 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     );
   }
 
-  /** The first record that matches; rejects with 404 `wow.query.not-found` when none does. */
+  /**
+   * The first record that matches, or `undefined` when none does: the
+   * service's 404 `wow.query.not-found`, as Kotlin's `QueryApi.single`
+   * answers `null`. Any other 404, of a dataset or a route that does not
+   * exist, still rejects.
+   */
   single<const INCLUDE extends FIELDS>(
     query: Including<FilterSingleQuery<FIELDS>, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<Projected<R, INCLUDE>>;
+  ): Promise<Projected<R, INCLUDE> | undefined>;
   single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<R>;
+  ): Promise<R | undefined>;
   async single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<R>(await this.post('single', query, options), this.numbers);
+    try {
+      return json<R>(await this.post('single', query, options), this.numbers);
+    } catch (error) {
+      if (isNoMatch(error)) return undefined;
+      throw error;
+    }
   }
 
   /** How many records match, bounded by the count's limit. */
@@ -337,6 +348,20 @@ export class QueryModelClient<R, FIELDS extends string = string> {
 }
 
 /**
+ * Whether `error` is a 404 that answers "no match": a query that found no
+ * record, or an aggregate that does not exist. A 404 of another code, or of
+ * none (a route that does not exist), is a mistake the caller must hear of.
+ */
+function isNoMatch(error: unknown): boolean {
+  return (
+    error instanceof WowProblemError &&
+    error.status === 404 &&
+    (error.code === FrameworkErrorCodes.QUERY_NOT_FOUND ||
+      error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND)
+  );
+}
+
+/**
  * A query whose projection includes the literal paths `INCLUDE`: a query
  * client narrows its records to them ({@link Projected}).
  */
@@ -350,7 +375,7 @@ export function queryPath(type: AggregateType, model: string): string {
 }
 
 /**
- * Queries an aggregate type's snapshots (decision D128), the default read
+ * Queries an aggregate type's snapshots, the default read
  * model; only where the aggregate keeps them.
  *
  * @typeParam S - The state's type.
@@ -382,7 +407,7 @@ export class SnapshotQueryClient<
 }
 
 /**
- * Queries an aggregate type's event streams (decision D235) on the same
+ * Queries an aggregate type's event streams on the same
  * engine as its snapshots: one record per commit, `count` counts commits, a
  * condition on an event is an `elementMatch` on `events`, and per-event
  * analytics expand `events` in an aggregation (`elements`). A filter need
@@ -412,7 +437,7 @@ export class EventQueryClient<
 }
 
 /**
- * The datasets of a Wow service (decisions D75, D145): registered at run
+ * The datasets of a Wow service: registered at run
  * time, so not in the Manifest. Lists those the caller sees and queries
  * each as a snapshot model is queried.
  */

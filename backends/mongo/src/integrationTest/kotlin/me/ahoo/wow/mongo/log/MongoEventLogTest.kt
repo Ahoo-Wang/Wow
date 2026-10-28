@@ -187,7 +187,7 @@ class MongoEventLogTest : EventLogSpec() {
         writer.append(stream("a", 2, aggregate = order))
         val entries = withTimeout(TAIL_TIMEOUT_MS) { reader.tail(0).take(3).toList() }
         entries.map { it.stream.ref.type }.assert().containsExactly(order, cart, order)
-        reader.findByRequestId("tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
+        reader.findByRequestId(cart, "tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
     }
 
     @Test
@@ -247,13 +247,12 @@ class MongoEventLogTest : EventLogSpec() {
             log.readEntries(appended.ref).toList()
             log.positionOf(appended.ref, 1)
             log.findByRequestId(appended.ref.type, "tenant", appended.requestId)
-            log.findByRequestId("tenant", appended.requestId)
             // The head is one aggregation over the registry and the log's collections.
             val logReads = reads.filter { command ->
                 val target = (command["find"] ?: command["aggregate"])?.asString()?.value.orEmpty()
                 target.startsWith("wow_log__") || command.containsKey("aggregate") && target == MongoEventLog.REGISTRY
             }
-            logReads.size.assert().isGreaterThanOrEqualTo(7)
+            logReads.size.assert().isGreaterThanOrEqualTo(6)
             logReads.forEach { command ->
                 command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
             }
@@ -324,7 +323,6 @@ class MongoEventLogTest : EventLogSpec() {
             log.findByRequestId(order.ref("tenant", b), "reused")?.ref?.id.assert().isEqualTo(b)
             // Without the aggregate the lookup seeks every partition and finds one of them.
             log.findByRequestId(order, "tenant", "reused")?.ref?.id.assert().isIn(a, b)
-            log.findByRequestId("tenant", "reused")?.ref?.id.assert().isIn(a, b)
         }
 
     @Test

@@ -19,7 +19,7 @@ Every aggregate belongs to its tenant. Most also belong to someone: an order to 
 
 A product is read by every shopper and changed by staff, so it belongs to its tenant:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
 
 ```kotlin
 /**
@@ -50,17 +50,16 @@ The writes of a `TENANT` aggregate are not checked against an owner at all: acti
 
 Sometimes the scope is not enough. A basket's id is its buyer's user id, so its first command, which creates it, checks that the caller is that buyer. The command function takes `Command<X>` and compares `command.scope.ownerId` with the id:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
@@ -96,4 +95,4 @@ An aggregate type whose aggregates all live in one tenant, whatever the caller's
 
 ## Act in another scope
 
-A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `SendOptions` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope.
+A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `CommandRequest` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope.

@@ -21,8 +21,10 @@ pnpm exec wow-generator generate \
 ```
 
 For each bounded context it writes `types.ts` (the command, event and state
-types of the Manifest's schemas) and `boundedContext.ts` (its name, error codes
-and wait hops), and for each aggregate:
+types of the Manifest's schemas), `contract.ts` (`<Context>Contract`: its name,
+error codes and aggregates, and its wait hops) and `client.ts`
+(`<Context>Client`: its gateway and every aggregate's clients), and for each
+aggregate:
 
 - `aggregate.ts`: the aggregate's descriptor, its state fields and its event
   union;
@@ -31,25 +33,21 @@ and wait hops), and for each aggregate:
 - `queryClient.ts`: `<Aggregate>SnapshotQueryClient`,
   `<Aggregate>EventQueryClient` and `<Aggregate>StateClient`.
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { filter } from '@ahoo-wang/wow-client/dsl';
-import {
-  BasketCommandClient,
-  BasketSnapshotQueryClient,
-} from './generated/index.js';
+import { EshopBasketClient } from './generated/index.js';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
-const basket = new BasketCommandClient({ fetcher });
-const baskets = new BasketSnapshotQueryClient({ fetcher });
+const { basket } = new EshopBasketClient({ fetcher });
 
-await basket.addBasketItem(
+await basket.commands.addBasketItem(
   { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
   { id: 'buyer-1' },
 );
-const page = await baskets.paged({ filter: filter.matchAll() });
+const page = await basket.snapshots.paged({ filter: filter.matchAll() });
 console.log(page.total);
 ```
 

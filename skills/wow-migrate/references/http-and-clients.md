@@ -25,6 +25,7 @@ Keep every Wow package on one V10 minor (`~` or exact).
 | `POST /{context}/[tenant/{tenantId}/][owner/{ownerId}/]{aggregate}/{id}/{command}` | `POST /{context}/{aggregate}/{id}/{command}` (kebab command); tenant and owner come from the caller, never the path |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}` and their `/state` forms; `…/event/…` | `POST /{context}/{aggregate}/{snapshot\|events}/query` with `kind` in the body (`single`, `list`, `paged`, `cursor`, `count`, `aggregate`) |
 | `GET …/snapshot/schema`, `…/event/schema` | `GET` on the same query route (`ETag` = version) |
+| The aggregate-management routes: delete, recover, snapshot regeneration | The system commands each aggregate lists in the Manifest, with their routes: `DELETE /{context}/{aggregate}/{id}`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>`, `POST /{context}/{aggregate}/wow.snapshot.rebuild` (`{"ids": [...]}`), and a context's jobs `POST /{context}/wow.schedule/{id}/{enable\|reschedule\|disable}`; a client sends each by its Manifest route, never a path it derives |
 | A state by id | `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`, `?minVersion=`, `…/state/trace`) |
 | `/dataset/…` | `GET /wow/dataset`, `/wow/dataset/{context}/{dataset}/query` |
 | `Command-Wait-Stage`, `-Context`, `-Processor`, `-Function`, `Command-Wait-Tail-*`, `Command-Wait-Timeout` | `Wow-Wait` (a plan: `accepted`, `committed`, `snapshot`, `handled([ctx/]Processor.function)`, chained with `>`), `Wow-Wait-Timeout` |
@@ -39,7 +40,7 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 
 | 9.x | V10 |
 | --- | --- |
-| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: { plan: [wait.snapshot()] } })`, or `CommandGateway.send(path, body, options)` |
+| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: [wait.snapshot()] })`, or `CommandGateway.wait({ command: '<context>.<aggregate>.<Command>', body, id, wait })` |
 | `sendAndWaitStream` | The generated `…Stream` method, or `CommandGateway.stream` |
 | `QueryClientFactory`, `cartQueryClientFactory` | The generated `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient`, `<Aggregate>StateClient` |
 | `pagedState`, `listState`, `singleState` (state alone) | `paged`, `list`, `single` answer whole records; read `record.state`, or project with a literal `include` |
@@ -48,7 +49,7 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 | `@ahoo-wang/wow-client/legacy` `Condition` | Gone: `filter.*` from `@ahoo-wang/wow-client/dsl` |
 | `DatasetDirectoryClient`, `DatasetQueryClient` | `DatasetClient` (`list()`, `dataset(context, name)`) |
 | `abort` argument, `urlParams.path.{ tenantId, ownerId }`, `contextAlias` | `RequestOptions.signal`; nothing (the caller); `WowClientOptions.basePath` for a gateway prefix |
-| `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>ErrorCodes` |
+| `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>Contract.<Aggregate>.Errors` |
 | A failed command resolving with an error code | Every refusal and every command that did not succeed rejects (`resolveRejected: true` to resolve instead) |
 
 ## Behaviour that changes without a type error

@@ -27,7 +27,7 @@ import {
 } from '../model/index.js';
 
 /**
- * What the draft says that the applied config does not (D17-6).
+ * What the draft says that the applied config does not.
  *
  * "Changed, not applied" is one of the screen's three credentials (D2), and
  * it used to be measured on the filter tree alone. Every other member of the
@@ -148,7 +148,7 @@ export function pendingBesides<C extends ViewConfig>(
 /**
  * Whether the draft differs from what was saved **only** in how the result
  * is drawn — the layout, the chart (`presentationMembers`) — and in at least
- * one of those (D23 Q15). The title bar then says 「只改了展示」 rather than
+ * one of those. The title bar then says 「只改了展示」 rather than
  * a bare 「已修改」, and takes the edits back without asking: what would be
  * lost is a way of looking, not a question, and putting the saved one back
  * runs nothing (a presentation edit never reached `applied`).

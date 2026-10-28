@@ -120,7 +120,7 @@ export interface ExportDialogProps extends ExportWindowProps {
 
 /**
  * The export's own button and its window: one bordered icon button at the
- * end of the toolbar's right-hand block (D12 Ⅳ), because exporting is a
+ * end of the toolbar's right-hand block, because exporting is a
  * display facility like the columns and the sort — it changes nothing about
  * the view and nothing about the records. It opens `ExportDialog`.
  */
@@ -173,7 +173,7 @@ export function ExportButton({
 
 /**
  * Taking the result away: what is picked, or everything the applied
- * conditions match — chosen, waited for and read in **one window** (D14).
+ * conditions match — chosen, waited for and read in **one window**.
  *
  * It used to be a menu, and a menu is a surface for choosing rather than a
  * surface for waiting — holding it open with a progress line in it fought

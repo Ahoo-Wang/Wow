@@ -19,21 +19,21 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `AlertTone` | type | How loud a callout is; it decides the colour, the icon and the role. | — |
 | `AnalysisChart` | function | Draws what the kernel already shaped. | — |
 | `AnalysisChartProps` | interface | — | — |
-| `AnalysisHost` | type | What the analysis parts read of the workbench around them: the data workbench's own controller, or — for an analysis made inside a dashboard (D22 C) — the few members a dialog holding its own view supplies. | — |
+| `AnalysisHost` | type | What the analysis parts read of the workbench around them: the data workbench's own controller, or — for an analysis made inside a dashboard — the few members a dialog holding its own view supplies. | — |
 | `AnalysisParts` | function | What makes an analysis view an analysis view: the conditions, what to aggregate, and the result as a table or a chart. | — |
 | `AnalysisPartsProps` | interface | — | — |
 | `AnalysisTable` | function | The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen. | — |
 | `AnalysisTableProps` | interface | — | — |
 | `AppliedBar` | function | The conditions the rows below were fetched under. | — |
 | `AppliedBarProps` | interface | — | — |
-| `BUILT_IN_PRESETS` | const | The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the order it lists them (themes.md 4.1, D35) — for a host that builds its own picker, and for the completion of a `preset` prop. | — |
+| `BUILT_IN_PRESETS` | const | The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the order it lists them (themes.md 4.1) — for a host that builds its own picker, and for the completion of a `preset` prop. | — |
 | `BoardFilterModes` | interface | The modes a page gives a board's filters, and its time grouping. | — |
 | `BuiltInPreset` | type | The name of a preset the package ships. | — |
 | `CellField` | type | What a renderer knows about the field a value came from — which is what any reading of a value needs, `cellText` in a CSV included, so it is that type under the name this side uses for it. | — |
 | `CellSurface` | type | Where the reading is drawn, which is the one thing the two surfaces disagree about: **how many lines a value may take**. | — |
 | `ChartImageSlot` | interface | Where a chart hands over its capture; `null` takes it back. | — |
 | `ChartMapGeoJson` | interface | A GeoJSON feature collection, as far as a map chart reads one: each feature's `properties.name` is the region's name, which the region dimension's values — as their column shows them — are matched against. | — |
-| `ChartMapSource` | interface | A map a host offers the map chart (D41). | — |
+| `ChartMapSource` | interface | A map a host offers the map chart. | — |
 | `ColorMode` | type | The modes a reader may pick: the system's, or one pinned. | — |
 | `ColorModeControl` | interface | What `useColorMode` hands a host's switch. | — |
 | `ColumnSettings` | function | Which columns the table shows, in which order, pinned where, summarised how. | — |
@@ -41,16 +41,16 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ContentPanel` | function | The static panels: a note, a picture, a list of links. | — |
 | `ContentPanelProps` | interface | — | — |
 | `ControlAria` | interface | What a form that is not a condition — a declared action's — says of a control besides its name: the id a visible label points at, the hint it is described by, and that it must be filled. | — |
-| `ControlChromeProps` | interface | What a control inside a pill takes on top of the vendored component's, written out rather than read off the class recipe so the public type does not follow it (R2-85); `test/variants.test.tsx` holds the two in step. | — |
-| `DashboardEditExtensions` | interface | The parts of building a board that live outside the edit bar and the panel menu (D22 C–E): the big 「新建分析」 dialog, the presentation editor, promoting an owned analysis to a saved view, copying a personal view for a shared board, and the tab bar. | — |
+| `ControlChromeProps` | interface | What a control inside a pill takes on top of the vendored component's, written out rather than read off the class recipe so the public type does not follow it; `test/variants.test.tsx` holds the two in step. | — |
+| `DashboardEditExtensions` | interface | The parts of building a board that live outside the edit bar and the panel menu: the big 「新建分析」 dialog, the presentation editor, promoting an owned analysis to a saved view, copying a personal view for a shared board, and the tab bar. | — |
 | `DashboardEditExtensionsContext` | const | — | — |
 | `DashboardExtensionsOptions` | interface | — | — |
-| `DashboardFilterMode` | type | How an embedding page offers each of a board's filters (D22, the embedding half): Metabase's three states, one per filter. | — |
+| `DashboardFilterMode` | type | How an embedding page offers each of a board's filters (the embedding half): Metabase's three states, one per filter. | — |
 | `DashboardGrid` | function | The panels, placed. | — |
 | `DashboardGridProps` | interface | — | — |
 | `DashboardPanel` | function | One framed panel: a title, its menu, the two arrange controls while the board is built, a body. | — |
 | `DashboardPanelProps` | interface | — | — |
-| `DashboardTabs` | function | A board's tabs (D22 E): a bar over the grid — under the edit bar while the board is built — drawn only when there are two or more; one tab reads as none. | — |
+| `DashboardTabs` | function | A board's tabs: a bar over the grid — under the edit bar while the board is built — drawn only when there are two or more; one tab reads as none. | — |
 | `DashboardTabsProps` | interface | — | — |
 | `DashboardWorkbench` | function | The default Dashboard workbench: the view list, the board's filters, the panels and the save commands. | [Workbenches and Embeds](./components#api-DashboardWorkbench) |
 | `DashboardWorkbenchProps` | interface | — | [Workbenches and Embeds](./components#api-DashboardWorkbench) |
@@ -58,8 +58,8 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `DataWorkbench` | function | The data workbench: one view list of record and analysis views, and the editor and result of whichever is open. | [Workbenches and Embeds](./components#api-DataWorkbench) |
 | `DataWorkbenchProps` | interface | — | [Workbenches and Embeds](./components#api-DataWorkbench) |
 | `DatasetBindingOptions` | interface | How `datasetBindings` binds each dataset served: the options of its binding, asked of each one. | — |
-| `DatasetWorkbench` | function | The standalone dataset view (D93, Wow D238 ⑨): a picker of the datasets served — from one catalog or several — over the workbench of the one open. | — |
-| `DatasetWorkbenchProps` | interface | A standalone dataset view's props (D93): the datasets served, which one is open, and what `DataWorkbench` takes for it. | — |
+| `DatasetWorkbench` | function | The standalone dataset view: a picker of the datasets served — from one catalog or several — over the workbench of the one open. | — |
+| `DatasetWorkbenchProps` | interface | A standalone dataset view's props: the datasets served, which one is open, and what `DataWorkbench` takes for it. | — |
 | `DetachedDialog` | interface | A window opened from a toolbar, whose content is drawn outside it: the export's (`ExportButton`, `ExportMenu`). | — |
 | `DetachedPopover` | interface | A popover opened from a toolbar, whose content is drawn outside it. | — |
 | `DialogHandle` | type | The handle `DetachedDialog` joins its two halves by. | — |
@@ -75,17 +75,17 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ElementField` | interface | One field of an element, by its name within the element. | — |
 | `ElementTitleField` | interface | The element field an array of objects is read by, one element each. | — |
 | `EmbedBaseProps` | interface | What both embeds take, the view or the board they show aside. | [Workbenches and Embeds](./components#api-EmbedBaseProps) |
-| `EmbedInteraction` | type | How far a reader may go with an embed (D22, D36). | [Workbenches and Embeds](./components#api-EmbedInteraction) |
+| `EmbedInteraction` | type | How far a reader may go with an embed. | [Workbenches and Embeds](./components#api-EmbedInteraction) |
 | `EmbedSize` | type | How tall an embed is. | — |
-| `EmbeddedDashboard` | function | One saved dashboard inside a business page (D22): the board, its filter bar with each filter in the mode the page gives it, and what the host switched on — a tier (`interaction`), the title, the panel titles, a panel's export, auto-refresh, filling the screen, 在工作台中打开. | [Workbenches and Embeds](./components#api-EmbeddedDashboard) |
+| `EmbeddedDashboard` | function | One saved dashboard inside a business page: the board, its filter bar with each filter in the mode the page gives it, and what the host switched on — a tier (`interaction`), the title, the panel titles, a panel's export, auto-refresh, filling the screen, 在工作台中打开. | [Workbenches and Embeds](./components#api-EmbeddedDashboard) |
 | `EmbeddedDashboardProps` | interface | — | [Workbenches and Embeds](./components#api-EmbeddedDashboard) |
-| `EmbeddedView` | function | One saved record or analysis view inside a business page: the result, and what the host switched on around it (D22). | [Workbenches and Embeds](./components#api-EmbeddedView) |
+| `EmbeddedView` | function | One saved record or analysis view inside a business page: the result, and what the host switched on around it. | [Workbenches and Embeds](./components#api-EmbeddedView) |
 | `EmbeddedViewProps` | interface | — | [Workbenches and Embeds](./components#api-EmbeddedView) |
 | `EmptyWayOut` | type | The one way out of a query that matched nothing, by what was asked. | — |
 | `ErrorStrip` | function | What stops the view from running. | — |
 | `ErrorStripProps` | interface | — | — |
-| `ExportButton` | function | The export's own button and its window: one bordered icon button at the end of the toolbar's right-hand block (D12 Ⅳ), because exporting is a display facility like the columns and the sort — it changes nothing about the view and nothing about the records. | — |
-| `ExportDialog` | function | Taking the result away: what is picked, or everything the applied conditions match — chosen, waited for and read in **one window** (D14). | — |
+| `ExportButton` | function | The export's own button and its window: one bordered icon button at the end of the toolbar's right-hand block, because exporting is a display facility like the columns and the sort — it changes nothing about the view and nothing about the records. | — |
+| `ExportDialog` | function | Taking the result away: what is picked, or everything the applied conditions match — chosen, waited for and read in **one window**. | — |
 | `ExportDialogProps` | interface | — | — |
 | `ExportOffer` | interface | What a surface hands over to offer an export of its result — the run itself, plus the two things only the surface can say about the file. | — |
 | `ExportWindowProps` | interface | — | — |
@@ -106,13 +106,13 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ImagePanelProps` | interface | — | — |
 | `IssueStripProps` | interface | — | — |
 | `KIND_ICON` | const | The face each kind and each audience wears. | — |
-| `KanbanMove` | interface | Moving a kanban's card to another lane (D83): the host's declared action that sets the lane field (`RecordAction.moves`), as a record surface binds it — its rule asked for a lane, its run through the surface's runner, which asks first where it says so, runs, says how it went and reads the view again. | — |
+| `KanbanMove` | interface | Moving a kanban's card to another lane: the host's declared action that sets the lane field (`RecordAction.moves`), as a record surface binds it — its rule asked for a lane, its run through the surface's runner, which asks first where it says so, runs, says how it went and reads the view again. | — |
 | `LeaveDialog` | function | The confirmation that stands between an open view and the next one. | — |
 | `LeaveDialogProps` | interface | — | — |
 | `LineAlert` | function | One callout, one line high. | — |
 | `LineAlertFrame` | type | How a `LineAlert` is framed; see `LineAlertProps.frame`. | — |
 | `LineAlertProps` | interface | What a `LineAlert` takes: a `div`'s props, its tone and its frame. | — |
-| `LinksPanel` | function | A list of links, one `Item` per line (decisions.md D16-3). | — |
+| `LinksPanel` | function | A list of links, one `Item` per line. | — |
 | `LinksPanelProps` | interface | — | — |
 | `MarkdownPanel` | function | Markdown with raw HTML left off, which is the whole point of using it. | — |
 | `MarkdownPanelProps` | interface | — | — |
@@ -122,7 +122,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `MessagesProvider` | function | The wording every default component reads. | [Host Wiring](./host#api-MessagesProvider) |
 | `MessagesProviderProps` | interface | — | [Host Wiring](./host#api-MessagesProvider) |
 | `NewAnalysis` | interface | What 「放进仪表盘」 hands the board: the analysis it owns, and its title. | — |
-| `NewAnalysisDialog` | function | A new analysis made inside the dashboard (D22 C): a large dialog that is the analysis view itself — first the data it is about, then the same tray and the same result as the workbench's (`AnalysisParts`), running as it is edited under the reader's own 「改了就跑」 — and a title that follows what it shows until its author names it. | — |
+| `NewAnalysisDialog` | function | A new analysis made inside the dashboard: a large dialog that is the analysis view itself — first the data it is about, then the same tray and the same result as the workbench's (`AnalysisParts`), running as it is edited under the reader's own 「改了就跑」 — and a title that follows what it shows until its author names it. | — |
 | `NewAnalysisDialogProps` | interface | — | — |
 | `NewPanelSpot` | interface | Where a panel added from the edit bar goes: its tab, from the first row on screen. | — |
 | `NewViewCommand` | interface | The one command behind every "new view" control: which kinds a view may be made of here, and the making. | — |
@@ -131,20 +131,20 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `NoteStrip` | function | What is true about the answer and not wrong with it, as a quiet line: the groups a view's own limit left out, when every row shown is whole (`note`, `IssueSeverity`). | — |
 | `NumberInput` | function | A number field, on Base UI's `NumberField`. | — |
 | `OnPick` | type | Told which group of the result a mark stands for when it is pressed, and where — the mark's element, or the point pressed — so the follow-up menu opens against it. | — |
-| `PanelCommands` | type | What one panel's menu offers, each present only when it can be done (D4): 「数据」 always (`ViewingCommands`), 「编辑面板」 while the board is being built (`EditingCommands`). | — |
+| `PanelCommands` | type | What one panel's menu offers, each present only when it can be done: 「数据」 always (`ViewingCommands`), 「编辑面板」 while the board is being built (`EditingCommands`). | — |
 | `PanelGridItem` | function | One grid item, and the panel it holds said to what the grid appends to it. | — |
 | `PanelGridItemProps` | interface | — | — |
 | `PanelHandle` | function | The panel's one handle: a pointer drags it, and a keyboard arranges with it (V-02). | — |
 | `PanelHandleProps` | interface | — | — |
 | `PanelHeadingLevel` | type | Where a panel title may sit in a page's outline — never above a page title. | — |
-| `PanelOrder` | function | The handle a panel is carried along the one-column reading by (D22 J), where the grip and the corner are not: the handle every ordered list here is (`DragHandle`, 「可排序的列表一律拖拽排序」) — dragged by a pointer onto another panel's place, moved a place by ↑／↓, picked up by Space, or clicked for the menu of the four places it can go. | — |
+| `PanelOrder` | function | The handle a panel is carried along the one-column reading by, where the grip and the corner are not: the handle every ordered list here is (`DragHandle`, 「可排序的列表一律拖拽排序」) — dragged by a pointer onto another panel's place, moved a place by ↑／↓, picked up by Space, or clicked for the menu of the four places it can go. | — |
 | `PanelOrderProps` | interface | — | — |
-| `PanelPress` | interface | What a press on one group of a panel can do, as the grid hands it to the panel (D22 H, I): its click, the host's route, and the board's commands on this panel's groups. | — |
+| `PanelPress` | interface | What a press on one group of a panel can do, as the grid hands it to the panel (I): its click, the host's route, and the board's commands on this panel's groups. | — |
 | `PanelResizeHandle` | function | The corner the pointer drags to resize, named and focusable. | — |
 | `PanelResizeHandleProps` | interface | — | — |
 | `PickAnchor` | type | Where a menu is placed: the mark or row pressed, or the point it was pressed at. | — |
 | `PopoverHandle` | type | The handle `DetachedPopover` joins its two halves by. | — |
-| `PresentationDialog` | function | 「改这里的展示」 (D22 D): the visualization panel of the analysis view — the same chart types, the same options, the same totals row — for one panel of a board, beside the panel as it will look. | — |
+| `PresentationDialog` | function | 「改这里的展示」: the visualization panel of the analysis view — the same chart types, the same options, the same totals row — for one panel of a board, beside the panel as it will look. | — |
 | `PresentationDialogProps` | interface | — | — |
 | `QueryStrip` | function | A query that did not come back. | — |
 | `QueryStripProps` | interface | — | — |
@@ -152,11 +152,11 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `RecordCardsProps` | interface | — | — |
 | `RecordCell` | interface | — | — |
 | `RecordDetailOptions` | interface | What a host says about the record detail (G2): who holds which record is open (`RecordDetailControl`, as `instanceId` and `onInstanceChange` hold the open view), and what the host adds to it. | — |
-| `RecordKanban` | function | The result as lanes, one per stage (D83): the lane field's options in the definition's order, each a named region holding its cards — the very cards the card layout draws — with its count, its summaries and, while it has more, a「加载更多」of its own. | — |
+| `RecordKanban` | function | The result as lanes, one per stage: the lane field's options in the definition's order, each a named region holding its cards — the very cards the card layout draws — with its count, its summaries and, while it has more, a「加载更多」of its own. | — |
 | `RecordKanbanProps` | interface | — | — |
 | `RecordPagination` | function | How many rows there are and how to reach the next of them. | — |
 | `RecordPaginationProps` | interface | — | — |
-| `RecordPanelHost` | interface | What a host puts on a board's record panels (D39): its declared actions on the records — a row's and a selection's, as a record workbench places them — and its slots after them, and what reading the board again means after a command. | — |
+| `RecordPanelHost` | interface | What a host puts on a board's record panels: its declared actions on the records — a row's and a selection's, as a record workbench places them — and its slots after them, and what reading the board again means after a command. | — |
 | `RecordParts` | function | What makes a record view a record view: the condition band it edits in, and the toolbar, rows and paging it reads. | — |
 | `RecordPartsProps` | interface | — | — |
 | `RecordTable` | function | The record view as a table. | — |
@@ -199,7 +199,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `UnsavedMark` | function | The "edited" mark, with the way back on it. | — |
 | `ViewBinding` | interface | One definition's binding, as `ViewHost` takes it. | [Host Wiring](./host#api-bind) |
 | `ViewBindingOptions` | interface | — | [Host Wiring](./host#api-bind) |
-| `ViewDensity` | type | How dense a surface sits (themes.md 2.4, D35 Q63): the record and analysis tables' rows and cell padding, the view list's rows and the dashboard panels' padding — never a control's height, a type size or the dashboard's row. | — |
+| `ViewDensity` | type | How dense a surface sits (themes.md 2.4): the record and analysis tables' rows and cell padding, the view list's rows and the dashboard panels' padding — never a control's height, a type size or the dashboard's row. | — |
 | `ViewDestination` | type | What the host's `navigate` is handed: a route, where the target's definition has one; otherwise the target as it came — a URL, or a definition the host bound no route for. | — |
 | `ViewExpandExit` | function | The way back out of a surface whose control is not inside it. | — |
 | `ViewExpandToggle` | function | The control that fills the screen with this view, in the title bar's right-hand group: it is one of the answers to *how am I looking at this*, beside the editor's fold and before whatever the host adds. | — |
@@ -231,7 +231,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ViewWriteCallbacks` | interface | What a host is told about the writes of one open view. | — |
 | `ViewingCommands` | interface | 「数据」: what a panel offers whoever reads the board. | — |
 | `WarningStrip` | function | The findings that do not block, said once and in one line. | — |
-| `WorkbenchFeatures` | interface | Which of the workbench's own controls a host wants on screen (D18 XI). | — |
+| `WorkbenchFeatures` | interface | Which of the workbench's own controls a host wants on screen. | — |
 | `WorkbenchLandmark` | type | The landmark the work column is (Q64): `main`, the page's main content, or a named `region` for a host whose own `<main>` the workbench stands in — a page has one `main`, and one inside another is no longer top level. | — |
 | `WorkbenchParts` | type | What one kind of view puts into the shell's slots: its editor and how it folds, its toolbar, its result and the way out of an error, and the host's actions over it. | — |
 | `WorkbenchShell` | function | The frame the three default workbenches share: the view list beside it, the title bar over it, the findings under that, and the two slots that make one kind different from another. | — |
@@ -241,7 +241,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `bind` | function | Binds a definition's behaviour in the host (host-integration.md 4). | [Host Wiring](./host#api-bind) |
 | `cellText` | function | One cell as text, for somewhere a React node cannot go — a CSV file, a copied selection, a title attribute. | — |
 | `cellValue` | function | One value as its field reads it. | — |
-| `datasetBindings` | function | A binding of each dataset served (D93): the host spreads them into the ones it hands `ViewHost`, so its navigation lists the datasets and a view of one opens at its route. | — |
+| `datasetBindings` | function | A binding of each dataset served: the host spreads them into the ones it hands `ViewHost`, so its navigation lists the datasets and a view of one opens at its route. | — |
 | `dedupeIssues` | function | One of each sentence. | — |
 | `displayValue` | function | A value as its field shows it, or `undefined` when the field's kind has nothing to add and the caller's own rendering stands: a number keeps its format, a boolean its wording. | — |
 | `en` | const | English wording for everything this package can report, by area. | — |
@@ -256,12 +256,12 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `tableTime` | function | A time as a table cell writes it: short, and numeric where the language writes it so — `09-17 21:19` in Chinese, `Sep 17, 9:19 PM` in English — with the year only when it is not the current one (`2025-09-17 21:19`,`Sep 17, 2025, 9:19 PM`), and the seconds only when the column asks for them (`timePrecision: 'second'`). | — |
 | `useColorMode` | function | The page's mode and a way to pick one, for the host's own switch (a menu in its top bar): what the `ViewHost` above paints. | — |
 | `useDashboardEditExtensions` | function | The extensions in force; none by default. | — |
-| `useDashboardExtensions` | function | The board's extensions (`DashboardEditExtensions`, D22 C–E) as the default workbench fills them: 「新建分析」 opens the dialog a board-owned analysis is made in, 「改这里的展示」 the visualization panel for one panel's look, 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as dialog that promotes an owned analysis, 「复制为共享视图并替换」 the same dialog copying a personal view for a shared board, and the tab bar. | — |
+| `useDashboardExtensions` | function | The board's extensions (`DashboardEditExtensions`) as the default workbench fills them: 「新建分析」 opens the dialog a board-owned analysis is made in, 「改这里的展示」 the visualization panel for one panel's look, 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as dialog that promotes an owned analysis, 「复制为共享视图并替换」 the same dialog copying a personal view for a shared board, and the tab bar. | — |
 | `useEngine` | function | The engine a surface draws: its own, else its provider's. | — |
 | `useKindIssue` | function | `kindIssue` for the kind the surface has open (`SurfaceKind`). | — |
 | `useKindWord` | function | `kindWord` for the kind the surface has open (`SurfaceKind`). | — |
 | `useSaidText` | function | A box that edits a label as it is typed: what it shows — `value` in words — and what a keystroke gives back (`keptKey`, against the value the box opened on), so words typed back to what was shown are the key again. | — |
-| `useSay` | function | How a definition's keys (`text(key)`) are said here: in the wording in force — the nearest provider's `messages`, merged over the ones above — else in the words the engine was built with, else as the key itself (D2). | — |
+| `useSay` | function | How a definition's keys (`text(key)`) are said here: in the wording in force — the nearest provider's `messages`, merged over the ones above — else in the words the engine was built with, else as the key itself. | — |
 | `useSurfaceAttributes` | function | The attributes a popup takes from the surface it opened from, so the stylesheet resolves it as it does the surface: the mode, the preset, the change convention, the density and whether the first chart slot follows the brand. | — |
 | `useSurfaceDisplay` | function | The language and zone the nearest surface shows values in. | — |
 | `useSurfaceFont` | function | — | — |

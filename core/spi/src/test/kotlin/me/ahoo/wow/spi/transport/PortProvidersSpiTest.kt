@@ -62,7 +62,7 @@ class PortProvidersSpiTest {
 
             override suspend fun partitionOf(topic: String, key: String): Int = 0
 
-            override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = PartitionOffsets(0, 0)
+            override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = PartitionOffsets.of(0, 0)
 
             override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = emptyFlow()
         }

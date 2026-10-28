@@ -30,7 +30,6 @@ class HostSnapshotQueryStoresTest {
         "wow.stores.main.type" to "memory",
         "wow.stores.search.type" to "memory",
         "wow.log.store" to "main",
-        "wow.query.memory.enabled" to "true",
         "wow.aggregates.[bank.account].snapshot.stores" to "main, search",
     )
 

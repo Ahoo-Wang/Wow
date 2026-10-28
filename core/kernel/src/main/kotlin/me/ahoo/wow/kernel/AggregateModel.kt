@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -34,17 +35,40 @@ sealed interface DecideFunction<S : Any> {
     /** Whether the command may, or must, create the aggregate. */
     val creation: Creation
 
-    class Sync<S : Any>(override val creation: Creation, val decide: DecideScope.(S, Any) -> Decision) :
-        DecideFunction<S>
+    /**
+     * Whether the command is decided on a deleted aggregate too (`@OnCommand(onDeleted = true)`), as the kernel
+     * decides `RestoreAggregate`; every other command is refused on one (`wow.aggregate.deleted`).
+     */
+    val onDeleted: Boolean
+
+    /**
+     * The events it may produce, those its return type yields or its `produces` lists: the kernel fails a command
+     * whose decision holds another ([UndeclaredEventException]). Null when they are unknown, and then not checked.
+     */
+    val produces: Set<Class<*>>?
+
+    class Sync<S : Any>(
+        override val creation: Creation,
+        override val onDeleted: Boolean,
+        val decide: DecideScope.(S, Any) -> Decision,
+        override val produces: Set<Class<*>>? = null,
+    ) : DecideFunction<S> {
+        constructor(creation: Creation, decide: DecideScope.(S, Any) -> Decision) : this(creation, false, decide)
+    }
 
     /** A suspending decide function; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val creation: Creation,
         val blocking: Boolean,
+        override val onDeleted: Boolean,
         val decide: suspend DecideScope.(S, Any) -> Decision,
+        override val produces: Set<Class<*>>? = null,
     ) : DecideFunction<S> {
+        constructor(creation: Creation, blocking: Boolean, decide: suspend DecideScope.(S, Any) -> Decision) :
+            this(creation, blocking, false, decide)
+
         constructor(creation: Creation, decide: suspend DecideScope.(S, Any) -> Decision) :
-            this(creation, false, decide)
+            this(creation, false, false, decide)
     }
 }
 
@@ -58,14 +82,21 @@ sealed interface DecideFunction<S : Any> {
 sealed interface AfterFunction<S : Any> {
     val applies: (Class<*>) -> Boolean
 
-    class Sync<S : Any>(override val applies: (Class<*>) -> Boolean, val after: DecideScope.(S, Any) -> List<Any>) :
-        AfterFunction<S>
+    /** The events it may produce, as [DecideFunction.produces]; null when they are unknown, and then not checked. */
+    val produces: Set<Class<*>>?
+
+    class Sync<S : Any>(
+        override val applies: (Class<*>) -> Boolean,
+        val after: DecideScope.(S, Any) -> List<Any>,
+        override val produces: Set<Class<*>>? = null,
+    ) : AfterFunction<S>
 
     /** A suspending after hook; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val applies: (Class<*>) -> Boolean,
         val blocking: Boolean,
         val after: suspend DecideScope.(S, Any) -> List<Any>,
+        override val produces: Set<Class<*>>? = null,
     ) : AfterFunction<S> {
         constructor(applies: (Class<*>) -> Boolean, after: suspend DecideScope.(S, Any) -> List<Any>) :
             this(applies, false, after)
@@ -153,6 +184,22 @@ class CommandType @InternalWowApi constructor(
             type,
             aliases
         )
+
+        /**
+         * The command type of [commandClass], a command [aggregate] decides or mounts, named as its model names it:
+         * `context.aggregate.Name`, the class's `@Name` else its simple name. What a `CommandTransformer` takes or
+         * gives, without writing the name by hand. A `@MountedCommand` class is mounted under the aggregate its
+         * annotation names: another [aggregate] fails here, where the transformer is built.
+         */
+        @JvmStatic
+        fun of(aggregate: AggregateType, commandClass: Class<*>): CommandType {
+            commandClass.getAnnotation(MountedCommand::class.java)?.let { mounted ->
+                require(mounted.aggregate == aggregate.name) {
+                    "${commandClass.name} is mounted under ${mounted.aggregate}, not under $aggregate."
+                }
+            }
+            return CommandType("$aggregate.${typeNameOf(commandClass)}", commandClass)
+        }
     }
 }
 
@@ -170,7 +217,11 @@ class CommandType @InternalWowApi constructor(
  *
  * Every model handles the lifecycle commands of [lifecycle] (all of them unless it says otherwise)
  * without user code: the kernel decides them, under their system names ([Lifecycle]). A model that declares a decide
- * function for one overrides the kernel's. The lifecycle events are always known, so a log written while a command was
+ * function for one overrides the kernel's, to add domain rules to it: it decides that command's own lifecycle event
+ * beside the aggregate's own events, `NoOp` or a rejection, and another lifecycle event fails the command
+ * ([LifecycleOverride]). The compiler never generates one, since an annotated model's decide function takes no
+ * lifecycle command: its own command produces the lifecycle event beside its events instead, which the
+ * kernel evolves as it evolves the lifecycle commands' events. The lifecycle events are always known, so a log written while a command was
  * enabled still reads; they leave the state as it is unless the model declares an evolve function for them. Only the
  * lifecycle types may take a name in the system namespace.
  *

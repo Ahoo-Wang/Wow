@@ -2,6 +2,10 @@ public final class me/ahoo/wow/spi/Ddl : java/lang/Enum {
 	public static final field AUTO Lme/ahoo/wow/spi/Ddl;
 	public static final field NONE Lme/ahoo/wow/spi/Ddl;
 	public static final field VALIDATE Lme/ahoo/wow/spi/Ddl;
+	public final fun apply (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun apply$default (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun getChecks ()Z
+	public final fun getCreates ()Z
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/Ddl;
 	public static fun values ()[Lme/ahoo/wow/spi/Ddl;
@@ -248,9 +252,9 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun backoff-5sfh64U (I)J
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getExecutionTimeout-UwyO8pc ()J
 	public final fun getInitialBackoff-UwyO8pc ()J
 	public final fun getMaxRetries ()I
+	public final fun getTimeout-UwyO8pc ()J
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public static final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -260,8 +264,8 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion {
-	public final fun getDEFAULT_EXECUTION_TIMEOUT-UwyO8pc ()J
 	public final fun getDEFAULT_INITIAL_BACKOFF-UwyO8pc ()J
+	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -386,12 +390,10 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;[BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun append$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/log/EventStreamRecord;[BLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getAppendsAcrossPartitions ()Z
 	public abstract fun getPartitions ()I
-	public fun getSnapshotTails ()Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lineage (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -524,7 +526,7 @@ public final class me/ahoo/wow/spi/log/SnapshotTail$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/log/SnapshotTailReader {
-	public abstract fun readWithSnapshot (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/snapshot/SnapshotStore;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun readWithSnapshot (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spi/log/TailPacer {
@@ -639,7 +641,6 @@ public final class me/ahoo/wow/spi/observation/StoreFallbacks {
 	public static final field INSTANCE Lme/ahoo/wow/spi/observation/StoreFallbacks;
 	public static final field SNAPSHOT_REBUILD Ljava/lang/String;
 	public static final field SNAPSHOT_TAIL_READ Ljava/lang/String;
-	public static final field UNAVAILABLE Ljava/lang/String;
 	public static final field UNSUPPORTED Ljava/lang/String;
 }
 
@@ -784,6 +785,13 @@ public final class me/ahoo/wow/spi/reservation/ReservationStore$Companion {
 	public static final field UNVERSIONED I
 }
 
+public final class me/ahoo/wow/spi/schema/EnsuredOnce {
+	public fun <init> ()V
+	public final fun forget (Ljava/lang/Object;Ljava/lang/Object;)V
+	public final fun get (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+	public final fun getValues ()Ljava/util/Collection;
+}
+
 public abstract interface class me/ahoo/wow/spi/sink/Sink {
 	public abstract fun write (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
@@ -920,7 +928,6 @@ public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
 	public abstract fun load (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun storeOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 }
 
 public final class me/ahoo/wow/spi/snapshot/SnapshotTable {
@@ -1020,8 +1027,24 @@ public final class me/ahoo/wow/spi/state/StateView$Companion {
 	public final fun of (ILjava/lang/String;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/spi/state/StateView;
 }
 
-public abstract class me/ahoo/wow/spi/store/Store {
+public final class me/ahoo/wow/spi/store/Opened {
+	public static final field Companion Lme/ahoo/wow/spi/store/Opened$Companion;
+	public final fun getPort ()Ljava/lang/Object;
+	public final fun getSchema ()Lkotlin/jvm/functions/Function0;
+	public static final fun of (Ljava/lang/Object;)Lme/ahoo/wow/spi/store/Opened;
+	public static final fun of (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)Lme/ahoo/wow/spi/store/Opened;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/store/Opened$Companion {
+	public final fun of (Ljava/lang/Object;)Lme/ahoo/wow/spi/store/Opened;
+	public final fun of (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)Lme/ahoo/wow/spi/store/Opened;
+}
+
+public abstract class me/ahoo/wow/spi/store/Store : java/lang/AutoCloseable {
 	public fun <init> (Lme/ahoo/wow/spi/store/StoreConfig;)V
+	public final fun close ()V
+	protected fun closeStore ()V
 	public final fun createSchemas ()V
 	public final fun getCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
 	public final fun getConfig ()Lme/ahoo/wow/spi/store/StoreConfig;
@@ -1036,15 +1059,17 @@ public abstract class me/ahoo/wow/spi/store/Store {
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getType ()Ljava/lang/String;
 	public final fun log (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
-	protected abstract fun openCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
-	protected abstract fun openLeases ()Lme/ahoo/wow/spi/subscription/LeaseStore;
-	protected abstract fun openLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
-	protected abstract fun openLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
-	protected abstract fun openReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
-	protected abstract fun openSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	protected abstract fun openTimers (Ljava/lang/String;I)Lme/ahoo/wow/spi/timer/TimerStore;
+	protected abstract fun openCheckpoints ()Lme/ahoo/wow/spi/store/Opened;
+	protected abstract fun openLeases ()Lme/ahoo/wow/spi/store/Opened;
+	protected abstract fun openLedger ()Lme/ahoo/wow/spi/store/Opened;
+	protected abstract fun openLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/store/Opened;
+	protected abstract fun openReservations ()Lme/ahoo/wow/spi/store/Opened;
+	protected fun openSnapshotTails (Ljava/lang/String;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
+	protected abstract fun openSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/store/Opened;
+	protected abstract fun openTimers (Ljava/lang/String;I)Lme/ahoo/wow/spi/store/Opened;
 	public final fun openedLog (Ljava/lang/String;)Lme/ahoo/wow/spi/log/EventLog;
-	protected final fun schema (Lkotlin/jvm/functions/Function0;)V
+	public fun probe (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun snapshotTails (Ljava/lang/String;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	public final fun snapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun timers (Ljava/lang/String;I)Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun toString ()Ljava/lang/String;
@@ -1053,6 +1078,7 @@ public abstract class me/ahoo/wow/spi/store/Store {
 
 public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final field Companion Lme/ahoo/wow/spi/store/StoreConfig$Companion;
+	public final fun getClock ()Ljava/time/Clock;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getDevelopment ()Z
 	public final fun getKey ()Ljava/lang/String;
@@ -1069,6 +1095,7 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
@@ -1081,7 +1108,8 @@ public final class me/ahoo/wow/spi/store/StoreConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/store/StoreProvider {
@@ -1119,6 +1147,7 @@ public final class me/ahoo/wow/spi/subscription/Checkpoint$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/subscription/CheckpointStore {
+	public abstract fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun load (Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Ljava/lang/String;Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1360,16 +1389,17 @@ public final class me/ahoo/wow/spi/transport/EnvelopeKind$Companion {
 }
 
 public final class me/ahoo/wow/spi/transport/PartitionOffsets {
-	public fun <init> (JJ)V
-	public final fun component1 ()J
-	public final fun component2 ()J
-	public final fun copy (JJ)Lme/ahoo/wow/spi/transport/PartitionOffsets;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spi/transport/PartitionOffsets;JJILjava/lang/Object;)Lme/ahoo/wow/spi/transport/PartitionOffsets;
+	public static final field Companion Lme/ahoo/wow/spi/transport/PartitionOffsets$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEnd ()J
 	public final fun getStart ()J
 	public fun hashCode ()I
+	public static final fun of (JJ)Lme/ahoo/wow/spi/transport/PartitionOffsets;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/PartitionOffsets$Companion {
+	public final fun of (JJ)Lme/ahoo/wow/spi/transport/PartitionOffsets;
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
@@ -1382,12 +1412,19 @@ public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
 }
 
 public final class me/ahoo/wow/spi/transport/SourceMessage {
-	public fun <init> (JLjava/lang/String;Ljava/util/Map;[B)V
+	public static final field Companion Lme/ahoo/wow/spi/transport/SourceMessage$Companion;
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getOffset ()J
 	public final fun getValue ()[B
+	public fun hashCode ()I
+	public static final fun of (JLjava/lang/String;Ljava/util/Map;[B)Lme/ahoo/wow/spi/transport/SourceMessage;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/SourceMessage$Companion {
+	public final fun of (JLjava/lang/String;Ljava/util/Map;[B)Lme/ahoo/wow/spi/transport/SourceMessage;
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/TopicAdmin {
@@ -1396,13 +1433,24 @@ public abstract interface class me/ahoo/wow/spi/transport/TopicAdmin {
 }
 
 public final class me/ahoo/wow/spi/transport/TopicMessage {
-	public fun <init> (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final field Companion Lme/ahoo/wow/spi/transport/TopicMessage$Companion;
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getPartition ()Ljava/lang/Integer;
 	public final fun getValue ()[B
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;[B)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public static final fun of (Ljava/lang/String;[BLjava/util/Map;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public static final fun of (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;)Lme/ahoo/wow/spi/transport/TopicMessage;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/TopicMessage$Companion {
+	public final fun of (Ljava/lang/String;[B)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun of (Ljava/lang/String;[BLjava/util/Map;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun of (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/TopicMessage$Companion;Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/TopicProducer {

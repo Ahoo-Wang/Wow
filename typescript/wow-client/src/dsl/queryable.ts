@@ -33,24 +33,16 @@ export interface FilterSingleQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {}
 
-/** The body of a `list` or `listStream` query. */
+/** The body of a `list` or `stream` query. */
 export interface FilterListQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {
   /**
-   * The most rows to return. The client sends no default: absent (or 0)
-   * leaves the choice to the server, and what the server does depends on its
-   * version.
-   *
-   * - Wow 9.1.5 and later apply the server's default list size over HTTP
-   *   (100 unless the server configures another).
-   * - Wow 8.11 to 9.1.3 reject the query with `IllegalArgument: HTTP list
-   *   query limit[0] must be between 1 and …` (HTTP 400 for a list, the error
-   *   event that ends a list stream), so pass `limit` explicitly against
-   *   those servers.
-   *
-   * Wow 8.11 and later also refuse a value above the server's maximum list
-   * size (1000 by default).
+   * The most rows to return, at least 1. Absent, the server applies its
+   * default list size (100 unless it configures another). A limit below 1 is
+   * refused with 400 `wow.query.malformed`, and so is a value above the
+   * server's maximum list size (1000 by default) with 400
+   * `wow.query.invalid`.
    */
   limit?: number;
 }
@@ -98,7 +90,7 @@ export function singleQuery<FIELDS extends string = string>({
 }
 
 /**
- * Builds the body of a `list` or `listStream` query.
+ * Builds the body of a `list` or `stream` query.
  *
  * @param options.filter - What to match. Defaults to `filter.matchAll()`.
  * @param options.projection - Which fields to return. Optional.

@@ -14,7 +14,9 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import org.junit.jupiter.api.Test
 import me.ahoo.wow.api.aggregate.Creation as ModelCreation
 import me.ahoo.wow.api.aggregate.Ownership as ModelOwnership
@@ -33,5 +35,14 @@ class ProgrammingModelVocabularyTest {
     fun `creation and ownership should name the programming model's values`() {
         Creation.entries.map { it.name }.assert().isEqualTo(ModelCreation.entries.map { it.name })
         Ownership.entries.map { it.name }.assert().isEqualTo(ModelOwnership.entries.map { it.name })
+    }
+
+    @Test
+    fun `the system commands should be named as the programming model names them`() {
+        SystemCommands.LIFECYCLE_PREFIX.assert().isEqualTo(Lifecycle.NAMESPACE + ".")
+        SystemCommands.DELETE_AGGREGATE.assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
+        Lifecycle.COMMANDS.keys.assert().allMatch { it.startsWith(SystemCommands.LIFECYCLE_PREFIX) }
+        SystemCommands.JOBS.assert().containsExactly(ScheduleJobs.ENABLE, ScheduleJobs.RESCHEDULE, ScheduleJobs.DISABLE)
+        CommandRoutes.JOBS.assert().isEqualTo(ScheduleJobs.ENABLE.substringBeforeLast('.'))
     }
 }

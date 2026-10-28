@@ -46,7 +46,7 @@ export type PickPaths<T, P extends string> = T extends readonly (infer E)[]
 
 /**
  * The records of type `R` a query whose projection includes the paths
- * `INCLUDE` returns (review R4-Q, Q-14): `R` narrowed to those paths
+ * `INCLUDE` returns: `R` narrowed to those paths
  * ({@link PickPaths}), or `R` itself when they are not literal. A query
  * client answers so for a query whose `include` it sees as literal paths;
  * any other query (an exclusion alone, or one whose projection is optional,

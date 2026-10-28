@@ -1,7 +1,7 @@
 # The eShop payment server's image, from its Gradle distribution. From the repository root:
 #   ./gradlew :eshop-payment-server:installDist
 #   docker build -f deploy/eshop-payment/Dockerfile -t wow-eshop-payment-server:local \
-#     example/eshop/payment/payment-server
+#     examples/eshop/payment/payment-server
 # Any JDK 21 image on Ubuntu, such as eclipse-temurin:21-jre (--build-arg BASE_IMAGE=...).
 ARG BASE_IMAGE=dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu
 ARG APP_NAME=eshop-payment-server

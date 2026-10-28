@@ -1,0 +1,11 @@
+# @ahoo-wang/wow-client/testing — 8 names, from src/testing.ts.
+# Written by test/publicSurface.test.ts; a change here is a change to
+# the public surface.
+type  DevelopmentCaller
+value DevelopmentCallerHeaders
+value commandResultOf
+value developmentCaller
+value developmentCallerHeaders
+value problemOf
+value problemResponse
+value stateViewOf

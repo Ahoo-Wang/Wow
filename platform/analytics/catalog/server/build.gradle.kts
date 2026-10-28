@@ -15,8 +15,7 @@ application {
 // The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with
 // manifest/baseline.json. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so the server
 // applies the repository's script in its place, as the other platform servers do (DX gap G6).
-extra["wowService"] = "analytics-catalog-service"
-apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
+apply(from = rootProject.file("examples/eshop/wow-manifest-compatibility.gradle.kts"))
 
 // The console (roadmap 7.2c), served by the server as static resources from the distribution's ui/ folder
 // (`spring.web.resources.static-locations`): `pnpm --filter wow-analytics-catalog-console... build` first, or the
@@ -34,6 +33,10 @@ distributions {
 dependencies {
     implementation(project(":analytics-catalog-domain"))
     implementation(project(":spring-boot"))
+    // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3).
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
@@ -54,7 +57,7 @@ dependencies {
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    testImplementation("org.springframework:spring-test")
+    testImplementation(project(":test-spring-boot"))
     // The generator of the configuration metadata of the service's own keys (design rule K8).
     testImplementation(testFixtures(project(":spring-boot")))
     // The catalog on ClickHouse in a container (decision D196).
@@ -62,9 +65,9 @@ dependencies {
     integrationTestImplementation(project(":tck-containers"))
 }
 
-// `./gradlew :analytics-catalog-server:run` is a local run: the callers are named in request headers, which the server
-// trusts only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+// `./gradlew :analytics-catalog-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity
+// headers, which the host reads in development alone (review A3-4); a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
-    systemProperty("wow.platform.trust-identity-headers", "true")
+    systemProperty("spring.profiles.active", "dev")
     systemProperty("wow.internal.host", "127.0.0.1")
 }

@@ -74,7 +74,7 @@ dependencies:
 'area: example':
   - changed-files:
       - any-glob-to-any-file:
-          - 'example/**'
+          - 'examples/**'
 
 # Build and CI.
 'area: build':

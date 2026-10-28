@@ -40,8 +40,6 @@ import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
@@ -57,9 +55,9 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TodayFilter
@@ -118,17 +116,16 @@ class QueryResolverTest {
     private fun rejection(block: () -> Unit): QueryViolation =
         checkNotNull(assertThrows<QuerySchemaValidationException> { block() }.violation)
 
-    private fun sortBy(vararg fields: String): IListQuery =
+    private fun sortBy(vararg fields: String): ListQuery =
         ListQuery(MatchAllFilter, sort = fields.map { Sort(QueryField(it), Sort.Direction.ASC) })
 
     @Test
     fun `every sort is limited to the storage-wide field count`() {
-        val many = (0..Sort.MAX_FIELDS).map { "state.name$it" }
-        val tooMany = ListQuery(MatchAllFilter, sort = many.map { Sort(QueryField(it), Sort.Direction.ASC) })
-        rejection { QueryAdmission.Trusted.list(tooMany, schema) }.apply {
-            assert().isEqualTo(QueryViolation.SortTooMany(Sort.MAX_FIELDS))
-            code.assert().isEqualTo(QueryErrorCodes.SORT_TOO_MANY)
-        }
+        val many = (0..Sort.MAX_FIELDS).map { Sort(QueryField("state.name$it"), Sort.Direction.ASC) }
+        assertThrows<IllegalArgumentException> { ListQuery(MatchAllFilter, sort = many) }
+            .message.assert().isEqualTo("sort must contain at most ${Sort.MAX_FIELDS} fields.")
+        assertThrows<IllegalArgumentException> { SingleQuery(MatchAllFilter, sort = many) }
+        assertThrows<IllegalArgumentException> { PagedQuery(MatchAllFilter, sort = many) }
     }
 
     @Test
@@ -165,11 +162,11 @@ class QueryResolverTest {
     fun `a policy restriction must still fit the model`() {
         val policy = QueryPolicy { _, _ -> EqualFilter(QueryField("state.name"), text) }
         val admission = QueryAdmission(AggregateType("resolver", "order"), policies = listOf(policy))
-        lateinit var admitted: AdmittedQuery<ICountQuery>
+        lateinit var admitted: AdmittedQuery<CountQuery>
         runTest {
             admitted = admission.admit(
                 QueryOperation.COUNT,
-                CountQuery(EqualFilter(QueryField("state.buyer"), text)) as ICountQuery,
+                CountQuery(EqualFilter(QueryField("state.buyer"), text)) as CountQuery,
                 QueryCaller.IN_PROCESS,
                 { schema },
             )
@@ -182,7 +179,7 @@ class QueryResolverTest {
             runTest {
                 QueryAdmission(AggregateType("resolver", "order"), policies = listOf(unknown)).admit(
                     QueryOperation.COUNT,
-                    CountQuery(EqualFilter(QueryField("state.name"), text)) as ICountQuery,
+                    CountQuery(EqualFilter(QueryField("state.name"), text)) as CountQuery,
                     QueryCaller.IN_PROCESS,
                     { schema },
                 )
@@ -485,11 +482,11 @@ class QueryResolverTest {
     fun `an expression a policy appends is resolved as trusted`() {
         val expression = ExpressionFilter(AggregationExpression.Field(QueryField("count")), ComparisonOperator.GT, 1.0)
         val policy = QueryPolicy { _, _ -> expression }
-        lateinit var admitted: AdmittedQuery<ICountQuery>
+        lateinit var admitted: AdmittedQuery<CountQuery>
         runTest {
             admitted = QueryAdmission(AggregateType("resolver", "order"), policies = listOf(policy)).admit(
                 QueryOperation.COUNT,
-                CountQuery(MatchAllFilter) as ICountQuery,
+                CountQuery(MatchAllFilter) as CountQuery,
                 QueryCaller.IN_PROCESS,
                 { rules },
             )

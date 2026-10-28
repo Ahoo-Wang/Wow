@@ -60,7 +60,7 @@ projection.include	{"include":["state.name"]}
 projection.all	{}
 projection.both	{"include":["a"],"exclude":["b"]}
 pagination	{"index":2,"size":20}
-list.default	{"filter":{"op":"MATCH_ALL"},"projection":{},"limit":0}
+list.default	{"filter":{"op":"MATCH_ALL"},"projection":{},"limit":null}
 list.full	{"filter":{"value":"id-1","op":"ID"},"projection":{"include":["state.name"]},"sort":[{"field":"state.name","direction":"ASC"}],"limit":50}
 paged.default	{"filter":{"op":"MATCH_ALL"},"projection":{},"pagination":{"index":1,"size":10},"total":"BOUNDED"}
 paged.full	{"filter":{"value":"tenant-1","op":"TENANT_ID"},"projection":{"exclude":["state.secret"]},"sort":[{"field":"state.name","direction":"DESC"}],"pagination":{"index":3,"size":15},"total":"BOUNDED"}

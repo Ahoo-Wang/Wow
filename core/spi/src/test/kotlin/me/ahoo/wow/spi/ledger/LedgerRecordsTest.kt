@@ -69,7 +69,7 @@ class LedgerRecordsTest {
             LedgerRetrySpec.of(3, "PT1M", "PT2M", true),
         )
         LedgerRetrySpec.of(3, "PT1M", "PT2M").toString().assert()
-            .isEqualTo("LedgerRetrySpec(maxRetries=3, initialBackoff=PT1M, executionTimeout=PT2M, applied=false)")
+            .isEqualTo("LedgerRetrySpec(maxRetries=3, initialBackoff=PT1M, timeout=PT2M, applied=false)")
         valueSemantics(resolution(), resolution(), resolution(LedgerResolution.SKIPPED))
         resolution().toString().assert().isEqualTo(
             "LedgerResolution(service=sales-service, context=sales, subscription=OrderSaga.onPlaced, " +

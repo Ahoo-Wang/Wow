@@ -48,7 +48,7 @@ import kotlin.time.Duration
  */
 @InternalWowApi
 class StoreActivity internal constructor(
-    /** What the store is to the node: [LOG] or [LEASES]. */
+    /** What the store is to the node: [LOG], [LEASES], or a placed [STORE] instance. */
     val kind: String,
     /** Which one: the context, and the store instance of a log group other than the default (`context#store`). */
     val name: String,
@@ -108,6 +108,20 @@ class StoreActivity internal constructor(
         return synchronized(recent) { recent.count { it > since } }
     }
 
+    /** Runs [call], recording its success, or its failure, which it throws again. */
+    @Suppress("TooGenericExceptionCaught") // Whatever the call throws is the store's failure.
+    internal suspend fun recorded(call: suspend () -> Unit) {
+        try {
+            call()
+            succeeded()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            failed(failure)
+            throw failure
+        }
+    }
+
     internal fun probeStarted() {
         probing = nanos()
     }
@@ -139,6 +153,7 @@ class StoreActivity internal constructor(
     companion object {
         const val LOG: String = "log"
         const val LEASES: String = "leases"
+        const val STORE: String = "store"
         const val NONE: Long = Long.MIN_VALUE
 
         /** The latest failures remembered, so [failuresWithin] counts at most this many. */
@@ -167,6 +182,10 @@ internal fun trackedLeases(
 
 /** The record of [log]'s calls, when it is tracked. */
 internal fun activityOf(log: EventLog): StoreActivity? = (log as? TrackedEventLog)?.activity
+
+/** [reader], its calls recorded in [activity], the record of the log it reads with. */
+internal fun trackedTails(reader: SnapshotTailReader, activity: StoreActivity): SnapshotTailReader =
+    SnapshotTailReader { ref, earlier -> activity.call(::unavailable) { reader.readWithSnapshot(ref, earlier) } }
 
 /** The record of [leases]' calls, when it is tracked. */
 internal fun activityOf(leases: LeaseStore): StoreActivity? = (leases as? TrackedLeaseStore)?.activity
@@ -217,12 +236,6 @@ private class TrackedEventLog(
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         activity.call(::unavailable) { log.readTail(ref, fromVersion, earlier) }
 
-    override val snapshotTails: SnapshotTailReader? = log.snapshotTails?.let { reader ->
-        SnapshotTailReader { ref, snapshots, earlier ->
-            activity.call(::unavailable) { reader.readWithSnapshot(ref, snapshots, earlier) }
-        }
-    }
-
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         log.readEntries(ref, fromVersion, toVersion).tracked()
 
@@ -234,9 +247,6 @@ private class TrackedEventLog(
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         activity.call(::unavailable) { log.findByRequestId(type, tenantId, requestId) }
-
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        activity.call(::unavailable) { log.findByRequestId(tenantId, requestId) }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = log.tail(partition, after).tracked()
 

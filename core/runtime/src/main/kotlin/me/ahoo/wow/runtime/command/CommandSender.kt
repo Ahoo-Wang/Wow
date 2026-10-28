@@ -59,6 +59,30 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         send(ClusterCodec.wire(typeOf(command), command, replyTo), wait)
 
     /**
+     * Sends [commands], each with the [ReplyTo] of its receipt, to their contexts' command topics, with [wait]: those of
+     * one topic as one batch, in their order, so the commands to one aggregate keep theirs in its partition. Returns
+     * once the broker has acknowledged every batch; throws when it has not acknowledged one.
+     */
+    suspend fun sendAll(commands: List<Pair<Command<*>, ReplyTo?>>, wait: WaitContext? = null) {
+        val trace = currentCoroutineContext().trace
+        commands.groupBy { (command) -> topics.commandsOf(command.ref.type.context) }.forEach { (topic, batch) ->
+            val count = partitionsOf(topic)
+            producer.send(
+                topic,
+                batch.map { (command, replyTo) ->
+                    val wire = ClusterCodec.wire(typeOf(command), command, replyTo)
+                    CommandMessages.command(
+                        wire,
+                        Partitioner.partitionOf(CommandMessages.laneOf(wire), count),
+                        wait,
+                        trace,
+                    )
+                },
+            )
+        }
+    }
+
+    /**
      * Sends [wire], a command already in its wire form and named (a timer's), to its context's command
      * topic, with [wait].
      */
