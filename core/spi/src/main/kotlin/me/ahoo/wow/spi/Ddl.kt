@@ -65,4 +65,28 @@ enum class Ddl {
             NONE -> Unit
         }
     }
+
+    /**
+     * Makes sure of the structure [missing] names as this mode says, with no round trip to ask whether it exists:
+     * under [AUTO] [create]s it, which must be idempotent (`CREATE … IF NOT EXISTS`, an index creation, a format
+     * record claimed), then [validate]s it; under [VALIDATE] validates it alone; under [NONE] does nothing. [validate]
+     * checks the format of what it finds and answers whether the structure exists; one that does not refuses the
+     * startup, naming it.
+     */
+    @WowSpi
+    inline fun ensure(missing: String, create: () -> Unit, validate: () -> Boolean) {
+        when (this) {
+            AUTO -> {
+                create()
+                check(validate()) { "$missing does not exist after its creation." }
+            }
+
+            VALIDATE -> check(validate()) {
+                "$missing does not exist, and the store only validates its schema (ddl validate): create it first, " +
+                    "with ddl auto once or the migration tool."
+            }
+
+            NONE -> Unit
+        }
+    }
 }

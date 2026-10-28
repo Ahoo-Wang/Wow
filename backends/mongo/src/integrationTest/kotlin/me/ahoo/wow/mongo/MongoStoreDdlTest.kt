@@ -32,13 +32,14 @@ class MongoStoreDdlTest {
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = MongoLogFixture.newContext("ddl")
         val validating = MongoEventLog(client, database, context, 2, ddl = Ddl.VALIDATE)
-        assertThrows<IllegalStateException> { validating.createSchema() }.message.assert().contains("no format record")
+        assertThrows<IllegalStateException> { validating.createSchema() }.message.assert()
+            .contains("does not exist, and the store only validates its schema")
 
         MongoLogFixture.log(2, context, listOf("order"))
         validating.createSchema()
         validating.createCollection("order")
         assertThrows<IllegalStateException> { validating.createCollection("cart") }.message.assert()
-            .contains("no format record")
+            .contains("does not exist, and the store only validates its schema")
     }
 
     @Test
@@ -51,7 +52,7 @@ class MongoStoreDdlTest {
         client.getDatabase(database).getCollection(timers.collectionName("order")).dropIndexes()
         assertThrows<IllegalStateException> {
             runBlocking { MongoTimerStore(client, database, context, 4, ddl = Ddl.VALIDATE).find(ref, "k") }
-        }.message.assert().contains("is missing")
+        }.message.assert().contains("does not exist, and the store only validates its schema")
     }
 
     @Test

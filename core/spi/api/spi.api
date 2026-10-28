@@ -4,6 +4,7 @@ public final class me/ahoo/wow/spi/Ddl : java/lang/Enum {
 	public static final field VALIDATE Lme/ahoo/wow/spi/Ddl;
 	public final fun apply (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
 	public static synthetic fun apply$default (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun ensure (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
 	public final fun getChecks ()Z
 	public final fun getCreates ()Z
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -11,7 +12,23 @@ public final class me/ahoo/wow/spi/Ddl : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/spi/Ddl;
 }
 
-public final class me/ahoo/wow/spi/StorageUnavailableException : java/lang/RuntimeException {
+public final class me/ahoo/wow/spi/StorageBusyException : me/ahoo/wow/spi/StorageUnavailableException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/spi/StorageRefusedException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/spi/StorageTimeoutException : java/lang/RuntimeException {
+	public fun <init> (Ljava/time/Duration;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/time/Duration;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getTimeout ()Ljava/time/Duration;
+}
+
+public class me/ahoo/wow/spi/StorageUnavailableException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -1496,6 +1513,16 @@ public abstract interface class me/ahoo/wow/spi/transport/TransportProvider {
 	public fun getRequirement ()Ljava/lang/String;
 	public abstract fun getType ()Ljava/lang/String;
 	public abstract fun open (Lme/ahoo/wow/spi/transport/TransportConfig;)Lme/ahoo/wow/spi/transport/TopicTransport;
+}
+
+public final class me/ahoo/wow/spi/transport/TransportRefusedException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/spi/transport/TransportUnavailableException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/spi/wait/Origin {

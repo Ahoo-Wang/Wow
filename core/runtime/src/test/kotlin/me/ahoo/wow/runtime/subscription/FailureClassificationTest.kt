@@ -20,9 +20,14 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.transport.TransportRefusedException
+import me.ahoo.wow.spi.transport.TransportUnavailableException
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.net.ConnectException
@@ -42,6 +47,7 @@ class FailureClassificationTest {
     fun `the runtime takes connection failures for systemic and anything else for recoverable`() {
         listOf(
             StorageUnavailableException("The store is unavailable; retry later."),
+            TransportUnavailableException("The broker is unavailable; retry later."),
             ConnectException("Connection refused"),
             SocketException("Connection reset"),
             UnknownHostException("views.internal"),
@@ -56,7 +62,29 @@ class FailureClassificationTest {
             SQLException("unique violation", "23505"),
             SQLException("no state"),
             HandlerTimeoutException("projection", cart("x"), 1, kotlin.time.Duration.parse("1s")),
+            StorageTimeoutException(java.time.Duration.ofSeconds(1)),
         ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.RECOVERABLE) }
+    }
+
+    @Test
+    fun `a store at its capacity is backpressure, though it is unavailable to every other caller`() {
+        val busy = StorageBusyException("PostgreSQL has no connection to spare; retry later.")
+        (busy is StorageUnavailableException).assert().isTrue()
+        classification.classify(busy, null).assert().isEqualTo(FailureClass.BACKPRESSURE)
+        classification.classify(IllegalStateException("The saga failed.", busy), null).assert()
+            .isEqualTo(FailureClass.BACKPRESSURE)
+        classification.classify(StorageUnavailableException("PostgreSQL is unavailable; retry later."), null).assert()
+            .isEqualTo(FailureClass.SYSTEMIC)
+    }
+
+    @Test
+    fun `a value a store or a transport refused for good is unrecoverable, wherever it was wrapped`() {
+        val refused = StorageRefusedException("PostgreSQL refuses the value (SQLSTATE 22P05).")
+        classification.classify(refused, null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(IllegalStateException("The sink failed.", refused), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(TransportRefusedException("The record is too large."), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
     }
 
     @Test
@@ -93,16 +121,12 @@ class FailureClassificationTest {
     }
 
     @Test
-    fun `the backends on the class path contribute no classifier to the runtime's own tests`() {
-        FailureClassification.LOADED.assert().isEmpty()
-    }
-
-    @Test
     fun `a downstream that pushes back is backpressure, one that is down systemic`() {
         fun problem(code: String, status: Int, retryAfter: kotlin.time.Duration? = null) =
             WowProblemException(code, status, RetryHint(true, true, retryAfter), "$code failed")
         listOf(
             CommandBusyException(cart("x"), "c-1", "busy"),
+            IllegalStateException("The query was not admitted.", StorageBusyException("The store is busy.")),
             problem(FrameworkErrors.COMMAND_BUSY, 429, 1.seconds),
             problem(FrameworkErrors.WAIT_TIMEOUT, 504),
             problem(FrameworkErrors.QUERY_BUSY, 429),

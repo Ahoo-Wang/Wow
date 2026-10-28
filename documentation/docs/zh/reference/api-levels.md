@@ -97,6 +97,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | 声明 | 种类 | 模块 |
 | --- | --- | --- |
 | `me.ahoo.wow.spi.Ddl.apply` | fun | `wow-spi` |
+| `me.ahoo.wow.spi.Ddl.ensure` | fun | `wow-spi` |
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |

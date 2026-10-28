@@ -25,7 +25,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.CursorPosition
-import me.ahoo.wow.query.error.QueryTimeoutException
+import me.ahoo.wow.spi.StorageTimeoutException
 import org.bson.BsonDocument
 import org.bson.Document
 import org.bson.types.Decimal128
@@ -154,9 +154,9 @@ class MongoQueryPartsTest {
         )
         fun failure(timeout: Duration?, error: RuntimeException): Throwable? =
             runCatching { MongoSnapshotQueryBackend.timed(timeout) { throw error } }.exceptionOrNull()
-        (failure(timeout, MongoExecutionTimeoutException(50, "expired")) as QueryTimeoutException).timeout
+        (failure(timeout, MongoExecutionTimeoutException(50, "expired")) as StorageTimeoutException).timeout
             .assert().isEqualTo(timeout)
-        (failure(timeout, command(50)) is QueryTimeoutException).assert().isTrue()
+        (failure(timeout, command(50)) is StorageTimeoutException).assert().isTrue()
         (failure(timeout, command(2)) is MongoCommandException).assert().isTrue()
         (
             failure(

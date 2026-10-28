@@ -16,6 +16,8 @@ package me.ahoo.wow.postgres
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import java.sql.SQLException
 import java.sql.SQLRecoverableException
@@ -30,11 +32,12 @@ import java.sql.SQLTransientException
  *
  * - class `08`, connection exception (refused, reset, closed);
  * - `57P01` admin shutdown, `57P02` crash shutdown, `57P03` cannot connect now (a server restarting);
- * - `53300` too many connections.
+ * - `53300` too many connections, a server at its capacity: a [StorageBusyException].
  */
 internal object PostgresFailures {
     private const val CONNECTION_EXCEPTION_CLASS = "08"
-    private val TRANSIENT_STATES = setOf("57P01", "57P02", "57P03", "53300")
+    private const val TOO_MANY_CONNECTIONS = "53300"
+    private val TRANSIENT_STATES = setOf("57P01", "57P02", "57P03", TOO_MANY_CONNECTIONS)
     private val REFUSED_CLASSES = listOf("22", "54")
 
     /** Whether [failure], or an exception it was caused by, is a transient failure of the server or the connection. */
@@ -57,22 +60,24 @@ internal object PostgresFailures {
     fun isRefused(failure: SQLException): Boolean =
         failure.sqlState?.let { state -> REFUSED_CLASSES.any { state.startsWith(it) } } == true
 
-    /** [failure], a refusal ([isRefused]), as the [IllegalArgumentException] every backend refuses a value with. */
-    fun refusal(failure: SQLException): IllegalArgumentException =
-        IllegalArgumentException(
+    /** [failure], a refusal ([isRefused]), as the [StorageRefusedException] every backend refuses a value with. */
+    fun refusal(failure: SQLException): StorageRefusedException =
+        StorageRefusedException(
             "PostgreSQL refuses the value (SQLSTATE ${failure.sqlState}): ${failure.message}",
             failure
         )
 
     /** [failure] as a refusal ([refusal]) when PostgreSQL refused a value ([isRefused]); else [failure] is thrown. */
-    fun refusedOrThrow(failure: SQLException): IllegalArgumentException =
+    fun refusedOrThrow(failure: SQLException): StorageRefusedException =
         if (isRefused(failure)) refusal(failure) else throw failure
 
     /**
-     * [failure] as a [StorageUnavailableException] when it [isTransient], as an [IllegalArgumentException] when
+     * [failure] as a [StorageUnavailableException] when it [isTransient], as a [StorageRefusedException] when
      * PostgreSQL refused the value ([isRefused]), else as it is.
      */
     fun translate(failure: SQLException): Exception = when {
+        failure.sqlState == TOO_MANY_CONNECTIONS ->
+            StorageBusyException("PostgreSQL has no connection to spare; retry later.", failure)
         isTransient(failure) -> StorageUnavailableException("PostgreSQL is unavailable; retry later.", failure)
         isRefused(failure) -> refusal(failure)
         else -> failure

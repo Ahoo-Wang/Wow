@@ -14,7 +14,6 @@
 package me.ahoo.wow.clickhouse.query
 
 import com.clickhouse.client.api.Client
-import com.clickhouse.client.api.ServerException
 import com.clickhouse.client.api.query.QuerySettings
 import com.clickhouse.data.ClickHouseFormat
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -30,9 +29,10 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
+import me.ahoo.wow.clickhouse.ClickHouseFailures
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
-import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * server, since an abandoned HTTP read does not always reach it.
  *
  * A statement with a [timeout] runs under `max_execution_time`, in whole seconds rounded up;
- * ClickHouse failing it for that (`TIMEOUT_EXCEEDED`) is the core's [QueryTimeoutException].
+ * ClickHouse failing it for that (`TIMEOUT_EXCEEDED`) is a [StorageTimeoutException], the query's timeout to the core.
  */
 internal class ClickHouseExecutor(
     private val client: Client,
@@ -171,18 +171,16 @@ internal class ClickHouseExecutor(
             )
         }
 
-        /** A server's `TIMEOUT_EXCEEDED` under [timeout] as the core's timeout; anything else as it is. */
-        fun translate(error: Exception, timeout: Duration?): Exception {
-            if (timeout == null) return error
-            val code = generateSequence<Throwable>(error) { it.cause }.firstNotNullOfOrNull {
-                when (it) {
-                    is ServerException -> it.code
-                    is ClickHouseStreamException -> it.code
-                    else -> null
-                }
+        /**
+         * A server's `TIMEOUT_EXCEEDED` under [timeout] as the statement's timeout ([StorageTimeoutException]),
+         * ClickHouse being unavailable as such ([ClickHouseFailures]), anything else as it is.
+         */
+        fun translate(error: Exception, timeout: Duration?): Exception =
+            if (timeout != null && ClickHouseFailures.codeOf(error) == TIMEOUT_EXCEEDED) {
+                StorageTimeoutException(timeout, error)
+            } else {
+                ClickHouseFailures.translate(error)
             }
-            return if (code == TIMEOUT_EXCEEDED) QueryTimeoutException(timeout, error) else error
-        }
     }
 }
 

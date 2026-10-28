@@ -30,12 +30,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.query.ElasticsearchQueryProvider
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
-import me.ahoo.wow.spi.subscription.FailureClass
-import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -60,7 +60,6 @@ class ElasticsearchStoreProviderTest {
         ServiceLoader.load(
             StoreQueryProvider::class.java
         ).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
-        ServiceLoader.load(FailureClassifier::class.java).any { it is ElasticsearchFailureClassifier }.assert().isTrue()
     }
 
     @Test
@@ -114,7 +113,7 @@ class ElasticsearchStoreProviderTest {
     }
 
     @Test
-    fun `transient failures are a storage unavailable and systemic`() {
+    fun `transient failures are a storage unavailable, a refused document a storage refusal`() {
         val unavailable = elasticsearchException(503)
         val badRequest = elasticsearchException(400)
         ElasticsearchFailures.isTransient(unavailable).assert().isTrue()
@@ -124,10 +123,20 @@ class ElasticsearchStoreProviderTest {
         ElasticsearchFailures.translate(badRequest).assert().isSameAs(badRequest)
         ElasticsearchFailures.hasStatus(badRequest, 400).assert().isTrue()
         ElasticsearchFailures.hasStatus(IOException(), 400).assert().isFalse()
-        val classifier = ElasticsearchFailureClassifier()
-        classifier.classify(unavailable).assert().isEqualTo(FailureClass.SYSTEMIC)
-        classifier.classify(mockk<TransportException>()).assert().isEqualTo(FailureClass.SYSTEMIC)
-        classifier.classify(badRequest).assert().isNull()
+        ElasticsearchFailures.isTransient(mockk<TransportException>()).assert().isTrue()
+        ElasticsearchFailures.itemFailure(503, "the snapshot [s]", "no master").assert()
+            .isInstanceOf(StorageUnavailableException::class.java)
+            .isNotInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.itemFailure(429, "the snapshot [s]", "es_rejected_execution_exception").assert()
+            .isInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.translate(elasticsearchException(429)).assert()
+            .isInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.translate(unavailable).assert().isNotInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.itemFailure(400, "the snapshot [s]", "mapper_parsing_exception").assert()
+            .isInstanceOf(StorageRefusedException::class.java)
+            .hasMessage("Elasticsearch answered 400 for the snapshot [s]: mapper_parsing_exception")
+        ElasticsearchFailures.itemFailure(500, "the snapshot [s]", "boom").assert()
+            .isInstanceOf(IllegalStateException::class.java)
         assertThrownBy<StorageUnavailableException> {
             runBlocking { CompletableFuture.failedFuture<Unit>(unavailable).awaitElasticsearch() }
         }

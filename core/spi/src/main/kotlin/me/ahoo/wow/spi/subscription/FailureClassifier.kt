@@ -49,14 +49,18 @@ enum class FailureClass {
 }
 
 /**
- * Classifies the failures of subscription handlers (9.x `RecoverableExceptionProvider`).
+ * Classifies the failures of subscription handlers (9.x `RecoverableExceptionProvider`): the application's hook, for
+ * the failures of what its handlers call directly (a driver, a client of another system).
  *
- * The runtime asks, for the failure and then each of its causes in turn, every classifier the host gives it (the
- * application's first, then those of the backends on the class path, which [java.util.ServiceLoader] finds under
- * `META-INF/services/me.ahoo.wow.spi.subscription.FailureClassifier`), and the first class one gives decides. A
- * handler's own `@Retry(recoverable, unrecoverable)` comes before them all; a failure none classifies is
- * [FailureClass.RECOVERABLE]. The runtime knows the JDK's connection failures, `StorageUnavailableException` and its
- * own ones itself.
+ * The runtime asks, for the failure and then each of its causes in turn, every classifier the host gives it, in
+ * order, and the first class one gives decides. A handler's own `@Retry(recoverable, unrecoverable)` comes before them
+ * all; a failure none classifies is [FailureClass.RECOVERABLE]. The runtime classifies itself, after them, the SPI's
+ * typed failures the framework's stores, transports and queries throw ([me.ahoo.wow.spi.StorageUnavailableException]
+ * and [me.ahoo.wow.spi.transport.TransportUnavailableException] systemic, [me.ahoo.wow.spi.StorageBusyException]
+ * backpressure, [me.ahoo.wow.spi.StorageRefusedException] and [me.ahoo.wow.spi.transport.TransportRefusedException]
+ * unrecoverable), the JDK's connection failures (a socket refused or reset, a host that does not resolve, a JDBC
+ * connection that failed, SQL state class `08`) and its own ones; a driver's other failures are the application's to
+ * classify.
  *
  * A classifier is called on the handler's path for each failed attempt: it decides from the exception alone, quickly
  * and without blocking.

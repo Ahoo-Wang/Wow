@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.observe.started
+import me.ahoo.wow.spi.StorageBusyException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration
@@ -74,6 +75,9 @@ class QueryBulkheadTest {
             refused.store.assert().isEqualTo("main")
             refused.maxConcurrent.assert().isEqualTo(1)
             refused.errorMsg.assert().doesNotContain("main")
+            // A subscription handler that ran the query retries it as backpressure, through the SPI's busy store.
+            refused.cause.assert().isInstanceOf(StorageBusyException::class.java)
+                .hasMessage("The query store [main] runs as many queries as it allows at once (1).")
             bulkhead.queued.assert().isZero()
             gate.complete(Unit)
             held.await().assert().isEqualTo("held")

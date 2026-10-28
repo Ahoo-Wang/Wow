@@ -82,12 +82,12 @@ Not every failure is the aggregate's own, so each one is classified before it is
 
 | Class | Examples | What happens |
 | --- | --- | --- |
-| Unrecoverable | A class in the handler's `unrecoverable` | The aggregate is parked at once |
+| Unrecoverable | A class in the handler's `unrecoverable`; a value a store or a broker refuses for good (a record too large, say) | The aggregate is parked at once |
 | Recoverable | Most exceptions | Retried within the budget, then the aggregate is parked |
-| Systemic | A store or a connection that is down; 3 aggregates of a partition failing within 10 seconds | The whole partition pauses and retries until it is back; no aggregate spends its budget or is parked |
+| Systemic | A store, a broker or a connection that is down; a broker that refuses the node's credentials; 3 aggregates of a partition failing within 10 seconds | The whole partition pauses and retries until it is back; no aggregate spends its budget or is parked |
 | Backpressure | A command refused as busy (`wow.command.busy`), a wait that ran out, a query store's bulkhead, a 429 with `Retry-After` | The entry is retried with backoff and jitter, and the partition's concurrency is lowered until handling succeeds again; the aggregate is parked only when that budget is spent |
 
-The handler's own `recoverable` and `unrecoverable` lists come first. When a class is in both, the nearer one in its class hierarchy decides. An application classifies its own exceptions for every handler with a `FailureClassifier` bean, which returns a class for the failures it knows and null for the rest. A failure nothing classifies is recoverable.
+The handler's own `recoverable` and `unrecoverable` lists come first. When a class is in both, the nearer one in its class hierarchy decides. Wow classifies the failures of its own stores, brokers and queries itself. An application classifies the rest for every handler with a `FailureClassifier` bean, which returns a class for the failures it knows and null for the rest: the exceptions of a driver or a client its handlers call directly, say. A failure nothing classifies is recoverable.
 
 The handler above marks `UnknownBuyerException` unrecoverable: the notification service does not know the buyer, and asking again will not change that, so the order is parked at once for someone to look at.
 
