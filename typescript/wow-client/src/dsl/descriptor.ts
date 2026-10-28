@@ -511,6 +511,10 @@ export interface DynamicFieldDescriptor {
   kind: QueryValueKind;
   /** The filter operators they admit. */
   filter: FieldFilterDescriptor;
+  /** Where a concrete key may be sorted by. */
+  sort: FieldSortDescriptor;
+  /** How a concrete key may be aggregated; absent when it cannot be at all. */
+  aggregate?: FieldAggregateDescriptor;
   /**
    * The map's keys that are declared as fields of their own and so are not
    * covered by this pattern; absent when there are none. For

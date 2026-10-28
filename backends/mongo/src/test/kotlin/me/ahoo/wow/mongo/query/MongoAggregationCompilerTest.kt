@@ -61,15 +61,14 @@ class MongoAggregationCompilerTest {
     ).joinToString("\n") { it.toBsonDocument().toJson() }
 
     @Test
-    fun `terms group by the first value, null without one, and a missing key is a literal`() {
+    fun `terms group by the value, null without one, and a missing key is a literal`() {
         val compiled = json(
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(STATUS, "status", missingKey = "\$name")),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
-        compiled.assert().contains(""""${'$'}ifNull": [{"${'$'}let": {"vars": {"value": "${'$'}state.status"}""")
-        compiled.assert().contains("""{"${'$'}literal": "${'$'}name"}""")
+        compiled.assert().contains(""""${'$'}ifNull": ["${'$'}state.status", {"${'$'}literal": "${'$'}name"}]""")
         // No record is left out of a terms group.
         pipeline(
             AggregationQuery(
@@ -78,6 +77,27 @@ class MongoAggregationCompilerTest {
             ),
         ).map { it.toBsonDocument().firstKey }.assert()
             .containsExactly("\$match", "\$group", "\$project", "\$sort", "\$limit")
+    }
+
+    @Test
+    fun `terms over an array unwind each distinct value first, keeping a record without one`() {
+        val stages = pipeline(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Terms(STATUS, "status"),
+                    AggregationGroup.Terms(KEYWORDS, "keyword"),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).map { it.toBsonDocument() }
+        stages.map { it.firstKey }.assert()
+            .containsExactly("\$match", "\$set", "\$unwind", "\$group", "\$project", "\$sort", "\$limit")
+        // Only the multi-valued group (index 1) is unwound; its values are distinct and never null.
+        stages[1].toJson().assert().contains("__wow_terms_1").contains("\$setUnion").contains("\$filter")
+        stages[2].toJson().assert().contains(""""path": "${'$'}__wow_terms_1"""")
+            .contains(""""preserveNullAndEmptyArrays": true""")
+        stages[3].toJson().assert().contains(""""keyword": {"${'$'}ifNull": ["${'$'}__wow_terms_1", null]}""")
+            .contains(""""status": {"${'$'}ifNull": ["${'$'}state.status", null]}""")
     }
 
     @Test
@@ -292,6 +312,7 @@ class MongoAggregationCompilerTest {
     private companion object {
         val NAME = QueryField("state.name")
         val STATUS = QueryField("state.status")
+        val KEYWORDS = QueryField("state.keywords")
         val AMOUNT = QueryField("state.amount")
         val QUANTITY = QueryField("state.quantity")
         val CREATED = QueryField("state.createdAt")

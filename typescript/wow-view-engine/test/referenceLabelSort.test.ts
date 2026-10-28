@@ -78,6 +78,7 @@ function descriptor(): QueryModelDescriptor {
         types: [QueryValueTypes.INTEGER],
         kind: QueryValueKind.SCALAR,
         filter: { operators: [FilterOperator.EQ, FilterOperator.GT] },
+        sort: { paged: false, cursor: false },
         excludedKeys: ['color'],
       },
     ],

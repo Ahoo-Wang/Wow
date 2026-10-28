@@ -53,9 +53,13 @@ internal class InMemoryAggregation(private val admitted: AdmittedQuery<Aggregati
         val scopes = records.map(::RecordScope).filter { filters.matches(query.filter, it) }.flatMap(::expand)
         val groups = LinkedHashMap<List<JsonNode?>, MutableList<RecordScope>>()
         scopes.forEach { scope ->
-            val keys = query.groupBy.map { key(it, scope) }
-            if (keys.any { it == UNGROUPED }) return@forEach
-            groups.getOrPut(keys) { mutableListOf() }.add(scope)
+            // A record joins the group of each combination of its keys: a terms field gives one key per value.
+            val combinations = query.groupBy.fold(listOf(emptyList<JsonNode?>())) { prefixes, group ->
+                val keys = keys(group, scope)
+                prefixes.flatMap { prefix -> keys.map { prefix + it } }
+            }
+            combinations.filterNot { keys -> keys.any { it == UNGROUPED } }
+                .forEach { keys -> groups.getOrPut(keys) { mutableListOf() }.add(scope) }
         }
         // Without groups and without a match there is no row: the core emits the empty summary, as with MongoDB.
         if (groups.isEmpty()) return emptyList()
@@ -80,24 +84,24 @@ internal class InMemoryAggregation(private val admitted: AdmittedQuery<Aggregati
     private fun groupScope(group: AggregationGroup, scope: RecordScope): RecordScope =
         if (group.scope == AggregationGroupScope.ROOT) RecordScope(scope.record) else scope
 
+    /**
+     * The keys of [group] for [scope]: a terms field's distinct values, each a group the scope joins, or the `null`
+     * group (or the missing key) without one; one key for every other group, [UNGROUPED] when the scope has none.
+     */
+    private fun keys(group: AggregationGroup, scope: RecordScope): List<JsonNode?> {
+        if (group !is AggregationGroup.Terms || group.expression != null) return listOf(key(group, scope))
+        val values = groupScope(group, scope).values(admitted.field(checkNotNull(group.field))).flattened()
+            .filterNot { it.isNull }.distinct()
+        return values.ifEmpty { listOf(group.missingKey?.let(nodes::stringNode) ?: nodes.nullNode()) }
+    }
+
     /** The key of [group] for [scope]; [UNGROUPED] when the scope has no key, so it joins no group. */
     @Suppress("CyclomaticComplexMethod") // One exhaustive table: a branch per kind of group.
     private fun key(group: AggregationGroup, scope: RecordScope): JsonNode? {
         val at = groupScope(group, scope)
         return when (group) {
-            is AggregationGroup.Terms -> {
-                val expression = group.expression
-                if (expression != null) {
-                    filters.expression(expression, at)?.let(nodes::numberNode) ?: nodes.nullNode()
-                } else {
-                    val value = at.values(admitted.field(checkNotNull(group.field))).flattened().firstOrNull()
-                    when {
-                        value != null && !value.isNull -> value
-                        group.missingKey != null -> nodes.stringNode(group.missingKey)
-                        else -> nodes.nullNode()
-                    }
-                }
-            }
+            is AggregationGroup.Terms ->
+                filters.expression(checkNotNull(group.expression), at)?.let(nodes::numberNode) ?: nodes.nullNode()
             is AggregationGroup.Histogram -> {
                 val value = group.expression?.let { filters.expression(it, at) }
                     ?: at.values(admitted.field(checkNotNull(group.field))).singleOrNull()?.numberOrNull()

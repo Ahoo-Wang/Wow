@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.mongo.query.pipeline
 
+import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.UnwindOptions
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
@@ -21,6 +24,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import org.bson.Document
@@ -32,14 +36,16 @@ import java.util.Date
 /**
  * The `$match` a record must pass to join a group of this kind (`null`: every record joins), and the group's key
  * expression. As the reference semantics say: a record without a value forms the `null` group of a terms or histogram
- * key (or the terms' missing key), the first value of an array is its terms key, a value that is not a number forms
- * the `null` histogram bucket, and a record without an instant joins no date group.
+ * key (or the terms' missing key), a record joins the terms group of each of its values ([termsValues] unwinds them
+ * first), a value that is not a number forms the `null` histogram bucket, and a record without an instant joins no
+ * date group.
  */
 internal fun AggregationGroup.compile(
     admitted: AdmittedQuery<*>,
     denseGrid: DenseDateGrid?,
+    index: Int,
 ): Pair<Bson?, Any> = when (this) {
-    is AggregationGroup.Terms -> null to termsKey(admitted)
+    is AggregationGroup.Terms -> null to termsKey(admitted, index)
     is AggregationGroup.Histogram -> {
         val computed = expression?.let { numericParticipation(it, nullGuarded = true, admitted).first }
         val input = computed ?: scalarOrSingleton("\$${admitted.path(checkNotNull(field))}")
@@ -65,25 +71,52 @@ internal fun AggregationGroup.compile(
     is AggregationGroup.DatePart -> datePartKey(admitted)
 }
 
-/** A terms key: the expression's value, or the field's first value, `null` (or the missing key) without one. */
-private fun AggregationGroup.Terms.termsKey(admitted: AdmittedQuery<*>): Any {
-    expression?.let { return numericParticipation(it, nullGuarded = true, admitted).first }
-    val first = Document(
-        "\$let",
-        Document("vars", Document("value", "\$${admitted.path(checkNotNull(field))}")).append(
-            "in",
+/**
+ * Whether this group reads a field that may hold several values per record, so [termsValues] unwinds it before the
+ * `$group`: a field of unknown cardinality too, since unwinding a single value keeps it as it is.
+ */
+internal fun AggregationGroup.multiValued(admitted: AdmittedQuery<*>): Boolean =
+    this is AggregationGroup.Terms && expression == null &&
+        admitted.field(checkNotNull(field)).cardinality != QueryCardinality.SINGLE
+
+/**
+ * The stages that give each record one copy per distinct non-null value of the terms field of group [index], in the
+ * reserved field [termsValue]: an array's values, or its single value; a record without one (missing, `null`, an empty
+ * array or only `null`s) is kept once without it, so it forms the `null` group.
+ */
+internal fun AggregationGroup.Terms.termsValues(admitted: AdmittedQuery<*>, index: Int): List<Bson> {
+    val value = "\$${admitted.path(checkNotNull(field))}"
+    val values = Document(
+        "\$cond",
+        listOf(
+            Document("\$isArray", value),
             Document(
-                "\$cond",
+                "\$setUnion",
                 listOf(
-                    Document("\$isArray", "\$\$value"),
-                    Document("\$arrayElemAt", listOf("\$\$value", 0)),
-                    "\$\$value",
+                    Document(
+                        "\$filter",
+                        Document("input", value).append("cond", Document("\$ne", listOf("\$\$this", null))),
+                    ),
                 ),
             ),
+            value,
         ),
     )
+    return listOf(
+        Aggregates.set(Field(termsValue(index), values)),
+        Aggregates.unwind("\$${termsValue(index)}", UnwindOptions().preserveNullAndEmptyArrays(true)),
+    )
+}
+
+/** The reserved field one value of group [index]'s terms field is unwound into. */
+internal fun termsValue(index: Int): String = "__wow_terms_$index"
+
+/** A terms key: the expression's value, or the field's value (one of them, unwound), `null` or the missing key without. */
+private fun AggregationGroup.Terms.termsKey(admitted: AdmittedQuery<*>, index: Int): Any {
+    expression?.let { return numericParticipation(it, nullGuarded = true, admitted).first }
+    val value = if (multiValued(admitted)) "\$${termsValue(index)}" else "\$${admitted.path(checkNotNull(field))}"
     // A missing key is a value: `$literal` keeps one starting with `$` from reading a field.
-    return Document("\$ifNull", listOf(first, missingKey?.let { Document("\$literal", it) }))
+    return Document("\$ifNull", listOf(value, missingKey?.let { Document("\$literal", it) }))
 }
 
 private fun AggregationGroup.DateHistogram.dateHistogramKey(

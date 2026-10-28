@@ -803,6 +803,55 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    /**
+     * The orders and one more whose keywords repeat: `a` on o1 and o6, `b` on o1 and o2, `c` (twice) on o6 only; o3's
+     * are empty, o4 and o5 have none.
+     */
+    private fun keywordOrders(): List<SnapshotRecord> = orders() + snapshot(
+        "o6",
+        """{"name":"Zeta","status":"NEW","amount":1,"quantity":1,"createdAt":$T0,"keywords":["c","a","c"],""" +
+            """"lines":[]}""",
+    )
+
+    @Test
+    fun `aggregation groups a string array by each of its values, or refuses it where storage cannot`() = blocking {
+        val fixture = given(keywordOrders())
+        val byKeyword = AggregationQuery(
+            filter = MatchAllFilter,
+            groupBy = listOf(AggregationGroup.Terms(KEYWORDS, "keyword")),
+            metrics = listOf(AggregationMetric.Count("count"), numeric(AggregationFunction.SUM, "total")),
+        )
+        if (fixture.schema.field(KEYWORDS)?.binding(QueryCapability.AGGREGATE_TERMS) == null) {
+            val refused = runCatching { fixture.aggregate(byKeyword) }.exceptionOrNull()
+            (refused as QuerySchemaValidationException).violation.assert()
+                .isEqualTo(QueryViolation.UnsupportedCapability(KEYWORDS, setOf(QueryCapability.AGGREGATE_TERMS)))
+            return@blocking
+        }
+        val rows = fixture.aggregate(byKeyword).associateBy { it.path("keyword").stringValue(null) }
+        // A record joins the group of each distinct value; one without a value (none, or empty) joins the null group.
+        rows.mapValues { it.value.path("count").longValue() }.assert()
+            .isEqualTo(mapOf("a" to 2L, "b" to 2L, "c" to 1L, null to 3L))
+        rows.mapValues { it.value.path("total").doubleValue() }.assert()
+            .isEqualTo(mapOf("a" to 11.5, "b" to 30.5, "c" to 1.0, null to 120.0))
+        Unit
+    }
+
+    @Test
+    fun `a string array sorts by its least value ascending, or refuses the sort where storage cannot`() = blocking {
+        val fixture = given(keywordOrders())
+        val withKeywords = AggregateIdsFilter(listOf("o1", "o2", "o6"))
+        val ascending = listOf(Sort(KEYWORDS, Sort.Direction.ASC), Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+        if (fixture.schema.field(KEYWORDS)?.binding(QueryCapability.SORT) == null) {
+            val refused = runCatching { fixture.ids(withKeywords, ascending) }.exceptionOrNull()
+            (refused as QuerySchemaValidationException).violation.assert()
+                .isEqualTo(QueryViolation.UnsupportedCapability(KEYWORDS, setOf(QueryCapability.SORT)))
+            return@blocking
+        }
+        // o1 [a, b] and o6 [c, a, c] lead with `a`, o2 [b] with `b`.
+        fixture.ids(withKeywords, ascending).assert().containsExactly("o1", "o6", "o2")
+        Unit
+    }
+
     @Test
     fun `aggregation sorts groups by a metric and takes the top N`() = blocking {
         val fixture = given(orders())
@@ -1091,6 +1140,7 @@ abstract class QueryBackendSpec {
         val T0: Long = Instant.parse("2026-01-05T00:00:00Z").toEpochMilli()
         const val DAY: Long = 86_400_000L
         private val AMOUNT = QueryField("state.amount")
+        private val KEYWORDS = QueryField("state.keywords")
         private val GENEROUS: Duration = Duration.ofSeconds(30)
 
         /** The state field each semantic shape's probes are stored in. */

@@ -190,8 +190,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
 
     /**
      * Describes a dynamic pattern by resolving a probe key through [QueryModelSchema.field], exactly as admission
-     * resolves a concrete key, so an array pattern and its items yield one entry. The operators are the probe's
-     * compiled record, so the key's sensitivity and element scopes decide them as they decide a concrete key's.
+     * resolves a concrete key, so an array pattern and its items yield one entry. The operators, the sort and the
+     * aggregation are the probe's compiled record, so the key's sensitivity and element scopes decide them as they
+     * decide a concrete key's.
      */
     private fun dynamic(path: QueryPathTemplate): DynamicFieldDescriptor? {
         val excluded = schema.definition.keyExclusions(path).values.flatten().toSet()
@@ -199,11 +200,18 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val field = schema.field(path.field(List(path.keyCount) { probe })) ?: return null
         if (field.capabilities.isEmpty()) return null
         val value = field.value
+        val effective = field.effective
         return DynamicFieldDescriptor(
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
             kind = value.kind,
-            filter = FieldFilterDescriptor(field.effective.operators(allowExpensive)),
+            filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
+            sort = FieldSortDescriptor(
+                paged = effective.sortable,
+                cursor = effective.cursorSortable && keyset,
+                indexed = field.sortIndexed().takeIf { effective.sortable },
+            ),
+            aggregate = aggregate(effective),
             excludedKeys = schema.definition.keyExclusions(path).values.flatten().distinct().sorted()
                 .takeIf { it.isNotEmpty() },
         )

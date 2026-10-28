@@ -46,9 +46,12 @@ internal fun AggregationGroup.toSource(
         is AggregationGroup.Terms -> {
             val declaredMissingKey = missingKey
             if (declaredMissingKey == null) {
+                // A record without a value forms the null group, ordered first ascending and last descending, as
+                // MongoDB orders a null key; a record with several values joins the group of each.
                 CompositeAggregationSource.of {
                     it.terms { terms ->
                         terms.field(admitted.physicalPath(checkNotNull(field))).order(sort.direction.toSortOrder())
+                            .missingBucket(true)
                     }
                 }
             } else {
