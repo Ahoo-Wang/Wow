@@ -45,7 +45,7 @@ A dataset is a JSON file named `<context>.<dataset>.json`, on the class path und
 | `storage` | The backend's binding: on ClickHouse, the `table` it reads |
 | `fields` | Each column: its `types`, `nullable`, an optional `semantic` type, `enum` values and a `description` |
 
-A field may also be masked, with `"sensitive": {"level": "CONFIDENTIAL", "keepSuffix": 4}`, as a `@Sensitive` state field is.
+A field may also be masked, with `"sensitive": {"level": "confidential", "keepSuffix": 4}`, as a `@Sensitive` state field is.
 
 A file in the working directory, `<wow.query.dataset.config-directory>/wow/dataset/` (`config/wow/dataset/` by default), takes precedence over the class path's file of the same name, so an operator can adjust a dataset without a new build.
 

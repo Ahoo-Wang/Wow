@@ -45,7 +45,7 @@ outline: deep
 | `storage` | 后端的绑定：在 ClickHouse 上，是它读取的 `table` |
 | `fields` | 每一列：它的 `types`、`nullable`、可选的 `semantic` 类型、`enum` 值和 `description` |
 
-字段也可以用 `"sensitive": {"level": "CONFIDENTIAL", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
+字段也可以用 `"sensitive": {"level": "confidential", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
 
 工作目录中 `<wow.query.dataset.config-directory>/wow/dataset/`（默认 `config/wow/dataset/`）下的文件，优先于类路径上的同名文件，所以运维人员不用重新构建就能调整一个数据集。
 
