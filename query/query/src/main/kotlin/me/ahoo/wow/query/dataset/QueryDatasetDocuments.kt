@@ -36,7 +36,7 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryMask
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySemanticType
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.requireQueryPathSegment
 import tools.jackson.core.JacksonException

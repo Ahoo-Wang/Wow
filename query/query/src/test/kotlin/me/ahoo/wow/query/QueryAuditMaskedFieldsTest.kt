@@ -25,7 +25,7 @@ import me.ahoo.wow.query.observe.QueryAudit
 import me.ahoo.wow.query.observe.QueryAuditTrail
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import org.junit.jupiter.api.Test

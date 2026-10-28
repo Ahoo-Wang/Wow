@@ -115,6 +115,3 @@ enum class QueryCardinality {
     MANY,
 }
 
-/** Structural value facts shared by schema declarations and metadata. */
-@ExperimentalWowApi
-enum class QueryValueKind { UNKNOWN, NULL, SCALAR, OBJECT, ARRAY, UNION }

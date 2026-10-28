@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.query.QueryValueKind
 
 /**
  * A storage's port into the Catalog: it reports what its native structures (indexes, mappings,

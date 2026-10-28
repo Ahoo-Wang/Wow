@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 
 internal fun scalarFixture(type: QueryValueType = QueryValueType.STRING, temporal: Temporal? = null) =
     QueryValueSchema(

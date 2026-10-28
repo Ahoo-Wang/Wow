@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryStorageFamily.BOOLEAN
 import me.ahoo.wow.query.schema.QueryStorageFamily.DATE
 import me.ahoo.wow.query.schema.QueryStorageFamily.EXACT_STRING

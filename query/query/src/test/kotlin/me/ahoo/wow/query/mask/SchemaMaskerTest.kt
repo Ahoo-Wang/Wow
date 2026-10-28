@@ -29,7 +29,7 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QueryValueBindings
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.isFieldProtected

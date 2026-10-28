@@ -63,6 +63,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter

@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.ManifestFixtures.schemaOf
 import me.ahoo.wow.query.schema.ManifestFixtures.stateManifest

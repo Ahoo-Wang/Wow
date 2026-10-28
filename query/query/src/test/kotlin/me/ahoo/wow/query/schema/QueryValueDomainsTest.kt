@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.NextMonthFilter
 import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.ThisMonthFilter

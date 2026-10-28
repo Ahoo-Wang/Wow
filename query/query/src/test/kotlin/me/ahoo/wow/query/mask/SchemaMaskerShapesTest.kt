@@ -20,7 +20,7 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.spi.json.WowJson

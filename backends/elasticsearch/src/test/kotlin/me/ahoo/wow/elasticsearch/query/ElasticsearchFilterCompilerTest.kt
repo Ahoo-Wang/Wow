@@ -35,7 +35,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.dsl.filter
 import me.ahoo.wow.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal

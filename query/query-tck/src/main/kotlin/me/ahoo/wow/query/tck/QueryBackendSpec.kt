@@ -97,7 +97,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.querySchema

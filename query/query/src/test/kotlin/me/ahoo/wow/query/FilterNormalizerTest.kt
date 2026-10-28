@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.query.resolve.FilterNormalizer
 import me.ahoo.wow.query.resolve.QueryResolver
 import me.ahoo.wow.query.schema.LogicalQuerySchema
-import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.WindowFunction
@@ -42,7 +43,7 @@ import me.ahoo.wow.query.descriptor.FieldFilterDescriptor
 import me.ahoo.wow.query.descriptor.FieldSortDescriptor
 import me.ahoo.wow.query.descriptor.HavingDescriptor
 import me.ahoo.wow.query.descriptor.LimitsDescriptor
-import me.ahoo.wow.query.descriptor.PagingMode
+import me.ahoo.wow.api.query.PagingMode
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.descriptor.RecordDescriptor
 import me.ahoo.wow.query.descriptor.SearchDescriptor

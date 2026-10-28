@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.list

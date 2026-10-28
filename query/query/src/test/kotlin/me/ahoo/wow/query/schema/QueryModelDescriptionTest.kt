@@ -18,13 +18,14 @@ import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.query.descriptor.EnumValueDescriptor
 import me.ahoo.wow.query.descriptor.FieldDescriptor
-import me.ahoo.wow.query.descriptor.PagingMode
+import me.ahoo.wow.api.query.PagingMode
 import me.ahoo.wow.query.descriptor.SearchDescriptor
 import me.ahoo.wow.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.query.json.QueryJson

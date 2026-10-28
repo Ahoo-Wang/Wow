@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import org.junit.jupiter.api.Test
@@ -74,7 +75,7 @@ class DescriptorConstraintsTest {
         descriptor.record.run {
             identity.assert().isEmpty()
             defaultScope.assert().isNull()
-            paging.assert().doesNotContain(me.ahoo.wow.query.descriptor.PagingMode.CURSOR)
+            paging.assert().doesNotContain(me.ahoo.wow.api.query.PagingMode.CURSOR)
         }
         descriptor.fields.associateBy { it.path }.run {
             getValue("tenantId").role.assert().isEqualTo("TENANT_ID")

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.QueryValueKind
+
 /** An original value node and the path evidence used to reach it. */
 internal data class QueryValueMatch(
     val value: QueryValueSchema,
