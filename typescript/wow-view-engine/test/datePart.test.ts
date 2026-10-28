@@ -28,22 +28,23 @@ import {
 import { describe, expect, it } from 'vitest';
 import { listParam } from '../src/model/issue.js';
 import {
-  ANALYSIS_DATE_PARTS,
   builtinFieldKinds,
   compileAnalysis,
-  datePartsOf,
-  DATE_PART_DOMAINS,
-  drillGroups,
-  groupFacts,
-  groupOfType,
   projectAnalysis,
-  shapeChart,
   validateAnalysis,
   validateDefinition,
   type AnalysisCapability,
   type AnalysisGroup,
   type DataViewDefinition,
 } from '../src/index.js';
+import {
+  ANALYSIS_DATE_PARTS,
+  datePartsOf,
+  DATE_PART_DOMAINS,
+} from '../src/model/analysis.js';
+import { drillGroups } from '../src/analysis/drill.js';
+import { groupFacts, groupOfType } from '../src/analysis/defaults.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { columnTitle, displayValue } from '../src/ui/kit/display.js';
 import { en as enMessages } from '../src/ui/messages/en.js';

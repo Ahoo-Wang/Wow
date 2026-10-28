@@ -34,15 +34,7 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  firstMetric,
-  fitCharts,
   fitChartSlots,
-  isValueMetric,
-  metricOfSummary,
-  readsAsItsField,
-  shapeChart,
-  summaryChoices,
-  summaryOf,
   validateAnalysis,
   validateDefinition,
   type AnalysisCapability,
@@ -50,6 +42,16 @@ import {
   type AnalysisViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
+import {
+  firstMetric,
+  metricOfSummary,
+  summaryChoices,
+  summaryOf,
+} from '../src/analysis/defaults.js';
+import { fitCharts } from '../src/analysis/fitCharts.js';
+import { isValueMetric } from '../src/model/analysis.js';
+import { readsAsItsField } from '../src/analysis/metricFormat.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   isOhlcSet,
   ohlcMetrics,

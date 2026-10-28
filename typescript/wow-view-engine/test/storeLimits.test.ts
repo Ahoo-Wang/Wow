@@ -24,12 +24,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  configBytes,
   MAX_VIEW_CONFIG_BYTES,
   MAX_VIEW_TITLE_LENGTH,
-  titleProblem,
   type ViewConfig,
 } from '../src/index.js';
+import { configBytes, titleProblem } from '../src/model/instance.js';
 
 // The view store service's ViewConfigs.kt.
 const VIEW_CONFIGS = resolve(

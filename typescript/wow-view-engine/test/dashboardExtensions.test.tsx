@@ -35,11 +35,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  isOwnedPanel,
   type DashboardPanel,
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { isOwnedPanel } from '../src/dashboard/panels.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
 import {

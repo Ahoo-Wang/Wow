@@ -30,13 +30,13 @@ import {
   type DashboardViewConfig,
   type FilterTree,
   type Issue,
-  type PanelReference,
   type RuntimeLimits,
   type ViewDefinition,
   type ViewInstance,
   type ViewScope,
   type ViewSource,
 } from '../src/index.js';
+import { type PanelReference } from '../src/dashboard/validate.js';
 import {
   blocksBoard,
   DashboardViewRuntime,

@@ -15,11 +15,11 @@ import { describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  say,
   text,
   textKeyOf,
   withText,
 } from '../src/index.js';
+import { say } from '../src/model/text.js';
 import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 /** host-integration.md 3.1: a definition written in keys, said in words. */

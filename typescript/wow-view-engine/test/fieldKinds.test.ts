@@ -22,29 +22,8 @@ import {
   isFieldlessKind,
 } from '../src/model/index.js';
 import {
-  booleanFieldKind,
-  clearFilter,
   compileFilter,
-  compilePresence,
-  countLeaves,
-  dateFieldKind,
-  dateTimeFieldKind,
-  describePresence,
-  emptyFilter,
-  enumFieldKind,
-  filterFields,
   isDateTimeFilterValue,
-  isEmptyFilter,
-  isExecutableFilter,
-  isFilterGroup,
-  isFilterLeaf,
-  isNumberRange,
-  isReferenceFilterValue,
-  numberFieldKind,
-  operatorsOf,
-  readValue,
-  referenceFieldKind,
-  stringFieldKind,
   validateFilter,
   builtinFieldKinds,
   type FieldDefinition,
@@ -53,6 +32,31 @@ import {
   type FilterOperatorName,
   type FilterTree,
 } from '../src/index.js';
+import { booleanFieldKind } from '../src/filter/kinds/boolean.js';
+import {
+  clearFilter,
+  countLeaves,
+  emptyFilter,
+  filterFields,
+  isEmptyFilter,
+  isFilterGroup,
+  isFilterLeaf,
+} from '../src/filter/tree.js';
+import {
+  compilePresence,
+  describePresence,
+} from '../src/filter/kinds/presence.js';
+import {
+  dateFieldKind,
+  dateTimeFieldKind,
+} from '../src/filter/kinds/dateTime.js';
+import { enumFieldKind } from '../src/filter/kinds/enum.js';
+import { isExecutableFilter } from '../src/filter/validate.js';
+import { isNumberRange, isReferenceFilterValue } from '../src/filter/values.js';
+import { numberFieldKind } from '../src/filter/kinds/number.js';
+import { operatorsOf, readValue } from '../src/filter/fieldKind.js';
+import { referenceFieldKind } from '../src/filter/kinds/reference.js';
+import { stringFieldKind } from '../src/filter/kinds/string.js';
 import { isPlainObject } from '../src/filter/values.js';
 
 const now = new Date('2026-09-16T10:30:00.000Z');

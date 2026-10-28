@@ -32,7 +32,6 @@ import {
   ViewEngine,
   builtinFieldKinds,
   defaultRuntimeEnvironment,
-  describeFilter,
   type RuntimeEnvironment,
   type AnalysisProjection,
   type AnalysisViewConfig,
@@ -40,6 +39,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
 import {
   AnalysisTable,
   DataWorkbench,

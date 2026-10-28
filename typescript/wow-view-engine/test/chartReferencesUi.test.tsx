@@ -31,7 +31,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -42,6 +41,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { AnalysisChart } from '../src/ui/analysis/AnalysisChart.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import type { CartesianContext } from '../src/ui/charts/cartesianPlan.js';

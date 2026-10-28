@@ -24,11 +24,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  rootSearch,
-  withRootSearch,
   type FilterNode,
   type FilterTree,
 } from '../src/index.js';
+import { rootSearch, withRootSearch } from '../src/filter/search.js';
 import { DataWorkbench, type WorkbenchFeatures } from '../src/ui/index.js';
 import {
   ROWS,

@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -24,6 +23,7 @@ import {
   type MetricCardData,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   AggregationDateUnit,
   AggregationExpressionType,

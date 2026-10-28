@@ -17,7 +17,6 @@ import {
   MemoryViewStore,
   ViewEngine,
   projectAnalysis,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -26,6 +25,7 @@ import {
   type MetricCardSpec,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { metricReach } from '../src/analysis/metricWindow.js';
 import { regrouped } from '../src/runtime/dashboard/grouping.js';

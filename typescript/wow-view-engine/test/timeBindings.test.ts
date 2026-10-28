@@ -15,10 +15,6 @@ import { describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  unbindPanels,
-  bindPanel,
-  removeFilter,
-  retypeFilter,
   type DashboardField,
   type DashboardPanel,
   type DashboardRuntime,
@@ -26,6 +22,8 @@ import {
   type DashboardViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
+import { unbindPanels, bindPanel } from '../src/dashboard/wiring.js';
+import { removeFilter, retypeFilter } from '../src/dashboard/filterEdit.js';
 import { withTimeBindings } from '../src/dashboard/timeBindings.js';
 import {
   analysisConfig,

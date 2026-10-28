@@ -31,13 +31,15 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  metricFormat,
-  metricFunctionOf,
   projectAnalysis,
   type AggregationFunctionName,
   type AnalysisMetric,
-  metricReferenceText,
 } from '../src/index.js';
+import {
+  metricFormat,
+  metricFunctionOf,
+} from '../src/analysis/metricFormat.js';
+import { metricReferenceText } from '../src/analysis/formula.js';
 import {
   analysisCapability as capability,
   analysisContext as context,

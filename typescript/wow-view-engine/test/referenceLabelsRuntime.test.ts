@@ -28,7 +28,6 @@ import {
   MemoryViewStore,
   ViewEngine,
   builtinFieldKinds,
-  drillGroups,
   isExportCancelledError,
   type RecordViewRuntime,
   type DashboardPanel,
@@ -41,6 +40,7 @@ import {
   type ViewErrorEvent,
   type ViewInstance,
 } from '../src/index.js';
+import { drillGroups } from '../src/analysis/drill.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { memorySource } from '../src/testing/index.js';
 import { dealsDefinition, kanbanConfig } from './fixtures/kanban.js';

@@ -22,7 +22,6 @@ import {
   builtinFieldKinds,
   compileRecord,
   DEFAULT_RUNTIME_LIMITS,
-  FIRST_PAGE,
   type DataViewDefinition,
   type ProjectedRecord,
   type RecordData,
@@ -31,6 +30,7 @@ import {
   type RecordViewRuntime,
   type ViewSource,
 } from '../src/index.js';
+import { FIRST_PAGE } from '../src/record/compile.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
 import { recordSource } from '../src/runtime/source.js';

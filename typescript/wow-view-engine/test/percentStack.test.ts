@@ -14,11 +14,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   fitChartSlots,
-  isPercentStacked,
-  offersPercentStack,
-  validateChart,
-  withPercentStack,
-  withStacked,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -26,6 +21,13 @@ import {
   type CartesianSpec,
   type ChartSpec,
 } from '../src/index.js';
+import {
+  isPercentStacked,
+  offersPercentStack,
+  withPercentStack,
+  withStacked,
+} from '../src/analysis/chartOptions.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import { comparePending } from '../src/runtime/pending.js';
 import {
   cartesianOption,

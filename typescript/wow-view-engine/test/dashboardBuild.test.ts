@@ -20,34 +20,42 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_DASHBOARD_TABS,
-  MAX_HEADING_LENGTH,
-  addPanel,
-  addTab,
   builtinFieldKinds,
-  compactTab,
-  defaultPanelSize,
-  duplicatePanel,
-  editContent,
   emptyDashboardConfig,
-  isOwnedPanel,
-  movePanelToTab,
-  moveTab,
-  panelTab,
-  referToSaved,
-  referencedInstance,
-  removePanel,
-  removeTab,
-  renamePanel,
-  renameTab,
-  replacePanelView,
-  setPresentation,
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
   type Issue,
   type PanelDefinition,
 } from '../src/index.js';
+import {
+  MAX_DASHBOARD_TABS,
+  MAX_HEADING_LENGTH,
+} from '../src/model/dashboard.js';
+import {
+  addPanel,
+  compactTab,
+  defaultPanelSize,
+  duplicatePanel,
+  editContent,
+  movePanelToTab,
+  referToSaved,
+  removePanel,
+  renamePanel,
+  replacePanelView,
+  setPresentation,
+} from '../src/dashboard/edit.js';
+import {
+  addTab,
+  moveTab,
+  removeTab,
+  renameTab,
+} from '../src/dashboard/tabs.js';
+import {
+  isOwnedPanel,
+  panelTab,
+  referencedInstance,
+} from '../src/dashboard/panels.js';
 import { freshId } from '../src/dashboard/panels.js';
 import {
   analysisConfig,

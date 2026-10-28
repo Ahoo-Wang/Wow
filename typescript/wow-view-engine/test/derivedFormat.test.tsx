@@ -33,7 +33,6 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  metricMeasures,
   projectAnalysis,
   validateAnalysis,
   type AnalysisMetric,
@@ -41,6 +40,7 @@ import {
   type DataViewDefinition,
   type DerivedFormat,
 } from '../src/index.js';
+import { metricMeasures } from '../src/analysis/metricFormat.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { analysisFile } from '../src/ui/analysis/exportOffer.js';
 import {

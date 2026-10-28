@@ -32,15 +32,15 @@ import {
   builtinFieldKinds,
   compileFilter,
   defineView,
-  describeFilter,
   projectRecord,
-  referenceFieldKind,
   validateDefinition,
   validateRecord,
   type DataViewDefinition,
   type FieldDefinition,
   type FilterTree,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
+import { referenceFieldKind } from '../src/filter/kinds/reference.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { recordMessages } from '../src/ui/messages/record.js';
 import { definitionMessages } from '../src/ui/messages/definition.js';

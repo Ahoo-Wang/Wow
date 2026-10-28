@@ -73,6 +73,22 @@ describe('the public surface of each entry', () => {
     });
 
   /**
+   * The root's values are what a host holds: the engine and its stores,
+   * one kernel entry per kind and stage, the definitions' helpers, the
+   * errors and their guards. Every name past them was once a value nothing
+   * outside the package imported, so the count is pinned: a new one is a
+   * decision this test asks for, not an export a file wrote for a
+   * neighbour. Raise it in the same change that names the value in the
+   * root's list and says why a host needs it.
+   */
+  it('keeps the root entry to the values a host holds', () => {
+    const values = [...entryExports('@ahoo-wang/wow-view-engine')].filter(
+      ([, kind]) => kind === 'value',
+    );
+    expect(values).toHaveLength(64);
+  });
+
+  /**
    * A value lives in one entry only. Each entry is its own module graph in a
    * bundle, so one value exported from two can arrive as two instances, and
    * an `instanceof`, a `Map` key or a context then tells them apart. A type

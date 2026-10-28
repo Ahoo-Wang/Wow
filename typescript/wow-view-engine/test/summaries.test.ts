@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { toSummary } from '../src/index.js';
+import { toSummary } from '../src/model/instance.js';
 import { SummaryCache } from '../src/runtime/summaries.js';
 import { savedInstance } from './fixtures.js';
 

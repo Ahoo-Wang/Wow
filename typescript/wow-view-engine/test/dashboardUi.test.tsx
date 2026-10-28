@@ -24,7 +24,6 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  arrangePanel,
   MemoryViewStore,
   ViewEngine,
   type DashboardRuntime,
@@ -33,6 +32,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { arrangePanel } from '../src/dashboard/layout.js';
 import { useDashboard, type DashboardController } from '../src/react/index.js';
 import {
   DashboardGrid,

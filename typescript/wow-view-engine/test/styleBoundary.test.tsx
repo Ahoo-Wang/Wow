@@ -25,7 +25,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { themesSource } from '../scripts/themes.mjs';
 import { CHART_TOKENS } from '../src/ui/charts/theme.js';
 import { TOKENS } from '../src/ui/theme/tokens.js';
-import { CHART_COLOR_SLOTS } from '../src/index.js';
+import { CHART_COLOR_SLOTS } from '../src/model/chart.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/kit/popups.js';
 import {

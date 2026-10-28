@@ -14,11 +14,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  describeFilter,
   withFieldKinds,
   type FieldDefinition,
   type FilterTree,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
 import {
   AggregationDateUnit,
   DateDiffUnit,

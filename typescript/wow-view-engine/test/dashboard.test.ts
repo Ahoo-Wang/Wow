@@ -18,28 +18,28 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  coversScope,
   DEFAULT_RUNTIME_LIMITS,
   emptyDashboardConfig,
-  isContentPanel,
-  isSafeContentUrl,
-  isPresentationMember,
-  isViewPanel,
-  mapGlobalFilter,
-  mergeGlobalFilter,
-  panelsOf,
-  presentationMembersOf,
-  tabsOf,
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
   type FilterTree,
   type Issue,
-  type PanelReference,
   type ViewDefinition,
   type ViewScope,
 } from '../src/index.js';
+import { coversScope, type PanelReference } from '../src/dashboard/validate.js';
+import {
+  isContentPanel,
+  isSafeContentUrl,
+  isPresentationMember,
+  isViewPanel,
+  panelsOf,
+  presentationMembersOf,
+  tabsOf,
+} from '../src/dashboard/panels.js';
+import { mapGlobalFilter, mergeGlobalFilter } from '../src/dashboard/merge.js';
 import { overlaid } from '../src/model/json.js';
 import {
   analysisConfig,

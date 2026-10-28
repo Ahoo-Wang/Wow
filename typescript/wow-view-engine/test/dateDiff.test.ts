@@ -30,16 +30,8 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  dateDiffUnitsOf,
-  drillGroups,
-  durationMetric,
-  expressionFieldsOf,
-  expressionText,
-  groupFieldsOf,
-  isDuration,
   projectAnalysis,
   validateAnalysis,
-  withElements,
   type AnalysisCapability,
   type AnalysisExpression,
   type AnalysisGroup,
@@ -47,6 +39,18 @@ import {
   type AnalysisViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
+import {
+  dateDiffUnitsOf,
+  expressionFieldsOf,
+  groupFieldsOf,
+} from '../src/model/analysis.js';
+import { drillGroups } from '../src/analysis/drill.js';
+import {
+  durationMetric,
+  expressionText,
+  isDuration,
+} from '../src/analysis/formula.js';
+import { withElements } from '../src/analysis/expand.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
   analysisContext as context,

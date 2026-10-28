@@ -14,17 +14,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHART_TYPES,
-  comboMark,
   fitChartSlots,
-  leadMetric,
-  switchChartType,
-  validateChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type ChartSpec,
   type ChartType,
 } from '../src/index.js';
+import { comboMark } from '../src/analysis/familySlots.js';
+import { leadMetric, switchChartType } from '../src/analysis/chartSwitch.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import { analysisKernelConfig } from './fixtures/analysis.js';
 import {
   AggregationDateUnit,

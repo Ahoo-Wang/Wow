@@ -21,6 +21,11 @@ import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
+  validateFilter,
+  type FilterLeaf,
+  type FilterTree,
+} from '../src/index.js';
+import {
   conditionOf,
   conditions,
   emptyFilter,
@@ -36,10 +41,7 @@ import {
   sameFilterNode,
   sameFilterTree,
   updateAt,
-  validateFilter,
-  type FilterLeaf,
-  type FilterTree,
-} from '../src/index.js';
+} from '../src/filter/tree.js';
 import { andTree as tree, filterFields as fields } from './fixtures/filter.js';
 
 describe('isSimpleTree', () => {

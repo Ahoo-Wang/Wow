@@ -13,12 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  comboAxis,
   fitChartSlots,
-  measureColumns,
-  metricMeasure,
-  metricMeasures,
-  switchChartType,
   type AnalysisColumnView,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -26,6 +21,10 @@ import {
   type ChartSpec,
   type FieldDefinition,
 } from '../src/index.js';
+import { comboAxis } from '../src/analysis/familySlots.js';
+import { measureColumns } from '../src/analysis/project.js';
+import { metricMeasure, metricMeasures } from '../src/analysis/metricFormat.js';
+import { switchChartType } from '../src/analysis/chartSwitch.js';
 import {
   cartesianOption,
   type CartesianContext,

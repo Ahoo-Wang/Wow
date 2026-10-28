@@ -24,14 +24,14 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   DEFAULT_RUNTIME_LIMITS,
-  fitCharts,
-  shapeChart,
-  validateChart,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type CartesianData,
   type RecordData,
 } from '../src/index.js';
+import { fitCharts } from '../src/analysis/fitCharts.js';
+import { shapeChart } from '../src/analysis/chart.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import { OTHER_SERIES_KEY } from '../src/analysis/chartRows.js';
 import { foldsSplit, splitWholeConfig } from '../src/analysis/splitOther.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';

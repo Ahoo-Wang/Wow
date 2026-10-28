@@ -43,7 +43,6 @@ import {
   ViewEngine,
   builtinFieldKinds,
   compileAnalysis,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -52,6 +51,7 @@ import {
   type MetricTrend,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   AnalysisChart,
   DataWorkbench,

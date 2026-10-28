@@ -21,13 +21,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DATE_TIME_PRESETS,
-  resolveDateTimeBound,
   resolveDateTimeRange,
   validateFilter,
   builtinFieldKinds,
   type DateTimePreset,
 } from '../src/index.js';
+import { DATE_TIME_PRESETS } from '../src/filter/values.js';
+import { resolveDateTimeBound } from '../src/filter/time.js';
 import {
   andTree as tree,
   errorCodes as errors,

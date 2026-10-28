@@ -22,22 +22,7 @@
 import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  ANALYSIS_DATE_UNITS,
-  DASHBOARD_FILTER_KINDS,
-  DASHBOARD_FILTER_TYPES,
-  MAX_DASHBOARD_FILTERS,
-  admitFilters,
   builtinFieldKinds,
-  defaultFilters,
-  filterCondition,
-  filterControlValue,
-  filterEditor,
-  filterOperatorOf,
-  filterStoredValue,
-  filterTypeOf,
-  isBlankFilterValue,
-  panelFilterTree,
-  sameFilterType,
   validateDashboard,
   withFieldKinds,
   type DashboardField,
@@ -45,8 +30,27 @@ import {
   type DashboardViewConfig,
   type FieldKind,
   type Issue,
-  type PanelReference,
 } from '../src/index.js';
+import { ANALYSIS_DATE_UNITS } from '../src/model/analysis.js';
+import {
+  DASHBOARD_FILTER_KINDS,
+  DASHBOARD_FILTER_TYPES,
+  MAX_DASHBOARD_FILTERS,
+  filterTypeOf,
+  sameFilterType,
+} from '../src/model/dashboard.js';
+import {
+  admitFilters,
+  defaultFilters,
+  filterCondition,
+  filterControlValue,
+  filterEditor,
+  filterOperatorOf,
+  filterStoredValue,
+  isBlankFilterValue,
+  panelFilterTree,
+} from '../src/dashboard/filters.js';
+import { type PanelReference } from '../src/dashboard/validate.js';
 import { dashboardConfig, panelReference } from './fixtures.js';
 
 const kinds = builtinFieldKinds;
