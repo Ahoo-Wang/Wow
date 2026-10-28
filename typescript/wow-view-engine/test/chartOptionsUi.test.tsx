@@ -720,7 +720,7 @@ describe('the chart options’ display page', () => {
     ).toBe('donut');
   });
 
-  it('turns a cartesian chart on its side and smooths its lines', async () => {
+  it('turns a cartesian chart on its side and joins its lines one way', async () => {
     const { user, draft } = await open({
       type: 'line',
       cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
@@ -734,22 +734,39 @@ describe('the chart options’ display page', () => {
     await waitFor(() =>
       expect(draft().chart.cartesian?.orientation).toBe('horizontal'),
     );
-    fireEvent.click(
-      within(panel()!).getByRole('checkbox', { name: 'Smooth lines' }),
-    );
+    // One choice of three words, straight until the analyst says otherwise.
+    const lines = () =>
+      within(panel()!.querySelector<HTMLElement>('[data-slot="chart-line"]')!);
+    expect(
+      lines()
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['Straight', 'Smooth', 'Step']);
+    expect(
+      lines()
+        .getByRole('button', { name: 'Straight' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    fireEvent.click(lines().getByRole('button', { name: 'Smooth' }));
     await waitFor(() =>
-      expect(draft().chart.cartesian?.series.every(s => s.smooth)).toBe(true),
+      expect(draft().chart.cartesian?.series[0]?.line).toBe('smooth'),
+    );
+    // Step replaces smooth, and says what it means under the choice.
+    fireEvent.click(lines().getByRole('button', { name: 'Step' }));
+    await waitFor(() =>
+      expect(draft().chart.cartesian?.series[0]?.line).toBe('step'),
+    );
+    expect(panel()!.textContent).toContain(
+      'Each value holds until the next point, as a balance does',
     );
 
-    // Unchecked again, smoothing leaves no `false` behind; the orientation
-    // says upright, since saying nothing now lets long names lay the bars
-    // down (`drawsHorizontal`) and the analyst has just said otherwise.
+    // Straight again leaves no `line` behind; the orientation says
+    // upright, since saying nothing now lets long names lay the bars down
+    // (`drawsHorizontal`) and the analyst has just said otherwise.
     fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Horizontal' }),
     );
-    fireEvent.click(
-      within(panel()!).getByRole('checkbox', { name: 'Smooth lines' }),
-    );
+    fireEvent.click(lines().getByRole('button', { name: 'Straight' }));
     await waitFor(() =>
       expect(draft().chart.cartesian).toEqual({
         x: 'warehouse',
@@ -757,6 +774,19 @@ describe('the chart options’ display page', () => {
         orientation: 'vertical',
       }),
     );
+  });
+
+  it('offers no line choice on a bar chart, which draws no line', async () => {
+    const { user } = await open({
+      type: 'bar',
+      cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+    });
+    await user.click(gear('bar'));
+    await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
+    expect(
+      panel()!.querySelector('[data-slot="chart-horizontal"]'),
+    ).not.toBeNull();
+    expect(panel()!.querySelector('[data-slot="chart-line"]')).toBeNull();
   });
 
   it('gives a metric card a target and a number format', async () => {

@@ -1,4 +1,4 @@
-# Message keys — 2209.
+# Message keys — 2213.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -805,6 +805,11 @@ label.chart.legend.none
 label.chart.legend.right
 label.chart.legend.toggle
 label.chart.legend.top
+label.chart.line
+label.chart.line.smooth
+label.chart.line.step
+label.chart.line.step.hint
+label.chart.line.straight
 label.chart.log-refused
 label.chart.lower-is-better
 label.chart.lower-is-better.hint
@@ -928,7 +933,6 @@ label.chart.slot.value
 label.chart.slot.x
 label.chart.slot.x-metric
 label.chart.slot.y-metric
-label.chart.smooth
 label.chart.sparkline
 label.chart.stacked
 label.chart.stacked-alone

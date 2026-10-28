@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 906 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 904 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -724,7 +724,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 906 — with its kind and th
 | `isSafeContentUrl` | function | Whether a content panel's URL may be rendered. | — |
 | `isSimpleTree` | function | `simple` mode shows one AND group of conditions, each on its own or negated. | — |
 | `isSingleStringField` | function | Whether one record holds at most one string in this field. | — |
-| `isSmooth` | function | — | — |
 | `isStacked` | function | Whether every series that can stack is stacked; a lone series is not "stacked", and neither is a chart with nothing that stacks. | — |
 | `isSystemInstanceId` | function | True for any id in the namespace a `ViewStore` must not issue. | — |
 | `isSystemScope` | function | Whether the view was configured for everyone rather than by a user. | — |
@@ -913,7 +912,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 906 — with its kind and th
 | `withPercentStack` | function | 「百分比堆叠」 on or off. | — |
 | `withRootSearch` | function | The tree with its root search set to `text`: the condition's value replaced where it is, added at the end where there was none, and taken out when the text is blank — an empty search is no condition, and a pill left behind for it would be one the reader never added. | — |
 | `withSlot` | function | An alias put in one slot, taken out of the other if it was there: a chart that split by the axis it plots along is `chart.splitBy.same-as-x`, so choosing for one slot what the other holds swaps them rather than doubling up. | — |
-| `withSmooth` | function | — | — |
 | `withStacked` | function | Stacking is one choice for the whole chart — series stacked in twos and threes is a spec the panel does not offer — so every series that can stack joins the one stack or leaves it. | — |
 | `withStageOrder` | function | — | — |
 | `withStagesFrom` | function | A funnel whose stages are a group's values needs their order, which is business knowledge the kernel does not have (`fitChartSlots` leaves it empty). | — |

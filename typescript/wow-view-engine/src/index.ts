@@ -611,7 +611,6 @@ export {
 export {
   type Picked,
   isPercentStacked,
-  isSmooth,
   isStacked,
   offersPercentStack,
   offersStacking,
@@ -621,7 +620,6 @@ export {
   withMovedTo,
   withPercentStack,
   withSlot,
-  withSmooth,
   withStacked,
   withStageOrder,
   withStagesFrom,
