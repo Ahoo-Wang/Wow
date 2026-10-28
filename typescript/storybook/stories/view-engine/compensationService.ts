@@ -149,4 +149,4 @@ function answerCommand(
 }
 
 /** The part of a command result the scene reads: it succeeded. */
-const SUCCEEDED = { status: 'SUCCEEDED', duplicate: false };
+const SUCCEEDED = { status: 'succeeded', duplicate: false };
