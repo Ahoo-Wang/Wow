@@ -46,6 +46,7 @@ internal class OpenApiPaths(
         manifest.contexts.forEach { context ->
             context.aggregates.forEach { aggregate -> aggregateRoutes(context.name, aggregate) }
             jobRoutes(context)
+            serviceRoutes(context)
         }
         return paths
     }
@@ -144,6 +145,45 @@ internal class OpenApiPaths(
             command.routes.forEach { route ->
                 add(route.method, route.path, system(context.name, tag, command, route, description))
             }
+        }
+    }
+
+    /** A context's service routes (decision D359): their parameters, body, answer and refusals. */
+    private fun serviceRoutes(context: ContextManifest) {
+        context.routes.forEach { route ->
+            val parameters = route.parameters.map { parameter ->
+                obj(
+                    "name" to parameter.name,
+                    "in" to ManifestTree.wire(parameter.location),
+                    "required" to parameter.required,
+                    "schema" to parameter.schema,
+                )
+            }
+            val answer = route.response?.let { response ->
+                obj("200" to obj("description" to "The route's answer.", "content" to json(schemas.ref(response))))
+            } ?: obj("204" to obj("description" to "The route answers no body."))
+            add(
+                route.route.method,
+                route.route.path,
+                obj(
+                    "tags" to listOf(context.name),
+                    "summary" to route.name,
+                    "description" to route.description,
+                    "operationId" to "${context.name}.${route.name}",
+                    "deprecated" to route.deprecated.takeIf { it },
+                    "parameters" to parameters.ifEmpty { null },
+                    "requestBody" to route.request?.let {
+                        obj("required" to true, "content" to json(schemas.ref(it)))
+                    },
+                    "responses" to answer + errors.of(
+                        "route",
+                        ErrorResponses.ROUTE,
+                        context.name,
+                        domain = route.errors.isNotEmpty(),
+                    ),
+                    "x-wow-route" to obj("name" to route.name, "errors" to route.errors.ifEmpty { null }),
+                ),
+            )
         }
     }
 
