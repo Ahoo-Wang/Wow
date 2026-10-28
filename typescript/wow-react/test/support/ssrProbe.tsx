@@ -20,18 +20,16 @@
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { QueryModelClient } from '@ahoo-wang/wow-client';
 import {
+  aggregation,
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import {
+  useAggregateQuery,
   useCountQuery,
-  useFetcherCountQuery,
-  useFetcherListQuery,
-  useFetcherStreamQuery,
-  useFetcherPagedQuery,
-  useFetcherSingleQuery,
+  useCursorQuery,
   useListQuery,
   useStreamQuery,
   usePagedQuery,
@@ -47,11 +45,8 @@ export const HOOKS = [
   'usePagedQuery',
   'useCountQuery',
   'useStreamQuery',
-  'useFetcherSingleQuery',
-  'useFetcherListQuery',
-  'useFetcherPagedQuery',
-  'useFetcherCountQuery',
-  'useFetcherStreamQuery',
+  'useCursorQuery',
+  'useAggregateQuery',
 ] as const;
 
 interface Shown {
@@ -74,8 +69,9 @@ export function SsrProbe({
   fetcher: Fetcher;
   autoExecute?: boolean;
 }) {
-  const route = { fetcher, url: '/shop/order/snapshot/query' };
-  const client = new QueryModelClient<unknown>(route.url, { fetcher });
+  const client = new QueryModelClient<unknown>('/shop/order/snapshot/query', {
+    fetcher,
+  });
   const hooks: Shown[] = [
     useSingleQuery<unknown>({
       initialQuery: singleQuery({ filter: paid }),
@@ -100,32 +96,17 @@ export function SsrProbe({
     useStreamQuery<unknown>({
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
-      execute: (q, o) => client.stream(q, o),
+      execute: (q, o) => client.streamRows(q, o),
     }),
-    useFetcherSingleQuery<unknown>({
-      ...route,
-      initialQuery: singleQuery({ filter: paid }),
-      autoExecute,
-    }),
-    useFetcherListQuery<unknown>({
-      ...route,
-      initialQuery: listQuery({ filter: paid }),
-      autoExecute,
-    }),
-    useFetcherPagedQuery<unknown>({
-      ...route,
-      initialQuery: pagedQuery({ filter: paid }),
-      autoExecute,
-    }),
-    useFetcherCountQuery({
-      ...route,
+    useCursorQuery<unknown>({
       initialQuery: { filter: paid },
       autoExecute,
+      execute: (q, o) => client.cursor(q, o),
     }),
-    useFetcherStreamQuery<unknown>({
-      ...route,
-      initialQuery: listQuery({ filter: paid }),
+    useAggregateQuery<unknown>({
+      initialQuery: { metrics: [aggregation.count('orders')] },
       autoExecute,
+      execute: (q, o) => client.aggregate(q, o),
     }),
   ];
   return (

@@ -21,30 +21,26 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
-> extends QueryHookOptions<Q, R[], E> {}
+> extends QueryHookOptions<Q, R[]> {}
 
 /**
  * What {@link useListQuery} returns: the rows as `result`.
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
-> extends QueryHookReturn<Q, R[], E> {}
+> extends QueryHookReturn<Q, R[]> {}
 
 /**
  * Runs a list query through your own `execute` function and keeps the rows
@@ -57,14 +53,13 @@ export interface UseListQueryReturn<
  * through `execute()`.
  *
  * Returns `result` (the rows, or `undefined` before the first success),
- * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `loading`, `error`, `problem`, `status`, `execute`, `abort`, `reset`, `getQuery` and
  * `setQuery`.
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use. With a client whose
  *   fields are narrower than `string`, as a generated client's are, pass
  *   them here: TypeScript does not infer them from `execute` once `R` is given
- * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -88,9 +83,9 @@ export interface UseListQueryReturn<
  * }
  * ```
  */
-export function useListQuery<R, FIELDS extends string = string, E = Error>(
-  options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
-): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useListQuery<R, FIELDS extends string = string>(
+  options: UseListQueryOptions<R, FIELDS, FilterListQuery<FIELDS>>,
+): UseListQueryReturn<R, FIELDS, FilterListQuery<FIELDS>>;
 /**
  * {@link useListQuery} typed by a query `Q` of your own, a subtype of
  * `FilterListQuery`, such as one whose literal projection narrows the result.
@@ -98,18 +93,14 @@ export function useListQuery<R, FIELDS extends string = string, E = Error>(
 export function useListQuery<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
->(
-  options: UseListQueryOptions<R, FIELDS, E, Q>,
-): UseListQueryReturn<R, FIELDS, E, Q>;
+>(options: UseListQueryOptions<R, FIELDS, Q>): UseListQueryReturn<R, FIELDS, Q>;
 export function useListQuery<
   R,
   FIELDS extends string,
-  E,
   Q extends FilterListQuery<FIELDS>,
 >(
-  options: UseListQueryOptions<R, FIELDS, E, Q>,
-): UseListQueryReturn<R, FIELDS, E, Q> {
-  return useQueryRunner<Q, R[], E>(options);
+  options: UseListQueryOptions<R, FIELDS, Q>,
+): UseListQueryReturn<R, FIELDS, Q> {
+  return useQueryRunner<Q, R[]>(options);
 }

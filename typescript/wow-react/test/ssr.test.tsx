@@ -18,8 +18,8 @@
 /**
  * Characterization of server-side rendering: every hook rendered with
  * `renderToString` in Node, with no DOM. It pins the behaviour of today for
- * the refactor of `docs/design/refactor-2026-09.md`: no request goes out, no
- * browser global is touched, and each hook renders its first frame.
+ * the 2026-09 refactor: no request goes out, no browser global is touched,
+ * and each hook renders its first frame.
  */
 
 import { describe, expect, it } from 'vitest';

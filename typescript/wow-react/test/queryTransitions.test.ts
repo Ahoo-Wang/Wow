@@ -17,17 +17,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Fetcher, NamedFetcher, fetcherRegistrar } from '@ahoo-wang/fetcher';
 import {
   initialQueryState,
   queryTransition,
   type QueryEvent,
   type QueryState,
 } from '../src/internal/queryTransitions';
-import { endpointIdentity } from '../src/internal/endpoint';
 
-type State = QueryState<number, Error>;
-type Event = QueryEvent<number, Error>;
+type State = QueryState<number>;
+type Event = QueryEvent<number>;
 
 const failure = new Error('bad');
 const states: Record<string, State> = {
@@ -87,61 +85,5 @@ describe.each(Object.entries(states))('from %s', (_, state) => {
 
   it('reset: idle, nothing kept', () => {
     expect(after({ type: 'reset' })).toEqual(states.idle);
-  });
-});
-
-describe('endpointIdentity', () => {
-  const url = '/shop/order/snapshot/query';
-
-  it('is the same for Fetchers with one baseURL, as inline code creates', () => {
-    expect(
-      endpointIdentity({
-        url,
-        fetcher: new Fetcher({ baseURL: 'https://a/' }),
-      }),
-    ).toBe(
-      endpointIdentity({
-        url,
-        fetcher: new Fetcher({ baseURL: 'https://a/' }),
-      }),
-    );
-  });
-
-  it('differs by baseURL, by url and by name', () => {
-    const a = endpointIdentity({
-      url,
-      fetcher: new Fetcher({ baseURL: 'https://a/' }),
-    });
-    expect(
-      endpointIdentity({
-        url,
-        fetcher: new Fetcher({ baseURL: 'https://b/' }),
-      }),
-    ).not.toBe(a);
-    expect(
-      endpointIdentity({
-        url: 'cart/snapshot/list/state',
-        fetcher: new Fetcher({ baseURL: 'https://a/' }),
-      }),
-    ).not.toBe(a);
-    expect(endpointIdentity({ url, fetcher: 'one' })).not.toBe(
-      endpointIdentity({ url, fetcher: 'two' }),
-    );
-  });
-
-  it('takes a named Fetcher and its name, and the default one and no Fetcher, as the same', () => {
-    const named = new NamedFetcher('wow-react-identity', {
-      baseURL: 'https://a/',
-    });
-    try {
-      expect(endpointIdentity({ url, fetcher: named })).toBe(
-        endpointIdentity({ url, fetcher: 'wow-react-identity' }),
-      );
-    } finally {
-      fetcherRegistrar.unregister('wow-react-identity');
-    }
-    expect(endpointIdentity({ url })).toBe(
-      endpointIdentity({ url, fetcher: 'default' }),
-    );
   });
 });

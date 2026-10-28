@@ -24,15 +24,20 @@
  */
 
 import { expectTypeOf, it } from 'vitest';
-import type { Fetcher } from '@ahoo-wang/fetcher';
 import type {
   CountQuery,
   CountResult,
   PagedQuery,
   PagedResult,
   RequestOptions,
+  StreamedRow,
+  StreamOptions,
+  WowProblemError,
 } from '@ahoo-wang/wow-client';
 import type {
+  AggregationQuery,
+  CursorPage,
+  CursorQuery,
   FilterListQuery,
   FilterSingleQuery,
 } from '@ahoo-wang/wow-client/dsl';
@@ -42,18 +47,12 @@ import type {
   QueryHookOptions,
   QueryHookReturn,
   QueryStatus,
+  UseAggregateQueryOptions,
+  UseAggregateQueryReturn,
   UseCountQueryOptions,
   UseCountQueryReturn,
-  UseFetcherCountQueryOptions,
-  UseFetcherCountQueryReturn,
-  UseFetcherListQueryOptions,
-  UseFetcherListQueryReturn,
-  UseFetcherStreamQueryOptions,
-  UseFetcherStreamQueryReturn,
-  UseFetcherPagedQueryOptions,
-  UseFetcherPagedQueryReturn,
-  UseFetcherSingleQueryOptions,
-  UseFetcherSingleQueryReturn,
+  UseCursorQueryOptions,
+  UseCursorQueryReturn,
   UseListQueryOptions,
   UseListQueryReturn,
   UseStreamQueryOptions,
@@ -68,7 +67,7 @@ type Fields = 'id' | 'status';
 type Item = { id: string; status: string };
 
 /** What every hook takes. */
-type ExecuteOptionKeys =
+type OptionKeys =
   | 'query'
   | 'initialQuery'
   | 'autoExecute'
@@ -76,22 +75,26 @@ type ExecuteOptionKeys =
   | 'execute'
   | 'onSuccess'
   | 'onError';
-/** What a `useFetcher…` hook takes: the endpoint in place of `execute`. */
-type EndpointOptionKeys =
-  Exclude<ExecuteOptionKeys, 'execute'> | 'url' | 'fetcher';
 /** What a request hook returns. */
 type ReturnKeys =
   | 'status'
   | 'loading'
   | 'result'
   | 'error'
+  | 'problem'
   | 'execute'
   | 'abort'
   | 'reset'
   | 'getQuery'
   | 'setQuery';
-/** What a list-stream hook returns: the rows in place of `result`. */
-type StreamReturnKeys = Exclude<ReturnKeys, 'result'> | 'items' | 'done';
+/** What the list-stream hook returns: the records in place of `result`. */
+type StreamReturnKeys =
+  Exclude<ReturnKeys, 'result'> | 'items' | 'position' | 'done';
+/** What the cursor hook returns: the rows of its pages in place of `result`. */
+type CursorReturnKeys =
+  Exclude<ReturnKeys, 'result'> | 'items' | 'hasMore' | 'fetchNext';
+/** The query the cursor hook takes: the hook owns the cursor. */
+type PageQuery = Omit<CursorQuery<Fields>, 'cursor'>;
 
 it('names the four query statuses as a plain string union', () => {
   expectTypeOf<QueryStatus>().toEqualTypeOf<
@@ -110,7 +113,10 @@ it('hands every executor the query and the request options with a signal', () =>
     Promise<number>
   >();
   expectTypeOf<StreamExecutor<Item, string>>().toEqualTypeOf<
-    QueryExecutor<string, ReadableStream<Item>>
+    QueryExecutor<string, ReadableStream<StreamedRow<Item>>, StreamOptions>
+  >();
+  expectTypeOf<StreamExecutor<Item, string>>().parameters.toEqualTypeOf<
+    [string, StreamOptions & { readonly signal: AbortSignal }]
   >();
 });
 
@@ -118,7 +124,7 @@ it('holds the members of the shared options and return', () => {
   type Options = QueryHookOptions<string, number>;
   type Return = QueryHookReturn<string, number>;
 
-  expectTypeOf<keyof Options>().toEqualTypeOf<ExecuteOptionKeys>();
+  expectTypeOf<keyof Options>().toEqualTypeOf<OptionKeys>();
   expectTypeOf<Options['query']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<Options['initialQuery']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<Options['autoExecute']>().toEqualTypeOf<boolean | undefined>();
@@ -140,6 +146,9 @@ it('holds the members of the shared options and return', () => {
   expectTypeOf<Return['loading']>().toEqualTypeOf<boolean>();
   expectTypeOf<Return['result']>().toEqualTypeOf<number | undefined>();
   expectTypeOf<Return['error']>().toEqualTypeOf<Error | undefined>();
+  expectTypeOf<Return['problem']>().toEqualTypeOf<
+    WowProblemError | undefined
+  >();
   expectTypeOf<Return['execute']>().toEqualTypeOf<() => Promise<void>>();
   expectTypeOf<Return['abort']>().toEqualTypeOf<() => void>();
   expectTypeOf<Return['reset']>().toEqualTypeOf<() => void>();
@@ -172,137 +181,73 @@ it('specializes the shared types for each request hook', () => {
   expectTypeOf<UseCountQueryReturn<Fields>>().toEqualTypeOf<
     QueryHookReturn<CountQuery<Fields>, CountResult>
   >();
-});
-
-it('takes the endpoint and the Fetcher in place of execute', () => {
-  type Endpoint<Q, R> = Omit<QueryHookOptions<Q, R>, 'execute'> & {
-    url: string;
-    fetcher?: string | Fetcher;
-  };
-
-  expectTypeOf<
-    keyof UseFetcherSingleQueryOptions<Item>
-  >().toEqualTypeOf<EndpointOptionKeys>();
-  expectTypeOf<
-    keyof UseFetcherListQueryOptions<Item>
-  >().toEqualTypeOf<EndpointOptionKeys>();
-  expectTypeOf<
-    keyof UseFetcherPagedQueryOptions<Item>
-  >().toEqualTypeOf<EndpointOptionKeys>();
-  expectTypeOf<
-    keyof UseFetcherCountQueryOptions
-  >().toEqualTypeOf<EndpointOptionKeys>();
-  expectTypeOf<
-    keyof UseFetcherStreamQueryOptions<Item>
-  >().toEqualTypeOf<EndpointOptionKeys>();
-
-  expectTypeOf<
-    Pick<UseFetcherSingleQueryOptions<Item, Fields>, EndpointOptionKeys>
-  >().toEqualTypeOf<
-    Pick<
-      Endpoint<FilterSingleQuery<Fields>, Item | undefined>,
-      EndpointOptionKeys
-    >
+  expectTypeOf<UseAggregateQueryOptions<Item, Fields>>().toEqualTypeOf<
+    QueryHookOptions<AggregationQuery<Fields, string>, Item[]>
   >();
-  expectTypeOf<
-    Pick<UseFetcherListQueryOptions<Item, Fields>, EndpointOptionKeys>
-  >().toEqualTypeOf<
-    Pick<Endpoint<FilterListQuery<Fields>, Item[]>, EndpointOptionKeys>
-  >();
-  expectTypeOf<
-    Pick<UseFetcherPagedQueryOptions<Item, Fields>, EndpointOptionKeys>
-  >().toEqualTypeOf<
-    Pick<Endpoint<PagedQuery<Fields>, PagedResult<Item>>, EndpointOptionKeys>
-  >();
-  expectTypeOf<
-    Pick<UseFetcherCountQueryOptions<Fields>, EndpointOptionKeys>
-  >().toEqualTypeOf<
-    Pick<Endpoint<CountQuery<Fields>, CountResult>, EndpointOptionKeys>
-  >();
-  expectTypeOf<
-    Pick<UseFetcherStreamQueryOptions<Item, Fields>, EndpointOptionKeys>
-  >().toEqualTypeOf<
-    Pick<Endpoint<FilterListQuery<Fields>, Item[]>, EndpointOptionKeys>
-  >();
-
-  expectTypeOf<UseFetcherSingleQueryReturn<Item, Fields>>().toEqualTypeOf<
-    UseSingleQueryReturn<Item, Fields>
-  >();
-  expectTypeOf<UseFetcherListQueryReturn<Item, Fields>>().toEqualTypeOf<
-    UseListQueryReturn<Item, Fields>
-  >();
-  expectTypeOf<UseFetcherPagedQueryReturn<Item, Fields>>().toEqualTypeOf<
-    UsePagedQueryReturn<Item, Fields>
-  >();
-  expectTypeOf<UseFetcherCountQueryReturn<Fields>>().toEqualTypeOf<
-    UseCountQueryReturn<Fields>
+  expectTypeOf<UseAggregateQueryReturn<Item, Fields>>().toEqualTypeOf<
+    QueryHookReturn<AggregationQuery<Fields, string>, Item[]>
   >();
 });
 
-it('streams rows into items and done in place of result', () => {
+it('streams records into items, position and done in place of result', () => {
   type Options = UseStreamQueryOptions<Item, Fields>;
   type Return = UseStreamQueryReturn<Item, Fields>;
 
-  expectTypeOf<keyof Options>().toEqualTypeOf<ExecuteOptionKeys>();
+  expectTypeOf<keyof Options>().toEqualTypeOf<OptionKeys>();
   expectTypeOf<Options['execute']>().toEqualTypeOf<
     StreamExecutor<Item, FilterListQuery<Fields>>
   >();
+  expectTypeOf<Options['requestOptions']>().toEqualTypeOf<
+    Omit<StreamOptions, 'signal'> | undefined
+  >();
   expectTypeOf<Omit<Options, 'execute'>>().toEqualTypeOf<
-    Omit<QueryHookOptions<FilterListQuery<Fields>, Item[]>, 'execute'>
+    Omit<
+      QueryHookOptions<FilterListQuery<Fields>, Item[], StreamOptions>,
+      'execute'
+    >
   >();
 
   expectTypeOf<keyof Return>().toEqualTypeOf<StreamReturnKeys>();
   expectTypeOf<Return['items']>().toEqualTypeOf<Item[]>();
+  expectTypeOf<Return['position']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<Return['done']>().toEqualTypeOf<boolean>();
-  expectTypeOf<Omit<Return, 'items' | 'done'>>().toEqualTypeOf<
+  expectTypeOf<Omit<Return, 'items' | 'position' | 'done'>>().toEqualTypeOf<
     Omit<QueryHookReturn<FilterListQuery<Fields>, Item[]>, 'result'>
   >();
-  expectTypeOf<
-    UseFetcherStreamQueryReturn<Item, Fields>
-  >().toEqualTypeOf<Return>();
 });
 
-it('reports an Error unless told otherwise', () => {
+it('reads a cursor page by page into items, hasMore and fetchNext', () => {
+  type Options = UseCursorQueryOptions<Item, Fields>;
+  type Return = UseCursorQueryReturn<Item, Fields>;
+
+  expectTypeOf<keyof Options>().toEqualTypeOf<OptionKeys>();
+  expectTypeOf<Options['execute']>().toEqualTypeOf<
+    QueryExecutor<PageQuery & { cursor: string | null }, CursorPage<Item>>
+  >();
+  expectTypeOf<Omit<Options, 'execute'>>().toEqualTypeOf<
+    Omit<QueryHookOptions<PageQuery, CursorPage<Item>>, 'execute'>
+  >();
+
+  expectTypeOf<keyof Return>().toEqualTypeOf<CursorReturnKeys>();
+  expectTypeOf<Return['items']>().toEqualTypeOf<Item[]>();
+  expectTypeOf<Return['hasMore']>().toEqualTypeOf<boolean>();
+  expectTypeOf<Return['fetchNext']>().toEqualTypeOf<() => Promise<void>>();
+  expectTypeOf<Omit<Return, 'items' | 'hasMore' | 'fetchNext'>>().toEqualTypeOf<
+    Omit<QueryHookReturn<PageQuery, CursorPage<Item>>, 'result'>
+  >();
+});
+
+it("reports an Error, and a Wow service's answer as problem", () => {
   expectTypeOf<UseSingleQueryReturn<Item>['error']>().toEqualTypeOf<
     Error | undefined
   >();
-  expectTypeOf<UseListQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
+  expectTypeOf<UseStreamQueryReturn<Item>['problem']>().toEqualTypeOf<
+    WowProblemError | undefined
   >();
-  expectTypeOf<UsePagedQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
+  expectTypeOf<UseCursorQueryReturn<Item>['problem']>().toEqualTypeOf<
+    WowProblemError | undefined
   >();
-  expectTypeOf<UseCountQueryReturn['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseStreamQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseFetcherSingleQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseFetcherListQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseFetcherPagedQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseFetcherCountQueryReturn['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-  expectTypeOf<UseFetcherStreamQueryReturn<Item>['error']>().toEqualTypeOf<
-    Error | undefined
-  >();
-
-  class NotFound extends Error {
-    readonly code = 'NOT_FOUND';
-  }
-  expectTypeOf<
-    UseSingleQueryReturn<Item, Fields, NotFound>['error']
-  >().toEqualTypeOf<NotFound | undefined>();
-  expectTypeOf<
-    NonNullable<UseSingleQueryOptions<Item, Fields, NotFound>['onError']>
-  >()
+  expectTypeOf<NonNullable<UseSingleQueryOptions<Item, Fields>['onError']>>()
     .parameter(0)
-    .toEqualTypeOf<NotFound>();
+    .toEqualTypeOf<Error>();
 });

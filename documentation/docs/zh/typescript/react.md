@@ -75,13 +75,55 @@ export function PaidOrders({
 | `useListQuery` | `listQuery(…)` | 记录列表 |
 | `usePagedQuery` | `pagedQuery(…)` | `{ total, exact, list }` |
 | `useCountQuery` | `{ filter, limit? }` | `{ count, exact }` |
-| `useStreamQuery` | `listQuery(…)`，以服务端推送事件 | 陆续到达的 `items`，然后是 `done` |
+| `useAggregateQuery` | `{ groupBy?, metrics, … }` | 行，每组一行 |
+| `useCursorQuery` | `{ filter, sort?, size? }`，逐页读取 | 已读各页的 `items`、`hasMore` 和 `fetchNext()` |
+| `useStreamQuery` | `listQuery(…)`，以服务端推送事件 | 陆续到达的 `items`、`position`，然后是 `done` |
 
-聚合查询和游标查询没有自己的 hook。游标查询通过 `useSingleQuery` 运行，以这一页作为它的结果；聚合则在一个清理时会中止的 effect 中用 `client.aggregate(query, { signal })` 运行。
+## 逐页读取 {#read-page-by-page}
+
+`useCursorQuery` 读取只进的游标查询，保存已读各页的行；`fetchNext()` 读取下一页并追加到后面。游标归 hook 所有：它的查询里没有游标，每次运行都从第一页开始；`fetchNext()` 失败时保留已有的行，再调用一次就重试那一页：
+
+```tsx
+import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCursorQuery } from '@ahoo-wang/wow-react';
+import type {
+  OrderSnapshotQueryClient,
+  OrderState,
+  OrderStateField,
+} from './generated/ordering/index.js';
+
+export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) {
+  const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
+    SnapshotRecord<OrderState>,
+    OrderStateField
+  >({
+    query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
+    execute: (query, options) => orders.cursor(query, options),
+  });
+
+  if (error) return <p role="alert">{error.message}</p>;
+  return (
+    <>
+      <ul>
+        {items.map(order => (
+          <li key={order.aggregateId}>{order.aggregateId}</li>
+        ))}
+      </ul>
+      {hasMore && (
+        <button disabled={loading} onClick={() => void fetchNext()}>
+          More
+        </button>
+      )}
+    </>
+  );
+}
+```
+
 
 ## 流式读取长列表 {#stream-a-long-list}
 
-`useStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。服务切断的流会从停下的地方续读，就像 `stream` 那样：
+`useStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。传入客户端的 `streamRows`，它为每条记录带上位置：服务切断的流会从停下的地方续读，hook 把最后读到的记录的位置保存为 `position`：
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -99,7 +141,7 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),
-    execute: (query, options) => orders.stream(query, options),
+    execute: (query, options) => orders.streamRows(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -116,17 +158,35 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
 
 `abort()` 停止流，保留已读到的行；`reset()` 停止流并清空它们。
 
+组件重新挂载后要从流停下的地方接着读，就把 `position` 存在比组件活得久的地方，再以 `requestOptions: { resume: { lastEventId: saved } }` 传回：第一个请求就会请求它之后的记录。
+
 ## 状态与错误 {#state-and-errors}
 
-每个 hook 都返回 `status`（`'idle' | 'loading' | 'success' | 'error'`）、`loading`、`result`（或 `items` 和 `done`）、`error`，以及 `execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。
+每个 hook 都返回 `status`（`'idle' | 'loading' | 'success' | 'error'`）、`loading`、`result`（或 `items`）、`error`、`problem`，以及 `execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。
 
-- hook 在挂载时以及查询改变时（按内容比较）运行；`autoExecute: false` 让它只在 `execute()` 时运行。设为 `undefined` 的查询会中止在途的请求，让 hook 处于空闲状态。
+- hook 在挂载时以及查询或 `requestOptions`（scope、space、更多请求头）改变时（按内容比较）运行；`autoExecute: false` 让它只在 `execute()` 时运行。设为 `undefined` 的查询会中止在途的请求，让 hook 处于空闲状态。每次渲染都变的请求头值会让查询每次渲染都重新运行，所以要让这样的值保持稳定。
 - 失败的请求或 `abort()` 会保留上一次的 `result`，所以失败的刷新不会让屏幕变空。
 - 在服务端渲染中，hook 渲染为 `loading` 且不发送任何请求；页面水合之后才运行查询。
-- 对服务拒绝的请求，`error` 是一个 `WowProblemError`，带着它的 `code`、`status` 和 `violations`；把错误类型作为第三个类型参数传入，就能这样为它提供类型。
+- `error` 是一个 `Error`。服务以 problem 应答时，`problem` 就是这个错误，一个带着 `code`、`status`、`violations` 和重试提示的 `WowProblemError`；没有服务应答的失败（例如网络错误）时它是 `undefined`。
 
-## 不用生成的客户端 {#without-a-generated-client}
+## 数据集 {#datasets}
 
-`useFetcher*Query` hooks 通过 Fetcher 而不是客户端把查询发往查询路由，用于没有客户端覆盖的路由，例如数据集的路由：`useFetcherPagedQuery({ fetcher, url: '/wow/dataset/eshop-ordering/sales/query', initialQuery })`。它们的选项见 [wow-react README](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-react)。
+数据集在运行时注册，所以没有为它生成的客户端；`DatasetClient` 给出它的查询客户端。在组件之外只创建一次客户端，然后像生成的客户端那样把它的方法交出去：
+
+```tsx
+import { DatasetClient } from '@ahoo-wang/wow-client';
+import { pagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { usePagedQuery } from '@ahoo-wang/wow-react';
+
+const sales = new DatasetClient().dataset('eshop-ordering', 'sales');
+
+export function SalesPage({ page }: { page: number }) {
+  const { result } = usePagedQuery<Record<string, unknown>>({
+    query: pagedQuery({ pagination: { index: page, size: 20 } }),
+    execute: (query, options) => sales.paged(query, options),
+  });
+  return <p>{result?.total ?? '…'} rows</p>;
+}
+```
 
 [Storybook](/storybook/?path=/docs/react-hooks-wow-queries--docs) 对着内存数据运行每个 hook。

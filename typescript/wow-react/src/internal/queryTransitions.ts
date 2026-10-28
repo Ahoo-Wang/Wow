@@ -20,17 +20,17 @@
 import type { QueryStatus } from '../types.js';
 
 /** What a query hook shows at one moment. */
-export interface QueryState<R, E> {
+export interface QueryState<R> {
   status: QueryStatus;
   result: R | undefined;
-  error: E | undefined;
+  error: Error | undefined;
 }
 
 /** Something that happens to a query hook. */
-export type QueryEvent<R, E> =
+export type QueryEvent<R> =
   | { type: 'start' }
   | { type: 'succeed'; result: R | undefined }
-  | { type: 'fail'; error: E }
+  | { type: 'fail'; error: Error }
   | { type: 'abort' }
   | { type: 'reset' };
 
@@ -39,9 +39,7 @@ export type QueryEvent<R, E> =
  * starts `loading`, so the server and the first client frame already show
  * what the next frames show; any other starts `idle`.
  */
-export function initialQueryState<R, E>(
-  runsOnMount: boolean,
-): QueryState<R, E> {
+export function initialQueryState<R>(runsOnMount: boolean): QueryState<R> {
   return {
     status: runsOnMount ? 'loading' : 'idle',
     result: undefined,
@@ -61,10 +59,10 @@ export function initialQueryState<R, E>(
  * - `abort`: `idle`; the last result stays, the error goes.
  * - `reset`: `idle`, with neither result nor error.
  */
-export function queryTransition<R, E>(
-  state: QueryState<R, E>,
-  event: QueryEvent<R, E>,
-): QueryState<R, E> {
+export function queryTransition<R>(
+  state: QueryState<R>,
+  event: QueryEvent<R>,
+): QueryState<R> {
   switch (event.type) {
     case 'start':
       return { status: 'loading', result: state.result, error: undefined };

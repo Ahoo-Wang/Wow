@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { RequestOptions } from '@ahoo-wang/wow-client';
+import type {
+  RequestOptions,
+  StreamedRow,
+  StreamOptions,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
 
 /**
  * Where a query hook stands:
@@ -42,32 +47,41 @@ export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
  *
  * @template Q - The query
  * @template R - What the query resolves to
+ * @template O - The request options the hook hands on
  */
-export type QueryExecutor<Q, R> = (
+export type QueryExecutor<Q, R, O extends RequestOptions = RequestOptions> = (
   query: Q,
-  options: RequestOptions & { readonly signal: AbortSignal },
+  options: O & { readonly signal: AbortSignal },
 ) => Promise<R>;
 
 /**
- * Opens the event stream of one query: a query client's `stream`, or any
- * function that resolves to a stream of rows. It receives what a
- * {@link QueryExecutor} receives.
+ * Opens the event stream of one query: a query client's `streamRows`, which
+ * answers each record with its position, so the hook can say where the
+ * stream stopped. It receives the query and the stream options of this run,
+ * `resume` included, with the run's `signal`.
  *
- * @template R - One row of the stream
+ * @template R - One record of the stream
  * @template Q - The query
  */
-export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
+export type StreamExecutor<R, Q> = QueryExecutor<
+  Q,
+  ReadableStream<StreamedRow<R>>,
+  StreamOptions
+>;
 
 /**
  * The options every query hook takes. Each `Use…QueryOptions` extends it with
- * its own query and result types; the `useFetcher…` hooks take `url` and
- * `fetcher` in place of `execute`.
+ * its own query and result types.
  *
  * @template Q - The query
  * @template R - What the query resolves to
- * @template E - The error the hook reports, `Error` by default
+ * @template O - The request options the hook hands on
  */
-export interface QueryHookOptions<Q, R, E = Error> {
+export interface QueryHookOptions<
+  Q,
+  R,
+  O extends RequestOptions = RequestOptions,
+> {
   /**
    * The query, controlled: the hook runs it again whenever it changes by
    * content, so a new object with the same content does not. Set to
@@ -85,28 +99,30 @@ export interface QueryHookOptions<Q, R, E = Error> {
   autoExecute?: boolean;
   /**
    * Handed to `execute` with every run, with the run's `signal`: the scope,
-   * the space or more headers of the request. Not part of what identifies a
-   * run.
+   * the space or more headers of the request. Part of what identifies a run,
+   * as the query is: a change by content runs the query again, since the
+   * scope, the space and the headers can change the answer. A header whose
+   * value changes on every render, such as a timestamp, therefore restarts
+   * the run on every render; keep such values stable.
    */
-  requestOptions?: Omit<RequestOptions, 'signal'>;
+  requestOptions?: Omit<O, 'signal'>;
   /** Runs one query. */
-  execute: QueryExecutor<Q, R>;
+  execute: QueryExecutor<Q, R, O>;
   /** Called with the result of each run that succeeds. */
   onSuccess?: (result: R) => void | Promise<void>;
-  /** Called with the error of each run that fails. */
-  onError?: (error: E) => void | Promise<void>;
+  /** Called with the error of each run that fails, the hook's `error`. */
+  onError?: (error: Error) => void | Promise<void>;
 }
 
 /**
  * What every query hook returns. Each `Use…QueryReturn` extends it with its own
- * query and result types; the list-stream hooks return `items` and `done` in
+ * query and result types; the list-stream and cursor hooks return `items` in
  * place of `result`.
  *
  * @template Q - The query
  * @template R - What the query resolves to
- * @template E - The error the hook reports, `Error` by default
  */
-export interface QueryHookReturn<Q, R, E = Error> {
+export interface QueryHookReturn<Q, R> {
   /** Where the hook stands; see {@link QueryStatus}. */
   status: QueryStatus;
   /** Whether a request is in flight: the same as `status === 'loading'`. */
@@ -117,8 +133,17 @@ export interface QueryHookReturn<Q, R, E = Error> {
    * `reset()` clears it.
    */
   result: R | undefined;
-  /** Why the latest run failed, or `undefined`. */
-  error: E | undefined;
+  /**
+   * Why the latest run failed, or `undefined`. A value thrown that is not an
+   * `Error` arrives wrapped, as `new Error(String(thrown), { cause: thrown })`.
+   */
+  error: Error | undefined;
+  /**
+   * The problem a Wow service answered the latest run with: `error` when it
+   * is a `WowProblemError`, with its `code`, `status` and retry hint;
+   * `undefined` for a failure no service answered, such as a network error.
+   */
+  problem: WowProblemError | undefined;
   /** Runs the current query again, aborting the request in flight. */
   execute: () => Promise<void>;
   /**

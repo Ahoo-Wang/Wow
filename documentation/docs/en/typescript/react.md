@@ -75,13 +75,54 @@ export function PaidOrders({
 | `useListQuery` | `listQuery(…)` | The records |
 | `usePagedQuery` | `pagedQuery(…)` | `{ total, exact, list }` |
 | `useCountQuery` | `{ filter, limit? }` | `{ count, exact }` |
-| `useStreamQuery` | `listQuery(…)`, as server-sent events | `items` as they arrive, then `done` |
+| `useAggregateQuery` | `{ groupBy?, metrics, … }` | The rows, one per group |
+| `useCursorQuery` | `{ filter, sort?, size? }`, page by page | `items` of every page read, `hasMore` and `fetchNext()` |
+| `useStreamQuery` | `listQuery(…)`, as server-sent events | `items` as they arrive, `position`, then `done` |
 
-Aggregations and cursor queries have no hook of their own. Run a cursor query through `useSingleQuery` with the page as its result, and an aggregation with `client.aggregate(query, { signal })` in an effect that aborts on cleanup.
+## Read page by page
+
+`useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, and a failed `fetchNext()` keeps the rows, so calling it again retries that page:
+
+```tsx
+import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCursorQuery } from '@ahoo-wang/wow-react';
+import type {
+  OrderSnapshotQueryClient,
+  OrderState,
+  OrderStateField,
+} from './generated/ordering/index.js';
+
+export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) {
+  const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
+    SnapshotRecord<OrderState>,
+    OrderStateField
+  >({
+    query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
+    execute: (query, options) => orders.cursor(query, options),
+  });
+
+  if (error) return <p role="alert">{error.message}</p>;
+  return (
+    <>
+      <ul>
+        {items.map(order => (
+          <li key={order.aggregateId}>{order.aggregateId}</li>
+        ))}
+      </ul>
+      {hasMore && (
+        <button disabled={loading} onClick={() => void fetchNext()}>
+          More
+        </button>
+      )}
+    </>
+  );
+}
+```
 
 ## Stream a long list
 
-`useStreamQuery` reads a list as server-sent events and keeps the rows as they arrive, rendering at most about once a frame however many come. A stream the service cuts off is resumed where it stopped, as `stream` resumes it:
+`useStreamQuery` reads a list as server-sent events and keeps the rows as they arrive, rendering at most about once a frame however many come. Pass the client's `streamRows`, which answers each record with its position: a stream the service cuts off is resumed where it stopped, and the hook keeps the position of the last record read as `position`:
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -99,7 +140,7 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),
-    execute: (query, options) => orders.stream(query, options),
+    execute: (query, options) => orders.streamRows(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -116,17 +157,35 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
 
 `abort()` stops the stream and keeps the rows it read; `reset()` stops it and empties them.
 
+To go on where a stream stopped after the component remounts, keep `position` somewhere that outlives it and hand it back as `requestOptions: { resume: { lastEventId: saved } }`: the first request then asks for the records after it.
+
 ## State and errors
 
-Every hook returns `status` (`'idle' | 'loading' | 'success' | 'error'`), `loading`, `result` (or `items` and `done`), `error`, and `execute`, `abort`, `reset`, `getQuery` and `setQuery`.
+Every hook returns `status` (`'idle' | 'loading' | 'success' | 'error'`), `loading`, `result` (or `items`), `error`, `problem`, and `execute`, `abort`, `reset`, `getQuery` and `setQuery`.
 
-- A hook runs on mount and whenever its query changes, compared by content; `autoExecute: false` runs it only on `execute()`. A query set to `undefined` aborts the request in flight and leaves the hook idle.
+- A hook runs on mount and whenever its query or its `requestOptions` (the scope, the space, more headers) changes, compared by content; `autoExecute: false` runs it only on `execute()`. A query set to `undefined` aborts the request in flight and leaves the hook idle. A header whose value changes on every render runs the query again on every render, so keep such values stable.
 - A failed request or `abort()` keeps the last `result`, so a failed refresh does not blank the screen.
 - In server rendering a hook renders as `loading` and sends nothing; the query runs once the page hydrates.
-- `error` is a `WowProblemError` for a request the service refused, with its `code`, `status` and `violations`; pass the error type as the third type argument to type it so.
+- `error` is an `Error`. `problem` is the same error when the service answered with a problem, a `WowProblemError` with its `code`, `status`, `violations` and retry hint, and `undefined` for a failure no service answered, such as a network error.
 
-## Without a generated client
+## Datasets
 
-The `useFetcher*Query` hooks post a query to a query route through a Fetcher instead of a client, for a route no client covers, such as a dataset's: `useFetcherPagedQuery({ fetcher, url: '/wow/dataset/eshop-ordering/sales/query', initialQuery })`. The [wow-react README](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-react) lists their options.
+A dataset is registered at run time, so no client is generated for it; `DatasetClient` gives its query client. Create the client once, outside the component, and hand its method on as for a generated client:
+
+```tsx
+import { DatasetClient } from '@ahoo-wang/wow-client';
+import { pagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { usePagedQuery } from '@ahoo-wang/wow-react';
+
+const sales = new DatasetClient().dataset('eshop-ordering', 'sales');
+
+export function SalesPage({ page }: { page: number }) {
+  const { result } = usePagedQuery<Record<string, unknown>>({
+    query: pagedQuery({ pagination: { index: page, size: 20 } }),
+    execute: (query, options) => sales.paged(query, options),
+  });
+  return <p>{result?.total ?? '…'} rows</p>;
+}
+```
 
 The [Storybook](/storybook/?path=/docs/react-hooks-wow-queries--docs) runs every hook against in-memory data.

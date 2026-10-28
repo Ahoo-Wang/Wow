@@ -22,12 +22,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
 import {
+  aggregation,
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import {
+  useAggregateQuery,
   useCountQuery,
   useListQuery,
   usePagedQuery,
@@ -141,6 +143,45 @@ describe('each query hook with a query client', () => {
       body: wire(paidCount, 'count'),
     });
   });
+
+  it('useAggregateQuery sends the aggregation and keeps its rows', async () => {
+    const rows = [{ status: 'PAID', orders: 3 }];
+    const server = fakeServer(() => json(rows));
+    const client = orderClient(server);
+    const byStatus = {
+      groupBy: [aggregation.terms('state.status', 'status')],
+      metrics: [aggregation.count('orders')] as [
+        ReturnType<typeof aggregation.count>,
+      ],
+    };
+    const { result } = renderHook(() =>
+      useAggregateQuery<{ status: string; orders: number }>({
+        initialQuery: byStatus,
+        execute: (query, options) => client.aggregate(query, options),
+      }),
+    );
+    await waitFor(() => expect(result.current.result).toEqual(rows));
+    expect(server.requests[0]).toMatchObject({
+      path: '/shop/order/snapshot/query',
+      body: wire(byStatus, 'aggregate'),
+    });
+  });
+
+  it('useSingleQuery answers a query that matches nothing with no result, not an error', async () => {
+    const server = fakeServer(() =>
+      problem('wow.query.not-found', 'No order.', 404),
+    );
+    const client = orderClient(server);
+    const { result } = renderHook(() =>
+      useSingleQuery<OrderState>({
+        initialQuery: singleQuery({ filter: paidFilter }),
+        execute: (query, options) => client.single(query, options),
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result).toBeUndefined();
+    expect(result.current.error).toBeUndefined();
+  });
 });
 
 describe('query state', () => {
@@ -229,10 +270,62 @@ describe('query state', () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.result).toBeUndefined();
     expect(result.current.error).toBeInstanceOf(WowProblemError);
+    expect(result.current.problem).toBe(result.current.error);
     expect(onError).toHaveBeenCalledWith(result.current.error);
-    const error = result.current.error as WowProblemError;
-    expect(error.code).toBe('wow.query.invalid');
-    expect(error.status).toBe(400);
+    expect(result.current.problem?.code).toBe('wow.query.invalid');
+    expect(result.current.problem?.status).toBe(400);
+  });
+
+  it('reads the problem of a fetcher error an execute rejects with', async () => {
+    const server = fakeServer(() =>
+      problem('wow.query.invalid', 'Invalid filter request body.'),
+    );
+    // An execute that sends through the Fetcher itself, not a Wow client,
+    // rejects with the fetcher's ExchangeError of the 400.
+    const { result } = renderHook(() =>
+      useCountQuery({
+        initialQuery: paidCount,
+        execute: (query, options) =>
+          server.fetcher.post('/shop/order/snapshot/query', {
+            body: { ...query, kind: 'count' },
+            signal: options.signal,
+          }) as never,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.problem).toBeInstanceOf(WowProblemError);
+    expect(result.current.problem?.code).toBe('wow.query.invalid');
+    expect(result.current.error).toBe(result.current.problem);
+  });
+
+  it('reports a failure no service answered as the error, with no problem', async () => {
+    const offline = new TypeError('Failed to fetch');
+    const { result } = renderHook(() =>
+      useCountQuery({
+        initialQuery: paidCount,
+        execute: () => Promise.reject(offline),
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error).toBe(offline);
+    expect(result.current.problem).toBeUndefined();
+  });
+
+  it('wraps a thrown value that is not an Error, keeping it as the cause', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() =>
+      useCountQuery({
+        initialQuery: paidCount,
+        execute: () => Promise.reject('offline'),
+        onError,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe('offline');
+    expect(result.current.error?.cause).toBe('offline');
+    expect(result.current.problem).toBeUndefined();
+    expect(onError).toHaveBeenCalledWith(result.current.error);
   });
 
   it('clears the error and the result on reset()', async () => {

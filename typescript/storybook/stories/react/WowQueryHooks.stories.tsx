@@ -72,7 +72,7 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
   const stream = useStreamQuery<FixtureUser>({
     initialQuery: listQuery({ filter: activeFilter, limit: 20 }),
     autoExecute: false,
-    execute: (query, options) => client.stream(query, options),
+    execute: (query, options) => client.streamRows(query, options),
   });
 
   const run = () => {

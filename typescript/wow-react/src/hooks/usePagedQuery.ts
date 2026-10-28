@@ -21,15 +21,13 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
-> extends QueryHookOptions<Q, PagedResult<R>, E> {}
+> extends QueryHookOptions<Q, PagedResult<R>> {}
 
 /**
  * What {@link usePagedQuery} returns: the page (`total` and `list`) as
@@ -37,15 +35,13 @@ export interface UsePagedQueryOptions<
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
-> extends QueryHookReturn<Q, PagedResult<R>, E> {}
+> extends QueryHookReturn<Q, PagedResult<R>> {}
 
 /**
  * Runs a paged query through your own `execute` function and keeps the page
@@ -58,14 +54,13 @@ export interface UsePagedQueryReturn<
  * `autoExecute: false` to run it only through `execute()`.
  *
  * Returns `result` (`{ total, list }`, or `undefined` before the first
- * success), `loading`, `error`, `status`, `execute`, `abort`, `reset`,
+ * success), `loading`, `error`, `problem`, `status`, `execute`, `abort`, `reset`,
  * `getQuery` and `setQuery`.
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use. With a client whose
  *   fields are narrower than `string`, as a generated client's are, pass
  *   them here: TypeScript does not infer them from `execute` once `R` is given
- * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -88,9 +83,9 @@ export interface UsePagedQueryReturn<
  * }
  * ```
  */
-export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
-  options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
-): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function usePagedQuery<R, FIELDS extends string = string>(
+  options: UsePagedQueryOptions<R, FIELDS, PagedQuery<FIELDS>>,
+): UsePagedQueryReturn<R, FIELDS, PagedQuery<FIELDS>>;
 /**
  * {@link usePagedQuery} typed by a query `Q` of your own, a subtype of
  * `PagedQuery`, such as one whose literal projection narrows the result.
@@ -98,18 +93,16 @@ export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
 >(
-  options: UsePagedQueryOptions<R, FIELDS, E, Q>,
-): UsePagedQueryReturn<R, FIELDS, E, Q>;
+  options: UsePagedQueryOptions<R, FIELDS, Q>,
+): UsePagedQueryReturn<R, FIELDS, Q>;
 export function usePagedQuery<
   R,
   FIELDS extends string,
-  E,
   Q extends PagedQuery<FIELDS>,
 >(
-  options: UsePagedQueryOptions<R, FIELDS, E, Q>,
-): UsePagedQueryReturn<R, FIELDS, E, Q> {
-  return useQueryRunner<Q, PagedResult<R>, E>(options);
+  options: UsePagedQueryOptions<R, FIELDS, Q>,
+): UsePagedQueryReturn<R, FIELDS, Q> {
+  return useQueryRunner<Q, PagedResult<R>>(options);
 }

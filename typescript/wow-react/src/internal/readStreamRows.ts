@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { StreamedRow } from '@ahoo-wang/wow-client';
+
 /**
  * The least time between two publishes while a stream is read: about one
  * frame, so the rows keep up with the screen while a long stream costs a
@@ -19,9 +21,10 @@
 export const PUBLISH_INTERVAL_MS = 16;
 
 /**
- * Reads a stream of rows to its end and resolves to every row, in order.
+ * Reads a stream of rows to its end and resolves to every record, in order.
  *
- * While it reads, it hands the rows received so far to `publish`: the first
+ * While it reads, it hands the records received so far, and the position of
+ * the last row that had one, to `publish`: the first
  * rows on the next macrotask, then at most once every
  * {@link PUBLISH_INTERVAL_MS}. Publishing by time, not by network chunk,
  * bounds how often a long stream renders and copies its rows: one render per
@@ -37,12 +40,13 @@ export const PUBLISH_INTERVAL_MS = 16;
  * Internal: not exported from the package.
  */
 export async function readStreamRows<R>(
-  stream: ReadableStream<R>,
+  stream: ReadableStream<StreamedRow<R>>,
   signal: AbortSignal,
-  publish: (rows: R[]) => void,
+  publish: (rows: R[], position: string | undefined) => void,
 ): Promise<R[]> {
   const reader = stream.getReader();
   const rows: R[] = [];
+  let position: string | undefined;
   let published = 0;
   let publishedAt = -Infinity;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -52,7 +56,7 @@ export async function readStreamRows<R>(
     if (signal.aborted || published === rows.length) return;
     published = rows.length;
     publishedAt = Date.now();
-    publish(rows.slice());
+    publish(rows.slice(), position);
   };
   const schedule = () => {
     if (timer !== undefined) return;
@@ -70,7 +74,8 @@ export async function readStreamRows<R>(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      rows.push(value);
+      rows.push(value.record);
+      if (value.position !== undefined) position = value.position;
       schedule();
     }
     flush();
