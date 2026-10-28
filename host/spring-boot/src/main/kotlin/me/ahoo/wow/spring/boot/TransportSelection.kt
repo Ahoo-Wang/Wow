@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.context.annotation.ConditionContext
@@ -86,7 +87,7 @@ enum class TransportSelection {
 /**
  * What needs a topic transport in a node without one ([TransportSelection.NONE]), in words: its aggregate types routed
  * through Kafka (`wow.aggregates.[..].routing=topic`), its failure ledger published to the ops context
- * (`wow.ops.publish.enabled`), and the command intake (`wow.kafka.command-intake.enabled`). A sourced subscription or a
+ * (`wow.ops.publish.enabled`), and the command intake (a transport's `command-intake.enabled`, [intake]). A sourced subscription or a
  * saga's commands to another context need it too, which the node itself refuses when it is built.
  *
  * The streams its contexts publish are no need: every aggregate is published by default, so a
@@ -102,11 +103,20 @@ object TransportNeeds {
      * [ledger] is whether the failure ledger is published whatever the node finds (`wow.ops.publish.enabled=true`):
      * `auto`, which publishes only while a transport has the ops context's command topic, is no need.
      */
-    fun of(topicRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
+    fun of(topicRouted: Set<AggregateType>, ledger: Boolean, intake: Collection<String>): List<String> = buildList {
         if (topicRouted.isNotEmpty()) add("it routes ${topicRouted.joinToString()} through Kafka")
         if (ledger) add("it publishes its failure ledger (wow.ops.publish.enabled=true)")
-        if (intake) add("it takes commands from its command topics (wow.kafka.command-intake.enabled)")
+        if (intake.isNotEmpty()) add("it takes commands from its command topics (${intake.joinToString()})")
     }
+
+    /**
+     * The keys that switch the command intake on in [environment]: `wow.<type>.command-intake.enabled` of each
+     * transport type of [types] it sets to `true` ([TopicTransportOptions.COMMAND_INTAKE]).
+     */
+    fun intake(environment: Environment, types: Collection<String>): List<String> =
+        types.map { "wow.$it.${TopicTransportOptions.COMMAND_INTAKE.key}" }.filter { key ->
+            environment.getProperty(key)?.let { TopicTransportOptions.COMMAND_INTAKE.parse(it, key) } == true
+        }
 
     /** The streams the contexts of [manifest] among [contexts] publish, `context.aggregate`, in the Manifest's order. */
     fun unpublished(manifest: Manifest, contexts: Set<String>): List<String> =

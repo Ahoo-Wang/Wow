@@ -16,8 +16,10 @@ package me.ahoo.wow.spi.sink
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreResources
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A Sink of the streams a service publishes: what opens the [Sink]s of one destination,
@@ -36,6 +38,13 @@ interface SinkProvider {
 
     /** What a sink of this type needs, in the words of a startup failure that says it is missing. */
     val requirement: String get() = "its settings"
+
+    /**
+     * Every setting it reads from [SinkConfig.options], each read through its option, for the host to bind and check
+     * (`wow.<type>.<key>`). A [ProviderOption.Scope.PER_STORE] option is one the host gives the sink itself, not set
+     * under `wow.<type>` (the ClickHouse Sink's per-aggregate `aggregates.*`).
+     */
+    val options: List<ProviderOption<*>> get() = emptyList()
 
     /** Whether [config] configures a sink of this type: the settings it cannot do without are set, and not disabled. */
     fun available(config: SinkConfig): Boolean
@@ -90,12 +99,34 @@ class SinkConfig @InternalWowApi constructor(
     /** The configuration key of the sink's settings, for a provider's failures to name. */
     val key: String get() = "wow.$name"
 
+    private val read: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /** The setting [name] of [options], or null when it is not set or blank. */
-    fun option(name: String): String? = options[name]?.takeIf { it.isNotBlank() }
+    fun option(name: String): String? {
+        read += name
+        return options[name]?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
+     * value is not one of the option's type.
+     */
+    fun <T : Any> option(option: ProviderOption<T>): T? =
+        option(option.key)?.let { option.parse(it, "$key.${option.key}") } ?: option.default
+
+    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
+    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {
+        read += option.key
+        return options(option.key)
+    }
 
     /** The settings under [prefix], their keys relative to it. */
     fun options(prefix: String): Map<String, String> = options.filterKeys { it.startsWith("$prefix.") }
         .mapKeys { it.key.removePrefix("$prefix.") }
+
+    /** The keys of [options] the sink asked for, so a test can hold them to the options its provider declares. */
+    @InternalWowApi
+    val optionsRead: Set<String> get() = read.toSet()
 
     override fun toString(): String = "SinkConfig(name=$name, type=$type, options=${options.keys})"
 

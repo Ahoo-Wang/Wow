@@ -39,6 +39,26 @@ class ClickHouseDatasetProviderTest {
         val defaults = provider.optionsOf(QueryDatasetConfig.of("clickhouse"))
         defaults.database.assert().isEqualTo("default")
         defaults.metadataTtl.assert().isEqualTo(Duration.ofMinutes(1))
-        provider.options.map { it.key }.assert().containsExactly("query.enabled", "database", "query.metadata-ttl")
+        provider.options.map { it.key }.assert().containsExactly(
+            "endpoint",
+            "username",
+            "password",
+            "database",
+            "query.enabled",
+            "query.metadata-ttl",
+            "query.settings",
+        )
+    }
+
+    @Test
+    fun `the backend should be available with the application's client or an endpoint, unless switched off`() {
+        provider.available(QueryDatasetConfig.of("clickhouse")).assert().isFalse()
+        provider.available(QueryDatasetConfig.of("clickhouse", mapOf("endpoint" to "http://127.0.0.1:1"))).assert()
+            .isTrue()
+        val off = mapOf("endpoint" to "http://127.0.0.1:1", "query.enabled" to "false")
+        provider.available(QueryDatasetConfig.of("clickhouse", off)).assert().isFalse()
+        val own = provider.open(QueryDatasetConfig.of("clickhouse", mapOf("endpoint" to "http://127.0.0.1:1")))
+        own.assert().isInstanceOf(AutoCloseable::class.java)
+        (own as AutoCloseable).close()
     }
 }

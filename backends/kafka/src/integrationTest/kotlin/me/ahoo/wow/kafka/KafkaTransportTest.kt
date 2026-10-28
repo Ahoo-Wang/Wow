@@ -18,6 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spi.transport.TransportConfig
+import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.tck.transport.TopicTransportSpec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -28,6 +30,21 @@ class KafkaTransportTest : TopicTransportSpec() {
     override val source: PartitionedSource get() = Companion.source
 
     override suspend fun newTopic(partitions: Int): String = KafkaFixture.newTopic(partitions)
+
+    override fun provided(): Pair<TransportProvider, TransportConfig> = KafkaTransportProvider() to TransportConfig.of(
+        "kafka",
+        "kafka",
+        mapOf(
+            "bootstrap-servers" to KafkaFixture.options.bootstrapServers,
+            "properties.client.id" to "tck",
+            "poll-timeout" to "100ms",
+            "offset-gap" to "earliest",
+            "topics.replication-factor" to "1",
+            "topics.min-insync-replicas" to "1",
+            "topics.configs.retention.ms" to "60000",
+            "topics.partition-refresh" to "10s",
+        ),
+    )
 
     @Test
     fun `a send to a broker that cannot be reached should fail rather than return`(): Unit = runBlocking {

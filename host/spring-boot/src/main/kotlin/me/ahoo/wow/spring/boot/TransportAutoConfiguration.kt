@@ -30,6 +30,8 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.transport.TopicTransport
+import me.ahoo.wow.spi.transport.TopicTransportOptions
+import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -39,7 +41,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationListener
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ConditionContext
@@ -47,7 +48,7 @@ import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
-import kotlin.time.toKotlinDuration
+import kotlin.time.Duration
 
 /**
  * The node's topic transport: the one a [TransportProvider] gives, found on the
@@ -57,17 +58,17 @@ import kotlin.time.toKotlinDuration
  * - **Transport**: the [TopicTransport] the configured provider opens, closed with the context after the node stopped;
  *   its [TopicProducer], [PartitionedSource] and [TopicAdmin] as beans, unless the application has its own.
  * - **Sink**: [PublishedSinks.topics] over the producer, one subscription per stream the Manifest publishes, each
- *   written to its topic after `wow.kafka.topic-prefix`.
- * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with
- *   `wow.kafka.command-intake.enabled`, `wow.kafka.ddl` and `wow.kafka.topics.partition-refresh`: the subscriptions
- *   of other contexts' streams read through it, and a saga's commands to other contexts go through it.
+ *   written to its topic after the transport's `topic-prefix` (`wow.kafka.topic-prefix`).
+ * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
+ *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
+ *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to
+ *   other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
  *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker.
  * - **Offset gaps**: the reads that started past their partition's retention ([PartitionedSource.offsetGaps]), as the
  *   counter [WowMetrics.OFFSET_GAPS] when the application has Micrometer: each is an error to alert on.
  */
 @AutoConfiguration(after = [InMemoryTopicsAutoConfiguration::class])
-@EnableConfigurationProperties(KafkaProperties::class)
 class TransportAutoConfiguration {
     /** The topic transports and the Sinks of the node: on the classpath, and the application's provider beans. */
     @Bean
@@ -83,14 +84,15 @@ class TransportAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @Conditional(TransportAutoConfiguration.OnTransport::class)
     class Transport {
-        @Bean(destroyMethod = "close")
-        internal fun wowTopicTransport(
+        /** The provider of the node's transport and the configuration it opens it from. */
+        @Bean
+        internal fun wowSelectedTransport(
             providers: PortProviders,
             environment: Environment,
             beanFactory: ListableBeanFactory,
             development: ObjectProvider<DevelopmentMode>,
             properties: ObjectProvider<WowProperties>,
-        ): TopicTransport {
+        ): SelectedTransport {
             val named = (properties.ifAvailable?.transport ?: TransportSelection.AUTO).trim().lowercase()
                 .takeUnless { it == TransportSelection.AUTO }
             val (provider, config) = configNotNull(
@@ -107,8 +109,12 @@ class TransportAutoConfiguration {
                     ?: "A transport provider is declared, but no transport is configured."
             }
             logger.info { "The node's topic transport is ${provider.type} (${config.key})." }
-            return PortProviders.configured(config.key) { provider.open(config) }
+            return SelectedTransport(provider, config)
         }
+
+        @Bean(destroyMethod = "close")
+        internal fun wowTopicTransport(selected: SelectedTransport): TopicTransport =
+            PortProviders.configured(selected.config.key) { selected.provider.open(selected.config) }
 
         // The transport closes its ports itself: they are not closed again as beans.
         @Bean(destroyMethod = "")
@@ -124,29 +130,29 @@ class TransportAutoConfiguration {
         fun wowTopicAdmin(transport: TopicTransport): TopicAdmin = transport.admin
 
         @Bean(TRANSPORT_SINKS)
-        fun wowTransportSinks(
+        internal fun wowTransportSinks(
             manifest: Manifest,
             producer: TopicProducer,
-            properties: KafkaProperties
+            selected: SelectedTransport,
         ): PublishedSinks =
-            PublishedSinks.topics(manifest, producer, properties.topicPrefix)
+            PublishedSinks.topics(manifest, producer, selected.topicPrefix)
 
         @Bean
         @ConditionalOnMissingBean
-        fun wowSourceTopics(
+        internal fun wowSourceTopics(
             source: PartitionedSource,
             producer: TopicProducer,
             admin: TopicAdmin,
-            properties: KafkaProperties,
+            selected: SelectedTransport,
             wow: ObjectProvider<WowProperties>,
         ): SourceTopics = SourceTopics(
             source,
-            properties.topicPrefix,
+            selected.topicPrefix,
             producer,
-            properties.commandIntake.enabled,
+            selected.commandIntake,
             admin,
-            properties.ddl ?: wow.ifAvailable?.ddl ?: Ddl.AUTO,
-            properties.topics.partitionRefresh.toKotlinDuration(),
+            selected.ddl ?: wow.ifAvailable?.ddl ?: Ddl.AUTO,
+            selected.partitionRefresh,
         )
 
         /** Logs, once the application is ready, what the transport warns about the node's command topics. */
@@ -206,5 +212,28 @@ class TransportAutoConfiguration {
 
         /** The name of the transport's [PublishedSinks] bean. */
         const val TRANSPORT_SINKS: String = "wowTransportSinks"
+    }
+}
+
+/**
+ * The [provider] of the node's topic transport and the [config] it is opened from, whose settings every topic
+ * transport has ([TopicTransportOptions]) the host reads for the node's topics.
+ */
+internal class SelectedTransport(val provider: TransportProvider, val config: TransportConfig) {
+    val topicPrefix: String get() = config.option(TopicTransportOptions.TOPIC_PREFIX).orEmpty()
+
+    val commandIntake: Boolean get() = config.option(TopicTransportOptions.COMMAND_INTAKE) == true
+
+    val partitionRefresh: Duration get() = checkNotNull(config.option(TopicTransportOptions.PARTITION_REFRESH))
+
+    /** The transport's `ddl`, null when it sets none. */
+    val ddl: Ddl? get() = config.option(TopicTransportOptions.DDL)?.let { text ->
+        val key = "${config.key}.${TopicTransportOptions.DDL.key}"
+        configNotNull(
+            Ddl.entries.firstOrNull { it.name.equals(text, ignoreCase = true) },
+            key,
+            "Set it to auto, validate or none.",
+            text,
+        ) { "$key is $text, which is no DDL mode." }
     }
 }

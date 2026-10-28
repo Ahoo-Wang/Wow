@@ -30,11 +30,9 @@ wow:
       tenant: (platform)
   internal:
     port: 9097
-  clickhouse:
-    # The warehouse the catalog reads (decision D241): set wow.clickhouse.endpoint (WOW_CLICKHOUSE_ENDPOINT), such as
-    # http://localhost:8123, with its username, password and database. The catalog writes no table of its own there.
-    sink:
-      enabled: false
+  # The warehouse the catalog reads (decision D241): set wow.clickhouse.endpoint (WOW_CLICKHOUSE_ENDPOINT), such as
+  # http://localhost:8123, with its username, password and database. The catalog writes no table of its own there:
+  # its client starts no Sink, which only wow.clickhouse.sink.enabled switches on.
   analytics:
     catalog:
       # The warehouse connection: its name, the first part of each source's id, and its engine type (decision D251).

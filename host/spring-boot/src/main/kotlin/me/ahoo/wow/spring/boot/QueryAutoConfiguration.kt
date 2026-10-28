@@ -349,11 +349,12 @@ class QueryAutoConfiguration {
             application: ObjectProvider<QueryBindings<QueryDataset>>,
             beanFactory: ConfigurableListableBeanFactory,
             environment: Environment,
-        ): HostDatasetBindings = HostDatasetBindings(
-            application.ifAvailable ?: HostDatasets.provided(
+        ): HostDatasetBindings = application.ifAvailable?.let { HostDatasetBindings(it) } ?: HostDatasetBindings(
+            HostDatasets.provided(
                 HostDatasets.providers(beanFactory.beanClassLoader),
                 BeanStoreResources(beanFactory),
             ) { type -> PortProviders.optionsOf(environment, type) },
+            provided = true,
         )
 
         /** The application's beans the engine is built of, which it may give or not. */

@@ -75,6 +75,9 @@ class KafkaTransportProviderTest {
         KafkaTransportProvider.creationConfigs(config("topics.configs.min.insync.replicas" to "3")).assert()
             .isEqualTo(mapOf("min.insync.replicas" to "3"))
         KafkaTransportProvider.replicationFactor(config()).assert().isNull()
+        assertThrows<IllegalArgumentException> {
+            KafkaTransportProvider.replicationFactor(config("topics.replication-factor" to "0"))
+        }.message.assert().contains("wow.kafka.topics.replication-factor is 0")
     }
 
     @Test
