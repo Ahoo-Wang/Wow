@@ -118,7 +118,14 @@ class StorybookOrdersDescriptorTest {
 
     private companion object {
         val GOLDEN: Path = Path.of(
-            "..", "..", "typescript", "storybook", "stories", "view-engine", "integration", "ordersDescriptor.json",
+            "..",
+            "..",
+            "typescript",
+            "storybook",
+            "stories",
+            "view-engine",
+            "integration",
+            "ordersDescriptor.json",
         )
         val UPDATE = System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)
     }
