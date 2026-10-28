@@ -200,10 +200,10 @@ data class FieldDescriptor(
          * When the record's events happened: a snapshot's last event (`lastEventTime`). FIRST and LAST order by it
          * when they name no `orderBy`.
          */
-        const val EVENT_TIME = "EVENT_TIME"
+        const val EVENT_TIME = "event-time"
 
         /** When a snapshot's aggregate got its first event, i.e. was created (`firstEventTime`). */
-        const val FIRST_EVENT_TIME = "FIRST_EVENT_TIME"
+        const val FIRST_EVENT_TIME = "first-event-time"
     }
 }
 
@@ -284,27 +284,27 @@ data class ConstraintDescriptor(
          * A cursor's sort always ends with the model's unique key, its [fields] appended when absent: the tenant,
          * then the identity, since an aggregate id is unique only within its tenant.
          */
-        const val CURSOR_UNIQUE_SORT = "CURSOR_UNIQUE_SORT"
+        const val CURSOR_UNIQUE_SORT = "cursor-unique-sort"
 
         /** A count or paged query must not match every record. */
-        const val COUNT_REQUIRES_FILTER = "COUNT_REQUIRES_FILTER"
+        const val COUNT_REQUIRES_FILTER = "count-requires-filter"
 
         /** STARTS_WITH needs a non-empty, case-sensitive prefix. */
-        const val STARTS_WITH_REQUIRES_PREFIX = "STARTS_WITH_REQUIRES_PREFIX"
+        const val STARTS_WITH_REQUIRES_PREFIX = "starts-with-requires-prefix"
 
         /**
          * A sort names at most one of [fields]: they are array-valued and the storage cannot order by two independent
          * arrays. Fields on one array path (one nested in the other) may still combine.
          */
-        const val PARALLEL_ARRAY_SORT = "PARALLEL_ARRAY_SORT"
+        const val PARALLEL_ARRAY_SORT = "parallel-array-sort"
 
         /**
          * On [fields], a stored `null` or empty array is indistinguishable from a missing field: `EXISTS` does not
          * match it, `NOT_EXISTS` and `IS_NULL` do, and `IS_EMPTY` also matches a missing or `null` field.
          */
-        const val NULL_OR_EMPTY_AS_MISSING = "NULL_OR_EMPTY_AS_MISSING"
+        const val NULL_OR_EMPTY_AS_MISSING = "null-or-empty-as-missing"
 
         /** `EQ` and `NE` accept only a scalar operand: the storage cannot compare a whole array. */
-        const val ARRAY_EQUALITY = "ARRAY_EQUALITY"
+        const val ARRAY_EQUALITY = "array-equality"
     }
 }

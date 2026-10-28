@@ -15,6 +15,24 @@ package me.ahoo.wow.spi.json
 
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroupScope
+import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.DateDiffUnit
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.PagingMode
+import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.api.query.RunningFunction
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.query.WindowFunction
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Stage
@@ -55,6 +73,25 @@ object WowEnums {
         EnvelopeKind::class.java,
         Recoverable::class.java,
         LedgerRequest::class.java,
+        // The query protocol.
+        FilterOperator::class.java,
+        StringComparison::class.java,
+        SearchMode::class.java,
+        DeletionState::class.java,
+        Sort.Direction::class.java,
+        TotalMode::class.java,
+        PagingMode::class.java,
+        QueryValueKind::class.java,
+        AggregationDatePart::class.java,
+        AggregationDateUnit::class.java,
+        DateDiffUnit::class.java,
+        AggregationExpressionOperator::class.java,
+        WindowFunction::class.java,
+        RunningFunction::class.java,
+        ComparisonOperator::class.java,
+        AggregationFunction::class.java,
+        AggregationGroupScope::class.java,
+        SensitivityLevel::class.java,
     )
 
     /** The name of [module]'s Jackson module, a reader's or a writer's. */

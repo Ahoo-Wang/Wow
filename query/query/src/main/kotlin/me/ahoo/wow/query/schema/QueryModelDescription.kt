@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.WindowFunction
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.cursor
@@ -169,9 +170,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         if (!effective.aggregatable) return null
         val metrics = effective.metrics(allowExpensive)
         return FieldAggregateDescriptor(
-            groups = effective.groups(allowExpensive).map { it.name },
+            groups = effective.groups(allowExpensive).map(WireNames::of),
             missingKey = effective.missingKey,
-            functions = if (MetricSpec.NUMERIC in metrics) AggregationFunction.entries.map { it.name } else emptyList(),
+            functions = if (MetricSpec.NUMERIC in metrics) AggregationFunction.entries.map(WireNames::of) else emptyList(),
             distinctCount = MetricSpec.DISTINCT_COUNT in metrics,
             percentile = MetricSpec.PERCENTILE in metrics,
             any = MetricSpec.ANY in metrics,
@@ -317,13 +318,14 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 (allowExpensive || metric.baseCost != OperatorCost.EXPENSIVE || metric == MetricSpec.DERIVED)
         }
         val firstLast = MetricSpec.FIRST in specs
-        val metrics = specs.map { it.name }
         val having = if (support.having == SupportMode.NONE) emptyList() else specs.filter { it.havingOperand }
+        // A storage names its approximate metrics by their specs' names; the descriptor lists every metric by its wire
+        // name, the `type` an aggregation query gives it.
         return AnalysisDescriptor(
-            metrics = metrics,
-            approximate = metrics.filter { it in schema.approximateMetrics },
+            metrics = specs.map(WireNames::of),
+            approximate = specs.filter { it.name in schema.approximateMetrics }.map(WireNames::of),
             expressions = allowExpensive,
-            having = HavingDescriptor(having.map { it.name }),
+            having = HavingDescriptor(having.map(WireNames::of)),
             sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive && support.topN != SupportMode.NONE),
             // Dense fill materializes every bucket of the range, an expensive group (GroupSpec.cost).
             dense = allowExpensive && support.denseFill != SupportMode.NONE,

@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.single
@@ -341,7 +342,12 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
             if (mask != null) conflict("${ManifestQueryKeywords.MASK} requires ${ManifestQueryKeywords.SENSITIVE}")
             return null
         }
-        val level = declared(ManifestQueryKeywords.SENSITIVE) { SensitivityLevel.valueOf(sensitive["level"] as String) }
+        val level = declared(ManifestQueryKeywords.SENSITIVE) {
+            val name = sensitive["level"] as String
+            requireNotNull(WireNames.entryOf<SensitivityLevel>(name)) {
+                "Not a sensitivity level: '$name'; one of ${WireNames.namesOf<SensitivityLevel>().joinToString()}."
+            }
+        }
         val queryMask = mask?.let {
             declared(ManifestQueryKeywords.MASK) {
                 when (val strategy = it["strategy"] as? String) {

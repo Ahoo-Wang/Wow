@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
@@ -137,7 +139,9 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
     }
 
     private fun mark(path: String, node: Map<*, *>, event: String, revision: Int): Mark? {
-        val level = (node[SENSITIVE] as? Map<*, *>)?.get("level") as? String
+        // The Manifest names a level by its wire name; the catalog's column keeps the level's own name.
+        val level = ((node[SENSITIVE] as? Map<*, *>)?.get("level") as? String)
+            ?.let { WireNames.entryOf<SensitivityLevel>(it)?.name }
         val reference = node[REFERENCE] as? Map<*, *>
         val aggregate = reference?.get("aggregateName") as? String
         if (level == null && aggregate == null) {
@@ -179,7 +183,7 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
         const val REFERENCE = "x-wow-reference"
         val COMPOSITIONS = listOf("allOf", "anyOf", "oneOf")
 
-        /** The sensitivity levels, lowest first (`SensitivityLevel`). */
-        val LEVELS = listOf("DISPLAY", "CONFIDENTIAL")
+        /** The sensitivity levels as the catalog stores them, lowest first. */
+        val LEVELS = SensitivityLevel.entries.map { it.name }
     }
 }
