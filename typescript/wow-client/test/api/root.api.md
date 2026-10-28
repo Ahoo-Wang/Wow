@@ -910,6 +910,7 @@ interface FieldSort<FIELDS extends string = string> {
 // @public
 interface FieldSortDescriptor {
     cursor: boolean;
+    indexed?: boolean;
     paged: boolean;
 }
 
@@ -1710,8 +1711,12 @@ export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
             readonly commands?: readonly RoutingCommand[];
         })[];
         readonly commands?: readonly RoutingCommand[];
+        readonly routes?: readonly RoutingServiceRoute[];
     })[];
 }
+
+// @public
+export type RoutingServiceRoute = Pick<ServiceRouteManifest, 'name' | 'route'>;
 
 // @public
 enum RunningFunction {

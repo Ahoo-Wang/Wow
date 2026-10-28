@@ -61,6 +61,7 @@ export {
   MANIFEST_FORMAT,
   type RoutingCommand,
   type RoutingManifest,
+  type RoutingServiceRoute,
 } from './manifest.js';
 export type * from './manifestTypes.js';
 export * from './wire.js';

@@ -57,6 +57,7 @@ const ENTRIES = {
   'dist/index.d.ts': 'root',
   'dist/dsl.d.ts': 'dsl',
   'dist/testing.d.ts': 'testing',
+  'dist/routes.d.ts': 'routes',
 };
 
 /** Report name → the entry it reports and its symbol index page. */
@@ -66,6 +67,10 @@ const PAGES = {
   testing: {
     entry: '@ahoo-wang/wow-client/testing',
     page: 'symbols-testing.md',
+  },
+  routes: {
+    entry: '@ahoo-wang/wow-client/routes',
+    page: 'symbols-routes.md',
   },
 };
 

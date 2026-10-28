@@ -105,7 +105,7 @@ export interface RequestOptions {
 
 /** One request of a client. */
 export interface Call {
-  readonly method: 'GET' | 'POST' | 'DELETE';
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly path: string;
   readonly query?: Readonly<Record<string, string | number | undefined>>;
   readonly headers?: Readonly<Record<string, string | undefined>>;

@@ -9,6 +9,10 @@
       "gzip": 11888,
       "reason": "Raised 2026-09-25, about 18% over the 10,075 B measured then: N3 expression builders, intended growth."
     },
+    "./routes": {
+      "gzip": 7000,
+      "reason": "Set 2026-10-28, about 16% over the 6,030 B measured then: the service routes client with the HTTP sender, the problem reader and the Manifest check it shares with the root entry, kept apart from it so the root stays within its ceiling."
+    },
     "./testing": {
       "gzip": 3500,
       "reason": "Set 2026-10-27, about 17% over the 2,995 B measured then: the development caller and the wire builders, which load the problem module for its framework codes."

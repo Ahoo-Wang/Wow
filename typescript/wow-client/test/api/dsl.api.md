@@ -667,6 +667,7 @@ export interface FieldSort<FIELDS extends string = string> {
 // @public
 export interface FieldSortDescriptor {
     cursor: boolean;
+    indexed?: boolean;
     paged: boolean;
 }
 

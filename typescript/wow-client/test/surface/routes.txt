@@ -1,0 +1,6 @@
+# @ahoo-wang/wow-client/routes — 3 names, from src/routes.ts.
+# Written by test/publicSurface.test.ts; a change here is a change to
+# the public surface.
+type  ServiceRouteCall
+value ServiceRoutes
+type  ServiceRoutesOptions
