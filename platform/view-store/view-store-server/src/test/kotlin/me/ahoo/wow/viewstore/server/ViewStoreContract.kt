@@ -49,8 +49,8 @@ abstract class ViewStoreContract {
     /** The views of [definition] [who] lists, by id. */
     private fun list(who: Who, definition: String): List<String> = store.post(
         VIEW_QUERY,
-        """{"kind":"list","filter":{"op":"EQ","field":"state.definitionId","value":"$definition"},
-            "sort":[{"field":"firstEventTime","direction":"ASC"}]}""",
+        """{"kind":"list","filter":{"op":"eq","field":"state.definitionId","value":"$definition"},
+            "sort":[{"field":"firstEventTime","direction":"asc"}]}""",
         who,
     ).assertOk().ids
 
@@ -65,7 +65,7 @@ abstract class ViewStoreContract {
         // A stale version is refused with If-Match as 412.
         store.post("/view-store/view/$id/rename-view", """{"title":"Late"}""", ALICE, ifMatch(2))
             .assertProblem(PRECONDITION_FAILED, "wow.aggregate.version-mismatch")
-        val single = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"ID","value":"$id"}}""", ALICE)
+        val single = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"id","value":"$id"}}""", ALICE)
             .assertOk().json
         single["ownerId"].asString().assert().isEqualTo("alice")
         single["state"].let { state ->
@@ -108,7 +108,7 @@ abstract class ViewStoreContract {
         store.post("/view-store/view/$id/claim-view", "{}", CAROL.shared, MOVED).assertOk()
         list(CAROL, definition).assert().containsExactly(id)
         list(BOB.shared, definition).assert().isEmpty()
-        val view = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"ID","value":"$id"}}""", CAROL).json
+        val view = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"id","value":"$id"}}""", CAROL).json
         view["ownerId"].asString().assert().isEqualTo("carol")
         view["state"]["audience"].asString().assert().isEqualTo("personal")
     }
@@ -162,7 +162,7 @@ abstract class ViewStoreContract {
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
             .json["detail"].asString().assert().startsWith("An anonymous caller")
         // A view's events and state are read in its application, as its snapshot is queried (review A3-11).
-        val events = """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+        val events = """{"kind":"list","filter":{"op":"id","value":"$id"}}"""
         store.post(VIEW_EVENTS, events, ALICE)
             .assertOk().json.values().map { it["version"].asInt() }.assert().containsExactly(1)
         store.post(VIEW_EVENTS, events, ALICE.withoutApp).assertProblem(BAD_REQUEST, "wow.query.malformed")
@@ -174,13 +174,13 @@ abstract class ViewStoreContract {
         // Acting as another user is refused: only the reserved owners are open to Wow-Scope.
         store.post(
             VIEW_QUERY,
-            """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+            """{"kind":"list","filter":{"op":"match-all"}}""",
             ALICE.with(WowHeaders.SCOPE, "owner=bob")
         )
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
         store.post(
             VIEW_QUERY,
-            """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+            """{"kind":"list","filter":{"op":"match-all"}}""",
             ALICE.with(WowHeaders.SCOPE, "owner=")
         )
             .assertProblem(BAD_REQUEST, "wow.query.malformed")
@@ -195,7 +195,7 @@ abstract class ViewStoreContract {
             .assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
         store.post(VIEWS, """{"definitionId":"$definition","title":"No app","config":$RECORD}""", ALICE.withoutApp)
             .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
-        store.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", ALICE.withoutApp)
+        store.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", ALICE.withoutApp)
             .assertProblem(BAD_REQUEST, "wow.query.malformed")
         store.post(VIEWS, """{"definitionId":"$definition","title":"Open","config":{"kind":"chart"}}""", ALICE)
             .assertProblem(BAD_REQUEST, ViewStoreRejections.INVALID)
@@ -217,7 +217,7 @@ abstract class ViewStoreContract {
             .id.assert().isEqualTo(first.id)
         val bobs = store.post(PREFERENCES, """{"definitionId":"$definition"}""", BOB, ifMatch(0)).assertOk()
         bobs.id.assert().isNotEqualTo(first.id)
-        val query = """{"kind":"single","filter":{"op":"EQ","field":"state.definitionId","value":"$definition"}}"""
+        val query = """{"kind":"single","filter":{"op":"eq","field":"state.definitionId","value":"$definition"}}"""
         store.post(PREFERENCES_QUERY, query, ALICE).assertOk().json["state"]["order"].values().map { it.asString() }
             .assert().containsExactly("v2", "v1")
         store.post(PREFERENCES_QUERY, query, BOB).assertOk().json["state"]["order"].isEmpty.assert().isTrue()
@@ -231,7 +231,7 @@ abstract class ViewStoreContract {
         val body = """{"dataset":"$dataset","title":"Sales","recordNoun":"order","fields":{"amount":{"label":"金额"}}}"""
         store.post(WORDING, body, ALICE).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         val id = store.post(WORDING, body, CAROL, ifMatch(0)).assertOk().id
-        val query = """{"kind":"single","filter":{"op":"ID","value":"$id"}}"""
+        val query = """{"kind":"single","filter":{"op":"id","value":"$id"}}"""
         store.post(WORDING_QUERY, query, BOB).assertOk().json["state"].let { state ->
             state["title"].asString().assert().isEqualTo("Sales")
             state["fields"]["amount"]["label"].asString().assert().isEqualTo("金额")

@@ -137,17 +137,17 @@ class DatasetRegistryHostTest {
         command(
             "PUT",
             "analytics.orders/sensitivity",
-            """{"fields":{"id":{},"tenant_id":{},"city":{"level":"DISPLAY","keepPrefix":1}}}""",
+            """{"fields":{"id":{},"tenant_id":{},"city":{"level":"display","keepPrefix":1}}}""",
         ).expectStatus().isOk
         command("POST", "analytics.orders/publish", "{}").expectStatus().isOk
 
         awaitDirectory(true)
         client.post().uri("/tenant/t1/dataset/analytics/orders/count").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"op":"MATCH_ALL"}""").exchange()
+            .bodyValue("""{"op":"match-all"}""").exchange()
             .expectStatus().isOk.expectBody().json("2")
         client.post().uri("/tenant/t1/dataset/analytics/orders/list").contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"filter":{"op":"EQ","field":"id","value":"o1"}}""").exchange()
+            .bodyValue("""{"filter":{"op":"eq","field":"id","value":"o1"}}""").exchange()
             .expectStatus().isOk.expectBody().jsonPath("\$[0].city").isEqualTo("H*******")
 
         command("POST", "analytics.orders/retire", "{}").expectStatus().isOk

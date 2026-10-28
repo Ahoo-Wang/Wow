@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
@@ -41,7 +42,7 @@ class QueryRequestJsonTest {
 
     @Test
     fun `query bodies should require a filter`() {
-        listOf("{}", """{"filter":null}""", """{"condition":{"field":"state.status","operator":"EQ","value":"PAID"}}""")
+        listOf("{}", """{"filter":null}""", """{"condition":{"field":"state.status","operator":"eq","value":"PAID"}}""")
             .forEach { body ->
                 (queryTypes + CursorQuery::class.java + CountQuery::class.java).forEach { type ->
                     assertThrows<JacksonException> { mapper.readValue(body, type) }
@@ -52,9 +53,9 @@ class QueryRequestJsonTest {
     @Test
     fun `query bodies should ignore condition as an unknown property`() {
         listOf(
-            """{"filter":{"op":"MATCH_ALL"},"condition":{"operator":"ALL"}}""",
-            """{"filter":{"op":"MATCH_ALL"},"condition":null}""",
-            """{"filter":{"op":"MATCH_ALL"},"condition":{"op":"MATCH_ALL","operator":"ALL"}}""",
+            """{"filter":{"op":"match-all"},"condition":{"operator":"all"}}""",
+            """{"filter":{"op":"match-all"},"condition":null}""",
+            """{"filter":{"op":"match-all"},"condition":{"op":"match-all","operator":"all"}}""",
         ).forEach { body ->
             mapper.readValue(body, ListQuery::class.java).assert().isEqualTo(ListQuery(MatchAllFilter))
             mapper.readValue(body, PagedQuery::class.java).assert().isEqualTo(PagedQuery(MatchAllFilter))
@@ -73,7 +74,7 @@ class QueryRequestJsonTest {
 
     @Test
     fun `query bodies should take the constructor defaults`() {
-        val filter = """{"filter":{"op":"TENANT_ID","value":"tenant-1"}}"""
+        val filter = """{"filter":{"op":"tenant-id","value":"tenant-1"}}"""
         val tenant = TenantIdFilter("tenant-1")
         mapper.readValue(filter, ListQuery::class.java).assert().isEqualTo(ListQuery(tenant))
         mapper.readValue(filter, PagedQuery::class.java).assert().isEqualTo(
@@ -85,24 +86,27 @@ class QueryRequestJsonTest {
     }
 
     @Test
-    fun `paged query total should read its upper-case names`() {
+    fun `paged query total should read its wire names alone`() {
         TotalMode.entries.forEach { mode ->
-            mapper.readValue("""{"filter":{"op":"MATCH_ALL"},"total":"${mode.name}"}""", PagedQuery::class.java)
-                .total.assert().isEqualTo(mode)
+            mapper.readValue(
+                """{"filter":{"op":"match-all"},"total":"${WireNames.of(mode)}"}""",
+                PagedQuery::class.java,
+            ).total.assert().isEqualTo(mode)
         }
         assertThrows<JacksonException> {
-            mapper.readValue("""{"filter":{"op":"MATCH_ALL"},"total":"exact"}""", PagedQuery::class.java)
+            // An upper-case name is not a wire name.
+            mapper.readValue("""{"filter":{"op":"match-all"},"total":"${TotalMode.EXACT.name}"}""", PagedQuery::class.java)
         }
     }
 
     @Test
     fun `count query limit may be absent or null but otherwise at least one`() {
-        mapper.readValue("""{"filter":{"op":"MATCH_ALL"},"limit":null}""", CountQuery::class.java)
+        mapper.readValue("""{"filter":{"op":"match-all"},"limit":null}""", CountQuery::class.java)
             .assert().isEqualTo(CountQuery(MatchAllFilter))
-        mapper.readValue("""{"filter":{"op":"MATCH_ALL"},"limit":1}""", CountQuery::class.java)
+        mapper.readValue("""{"filter":{"op":"match-all"},"limit":1}""", CountQuery::class.java)
             .assert().isEqualTo(CountQuery(MatchAllFilter, 1))
         assertThrows<JacksonException> {
-            mapper.readValue("""{"filter":{"op":"MATCH_ALL"},"limit":0}""", CountQuery::class.java)
+            mapper.readValue("""{"filter":{"op":"match-all"},"limit":0}""", CountQuery::class.java)
         }
     }
 

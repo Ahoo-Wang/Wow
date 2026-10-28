@@ -131,7 +131,7 @@ class OpenApiRouteTest {
             val answer = node.http.client.method(HttpMethod.valueOf(method.uppercase())).uri(uri)
                 .header("X-User", "alice")
                 .header("Content-Type", "application/json")
-                .bodyValue("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+                .bodyValue("""{"kind":"count","filter":{"op":"match-all"}}""")
                 .exchange().expectBody(String::class.java).returnResult()
             val unrouted = answer.status.value() == 404 && answer.responseBody.orEmpty().contains("No route")
             unrouted.assert().describedAs("$method $path is not routed").isFalse()
@@ -195,17 +195,17 @@ class OpenApiRouteTest {
         document.validate("wow.StateView", state.body!!)
         document.validate("wow.StateTrace", node.http.get("/shop/cart/c-1/state/trace").body!!)
         node.save("c-1")
-        val rows = node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""").body!!
+        val rows = node.query("""{"kind":"list","filter":{"op":"match-all"}}""").body!!
         rows.size().assert().isEqualTo(1)
         document.validate("wow.SnapshotRecord", rows[0])
         val streams = node.query(
-            """{"kind":"list","filter":{"op":"AGGREGATE_ID","value":"c-1"}}""",
+            """{"kind":"list","filter":{"op":"aggregate-id","value":"c-1"}}""",
             model = QueryRoutes.EVENTS,
         ).body!!
         document.validate("wow.EventStreamRecord", streams[0])
-        val paged = node.query("""{"kind":"paged","filter":{"op":"MATCH_ALL"}}""").body!!
+        val paged = node.query("""{"kind":"paged","filter":{"op":"match-all"}}""").body!!
         document.validate("wow.PagedList", paged)
-        document.validate("wow.CountResult", node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""").body!!)
+        document.validate("wow.CountResult", node.query("""{"kind":"count","filter":{"op":"match-all"}}""").body!!)
     }
 
     private fun JsonNode.validate(name: String, instance: JsonNode) {

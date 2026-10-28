@@ -122,7 +122,7 @@ class ReadFacadeTest {
     @Test
     fun `a parameter error is an invalid query with its violation`(): Unit = runBlocking {
         val observer = Recording()
-        val invalid = InvalidStateReadException("'version' is a whole number from 1: '0'.", "INVALID_VALUE", "version")
+        val invalid = InvalidStateReadException("'version' is a whole number from 1: '0'.", "invalid-value", "version")
         invalid.errorCode.assert().isEqualTo(QueryErrors.INVALID)
         invalid.errorMsg.assert().isEqualTo(invalid.message)
         invalid.code.assert().isEqualTo(QueryErrorCodes.INVALID_VALUE)

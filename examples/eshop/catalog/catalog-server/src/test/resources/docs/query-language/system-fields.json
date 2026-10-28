@@ -1,10 +1,10 @@
 {
   "kind": "list",
   "filter": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "DELETION", "state": "ALL" },
-      { "op": "EQ", "field": "operator.id", "value": "erin" }
+      { "op": "deletion", "state": "all" },
+      { "op": "eq", "field": "operator.id", "value": "erin" }
     ]
   }
 }

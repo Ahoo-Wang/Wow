@@ -29,7 +29,7 @@ class QueryRoutesEdgesTest {
     fun `a list naming no limit should be refused by the budget when the default list size is off`() {
         val node = QueryNode(defaultListSize = 0)
         node.save("c-1")
-        node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+        node.query("""{"kind":"list","filter":{"op":"match-all"}}""")
             .assertQueryProblem(400, "wow.query.invalid")
             .violations().assert().containsExactly(me.ahoo.wow.api.query.QueryErrorCodes.SIZE_OUT_OF_RANGE)
     }
@@ -59,9 +59,9 @@ class QueryRoutesEdgesTest {
         val node = HttpNode(manifest = manifest) { log ->
             HttpQueries(listOf(cartSnapshots(storage)), listOf(cartEvents(log)))
         }
-        node.post("/shop/cart/projection/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+        node.post("/shop/cart/projection/query", """{"kind":"list","filter":{"op":"match-all"}}""")
             .status.assert().isEqualTo(404)
-        node.post("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+        node.post("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
             .status.assert().isEqualTo(200)
     }
 

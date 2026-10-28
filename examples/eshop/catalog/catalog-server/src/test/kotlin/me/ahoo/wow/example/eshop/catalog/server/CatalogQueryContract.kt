@@ -133,11 +133,11 @@ abstract class CatalogQueryContract {
         val ten = storefront.product(category, brand, "10.00")
         storefront.product(category, brand, "10.01")
         storefront.product(category, other, "7.00")
-        val filter = """{"op":"AND","operands":[
-            {"op":"EQ","field":"state.brandId","value":"$brand"},
-            {"op":"EQ","field":"state.categoryId","value":"$category"},
-            {"op":"GTE","field":"state.price","value":5},
-            {"op":"LTE","field":"state.price","value":10}]}"""
+        val filter = """{"op":"and","operands":[
+            {"op":"eq","field":"state.brandId","value":"$brand"},
+            {"op":"eq","field":"state.categoryId","value":"$category"},
+            {"op":"gte","field":"state.price","value":5},
+            {"op":"lte","field":"state.price","value":10}]}"""
         ids(storefront.query("""{"kind":"list","filter":$filter,"sort":[$BY_PRICE]}""").json)
             .assert().containsExactly(five, ten)
     }
@@ -154,7 +154,7 @@ abstract class CatalogQueryContract {
         count["count"].asLong().assert().isEqualTo(1)
         count["exact"].asBoolean().assert().isTrue()
         val single = storefront.query(
-            """{"kind":"single","filter":{"op":"ID","value":"$delisted"}}""",
+            """{"kind":"single","filter":{"op":"id","value":"$delisted"}}""",
         ).json
         single["state"]["status"].asString().assert().isEqualTo("DELISTED")
     }
@@ -179,23 +179,23 @@ abstract class CatalogQueryContract {
             .json["ref"]["id"].asString()
         val found = catalog.post(
             "/eshop-catalog/brand/snapshot/query",
-            """{"kind":"single","filter":{"op":"EQ","field":"state.name","value":"$name"}}""",
+            """{"kind":"single","filter":{"op":"eq","field":"state.name","value":"$name"}}""",
         ).assertOk().json
         found["aggregateId"].asString().assert().isEqualTo(brand)
         val category = storefront.category()
         catalog.post(
             "/eshop-catalog/category/snapshot/query",
-            """{"kind":"list","filter":{"op":"ID","value":"$category"}}""",
+            """{"kind":"list","filter":{"op":"id","value":"$category"}}""",
         ).assertOk().json.values().map { it["aggregateId"].asString() }.assert().containsExactly(category)
     }
 
     @Test
     fun `a query on a field the state does not have should be refused`() {
-        catalog.post(PRODUCTS, """{"kind":"list","filter":{"op":"EQ","field":"state.colour","value":"red"}}""")
+        catalog.post(PRODUCTS, """{"kind":"list","filter":{"op":"eq","field":"state.colour","value":"red"}}""")
             .assertProblem(BAD_REQUEST, "wow.query.invalid")
-            .json["violations"][0]["code"].asString().assert().isEqualTo("UNKNOWN_FIELD")
+            .json["violations"][0]["code"].asString().assert().isEqualTo("unknown-field")
         // A body that is no query at all is malformed, not invalid.
-        catalog.post(PRODUCTS, """{"kind":"lists","filter":{"op":"MATCH_ALL"}}""")
+        catalog.post(PRODUCTS, """{"kind":"lists","filter":{"op":"match-all"}}""")
             .assertProblem(BAD_REQUEST, "wow.query.malformed")
     }
 
@@ -247,23 +247,23 @@ abstract class CatalogQueryContract {
     fun `a product's events should be read by version and analyzed per event`() {
         val product = storefront.product(storefront.category(), storefront.brand(), "3.00")
         // region events
-        val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
+        val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"id","value":"$product"}}""", BUYER)
             .assertOk().json
         events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
         events.values().map { it["events"][0]["name"].asString() }.assert()
             .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
         // On the unified engine: an event condition is an element match; per-event analytics expand.
-        val published = """{"op":"ELEMENT_MATCH","field":"events","predicate":""" +
-            """{"op":"EQ","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
+        val published = """{"op":"element-match","field":"events","predicate":""" +
+            """{"op":"eq","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
         catalog.post(
             PRODUCT_EVENTS,
-            """{"kind":"count","filter":{"op":"AND","operands":[{"op":"ID","value":"$product"},$published]}}""",
+            """{"kind":"count","filter":{"op":"and","operands":[{"op":"id","value":"$product"},$published]}}""",
             BUYER,
         ).assertOk().json["count"].asLong().assert().isEqualTo(1)
         val perEvent = catalog.post(
             PRODUCT_EVENTS,
-            """{"kind":"aggregate","filter":{"op":"ID","value":"$product"},"elements":[{"path":"events"}],""" +
-                """"groupBy":[{"type":"TERMS","field":"name","alias":"event"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            """{"kind":"aggregate","filter":{"op":"id","value":"$product"},"elements":[{"path":"events"}],""" +
+                """"groupBy":[{"type":"terms","field":"name","alias":"event"}],"metrics":[{"type":"count","alias":"n"}]}""",
             BUYER,
         ).assertOk().json
         perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().containsExactly(
@@ -275,8 +275,8 @@ abstract class CatalogQueryContract {
         // A root metric over an event field must expand the events first (review X-8).
         catalog.post(
             PRODUCT_EVENTS,
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},""" +
-                """"groupBy":[{"type":"TERMS","field":"events.name","alias":"event"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},""" +
+                """"groupBy":[{"type":"terms","field":"events.name","alias":"event"}],"metrics":[{"type":"count","alias":"n"}]}""",
             BUYER,
         ).assertProblem(BAD_REQUEST, "wow.query.invalid")
     }
@@ -290,7 +290,7 @@ abstract class CatalogQueryContract {
     fun `the operator should follow a product from the employee's command to the snapshot query`() {
         val category = storefront.category()
         val product = storefront.product(category, storefront.brand(), "3.00")
-        val created = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
+        val created = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"id","value":"$product"}}""", BUYER)
             .assertOk().json[0]
         created["operator"].assertOperator(EMPLOYEE_ID)
 
@@ -300,17 +300,17 @@ abstract class CatalogQueryContract {
             """{"price":3.50}""",
             mapOf(USER to other, ROLES to "employee"),
         ).assertOk()
-        val latest = storefront.query("""{"kind":"single","filter":{"op":"ID","value":"$product"}}""").json
+        val latest = storefront.query("""{"kind":"single","filter":{"op":"id","value":"$product"}}""").json
         latest["operator"].assertOperator(other)
         latest["firstOperator"].assertOperator(EMPLOYEE_ID)
 
-        val inCategory = """{"op":"EQ","field":"state.categoryId","value":"$category"}"""
+        val inCategory = """{"op":"eq","field":"state.categoryId","value":"$category"}"""
 
         fun filed(filter: String) =
-            ids(storefront.query("""{"kind":"list","filter":{"op":"AND","operands":[$filter,$inCategory]}}""").json)
-        filed("""{"op":"EQ","field":"operator.id","value":"$other"}""").assert().containsExactly(product)
-        filed("""{"op":"EQ","field":"firstOperator.id","value":"$EMPLOYEE_ID"}""").assert().containsExactly(product)
-        filed("""{"op":"EQ","field":"operator.id","value":"$EMPLOYEE_ID"}""").assert().isEmpty()
+            ids(storefront.query("""{"kind":"list","filter":{"op":"and","operands":[$filter,$inCategory]}}""").json)
+        filed("""{"op":"eq","field":"operator.id","value":"$other"}""").assert().containsExactly(product)
+        filed("""{"op":"eq","field":"firstOperator.id","value":"$EMPLOYEE_ID"}""").assert().containsExactly(product)
+        filed("""{"op":"eq","field":"operator.id","value":"$EMPLOYEE_ID"}""").assert().isEmpty()
     }
 
     /**
@@ -334,15 +334,15 @@ abstract class CatalogQueryContract {
         this["crossScope"].asBoolean().assert().isFalse()
     }
 
-    private fun published(category: String): String = """{"op":"AND","operands":[
-        {"op":"EQ","field":"state.categoryId","value":"$category"},
-        {"op":"EQ","field":"state.status","value":"PUBLISHED"}]}"""
+    private fun published(category: String): String = """{"op":"and","operands":[
+        {"op":"eq","field":"state.categoryId","value":"$category"},
+        {"op":"eq","field":"state.status","value":"PUBLISHED"}]}"""
 
     companion object {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
         const val PRODUCT_EVENTS = "/eshop-catalog/product/events/query"
         private const val EMPLOYEE_ID = "erin"
-        const val BY_PRICE = """{"field":"state.price","direction":"ASC"}"""
+        const val BY_PRICE = """{"field":"state.price","direction":"asc"}"""
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403
         const val NOT_MODIFIED = 304

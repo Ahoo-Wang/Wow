@@ -124,13 +124,13 @@ class SearchStore(
             .filter { it.size == 2 && it[1].all(Char::isDigit) }
             .associate { (index, count) -> index to count.toInt() }
 
-    private fun byId(id: String): String = """{"op":"AGGREGATE_ID","value":"$id"}"""
+    private fun byId(id: String): String = """{"op":"aggregate-id","value":"$id"}"""
 
     private companion object {
         const val ELASTICSEARCH = 9200
         const val PROBE = "search-probe"
         const val DURING = "search-outage-1"
-        const val MATCH_ALL = """{"op":"MATCH_ALL"}"""
+        const val MATCH_ALL = """{"op":"match-all"}"""
         const val SNAPSHOT_INDEX = "eshop_wow_snapshot__eshop_catalog__product"
         const val EVENTS_INDEX = "eshop_wow_events__eshop_catalog__product"
         const val PROBE_BASE = 3

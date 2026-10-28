@@ -185,7 +185,7 @@ export const aggregation = {
     return { path: validPath, filter: predicate };
   },
   /**
-   * The value of a field, as an operand. `{ type: 'FIELD', field }`.
+   * The value of a field, as an operand. `{ type: 'field', field }`.
    *
    * @throws TypeError when `field` is not a valid field path.
    * @example
@@ -202,7 +202,7 @@ export const aggregation = {
     };
   },
   /**
-   * A number, as an operand. `{ type: 'CONSTANT', value }`.
+   * A number, as an operand. `{ type: 'constant', value }`.
    *
    * @throws TypeError when `value` is not finite.
    * @example
@@ -220,7 +220,7 @@ export const aggregation = {
    * The time from the instant in `from` to the instant in `to`, `to − from`,
    * in `unit`, as a signed decimal: negative when `to` is earlier, and no
    * value when either instant is absent. A `DAY` is exactly 24 hours.
-   * `{ type: 'DATE_DIFF', from, to, unit }`. Both fields must be
+   * `{ type: 'date-diff', from, to, unit }`. Both fields must be
    * single-valued time fields, those whose `aggregate.groups` list
    * `DATE_HISTOGRAM` in the descriptor, and `unit` one of its
    * `analysis.dateDiffUnits`. Wow 9.2 and later.
@@ -251,30 +251,30 @@ export const aggregation = {
       unit,
     };
   },
-  /** `left + right`. `{ type: 'BINARY', operator: 'ADD', left, right }`. */
+  /** `left + right`. `{ type: 'binary', operator: 'add', left, right }`. */
   add: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.ADD, left, right),
-  /** `left - right`. `{ type: 'BINARY', operator: 'SUBTRACT', left, right }`. */
+  /** `left - right`. `{ type: 'binary', operator: 'subtract', left, right }`. */
   subtract: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.SUBTRACT, left, right),
-  /** `left * right`. `{ type: 'BINARY', operator: 'MULTIPLY', left, right }`. */
+  /** `left * right`. `{ type: 'binary', operator: 'multiply', left, right }`. */
   multiply: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.MULTIPLY, left, right),
-  /** `left / right`. `{ type: 'BINARY', operator: 'DIVIDE', left, right }`. */
+  /** `left / right`. `{ type: 'binary', operator: 'divide', left, right }`. */
   divide: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.DIVIDE, left, right),
   /**
    * Groups by each distinct value of a field, or of a computed expression.
-   * `{ type: 'TERMS', field, alias, missingKey? }`, or
-   * `{ type: 'TERMS', expression, alias }`.
+   * `{ type: 'terms', field, alias, missingKey? }`, or
+   * `{ type: 'terms', expression, alias }`.
    *
    * @param input - The field to group by, or an expression in its place
    *   (Wow 9.2 and later, an expensive computation).
@@ -306,7 +306,7 @@ export const aggregation = {
     ) {
       throw new TypeError('terms missingKey must not be blank.');
     }
-    const source = groupInput(input, 'TERMS');
+    const source = groupInput(input, 'terms');
     if (missingKey !== undefined && source.expression) {
       throw new TypeError('terms missingKey requires a field input.');
     }
@@ -314,13 +314,13 @@ export const aggregation = {
       type: AggregationGroupType.TERMS,
       ...(missingKey === undefined ? {} : { missingKey }),
       ...source,
-      ...groupScope(scope, 'TERMS', source),
+      ...groupScope(scope, 'terms', source),
       alias: aggregationAlias(alias),
     };
   },
   /**
    * Groups a number field, or a computed expression, into buckets of equal
-   * width. `{ type: 'HISTOGRAM', field | expression, interval, alias }`.
+   * width. `{ type: 'histogram', field | expression, interval, alias }`.
    *
    * @param input - The number field to bucket, or an expression in its
    *   place (Wow 9.2 and later, an expensive computation).
@@ -346,18 +346,18 @@ export const aggregation = {
         'histogram interval must be finite and greater than 0.',
       );
     }
-    const source = groupInput(input, 'HISTOGRAM');
+    const source = groupInput(input, 'histogram');
     return {
       type: AggregationGroupType.HISTOGRAM,
       ...source,
-      ...groupScope(scope, 'HISTOGRAM', source),
+      ...groupScope(scope, 'histogram', source),
       interval,
       alias: aggregationAlias(alias),
     };
   },
   /**
    * Groups a time field into calendar buckets.
-   * `{ type: 'DATE_HISTOGRAM', field, unit, alias, timeZone, dense? }`.
+   * `{ type: 'date-histogram', field, unit, alias, timeZone, dense? }`.
    *
    * @param field - The time field (epoch milliseconds) to bucket.
    * @param alias - The name of the bucket column in the result rows.
@@ -397,7 +397,7 @@ export const aggregation = {
       type: AggregationGroupType.DATE_HISTOGRAM,
       ...(dense === undefined ? {} : { dense }),
       field: aggregationField(field),
-      ...groupScope(scope, 'DATE_HISTOGRAM', {}),
+      ...groupScope(scope, 'date-histogram', {}),
       unit,
       alias: aggregationAlias(alias),
       timeZone,
@@ -406,7 +406,7 @@ export const aggregation = {
   /**
    * Groups a time field by one calendar part of each instant, such as the
    * weekday or the hour, so records from different days share a bucket.
-   * `{ type: 'DATE_PART', field, part, alias, timeZone, dense? }`.
+   * `{ type: 'date-part', field, part, alias, timeZone, dense? }`.
    *
    * The group's keys in the result rows are integers: `DAY_OF_WEEK` is the
    * ISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;
@@ -454,7 +454,7 @@ export const aggregation = {
       type: AggregationGroupType.DATE_PART,
       ...(dense === undefined ? {} : { dense }),
       field: aggregationField(field),
-      ...groupScope(scope, 'DATE_PART', {}),
+      ...groupScope(scope, 'date-part', {}),
       part,
       alias: aggregationAlias(alias),
       timeZone,
@@ -462,7 +462,7 @@ export const aggregation = {
   },
   /**
    * Any one value of a field within each group, of any type.
-   * `{ type: 'ANY', field, alias, filter? }`.
+   * `{ type: 'any', field, alias, filter? }`.
    *
    * @throws TypeError when `field` or `alias` is invalid.
    * @example
@@ -484,7 +484,7 @@ export const aggregation = {
   },
   /**
    * The value of `field` on each group's earliest record by `orderBy`.
-   * `{ type: 'FIRST', field, alias, orderBy?, filter? }`.
+   * `{ type: 'first', field, alias, orderBy?, filter? }`.
    *
    * The value comes back in the field's own type, or `null` when no record
    * of the group has both a value and an `orderBy` position. Without
@@ -507,7 +507,7 @@ export const aggregation = {
   },
   /**
    * The value of `field` on each group's latest record by `orderBy`.
-   * `{ type: 'LAST', field, alias, orderBy?, filter? }`. As
+   * `{ type: 'last', field, alias, orderBy?, filter? }`. As
    * {@link aggregation.first}, from the other end.
    *
    * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
@@ -524,7 +524,7 @@ export const aggregation = {
     return edge(AggregationMetricType.LAST, field, alias, options);
   },
   /**
-   * The number of rows in each group. `{ type: 'COUNT', alias, filter? }`.
+   * The number of rows in each group. `{ type: 'count', alias, filter? }`.
    *
    * @param alias - The name of the metric column in the result rows.
    * @param options.filter - Counts only the rows that match.
@@ -545,7 +545,7 @@ export const aggregation = {
     };
   },
   /**
-   * The sum of an expression. `{ type: 'NUMERIC', function: 'SUM',
+   * The sum of an expression. `{ type: 'numeric', function: 'sum',
    * expression, alias, filter? }`.
    *
    * @example
@@ -590,7 +590,7 @@ export const aggregation = {
   ) => numeric(AggregationFunction.VARIANCE, expression, alias, options),
   /**
    * The number of distinct values of an expression.
-   * `{ type: 'DISTINCT_COUNT', expression, alias, filter? }`.
+   * `{ type: 'distinct-count', expression, alias, filter? }`.
    *
    * @example
    * ```typescript
@@ -611,7 +611,7 @@ export const aggregation = {
   },
   /**
    * A percentile of an expression.
-   * `{ type: 'PERCENTILE', expression, percentile, alias, filter? }`.
+   * `{ type: 'percentile', expression, percentile, alias, filter? }`.
    *
    * @param options.percentile - Which percentile, within (0, 100).
    * @throws TypeError when `percentile` is not finite and within (0, 100), or
@@ -639,7 +639,7 @@ export const aggregation = {
   },
   /**
    * A metric computed from other metrics of the same row, by their aliases.
-   * `{ type: 'DERIVED', expression, alias }`. `aggregation.query()` checks
+   * `{ type: 'derived', expression, alias }`. `aggregation.query()` checks
    * that it refers only to metrics declared before it.
    *
    * @param expression - The arithmetic: a callback that builds it from the

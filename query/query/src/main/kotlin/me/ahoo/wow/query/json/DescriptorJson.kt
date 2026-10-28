@@ -39,13 +39,13 @@ import tools.jackson.databind.module.SimpleModule
 
 /** The semantic types under their `type` names. */
 internal val semanticSubtypes: List<NamedType> = listOf(
-    NamedType(Temporal.Date::class.java, "TEMPORAL_DATE"),
-    NamedType(Temporal.Epoch::class.java, "TEMPORAL_EPOCH"),
-    NamedType(Temporal.Formatted::class.java, "TEMPORAL_FORMATTED"),
-    NamedType(NumericFormat.Decimal::class.java, "DECIMAL"),
-    NamedType(NumericFormat.Money::class.java, "MONEY"),
-    NamedType(TimeSpan::class.java, "DURATION"),
-    NamedType(Reference::class.java, "REFERENCE"),
+    NamedType(Temporal.Date::class.java, "temporal-date"),
+    NamedType(Temporal.Epoch::class.java, "temporal-epoch"),
+    NamedType(Temporal.Formatted::class.java, "temporal-formatted"),
+    NamedType(NumericFormat.Decimal::class.java, "decimal"),
+    NamedType(NumericFormat.Money::class.java, "money"),
+    NamedType(TimeSpan::class.java, "duration"),
+    NamedType(Reference::class.java, "reference"),
 )
 
 internal fun SimpleModule.registerDescriptorJson() {

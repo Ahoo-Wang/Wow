@@ -16,7 +16,8 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-private val QUERY_SCHEMA_IDENTIFIER_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
+/** A model or a value type is spelled as Wow spells its wire values: lower-kebab, a custom one alike. */
+private val QUERY_SCHEMA_IDENTIFIER_PATTERN = Regex("[a-z][a-z0-9]*(-[a-z0-9]+)*")
 
 private fun requireQuerySchemaIdentifier(value: String) {
     require(QUERY_SCHEMA_IDENTIFIER_PATTERN.matches(value)) { "Query schema identifier is invalid: [$value]." }
@@ -37,16 +38,16 @@ class QueryModel @InternalWowApi constructor(
 
     companion object {
         /** The snapshots of an aggregate type, one record per aggregate. */
-        val SNAPSHOT = QueryModel("SNAPSHOT")
+        val SNAPSHOT = QueryModel("snapshot")
 
         /** A declared dataset: a table-like record set named within a bounded context, such as a BI wide table. */
-        val DATASET = QueryModel("DATASET")
+        val DATASET = QueryModel("dataset")
 
         /**
          * The event streams of an aggregate type: one record per stream, the commit of one command at
          * one version, its events under `events`.
          */
-        val EVENTS = QueryModel("EVENTS")
+        val EVENTS = QueryModel("events")
 
         @JvmStatic
         fun from(value: String): QueryModel = QueryModel(value)
@@ -91,11 +92,11 @@ class QueryValueType @InternalWowApi constructor(
     override fun toString(): String = value
 
     companion object {
-        val STRING = QueryValueType("STRING")
-        val INTEGER = QueryValueType("INTEGER")
-        val DECIMAL = QueryValueType("DECIMAL")
-        val BOOLEAN = QueryValueType("BOOLEAN")
-        val OBJECT = QueryValueType("OBJECT")
+        val STRING = QueryValueType("string")
+        val INTEGER = QueryValueType("integer")
+        val DECIMAL = QueryValueType("decimal")
+        val BOOLEAN = QueryValueType("boolean")
+        val OBJECT = QueryValueType("object")
 
         @JvmStatic
         fun from(value: String): QueryValueType = QueryValueType(value)

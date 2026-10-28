@@ -163,9 +163,9 @@ class EshopFullChainTest {
     @Test
     @Order(4)
     fun `the sales dataset should sum the revenue of the orders by status and by day`() {
-        val byStatus = """{"kind":"aggregate","filter":{"op":"IN","field":"aggregate_id","values":["alice-1","bob-1"]},""" +
-            """"groupBy":[{"type":"TERMS","field":"status","alias":"status"}],""" +
-            """"metrics":[{"type":"COUNT","alias":"orders"},$REVENUE],"sort":[{"field":"status","direction":"ASC"}]}"""
+        val byStatus = """{"kind":"aggregate","filter":{"op":"in","field":"aggregate_id","values":["alice-1","bob-1"]},""" +
+            """"groupBy":[{"type":"terms","field":"status","alias":"status"}],""" +
+            """"metrics":[{"type":"count","alias":"orders"},$REVENUE],"sort":[{"field":"status","direction":"asc"}]}"""
         // The Sink writes behind the commits: wait until both orders are in their last state.
         val rows = awaitSales(byStatus) { rows -> rows.map { it["status"].asString() } == listOf("CANCELLED", "SHIPPED") }
         rows.map { Triple(it["status"].asString(), it["orders"].asLong(), it["revenue"].decimalValue().stripTrailingZeros()) }
@@ -174,8 +174,8 @@ class EshopFullChainTest {
                 Triple("SHIPPED", 1L, "29".toBigDecimal()),
             )
 
-        val byDay = """{"kind":"aggregate","filter":{"op":"EQ","field":"status","value":"SHIPPED"},""" +
-            """"groupBy":[{"type":"DATE_HISTOGRAM","field":"commit_time","alias":"day","unit":"DAY"}],""" +
+        val byDay = """{"kind":"aggregate","filter":{"op":"eq","field":"status","value":"SHIPPED"},""" +
+            """"groupBy":[{"type":"date-histogram","field":"commit_time","alias":"day","unit":"day"}],""" +
             """"metrics":[$REVENUE]}"""
         val days = sales(byDay)
         days.assert().describedAs(days.toString()).hasSize(1)
@@ -370,7 +370,7 @@ class EshopFullChainTest {
         const val WAIT = "Wow-Wait"
         const val WAIT_TIMEOUT = "Wow-Wait-Timeout"
         const val SALES = "/wow/dataset/eshop-ordering/sales/query"
-        const val REVENUE = """{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"totalAmount"},"alias":"revenue"}"""
+        const val REVENUE = """{"type":"numeric","function":"sum","expression":{"type":"field","field":"totalAmount"},"alias":"revenue"}"""
         const val REPLACEMENT = "ordering-3"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER
         const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID

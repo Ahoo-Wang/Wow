@@ -128,8 +128,8 @@ class PostgresQueryHostTest {
         host.post("/bank/account/${ids[0]}/deposit", """{"amount":5}""").status.assert().isEqualTo(200)
         val listed = host.post(
             "/bank/account/snapshot/query",
-            """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":${ids.map { "\"$it\"" }}},
-               "sort":[{"field":"state.owner","direction":"ASC"}]}""",
+            """{"kind":"list","filter":{"op":"in","field":"aggregateId","values":${ids.map { "\"$it\"" }}},
+               "sort":[{"field":"state.owner","direction":"asc"}]}""",
         )
         listed.status.assert().isEqualTo(200)
         listed.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("ola", "pia")
@@ -137,7 +137,7 @@ class PostgresQueryHostTest {
         listed.body!![1]["version"].asInt().assert().isEqualTo(2)
         val counted = host.post(
             "/bank/account/snapshot/query",
-            """{"kind":"count","filter":{"op":"EQ","field":"state.owner","value":"pia"}}""",
+            """{"kind":"count","filter":{"op":"eq","field":"state.owner","value":"pia"}}""",
         )
         counted.body!!["count"].asLong().assert().isEqualTo(1)
         val described = host.get("/bank/account/snapshot/query")
@@ -151,20 +151,20 @@ class PostgresQueryHostTest {
         opened.status.assert().isEqualTo(200)
         val id = opened.body!!["ref"]["id"].asString()
         host.post("/bank/account/$id/deposit", """{"amount":7}""").status.assert().isEqualTo(200)
-        val listed = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+        val listed = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
         listed.status.assert().isEqualTo(200)
         listed.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
         // Per-event analytics expand the events; a commit's events are counted one by one.
         val expanded = host.post(
             "/bank/account/events/query",
-            """{"kind":"aggregate","filter":{"op":"ID","value":"$id"},"elements":[{"path":"events"}],""" +
-                """"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            """{"kind":"aggregate","filter":{"op":"id","value":"$id"},"elements":[{"path":"events"}],""" +
+                """"metrics":[{"type":"count","alias":"n"}]}""",
         )
         expanded.status.assert().isEqualTo(200)
         expanded.body!![0]["n"].asLong().assert().isEqualTo(
             listed.body!!.values().sumOf { it["events"].size() }.toLong(),
         )
-        val counted = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        val counted = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
         counted.body!!["count"].asLong().assert().isGreaterThanOrEqualTo(2)
         host.get("/bank/account/events/query").body!!["model"].asString().assert().isEqualTo("EVENTS")
     }

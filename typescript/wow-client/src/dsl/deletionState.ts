@@ -20,15 +20,15 @@ export enum DeletionState {
   /**
    * Active state - entity is not deleted
    */
-  ACTIVE = 'ACTIVE',
+  ACTIVE = 'active',
 
   /**
    * Deleted state - entity is deleted
    */
-  DELETED = 'DELETED',
+  DELETED = 'deleted',
 
   /**
    * All state - includes both active and deleted entities
    */
-  ALL = 'ALL',
+  ALL = 'all',
 }

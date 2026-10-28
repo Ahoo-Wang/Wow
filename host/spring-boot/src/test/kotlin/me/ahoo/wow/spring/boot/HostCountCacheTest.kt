@@ -62,7 +62,7 @@ class QueryOutcomes {
 fun Host.assertCountCache() {
     val outcomes = context.getBean(OutcomeObserver::class.java).outcomes
     fun cached() = outcomes.filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }
-    val filter = """{"op":"EQ","field":"state.owner","value":"counted"}"""
+    val filter = """{"op":"eq","field":"state.owner","value":"counted"}"""
     fun count(tenant: String = "acme"): Long {
         val counted = post("/bank/account/snapshot/query", """{"kind":"count","filter":$filter}""", tenant)
         counted.status.assert().isEqualTo(200)
@@ -125,7 +125,7 @@ class HostCountCacheTest {
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java, QueryOutcomes::class.java),
         ).use { host ->
             host.context.getBean(QueryCountCache::class.java).options.pagedTotals.assert().isTrue()
-            val paged = """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":1,"size":1}}"""
+            val paged = """{"kind":"paged","filter":{"op":"match-all"},"pagination":{"index":1,"size":1}}"""
             repeat(2) { host.post("/bank/account/snapshot/query", paged).status.assert().isEqualTo(200) }
             host.context.getBean(OutcomeObserver::class.java).outcomes
                 .filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }.assert().containsExactly("PAGED:cached")
@@ -149,7 +149,7 @@ class HostCountCacheTest {
         ).use { host ->
             host.context.getBeanNamesForType(QueryCountCache::class.java).assert().isEmpty()
             repeat(2) {
-                host.post("/bank/account/snapshot/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+                host.post("/bank/account/snapshot/query", """{"kind":"count","filter":{"op":"match-all"}}""")
                     .status.assert().isEqualTo(200)
             }
             host.context.getBean(OutcomeObserver::class.java).outcomes.assert().isEmpty()
@@ -169,7 +169,7 @@ class HostCountCacheTest {
                 ),
             ).use { host ->
                 repeat(2) {
-                    host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+                    host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
                         .status.assert().isEqualTo(200)
                 }
                 val cached = host.context.getBean(OutcomeObserver::class.java).outcomes

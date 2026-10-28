@@ -22,16 +22,16 @@ import type { FieldSort, SortDirection } from '../sort.js';
 /** The kind of an {@link AggregationGroup}, sent as its `type`. */
 export enum AggregationGroupType {
   /** One group per distinct value; {@link aggregation.terms}. */
-  TERMS = 'TERMS',
+  TERMS = 'terms',
   /** Number buckets of equal width; {@link aggregation.histogram}. */
-  HISTOGRAM = 'HISTOGRAM',
+  HISTOGRAM = 'histogram',
   /** Calendar buckets of a time field; {@link aggregation.dateHistogram}. */
-  DATE_HISTOGRAM = 'DATE_HISTOGRAM',
+  DATE_HISTOGRAM = 'date-histogram',
   /**
    * One calendar part of a time field, such as the weekday or the hour;
    * {@link aggregation.datePart}. Wow 9.2 and later.
    */
-  DATE_PART = 'DATE_PART',
+  DATE_PART = 'date-part',
 }
 
 /**
@@ -40,9 +40,9 @@ export enum AggregationGroupType {
  */
 export enum AggregationGroupScope {
   /** The innermost expanded element; the default. */
-  ELEMENT = 'ELEMENT',
+  ELEMENT = 'element',
   /** The root record, so the elements are grouped by a field of their root. */
-  ROOT = 'ROOT',
+  ROOT = 'root',
 }
 
 /**
@@ -52,54 +52,54 @@ export enum AggregationGroupScope {
  */
 export enum AggregationMetricType {
   /** The number of rows; {@link aggregation.count}. */
-  COUNT = 'COUNT',
+  COUNT = 'count',
   /**
    * An {@link AggregationFunction} of an expression; {@link aggregation.sum}
    * and its siblings.
    */
-  NUMERIC = 'NUMERIC',
+  NUMERIC = 'numeric',
   /** Any one value of a field; {@link aggregation.any}. Wow 9.0 and later. */
-  ANY = 'ANY',
+  ANY = 'any',
   /**
    * The number of distinct values; {@link aggregation.distinctCount}. Wow 9.1
    * and later.
    */
-  DISTINCT_COUNT = 'DISTINCT_COUNT',
+  DISTINCT_COUNT = 'distinct-count',
   /**
    * A percentile of an expression; {@link aggregation.percentile}. Wow 9.1
    * and later.
    */
-  PERCENTILE = 'PERCENTILE',
+  PERCENTILE = 'percentile',
   /**
    * Arithmetic over other metrics; {@link aggregation.derived}. Wow 9.1 and
    * later.
    */
-  DERIVED = 'DERIVED',
+  DERIVED = 'derived',
   /**
    * A field's value on the group's earliest record; {@link aggregation.first}.
    * Wow 9.2 and later.
    */
-  FIRST = 'FIRST',
+  FIRST = 'first',
   /**
    * A field's value on the group's latest record; {@link aggregation.last}.
    * Wow 9.2 and later.
    */
-  LAST = 'LAST',
+  LAST = 'last',
 }
 
 /** The kind of an {@link AggregationExpression} node, sent as its `type`. */
 export enum AggregationExpressionType {
   /** The value of a field; {@link aggregation.field}. */
-  FIELD = 'FIELD',
+  FIELD = 'field',
   /** A number; {@link aggregation.constant}. */
-  CONSTANT = 'CONSTANT',
+  CONSTANT = 'constant',
   /** Two operands and an {@link AggregationExpressionOperator}. */
-  BINARY = 'BINARY',
+  BINARY = 'binary',
   /**
    * The time elapsed between two time fields; {@link aggregation.dateDiff}.
    * Wow 9.2 and later.
    */
-  DATE_DIFF = 'DATE_DIFF',
+  DATE_DIFF = 'date-diff',
 }
 
 /**
@@ -108,10 +108,10 @@ export enum AggregationExpressionType {
  * a calendar and a time zone, are not offered.
  */
 export enum DateDiffUnit {
-  SECOND = 'SECOND',
-  MINUTE = 'MINUTE',
-  HOUR = 'HOUR',
-  DAY = 'DAY',
+  SECOND = 'second',
+  MINUTE = 'minute',
+  HOUR = 'hour',
+  DAY = 'day',
 }
 
 /**
@@ -120,13 +120,13 @@ export enum DateDiffUnit {
  */
 export enum AggregationExpressionOperator {
   /** `left + right` */
-  ADD = 'ADD',
+  ADD = 'add',
   /** `left - right` */
-  SUBTRACT = 'SUBTRACT',
+  SUBTRACT = 'subtract',
   /** `left * right` */
-  MULTIPLY = 'MULTIPLY',
+  MULTIPLY = 'multiply',
   /** `left / right` */
-  DIVIDE = 'DIVIDE',
+  DIVIDE = 'divide',
 }
 
 /**
@@ -134,14 +134,14 @@ export enum AggregationExpressionOperator {
  * `timeZone`.
  */
 export enum AggregationDateUnit {
-  YEAR = 'YEAR',
-  QUARTER = 'QUARTER',
-  MONTH = 'MONTH',
-  WEEK = 'WEEK',
-  DAY = 'DAY',
-  HOUR = 'HOUR',
-  MINUTE = 'MINUTE',
-  SECOND = 'SECOND',
+  YEAR = 'year',
+  QUARTER = 'quarter',
+  MONTH = 'month',
+  WEEK = 'week',
+  DAY = 'day',
+  HOUR = 'hour',
+  MINUTE = 'minute',
+  SECOND = 'second',
 }
 
 /**
@@ -151,16 +151,16 @@ export enum AggregationDateUnit {
  */
 export enum AggregationDatePart {
   /** The ISO weekday: 1 is Monday, 7 is Sunday. */
-  DAY_OF_WEEK = 'DAY_OF_WEEK',
+  DAY_OF_WEEK = 'day-of-week',
   /**
    * The day of the month, 1 to 31; days 29 to 31 exist only in the months
    * that have them.
    */
-  DAY_OF_MONTH = 'DAY_OF_MONTH',
+  DAY_OF_MONTH = 'day-of-month',
   /** The hour on the wall clock of the group's `timeZone`, 0 to 23. */
-  HOUR_OF_DAY = 'HOUR_OF_DAY',
+  HOUR_OF_DAY = 'hour-of-day',
   /** The month of the year, 1 (January) to 12. */
-  MONTH_OF_YEAR = 'MONTH_OF_YEAR',
+  MONTH_OF_YEAR = 'month-of-year',
 }
 
 /**
@@ -169,17 +169,17 @@ export enum AggregationDatePart {
  */
 export enum AggregationFunction {
   /** The sum */
-  SUM = 'SUM',
+  SUM = 'sum',
   /** The average */
-  AVG = 'AVG',
+  AVG = 'avg',
   /** The least value */
-  MIN = 'MIN',
+  MIN = 'min',
   /** The greatest value */
-  MAX = 'MAX',
+  MAX = 'max',
   /** The standard deviation */
-  STDDEV = 'STDDEV',
+  STDDEV = 'stddev',
   /** The variance */
-  VARIANCE = 'VARIANCE',
+  VARIANCE = 'variance',
 }
 
 /**
@@ -480,19 +480,19 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 /** The kind of a {@link DerivedExpression} node, sent as its `type`. */
 export enum DerivedExpressionType {
   /** The value of another metric of the row, by its alias. */
-  METRIC_REF = 'METRIC_REF',
+  METRIC_REF = 'metric-ref',
   /** A number. */
-  CONSTANT = 'CONSTANT',
+  CONSTANT = 'constant',
   /** Two operands and an {@link AggregationExpressionOperator}. */
-  BINARY = 'BINARY',
+  BINARY = 'binary',
   /** A window: the metric summed over a partition of the groups. */
-  TOTAL = 'TOTAL',
+  TOTAL = 'total',
   /** A window: the metric accumulated along an order, or its moving average. */
-  RUNNING = 'RUNNING',
+  RUNNING = 'running',
   /** A window: the metric of an earlier period along a date group. */
-  PREVIOUS = 'PREVIOUS',
+  PREVIOUS = 'previous',
   /** A window: the dense rank of the metric within a partition. */
-  RANK = 'RANK',
+  RANK = 'rank',
 }
 
 /**
@@ -500,16 +500,16 @@ export enum DerivedExpressionType {
  * `analysis.windows` of its descriptor.
  */
 export enum WindowFunction {
-  TOTAL = 'TOTAL',
-  RUNNING = 'RUNNING',
-  PREVIOUS = 'PREVIOUS',
-  RANK = 'RANK',
+  TOTAL = 'total',
+  RUNNING = 'running',
+  PREVIOUS = 'previous',
+  RANK = 'rank',
 }
 
 /** What a `RUNNING` window computes over its frame. */
 export enum RunningFunction {
-  SUM = 'SUM',
-  AVG = 'AVG',
+  SUM = 'sum',
+  AVG = 'avg',
 }
 
 /**
@@ -587,36 +587,36 @@ export interface DerivedAggregationMetric {
 /** The kind of a {@link HavingExpression} node, sent as its `type`. */
 export enum HavingExpressionType {
   /** A metric compared with a number; `aggregation.having.eq` … `lte`. */
-  CONDITION = 'CONDITION',
+  CONDITION = 'condition',
   /** A metric within bounds, inclusive; `aggregation.having.between`. */
-  BETWEEN = 'BETWEEN',
+  BETWEEN = 'between',
   /** A metric equal to one of the numbers; `aggregation.having.isIn`. */
-  IN = 'IN',
+  IN = 'in',
   /**
    * A metric without a value, or with one when `negated`;
    * `aggregation.having.isNull`, `isNotNull`.
    */
-  IS_NULL = 'IS_NULL',
+  IS_NULL = 'is-null',
   /** All operands hold; `aggregation.having.and`. */
-  AND = 'AND',
+  AND = 'and',
   /** At least one operand holds; `aggregation.having.or`. */
-  OR = 'OR',
+  OR = 'or',
 }
 
 /** The comparison of a `CONDITION` in a {@link HavingExpression}. */
 export enum ComparisonOperator {
   /** `=` */
-  EQ = 'EQ',
+  EQ = 'eq',
   /** `≠` */
-  NE = 'NE',
+  NE = 'ne',
   /** `>` */
-  GT = 'GT',
+  GT = 'gt',
   /** `≥` */
-  GTE = 'GTE',
+  GTE = 'gte',
   /** `<` */
-  LT = 'LT',
+  LT = 'lt',
   /** `≤` */
-  LTE = 'LTE',
+  LTE = 'lte',
 }
 
 /**

@@ -53,7 +53,7 @@ export interface StreamOptions extends RequestOptions {
 }
 
 /** How a paged query counts its total (`TotalMode`). */
-export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
+export type TotalMode = 'exact' | 'bounded' | 'none';
 
 /** A paged query of a query route: a page, and how its total is counted. */
 export interface PagedQuery<

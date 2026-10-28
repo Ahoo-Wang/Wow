@@ -214,7 +214,7 @@ class PeerReadsTest {
         val root = CallHeaders.format(
             CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c")),
         )
-        val body = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+        val body = """{"kind":"list","filter":{"op":"match-all"}}"""
         fun post(path: String, headers: Map<String, String>) = routes.post().uri(path)
             .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
             .header("Content-Type", "application/json").bodyValue(body).answer()

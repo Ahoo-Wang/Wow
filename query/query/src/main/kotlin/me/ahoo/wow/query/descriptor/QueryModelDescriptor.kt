@@ -170,7 +170,7 @@ data class AnalysisSortDescriptor(val groups: Boolean, val metrics: Boolean)
 data class FieldDescriptor(
     val path: String,
     /**
-     * The system role of a system field: a system-field filter target (`SystemField`, e.g. `TENANT_ID`), or one of the
+     * The system role of a system field: a system-field filter target (`SystemField` by its wire name, e.g. `tenant-id`), or one of the
      * model's times ([EVENT_TIME], [FIRST_EVENT_TIME]); `null` for ordinary fields.
      */
     val role: String?,

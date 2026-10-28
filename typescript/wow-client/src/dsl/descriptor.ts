@@ -39,11 +39,11 @@ import type { FilterOperator, SearchMode, TimeUnit } from './filter/index.js';
  */
 export const QueryModels = Object.freeze({
   /** The snapshot query model: `{aggregate}/snapshot/*`. */
-  SNAPSHOT: 'SNAPSHOT',
+  SNAPSHOT: 'snapshot',
   /** The event stream query model: `{aggregate}/event/*`. */
-  EVENT_STREAM: 'EVENT_STREAM',
+  EVENT_STREAM: 'events',
   /** A declared dataset, such as a ClickHouse wide table: `dataset/{context}/{dataset}/*`. */
-  DATASET: 'DATASET',
+  DATASET: 'dataset',
 } as const);
 
 /** A query model's name: one of {@link QueryModels}, or one a server added. */
@@ -56,15 +56,15 @@ export type QueryModel =
  */
 export const QueryValueTypes = Object.freeze({
   /** A JSON string. */
-  STRING: 'STRING',
+  STRING: 'string',
   /** A whole number. */
-  INTEGER: 'INTEGER',
+  INTEGER: 'integer',
   /** A number with a fraction. */
-  DECIMAL: 'DECIMAL',
+  DECIMAL: 'decimal',
   /** `true` or `false`. */
-  BOOLEAN: 'BOOLEAN',
+  BOOLEAN: 'boolean',
   /** A JSON object. */
-  OBJECT: 'OBJECT',
+  OBJECT: 'object',
 } as const);
 
 /** A field's value type: one of {@link QueryValueTypes}, or one a server added. */
@@ -74,27 +74,27 @@ export type QueryValueType =
 /** The structural shape of a field's value, sent as its `kind`. */
 export enum QueryValueKind {
   /** Wow could not tell. */
-  UNKNOWN = 'UNKNOWN',
+  UNKNOWN = 'unknown',
   /** Always `null`. */
-  NULL = 'NULL',
+  NULL = 'null',
   /** A single string, number or boolean. */
-  SCALAR = 'SCALAR',
+  SCALAR = 'scalar',
   /** An object. */
-  OBJECT = 'OBJECT',
+  OBJECT = 'object',
   /** An array. */
-  ARRAY = 'ARRAY',
+  ARRAY = 'array',
   /** One of several of the above. */
-  UNION = 'UNION',
+  UNION = 'union',
 }
 
 /** The ways a model can be read page by page, listed in `record.paging`. */
 export enum PagingMode {
   /** `list` and `stream`: the first `limit` rows. */
-  LIST = 'LIST',
+  LIST = 'list',
   /** `paged`: numbered pages with a total. */
-  PAGED = 'PAGED',
+  PAGED = 'paged',
   /** `cursor`: forward-only pages after the last row seen. */
-  CURSOR = 'CURSOR',
+  CURSOR = 'cursor',
 }
 
 /**
@@ -104,28 +104,28 @@ export enum PagingMode {
  */
 export const QueryFieldRoles = Object.freeze({
   /** The record's own identity, `record.identity`. */
-  IDENTITY: 'IDENTITY',
+  IDENTITY: 'identity',
   /** The aggregate id. */
-  AGGREGATE_ID: 'AGGREGATE_ID',
+  AGGREGATE_ID: 'aggregate-id',
   /** The tenant id. */
-  TENANT_ID: 'TENANT_ID',
+  TENANT_ID: 'tenant-id',
   /** The owner id. */
-  OWNER_ID: 'OWNER_ID',
+  OWNER_ID: 'owner-id',
   /** The space id. */
-  SPACE_ID: 'SPACE_ID',
+  SPACE_ID: 'space-id',
   /** Whether the aggregate is deleted. */
-  DELETED: 'DELETED',
+  DELETED: 'deleted',
   /**
    * When the record's events happened: a snapshot's last event
    * (`eventTime`), an event stream's events (`createTime`). `FIRST` and
    * `LAST` order by it when they name no `orderBy`. Wow 9.2 and later.
    */
-  EVENT_TIME: 'EVENT_TIME',
+  EVENT_TIME: 'event-time',
   /**
    * When a snapshot's aggregate got its first event, i.e. was created
    * (`firstEventTime`). Wow 9.2 and later.
    */
-  FIRST_EVENT_TIME: 'FIRST_EVENT_TIME',
+  FIRST_EVENT_TIME: 'first-event-time',
 } as const);
 
 /** A system field's role: one of {@link QueryFieldRoles}, or one a server added. */
@@ -141,18 +141,18 @@ export const QueryConstraintTypes = Object.freeze({
    * A cursor's sort always ends with the identity field; the server appends
    * it (the constraint's `appended`) when the sort does not.
    */
-  CURSOR_UNIQUE_SORT: 'CURSOR_UNIQUE_SORT',
+  CURSOR_UNIQUE_SORT: 'cursor-unique-sort',
   /** A count or paged query must not match every record. */
-  COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER',
+  COUNT_REQUIRES_FILTER: 'count-requires-filter',
   /** `STARTS_WITH` needs a non-empty, case-sensitive prefix. */
-  STARTS_WITH_REQUIRES_PREFIX: 'STARTS_WITH_REQUIRES_PREFIX',
+  STARTS_WITH_REQUIRES_PREFIX: 'starts-with-requires-prefix',
   /**
    * A sort names at most one of the constraint's `fields`: they are
    * array-valued and the storage cannot order by two independent arrays.
    * Fields on one array path, one nested in the other, may still combine.
    * A sort that breaks it is refused with `PARALLEL_ARRAY_SORT`.
    */
-  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
+  PARALLEL_ARRAY_SORT: 'parallel-array-sort',
   /**
    * On the constraint's `fields`, a stored `null` or empty array cannot be
    * told from a missing field: `EXISTS` does not match it, `NOT_EXISTS` and
@@ -160,14 +160,14 @@ export const QueryConstraintTypes = Object.freeze({
    * presence filter on such a field answers "has a non-empty value", not
    * "has the key"; say so to a user who writes one.
    */
-  NULL_OR_EMPTY_AS_MISSING: 'NULL_OR_EMPTY_AS_MISSING',
+  NULL_OR_EMPTY_AS_MISSING: 'null-or-empty-as-missing',
   /**
    * Model-wide, without `fields`: `EQ` and `NE` take only a scalar operand,
    * because the storage cannot compare a whole array. Match an array
    * field's elements instead (`IN`, `CONTAINS_ALL`, `ELEMENT_MATCH`); an `EQ` or
    * `NE` with an array operand is refused with `ARRAY_EQUALITY`.
    */
-  ARRAY_EQUALITY: 'ARRAY_EQUALITY',
+  ARRAY_EQUALITY: 'array-equality',
 } as const);
 
 /** A constraint's type: one of {@link QueryConstraintTypes}, or one a server added. */
@@ -182,19 +182,19 @@ export type QueryConstraintType =
  */
 export const QuerySemanticTypes = Object.freeze({
   /** A calendar date: {@link TemporalDate}. */
-  TEMPORAL_DATE: 'TEMPORAL_DATE',
+  TEMPORAL_DATE: 'temporal-date',
   /** A number of time units since the epoch: {@link TemporalEpoch}. */
-  TEMPORAL_EPOCH: 'TEMPORAL_EPOCH',
+  TEMPORAL_EPOCH: 'temporal-epoch',
   /** A time written as text in a pattern: {@link TemporalFormatted}. */
-  TEMPORAL_FORMATTED: 'TEMPORAL_FORMATTED',
+  TEMPORAL_FORMATTED: 'temporal-formatted',
   /** A fixed-point decimal: {@link NumericDecimal}. */
-  DECIMAL: 'DECIMAL',
+  DECIMAL: 'decimal',
   /** An amount of money: {@link NumericMoney}. */
-  MONEY: 'MONEY',
+  MONEY: 'money',
   /** A length of time: {@link DurationSemantic}. */
-  DURATION: 'DURATION',
+  DURATION: 'duration',
   /** The id of an aggregate: {@link ReferenceSemantic}. */
-  REFERENCE: 'REFERENCE',
+  REFERENCE: 'reference',
 } as const);
 
 /** A field that holds a calendar date. */
@@ -346,12 +346,12 @@ export enum SensitivityLevel {
    * unless the server turned that off; grouping, `ANY`, field metrics,
    * arithmetic references and cursor sorts are refused.
    */
-  DISPLAY = 'DISPLAY',
+  DISPLAY = 'display',
   /**
    * Masked in results and never compared: no filter, sort, search, grouping
    * or metric may name it.
    */
-  CONFIDENTIAL = 'CONFIDENTIAL',
+  CONFIDENTIAL = 'confidential',
 }
 
 /**
@@ -659,7 +659,7 @@ export interface AnalysisDescriptor {
   windows?: WindowFunction[];
   /**
    * Whether a group of a query that expands elements may name a field of the
-   * root record (`scope: 'ROOT'`); `false` when expensive operators are off.
+   * root record (`scope: 'root'`); `false` when expensive operators are off.
    * Absent from servers before Wow 9.9, which group elements by element
    * fields only.
    */

@@ -113,9 +113,9 @@ class QueryModelDescriptorJsonTest {
             val json = QueryJson.mapper.writeValueAsString(semantic)
             QueryJson.mapper.readValue(json, QuerySemanticType::class.java).assert().isEqualTo(semantic)
         }
-        QueryJson.mapper.writeValueAsString(Temporal.Date).assert().isEqualTo("""{"type":"TEMPORAL_DATE"}""")
+        QueryJson.mapper.writeValueAsString(Temporal.Date).assert().isEqualTo("""{"type":"temporal-date"}""")
         QueryJson.mapper.writeValueAsString(NumericFormat.Money(currency = "CNY", scale = 2))
-            .assert().isEqualTo("""{"type":"MONEY","currency":"CNY","scale":2}""")
+            .assert().isEqualTo("""{"type":"money","currency":"CNY","scale":2}""")
         QueryJson.mapper.readValue("""{"type":"FUTURE","x":1}""", QuerySemanticType::class.java)
             .assert().isEqualTo(QuerySemanticType.Unknown)
         QueryJson.mapper.writeValueAsString(QueryModel.SNAPSHOT).assert().isEqualTo("\"SNAPSHOT\"")

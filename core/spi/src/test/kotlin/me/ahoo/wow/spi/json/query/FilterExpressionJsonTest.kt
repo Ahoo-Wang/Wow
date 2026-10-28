@@ -14,6 +14,8 @@
 package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WireNames
+import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
@@ -82,13 +84,13 @@ class FilterExpressionJsonTest {
             dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
         )
         mapper.writeValueAsString(runtimeFilter).assert().isEqualTo(
-            """{"field":"state.createTime","zoneId":null,"datePattern":null,"timeUnit":"MILLISECONDS","op":"YESTERDAY"}""",
+            """{"field":"state.createTime","zoneId":null,"datePattern":null,"timeUnit":"MILLISECONDS","op":"yesterday"}""",
         )
     }
 
     @Test
     fun `a dateFormatter in JSON should be ignored`() {
-        read("""{"op":"TODAY","field":"state.createTime","dateFormatter":"ISO_LOCAL_DATE"}""")
+        read("""{"op":"today","field":"state.createTime","dateFormatter":"ISO_LOCAL_DATE"}""")
             .assert().isEqualTo(TodayFilter(QueryField("state.createTime")))
     }
 
@@ -105,21 +107,21 @@ class FilterExpressionJsonTest {
         val json = mapper.writeValueAsString(expression)
 
         json.assert().isEqualTo(
-            """{"operands":[{"state":"ACTIVE","op":"DELETION"},""" +
-                """{"field":"state.status","value":"PAID","op":"EQ"},""" +
-                """{"query":"wow","fields":["state.name"],"mode":"TERMS","op":"SEARCH"}],"op":"AND"}""",
+            """{"operands":[{"state":"active","op":"deletion"},""" +
+                """{"field":"state.status","value":"PAID","op":"eq"},""" +
+                """{"query":"wow","fields":["state.name"],"mode":"terms","op":"search"}],"op":"and"}""",
         )
         read(json).assert().isEqualTo(expression)
     }
 
     @Test
     fun `deletion state should be read as state`() {
-        read("""{"op":"DELETION","state":"ALL"}""").assert().isEqualTo(DeletionFilter(DeletionState.ALL))
+        read("""{"op":"deletion","state":"all"}""").assert().isEqualTo(DeletionFilter(DeletionState.ALL))
     }
 
     @Test
     fun `empty string filters should round trip without a value`() {
-        listOf("IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING").forEach { operator ->
+        listOf("is-empty-string", "is-not-empty-string").forEach { operator ->
             val decoded = read("""{"op":"$operator","field":"state.name"}""")
             mapper.writeValueAsString(decoded).assert().isEqualTo("""{"field":"state.name","op":"$operator"}""")
         }
@@ -128,26 +130,26 @@ class FilterExpressionJsonTest {
     @Test
     fun `a legacy condition should be rejected`() {
         assertThrows<IllegalArgumentException> {
-            read("""{"field":"state.status","operator":"EQ","value":"PAID"}""")
+            read("""{"field":"state.status","operator":"eq","value":"PAID"}""")
         }.message.assert().isEqualTo("Filter expression must use op.")
         assertThrows<IllegalArgumentException> {
-            read("""{"operator":"ALL","unexpected":true}""")
+            read("""{"operator":"all","unexpected":true}""")
         }
     }
 
     @Test
     fun `should reject mixed filter expression discriminators`() {
         assertThrows<IllegalArgumentException> {
-            read("""{"op":"MATCH_ALL","operator":"ALL"}""")
+            read("""{"op":"match-all","operator":"all"}""")
         }.message.assert().isEqualTo("op and operator cannot be used together.")
     }
 
     @Test
     fun `canonical filter tree should reject nested legacy condition`() {
         listOf(
-            """{"op":"AND","operands":[{"field":"state.status","operator":"EQ","value":"PAID"}]}""",
-            """{"op":"OR","operands":[{"op":"MATCH_ALL"},{"op":"NOR","operands":[{"operator":"ALL"}]}]}""",
-            """{"op":"ELEMENT_MATCH","field":"state.items","predicate":{"field":"name","operator":"EQ","value":"x"}}""",
+            """{"op":"and","operands":[{"field":"state.status","operator":"eq","value":"PAID"}]}""",
+            """{"op":"or","operands":[{"op":"match-all"},{"op":"nor","operands":[{"operator":"all"}]}]}""",
+            """{"op":"element-match","field":"state.items","predicate":{"field":"name","operator":"eq","value":"x"}}""",
         ).forEach { json ->
             assertThrows<IllegalArgumentException> { read(json) }
                 .message.assert().isEqualTo("Nested filter expression must use op.")
@@ -157,9 +159,9 @@ class FilterExpressionJsonTest {
     @Test
     fun `logical and element nodes without children should be rejected`() {
         listOf(
-            """{"op":"AND"}""",
-            """{"op":"OR","operands":[]}""",
-            """{"op":"ELEMENT_MATCH","field":"state.items"}""",
+            """{"op":"and"}""",
+            """{"op":"or","operands":[]}""",
+            """{"op":"element-match","field":"state.items"}""",
         ).forEach { json ->
             assertThrows<JacksonException> { read(json) }
         }
@@ -167,8 +169,8 @@ class FilterExpressionJsonTest {
 
     @Test
     fun `canonical filter properties should reject legacy condition JSON`() {
-        val legacy = """{"field":"state.tags","operator":"EQ","value":["a"]}"""
-        val count = """"metrics":[{"type":"COUNT","alias":"count"}]"""
+        val legacy = """{"field":"state.tags","operator":"eq","value":["a"]}"""
+        val count = """"metrics":[{"type":"count","alias":"count"}]"""
         listOf(
             """{"filter":$legacy}""" to ListQuery::class.java,
             """{"filter":$legacy}""" to PagedQuery::class.java,
@@ -183,7 +185,7 @@ class FilterExpressionJsonTest {
 
     @Test
     fun `search mode should default to terms`() {
-        val decoded = read("""{"op":"SEARCH","query":"wow","fields":["state.name"]}""") as SearchFilter
+        val decoded = read("""{"op":"search","query":"wow","fields":["state.name"]}""") as SearchFilter
 
         decoded.assert().isEqualTo(SearchFilter("wow", setOf(QueryField("state.name"))))
         decoded.mode.assert().isEqualTo(SearchMode.TERMS)
@@ -200,7 +202,7 @@ class FilterExpressionJsonTest {
         val json = mapper.writeValueAsString(phrase)
 
         json.assert().isEqualTo(
-            """{"query":"event \"sourcing\"","fields":["state.description"],"mode":"PHRASE","op":"SEARCH"}""",
+            """{"query":"event \"sourcing\"","fields":["state.description"],"mode":"phrase","op":"search"}""",
         )
         read(json).assert().isEqualTo(phrase)
     }
@@ -222,12 +224,13 @@ class FilterExpressionJsonTest {
 
     @Test
     fun `canonical equality JSON should reject array and object values`() {
-        listOf("EQ", "NE").forEach { operator ->
+        listOf(FilterOperator.EQ, FilterOperator.NE).forEach { operator ->
+            val op = WireNames.of(operator)
             assertThrows<IllegalArgumentException> {
-                read("""{"op":"$operator","field":"state.tags","value":["a","b"]}""")
+                read("""{"op":"$op","field":"state.tags","value":["a","b"]}""")
             }.message.assert().isEqualTo("$operator value must be a JSON scalar in filter payloads.")
             assertThrows<JacksonException> {
-                read("""{"op":"$operator","field":"state.tags","value":{"a":1}}""")
+                read("""{"op":"$op","field":"state.tags","value":{"a":1}}""")
             }
         }
     }
@@ -235,9 +238,9 @@ class FilterExpressionJsonTest {
     @Test
     fun `equality JSON should accept every scalar`() {
         listOf("\"PAID\"" to "PAID", "true" to true, "null" to null, "7" to 7).forEach { (json, value) ->
-            read("""{"op":"EQ","field":"state.status","value":$json}""")
+            read("""{"op":"eq","field":"state.status","value":$json}""")
                 .assert().isEqualTo(EqualFilter(QueryField("state.status"), value))
-            read("""{"op":"NE","field":"state.status","value":$json}""")
+            read("""{"op":"ne","field":"state.status","value":$json}""")
                 .assert().isEqualTo(NotEqualFilter(QueryField("state.status"), value))
         }
     }
@@ -245,14 +248,14 @@ class FilterExpressionJsonTest {
     @Test
     fun `in-process array equality and runtime values should be written as Jackson writes them`() {
         mapper.writeValueAsString(EqualFilter(QueryField("state.tags"), listOf("a", "b")))
-            .assert().isEqualTo("""{"field":"state.tags","value":["a","b"],"op":"EQ"}""")
+            .assert().isEqualTo("""{"field":"state.tags","value":["a","b"],"op":"eq"}""")
         mapper.writeValueAsString(NotEqualFilter(QueryField("state.deleted"), DeletionState.DELETED))
-            .assert().isEqualTo("""{"field":"state.deleted","value":"DELETED","op":"NE"}""")
+            .assert().isEqualTo("""{"field":"state.deleted","value":"deleted","op":"ne"}""")
     }
 
     @Test
     fun `numbers should read as WowJson reads them and be written unchanged`() {
-        val json = """{"op":"IN","field":"state.amount","values":[2.50,7,9007199254740993,123456789012345678901234567890]}"""
+        val json = """{"op":"in","field":"state.amount","values":[2.50,7,9007199254740993,123456789012345678901234567890]}"""
 
         val decoded = read(json) as InFilter
 
@@ -263,23 +266,23 @@ class FilterExpressionJsonTest {
             BigInteger("123456789012345678901234567890"),
         )
         mapper.writeValueAsString(decoded).assert().isEqualTo(
-            """{"field":"state.amount","values":[2.50,7,9007199254740993,123456789012345678901234567890],"op":"IN"}""",
+            """{"field":"state.amount","values":[2.50,7,9007199254740993,123456789012345678901234567890],"op":"in"}""",
         )
     }
 
     @Test
     fun `non scalar values should read as plain trees the filters reject`() {
         listOf(
-            """{"op":"GT","field":"state.version","value":{"a":1}}""",
-            """{"op":"GT","field":"state.version","value":[1]}""",
-            """{"op":"GT","field":"state.version","value":null}""",
-            """{"op":"IN","field":"state.status","values":[{"a":1}]}""",
-            """{"op":"IN","field":"state.status","values":[[1]]}""",
-            """{"op":"BETWEEN","field":"state.version","lowerBound":{},"upperBound":1}""",
+            """{"op":"gt","field":"state.version","value":{"a":1}}""",
+            """{"op":"gt","field":"state.version","value":[1]}""",
+            """{"op":"gt","field":"state.version","value":null}""",
+            """{"op":"in","field":"state.status","values":[{"a":1}]}""",
+            """{"op":"in","field":"state.status","values":[[1]]}""",
+            """{"op":"between","field":"state.version","lowerBound":{},"upperBound":1}""",
         ).forEach { json ->
             assertThrows<JacksonException> { read(json) }
         }
-        read("""{"op":"GT","field":"state.version","value":1}""")
+        read("""{"op":"gt","field":"state.version","value":1}""")
             .assert().isEqualTo(GreaterThanFilter(QueryField("state.version"), 1))
     }
 
@@ -306,7 +309,7 @@ class FilterExpressionJsonTest {
 
     @Test
     fun `relative-now filters round trip through JSON and default to a zero offset`() {
-        val decoded = read("""{"op":"BEFORE_NOW","field":"state.timeoutAt"}""")
+        val decoded = read("""{"op":"before-now","field":"state.timeoutAt"}""")
         decoded.assert().isEqualTo(BeforeNowFilter(QueryField("state.timeoutAt")))
         (decoded as BeforeNowFilter).offsetDuration.assert().isEqualTo(Duration.ZERO)
         val after = AfterNowFilter(QueryField("state.timeoutAt"), "-PT30M")
@@ -318,6 +321,6 @@ class FilterExpressionJsonTest {
     @Test
     fun `query serialization should expose only filter`() {
         mapper.writeValueAsString(ListQuery(MatchAllFilter)).assert()
-            .isEqualTo("""{"filter":{"op":"MATCH_ALL"},"projection":{},"limit":null}""")
+            .isEqualTo("""{"filter":{"op":"match-all"},"projection":{},"limit":null}""")
     }
 }

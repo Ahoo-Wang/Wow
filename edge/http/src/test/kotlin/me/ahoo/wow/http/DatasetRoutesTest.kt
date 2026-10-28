@@ -176,7 +176,7 @@ class DatasetRoutesTest {
 
     @Test
     fun `a list should answer the caller's tenant and owner only`() {
-        val all = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"id","direction":"ASC"}]}"""
+        val all = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"id","direction":"asc"}]}"""
         val listed = node.query(all)
         listed.contentType.assert().isEqualTo("application/json")
         ids(listed).assert().containsExactly("s-1", "s-2", "s-5")
@@ -187,7 +187,7 @@ class DatasetRoutesTest {
         ids(node.query(all, headers = tenant)).assert().containsExactly("s-1", "s-2", "s-3", "s-5")
         ids(
             node.query(
-                """{"kind":"list","filter":{"op":"EQ","field":"tenant_id","value":"other"}}""",
+                """{"kind":"list","filter":{"op":"eq","field":"tenant_id","value":"other"}}""",
                 headers = tenant,
             ),
         ).assert().isEmpty()
@@ -196,7 +196,7 @@ class DatasetRoutesTest {
     @Test
     fun `an aggregation should group the caller's records`() {
         val answer = node.query(
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},"groupBy":[{"type":"TERMS","field":"region","alias":"region"}],"metrics":[{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"amount"},"alias":"total"},{"type":"COUNT","alias":"sales"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},"groupBy":[{"type":"terms","field":"region","alias":"region"}],"metrics":[{"type":"numeric","function":"sum","expression":{"type":"field","field":"amount"},"alias":"total"},{"type":"count","alias":"sales"}]}""",
         )
         answer.status.assert().isEqualTo(200)
         val groups = answer.body!!.values().associate {
@@ -208,22 +208,22 @@ class DatasetRoutesTest {
     @Test
     fun `paged, cursor, count and single should answer their shapes`() {
         val paged = node.query(
-            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"sort":[{"field":"amount","direction":"DESC"}],"pagination":{"index":1,"size":2}}""",
+            """{"kind":"paged","filter":{"op":"match-all"},"sort":[{"field":"amount","direction":"desc"}],"pagination":{"index":1,"size":2}}""",
         )
         ids(paged).assert().containsExactly("s-1", "s-2")
         paged.body!!["total"].asLong().assert().isEqualTo(3)
         val cursor = node.query(
-            """{"kind":"cursor","filter":{"op":"MATCH_ALL"},"sort":[{"field":"id","direction":"ASC"}],"size":2}""",
+            """{"kind":"cursor","filter":{"op":"match-all"},"sort":[{"field":"id","direction":"asc"}],"size":2}""",
         )
         ids(cursor).assert().containsExactly("s-1", "s-2")
         cursor.body!!["nextCursor"].isString.assert().isTrue()
-        val count = node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        val count = node.query("""{"kind":"count","filter":{"op":"match-all"}}""")
         count.body!!["count"].asLong().assert().isEqualTo(3)
         count.body!!["exact"].asBoolean().assert().isTrue()
-        node.query("""{"kind":"single","filter":{"op":"ID","value":"s-2"}}""").body!!["region"].asString()
+        node.query("""{"kind":"single","filter":{"op":"id","value":"s-2"}}""").body!!["region"].asString()
             .assert().isEqualTo("west")
         // Another owner's record is not found.
-        node.query("""{"kind":"single","filter":{"op":"ID","value":"s-3"}}""")
+        node.query("""{"kind":"single","filter":{"op":"id","value":"s-3"}}""")
             .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
     }
 
@@ -269,21 +269,21 @@ class DatasetRoutesTest {
     @Test
     fun `a dataset the node does not serve, or the caller does not see, should be a 404`() {
         val notFound = FrameworkErrors.QUERY_DATASET_NOT_FOUND
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = "/wow/dataset/shop/none/query")
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", path = "/wow/dataset/shop/none/query")
             .assertQueryProblem(404, notFound)
         node.get("/wow/dataset/shop/none/query", "alice").assertQueryProblem(404, notFound)
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = REGIONS).assertQueryProblem(404, notFound)
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", path = REGIONS).assertQueryProblem(404, notFound)
         node.get(REGIONS, "alice").assertQueryProblem(404, notFound)
         // A path whose context or name is no aggregate type's names no dataset either.
         node.get("/wow/dataset/shop/-/query", "alice").assertQueryProblem(404, notFound)
         val platform = mapOf(WowHeaders.SCOPE to "tenant=\"(0)\"", "X-Admin" to "yes")
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = REGIONS, headers = platform)
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", path = REGIONS, headers = platform)
             .body!!["count"].asLong().assert().isEqualTo(1)
     }
 
     @Test
     fun `a dataset that joins, changes or leaves should be served as it is then`() {
-        val count = """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""
+        val count = """{"kind":"count","filter":{"op":"match-all"}}"""
         val more = AggregateType(CONTEXT, "more")
         val path = "/wow/dataset/shop/more/query"
         val tenant = mapOf(WowHeaders.SCOPE to "tenant=\"acme\"", "X-Admin" to "yes")
@@ -317,16 +317,16 @@ class DatasetRoutesTest {
             .header("X-User", "alice")
             .header("Content-Type", "application/json")
             .accept(MediaType.TEXT_EVENT_STREAM)
-            .bodyValue("""{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"id","direction":"ASC"}]}""")
+            .bodyValue("""{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"id","direction":"asc"}]}""")
             .exchange()
             .expectBody(String::class.java)
             .returnResult()
         result.responseHeaders.contentType.toString().assert().startsWith("text/event-stream")
         result.responseBody.orEmpty().split("\n\n").count { it.contains("event:row") }.assert().isEqualTo(3)
-        node.query("""{"filter":{"op":"MATCH_ALL"}}""").assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
-        node.query("""{"kind":"list","filter":{"op":"EQ","field":"missing","value":1}}""")
+        node.query("""{"filter":{"op":"match-all"}}""").assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+        node.query("""{"kind":"list","filter":{"op":"eq","field":"missing","value":1}}""")
             .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", user = null).status.assert().isEqualTo(401)
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", user = null).status.assert().isEqualTo(401)
         node.get(SALES, null).status.assert().isEqualTo(401)
     }
 
@@ -336,7 +336,7 @@ class DatasetRoutesTest {
         val visibility = DatasetVisibility.of(abac)
         val strict = datasetNode(QueryDatasets(listOf(salesDataset())), visibility, abac)
         strict.get("/wow/dataset", "alice").body!!.values().assert().isEmpty()
-        strict.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""").status.assert().isEqualTo(404)
+        strict.query("""{"kind":"count","filter":{"op":"match-all"}}""").status.assert().isEqualTo(404)
         val tagged = QueryCaller(
             Caller(tenantId = TENANT, attributes = mapOf("abac.region" to listOf("east"))),
             entry = QueryEntry.HTTP,

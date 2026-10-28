@@ -85,7 +85,7 @@ class StateVisibilityRoutesTest {
         cart("c-two", 2)
         val tenantLevel = mapOf("X-Tenant-Level" to "true")
         fun events(id: String, user: String) = node.query(
-            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
             user,
             QueryRoutes.EVENTS,
             tenantLevel,
@@ -103,7 +103,7 @@ class StateVisibilityRoutesTest {
                 .status.assert().isEqualTo(200)
         }
         fun events(id: String, user: String) = node.query(
-            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
             user,
             QueryRoutes.EVENTS,
             tenantLevel,
@@ -127,7 +127,7 @@ class StateVisibilityRoutesTest {
         cart("c-two", 2, unqueried)
         val tenantLevel = mapOf("X-Tenant-Level" to "true")
         fun events(id: String, user: String) = unqueried.query(
-            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
             user,
             QueryRoutes.EVENTS,
             tenantLevel,
@@ -138,7 +138,7 @@ class StateVisibilityRoutesTest {
         events("c-one", "alice").body!!.size().assert().isEqualTo(1)
         events("c-two", "alice").body!!.size().assert().isEqualTo(0)
         events("c-two", "admin").body!!.size().assert().isEqualTo(1)
-        unqueried.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", "admin", headers = tenantLevel)
+        unqueried.query("""{"kind":"list","filter":{"op":"match-all"}}""", "admin", headers = tenantLevel)
             .status.assert().isEqualTo(404)
     }
 }

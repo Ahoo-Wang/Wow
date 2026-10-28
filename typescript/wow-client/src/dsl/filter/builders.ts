@@ -297,7 +297,7 @@ export const filter = {
   /**
    * Matches every record in the query scope.
    *
-   * @returns `{ op: 'MATCH_ALL' }`.
+   * @returns `{ op: 'match-all' }`.
    * @example
    * ```typescript
    * filter.matchAll();
@@ -309,7 +309,7 @@ export const filter = {
   /**
    * Matches no record.
    *
-   * @returns `{ op: 'MATCH_NONE' }`.
+   * @returns `{ op: 'match-none' }`.
    * @example
    * ```typescript
    * filter.matchNone();
@@ -323,7 +323,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param value - The record ID.
-   * @returns `{ op: 'ID', value }`.
+   * @returns `{ op: 'id', value }`.
    * @throws TypeError If `value` is not a string.
    * @example
    * ```typescript
@@ -338,7 +338,7 @@ export const filter = {
    * allowed inside `elementMatch`.
    *
    * @param values - Non-empty list of record IDs.
-   * @returns `{ op: 'IDS', values }` with a copy of `values`.
+   * @returns `{ op: 'ids', values }` with a copy of `values`.
    * @throws TypeError If `values` is empty, contains `null` or `undefined`,
    *   or contains a non-string.
    * @example
@@ -354,7 +354,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param value - The aggregate ID.
-   * @returns `{ op: 'AGGREGATE_ID', value }`.
+   * @returns `{ op: 'aggregate-id', value }`.
    * @throws TypeError If `value` is not a string.
    * @example
    * ```typescript
@@ -369,7 +369,7 @@ export const filter = {
    * allowed inside `elementMatch`.
    *
    * @param values - Non-empty list of aggregate IDs.
-   * @returns `{ op: 'AGGREGATE_IDS', values }` with a copy of `values`.
+   * @returns `{ op: 'aggregate-ids', values }` with a copy of `values`.
    * @throws TypeError If `values` is empty, contains `null` or `undefined`,
    *   or contains a non-string.
    * @example
@@ -385,7 +385,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param value - The tenant ID.
-   * @returns `{ op: 'TENANT_ID', value }`.
+   * @returns `{ op: 'tenant-id', value }`.
    * @throws TypeError If `value` is not a string.
    * @example
    * ```typescript
@@ -400,7 +400,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param value - The owner ID.
-   * @returns `{ op: 'OWNER_ID', value }`.
+   * @returns `{ op: 'owner-id', value }`.
    * @throws TypeError If `value` is not a string.
    * @example
    * ```typescript
@@ -415,7 +415,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param value - The space ID.
-   * @returns `{ op: 'SPACE_ID', value }`.
+   * @returns `{ op: 'space-id', value }`.
    * @throws TypeError If `value` is not a string.
    * @example
    * ```typescript
@@ -431,7 +431,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param operands - Non-empty list of filter expressions.
-   * @returns `{ op: 'AND', operands }` with a copy of `operands`.
+   * @returns `{ op: 'and', operands }` with a copy of `operands`.
    * @throws TypeError If `operands` is empty or contains `null` or
    *   `undefined`.
    * @example
@@ -449,7 +449,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param operands - Non-empty list of filter expressions.
-   * @returns `{ op: 'OR', operands }` with a copy of `operands`.
+   * @returns `{ op: 'or', operands }` with a copy of `operands`.
    * @throws TypeError If `operands` is empty or contains `null` or
    *   `undefined`.
    * @example
@@ -467,7 +467,7 @@ export const filter = {
    * inside `elementMatch`.
    *
    * @param operands - Non-empty list of filter expressions.
-   * @returns `{ op: 'NOR', operands }` with a copy of `operands`.
+   * @returns `{ op: 'nor', operands }` with a copy of `operands`.
    * @throws TypeError If `operands` is empty or contains `null` or
    *   `undefined`.
    * @example
@@ -485,7 +485,7 @@ export const filter = {
    * @param field - Query field path, e.g. `state.status`.
    * @param value - JSON scalar. `null` is sent as is; the server rewrites it
    *   to `IS_NULL`.
-   * @returns `{ op: 'EQ', field, value }`.
+   * @returns `{ op: 'eq', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not
    *   `null`, a string, a boolean or a finite number.
    * @example
@@ -505,7 +505,7 @@ export const filter = {
    * @param field - Query field path, e.g. `state.status`.
    * @param value - JSON scalar. `null` is sent as is; the server rewrites it
    *   to `IS_NOT_NULL`.
-   * @returns `{ op: 'NE', field, value }`.
+   * @returns `{ op: 'ne', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not
    *   `null`, a string, a boolean or a finite number.
    * @example
@@ -525,7 +525,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param value - Non-null JSON scalar.
-   * @returns `{ op: 'GT', field, value }`.
+   * @returns `{ op: 'gt', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not a
    *   string, a boolean or a finite number.
    * @example
@@ -545,7 +545,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param value - Non-null JSON scalar.
-   * @returns `{ op: 'GTE', field, value }`.
+   * @returns `{ op: 'gte', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not a
    *   string, a boolean or a finite number.
    * @example
@@ -565,7 +565,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param value - Non-null JSON scalar.
-   * @returns `{ op: 'LT', field, value }`.
+   * @returns `{ op: 'lt', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not a
    *   string, a boolean or a finite number.
    * @example
@@ -585,7 +585,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param value - Non-null JSON scalar.
-   * @returns `{ op: 'LTE', field, value }`.
+   * @returns `{ op: 'lte', field, value }`.
    * @throws TypeError If `field` is not a valid query field path, or `value` is not a
    *   string, a boolean or a finite number.
    * @example
@@ -607,7 +607,7 @@ export const filter = {
    * @param value - Literal text.
    * @param stringComparison - Case handling. Defaults to
    *   `StringComparison.CASE_SENSITIVE`.
-   * @returns `{ op: 'CONTAINS', field, value, stringComparison }`.
+   * @returns `{ op: 'contains', field, value, stringComparison }`.
    * @throws TypeError If `stringComparison` is not a {@link StringComparison}
    *   member, `field` is not a valid query field path, or `value` is not a string.
    * @example
@@ -630,7 +630,7 @@ export const filter = {
    * @param value - Literal text.
    * @param stringComparison - Case handling. Defaults to
    *   `StringComparison.CASE_SENSITIVE`.
-   * @returns `{ op: 'STARTS_WITH', field, value, stringComparison }`.
+   * @returns `{ op: 'starts-with', field, value, stringComparison }`.
    * @throws TypeError If `stringComparison` is not a {@link StringComparison}
    *   member, `field` is not a valid query field path, or `value` is not a string.
    * @example
@@ -658,7 +658,7 @@ export const filter = {
    * @param value - Literal text.
    * @param stringComparison - Case handling. Defaults to
    *   `StringComparison.CASE_SENSITIVE`.
-   * @returns `{ op: 'ENDS_WITH', field, value, stringComparison }`.
+   * @returns `{ op: 'ends-with', field, value, stringComparison }`.
    * @throws TypeError If `stringComparison` is not a {@link StringComparison}
    *   member, `field` is not a valid query field path, or `value` is not a string.
    * @example
@@ -683,7 +683,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param values - Non-empty list of non-null JSON scalars.
-   * @returns `{ op: 'IN', field, values }` with a copy of `values`.
+   * @returns `{ op: 'in', field, values }` with a copy of `values`.
    * @throws TypeError If `values` is empty, contains `null` or `undefined`,
    *   or contains a value that is not a string, a boolean or a finite
    *   number, or if `field` is not a valid query field path.
@@ -703,7 +703,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param values - Non-empty list of non-null JSON scalars.
-   * @returns `{ op: 'NOT_IN', field, values }` with a copy of `values`.
+   * @returns `{ op: 'not-in', field, values }` with a copy of `values`.
    * @throws TypeError If `values` is empty, contains `null` or `undefined`,
    *   or contains a value that is not a string, a boolean or a finite
    *   number, or if `field` is not a valid query field path.
@@ -723,7 +723,7 @@ export const filter = {
    *
    * @param field - Query field path, e.g. `state.status`.
    * @param values - Non-empty list of non-null JSON scalars.
-   * @returns `{ op: 'CONTAINS_ALL', field, values }` with a copy of `values`.
+   * @returns `{ op: 'contains-all', field, values }` with a copy of `values`.
    * @throws TypeError If `values` is empty, contains `null` or `undefined`,
    *   or contains a value that is not a string, a boolean or a finite
    *   number, or if `field` is not a valid query field path.
@@ -745,7 +745,7 @@ export const filter = {
    * @param field - Query field path, e.g. `state.status`.
    * @param lowerBound - Inclusive lower bound; non-null JSON scalar.
    * @param upperBound - Inclusive upper bound; non-null JSON scalar.
-   * @returns `{ op: 'BETWEEN', field, lowerBound, upperBound }`.
+   * @returns `{ op: 'between', field, lowerBound, upperBound }`.
    * @throws TypeError If `field` is not a valid query field path, or either bound is not a
    *   string, a boolean or a finite number.
    * @example
@@ -770,7 +770,7 @@ export const filter = {
    * match a missing or `null` field.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'IS_EMPTY', field }`.
+   * @returns `{ op: 'is-empty', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -785,7 +785,7 @@ export const filter = {
    * strings do not match.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'IS_EMPTY_STRING', field }`.
+   * @returns `{ op: 'is-empty-string', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -802,7 +802,7 @@ export const filter = {
    * `""`.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'IS_NOT_EMPTY_STRING', field }`.
+   * @returns `{ op: 'is-not-empty-string', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -819,7 +819,7 @@ export const filter = {
    * backend's null semantics.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'IS_NULL', field }`.
+   * @returns `{ op: 'is-null', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -834,7 +834,7 @@ export const filter = {
    * backend's null semantics.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'IS_NOT_NULL', field }`.
+   * @returns `{ op: 'is-not-null', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -849,7 +849,7 @@ export const filter = {
    * value.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'EXISTS', field }`.
+   * @returns `{ op: 'exists', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -863,7 +863,7 @@ export const filter = {
    * Matches records where `field` is missing.
    *
    * @param field - Query field path, e.g. `state.status`.
-   * @returns `{ op: 'NOT_EXISTS', field }`.
+   * @returns `{ op: 'not-exists', field }`.
    * @throws TypeError If `field` is not a valid query field path.
    * @example
    * ```typescript
@@ -879,7 +879,7 @@ export const filter = {
    * not allowed inside `elementMatch`.
    *
    * @param state - `ACTIVE`, `DELETED` or `ALL`.
-   * @returns `{ op: 'DELETION', state }`.
+   * @returns `{ op: 'deletion', state }`.
    * @throws TypeError If `state` is not a {@link DeletionState} member.
    * @example
    * ```typescript
@@ -902,7 +902,7 @@ export const filter = {
    *
    * @param field - Query field path of the array, e.g. `state.items`.
    * @param predicate - Element-scoped filter expression.
-   * @returns `{ op: 'ELEMENT_MATCH', field, predicate }`.
+   * @returns `{ op: 'element-match', field, predicate }`.
    * A `SEARCH` inside it must name the fields it searches, relative to the
    * element (Wow 9.2 and later, where the descriptor lists
    * `elements[].search`); a model-wide `SEARCH` is a root filter.
@@ -941,7 +941,7 @@ export const filter = {
    * @param query - Search text.
    * @param options - Optional `fields` (defaults to `[]`, the backend's default
    *   search fields) and `mode` (defaults to `SearchMode.TERMS`).
-   * @returns `{ op: 'SEARCH', query, mode, fields }`.
+   * @returns `{ op: 'search', query, mode, fields }`.
    * @throws TypeError If `query` is not a string or is blank, `options` is
    *   given but is `null`, an array or not an object, `mode` is not a
    *   {@link SearchMode} member, or any of `fields` is not a valid query field
@@ -963,7 +963,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'TODAY', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'today', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -989,7 +989,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'BEFORE_TODAY', field, time, timeUnit }`, plus `zoneId`
+   * @returns `{ op: 'before-today', field, time, timeUnit }`, plus `zoneId`
    *   and `datePattern` when set.
    * @throws TypeError If `time` is not a string in one of the formats above,
    *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
@@ -1021,7 +1021,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'TOMORROW', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'tomorrow', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1045,7 +1045,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'THIS_WEEK', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'this-week', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1069,7 +1069,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'NEXT_WEEK', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'next-week', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1093,7 +1093,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'LAST_WEEK', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'last-week', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1117,7 +1117,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'THIS_MONTH', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'this-month', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1141,7 +1141,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'LAST_MONTH', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'last-month', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1165,7 +1165,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'YESTERDAY', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'yesterday', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1189,7 +1189,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'NEXT_MONTH', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'next-month', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1213,7 +1213,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'LAST_YEAR', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'last-year', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1237,7 +1237,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'THIS_YEAR', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'this-year', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1261,7 +1261,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'NEXT_YEAR', field, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'next-year', field, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
    *   invalid UTC offset, `datePattern` is blank or not a valid
@@ -1287,7 +1287,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'RECENT_DAYS', field, days, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'recent-days', field, days, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `days` is not an integer from 1 to 2147483647,
    *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
@@ -1315,7 +1315,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'EARLIER_DAYS', field, days, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'earlier-days', field, days, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `days` is not an integer from 1 to 2147483647,
    *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
@@ -1350,7 +1350,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'BEFORE_NOW', field, offset, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'before-now', field, offset, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `offset` is not an ISO-8601 duration in that
    *   grammar, `field` is not a valid query field path, `zoneId` is blank or
@@ -1386,7 +1386,7 @@ export const filter = {
    * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
    *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
    *   `TimeUnit.MILLISECONDS`.
-   * @returns `{ op: 'AFTER_NOW', field, offset, timeUnit }`, plus `zoneId` and
+   * @returns `{ op: 'after-now', field, offset, timeUnit }`, plus `zoneId` and
    *   `datePattern` when set.
    * @throws TypeError If `offset` is not an ISO-8601 duration in that
    *   grammar, `field` is not a valid query field path, `zoneId` is blank or
@@ -1407,7 +1407,7 @@ export const filter = {
   },
   /**
    * Compares a computed expression with a number, such as the hours from
-   * `paidAt` to `shippedAt`. `{ op: 'EXPRESSION', expression, comparison,
+   * `paidAt` to `shippedAt`. `{ op: 'expression', expression, comparison,
    * value }`.
    *
    * The expression is evaluated per record, so this is an expensive

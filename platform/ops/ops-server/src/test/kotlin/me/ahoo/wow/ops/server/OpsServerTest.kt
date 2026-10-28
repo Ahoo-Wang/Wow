@@ -46,7 +46,7 @@ class OpsServerTest {
                 "/ops/parked/{id}/state",
             )
             // The memory backend serves the snapshot queries itself, as the postgres profile's store does.
-            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.OPERATOR)
+            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", Who.OPERATOR)
                 .status.assert().isEqualTo(OK)
         }
     }
@@ -57,7 +57,7 @@ class OpsServerTest {
         startOps().use { ops ->
             // A command, a query and a route of the service's own.
             ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.NOBODY)
+            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", Who.NOBODY)
                 .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
