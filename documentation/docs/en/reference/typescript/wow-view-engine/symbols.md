@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -59,6 +59,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `AnalysisTableSpec` | interface | — | — |
 | `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」: within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
+| `AnalysisViewRuntime` | type | An analysis view: a question asked of one source, and its answer. | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |
 | `ArrangeStep` | type | One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. | — |
 | `ArrayFilterValue` | type | What one entry of an array field may be. | — |
@@ -209,7 +210,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `EditorDescriptor` | interface | Shape of the input an editor should render; never a component name. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
 | `EditorInput` | type | — | — |
 | `ElementTitleView` | interface | The element field an array of objects is read by, one element at a time (`FieldDefinition.elementTitle`), resolved to what reading it takes: where it sits within an element, and how it reads. | — |
-| `EngineResources` | class | The half of the engine that is what the host registered (host-integration.md 4): each definition's source, by the key its definitions name it by, and the words its keys are checked against (`EngineText`). | — |
 | `EnumFilterValue` | type | — | — |
 | `EpochTemporal` | interface | — | — |
 | `EpochTimeUnit` | type | The units of `TimeUnit` an epoch time is kept in, as Wow spells them. | — |
@@ -422,8 +422,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `RelativeDateTimeValue` | interface | A window measured from the evaluation moment: "the last 7 days", or "the next 7 days". | — |
 | `RelativeDateUnit` | type | — | — |
 | `Rescoped` | interface | The config re-scoped to a chain, and what the step took away. | — |
-| `ResourceHost` | interface | What the engine's resources are read from; see `ViewEngineOptions`. | — |
 | `RiverStream` | interface | One stream of a theme river: a split value, or the folded rest. | — |
+| `RoutedTarget` | type | A way off a board or a view that leads to one of the host's resources. | — |
 | `RowMoneyNumeric` | interface | — | — |
 | `RuntimeEnvironment` | interface | The only interface between a runtime and its host. | [Engine and Resources](./engine#api-RuntimeEnvironment) |
 | `RuntimeFor` | type | Keeps the narrow type through `create`, which knows its config statically — and, for a config whose kind only the value knows (a union), is what`open` hands back (`AnyViewRuntime`), so no caller has to say it again. | — |
@@ -438,6 +438,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `SankeyLink` | interface | One band of a sankey, between two nodes of neighbouring levels. | — |
 | `SankeyNode` | interface | One node of a sankey: a value of one level's dimension. | — |
 | `SankeySpec` | interface | A sankey: how an amount flows from one dimension's values to the next's — 渠道 → 支付方式 — each band as wide as the metric over the rows of that pair. | — |
+| `SaveAsInput` | interface | Where a copy of a view is saved: its title and the scope it is saved into (`ViewEngine.saveAs`, and a board panel's view saved as its own).`'system'` makes a stored system view, which needs `editSystem`. | — |
 | `SavedViewTarget` | interface | A saved record or analysis view, opened on its own conditions with`filter` added to them — so it opens 「已修改」 and 「还原」 takes them back off — under `scopeFilter` as its scope. | — |
 | `ScatterData` | interface | — | — |
 | `ScatterSpec` | interface | — | — |
@@ -496,6 +497,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `ViewConfig` | type | What a user saves: the way of observing, never a data snapshot. | — |
 | `ViewConfigBase` | interface | What every view kind stores. | — |
 | `ViewDefinition` | type | What a dataset offers. | — |
+| `ViewDestination` | type | What the host's `navigate` is handed: a route, where the target's definition has one; otherwise the target as it came — a URL, or a definition the host bound no route for. | — |
 | `ViewEngine` | class | The registry and the command entry point: definitions in, runtimes and writes out. | [Engine and Resources](./engine#api-ViewEngine) |
 | `ViewEngineOptions` | interface | — | [Engine and Resources](./engine#api-ViewEngineOptions) |
 | `ViewErrorContext` | interface | Where a failure happened. | — |
@@ -508,12 +510,17 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `ViewListOptions` | interface | One page of `ViewStore.list` to read. | — |
 | `ViewListPage` | interface | One page of a definition's views, in the port's order. | — |
 | `ViewListing` | interface | What a definition's list is right now: every view that could be read, and the reason the rest could not. | [Engine and Resources](./engine#api-ViewListing) |
+| `ViewLocation` | interface | Where the host's router is (host-integration.md 4.2): what the engine reads the open view (`?view=`), the open record (`?id=`) and what a page was handed (`ViewRouteState`, the history entry's state) from. | — |
 | `ViewNavigation` | type | Where a way off the board goes, for the host's route. | — |
 | `ViewPermissions` | interface | What the current user may do with one definition's views. | [Persistence Port](./store#api-ViewPermissions) |
 | `ViewPreferences` | interface | One user's ordering and default view for one definition. | — |
 | `ViewQueryState` | interface | — | — |
 | `ViewResource` | interface | One thing a host registers (host-integration.md 4): a definition, and where its data comes from. | [Engine and Resources](./engine#api-ViewResource) |
 | `ViewResult` | interface | — | — |
+| `ViewRoute` | interface | A way off a board or a view, resolved through its definition's `route`: the host's path, and what the page there is handed. | — |
+| `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address.`target` is the way off it was asked for; it is absent where the engine asks for a link rather than a way off — a resource's or a system view's place in the host's navigation (`useViewNavigation`). | — |
+| `ViewRouteState` | interface | What the page a route opens is handed with it, as history state. | — |
+| `ViewRouter` | interface | The router port (host-integration.md 4.2): the host's router as the engine reads and moves it — the one bridge to it, whichever library it is. | [Host Wiring](./host#api-ViewRouter) |
 | `ViewRuntime` | interface | One open view. | — |
 | `ViewRuntimeState` | interface | — | — |
 | `ViewScope` | type | Who configured a view, who sees it and who may change it. | — |
@@ -672,6 +679,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 891 — with its kind and th
 | `innermostElement` | function | The level the counting unit is: the last one expanded, or none at all. | — |
 | `insertAt` | function | Appends a node to the group at `parent`; `[]` is the root group. | — |
 | `isAdditiveMetric` | function | Metrics the projection may add up across rows: a pie's "other" slice and a metric card's trend headline are both sums of queried buckets, which only means something for a metric that adds. | — |
+| `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where`isRecordRuntime` narrows it to a record view. | — |
 | `isApproximate` | function | Whether a result column is estimated: what the projection said (`approximate`), else whether its function is one of the defaults. | — |
 | `isBlankFilter` | function | True when the tree says nothing: it has no condition, or every condition it has is still waiting to be filled in. | — |
 | `isBlankFilterValue` | function | Whether a filter's value says nothing yet: nothing picked, nothing typed. | — |

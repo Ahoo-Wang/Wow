@@ -166,7 +166,7 @@ export const orderActions = actions([
 | `run(row, input)` | 给一条记录发命令。要在读模型反映它之后才 resolve——Wow 命令等 `CommandStage.SNAPSHOT`（或宿主投影需要的阶段）——因为引擎紧接着会重读视图。命令被拒时抛出，抛出的东西按来源自己的原因读。命令是写入，所以要幂等：超时或断网后结局无人知道，读者被告知去核对，可能再按一次 |
 | `available(row, context)` | 记录现在能接受命令时为 `true`，否则说明原因。已知输入时带着输入问，所以一个选择可以拒绝某个选项、提供其余的 |
 | `hidden(row, context)` | 这条记录根本不显示这个操作——读者无权做——区别于 `available` 显示为禁用并说明原因 |
-| `changesAt(row, context)` | `available` 下一次自己变化的时刻（毫秒）；引擎到时重问，宿主不用自己的计时器 |
+| `changesAt(row, context)` | `available` 下一次自己变化的时刻（`Date`）；引擎到时重问，宿主不用自己的计时器 |
 | `confirm` | 先问；可以是输入的函数。措辞里 `{count}` 是记录数（有 `-one` 形式给区分单数的语言），`{value}` 是选择的选项，`{record}` 是单条时的记录键。`ask: 'always'`（缺省）单条也问；`'bulk'` 只有选择才问。选择总是问 |
 | `form` | 命令除记录外还要的东西。只有一个带选项字段的表单就是一个选择：选项直接列在菜单里，选中的就是输入 |
 | `moves` | 这个命令设置的记录字段，供按它分栏的看板视图用：卡片拖到另一栏，就以那一栏的值为输入执行命令（`{ [moves]: value }`），`available` 也带着这个输入问，所以规则可以只拒某一个阶段。再给一个只有这个字段的表单（选项是各阶段），卡片的菜单就提供同一个移动——键盘移卡片走它。表单问了别的，`actions()` 拒绝 |
@@ -180,7 +180,7 @@ export declare function actions(list: readonly RecordAction[]): RecordActions;
 
 export interface RecordAction {
   available?(row: RecordRow, context: ActionContext): Availability;
-  changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+  changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
   readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
   readonly form?: ActionForm;
   hidden?(row: RecordRow, context: ActionContext): boolean;

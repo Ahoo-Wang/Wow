@@ -7,7 +7,7 @@ description: 'ViewEngine、它的选项与 resources、ViewSource 与 RuntimeEnv
 
 `ViewEngine` 是宿主在应用启动时建一次、整个应用共用的对象：它登记定义（`resources`），握住保存视图的 `store`，管理打开着的运行时，并且是打开、新建、保存、改名、删除这些命令的唯一入口。之所以只有一个入口，是因为每次写入都走同一条路——默认界面和宿主自己搭的界面因此表现一致，任何不成功的结局都落进同样三种恢复动作（`retryWrite`、`abandonWrite`、`resolveConflict`）。
 
-直接构造它，不要继承：它标了 `@sealed`，基类 `EngineResources` 只是文件的拆法，不是扩展点。
+直接构造它，不要继承：它标了 `@sealed`。
 
 相关指南：视图引擎入门（第 6 步建出引擎与资源）、[把视图引擎接进宿主](../../../typescript/view-engine/host.md)（为什么整个应用只有一个引擎）、[视图引擎的核心概念](../../../typescript/view-engine/index.md)（引擎管理的视图与运行时）。
 
@@ -135,7 +135,7 @@ export interface RuntimeEnvironment {
 | `setText(text, language?)` | 换定义的键在哪种语言下怎样说；`ViewHost` 会替你调用 |
 
 ```ts
-export declare class ViewEngine extends EngineResources {
+export declare class ViewEngine {
   constructor(options: ViewEngineOptions);
   abandonWrite(target: WriteTarget): void;
   changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
@@ -159,7 +159,7 @@ export declare class ViewEngine extends EngineResources {
   resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
   retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
   save(runtime: ViewRuntime): Promise<ViewInstance>;
-  saveAs(runtime: ViewRuntime, input: { title: string; scope: ViewScope }): Promise<ViewInstance>;
+  saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
   setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
   setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
   readonly store: ViewStore;

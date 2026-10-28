@@ -17,7 +17,6 @@ import {
   type Issue,
   type ViewAudience,
   type ViewInstance,
-  type ViewScope,
 } from '../model/index.js';
 import type {
   ConflictChoice,
@@ -25,6 +24,7 @@ import type {
   ViewRuntime,
   WriteState,
 } from '../runtime/index.js';
+import type { SaveAsInput } from '../runtime/viewRuntimeTypes.js';
 import { stopsSave } from '../runtime/dashboard/panels.js';
 import { instanceAbilities, mayCreate } from '../runtime/permissions.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -43,12 +43,6 @@ import {
 } from './writes.js';
 
 export type { RecoveredWrite } from './writes.js';
-
-export interface SaveTargetInput {
-  title: string;
-  /** `system` makes the copy a stored system view; it needs `createSystem`. */
-  scope: ViewScope;
-}
 
 export interface SaveAbilities {
   save: boolean;
@@ -147,7 +141,7 @@ export interface BoardChoice {
 
 export interface SaveCommands {
   save(): Promise<ViewInstance | null>;
-  saveAs(input: SaveTargetInput): Promise<ViewInstance | null>;
+  saveAs(input: SaveAsInput): Promise<ViewInstance | null>;
   rename(title: string): Promise<ViewInstance | null>;
   /**
    * 设为共享／设为个人 for the open view, in place (`engine.changeAudience`,
@@ -320,7 +314,7 @@ export function useSaveCommands(
   );
 
   const saveAs = useCallback(
-    (input: SaveTargetInput) =>
+    (input: SaveAsInput) =>
       runtime
         ? run(
             'view.save-as.failed',

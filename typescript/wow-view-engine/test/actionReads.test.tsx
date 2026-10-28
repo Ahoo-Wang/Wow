@@ -260,7 +260,7 @@ describe('the proxy a rule reads a row through', () => {
       watched,
       [ROW],
     )!;
-    action!.available!(ROW, { now: 0 });
+    action!.available!(ROW, { now: new Date(0) });
     return {
       answer,
       told: found.map(issue => String(issue.params?.field)),
@@ -302,7 +302,7 @@ describe('the proxy a rule reads a row through', () => {
     watchActionReads(watched, () => {}, new Set());
     const seen: RecordRow[] = [];
     const [action] = watchedActions(actions([ship(seen)]), watched, [])!;
-    action!.available!(ROW, { now: 0 });
+    action!.available!(ROW, { now: new Date(0) });
 
     expect(seen).toEqual([ROW]);
     expect(seen[0]).toBe(ROW);
@@ -334,8 +334,8 @@ describe('the proxy a rule reads a row through', () => {
       watched,
       [ROW],
     )!;
-    action!.available!(ROW, { now: 0 });
-    action!.available!(ROW, { now: 1 });
+    action!.available!(ROW, { now: new Date(0) });
+    action!.available!(ROW, { now: new Date(1) });
 
     expect(types.isProxy(seen[0]!.data)).toBe(true);
     expect(seen[1]).toBe(seen[0]);
@@ -384,7 +384,9 @@ describe('the proxy a rule reads a row through', () => {
       [frozen],
     )!;
 
-    expect(() => action!.available!(frozen, { now: 0 })).not.toThrow();
+    expect(() =>
+      action!.available!(frozen, { now: new Date(0) }),
+    ).not.toThrow();
     expect(answer).toEqual(['PENDING', 2, 1]);
   });
 
@@ -416,7 +418,7 @@ describe('the proxy a rule reads a row through', () => {
         opened,
         [ROW],
       )!;
-      action!.available!(ROW, { now: 0 });
+      action!.available!(ROW, { now: new Date(0) });
     }
 
     expect(found).toHaveLength(1);

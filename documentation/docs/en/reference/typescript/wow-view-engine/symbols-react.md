@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 123 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -82,7 +82,6 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 123 — with its kind 
 | `SaveAbilities` | interface | — | — |
 | `SaveCommandState` | interface | — | — |
 | `SaveCommands` | interface | — | — |
-| `SaveTargetInput` | interface | — | — |
 | `SearchBoxController` | interface | A view's search, kept on hand rather than behind the conditions editor. | — |
 | `SettledWrite` | interface | What a command ended as, and the address of the write behind it. | — |
 | `SnapshotOf` | type | The snapshot a runtime hands out. | — |

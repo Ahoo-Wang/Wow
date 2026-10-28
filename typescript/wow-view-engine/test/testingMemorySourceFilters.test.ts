@@ -153,7 +153,7 @@ describe('memorySource: filters and readings', () => {
       { id: 'soon', timeoutAt: NOW + HOUR, inSeconds: (NOW + HOUR) / 1000 },
       { id: 'never' },
     ];
-    const source = memoryRecords(rows, { now: () => NOW });
+    const source = memoryRecords(rows, { now: () => new Date(NOW) });
     const ids = async (
       op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW,
       rest: Record<string, unknown> = {},
@@ -340,16 +340,17 @@ describe('memorySource: filters and readings', () => {
     });
 
     it('matches a condition of a test’s own, deleted documents included', () => {
-      const clock = () => Date.parse('2026-09-15T00:00:00Z');
+      const at = Date.parse('2026-09-15T00:00:00Z');
+      const clock = () => new Date(at);
       const before = {
         op: FilterOperator.BEFORE_NOW,
         field: 'at',
         offset: 'PT0S',
       } as FilterExpression;
       expect(
-        matches({ at: clock() - 1, deleted: true }, before, { now: clock }),
+        matches({ at: at - 1, deleted: true }, before, { now: clock }),
       ).toBe(true);
-      expect(matches({ at: clock() }, before, { now: clock })).toBe(false);
+      expect(matches({ at }, before, { now: clock })).toBe(false);
     });
   });
 });

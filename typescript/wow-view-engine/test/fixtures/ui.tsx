@@ -261,7 +261,7 @@ export function refreshController(
     unsound: false,
     intervals: [30, 60, 300],
     setInterval: () => {},
-    now: () => {},
+    refreshNow: () => {},
     loading: false,
     // Nothing armed, so nothing counts down; the suites that assert the
     // countdown hand over a due time and a clock to read it against.

@@ -43,9 +43,9 @@ type State = { status: string; timeoutAt: number; recoverable?: string };
 const state = (data: Record<string, unknown>) => data as State;
 
 /** The console's rules, as a host would write them. */
-function refusal(data: State, now: number): string | undefined {
+function refusal(data: State, now: Date): string | undefined {
   if (data.status === 'SUCCEEDED') return text('succeeded');
-  if (data.status === 'PREPARED' && now <= data.timeoutAt)
+  if (data.status === 'PREPARED' && now.getTime() <= data.timeoutAt)
     return text('inProgress');
   return undefined;
 }
@@ -57,8 +57,8 @@ const prepare: RecordAction = {
   available: (row, { now }) => refusal(state(row.data), now) ?? true,
   changesAt: (row, { now }) => {
     const data = state(row.data);
-    return data.status === 'PREPARED' && data.timeoutAt >= now
-      ? data.timeoutAt + 1
+    return data.status === 'PREPARED' && data.timeoutAt >= now.getTime()
+      ? new Date(data.timeoutAt + 1)
       : null;
   },
   confirm: { title: text('prepareTitle'), ask: 'bulk' },
@@ -124,7 +124,7 @@ describe('actions()', () => {
 });
 
 describe('actionHarness', () => {
-  const harness = actionHarness(all, ROWS, { now: T });
+  const harness = actionHarness(all, ROWS, { now: new Date(T) });
 
   it('lists the actions, and where each is offered', () => {
     expect(harness.ids).toEqual([
@@ -226,11 +226,13 @@ describe('actionHarness', () => {
   });
 
   it('says when a record’s availability flips on its own', () => {
-    expect(harness.changesAt()).toBe(T + 60_001);
+    expect(harness.changesAt()).toEqual(new Date(T + 60_001));
     expect(harness.changesAt('EF-1')).toBeNull();
     expect(
-      actionHarness(all, ROWS, { now: T + 60_001 }).state('prepare', 'EF-2')
-        .available,
+      actionHarness(all, ROWS, { now: new Date(T + 60_001) }).state(
+        'prepare',
+        'EF-2',
+      ).available,
     ).toBe(true);
   });
 
@@ -278,10 +280,12 @@ describe('the rules the harness and the screen share', () => {
         throw new Error('bug');
       },
     };
-    expect(actionState(broken, row, { now: T }).reason).toBe(UNAVAILABLE);
+    expect(actionState(broken, row, { now: new Date(T) }).reason).toBe(
+      UNAVAILABLE,
+    );
     expect(
       actionState({ ...prepare, available: () => '' as unknown as true }, row, {
-        now: T,
+        now: new Date(T),
       }).reason,
     ).toBe(UNAVAILABLE);
   });
@@ -299,10 +303,10 @@ describe('the rules the harness and the screen share', () => {
           },
         ],
         ROWS,
-        T,
+        new Date(T),
       ),
     ).toBeNull();
-    expect(nextChange([prepare], ROWS, T + 100_000)).toBeNull();
+    expect(nextChange([prepare], ROWS, new Date(T + 100_000))).toBeNull();
     expect(asksFirst(markRecoverable, 'row', {})).toBe(true);
   });
 });
@@ -324,7 +328,9 @@ describe('a press, as the harness and the screen both start it', () => {
   };
 
   it('starts from the form’s initial values, the given input over them', async () => {
-    const harness = actionHarness(actions([remind]), ROWS, { now: T });
+    const harness = actionHarness(actions([remind]), ROWS, {
+      now: new Date(T),
+    });
     // The screen opens the form with 30 in it: only the note is missing.
     expect(harness.missing('remind', {})).toEqual(['note']);
     expect(harness.asks('remind', 'row').confirm).toEqual({
@@ -350,7 +356,9 @@ describe('a press, as the harness and the screen both start it', () => {
         throw new Error('host bug');
       },
     };
-    const harness = actionHarness(actions([broken]), ROWS, { now: T });
+    const harness = actionHarness(actions([broken]), ROWS, {
+      now: new Date(T),
+    });
     expect(harness.asks('broken', 'row')).toEqual({
       asks: true,
       confirm: { title: text('remind') },

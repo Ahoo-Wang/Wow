@@ -20,6 +20,7 @@ import type {
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { ViewStore } from '../store/ViewStore.js';
 import type { RuntimeEnvironment } from './environment.js';
+import type { DatasetWordingEditor } from './datasetResources.js';
 import type { OptionSource, ViewSource } from './source.js';
 
 /**
@@ -31,6 +32,13 @@ export interface ViewResource {
   definition: ViewDefinition;
   /** Where a data definition's rows come from; a board has none. */
   source?: ViewSource;
+  /**
+   * The editor of a dataset's wording, which the view manager's wording
+   * tab reads and saves (`ViewEngine.wordingOf`). `DatasetResources` sets
+   * it when its store keeps wording; a host registering a resource of its
+   * own leaves it out.
+   */
+  wording?: DatasetWordingEditor;
 }
 
 export interface ViewEngineOptions {

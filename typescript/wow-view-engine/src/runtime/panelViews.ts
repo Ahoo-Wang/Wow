@@ -15,7 +15,6 @@ import type {
   RuntimeLimits,
   ViewConfig,
   ViewInstance,
-  ViewScope,
 } from '../model/index.js';
 import { isOwnedPanel, isViewPanel } from '../dashboard/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
@@ -24,6 +23,7 @@ import { DashboardViewRuntime } from './dashboardRuntime.js';
 import type { DefinitionRegistry } from './definitions.js';
 import { validateDataConfig } from './execute.js';
 import type { PermissionGuard } from './permissions.js';
+import type { SaveAsInput } from './viewRuntimeTypes.js';
 import { ViewCommandError } from './write.js';
 import type { WriteLedger } from './writeLedger.js';
 
@@ -70,7 +70,7 @@ export class PanelViews {
     target: unknown,
     panelId: string,
     from: PanelViewSource,
-    input: { title: string; scope: ViewScope },
+    input: SaveAsInput,
   ): Promise<ViewInstance> {
     const board = target instanceof DashboardViewRuntime ? target : null;
     const view = board && sourceOf(board, panelId, from);
