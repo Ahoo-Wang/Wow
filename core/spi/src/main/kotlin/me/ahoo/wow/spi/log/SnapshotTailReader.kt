@@ -26,7 +26,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * others are read the way every log can: the snapshot, then the tail ([readSnapshotTailApart]).
  *
  * The kernel reads through it on a cache miss, and reads apart, warning once and counting the fallback (the observer's
- * [me.ahoo.wow.spi.observation.Observer.storeFellBack]), when it fails.
+ * [me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack]), when it fails.
  */
 @WowSpi
 fun interface SnapshotTailReader {

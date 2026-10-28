@@ -116,7 +116,7 @@ class AnalyticsCatalogConfiguration {
         val databases = properties.databases.filter { it.isNotBlank() }.ifEmpty {
             listOf(
                 clickHouseSettings(environment)[ClickHouseClients.DATABASE.key]?.takeIf { it.isNotBlank() }
-                    ?: checkNotNull(ClickHouseClients.DATABASE.default),
+                    ?: ClickHouseClients.DATABASE.default,
             )
         }
         require(properties.engine == ClickHouseWarehouseCatalog.ENGINE) {

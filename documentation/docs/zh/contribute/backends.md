@@ -77,7 +77,7 @@ override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryInde
 }
 ```
 
-提供者声明它的存储读取的每个选项（`StoreProvider.options`，每个都是用 `ProviderOption.string`、`duration`、`int` 或 `boolean` 构建的 `ProviderOption`），并通过它读取（`StoreConfig.option(option)`），因此宿主只绑定和检查这些选项。类型范围的选项在 `wow.<type>.<key>` 下为该类型的每个存储设置，每个存储可在 `wow.stores.<name>.options.<key>` 下覆盖它；标记为 `perStore()` 的选项（比如资源 bean 的名字）只能在单个存储上设置。提供者未声明的存储设置会使启动失败，并列出已声明的选项；`wow.<type>.*` 下的未知键也一样：宿主在启动时从提供者那里得知声明的键。`StoreTck` 检查存储不会读取提供者未声明的选项。Wow 自己的后端在宿主的配置元数据中列出它们的键；第三方可以自带 `META-INF/spring-configuration-metadata.json`，让 IDE 能补全这些键。
+提供者声明它的存储读取的每个选项（`StoreProvider.options`，每个都是用 `ProviderOption.string`、`duration`、`int` 或 `boolean` 构建的 `ProviderOption`），并通过它读取（`StoreConfig.option(option)`），因此宿主只绑定和检查这些选项。声明了默认值的选项（`ProviderOption.Defaulted`）读出的值总是存在；没有默认值的选项可能缺失，因此读出的是可空值。类型范围的选项在 `wow.<type>.<key>` 下为该类型的每个存储设置，每个存储可在 `wow.stores.<name>.options.<key>` 下覆盖它；标记为 `perStore()` 的选项（比如资源 bean 的名字）只能在单个存储上设置。提供者未声明的存储设置会使启动失败，并列出已声明的选项；`wow.<type>.*` 下的未知键也一样：宿主在启动时从提供者那里得知声明的键。`StoreTck` 检查存储不会读取提供者未声明的选项。Wow 自己的后端在宿主的配置元数据中列出它们的键；第三方可以自带 `META-INF/spring-configuration-metadata.json`，让 IDE 能补全这些键。
 
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 

@@ -623,6 +623,8 @@ export function WorkbenchShell({
         locale={locale}
         timeZone={timeZone}
         clock={clock}
+        // The engine's one cache of reference names, whichever view is open.
+        labels={runtime?.labels}
         // The container's height, always: the result takes what the parts
         // above it leave and the footer sits at the bottom, whatever the rows
         // (`styles.css`, "A workbench fills its container"). A container of

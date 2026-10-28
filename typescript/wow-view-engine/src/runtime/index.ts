@@ -133,3 +133,8 @@ export type {
   ProjectedView,
   ViewSource,
 } from './source.js';
+export type {
+  ReferenceId,
+  ReferenceLabel,
+  ReferenceLabelReader,
+} from './referenceLabels.js';

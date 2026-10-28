@@ -54,6 +54,7 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
   resourcesOf,
 } from './fixtures.js';
@@ -99,6 +100,7 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     environment: testEnvironment().environment,
     source: recordSource(testSource()),
     runner: new RequestRunner(),
+    labels: testLabels(),
   });
   let latest: FilterEditorController | null = null;
   function Probe() {

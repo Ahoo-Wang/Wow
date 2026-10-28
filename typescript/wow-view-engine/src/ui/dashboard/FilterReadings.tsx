@@ -14,13 +14,19 @@
 import { LockIcon, XIcon } from 'lucide-react';
 import { filterCondition } from '../../dashboard/index.js';
 import { describeFilter, type FilterSummaryItem } from '../../filter/index.js';
-import type { DashboardField } from '../../model/index.js';
+import { namedReferences } from '../../react/referenceNames.js';
+import type {
+  DashboardField,
+  FilterLeaf,
+  FilterTree,
+} from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { summaryText } from '../kit/summary.js';
+import type { DisplayContext } from '../kit/display.js';
 import { ControlFrame } from '../kit/variants.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
@@ -102,6 +108,19 @@ export function FixedScope({
 }
 
 /**
+ * One locked condition as a tree, a reference value stored as its bare id
+ * by the name the engine holds for it (D354).
+ */
+function heldTree(
+  leaf: FilterLeaf,
+  field: DashboardField,
+  display: DisplayContext,
+): FilterTree {
+  const tree: FilterTree = { op: 'and', children: [leaf] };
+  return display.labels ? namedReferences(tree, [field], display.labels) : tree;
+}
+
+/**
  * A filter the page locked (`DashboardFilterMode`): what it holds, said as
  * the applied band says a condition — 「客户 是 明远商贸」 — with a lock,
  * and no control: the page fixed it, and the reader reads it. Only an
@@ -129,7 +148,7 @@ export function LockedChip({
     filterCondition(field, dashboard.filters.values[field.name], kinds);
   const [item] =
     leaf && kinds
-      ? describeFilter([field], { op: 'and', children: [leaf] }, kinds)
+      ? describeFilter([field], heldTree(leaf, field, display), kinds)
       : [];
   const reading = item
     ? summaryText({ ...item, label: undefined }, messages, display)

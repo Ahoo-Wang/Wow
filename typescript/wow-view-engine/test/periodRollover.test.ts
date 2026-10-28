@@ -38,6 +38,7 @@ import {
   NOW,
   overviewDefinition,
   testEnvironment,
+  testLabels,
   testSource,
   resourcesOf,
 } from './fixtures.js';
@@ -134,6 +135,7 @@ function openCard(config: AnalysisViewConfig = card()) {
     environment: clock.environment,
     source: recordSource(testSource({ aggregate })),
     runner: new RequestRunner(),
+    labels: testLabels(),
   });
   return { runtime, clock, aggregate };
 }

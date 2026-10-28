@@ -34,8 +34,8 @@ import org.junit.jupiter.api.assertThrows
 import org.opentest4j.TestAbortedException
 
 /**
- * The specs' check that a provider reads only the options it declares: it passes a provider that does, and fails one
- * that reads another key or declares a topic transport's own setting again.
+ * The specs' check that a provider reads only the options it declares, each once: it passes a provider that does, and
+ * fails one that reads another key, declares a key twice or declares a topic transport's own setting again.
  */
 class ProviderOptionChecksTest {
     private val region = ProviderOption.string("region", "the region every acme resource is in.", "eu-1")
@@ -99,54 +99,52 @@ class ProviderOptionChecksTest {
     @Test
     fun `a transport reading only what it declares, and the topic settings, should pass`() {
         transportSpec(transport(listOf(region), "region"))
-            .`the transport should read only the options it declares, each declared once with a description`()
+            .`the transport should read only the options it declares, each declared once`()
     }
 
     @Test
     fun `a transport reading an undeclared key, or declaring a topic setting again, should fail`() {
         assertThrows<AssertionError> {
             transportSpec(transport(listOf(region), "colour"))
-                .`the transport should read only the options it declares, each declared once with a description`()
+                .`the transport should read only the options it declares, each declared once`()
         }.message.assert().contains("colour")
         assertThrows<AssertionError> {
             transportSpec(transport(listOf(region, TopicTransportOptions.TOPIC_PREFIX)))
-                .`the transport should read only the options it declares, each declared once with a description`()
+                .`the transport should read only the options it declares, each declared once`()
         }.message.assert().contains("topic-prefix")
     }
 
     @Test
     fun `a Sink reading only what it declares should pass, and one reading another key fail`() {
         sinkSpec(sink(listOf(region), "region"))
-            .`the sink should read only the options it declares, each declared once with a description`()
+            .`the sink should read only the options it declares, each declared once`()
         assertThrows<AssertionError> {
             sinkSpec(sink(listOf(region), "colour"))
-                .`the sink should read only the options it declares, each declared once with a description`()
+                .`the sink should read only the options it declares, each declared once`()
         }.message.assert().contains("colour")
     }
 
     @Test
-    fun `a provider declaring a key twice should fail, and no option can be declared without a description`() {
+    fun `a provider declaring a key twice should fail`() {
         val again = ProviderOption.int("region", "the region again, as a number.")
         assertThrows<AssertionError> {
             transportSpec(transport(listOf(region, again), "region"))
-                .`the transport should read only the options it declares, each declared once with a description`()
+                .`the transport should read only the options it declares, each declared once`()
         }.message.assert().contains("region")
         assertThrows<AssertionError> {
             sinkSpec(sink(listOf(region, again), "region"))
-                .`the sink should read only the options it declares, each declared once with a description`()
+                .`the sink should read only the options it declares, each declared once`()
         }.message.assert().contains("region")
-        // The description the specs require is required when an option is declared: a blank one is never built.
-        assertThrows<IllegalArgumentException> { ProviderOption.string("region", " ") }
     }
 
     @Test
     fun `a spec no provider opens should skip the check`() {
         assertThrows<TestAbortedException> {
             transportSpec(null)
-                .`the transport should read only the options it declares, each declared once with a description`()
+                .`the transport should read only the options it declares, each declared once`()
         }
         assertThrows<TestAbortedException> {
-            sinkSpec(null).`the sink should read only the options it declares, each declared once with a description`()
+            sinkSpec(null).`the sink should read only the options it declares, each declared once`()
         }
     }
 }

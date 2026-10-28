@@ -63,9 +63,13 @@ class QueryDatasetConfig @InternalWowApi constructor(
     val key: String get() = "wow.$type"
 
     /** The value of [option]: its setting, parsed, else its default. */
-    fun <T : Any> option(option: ProviderOption<T>): T? =
+    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
+
+    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
+    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
+
+    private fun <T : Any> setting(option: ProviderOption<T>): T? =
         options[option.key]?.takeIf { it.isNotBlank() }?.let { option.parse(it, "$key.${option.key}") }
-            ?: option.default
 
     /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
     fun options(option: ProviderOption<Map<String, String>>): Map<String, String> = options(option.key)

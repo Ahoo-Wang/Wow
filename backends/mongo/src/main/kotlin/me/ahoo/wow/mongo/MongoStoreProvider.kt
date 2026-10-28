@@ -73,10 +73,10 @@ internal class MongoStoreProvider : StoreProvider {
     override fun open(config: StoreConfig): Store = MongoStore(
         config,
         config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.${CLIENT.key}"),
-        checkNotNull(config.option(DATABASE)),
-        checkNotNull(config.option(APPEND_TIMEOUT)),
+        config.option(DATABASE),
+        config.option(APPEND_TIMEOUT),
         MongoSharding.of(config.option(SHARDING)),
-        checkNotNull(config.option(OPERATION_TIMEOUT)),
+        config.option(OPERATION_TIMEOUT),
         gaugeOf(config),
         config.option(QUERY_READ_PREFERENCE),
     )

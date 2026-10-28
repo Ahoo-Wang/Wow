@@ -33,6 +33,7 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
   resourcesOf,
 } from './fixtures.js';
@@ -56,6 +57,7 @@ function analysis(source: ViewSource = testSource()) {
     environment: clock.environment,
     source: recordSource(source),
     runner: new RequestRunner(),
+    labels: testLabels(),
   });
   runtime.apply();
   runtime.setAutoApply(true);
@@ -181,6 +183,7 @@ describe('改了就跑: the analysis runs again on its own', () => {
       environment: clock.environment,
       source: recordSource(source),
       runner: new RequestRunner(),
+      labels: testLabels(),
     });
     runtime.apply();
     runtime.setAutoApply(true);

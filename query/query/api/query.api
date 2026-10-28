@@ -480,6 +480,7 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetConfig {
 	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
 	public static final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
 	public static final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/query/dataset/QueryDatasetConfig;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
 	public final fun options (Ljava/lang/String;)Ljava/util/Map;
 	public final fun options (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/util/Map;

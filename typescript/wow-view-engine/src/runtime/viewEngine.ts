@@ -41,6 +41,7 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
+import { engineLabels, type ReferenceLabels } from './referenceLabels.js';
 import type { ViewEngineOptions, ViewListing } from './viewEngineOptions.js';
 import { recordSource } from './source.js';
 import type {
@@ -137,6 +138,8 @@ export class ViewEngine extends EngineResources {
   private readonly changes = new ViewChanges(found => this.report(found));
   /** The last summary seen of each instance; see `summaries.ts`. */
   private readonly summaries = new SummaryCache();
+  /** Reference ids read as names, one cache for every view (D354). */
+  private readonly labels: ReferenceLabels;
   /** Where each reader last read each board; see `tabMemory.ts`. */
   private readonly tabs = new TabMemory({
     current: definitionId => this.preferenceCache.current(definitionId),
@@ -163,6 +166,7 @@ export class ViewEngine extends EngineResources {
     // A source with a descriptor runs under its own (`effective`).
     this.limits = this.capabilities.fallback;
     this.runner = new RequestRunner(this.limits);
+    this.labels = engineLabels(this);
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
@@ -200,11 +204,7 @@ export class ViewEngine extends EngineResources {
       environment: this.environment,
       runner: this.runner,
       resolveSource: key => recordSource(this.resolveSource(key)),
-      // Left out rather than a thrower: a runtime asks whether a source
-      // exists, and an editor with no source falls back to typed entry.
-      ...(this.options.resolveOptions
-        ? { resolveOptions: (key: string) => this.resolveOptions(key) }
-        : {}),
+      labels: this.labels,
       readInstance: id => this.readInstance(id),
       capabilities: this.capabilities,
       report: found => this.report(found),
@@ -656,6 +656,16 @@ export class ViewEngine extends EngineResources {
    */
   close(runtime: ViewRuntime): void {
     this.runtimes.close(runtime);
+  }
+
+  /**
+   * Forgets the names reference ids were read as (D354): of one remote, or
+   * of all; of some ids, or every one. The views on screen read the ids
+   * again as they draw, so a host that renamed a customer calls this and
+   * every view says the new name.
+   */
+  invalidateLabels(remote?: string, ids?: Iterable<string | number>): void {
+    this.labels.invalidate(remote, ids);
   }
 
   dispose(): void {

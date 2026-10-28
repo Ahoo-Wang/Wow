@@ -19,7 +19,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.observability.WowMetrics
-import me.ahoo.wow.spi.observation.StoreFallbacks
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.params.ParameterizedTest
@@ -61,7 +61,7 @@ class ElasticsearchStoresTest {
             host.context.getBean(HostBackends::class.java).snapshotStoreOf(ACCOUNT)!!.name.assert().isEqualTo(log)
             host.context.getBean(SnapshotQueryBackend::class.java).storeOf(ACCOUNT).assert().isEqualTo("es")
             host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS)
-                .tags(WowMetrics.CAPABILITY, StoreFallbacks.SNAPSHOT_TAIL_READ)
+                .tags(WowMetrics.CAPABILITY, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ.value)
                 .counters().sumOf { it.count() }.assert().isZero()
             id
         }

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -152,7 +153,7 @@ internal class AttemptScope(
             logger.error {
                 "${command.ref} committed with $key in $scope, which ${outcome.by.owner} holds: the key is lost."
             }
-            observer.reservationLost(command.ref.type.context)
+            observer.observed(ObservedEvent.ReservationLost(command.ref.type.context))
         }
     }
 

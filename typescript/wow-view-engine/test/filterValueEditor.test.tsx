@@ -580,7 +580,7 @@ describe('FilterValueEditor', () => {
     const calls: { query: string; cursor?: string; signal?: AbortSignal }[] =
       [];
     const source: OptionSource = {
-      search: ({ query, cursor }, signal) => {
+      search: ({ query, cursor }, { signal } = {}) => {
         calls.push({ query, cursor, signal });
         if (failing.includes(query)) return Promise.reject(new Error('down'));
         const page = pages[cursor ? `${query}@${cursor}` : query] ?? {

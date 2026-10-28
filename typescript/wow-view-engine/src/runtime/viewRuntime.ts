@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { askLabels } from './labelIds.js';
+import type { ReferenceLabels } from './referenceLabels.js';
 import { dequal } from 'dequal';
 import {
   type DataViewConfig,
@@ -107,7 +109,10 @@ export class DataViewRuntime<
   protected readonly store: RuntimeStore<ViewRuntimeState<C>>;
   protected readonly context: KernelContext;
   private readonly runner: RequestRunner;
-  private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
+  /** See `ViewRuntime.labels`; the engine's one cache. */
+  readonly labels: ReferenceLabels;
+  /** The names the result on screen asked for (D354). */
+  private labelReads?: AbortController;
   private readonly autoRefresh: boolean;
   /** What the source admits, followed while open; see `renarrow`. */
   private readonly capabilities: RuntimeCapabilities | undefined;
@@ -137,7 +142,7 @@ export class DataViewRuntime<
     this.id = options.id;
     this.kind = options.config.kind;
     this.kinds = options.kinds;
-    this.resolveOptions = options.resolveOptions;
+    this.labels = options.labels;
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
@@ -285,7 +290,7 @@ export class DataViewRuntime<
   }
 
   optionSource(remote: string): OptionSource | null {
-    return this.resolveOptions ? this.resolveOptions(remote) : null;
+    return this.labels.sourceOf(remote);
   }
 
   valueCandidates(field: string): ValueCandidateSource | null {
@@ -462,6 +467,7 @@ export class DataViewRuntime<
   }
 
   dispose(): void {
+    this.labelReads?.abort();
     this.stopFollowing();
     this.autoTimer.stop();
     this.candidates.reset();
@@ -472,11 +478,7 @@ export class DataViewRuntime<
   unavailable(): Issue[] {
     const declared = this.capabilities?.declared;
     if (!declared || declared === this.context.definition) return [];
-    const draft = withScopeFilter(this.state.draft, this.injectedScope);
-    return unavailableIssues(
-      this.state.issues,
-      validateDataConfig({ ...this.context, definition: declared }, draft),
-    );
+    return this.unavailableOf(this.state.draft, this.state.issues);
   }
 
   /** See `ViewRuntime.removeUnavailable`. */
@@ -528,12 +530,12 @@ export class DataViewRuntime<
     if (patch) this.store.setState(patch);
   }
 
-  private unavailableOf(draft: C): Issue[] {
+  private unavailableOf(draft: C, issues = this.admit(draft)): Issue[] {
     const declared = this.capabilities?.declared;
     if (!declared) return [];
     const scoped = withScopeFilter(draft, this.injectedScope);
     return unavailableIssues(
-      this.admit(draft),
+      issues,
       validateDataConfig({ ...this.context, definition: declared }, scoped),
     );
   }
@@ -658,6 +660,7 @@ export class DataViewRuntime<
       result,
       ...settled,
     });
+    this.labelReads = askLabels(this.labels, data, this.labelReads);
   }
 
   private onFailure(

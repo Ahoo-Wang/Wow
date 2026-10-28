@@ -111,8 +111,13 @@ class SinkConfig @InternalWowApi constructor(
      * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
      * value is not one of the option's type.
      */
-    fun <T : Any> option(option: ProviderOption<T>): T? =
-        option(option.key)?.let { option.parse(it, "$key.${option.key}") } ?: option.default
+    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
+
+    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
+    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
+
+    private fun <T : Any> setting(option: ProviderOption<T>): T? =
+        option(option.key)?.let { option.parse(it, "$key.${option.key}") }
 
     /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
     fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {

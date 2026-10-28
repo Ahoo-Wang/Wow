@@ -1720,6 +1720,7 @@ interface RuntimeLimits {
     maxRefreshInterval: number;
     minRefreshInterval: number;
     pageSizes: readonly number[];
+    referenceBatch: number;
     refreshIntervals: readonly number[];
 }
 

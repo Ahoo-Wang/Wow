@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
@@ -193,10 +194,13 @@ class HttpSignalSenderTest {
 
     @Test
     fun `every dropped signal is observed by its reason`(): Unit = runBlocking {
-        val reasons = CopyOnWriteArrayList<String>()
+        val reasons = CopyOnWriteArrayList<ObservedEvent.SignalDropped.Reason>()
         val observer = object : Observer {
-            override fun signalDropped(origin: String, reason: String) {
-                reasons += reason
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.SignalDropped -> reasons += event.reason
+                    else -> Unit
+                }
             }
         }
         withRefusingPort { gone ->
@@ -206,7 +210,10 @@ class HttpSignalSenderTest {
             sender.close()
             sender.send(origin("127.0.0.1:$gone"), signal(2), deadline())
         }
-        reasons.assert().containsExactly(HttpSignalSender.FAILED, HttpSignalSender.CLOSED)
+        reasons.assert().containsExactly(
+            ObservedEvent.SignalDropped.Reason.FAILED,
+            ObservedEvent.SignalDropped.Reason.CLOSED
+        )
     }
 
     @Test
@@ -249,17 +256,20 @@ class HttpSignalSenderTest {
 
     @Test
     fun `a signal whose wait is over is dropped unsent`(): Unit = runBlocking {
-        val reasons = CopyOnWriteArrayList<String>()
+        val reasons = CopyOnWriteArrayList<ObservedEvent.SignalDropped.Reason>()
         val sender = HttpSignalSender(
             observer = object : Observer {
-                override fun signalDropped(origin: String, reason: String) {
-                    reasons += reason
+                override fun observed(event: ObservedEvent) {
+                    when (event) {
+                        is ObservedEvent.SignalDropped -> reasons += event.reason
+                        else -> Unit
+                    }
                 }
             },
         ).also { senders += it }
         sender.send(origin(server.address), signal(1), System.currentTimeMillis() - 1)
         eventually { reasons.size == 1 }
-        reasons.assert().containsExactly(HttpSignalSender.EXPIRED)
+        reasons.assert().containsExactly(ObservedEvent.SignalDropped.Reason.EXPIRED)
         received.assert().isEmpty()
     }
 
@@ -335,10 +345,13 @@ class HttpSignalSenderTest {
 
     @Test
     fun `a request is sent at most its attempts, and a definite answer once`(): Unit = runBlocking {
-        val reasons = CopyOnWriteArrayList<String>()
+        val reasons = CopyOnWriteArrayList<ObservedEvent.SignalDropped.Reason>()
         val observer = object : Observer {
-            override fun signalDropped(origin: String, reason: String) {
-                reasons += reason
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.SignalDropped -> reasons += event.reason
+                    else -> Unit
+                }
             }
         }
         val requests = AtomicInteger()
@@ -366,7 +379,11 @@ class HttpSignalSenderTest {
             eventually { sender.dropped == 3L }
             requests.get().assert().isEqualTo(5)
         }
-        reasons.assert().containsExactly(HttpSignalSender.REFUSED, HttpSignalSender.REFUSED, HttpSignalSender.REFUSED)
+        reasons.assert().containsExactly(
+            ObservedEvent.SignalDropped.Reason.REFUSED,
+            ObservedEvent.SignalDropped.Reason.REFUSED,
+            ObservedEvent.SignalDropped.Reason.REFUSED
+        )
     }
 
     @Test
