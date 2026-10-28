@@ -4,15 +4,15 @@
     "type" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties",
     "description" : "The analytics catalog service's settings, `wow.analytics.catalog.*`: the warehouse whose tables and views are the sources, the accounts trusted to describe them, how the catalog watches them, and its datasets."
   }, {
-    "name" : "wow.analytics.catalog.approval",
-    "type" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Approval",
-    "description" : "Which sources and publications take an approver.",
-    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties"
-  }, {
     "name" : "wow.analytics.catalog.datasets",
     "type" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Datasets",
     "description" : "The datasets: where their views are created, how long a retired one is kept, and whether this node serves them.",
     "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties"
+  }, {
+    "name" : "wow.analytics.catalog.datasets.serving",
+    "type" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Serving",
+    "description" : "Whether this node serves the published datasets' queries.",
+    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Datasets"
   }, {
     "name" : "wow.analytics.catalog.watch",
     "type" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Watch",
@@ -20,18 +20,6 @@
     "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties"
   } ],
   "properties" : [ {
-    "name" : "wow.analytics.catalog.approval.publications",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether every publication takes an approver (`ApproveDatasetPublication`); a publication that computes from sensitive values or lowers a protection takes one either way.",
-    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Approval",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.analytics.catalog.approval.sources",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a dataset reads only the sources an approver approved (`ApproveSource`).",
-    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Approval",
-    "defaultValue" : false
-  }, {
     "name" : "wow.analytics.catalog.connection",
     "type" : "java.lang.String",
     "description" : "The name of the warehouse connection, the first part of each source's id.",
@@ -67,23 +55,29 @@
     "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Datasets",
     "defaultValue" : "PT168H"
   }, {
-    "name" : "wow.analytics.catalog.datasets.serve",
+    "name" : "wow.analytics.catalog.datasets.serving.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether this node serves the published datasets' queries.",
-    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Datasets",
+    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties$Serving",
     "defaultValue" : true
-  }, {
-    "name" : "wow.analytics.catalog.engine",
-    "type" : "java.lang.String",
-    "description" : "The engine type of that connection: `clickhouse`, the one 10.0 implements.",
-    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties",
-    "defaultValue" : "clickhouse"
   }, {
     "name" : "wow.analytics.catalog.refresh-interval",
     "type" : "java.time.Duration",
     "description" : "How often the catalog compares `system.tables` and `wow_catalog` with what it saw last and brings each changed table's source up to date.",
     "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties",
     "defaultValue" : "PT30S"
+  }, {
+    "name" : "wow.analytics.catalog.require-publication-approval",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether every publication takes an approver (`ApproveDatasetPublication`); a publication that computes from sensitive values or lowers a protection takes one either way.",
+    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties",
+    "defaultValue" : false
+  }, {
+    "name" : "wow.analytics.catalog.require-source-approval",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a dataset reads only the sources an approver approved (`ApproveSource`).",
+    "sourceType" : "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogProperties",
+    "defaultValue" : false
   }, {
     "name" : "wow.analytics.catalog.trusted-writers",
     "type" : "java.util.Map<java.lang.String,java.util.List<java.lang.String>>",

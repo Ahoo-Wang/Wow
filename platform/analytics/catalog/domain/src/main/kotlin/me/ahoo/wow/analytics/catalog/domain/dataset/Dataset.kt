@@ -348,7 +348,7 @@ class Dataset(private val state: DatasetState) {
         const val DROP_VIEWS = "analytics-catalog.dataset.DropDatasetViews"
 
         /** Why a publication takes an approver when the catalog's switch says every one does. */
-        const val EVERY_PUBLICATION = "Every publication takes an approver (wow.analytics.catalog.approval.publications)."
+        const val EVERY_PUBLICATION = "Every publication takes an approver (wow.analytics.catalog.require-publication-approval)."
 
         /** The statuses a source's change recompiles. */
         val RECOMPILED = setOf(DatasetStatus.PUBLISHED, DatasetStatus.NEEDS_REVISION)

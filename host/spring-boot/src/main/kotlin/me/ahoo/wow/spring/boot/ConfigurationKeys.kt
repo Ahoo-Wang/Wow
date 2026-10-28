@@ -246,19 +246,22 @@ class ConfigurationKeys(
             MODULES.entries.firstOrNull { key.startsWith(it.key) }?.let { "needs ${it.value} on the class path" }
 
         /**
-         * The maps of beans whose keys are checked to the value's properties, by the map's name: the
+         * The maps of beans whose keys are checked to the value's properties ([MAPS]), by the map's name: the
          * permits of the calling services, the peers this one calls, and each aggregate's, store's, subscription's,
          * schedule's and error code's settings.
          */
-        private val CHECKED_MAPS: Map<ConfigurationPropertyName, Class<*>> = mapOf(
-            "wow.callers" to WowProperties.CallerPermits::class.java,
-            "wow.peers" to WowProperties.PeerTarget::class.java,
-            "wow.aggregates" to WowProperties.Aggregate::class.java,
-            "wow.stores" to WowProperties.Store::class.java,
-            "wow.subscriptions" to WowProperties.SubscriptionSettings::class.java,
-            "wow.schedules" to WowProperties.Schedule::class.java,
-            "wow.http.errors" to WowProperties.Http.Error::class.java,
-        ).entries.associate { (map, type) -> ConfigurationPropertyName.of(map) to type }
+        val MAPS: List<CheckedMap> = listOf(
+            CheckedMap("wow.callers", "<service>", WowProperties.CallerPermits::class.java),
+            CheckedMap("wow.peers", "<context>", WowProperties.PeerTarget::class.java),
+            CheckedMap("wow.aggregates", "[<context>.<aggregate>]", WowProperties.Aggregate::class.java),
+            CheckedMap("wow.stores", "<name>", WowProperties.Store::class.java),
+            CheckedMap("wow.subscriptions", "[<subscription>]", WowProperties.SubscriptionSettings::class.java),
+            CheckedMap("wow.schedules", "<name>", WowProperties.Schedule::class.java),
+            CheckedMap("wow.http.errors", "[<code>]", WowProperties.Http.Error::class.java),
+        )
+
+        private val CHECKED_MAPS: Map<ConfigurationPropertyName, Class<*>> =
+            MAPS.associate { ConfigurationPropertyName.of(it.name) to it.type }
 
         private fun uniform(element: String): String =
             ConfigurationPropertyName.adapt(element, '.').getElement(0, ConfigurationPropertyName.Form.UNIFORM)
@@ -304,3 +307,10 @@ class ConfigurationKeys(
         }
     }
 }
+
+/**
+ * A map of beans whose keys are checked to the value's properties: the map's [name], how the reference writes one of
+ * its entries ([entry], `<name>` or `[<context>.<aggregate>]`), and the [type] of its values.
+ */
+@InternalWowApi
+class CheckedMap(val name: String, val entry: String, val type: Class<*>)

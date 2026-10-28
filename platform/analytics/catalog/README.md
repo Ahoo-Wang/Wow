@@ -48,8 +48,8 @@ until a revision is published or its sources come back.
 | `PublishDataset` | editor, admin | Compiles the definition as the next version and creates its view; queries then read it |
 | `RollbackDataset` | editor, admin | Switches queries back to an earlier version, its view created again if gone |
 | `RetireDataset` | editor, admin | Stops the queries; the views are dropped after the retention (`DropDatasetViews`, scheduled) |
-| `ApproveDatasetPublication`, `RefuseDatasetPublication` | approver | Decides a publication that takes an approver: every one with `approval.publications`, and any computing from sensitive values or lowering a protection |
-| `ApproveSource` | approver | With `approval.sources`, lets the datasets read a reviewed or adopted source |
+| `ApproveDatasetPublication`, `RefuseDatasetPublication` | approver | Decides a publication that takes an approver: every one with `require-publication-approval`, and any computing from sensitive values or lowering a protection |
+| `ApproveSource` | approver | With `require-source-approval`, lets the datasets read a reviewed or adopted source |
 | `RecompileDataset` | the catalog, admin | Compiles a published dataset again after a source changed |
 
 Roles: `analytics.catalog.admin` (connections, trusted writers), `analytics.catalog.approver` (reviews and
@@ -67,6 +67,6 @@ Swagger UI: http://localhost:8087/swagger-ui.html
 `trusted-writers.<account>` (the contexts it is trusted for), `refresh-interval` (30s), `watch` (on).
 `wow.analytics.catalog.datasets.*`: `database` (`wow_datasets`; the account needs `CREATE DATABASE`, `CREATE VIEW` and
 `DROP VIEW` there), `retention` (7d), `serve` (on), `refresh-interval` (5s), `reconcile-interval` (5m). The approval switches,
-`approval.sources` and `approval.publications`, are off by default. A node that serves
+`require-source-approval` and `require-publication-approval`, are off by default. A node that serves
 the datasets is ready (`/actuator/health/readiness`) once it read the publications; its metrics are
 `wow.analytics.catalog.datasets.sync.age` and `wow.analytics.catalog.datasets.publication.lag`.

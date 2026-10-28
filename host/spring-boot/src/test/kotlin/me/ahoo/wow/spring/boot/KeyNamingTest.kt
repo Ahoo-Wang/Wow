@@ -16,10 +16,11 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 import kotlin.io.path.readText
 
 /**
- * The naming rules of the keys, on the host's metadata: a feature switch ends with `.enabled` and a policy switch is a
+ * The naming rules of the keys, on the host's metadata and every module's: a feature switch ends with `.enabled` and a policy switch is a
  * verb phrase, `require-*`, `allow-*` or `trust-*` (design rule K4); a retry's settings are named alike everywhere,
  * `max-attempts`, `initial-backoff`, `max-backoff`, `multiplier`, `jitter` (K5); a value a key takes is a word of its
  * own, never `on`, `off`, `yes` or `no`, and a switch the node may decide takes `auto`, `true` and `false`. A key that
@@ -27,8 +28,11 @@ import kotlin.io.path.readText
  * outlives its key.
  */
 class KeyNamingTest {
-    private val document = WowJson.mapper.readTree(ConfigurationMetadata.FILE.readText())
-    private val properties = document["properties"].associate { it["name"].asString() to it["type"].asString() }
+    /** The metadata of the host and of every module that ships its own keys. */
+    private val documents = METADATA.map { WowJson.mapper.readTree(it.readText()) }
+    private val properties = documents.flatMap {
+        it["properties"]
+    }.associate { it["name"].asString() to it["type"].asString() }
 
     @Test
     fun `a boolean key should be a feature switch or a policy, unless allowed`() {
@@ -51,10 +55,10 @@ class KeyNamingTest {
 
     @Test
     fun `no value should be on, off, yes or no, and a switch should be auto, true or false`() {
-        val defaults = document["properties"].mapNotNull { property ->
+        val defaults = documents.flatMap { it["properties"] }.mapNotNull { property ->
             property["defaultValue"]?.takeIf { it.isString }?.let { property["name"].asString() to it.asString() }
         }
-        val hinted = document["hints"]?.toList().orEmpty().flatMap { hint ->
+        val hinted = documents.flatMap { it["hints"]?.toList().orEmpty() }.flatMap { hint ->
             hint["values"].toList().map { value -> hint["name"].asString() to value["value"].asString() }
         }
         val constants = properties.mapNotNull { (key, type) ->
@@ -96,6 +100,13 @@ class KeyNamingTest {
     }
 
     private companion object {
+        /** The host's metadata, then each module's: the analytics catalog's, the view store's and CosId's. */
+        val METADATA: List<Path> = listOf(
+            ConfigurationMetadata.FILE,
+            Path.of("../../platform/analytics/catalog/server").resolve(ConfigurationMetadata.FILE),
+            Path.of("../../platform/view-store/view-store-server").resolve(ConfigurationMetadata.FILE),
+            Path.of("../../extensions/cosid").resolve(ConfigurationMetadata.FILE),
+        )
         val YES_NO = setOf("on", "off", "yes", "no")
         val POLICY_VERBS = listOf("require-", "allow-", "trust-")
         val RETRY_WORDS = listOf("backoff", "attempts", "retries", "retry")
