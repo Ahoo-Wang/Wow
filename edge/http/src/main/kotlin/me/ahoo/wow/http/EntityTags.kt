@@ -26,6 +26,7 @@ import java.util.HexFormat
  *   Anything else does not parse.
  * - `If-Match` compares strongly ([versions]): a weak tag never matches, and a strong one names the aggregate's
  *   version as a state read tags it (`"3-…"`) or alone (`"3"`). Any other tag names no version, so matches none.
+ *   A command takes one expected version ([ifMatch]).
  * - `If-None-Match` compares weakly ([matchesWeakly]): `W/` is ignored, and `*` matches any tag.
  */
 internal object EntityTags {
@@ -82,6 +83,45 @@ internal object EntityTags {
     fun versions(tags: List<Tag>): Set<Int> = tags.filterNot { it.weak }
         .mapNotNull { VERSION_TAG.matchEntire(it.opaque.removeSurrounding("\""))?.groupValues?.get(1)?.toIntOrNull() }
         .toSet()
+
+    /** What a command's `If-Match` asks ([ifMatch]). */
+    sealed interface IfMatch {
+        /** The aggregate must be at [version]. */
+        data class Version(val version: Int) : IfMatch
+
+        /** `*` on a command that may find its aggregate: no condition beyond the command's own. */
+        data object Unconditional : IfMatch
+
+        /** Refused before the command runs: [malformed] (400), else no version can meet it (412). */
+        data class Refused(val malformed: Boolean, val detail: String) : IfMatch
+    }
+
+    /**
+     * What the `If-Match` [value] of a command that [creates] its aggregate or not asks: the one version its strong
+     * tags name, however many name it; none for `*`, unless the command creates, whose aggregate meets no `*`. Tags
+     * naming two versions or more, or a header that does not parse, are malformed; tags naming none never match.
+     */
+    fun ifMatch(value: String, creates: Boolean): IfMatch = when (val condition = parse(value)) {
+        null -> IfMatch.Refused(true, "If-Match is * or a list of entity tags, such as \"3\": '$value'.")
+        Condition.Any ->
+            if (creates) {
+                IfMatch.Refused(false, "If-Match: * names an aggregate that exists; this command creates one.")
+            } else {
+                IfMatch.Unconditional
+            }
+
+        is Condition.Listed -> {
+            val versions = versions(condition.tags)
+            when (versions.size) {
+                0 -> IfMatch.Refused(false, "If-Match names no version of the aggregate: '$value'.")
+                1 -> IfMatch.Version(versions.single())
+                else -> IfMatch.Refused(
+                    true,
+                    "A command takes one expected version; If-Match names ${versions.sorted().joinToString()}.",
+                )
+            }
+        }
+    }
 
     /** Whether [condition] names [tag] by the weak comparison of `If-None-Match`. */
     fun matchesWeakly(condition: Condition, tag: String): Boolean = when (condition) {

@@ -48,9 +48,9 @@ Times are epoch milliseconds.
 
 A state read answers `ETag: "<version>-<digest>"`: the aggregate's version, then the first 64 bits of the SHA-256 of the body as 16 hex digits. The tag changes with whatever changes what the caller reads, not only with the version.
 
-A conditional header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` (RFC 9110 §8.8.3). Anything else is 400 `wow.command.malformed`.
+A conditional header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` (RFC 9110 §8.8.3). Anything else is 400 `wow.request.malformed`.
 
-- **`If-Match` on a command** compares strongly (RFC 9110 §13.1.1). A strong tag names a version, either as a state read tags it (`"3-0123456789abcdef"`) or alone (`"3"`). The command runs when the aggregate is at a version the list names; otherwise it is 412 `wow.aggregate.version-mismatch`. A weak tag, or a tag that names no version, never matches. `*` matches an aggregate that exists, and is 412 on one that doesn't, including for a creation.
+- **`If-Match` on a command** compares strongly (RFC 9110 §13.1.1). A strong tag names a version, either as a state read tags it (`"3-0123456789abcdef"`) or alone (`"3"`). The command runs when the aggregate is at that version; otherwise it is 412 `wow.aggregate.version-mismatch`. A command takes one expected version: a list whose tags name the same version is that version, and one naming two or more is 400 `wow.request.malformed`. A weak tag, or a tag that names no version, never matches, so a list of only those is 412. `*` on a command that always creates its aggregate is 412; on any other command, unlike RFC 9110, `*` adds no condition, and a missing aggregate stays 404 `wow.aggregate.not-found`.
 - **`If-None-Match` on a state read** compares weakly (§13.1.2). `W/` is ignored, `*` matches any state, and a matching tag answers 304.
 
 ## Event stream

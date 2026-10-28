@@ -386,6 +386,10 @@
     "status" : 403,
     "description" : "The aggregate is outside the caller's scope."
   }, {
+    "code" : "wow.request.malformed",
+    "status" : 400,
+    "description" : "A request header or parameter does not parse, or names what Wow does not take."
+  }, {
     "code" : "wow.command.malformed",
     "status" : 400,
     "description" : "The command body cannot be read as the command type."

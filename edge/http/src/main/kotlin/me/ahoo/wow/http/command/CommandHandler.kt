@@ -55,6 +55,8 @@ internal data class CommandTarget(
     val command: String,
     val byId: Boolean,
     val id: String? = null,
+    /** Whether the command always creates its aggregate ([me.ahoo.wow.manifest.Creation.REQUIRED]). */
+    val creates: Boolean = false,
 )
 
 /**
@@ -110,7 +112,7 @@ internal class CommandHandler(
         val eventStream = call == null && Negotiation.wantsEventStream(request)
         Negotiation.checkAcceptable(request, alsoEventStream = true)
         Negotiation.checkJsonBody(request)
-        val expectedVersion = headers.expectedVersion(request)
+        val expectedVersion = headers.expectedVersion(request, target.context, target.creates)
         val command = ServerCommandRequest(
             context = target.context,
             aggregate = target.aggregate,

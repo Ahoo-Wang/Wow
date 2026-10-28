@@ -27,6 +27,7 @@ class FrameworkErrorsTest {
                 "wow.auth.unauthenticated" to 401,
                 "wow.auth.forbidden" to 403,
                 "wow.aggregate.forbidden" to 403,
+                "wow.request.malformed" to 400,
                 "wow.command.malformed" to 400,
                 "wow.command.invalid" to 400,
                 "wow.wait.invalid" to 400,

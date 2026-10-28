@@ -22,6 +22,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
@@ -91,17 +92,28 @@ internal class RequestHeaders(
         }
 
     /**
-     * The expected version of `If-Match`: one entity tag, the version (`"3"`, or `3`), or null without it or for
-     * `If-Match: *`, which expects no version in particular.
+     * The expected version of `If-Match` ([EntityTags.ifMatch]), null without it, for a command of [context] that
+     * [creates] its aggregate or not:
+     *
+     * - The version its strong tags name: a state read's tag (`"3-…"`) or the version alone (`"3"`), the same version
+     *   however many tags name it. Tags naming two versions or more are [FrameworkCodes.REQUEST_MALFORMED]: a command
+     *   takes one expected version.
+     * - Tags that name no version (weak, or not a version) never match: 412 [FrameworkCodes.AGGREGATE_VERSION_MISMATCH].
+     * - `*` on a command that creates its aggregate is 412 too: there is none yet. On any other command `*` adds no
+     *   condition, and a missing aggregate is refused as not found, as without it.
+     * - A header that does not parse is [FrameworkCodes.REQUEST_MALFORMED].
      */
-    fun expectedVersion(request: ServerRequest): Int? {
+    fun expectedVersion(request: ServerRequest, context: String, creates: Boolean): Int? {
         val value = request.header(WowHeaders.IF_MATCH) ?: return null
-        if (value == "*") {
-            return null
+        return when (val match = EntityTags.ifMatch(value, creates)) {
+            is EntityTags.IfMatch.Version -> match.version
+            EntityTags.IfMatch.Unconditional -> null
+            is EntityTags.IfMatch.Refused -> throw if (match.malformed) {
+                problem(FrameworkCodes.REQUEST_MALFORMED, match.detail)
+            } else {
+                precondition(context, match.detail)
+            }
         }
-        val tag = value.removeSurrounding("\"")
-        return tag.toIntOrNull()?.takeIf { it >= 0 }
-            ?: throw problem(FrameworkCodes.COMMAND_MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
     }
 
     /**
@@ -208,6 +220,13 @@ internal class RequestHeaders(
     }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
+
+    /** The 412 of an `If-Match` no version of the aggregate can meet. */
+    private fun precondition(context: String, detail: String): ProblemException {
+        val code = FrameworkCodes.AGGREGATE_VERSION_MISMATCH
+        val status = statuses.status(code, context, ifMatch = true)
+        return ProblemException(Problem(status, statuses.title(code, context, status), detail, code))
+    }
 
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
 

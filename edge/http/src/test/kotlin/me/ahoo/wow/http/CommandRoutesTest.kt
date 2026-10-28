@@ -194,14 +194,34 @@ class CommandRoutesTest {
             .assertSucceeded().body!!["version"].asInt().assert().isEqualTo(2)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"1\""))
             .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = true)
+        // The tag a state read wrote is taken by its version, and a list of one version is that version.
+        node.post(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            headers = mapOf(WowHeaders.IF_MATCH to "\"2-0123456789abcdef\", \"2\", W/\"5\""),
+        ).assertSucceeded().body!!["version"].asInt().assert().isEqualTo(3)
+        // On a command that does not always create, * adds no condition.
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "*"))
             .assertSucceeded()
     }
 
     @Test
-    fun `an If-Match that is not a version is malformed without a result`() {
-        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"abc\""))
-            .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
+    fun `an If-Match no version can meet is 412 before the command runs`() {
+        listOf("\"abc\"", "W/\"0\"", "\"-1\"").forEach { tag ->
+            node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to tag))
+                .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = false)
+        }
+        // A command that always creates its aggregate meets no *: there is none yet.
+        node.post("/shop/cart/open-cart", """{"note":"hi"}""", headers = mapOf(WowHeaders.IF_MATCH to "*"))
+            .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = false)
+    }
+
+    @Test
+    fun `an If-Match that does not parse, or names two versions, is malformed without a result`() {
+        listOf("1", "\"1", "\"1\" \"2\"", "\"1\", \"2\"").forEach { tag ->
+            node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to tag))
+                .assertProblem(400, FrameworkCodes.REQUEST_MALFORMED, withResult = false)
+        }
     }
 
     @Test

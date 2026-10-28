@@ -62,4 +62,22 @@ class EntityTagsTest {
         EntityTags.matchesWeakly(Condition.Any, tag).assert().isTrue()
         EntityTags.matchesWeakly(EntityTags.parse("\"2\"")!!, tag).assert().isFalse()
     }
+
+    @Test
+    fun `a command's If-Match asks one version, no condition, or is refused`() {
+        val oneVersion = "\"4-0123456789abcdef\", \"4\", W/\"9\""
+        EntityTags.ifMatch(oneVersion, creates = false).assert().isEqualTo(EntityTags.IfMatch.Version(4))
+        EntityTags.ifMatch("*", creates = false).assert().isEqualTo(EntityTags.IfMatch.Unconditional)
+        // A creation meets no *, and tags naming no version meet nothing: 412.
+        refusal("*", creates = true).malformed.assert().isFalse()
+        refusal("W/\"4\", \"x\"").malformed.assert().isFalse()
+        // Two versions, or a header that does not parse: 400.
+        val two = refusal("\"4\", \"5\"")
+        two.malformed.assert().isTrue()
+        two.detail.assert().contains("4, 5")
+        refusal("4").malformed.assert().isTrue()
+    }
+
+    private fun refusal(value: String, creates: Boolean = false): EntityTags.IfMatch.Refused =
+        EntityTags.ifMatch(value, creates) as EntityTags.IfMatch.Refused
 }

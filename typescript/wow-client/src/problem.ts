@@ -26,6 +26,11 @@ export const FrameworkErrorCodes = {
   AUTH_FORBIDDEN: 'wow.auth.forbidden',
   /** 403: the aggregate is outside the caller's scope. */
   AGGREGATE_FORBIDDEN: 'wow.aggregate.forbidden',
+  /**
+   * 400: a request header or parameter does not parse, or names what Wow does
+   * not take.
+   */
+  REQUEST_MALFORMED: 'wow.request.malformed',
   /** 400: the command body cannot be read as the command type. */
   COMMAND_MALFORMED: 'wow.command.malformed',
   /** 400: the command failed validation; the problem lists the violations. */

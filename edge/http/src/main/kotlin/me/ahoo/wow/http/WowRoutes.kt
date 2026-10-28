@@ -40,6 +40,7 @@ import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -352,7 +353,13 @@ private fun CoRouterFunctionDsl.commandRoutes(
             val target = if (command.system) {
                 systemTarget(context, aggregate.name, command.name)
             } else {
-                CommandTarget(context, aggregate.name, command.name, route.path.contains(CommandRoutes.ID))
+                CommandTarget(
+                    context,
+                    aggregate.name,
+                    command.name,
+                    route.path.contains(CommandRoutes.ID),
+                    creates = command.creation == Creation.REQUIRED,
+                )
             }
             route(route, target, handler, statuses)
         }
