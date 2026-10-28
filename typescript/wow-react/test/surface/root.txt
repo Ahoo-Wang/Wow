@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-react — 35 names, from src/index.ts.
+# @ahoo-wang/wow-react — 26 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  QueryExecutor
@@ -6,18 +6,12 @@ type  QueryHookOptions
 type  QueryHookReturn
 type  QueryStatus
 type  StreamExecutor
+type  UseAggregateQueryOptions
+type  UseAggregateQueryReturn
 type  UseCountQueryOptions
 type  UseCountQueryReturn
-type  UseFetcherCountQueryOptions
-type  UseFetcherCountQueryReturn
-type  UseFetcherListQueryOptions
-type  UseFetcherListQueryReturn
-type  UseFetcherPagedQueryOptions
-type  UseFetcherPagedQueryReturn
-type  UseFetcherSingleQueryOptions
-type  UseFetcherSingleQueryReturn
-type  UseFetcherStreamQueryOptions
-type  UseFetcherStreamQueryReturn
+type  UseCursorQueryOptions
+type  UseCursorQueryReturn
 type  UseListQueryOptions
 type  UseListQueryReturn
 type  UsePagedQueryOptions
@@ -26,12 +20,9 @@ type  UseSingleQueryOptions
 type  UseSingleQueryReturn
 type  UseStreamQueryOptions
 type  UseStreamQueryReturn
+value useAggregateQuery
 value useCountQuery
-value useFetcherCountQuery
-value useFetcherListQuery
-value useFetcherPagedQuery
-value useFetcherSingleQuery
-value useFetcherStreamQuery
+value useCursorQuery
 value useListQuery
 value usePagedQuery
 value useSingleQuery

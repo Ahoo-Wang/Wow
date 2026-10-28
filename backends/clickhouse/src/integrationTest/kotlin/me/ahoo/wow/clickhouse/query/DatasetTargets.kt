@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.clickhouse.query
 
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendStorages
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModel
@@ -23,15 +23,15 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 
-/** A dataset served by a factory: its backend, and the Catalog that compiles its schema from the table's facts. */
-class DatasetTarget(val dataset: QueryDataset, factory: DatasetQueryBackendFactory) {
+/** A dataset served by its bindings: its backend, and the Catalog that compiles its schema from the table's facts. */
+class DatasetTarget(val dataset: QueryDataset, factory: QueryBindings<QueryDataset>) {
     val datasets = QueryDatasets(listOf(dataset))
     val catalog = QuerySchemaCatalog(
-        storages = QueryBackendStorages(datasetFactory = factory, datasets = datasets),
+        storages = QueryBackendStorages(datasetBindings = factory, datasets = datasets),
         compiler = QueryModelCompiler.of(datasets = datasets),
         datasets = datasets,
     )
-    val backend: DatasetQueryBackend = factory.create(dataset).backend
+    val backend: QueryBackend = checkNotNull(factory.binding(dataset)).backend
 
     suspend fun schema(): QueryModelSchema = catalog.schema(dataset.name, QueryModel.DATASET)
 }

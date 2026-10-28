@@ -80,7 +80,7 @@ class QueriedSnapshots(private val store: SnapshotStore, private val queries: In
 }
 
 /**
- * The memory backend with its snapshots queried: the application's [me.ahoo.wow.query.backend.QueryBackendFactory], the
+ * The memory backend with its snapshots queried: the application's [me.ahoo.wow.query.backend.QueryBindings], the
  * in-memory reference backend, fed by each context's snapshot store.
  */
 @Configuration(proxyBeanMethods = false)
@@ -104,7 +104,7 @@ class ScannedEvents {
         val storages = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
         return EventQueryBackend { type ->
             node.contexts[type.context]?.let { context ->
-                storages.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.create(type)
+                storages.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.binding(type)
             }
         }
     }
@@ -488,7 +488,7 @@ class HostQueryTest {
         val manifest = Manifest(contexts = listOf(ContextManifest(BANK, aggregates = listOf(account))))
         val catalog = QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage()))
         fun backend(report: QueryIndexReport) = SnapshotQueryBackend(
-            SnapshotQueryBackend(InMemoryQueryStorage()).factory,
+            InMemoryQueryStorage(),
             indexes = { _, _, _ -> report },
             store = { "reads" },
         )
@@ -519,7 +519,7 @@ class HostQueryTest {
         val catalog = QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage()))
         val steps = mutableListOf<String>()
         val backend = SnapshotQueryBackend(
-            SnapshotQueryBackend(InMemoryQueryStorage()).factory,
+            InMemoryQueryStorage(),
             prepare = { steps += "prepare $it" },
             indexes = { type, _, _ -> QueryIndexReport().also { steps += "indexes $type" } },
         )

@@ -11,17 +11,19 @@ description: 'The @ahoo-wang/wow-react package: its hooks, their options and res
 
 One entry, `@ahoo-wang/wow-react`. Its [symbol index](./symbols) lists every name it exports.
 
-| Hook | Runs | Through |
+| Hook | Runs | Client method |
 | --- | --- | --- |
-| `useSingleQuery`, `useFetcherSingleQuery` | A single query | A client's method, or a Fetcher and a URL |
-| `useListQuery`, `useFetcherListQuery` | A list query | Same |
-| `usePagedQuery`, `useFetcherPagedQuery` | A paged query | Same |
-| `useCountQuery`, `useFetcherCountQuery` | A count | Same |
-| `useStreamQuery`, `useFetcherStreamQuery` | A list, as server-sent events | Same |
+| `useSingleQuery` | A single query | `single` |
+| `useListQuery` | A list query | `list` |
+| `usePagedQuery` | A paged query | `paged` |
+| `useCountQuery` | A count | `count` |
+| `useAggregateQuery` | An aggregation | `aggregate` |
+| `useCursorQuery` | A cursor query, page by page | `cursor` |
+| `useStreamQuery` | A list, as server-sent events | `streamRows` |
 
-Each hook takes a `Use…Options` and returns a `Use…Return`, both exported. The `use*Query` hooks run your `execute`, a generated client's method; the `useFetcher*Query` hooks post the query to a query route through a Fetcher. Every hook has a second overload typed by a query of your own, a subtype of its query type.
+Each hook takes a `Use…Options` and returns a `Use…Return`, both exported. Every hook runs your `execute`, a generated client's method, and has a second overload typed by a query of your own, a subtype of its query type.
 
-The shared types are exported too: `QueryStatus` (`'idle' | 'loading' | 'success' | 'error'`), `QueryExecutor`, and `QueryHookOptions` and `QueryHookReturn`, which every hook's options and result extend.
+The shared types are exported too: `QueryStatus` (`'idle' | 'loading' | 'success' | 'error'`), `QueryExecutor`, `StreamExecutor`, and `QueryHookOptions` and `QueryHookReturn`, which every hook's options and result extend.
 
 ## The generated half
 

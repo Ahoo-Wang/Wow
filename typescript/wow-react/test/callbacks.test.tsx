@@ -14,8 +14,8 @@
 /**
  * When `onSuccess` and `onError` run, and what they see: the callback rules of
  * `docs/design/architecture.md` §3. Written as a characterization of
- * fetcher-react 5.1.3 before the refactor of `docs/design/refactor-2026-09.md`;
- * it now pins the package's own state machine.
+ * fetcher-react 5.1.3 before the 2026-09 refactor; it now pins the
+ * package's own state machine.
  *
  * Cells that batch B3 (#3371) changed on purpose carry a `B3 changed this`
  * comment naming the value before.
@@ -29,12 +29,7 @@ import {
   WowProblemError,
 } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import {
-  useCountQuery,
-  useFetcherCountQuery,
-  useFetcherStreamQuery,
-  useStreamQuery,
-} from '../src';
+import { useCountQuery, useStreamQuery } from '../src';
 import {
   deferred,
   errorEvent,
@@ -125,22 +120,6 @@ const requestFamilies: {
           useCountQuery({
             initialQuery: paidCount,
             execute: (query, options) => client.count(query, options),
-            onSuccess: onCount(onSuccess),
-            onError,
-          }),
-        { initialProps: callbacks },
-      );
-    },
-  },
-  {
-    name: 'useFetcherCountQuery (url)',
-    render(server, callbacks) {
-      return renderHook(
-        ({ onSuccess, onError }: Callbacks<number>) =>
-          useFetcherCountQuery({
-            fetcher: server.fetcher,
-            url: '/shop/order/snapshot/query',
-            initialQuery: paidCount,
             onSuccess: onCount(onSuccess),
             onError,
           }),
@@ -305,21 +284,7 @@ const streamFamilies: {
       return renderHook(() =>
         useStreamQuery<unknown>({
           initialQuery: listQuery({ filter: paidFilter }),
-          execute: (query, options) => client.stream(query, options),
-          onSuccess,
-          onError,
-        }),
-      );
-    },
-  },
-  {
-    name: 'useFetcherStreamQuery (url)',
-    render(server, { onSuccess, onError }) {
-      return renderHook(() =>
-        useFetcherStreamQuery<unknown>({
-          fetcher: server.fetcher,
-          url: '/shop/order/snapshot/query',
-          initialQuery: listQuery({ filter: paidFilter }),
+          execute: (query, options) => client.streamRows(query, options),
           onSuccess,
           onError,
         }),

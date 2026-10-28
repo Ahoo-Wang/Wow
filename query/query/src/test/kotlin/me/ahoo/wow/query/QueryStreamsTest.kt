@@ -72,8 +72,8 @@ class QueryStreamsTest {
     private val pages = CopyOnWriteArrayList<PageWindow>()
 
     /** The in-memory backend, recording each window it reads. */
-    private val backend: QueryBackend = object : QueryBackend by storage.create(ManifestFixtures.ORDER).backend {
-        private val delegate = storage.create(ManifestFixtures.ORDER).backend
+    private val backend: QueryBackend = object : QueryBackend by storage.binding(ManifestFixtures.ORDER).backend {
+        private val delegate = storage.binding(ManifestFixtures.ORDER).backend
 
         override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
             pages += window

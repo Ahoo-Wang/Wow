@@ -22,15 +22,13 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends QueryHookOptions<Q, R | undefined, E> {}
+> extends QueryHookOptions<Q, R | undefined> {}
 
 /**
  * What {@link useSingleQuery} returns: the item as `result`, `undefined`
@@ -39,15 +37,13 @@ export interface UseSingleQueryOptions<
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `Error` by default
  * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends QueryHookReturn<Q, R | undefined, E> {}
+> extends QueryHookReturn<Q, R | undefined> {}
 
 /**
  * Runs a single query through your own `execute` function and keeps the
@@ -60,14 +56,13 @@ export interface UseSingleQueryReturn<
  * through `execute()`.
  *
  * Returns `result` (the item, or `undefined` before the first success),
- * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `loading`, `error`, `problem`, `status`, `execute`, `abort`, `reset`, `getQuery` and
  * `setQuery`.
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use. With a client whose
  *   fields are narrower than `string`, as a generated client's are, pass
  *   them here: TypeScript does not infer them from `execute` once `R` is given
- * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -88,9 +83,9 @@ export interface UseSingleQueryReturn<
  * }
  * ```
  */
-export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
-  options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
-): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+export function useSingleQuery<R, FIELDS extends string = string>(
+  options: UseSingleQueryOptions<R, FIELDS, FilterSingleQuery<FIELDS>>,
+): UseSingleQueryReturn<R, FIELDS, FilterSingleQuery<FIELDS>>;
 /**
  * {@link useSingleQuery} typed by a query `Q` of your own, a subtype of
  * `FilterSingleQuery`, such as one whose literal projection narrows the result.
@@ -98,18 +93,16 @@ export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
 export function useSingleQuery<
   R,
   FIELDS extends string = string,
-  E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
-  options: UseSingleQueryOptions<R, FIELDS, E, Q>,
-): UseSingleQueryReturn<R, FIELDS, E, Q>;
+  options: UseSingleQueryOptions<R, FIELDS, Q>,
+): UseSingleQueryReturn<R, FIELDS, Q>;
 export function useSingleQuery<
   R,
   FIELDS extends string,
-  E,
   Q extends FilterSingleQuery<FIELDS>,
 >(
-  options: UseSingleQueryOptions<R, FIELDS, E, Q>,
-): UseSingleQueryReturn<R, FIELDS, E, Q> {
-  return useQueryRunner<Q, R | undefined, E>(options);
+  options: UseSingleQueryOptions<R, FIELDS, Q>,
+): UseSingleQueryReturn<R, FIELDS, Q> {
+  return useQueryRunner<Q, R | undefined>(options);
 }

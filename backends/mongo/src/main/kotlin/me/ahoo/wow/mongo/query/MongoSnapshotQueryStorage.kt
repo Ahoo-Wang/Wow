@@ -19,7 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.spi.VirtualThreads
 
@@ -39,19 +39,19 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
     val options: MongoQueryOptions = MongoQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val readPreference: ReadPreference? = null,
-) : AbstractQueryBackendFactory<MongoSnapshotQueryBackend>() {
+) : CachedQueryBindings<AggregateType>({ it }) {
     private val database = client.getDatabase(databaseName)
 
     /** The snapshot collection of [aggregateName]. */
     fun collection(aggregateName: String): String = MongoSnapshotStore.collectionName(context, aggregateName)
 
-    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
-        require(aggregateType.context == context) { "$aggregateType is not in context $context." }
-        val collection = collection(aggregateType.name)
+    override fun createBinding(key: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
+        require(key.context == context) { "$key is not in context $context." }
+        val collection = collection(key.name)
         val documents = database.getCollection(collection)
         val read = readPreference?.let(documents::withReadPreference) ?: documents
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(aggregateType, read, options, dispatcher),
+            MongoSnapshotQueryBackend(key, read, options, dispatcher),
             MongoQuerySchemaAdapter(database, collection, dispatcher),
         )
     }

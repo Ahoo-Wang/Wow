@@ -33,6 +33,8 @@ The node probes each store it placed (`Store.probe`: a pooled connection's valid
 
 What a store offers beyond its ports it gives as facets (`Store.facet`): its query side, `StoreQueries` (`:query`), when the backend serves the snapshot or `events` queries, and its pool, `StorePool`, when the pool says its connections. The node bounds the store's queries by its pool (a quarter of one the appends share, all of one of the queries' own) and reads the store's write pressure from it. A facet is a capability, never a way around a port.
 
+Each query side hands out its bindings, a query backend and its storage's facts, through one shape, `QueryBindings` (`:query`): `binding(key)` for an aggregate type's snapshots or events or for a dataset, null for a key it does not serve. `CachedQueryBindings` creates each key's binding once, again when a dataset is redeclared, and drops it on `forget(key)`.
+
 The host finds providers through Java's `ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`, and among the application's beans; a bean takes the place of a provider of the same type on the class path. A provider is stateless: each store instance gets its own `Store`, over the resources its configuration finds, a `DataSource` or a driver's client.
 
 ## Transport and Sink providers
@@ -112,7 +114,7 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 | `TopicTransportSpec` | `wow-tck` | `producer`, `source`, `newTopic(partitions)` | `readTimeout` |
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`, `binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
-| `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetQueryBackendFactory()`, `createTable(table)` | `semanticDivergences` |
+| `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)` | `semanticDivergences` |
 
 Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
 

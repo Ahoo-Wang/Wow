@@ -17,16 +17,15 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
 import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBackendFactory
-import me.ahoo.wow.query.backend.RoutingQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryRequestException
@@ -139,9 +138,8 @@ class QueryApiTiersTest {
             ResolvedField::class.java,
             CursorPosition::class.java,
             CursorPositionCodec::class.java,
-            QueryBackendFactory::class.java,
-            AbstractQueryBackendFactory::class.java,
-            RoutingQueryBackendFactory::class.java,
+            QueryBindings::class.java,
+            CachedQueryBindings::class.java,
             DenseDateGrid::class.java,
             QueryStorageAdapter::class.java,
             QueryStorageFacts::class.java,

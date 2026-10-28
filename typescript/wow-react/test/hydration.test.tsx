@@ -13,10 +13,9 @@
 
 /**
  * Characterization of hydration: the server's markup of every hook, hydrated
- * on the client. It pins the behaviour of today for the refactor of
- * `docs/design/refactor-2026-09.md`: the first client frame matches the
- * server's, so React reports no mismatch, and the queries run only once
- * hydrated.
+ * on the client. It pins the behaviour of today for the 2026-09 refactor:
+ * the first client frame matches the server's, so React reports no
+ * mismatch, and the queries run only once hydrated.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -28,11 +27,13 @@ import { fakeServer, json, sse } from './support/fakeServer';
 
 describe('hydrating the server markup', () => {
   it('matches the first client frame, then runs every query', async () => {
-    const server = fakeServer(request =>
-      request.headers.get('Accept')?.includes('text/event-stream')
-        ? sse()
-        : json(null),
-    );
+    const server = fakeServer(request => {
+      if (request.headers.get('Accept')?.includes('text/event-stream'))
+        return sse();
+      // A cursor answers a page; every other kind takes any JSON.
+      const { kind } = request.body as { kind: string };
+      return json(kind === 'cursor' ? { list: [], nextCursor: null } : null);
+    });
     const html = renderToString(<SsrProbe fetcher={server.fetcher} />);
     const container = document.createElement('div');
     container.innerHTML = html;

@@ -229,7 +229,7 @@ class QueryDslJsonTest {
         val gateway: DefaultQueryGateway by lazy {
             val storage = InMemoryQueryStorage()
             orders().forEach(storage::save)
-            val binding = storage.create(TYPE)
+            val binding = storage.binding(TYPE)
             val context = QuerySchemaContext(TYPE, QueryModel.SNAPSHOT)
             val provider = DefaultQueryModelSchemaProvider(
                 context,

@@ -35,7 +35,7 @@ import java.time.Instant
 class InMemoryDatasetQueryBackendTest : DatasetQueryBackendSpec() {
     private val storage = InMemoryDatasetStorage()
 
-    override fun createDatasetQueryBackendFactory(): InMemoryDatasetStorage = storage
+    override fun createDatasetBindings(): InMemoryDatasetStorage = storage
 
     override suspend fun createTable(table: DatasetTable): ObjectNode = storage.put(table.name, table.rows.map(::row))
 
@@ -54,14 +54,14 @@ class InMemoryDatasetQueryBackendTest : DatasetQueryBackendSpec() {
             tenant("tenant_id")
             field("tenant_id") { types(QueryValueType.STRING) }
         }
-        assertThrows<IllegalArgumentException> { storage.create(unbound) }
+        assertThrows<IllegalArgumentException> { storage.binding(unbound) }
     }
 
     @Test
     fun `the backend records the timeout of each query`() {
         runBlocking {
             val orders = target(ORDERS)
-            val backend = orders.backend as InMemoryDatasetQueryBackend
+            val backend = orders.backend as InMemoryQueryBackend
             val timeout = Duration.ofSeconds(3)
             val count = QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), orders.schema).withTimeout(timeout)
             backend.countBounded(count).count.assert().isEqualTo(6L)

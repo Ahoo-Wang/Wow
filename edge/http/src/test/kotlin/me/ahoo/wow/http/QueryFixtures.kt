@@ -23,8 +23,8 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendStorages
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.mask.PayloadMasks
@@ -95,17 +95,17 @@ fun cartEvents(
     manifest: Manifest = queryManifest(),
     visibility: EventVisibility = EventVisibility.ALL,
     masks: PayloadMasks = PayloadMasks.NONE,
-    storage: QueryBackendFactory<*> = InMemoryEventQueryStorage.of(log),
+    storage: QueryBindings<AggregateType> = InMemoryEventQueryStorage.of(log),
     crossTenant: Boolean = false,
 ): QueryGateway {
     val schemas = EventsQuerySchemas(manifest)
     val catalog = QuerySchemaCatalog(
-        QueryBackendStorages(events = { type -> storage.create(type) }),
+        QueryBackendStorages(events = storage),
         QueryModelCompiler.of(events = schemas),
     )
     return EventQueryGateways.create(
         cartType,
-        storage.create(cartType).backend,
+        checkNotNull(storage.binding(cartType)).backend,
         catalog.provider(cartType, QueryModel.EVENTS),
         policies = listOf(
             ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest), crossTenant = crossTenant),
@@ -119,7 +119,7 @@ fun cartEvents(
 
 /** The snapshot query gateway of the cart over [storage], as the host builds one: Manifest schema, scope policy. */
 fun cartSnapshots(
-    storage: QueryBackendFactory<*>,
+    storage: QueryBindings<AggregateType>,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     policies: List<QueryPolicy> = emptyList(),
@@ -132,7 +132,7 @@ fun cartSnapshots(
     )
     return DefaultQueryGateway(
         cartType,
-        storage.create(cartType).backend,
+        checkNotNull(storage.binding(cartType)).backend,
         catalog.provider(cartType, QueryModel.SNAPSHOT),
         policies = listOf(ScopeQueryPolicy(tenants, crossTenant = crossTenant)) + policies,
         entryPolicy = entryPolicy,

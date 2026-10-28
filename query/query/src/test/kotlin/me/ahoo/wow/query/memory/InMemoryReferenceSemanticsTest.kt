@@ -103,18 +103,18 @@ class InMemoryReferenceSemanticsTest {
     private val storage = InMemoryDatasetStorage()
     private val schemaAndBackend by lazy { runBlocking { target() } }
     private val schema: QueryModelSchema get() = schemaAndBackend.first
-    private val backend: InMemoryDatasetQueryBackend get() = schemaAndBackend.second
+    private val backend: InMemoryQueryBackend get() = schemaAndBackend.second
 
-    private suspend fun target(): Pair<QueryModelSchema, InMemoryDatasetQueryBackend> {
+    private suspend fun target(): Pair<QueryModelSchema, InMemoryQueryBackend> {
         val dataset = dataset(storage.put(TABLE, ROWS.map { WowJson.mapper.readTree(it) as ObjectNode }))
         val datasets = QueryDatasets(listOf(dataset))
         val catalog = QuerySchemaCatalog(
-            storages = QueryBackendStorages(datasetFactory = storage, datasets = datasets),
+            storages = QueryBackendStorages(datasetBindings = storage, datasets = datasets),
             compiler = QueryModelCompiler.of(datasets = datasets),
             datasets = datasets,
         )
         return catalog.schema(dataset.name, QueryModel.DATASET) to
-            storage.create(dataset).backend as InMemoryDatasetQueryBackend
+            checkNotNull(storage.binding(dataset)).backend as InMemoryQueryBackend
     }
 
     /** The table's dataset: a flat record of every shape the backend reads. */

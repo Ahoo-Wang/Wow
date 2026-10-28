@@ -69,7 +69,7 @@ class SensitivityGatewayTest {
         storage.save(order("o1", "13812345678"))
         storage.save(order("o2", "13900000000"))
         val schema = ManifestFixtures.orderSchema(sensitivity)
-        val binding = storage.create(ManifestFixtures.ORDER)
+        val binding = storage.binding(ManifestFixtures.ORDER)
         val gateway = DefaultQueryGateway(
             ManifestFixtures.ORDER,
             binding.backend,

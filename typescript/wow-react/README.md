@@ -1,7 +1,7 @@
 # `@ahoo-wang/wow-react`
 
 React hooks for [Wow](https://github.com/Ahoo-Wang/Wow) queries: single, list,
-paged, count and list-stream. They keep a query, its result, loading and error
+paged, count, aggregate, cursor and list-stream. They keep a query, its result, loading and error
 as React state, on the query types of `@ahoo-wang/wow-client`.
 
 ## Requirements
@@ -95,78 +95,104 @@ request. Hand a method over through an arrow function, as above: a method
 passed alone loses its `this`. A snapshot query filters the snapshot record,
 whose state lives under `state`, so a state field is `state.status`, not
 `status`. `requestOptions` adds the scope, the space or more headers to every
-run.
+run. Create the client once, outside the component or memoized, not inside
+`execute`: one client serves every request.
 
-Aggregations have no hook yet. Call `client.aggregate(query, { signal })` in
-an effect with an `AbortController` and abort it on cleanup.
+## Reading page by page
 
-Cursor queries have no hook yet either. Run one through `useSingleQuery`, with
-the page as the result: pass `CursorPage<R>` and `CursorQuery<Fields>` as the
-type arguments and `client.cursor` as `execute`, and move to the next page with
-`setQuery({ ...query, cursor: result.nextCursor })` while `nextCursor` is not
-`null`.
-
-## With an endpoint URL
-
-The `useFetcher*Query` hooks POST the query to a query route through a
-Fetcher instead:
+`useCursorQuery` reads a forward-only cursor query and keeps the rows of every
+page read; `fetchNext()` reads the next page and appends it. The hook owns the
+cursor, so its query has none (a `cursor` there does not compile): every run
+starts at the first page, and `execute` receives the query with the cursor of
+the page it reads.
 
 ```tsx
-import { Fetcher } from '@ahoo-wang/fetcher';
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
-import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
+import type {
+  SnapshotQueryClient,
+  SnapshotRecord,
+} from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCursorQuery } from '@ahoo-wang/wow-react';
 
-const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
+interface OrderState {
+  status: string;
+}
+type OrderFields = 'state.status';
 
-export function PaidOrders() {
-  const { result, loading, error } = useFetcherPagedQuery<
-    SnapshotRecord<OrderState>
+export function PaidOrderPages({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState, OrderFields>;
+}) {
+  const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
+    SnapshotRecord<OrderState>,
+    OrderFields
   >({
-    fetcher,
-    url: '/shop/order/snapshot/query',
-    initialQuery: pagedQuery({
-      filter: filter.eq('state.status', 'PAID'),
-      pagination: { index: 1, size: 20 },
-    }),
+    query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
+    execute: (query, options) => client.cursor(query, options),
   });
-  // …render as above
+
+  if (error) return <p role="alert">{error.message}</p>;
+  return (
+    <>
+      <ul>
+        {items.map(order => (
+          <li key={order.aggregateId}>{order.state.status}</li>
+        ))}
+      </ul>
+      {hasMore && (
+        <button disabled={loading} onClick={() => void fetchNext()}>
+          More
+        </button>
+      )}
+    </>
+  );
 }
 ```
 
-`fetcher` is a Fetcher or the name of a registered one; without it the default
-Fetcher sends the request. An aggregate's snapshots are queried at
-`/{context}/{aggregate}/snapshot/query`, its events at
-`/{context}/{aggregate}/events/query`; the hook names the operation (`single`,
-`list`, `paged`, `count`) in the query's `kind`.
+`fetchNext()` does nothing while a page is loading or after the last page. A
+failed `fetchNext()` keeps the rows and the cursor, so calling it again
+retries that page; a new query and `execute()` start again from the first
+page, and `reset()` empties the rows.
 
-A request is identified by `url` and the Fetcher: a named Fetcher by its name,
-an unnamed one by its `baseURL`. Two unnamed Fetchers with the same `baseURL`
-count as one endpoint even when their interceptors differ (for example one per
-tenant), so switching between them does not run the query again. Give each a
-name, or pass the name of a registered Fetcher, to tell them apart.
+`useAggregateQuery` runs an aggregation, typically `client.aggregate`, and
+keeps its rows as `result`, one per group.
 
 ## Streaming a list
 
-`useStreamQuery` and `useFetcherStreamQuery` read a list as
-server-sent events and keep the rows as they arrive. A stream the service
-cuts off is resumed where it stopped, as wow-client's `stream` does.
+`useStreamQuery` reads a list as server-sent events and keeps the records as
+they arrive. Pass a client's `streamRows` as `execute`: it sends
+`Accept: text/event-stream`, resumes a stream the service cuts off where it
+stopped, and answers each record with its position, which the hook keeps as
+`position`.
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type {
+  SnapshotQueryClient,
+  SnapshotRecord,
+} from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherStreamQuery } from '@ahoo-wang/wow-react';
+import { useStreamQuery } from '@ahoo-wang/wow-react';
 
-export function PaidOrderFeed() {
-  const { items, done, loading, error, abort } = useFetcherStreamQuery<
-    SnapshotRecord<OrderState>
+interface OrderState {
+  status: string;
+}
+type OrderFields = 'state.status';
+
+export function PaidOrderFeed({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState, OrderFields>;
+}) {
+  const { items, done, loading, error, abort } = useStreamQuery<
+    SnapshotRecord<OrderState>,
+    OrderFields
   >({
-    fetcher,
-    url: '/shop/order/snapshot/query',
     initialQuery: listQuery({
       filter: filter.eq('state.status', 'PAID'),
       limit: 100,
     }),
+    execute: (query, options) => client.streamRows(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -184,31 +210,38 @@ export function PaidOrderFeed() {
 }
 ```
 
-| Field     | Meaning                                                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `items`   | The rows of the current query received so far, in order. A new query starts empty; `reset()` empties it.                        |
-| `done`    | The stream ended normally: `items` holds every row. The same as `status === 'success'`.                                         |
-| `loading` | From the request until the stream ends, fails or is aborted.                                                                    |
-| `error`   | The `WowProblemError` of a failed request, or of the error event the service sends midway.                                      |
-| `abort()` | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again. |
+| Field      | Meaning                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `items`    | The records of the current query received so far, in order. A new query starts empty; `reset()` empties it.                     |
+| `position` | The position of the last record received that had one; a new query and `reset()` clear it.                                      |
+| `done`     | The stream ended normally: `items` holds every record. The same as `status === 'success'`.                                      |
+| `loading`  | From the request until the stream ends, fails or is aborted.                                                                    |
+| `problem`  | The `WowProblemError` of a failed request, or of the error event the service sends midway.                                      |
+| `abort()`  | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again. |
 
-The hook owns the stream: it reads it, renders the rows at most about once a
-frame (every 16 ms) however many arrive, and cancels it when a newer query starts, on `abort()` or
-`reset()`, and on unmount. Components never hold a reader, so the hook is safe
-under StrictMode. `useFetcherStreamQuery` sends `Accept: text/event-stream`,
-which a Wow service needs to answer with a stream; with `useStreamQuery`,
-pass a client's `stream` as `execute`.
+The hook owns the stream: it reads it, renders the records at most about once
+a frame (every 16 ms) however many arrive, and cancels it when a newer query
+starts, on `abort()` or `reset()`, and on unmount. Components never hold a
+reader, so the hook is safe under StrictMode.
+
+To go on where a stream stopped after the component remounts (a page change,
+a reload), keep `position` somewhere that outlives it and hand it back as
+`requestOptions: { resume: { lastEventId: saved } }`; the first request then
+asks for the records after it.
 
 ## State and errors
 
-Every hook runs its query on mount and whenever `query` (compared by content)
-or `setQuery()` changes it, and a `useFetcher*` hook also when `url` or
-`fetcher` changes; set `autoExecute: false` to run it only through
-`execute()`. A newer query aborts the request in flight, so a late response
-never overwrites a newer result. A controlled `query` set back to `undefined`
-(`id ? singleQuery(…) : undefined`) aborts the request in flight and goes
-`idle`, keeping the last result; nothing runs until a query is given again. `onSuccess` and `onError` are called with the
-result and the error.
+Every hook runs its query on mount and whenever `query` or `requestOptions`
+(both compared by content) or `setQuery()` changes it; set
+`autoExecute: false` to run it only through `execute()`. `requestOptions`
+counts because the scope, the space and the headers can change the answer: a
+header whose value changes on every render runs the query again on every
+render, so keep such values stable. A newer query aborts the request in
+flight, so a late response never overwrites a newer result. A controlled
+`query` set back to `undefined` (`id ? singleQuery(…) : undefined`) aborts the
+request in flight and goes `idle`, keeping the last result; nothing runs until
+a query is given again. `onSuccess` and `onError` are called with the result
+and the error.
 
 A failed request and `abort()` keep the last `result`, so a failed refresh does
 not blank the screen; `reset()` aborts the request in flight and clears
@@ -217,40 +250,49 @@ server too, as `loading`, and sends no request during server rendering. There
 is no `initialResult` option: server-rendered HTML holds the loading state, and
 the query runs once the page hydrates.
 
-Every hook returns `status`, `loading`, `result` (`items` and `done` for a
-stream), `error`, `execute`, `abort`, `reset`, `getQuery` and `setQuery`. The
-option and return types of each hook extend `QueryHookOptions` and
-`QueryHookReturn`, which this package declares and exports with `QueryStatus`
-and `QueryExecutor`. `status` is the plain string union
-`'idle' | 'loading' | 'success' | 'error'`, so a component's props or a test
-can write a literal.
+Every hook returns `status`, `loading`, `result` (`items` for the stream and
+cursor hooks), `error`, `problem`, `execute`, `abort`, `reset`, `getQuery` and
+`setQuery`. The option and return types of each hook extend
+`QueryHookOptions` and `QueryHookReturn`, which this package declares and
+exports with `QueryStatus`, `QueryExecutor` and `StreamExecutor`. `status` is
+the plain string union `'idle' | 'loading' | 'success' | 'error'`, so a
+component's props or a test can write a literal.
 
-`error` is typed `Error` unless you pass the `E` type argument: a failed
-request, and an error event in a stream, reject with wow-client's
-`WowProblemError`, and your own `execute` with whatever it throws. The problem
-carries the service's `code` and its `status`:
+`error` is an `Error`: what the run failed with, a thrown value that is not an
+`Error` wrapped in one with the value as its `cause`. `problem` is that same
+error when a Wow service answered with a problem, a `WowProblemError` with the
+service's `code`, its `status` and retry hint, and `undefined` for a failure no
+service answered, such as a network error:
 
-```ts
-import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
+```tsx
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { FrameworkErrorCodes } from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCountQuery } from '@ahoo-wang/wow-react';
 
-declare const error: unknown;
-if (
-  error instanceof WowProblemError &&
-  error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
-) {
-  // …
+export function OrderCount({ client }: { client: SnapshotQueryClient }) {
+  const { result, problem, error } = useCountQuery({
+    query: { filter: filter.matchAll() },
+    execute: (query, options) => client.count(query, options),
+  });
+  if (problem?.code === FrameworkErrorCodes.QUERY_BUSY)
+    return <p>Busy, retry in {problem.retry.afterMs} ms</p>;
+  if (error) return <p role="alert">{error.message}</p>;
+  return <p>{result?.count ?? '…'} orders</p>;
 }
 ```
 
 ## Hooks
 
-| Hook                                      | Query                         | Result                              |
-| ----------------------------------------- | ----------------------------- | ----------------------------------- |
-| `useSingleQuery`, `useFetcherSingleQuery` | `singleQuery(…)`              | `result`: one item                  |
-| `useListQuery`, `useFetcherListQuery`     | `listQuery(…)`                | `result`: the rows                  |
-| `usePagedQuery`, `useFetcherPagedQuery`   | `pagedQuery(…)`               | `result`: `{ total, exact, list }`  |
-| `useCountQuery`, `useFetcherCountQuery`   | `{ filter, limit? }`          | `result`: `{ count, exact }`        |
-| `useStreamQuery`, `useFetcherStreamQuery` | `listQuery(…)`, as SSE events | `items` as they arrive, then `done` |
+| Hook                | Query                         | Result                                               |
+| ------------------- | ----------------------------- | ---------------------------------------------------- |
+| `useSingleQuery`    | `singleQuery(…)`              | `result`: one item                                   |
+| `useListQuery`      | `listQuery(…)`                | `result`: the rows                                   |
+| `usePagedQuery`     | `pagedQuery(…)`               | `result`: `{ total, exact, list }`                   |
+| `useCountQuery`     | `{ filter, limit? }`          | `result`: `{ count, exact }`                         |
+| `useAggregateQuery` | `{ groupBy?, metrics, … }`    | `result`: the rows, one per group                    |
+| `useCursorQuery`    | `{ filter, sort?, size? }`    | `items` of every page read, `hasMore`, `fetchNext()` |
+| `useStreamQuery`    | `listQuery(…)`, as SSE events | `items` as they arrive, `position`, then `done`      |
 
 The queries are built with the DSL of `@ahoo-wang/wow-client/dsl`.
 

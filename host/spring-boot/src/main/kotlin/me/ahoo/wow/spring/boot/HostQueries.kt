@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
@@ -28,7 +28,6 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.SnapshotQueries
@@ -46,22 +45,22 @@ import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The snapshot query backend of the node: the [factory] of each aggregate type's backend and storage
- * facts (null when no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's storage and [manages][manageIndexes]
- * its `x-wow-index` indexes at startup.
+ * The snapshot query backend of the node: the [bindings] of each aggregate type's backend and storage facts (null when
+ * no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's
+ * storage and [manages][manageIndexes] its `x-wow-index` indexes at startup.
  */
 @InternalWowApi
 class SnapshotQueryBackend(
-    val factory: QueryBackendFactory<*>?,
+    val bindings: QueryBindings<AggregateType>?,
     private val prepare: (AggregateType) -> Unit = {},
     private val indexes: ((AggregateType, QueryModelSchema, List<QueryIndexDeclaration>) -> QueryIndexReport)? = null,
-    /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has a [factory]. */
-    private val serves: (AggregateType) -> Boolean = { factory != null },
+    /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has [bindings]. */
+    private val serves: (AggregateType) -> Boolean = { bindings != null },
     /** The store whose query bulkhead [AggregateType]'s snapshot queries run under; none for the application's own. */
     private val store: (AggregateType) -> String? = { null },
 ) {
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
-    val managesIndexes: Boolean get() = factory != null && indexes != null
+    val managesIndexes: Boolean get() = bindings != null && indexes != null
 
     /** Whether the backend queries [type]'s snapshots: their store has a query backend. */
     fun serves(type: AggregateType): Boolean = serves.invoke(type)
@@ -87,14 +86,15 @@ class SnapshotQueryBackend(
 
         /** The snapshot queries of one store ([StoreQueries.snapshots]) as a backend. */
         fun of(queries: SnapshotQueries): SnapshotQueryBackend = SnapshotQueryBackend(
-            factory = QueryBackendFactory { type -> queries.binding(type) },
+            bindings = queries,
             prepare = queries::prepare,
             indexes = queries::manageIndexes.takeIf { queries.managesIndexes },
         )
 
         /**
          * The backend of each aggregate type's snapshot store, [storeOf]: [backendOf] gives it, null
-         * when its store has none, whose snapshots are then not queried. [NONE] when no type's store has one.
+         * when its store has none, whose snapshots are then not [serves]d and have no binding. [NONE] when no type's
+         * store has one.
          */
         fun routing(
             types: Collection<AggregateType>,
@@ -105,12 +105,7 @@ class SnapshotQueryBackend(
                 return NONE
             }
             return SnapshotQueryBackend(
-                factory = QueryBackendFactory { type ->
-                    checkNotNull(
-                        backendOf(type)?.factory
-                    ) { "The snapshots of $type are on a store no query backend reads." }
-                        .create(type)
-                },
+                bindings = { type -> backendOf(type)?.bindings?.binding(type) },
                 prepare = { type -> backendOf(type)?.prepare(type) },
                 indexes = { type, schema, declarations ->
                     backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport.NONE
@@ -135,33 +130,34 @@ internal class MemoryQueries(
 ) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries? = queries?.let { storage ->
         object : SnapshotQueries {
-            override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)
+            override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
         }
     }
 
-    override fun events(options: StoreQueryOptions): EventQueries? {
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? {
         if (!scansEvents) return null
         val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
-        return EventQueries { type ->
+        return QueryBindings { type ->
             store.openedLog(type.context)?.let { log ->
-                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(log) }.create(type)
+                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(log) }.binding(type)
             }
         }
     }
 }
 
 /**
- * The `events` query backend of the node: the [binding] of each aggregate type's events backend and
- * storage facts, null for a type no backend serves (its events are then not queried), and the [store] its queries run
- * on, null for the application's own backend.
+ * The `events` query backend of the node: the [bindings] of each aggregate type's events backend and
+ * storage facts, none for a type no backend serves (its events are then not queried), and the [store] its queries run
+ * on, null for the application's own backend. It is not itself [QueryBindings], so that it is never taken for the
+ * application's snapshot bindings bean.
  */
 @InternalWowApi
 class EventQueryBackend(
     private val store: (AggregateType) -> String? = { null },
-    private val binding: (AggregateType) -> QueryBackendBinding<QueryBackend>?,
+    val bindings: QueryBindings<AggregateType>,
 ) {
     /** The binding of [type]'s events backend, or null when none serves them. */
-    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = binding.invoke(type)
+    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = bindings.binding(type)
 
     /** The store [type]'s events queries run on, or null when the host does not know it. */
     fun storeOf(type: AggregateType): String? = store.invoke(type)

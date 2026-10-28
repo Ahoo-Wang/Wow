@@ -254,7 +254,7 @@ class AbacQueryPolicyTest {
             tagged(type, "public", emptyMap()),
             tagged(type, "other-key", mapOf("dept" to listOf("eng"))),
         ).forEach(storage::save)
-        val binding = storage.create(type)
+        val binding = storage.binding(type)
         val context = QuerySchemaContext(type, QueryModel.SNAPSHOT)
         val provider = DefaultQueryModelSchemaProvider(
             context,

@@ -18,36 +18,28 @@ import type {
   QueryModelClient,
 } from '@ahoo-wang/wow-client';
 import type {
-  CursorPage,
+  AggregationQuery,
   CursorQuery,
   FilterListQuery,
   FilterSingleQuery,
 } from '@ahoo-wang/wow-client/dsl';
+import { filter } from '@ahoo-wang/wow-client/dsl';
 import {
+  useAggregateQuery,
   useCountQuery,
-  useFetcherCountQuery,
-  useFetcherListQuery,
-  useFetcherStreamQuery,
-  useFetcherPagedQuery,
-  useFetcherSingleQuery,
+  useCursorQuery,
   useListQuery,
   useStreamQuery,
   usePagedQuery,
   useSingleQuery,
 } from '../src';
 import type {
+  UseAggregateQueryOptions,
+  UseAggregateQueryReturn,
   UseCountQueryOptions,
   UseCountQueryReturn,
-  UseFetcherCountQueryOptions,
-  UseFetcherCountQueryReturn,
-  UseFetcherListQueryOptions,
-  UseFetcherListQueryReturn,
-  UseFetcherStreamQueryOptions,
-  UseFetcherStreamQueryReturn,
-  UseFetcherPagedQueryOptions,
-  UseFetcherPagedQueryReturn,
-  UseFetcherSingleQueryOptions,
-  UseFetcherSingleQueryReturn,
+  UseCursorQueryOptions,
+  UseCursorQueryReturn,
   UseListQueryOptions,
   UseListQueryReturn,
   UseStreamQueryOptions,
@@ -65,7 +57,7 @@ type InitialQuery<T extends { initialQuery?: unknown }> = NonNullable<
 >;
 type SetQuery<T> = T extends { setQuery: (query: infer Q) => void } ? Q : never;
 
-it('defaults custom-executor hooks to filter request subtypes', () => {
+it('defaults every hook to its filter request type', () => {
   const useGetListQuery = (options: UseListQueryOptions<Item, Fields>) =>
     useListQuery<Item, Fields>(options).getQuery();
 
@@ -102,155 +94,88 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
   expectTypeOf<SetQuery<UseCountQueryReturn<Fields>>>().toEqualTypeOf<
     CountQuery<Fields>
   >();
-});
-
-it('defaults Fetcher hooks to filter request subtypes', () => {
-  const useGetPagedQuery = (
-    options: UseFetcherPagedQueryOptions<Item, Fields>,
-  ) => useFetcherPagedQuery<Item, Fields>(options).getQuery();
-
-  expectTypeOf(useGetPagedQuery).returns.toEqualTypeOf<
-    PagedQuery<Fields> | undefined
+  expectTypeOf<
+    InitialQuery<UseCursorQueryOptions<Item, Fields>>
+  >().toEqualTypeOf<Omit<CursorQuery<Fields>, 'cursor'>>();
+  expectTypeOf<SetQuery<UseCursorQueryReturn<Item, Fields>>>().toEqualTypeOf<
+    Omit<CursorQuery<Fields>, 'cursor'>
   >();
   expectTypeOf<
-    InitialQuery<UseFetcherListQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseFetcherListQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    InitialQuery<UseFetcherStreamQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseFetcherStreamQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    InitialQuery<UseFetcherPagedQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<PagedQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseFetcherPagedQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<PagedQuery<Fields>>();
-  expectTypeOf<
-    InitialQuery<UseFetcherSingleQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<FilterSingleQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseFetcherSingleQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterSingleQuery<Fields>>();
-  expectTypeOf<
-    InitialQuery<UseFetcherCountQueryOptions<Fields>>
-  >().toEqualTypeOf<CountQuery<Fields>>();
-  expectTypeOf<SetQuery<UseFetcherCountQueryReturn<Fields>>>().toEqualTypeOf<
-    CountQuery<Fields>
+    InitialQuery<UseAggregateQueryOptions<Item, Fields>>
+  >().toEqualTypeOf<AggregationQuery<Fields, string>>();
+  expectTypeOf<SetQuery<UseAggregateQueryReturn<Item, Fields>>>().toEqualTypeOf<
+    AggregationQuery<Fields, string>
   >();
 });
 
-it('accepts filter request subtypes in custom-executor hooks', () => {
-  type ListOptions = UseListQueryOptions<
-    Item,
-    Fields,
-    Error,
-    FilterListQuery<Fields>
-  >;
+it('accepts filter request subtypes', () => {
+  type ListOptions = UseListQueryOptions<Item, Fields, FilterListQuery<Fields>>;
   type StreamOptions = UseStreamQueryOptions<
     Item,
     Fields,
-    Error,
     FilterListQuery<Fields>
   >;
-  type PagedOptions = UsePagedQueryOptions<
-    Item,
-    Fields,
-    Error,
-    PagedQuery<Fields>
-  >;
+  type PagedOptions = UsePagedQueryOptions<Item, Fields, PagedQuery<Fields>>;
   type SingleOptions = UseSingleQueryOptions<
     Item,
     Fields,
-    Error,
     FilterSingleQuery<Fields>
   >;
-  type CountOptions = UseCountQueryOptions<Fields, Error, CountQuery<Fields>>;
+  type CountOptions = UseCountQueryOptions<Fields, CountQuery<Fields>>;
 
   expectTypeOf((options: ListOptions) =>
-    useListQuery<Item, Fields, Error>(options),
+    useListQuery<Item, Fields>(options),
   ).toBeFunction();
   expectTypeOf((options: StreamOptions) =>
-    useStreamQuery<Item, Fields, Error>(options),
+    useStreamQuery<Item, Fields>(options),
   ).toBeFunction();
   expectTypeOf((options: PagedOptions) =>
-    usePagedQuery<Item, Fields, Error>(options),
+    usePagedQuery<Item, Fields>(options),
   ).toBeFunction();
   expectTypeOf((options: SingleOptions) =>
-    useSingleQuery<Item, Fields, Error>(options),
+    useSingleQuery<Item, Fields>(options),
   ).toBeFunction();
   expectTypeOf((options: CountOptions) =>
-    useCountQuery<Fields, Error>(options),
+    useCountQuery<Fields>(options),
   ).toBeFunction();
 });
 
-it('accepts filter request subtypes in Fetcher hooks', () => {
-  type ListOptions = UseFetcherListQueryOptions<
-    Item,
-    Fields,
-    Error,
-    FilterListQuery<Fields>
-  >;
-  type StreamOptions = UseFetcherStreamQueryOptions<
-    Item,
-    Fields,
-    Error,
-    FilterListQuery<Fields>
-  >;
-  type PagedOptions = UseFetcherPagedQueryOptions<
-    Item,
-    Fields,
-    Error,
-    PagedQuery<Fields>
-  >;
-  type SingleOptions = UseFetcherSingleQueryOptions<
-    Item,
-    Fields,
-    Error,
-    FilterSingleQuery<Fields>
-  >;
-  type CountOptions = UseFetcherCountQueryOptions<
-    Fields,
-    Error,
-    CountQuery<Fields>
-  >;
-
-  expectTypeOf((options: ListOptions) =>
-    useFetcherListQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: StreamOptions) =>
-    useFetcherStreamQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: PagedOptions) =>
-    useFetcherPagedQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: SingleOptions) =>
-    useFetcherSingleQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: CountOptions) =>
-    useFetcherCountQuery<Fields, Error>(options),
-  ).toBeFunction();
-});
-
-it('runs a cursor query through useSingleQuery until a cursor hook exists', () => {
-  // The README's pattern: the page is the result, setQuery moves to the next.
-  const usePage = (
-    client: QueryModelClient<Item, Fields>,
-    first: CursorQuery<Fields>,
-  ) =>
-    useSingleQuery<CursorPage<Item>, Fields, Error, CursorQuery<Fields>>({
-      initialQuery: first,
+it('takes a query client cursor and aggregate method as execute', () => {
+  const usePages = (client: QueryModelClient<Item, Fields>) =>
+    useCursorQuery<Item, Fields>({
+      query: { filter: filter.eq<Fields>('status', 'PAID') },
       execute: (query, options) => client.cursor(query, options),
     });
-  expectTypeOf(usePage)
+  expectTypeOf(usePages)
+    .returns.toHaveProperty('items')
+    .toEqualTypeOf<Item[]>();
+  expectTypeOf(usePages)
+    .returns.toHaveProperty('fetchNext')
+    .toEqualTypeOf<() => Promise<void>>();
+
+  type Row = { status: string; orders: number };
+  const useRows = (
+    client: QueryModelClient<Item, Fields>,
+    query: AggregationQuery<Fields, string>,
+  ) =>
+    useAggregateQuery<Row, Fields>({
+      query,
+      execute: (query, options) => client.aggregate<Row>(query, options),
+    });
+  expectTypeOf(useRows)
     .returns.toHaveProperty('result')
-    .toEqualTypeOf<CursorPage<Item> | undefined>();
-  expectTypeOf(usePage)
-    .returns.toHaveProperty('setQuery')
-    .parameter(0)
-    .toEqualTypeOf<CursorQuery<Fields>>();
+    .toEqualTypeOf<Row[] | undefined>();
+});
+
+it("refuses a cursor in the cursor hook's query: the hook owns it", () => {
+  const usePages = (client: QueryModelClient<Item, Fields>) =>
+    useCursorQuery<Item, Fields>({
+      query: {
+        filter: filter.eq<Fields>('status', 'PAID'),
+        // @ts-expect-error the hook hands execute the cursor of each page
+        cursor: 'c1',
+      },
+      execute: (query, options) => client.cursor(query, options),
+    });
+  expectTypeOf(usePages).toBeFunction();
 });

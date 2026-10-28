@@ -18,9 +18,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -37,13 +37,13 @@ import java.util.concurrent.ConcurrentHashMap
 internal class MongoQueries(private val store: MongoStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = MongoSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): EventQueries {
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
         val preference = options.eventsReadPreference?.let(ReadPreference::valueOf)
         val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
-        return EventQueries { type ->
+        return QueryBindings { type ->
             storages.computeIfAbsent(type.context) {
                 MongoEventQueryStorage(store.client, store.database, it, readPreference = preference)
-            }.create(type)
+            }.binding(type)
         }
     }
 }
@@ -57,7 +57,7 @@ private class MongoSnapshotQueries(private val store: MongoStore, options: Store
         MongoSnapshotQueryStorage(store.client, store.database, it, queryOptions, readPreference = readPreference)
     }
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage(type.context).create(type)
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? = storage(key.context).binding(key)
 
     override val managesIndexes: Boolean get() = true
 

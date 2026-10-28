@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.EventStreamRecords
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -37,11 +37,11 @@ import java.util.concurrent.ConcurrentHashMap
 class InMemoryEventQueryStorage(
     private val streams: suspend (AggregateType) -> List<EventStreamRecord>,
     private val delay: Duration = Duration.ZERO,
-) : QueryBackendFactory<InMemoryQueryBackend> {
+) : QueryBindings<AggregateType> {
     private val backends = ConcurrentHashMap<AggregateType, QueryBackendBinding<InMemoryQueryBackend>>()
 
-    override fun create(aggregateType: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
-        backends.computeIfAbsent(aggregateType) { type ->
+    override fun binding(key: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
+        backends.computeIfAbsent(key) { type ->
             QueryBackendBinding(
                 InMemoryQueryBackend(type, { streams(type).map(EventStreamRecords::stored) }, delay),
                 InMemoryQueryStorageAdapter,

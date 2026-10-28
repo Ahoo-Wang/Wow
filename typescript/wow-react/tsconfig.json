@@ -1,6 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // ES2022.Error for `new Error(message, { cause })`; Node 22 has it.
+    "lib": ["ES2020", "ES2022.Error", "DOM", "DOM.Iterable"],
     "outDir": "./dist",
     "rootDir": "./src",
     "emitDeclarationOnly": true,

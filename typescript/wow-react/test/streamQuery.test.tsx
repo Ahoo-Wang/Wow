@@ -12,7 +12,7 @@
  */
 
 /**
- * The list-stream hooks through a real Fetcher and wow-client's event-stream
+ * The list-stream hook through a real Fetcher and wow-client's event-stream
  * extractor, against a fake `fetch` that answers the way a Wow server does:
  * rows as unnamed events, a failure midway as one last event named by its
  * error code, and JSON unless the request accepts `text/event-stream`.
@@ -23,7 +23,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherStreamQuery, useStreamQuery } from '../src';
+import { useStreamQuery } from '../src';
 import { PUBLISH_INTERVAL_MS } from '../src/internal/readStreamRows';
 import {
   deferred,
@@ -33,6 +33,7 @@ import {
   liveStream,
   sse,
   problem,
+  type FakeServer,
   type Handler,
   type LiveStream,
 } from './support/fakeServer';
@@ -56,21 +57,27 @@ function wowList(stream: () => Response): Handler {
       : json([o1, o2]);
 }
 
+/** A query client's `streamRows` on the fake server, as `execute`. */
+function rowsOf<R>(server: FakeServer) {
+  const client = new QueryModelClient<R>(URL, { fetcher: server.fetcher });
+  return (query: Parameters<typeof client.streamRows>[0], options: object) =>
+    client.streamRows(query, options);
+}
+
 /** Lets the stream reader and the hook's batched updates run. */
 function settle() {
   return act(() => new Promise(resolve => setTimeout(resolve, 10)));
 }
 
-describe('useFetcherStreamQuery', () => {
+describe('useStreamQuery over a query client', () => {
   it('asks for an event stream and collects every row', async () => {
     const server = fakeServer(
       wowList(() => sse({ data: o1 }, { data: o2 }, { data: o3 })),
     );
     const onSuccess = vi.fn();
     const { result } = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
         onSuccess,
       }),
@@ -97,9 +104,8 @@ describe('useFetcherStreamQuery', () => {
     const stream = liveStream();
     const server = fakeServer(() => stream.response);
     const { result } = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
       }),
     );
@@ -119,9 +125,8 @@ describe('useFetcherStreamQuery', () => {
   it('ends with no rows and done when the stream is empty', async () => {
     const server = fakeServer(() => sse());
     const { result } = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
       }),
     );
@@ -138,9 +143,8 @@ describe('useFetcherStreamQuery', () => {
     );
     const onError = vi.fn();
     const { result } = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
         onError,
       }),
@@ -160,9 +164,8 @@ describe('useFetcherStreamQuery', () => {
       problem('wow.auth.unauthenticated', 'No token.', 401),
     );
     const { result } = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
       }),
     );
@@ -182,7 +185,7 @@ describe('useStreamQuery with a query client', () => {
     const { result } = renderHook(() =>
       useStreamQuery<OrderState>({
         initialQuery: paidQuery,
-        execute: (query, options) => client.stream(query, options),
+        execute: (query, options) => client.streamRows(query, options),
       }),
     );
     await waitFor(() => expect(result.current.done).toBe(true));
@@ -201,7 +204,7 @@ describe('useStreamQuery with a query client', () => {
       useStreamQuery<OrderState>({
         initialQuery: paidQuery,
         autoExecute: false,
-        execute: (query, options) => client.stream(query, options),
+        execute: (query, options) => client.streamRows(query, options),
       }),
     );
     await settle();
@@ -216,14 +219,82 @@ describe('useStreamQuery with a query client', () => {
   });
 });
 
+describe('where the stream stopped', () => {
+  it('keeps the position of the last row read, and clears it on reset()', async () => {
+    const server = fakeServer(() => sse({ data: o1 }, { data: o2 }));
+    const { result } = renderHook(() =>
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
+        initialQuery: paidQuery,
+      }),
+    );
+    expect(result.current.position).toBeUndefined();
+    await waitFor(() => expect(result.current.done).toBe(true));
+    // The events' ids, 0 and 1, are the rows' positions.
+    expect(result.current.position).toBe('1');
+    act(() => result.current.reset());
+    expect(result.current.position).toBeUndefined();
+    expect(result.current.items).toEqual([]);
+  });
+
+  it('keeps the position of the rows read before a failure', async () => {
+    const server = fakeServer(() =>
+      sse({ data: o1 }, errorEvent('wow.query.failed', 'boom')),
+    );
+    const { result } = renderHook(() =>
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
+        initialQuery: paidQuery,
+        requestOptions: { resume: false },
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.items).toEqual([o1]);
+    expect(result.current.position).toBe('0');
+  });
+
+  it('keeps no position for rows that have none, as a list no cursor orders', async () => {
+    const { result } = renderHook(() =>
+      useStreamQuery<OrderState>({
+        execute: async () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({ record: o1, position: 'p1' });
+              controller.enqueue({ record: o2 });
+              controller.close();
+            },
+          }),
+        initialQuery: paidQuery,
+      }),
+    );
+    await waitFor(() => expect(result.current.done).toBe(true));
+    expect(result.current.items).toEqual([o1, o2]);
+    // The last row that had a position, not the last row.
+    expect(result.current.position).toBe('p1');
+  });
+
+  it('resumes after a saved position given as requestOptions.resume', async () => {
+    const server = fakeServer(() => sse({ data: o3 }));
+    const { result } = renderHook(() =>
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
+        initialQuery: paidQuery,
+        requestOptions: { resume: { lastEventId: '7' } },
+      }),
+    );
+    await waitFor(() => expect(result.current.done).toBe(true));
+    expect(server.requests[0].headers.get('Last-Event-ID')).toBe('7');
+    expect(result.current.items).toEqual([o3]);
+  });
+});
+
 describe('the stream lifecycle', () => {
   function streamingHook(streams: LiveStream[]) {
     let next = 0;
     const server = fakeServer(() => streams[next++].response);
     const hook = renderHook(() =>
-      useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
       }),
     );
@@ -265,7 +336,7 @@ describe('the stream lifecycle', () => {
       useStreamQuery<OrderState>({
         initialQuery: paidQuery,
         // No signal handed on: the older request cannot be cancelled.
-        execute: query => client.stream(query),
+        execute: query => client.streamRows(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));
@@ -328,9 +399,8 @@ describe('the stream lifecycle', () => {
     const onError = vi.fn();
     const { result } = renderHook(
       () =>
-        useFetcherStreamQuery<OrderState>({
-          fetcher: server.fetcher,
-          url: URL,
+        useStreamQuery<OrderState>({
+          execute: rowsOf<OrderState>(server),
           initialQuery: paidQuery,
           onError,
         }),
@@ -357,9 +427,8 @@ describe('the stream lifecycle', () => {
     let renders = 0;
     const { result } = renderHook(() => {
       renders++;
-      return useFetcherStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
+      return useStreamQuery<OrderState>({
+        execute: rowsOf<OrderState>(server),
         initialQuery: paidQuery,
       });
     });
@@ -376,9 +445,8 @@ describe('the stream lifecycle', () => {
     let renders = 0;
     const { result } = renderHook(() => {
       renders++;
-      return useFetcherStreamQuery<{ i: number }>({
-        fetcher: server.fetcher,
-        url: URL,
+      return useStreamQuery<{ i: number }>({
+        execute: rowsOf<{ i: number }>(server),
         initialQuery: paidQuery,
       });
     });

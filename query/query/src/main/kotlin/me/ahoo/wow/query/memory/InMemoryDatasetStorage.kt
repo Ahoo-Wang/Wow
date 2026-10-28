@@ -14,10 +14,8 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.node.ObjectNode
@@ -26,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The in-memory reference dataset storage: tables of rows, each row a record with its fields at the root, and the
- * [InMemoryDatasetQueryBackend] of each dataset bound to one, which passes `DatasetQueryBackendSpec` (the `:query`
+ * [InMemoryQueryBackend] of each dataset bound to one, which passes `DatasetQueryBackendSpec` (the `:query`
  * test fixtures). A dataset names its table in its
  * storage binding, `{"table": "<name>"}` ([binding]).
  *
@@ -35,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
 @InternalWowApi
 class InMemoryDatasetStorage(
     private val delay: Duration = Duration.ZERO,
-) : AbstractDatasetQueryBackendFactory() {
+) : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
     private val tables = ConcurrentHashMap<String, List<ObjectNode>>()
 
     /** Replaces the rows of [table]; returns the storage binding a dataset of that table declares. */
@@ -47,11 +45,12 @@ class InMemoryDatasetStorage(
     /** The rows of [table], each a fresh tree; none when there is no such table. */
     fun rows(table: String): List<ObjectNode> = tables[table].orEmpty().map(ObjectNode::deepCopy)
 
-    override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
+    override fun createBinding(key: QueryDataset): QueryBackendBinding<InMemoryQueryBackend> {
+        val dataset = key
         val table = dataset.storage.get(TABLE)?.takeIf { it.isString }?.stringValue()
         require(table != null) { "Dataset [${dataset.name}] names no in-memory [$TABLE] in its storage binding." }
         val backend = InMemoryQueryBackend(dataset.name, { rows(table) }, delay)
-        return QueryBackendBinding(InMemoryDatasetQueryBackend(backend), InMemoryQueryStorageAdapter)
+        return QueryBackendBinding(backend, InMemoryQueryStorageAdapter)
     }
 
     @InternalWowApi
@@ -62,14 +61,4 @@ class InMemoryDatasetStorage(
         @JvmStatic
         fun binding(table: String): ObjectNode = WowJson.mapper.createObjectNode().put(TABLE, table)
     }
-}
-
-/** The dataset query backend of one in-memory table: the reference backend over the table's rows. */
-internal class InMemoryDatasetQueryBackend internal constructor(
-    private val delegate: InMemoryQueryBackend,
-) : DatasetQueryBackend,
-    QueryBackend by delegate {
-    /** The timeout of every query this backend received, in order. */
-    val timeouts: List<Duration?>
-        get() = delegate.timeouts
 }

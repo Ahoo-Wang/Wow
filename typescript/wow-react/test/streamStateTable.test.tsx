@@ -12,21 +12,16 @@
  */
 
 /**
- * Characterization of the list-stream hooks: one table of event × state, run
- * against both implementations — a query client's `listStateStream` as
- * `execute` (`useStreamQuery`) and a URL (`useFetcherStreamQuery`).
- * It pins the behaviour of today, so that the refactor of
- * `docs/design/refactor-2026-09.md` can claim "unchanged" cell by cell.
- *
- * The stream family already has the semantics section 3.3 of the plan
- * targets for these events; no cell here is marked for B3.
+ * The list-stream hook's table of event × state (`docs/design/architecture.md`
+ * §3), run against `useStreamQuery` with a query client's `streamRows` as
+ * `execute`.
  */
 
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherStreamQuery, useStreamQuery } from '../src';
+import { useStreamQuery } from '../src';
 import {
   deferred,
   errorEvent,
@@ -101,19 +96,7 @@ const families: {
       return renderHook(() =>
         useStreamQuery<Row>({
           initialQuery: paidQuery,
-          execute: (query, options) => client.stream(query, options),
-        }),
-      );
-    },
-  },
-  {
-    name: 'useFetcherStreamQuery (url)',
-    render(server) {
-      return renderHook(() =>
-        useFetcherStreamQuery<Row>({
-          fetcher: server.fetcher,
-          url: '/shop/order/snapshot/query',
-          initialQuery: paidQuery,
+          execute: (query, options) => client.streamRows(query, options),
         }),
       );
     },
@@ -322,7 +305,7 @@ describe('stream hook state table: execute that ignores the abort signal', () =>
     const hook = renderHook(() =>
       useStreamQuery<Row>({
         initialQuery: paidQuery,
-        execute: query => client.stream(query),
+        execute: query => client.streamRows(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));

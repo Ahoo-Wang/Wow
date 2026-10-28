@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.PostgresEventLogTables
-import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
@@ -53,19 +53,19 @@ class PostgresEventQueryStorage @JvmOverloads constructor(
     val context: String,
     val options: PostgresQueryOptions = PostgresQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-) : AbstractQueryBackendFactory<PostgresQueryBackend>() {
+) : CachedQueryBindings<AggregateType>({ it }) {
     private val tables = PostgresEventLogTables(context)
 
     /** The log table of [aggregateName], quoted. */
     fun table(aggregateName: String): String = tables.aggregate(aggregateName).log
 
-    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<PostgresQueryBackend> {
-        require(aggregateType.context == context) { "$aggregateType is not in context $context." }
+    override fun createBinding(key: AggregateType): QueryBackendBinding<PostgresQueryBackend> {
+        require(key.context == context) { "$key is not in context $context." }
         return QueryBackendBinding(
             PostgresQueryBackend(
-                aggregateType,
+                key,
                 dataSource,
-                table(aggregateType.name),
+                table(key.name),
                 options,
                 dispatcher,
                 PostgresEventQueryLayout.EVENTS,

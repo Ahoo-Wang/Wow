@@ -4,44 +4,44 @@
 
 ```ts
 
+import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { CountQuery } from '@ahoo-wang/wow-client';
 import { CountResult } from '@ahoo-wang/wow-client';
-import { Fetcher } from '@ahoo-wang/fetcher';
+import { CursorPage } from '@ahoo-wang/wow-client/dsl';
+import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterSingleQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client';
 import { PagedResult } from '@ahoo-wang/wow-client';
 import { RequestOptions } from '@ahoo-wang/wow-client';
+import { StreamedRow } from '@ahoo-wang/wow-client';
+import { StreamOptions } from '@ahoo-wang/wow-client';
+import { WowProblemError } from '@ahoo-wang/wow-client';
 
 // @public
-interface Endpoint {
-    fetcher?: string | Fetcher;
-    url: string;
-}
-
-// @public
-export type QueryExecutor<Q, R> = (query: Q, options: RequestOptions & {
+export type QueryExecutor<Q, R, O extends RequestOptions = RequestOptions> = (query: Q, options: O & {
     readonly signal: AbortSignal;
 }) => Promise<R>;
 
 // @public
-export interface QueryHookOptions<Q, R, E = Error> {
+export interface QueryHookOptions<Q, R, O extends RequestOptions = RequestOptions> {
     autoExecute?: boolean;
-    execute: QueryExecutor<Q, R>;
+    execute: QueryExecutor<Q, R, O>;
     initialQuery?: Q;
-    onError?: (error: E) => void | Promise<void>;
+    onError?: (error: Error) => void | Promise<void>;
     onSuccess?: (result: R) => void | Promise<void>;
     query?: Q;
-    requestOptions?: Omit<RequestOptions, 'signal'>;
+    requestOptions?: Omit<O, 'signal'>;
 }
 
 // @public
-export interface QueryHookReturn<Q, R, E = Error> {
+export interface QueryHookReturn<Q, R> {
     abort: () => void;
-    error: E | undefined;
+    error: Error | undefined;
     execute: () => Promise<void>;
     getQuery: () => Q | undefined;
     loading: boolean;
+    problem: WowProblemError | undefined;
     reset: () => void;
     result: R | undefined;
     setQuery: (query: Q) => void;
@@ -52,149 +52,114 @@ export interface QueryHookReturn<Q, R, E = Error> {
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 // @public
-export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
+export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<StreamedRow<R>>, StreamOptions>;
 
 // @public
-export function useCountQuery<FIELDS extends string = string, E = Error>(options: UseCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>): UseCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
+export function useAggregateQuery<ROW, FIELDS extends string = string>(options: UseAggregateQueryOptions<ROW, FIELDS, AggregationQuery<FIELDS, string>>): UseAggregateQueryReturn<ROW, FIELDS, AggregationQuery<FIELDS, string>>;
 
 // @public
-export function useCountQuery<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>>(options: UseCountQueryOptions<FIELDS, E, Q>): UseCountQueryReturn<FIELDS, E, Q>;
+export function useAggregateQuery<ROW, FIELDS extends string = string, Q extends AggregationQuery<FIELDS, string> = AggregationQuery<FIELDS, string>>(options: UseAggregateQueryOptions<ROW, FIELDS, Q>): UseAggregateQueryReturn<ROW, FIELDS, Q>;
 
 // @public
-export interface UseCountQueryOptions<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends QueryHookOptions<Q, CountResult, E> {
+export interface UseAggregateQueryOptions<ROW, FIELDS extends string = string, Q extends AggregationQuery<FIELDS, string> = AggregationQuery<FIELDS, string>> extends QueryHookOptions<Q, ROW[]> {
 }
 
 // @public
-export interface UseCountQueryReturn<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends QueryHookReturn<Q, CountResult, E> {
+export interface UseAggregateQueryReturn<ROW, FIELDS extends string = string, Q extends AggregationQuery<FIELDS, string> = AggregationQuery<FIELDS, string>> extends QueryHookReturn<Q, ROW[]> {
 }
 
 // @public
-export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(options: UseFetcherCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>): UseFetcherCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
+export function useCountQuery<FIELDS extends string = string>(options: UseCountQueryOptions<FIELDS, CountQuery<FIELDS>>): UseCountQueryReturn<FIELDS, CountQuery<FIELDS>>;
 
 // @public
-export function useFetcherCountQuery<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>>(options: UseFetcherCountQueryOptions<FIELDS, E, Q>): UseFetcherCountQueryReturn<FIELDS, E, Q>;
+export function useCountQuery<FIELDS extends string = string, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>>(options: UseCountQueryOptions<FIELDS, Q>): UseCountQueryReturn<FIELDS, Q>;
 
 // @public
-export interface UseFetcherCountQueryOptions<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends Omit<QueryHookOptions<Q, CountResult, E>, 'execute'>, Endpoint {
+export interface UseCountQueryOptions<FIELDS extends string = string, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends QueryHookOptions<Q, CountResult> {
 }
 
 // @public
-export interface UseFetcherCountQueryReturn<FIELDS extends string = string, E = Error, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends QueryHookReturn<Q, CountResult, E> {
+export interface UseCountQueryReturn<FIELDS extends string = string, Q extends CountQuery<FIELDS> = CountQuery<FIELDS>> extends QueryHookReturn<Q, CountResult> {
 }
 
 // @public
-export function useFetcherListQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useCursorQuery<R, FIELDS extends string = string>(options: UseCursorQueryOptions<R, FIELDS, Omit<CursorQuery<FIELDS>, 'cursor'>>): UseCursorQueryReturn<R, FIELDS, Omit<CursorQuery<FIELDS>, 'cursor'>>;
 
 // @public
-export function useFetcherListQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseFetcherListQueryOptions<R, FIELDS, E, Q>): UseFetcherListQueryReturn<R, FIELDS, E, Q>;
+export function useCursorQuery<R, FIELDS extends string = string, Q extends Omit<CursorQuery<FIELDS>, 'cursor'> = Omit<CursorQuery<FIELDS>, 'cursor'>>(options: UseCursorQueryOptions<R, FIELDS, Q>): UseCursorQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UseFetcherListQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'>, Endpoint {
+export interface UseCursorQueryOptions<R, FIELDS extends string = string, Q extends Omit<CursorQuery<FIELDS>, 'cursor'> = Omit<CursorQuery<FIELDS>, 'cursor'>> extends Omit<QueryHookOptions<Q, CursorPage<R>>, 'execute'> {
+    execute: QueryExecutor<Q & {
+        cursor: string | null;
+    }, CursorPage<R>>;
 }
 
 // @public
-export interface UseFetcherListQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookReturn<Q, R[], E> {
+export interface UseCursorQueryReturn<R, FIELDS extends string = string, Q extends Omit<CursorQuery<FIELDS>, 'cursor'> = Omit<CursorQuery<FIELDS>, 'cursor'>> extends Omit<QueryHookReturn<Q, CursorPage<R>>, 'result'> {
+    fetchNext: () => Promise<void>;
+    hasMore: boolean;
+    items: R[];
 }
 
 // @public
-export function useFetcherPagedQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function useListQuery<R, FIELDS extends string = string>(options: UseListQueryOptions<R, FIELDS, FilterListQuery<FIELDS>>): UseListQueryReturn<R, FIELDS, FilterListQuery<FIELDS>>;
 
 // @public
-export function useFetcherPagedQuery<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>>(options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>): UseFetcherPagedQueryReturn<R, FIELDS, E, Q>;
+export function useListQuery<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseListQueryOptions<R, FIELDS, Q>): UseListQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UseFetcherPagedQueryOptions<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends Omit<QueryHookOptions<Q, PagedResult<R>, E>, 'execute'>, Endpoint {
+export interface UseListQueryOptions<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookOptions<Q, R[]> {
 }
 
 // @public
-export interface UseFetcherPagedQueryReturn<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookReturn<Q, PagedResult<R>, E> {
+export interface UseListQueryReturn<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookReturn<Q, R[]> {
 }
 
 // @public
-export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>): UseFetcherSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+export function usePagedQuery<R, FIELDS extends string = string>(options: UsePagedQueryOptions<R, FIELDS, PagedQuery<FIELDS>>): UsePagedQueryReturn<R, FIELDS, PagedQuery<FIELDS>>;
 
 // @public
-export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
+export function usePagedQuery<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>>(options: UsePagedQueryOptions<R, FIELDS, Q>): UsePagedQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UseFetcherSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R | undefined, E>, 'execute'>, Endpoint {
+export interface UsePagedQueryOptions<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookOptions<Q, PagedResult<R>> {
 }
 
 // @public
-export interface UseFetcherSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
+export interface UsePagedQueryReturn<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookReturn<Q, PagedResult<R>> {
 }
 
 // @public
-export function useFetcherStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseFetcherStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseFetcherStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useSingleQuery<R, FIELDS extends string = string>(options: UseSingleQueryOptions<R, FIELDS, FilterSingleQuery<FIELDS>>): UseSingleQueryReturn<R, FIELDS, FilterSingleQuery<FIELDS>>;
 
 // @public
-export function useFetcherStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseFetcherStreamQueryOptions<R, FIELDS, E, Q>): UseFetcherStreamQueryReturn<R, FIELDS, E, Q>;
+export function useSingleQuery<R, FIELDS extends string = string, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseSingleQueryOptions<R, FIELDS, Q>): UseSingleQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UseFetcherStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<UseStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>, Endpoint {
+export interface UseSingleQueryOptions<R, FIELDS extends string = string, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R | undefined> {
 }
 
 // @public
-export interface UseFetcherStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends UseStreamQueryReturn<R, FIELDS, E, Q> {
+export interface UseSingleQueryReturn<R, FIELDS extends string = string, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined> {
 }
 
 // @public
-export function useListQuery<R, FIELDS extends string = string, E = Error>(options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useStreamQuery<R, FIELDS extends string = string>(options: UseStreamQueryOptions<R, FIELDS, FilterListQuery<FIELDS>>): UseStreamQueryReturn<R, FIELDS, FilterListQuery<FIELDS>>;
 
 // @public
-export function useListQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseListQueryOptions<R, FIELDS, E, Q>): UseListQueryReturn<R, FIELDS, E, Q>;
+export function useStreamQuery<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseStreamQueryOptions<R, FIELDS, Q>): UseStreamQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UseListQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookOptions<Q, R[], E> {
-}
-
-// @public
-export interface UseListQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends QueryHookReturn<Q, R[], E> {
-}
-
-// @public
-export function usePagedQuery<R, FIELDS extends string = string, E = Error>(options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
-
-// @public
-export function usePagedQuery<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>>(options: UsePagedQueryOptions<R, FIELDS, E, Q>): UsePagedQueryReturn<R, FIELDS, E, Q>;
-
-// @public
-export interface UsePagedQueryOptions<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookOptions<Q, PagedResult<R>, E> {
-}
-
-// @public
-export interface UsePagedQueryReturn<R, FIELDS extends string = string, E = Error, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookReturn<Q, PagedResult<R>, E> {
-}
-
-// @public
-export function useSingleQuery<R, FIELDS extends string = string, E = Error>(options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
-
-// @public
-export function useSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseSingleQueryOptions<R, FIELDS, E, Q>): UseSingleQueryReturn<R, FIELDS, E, Q>;
-
-// @public
-export interface UseSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R | undefined, E> {
-}
-
-// @public
-export interface UseSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
-}
-
-// @public
-export function useStreamQuery<R, FIELDS extends string = string, E = Error>(options: UseStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>): UseStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
-
-// @public
-export function useStreamQuery<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>>(options: UseStreamQueryOptions<R, FIELDS, E, Q>): UseStreamQueryReturn<R, FIELDS, E, Q>;
-
-// @public
-export interface UseStreamQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
+export interface UseStreamQueryOptions<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], StreamOptions>, 'execute'> {
     execute: StreamExecutor<R, Q>;
 }
 
 // @public
-export interface UseStreamQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
+export interface UseStreamQueryReturn<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookReturn<Q, R[]>, 'result'> {
     done: boolean;
     items: R[];
+    position: string | undefined;
 }
 
 // (No @packageDocumentation comment for this package)

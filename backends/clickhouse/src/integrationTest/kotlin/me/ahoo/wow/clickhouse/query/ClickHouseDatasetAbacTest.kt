@@ -90,7 +90,7 @@ class ClickHouseDatasetAbacTest {
         filter: FilterExpression = MatchAllFilter,
     ): List<String> {
         val dataset = dataset()
-        val target = DatasetTarget(dataset, ClickHouseDatasetQueryBackendFactory(ClickHouseContainers.client))
+        val target = DatasetTarget(dataset, ClickHouseDatasetBindings(ClickHouseContainers.client))
         val gateway = DefaultDatasetQueryGateway(
             dataset,
             target.backend,

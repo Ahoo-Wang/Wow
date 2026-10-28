@@ -12,7 +12,7 @@ The job: the applications that call a 9.x service keep working against its V10 s
 | --- | --- |
 | `@ahoo-wang/fetcher-wow`, or a 9.x `@ahoo-wang/wow-client` | `@ahoo-wang/wow-client` of the V10 version (peers `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream`; no `fetcher-decorator`) |
 | `@ahoo-wang/fetcher-generator`, a 9.x `@ahoo-wang/wow-generator` reading the service's OpenAPI (`/v3/api-docs`, the `x-wow-*` extensions) | `@ahoo-wang/wow-generator` of the V10 version reading the service's **Manifest** (`GET /wow/manifest` or its committed `manifest/baseline.json`). The OpenAPI-to-Wow path, the `fetcher-generator` alias and `fetcher-generator.config.json` are gone; plain OpenAPI-to-TS generation remains for non-Wow APIs |
-| `@ahoo-wang/fetcher-react` Wow hooks, or a 9.x `@ahoo-wang/wow-react` | `@ahoo-wang/wow-react` of the V10 version: `use*Query({ query, execute })` over a client method, or `useFetcher*Query` over a route |
+| `@ahoo-wang/fetcher-react` Wow hooks, or a 9.x `@ahoo-wang/wow-react` | `@ahoo-wang/wow-react` of the V10 version: `use*Query({ query, execute })` over a generated client's method; no hook takes a route |
 | `@ahoo-wang/fetcher-viewer` | `@ahoo-wang/wow-view-engine` with a definition and a host, rebuilt, not renamed ($wow-view-definition, $wow-view-host) |
 | The 9.x view store (`/view-store/tenant/{tenantId}/owner/{ownerId}/…`) | `@ahoo-wang/wow-view-store`'s `WowViewStore` on the V10 view store service ($wow-view-host) |
 
@@ -50,6 +50,10 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 | `DatasetDirectoryClient`, `DatasetQueryClient` | `DatasetClient` (`list()`, `dataset(context, name)`) |
 | `abort` argument, `urlParams.path.{ tenantId, ownerId }`, `contextAlias` | `RequestOptions.signal`; nothing (the caller); `WowClientOptions.basePath` for a gateway prefix |
 | `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>Contract.<Aggregate>.Errors` |
+| `useFetcher*Query({ url, fetcher })` (fetcher-react, 9.x wow-react) | The `use*Query` hook with `execute: (query, options) => client.<kind>(query, options)` on the generated query client, created once outside the component; a dataset's client is `new DatasetClient(options).dataset(context, name)` |
+| `useListStreamQuery`, a stream executor over `stream` | `useStreamQuery` with `execute: (query, options) => client.streamRows(query, options)`; it also returns `position`, which `requestOptions: { resume: { lastEventId } }` resumes after |
+| A cursor page through `useSingleQuery` and `setQuery({ ...query, cursor })`; `client.aggregate` in an effect | `useCursorQuery` (`items`, `hasMore`, `fetchNext()`; its query has no `cursor`) and `useAggregateQuery` |
+| A hook's error type argument `E` (`useSingleQuery<R, F, MyError>`) | Gone: `error` is an `Error`, and `problem` the `WowProblemError` when the service answered with one |
 | A failed command resolving with an error code | Every refusal and every command that did not succeed rejects (`resolveRejected: true` to resolve instead) |
 
 ### `@ahoo-wang/wow-view-engine` type names (V10 pre-release)
@@ -76,6 +80,7 @@ An application written against a V10 pre-release of the view engine renames thes
 - **Time zones:** a relative-time filter without `zoneId` reads calendar days in UTC in V10 (9.x used the server's zone): pass `zoneId` wherever the application meant a local day.
 - **Event names:** `bodyType` class names become `name` values; saved filters, analytics and screens keyed on the old names change.
 - **Snapshot fields:** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `tags` remain.
+- **React hooks:** a change of `requestOptions` (scope, space, headers) by content runs the query again; a header value rebuilt on every render reruns it on every render.
 - **Waits:** 9.x stages map by meaning: `SENT` → `accepted`, `PROCESSED` → `committed`, `SNAPSHOT` → `snapshot` (the V10 default), `PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED` → `handled('Processor.function')` naming the subscription, which the generated `<context>Wait` builders list.
 
 ## Steps and gates

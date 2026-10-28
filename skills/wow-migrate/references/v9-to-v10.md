@@ -677,7 +677,7 @@ class CartSpec {
 
 Snapshot record fields (`SnapshotProperties`): `tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId` (null when unset, 9.x wrote empty strings), `deleted`, `tags`, `firstEventTime`, `lastEventTime` (9.x `eventTime`), `operator` and `firstOperator` as `{id, tenantId, crossScope}` (9.x strings: filter `operator.id`), `schedules` and `state`. 9.x `eventId`, `snapshotTime`, `contextName` and `aggregateName` have no record field; a client that read them changes. The compiler generates a `<State>Properties` object (`OrderStateProperties.STATE__STATUS`) for each state when the module has `wow-query-api` on its class path.
 
-A `SnapshotQueryBackend`, `QueryService` or query SPI implementation of 9.x has no one-to-one port: V10 backends implement `QueryBackend` of `wow-query`; ask before porting one.
+A `SnapshotQueryBackend`, `QueryService` or query SPI implementation of 9.x has no one-to-one port: V10 backends implement `QueryBackend` of `wow-query` and hand out each aggregate type's binding through `QueryBindings` (a store's `StoreQueries` facet); ask before porting one.
 
 ## Request headers
 
@@ -736,7 +736,7 @@ Service mode, the default, calls the peer's internal port as this service (its `
 
 ## Datasets
 
-9.x `me.ahoo.wow.query.schema.QueryDataset` is `me.ahoo.wow.query.dataset.QueryDataset` in V10 `wow-query`, an `@ExperimentalWowApi` (opt in with `@OptIn(ExperimentalWowApi::class)`): named by an `AggregateType` (`QueryDataset.nameOf("<context>.<dataset>")`) instead of a `MaterializedNamedAggregate`, declared with `QueryDataset.of(name) { … }` or a dataset file (`QueryDatasetFiles`: `<config directory>/wow/dataset/`, then `META-INF/wow/dataset/` on the class path). Its scope names the tenant column or declares the dataset platform-level. Datasets are served under `/wow/dataset` ([Routing](#routing)); a 9.x dataset backend other than ClickHouse needs a `DatasetQueryBackendFactory`.
+9.x `me.ahoo.wow.query.schema.QueryDataset` is `me.ahoo.wow.query.dataset.QueryDataset` in V10 `wow-query`, an `@ExperimentalWowApi` (opt in with `@OptIn(ExperimentalWowApi::class)`): named by an `AggregateType` (`QueryDataset.nameOf("<context>.<dataset>")`) instead of a `MaterializedNamedAggregate`, declared with `QueryDataset.of(name) { … }` or a dataset file (`QueryDatasetFiles`: `<config directory>/wow/dataset/`, then `META-INF/wow/dataset/` on the class path). Its scope names the tenant column or declares the dataset platform-level. Datasets are served under `/wow/dataset` ([Routing](#routing)); a 9.x dataset backend other than ClickHouse needs a `QueryBindings<QueryDataset>` bean.
 
 ## Custom message functions
 

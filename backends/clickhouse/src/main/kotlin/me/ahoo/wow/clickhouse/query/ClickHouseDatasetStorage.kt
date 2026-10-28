@@ -70,7 +70,7 @@ internal data class ClickHouseDatasetStorage(
     }
 }
 
-/** How a [ClickHouseDatasetQueryBackendFactory] reaches and runs its datasets.  *
+/** How a [ClickHouseDatasetBindings] reaches and runs its datasets.  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
