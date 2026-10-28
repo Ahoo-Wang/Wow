@@ -12,6 +12,7 @@
  */
 
 import {
+  CommandResultStatus,
   formatWaitPlan,
   WaitPlan,
   WowProblemError,
@@ -85,7 +86,7 @@ describe("the checkout", () => {
     const rejected = result({
       context: "eshop-inventory",
       aggregate: "stock",
-      status: "rejected",
+      status: CommandResultStatus.REJECTED,
       error: { code: "eshop-inventory.stock.insufficient", message: "Short" },
     });
     const { transport } = fakeServices([

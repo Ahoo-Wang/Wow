@@ -38,7 +38,13 @@ import {
   SYSTEM_OWNER_ID,
   SYSTEM_TENANT_ID,
 } from '../../src/paths.js';
-import { DevelopmentCallerHeaders, WowHeaders } from '@ahoo-wang/wow-client';
+import {
+  CommandResultStatus,
+  DevelopmentCallerHeaders,
+  FunctionKind,
+  Stage,
+  WowHeaders,
+} from '@ahoo-wang/wow-client';
 import {
   commandResultOf,
   problemOf,
@@ -358,12 +364,12 @@ export function fakeViewStore(
       commandId,
       requestId,
       hop: {
-        stage: 'handled',
+        stage: Stage.HANDLED,
         context: 'view-store',
         subscription: 'snapshot',
       },
       function: {
-        kind: 'snapshot',
+        kind: FunctionKind.SNAPSHOT,
         context: 'view-store',
         processor: 'snapshot',
         name: 'snapshot',
@@ -384,7 +390,7 @@ export function fakeViewStore(
   ): never {
     const rejected = {
       ...result(ref, requestId, null),
-      status: 'rejected',
+      status: CommandResultStatus.REJECTED,
       error: { code, message: detail, extensions },
     };
     // As the service: each extension is a member of the problem (D211).
