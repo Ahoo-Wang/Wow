@@ -21,6 +21,7 @@ import type {
   ContextModel,
   ManifestModel,
   Route,
+  ServiceRouteModel,
   TypeModel,
   TextNumbersModel,
 } from '../manifest/analyze';
@@ -33,6 +34,9 @@ import {
 
 /** The entry of the client every generated module imports from. */
 export const WOW_CLIENT = '@ahoo-wang/wow-client';
+
+/** The entry of the service routes' client. */
+export const WOW_CLIENT_ROUTES = '@ahoo-wang/wow-client/routes';
 
 /** A doc comment of the lines given, those without text left out. */
 function doc(lines: readonly (string | undefined)[], indent = ''): string {
@@ -112,6 +116,7 @@ export function emitManifestGeneration(
       emitQueryClient(aggregate, modules, files, outputDir);
     }
     emitRouting(context, modules);
+    emitServiceRoutes(context, modules, files, outputDir);
     emitContextClient(context, modules, outputDir);
   }
 }
@@ -264,12 +269,105 @@ function emitRouting(context: ContextModel, modules: ModuleSet): void {
     ];
     return `      {\n        name: ${quoteStringLiteral(aggregate.name)},\n        commands: [\n${commands.join('\n')}\n        ],\n      },`;
   });
+  const routes = context.routes.map(
+    route =>
+      `        { name: ${quoteStringLiteral(route.name)}, route: { method: ${quoteStringLiteral(route.method)}, path: ${quoteStringLiteral(route.path)} } },`,
+  );
+  const routesMember =
+    routes.length === 0
+      ? ''
+      : `      routes: [\n${routes.join('\n')}\n      ],\n`;
   addStatement(
     module,
     `${doc([
-      `The routes of \`${context.name}\`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema.`,
-    ])}export const ${name}: RoutingManifest = {\n  format: MANIFEST_FORMAT,\n  contexts: [\n    {\n      name: ${quoteStringLiteral(context.name)},\n      aggregates: [\n${aggregates.join('\n')}\n      ],\n    },\n  ],\n};`,
+      routes.length === 0
+        ? `The routes of \`${context.name}\`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema.`
+        : `The routes of \`${context.name}\`'s commands and service routes, as its Manifest lists them: what its clients send by, with no Manifest fetched and no schema.`,
+    ])}export const ${name}: RoutingManifest = {\n  format: MANIFEST_FORMAT,\n  contexts: [\n    {\n      name: ${quoteStringLiteral(context.name)},\n      aggregates: [\n${aggregates.join('\n')}\n      ],\n${routesMember}    },\n  ],\n};`,
   );
+}
+
+/**
+ * A context's service routes as one class, a method per route named as the
+ * Manifest names it: its path variables in order, then its body, then an
+ * object of its query parameters (required when one of them is), then the
+ * request's options; it answers the route's answer, or nothing for a route
+ * that answers 204.
+ */
+function emitServiceRoutes(
+  context: ContextModel,
+  modules: ModuleSet,
+  files: TypeFiles,
+  outputDir: string,
+): void {
+  if (context.routes.length === 0) return;
+  const module = modules.module(`${context.directory}/routes.ts`);
+  const name = `${context.typeName}Routes`;
+  module.imports.add(WOW_CLIENT, ['RequestOptions', 'WowClientOptions']);
+  module.imports.add(WOW_CLIENT_ROUTES, ['ServiceRoutes']);
+  module.imports.add('./manifest.js', [`${context.typeName}Manifest`]);
+  importTypes(
+    module,
+    outputDir,
+    files,
+    context.routes.flatMap(route =>
+      [
+        route.requestType,
+        route.responseType,
+        ...route.parameters.map(p => p.type),
+      ]
+        .filter((type): type is string => type !== undefined)
+        .flatMap(type => type.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? []),
+    ),
+  );
+  const methods = context.routes.map(route => routeMethod(context, route));
+  addStatement(
+    module,
+    `${doc([
+      `The service routes of \`${context.name}\`: routes whose handler is the service's own code, each called by its Manifest's name.`,
+    ])}export class ${name} {\n  /** Calls any route of the service by its name. */\n  readonly routes: ServiceRoutes;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.routes = new ServiceRoutes(options, { manifest: ${context.typeName}Manifest });\n  }\n\n${methods.join('\n\n')}\n}`,
+  );
+}
+
+/** The method of one service route. */
+function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
+  const variables = route.parameters.filter(p => p.location === 'path');
+  const queries = route.parameters.filter(p => p.location === 'query');
+  const parameters = variables.map(p => `${p.name}: ${p.type}`);
+  if (route.requestType !== undefined)
+    parameters.push(`body: ${route.requestType}`);
+  if (queries.length > 0) {
+    const members = queries
+      .map(
+        p =>
+          `readonly ${resolvePropertyName(p.name)}${p.required ? '' : '?'}: ${p.type}`,
+      )
+      .join('; ');
+    const required = queries.some(p => p.required);
+    parameters.push(`query${required ? '' : '?'}: { ${members} }`);
+  }
+  parameters.push('options?: RequestOptions');
+  const answer = route.responseType ?? 'void';
+  const call = [
+    ...(variables.length === 0
+      ? []
+      : [
+          `path: { ${variables.map(p => resolvePropertyName(p.name)).join(', ')} }`,
+        ]),
+    ...(route.requestType === undefined ? [] : ['body']),
+    ...(queries.length === 0 ? [] : ['query']),
+  ];
+  const comment = doc(
+    [
+      route.description,
+      `\`${route.method} ${route.path}\``,
+      route.deprecated
+        ? '@deprecated The service deprecates this route.'
+        : undefined,
+    ],
+    '  ',
+  );
+  return `${comment}  ${resolvePropertyName(route.name)}(${parameters.join(', ')}): Promise<${answer}> {\n    return this.routes.call(${quoteStringLiteral(context.name)}, ${quoteStringLiteral(route.name)}, { ${call.join(', ')} }, options) as Promise<${answer}>;\n  }`;
 }
 
 /**
@@ -316,10 +414,21 @@ function emitContextClient(
       `    this.${property} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
     );
   }
+  if (context.routes.length > 0) {
+    module.imports.add('./routes.js', [`${context.typeName}Routes`]);
+    fields.push(
+      `${doc([`The service routes of \`${context.name}\`.`], '  ')}  readonly routes: ${context.typeName}Routes;`,
+    );
+    assignments.push(
+      `    this.routes = new ${context.typeName}Routes(options);`,
+    );
+  }
   addStatement(
     module,
     `${doc([
-      `The clients of \`${context.name}\`: its command client, and per aggregate its command, query and state clients.`,
+      context.routes.length === 0
+        ? `The clients of \`${context.name}\`: its command client, and per aggregate its command, query and state clients.`
+        : `The clients of \`${context.name}\`: its command client, per aggregate its command, query and state clients, and its service routes.`,
     ])}export class ${name} {\n  /** Sends any command of the service, by its Manifest's routes: \`send\`, \`wait\` and \`stream\`. */\n  readonly commands: CommandClient;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.commands = new CommandClient(options, { manifest: ${context.typeName}Manifest });\n${assignments.join('\n')}\n  }\n}`,
   );
 }

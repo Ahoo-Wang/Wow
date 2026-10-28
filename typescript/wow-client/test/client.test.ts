@@ -1064,7 +1064,10 @@ describe('query clients', () => {
   it("keeps a field's sort as the service describes it, its index fact included", async () => {
     const sort = { paged: true, cursor: false, indexed: false };
     stubFetch(() =>
-      jsonResponse({ model: 'snapshot', fields: [{ path: 'state.name', sort }] }),
+      jsonResponse({
+        model: 'snapshot',
+        fields: [{ path: 'state.name', sort }],
+      }),
     );
     const answer = await new SnapshotQueryClient(PRODUCT, client()).describe();
     const described = answer.notModified ? undefined : answer.descriptor;

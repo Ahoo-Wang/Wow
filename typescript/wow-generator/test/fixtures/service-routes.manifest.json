@@ -1,0 +1,82 @@
+{
+  "format": 1,
+  "service": { "name": "shop-service" },
+  "contexts": [
+    {
+      "name": "shop",
+      "aggregates": [],
+      "subscriptions": [],
+      "published": [],
+      "errors": [
+        {
+          "code": "shop.summary.closed",
+          "status": 409,
+          "description": "The day is closed."
+        }
+      ],
+      "routes": [
+        {
+          "name": "summary",
+          "route": { "method": "GET", "path": "/shop/summaries/{day}" },
+          "parameters": [
+            {
+              "name": "day",
+              "in": "path",
+              "schema": { "type": "string" },
+              "required": true
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "schema": { "type": "integer" },
+              "required": true
+            },
+            {
+              "name": "period",
+              "in": "query",
+              "schema": { "type": "string", "enum": ["DAY", "WEEK"] },
+              "required": false
+            }
+          ],
+          "response": { "$ref": "#/$defs/sample.Summary" },
+          "errors": ["shop.summary.closed"],
+          "description": "The summary of a day."
+        },
+        {
+          "name": "replaceNotes",
+          "route": { "method": "PUT", "path": "/shop/notes" },
+          "request": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/sample.Note" },
+            "uniqueItems": true
+          },
+          "response": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/sample.Note" }
+          },
+          "deprecated": true
+        },
+        {
+          "name": "ping",
+          "route": { "method": "POST", "path": "/shop/ping" }
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "$defs": {
+    "sample.Summary": {
+      "type": "object",
+      "properties": {
+        "day": { "type": "string" },
+        "total": { "type": "integer" }
+      },
+      "required": ["day", "total"]
+    },
+    "sample.Note": {
+      "type": "object",
+      "properties": { "text": { "type": "string" } },
+      "required": ["text"]
+    }
+  }
+}
