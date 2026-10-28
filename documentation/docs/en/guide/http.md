@@ -47,7 +47,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
   -d '{"paymentId":"p-1","amount":29.00}'
 ```
 
-The body is the command's JSON. A success answers `200` with the command's result: its `status` (`SUCCEEDED`), the aggregate's `ref` and `version` after the commit, and the `results` the decision added. `If-Match: "n"` sends the command only if the aggregate is at version `n`, else `412`.
+The body is the command's JSON. A success answers `200` with the command's result: its `status` (`succeeded`), the aggregate's `ref` and `version` after the commit, and the `results` the decision added. `If-Match: "n"` sends the command only if the aggregate is at version `n`, else `412`.
 
 ## Choose how long to wait
 

@@ -263,7 +263,8 @@ export class WowViewStore implements ViewStore {
       const result = await request(() =>
         write.send(this.commandOptions(place, context)),
       );
-      return (await this.landed(result.ref.id, write, result, context))!;
+      // A command that succeeded names its aggregate: only a refused creation has no id.
+      return (await this.landed(result.ref.id!, write, result, context))!;
     });
   }
 

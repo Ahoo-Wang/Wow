@@ -36,6 +36,16 @@ interface AggregateType {
 const BY: unique symbol;
 
 // @public
+interface CommandRef {
+    // (undocumented)
+    readonly id: string | null;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly type: AggregateType;
+}
+
+// @public
 interface CommandResult<R = Record<string, unknown>> {
     readonly chainEnded?: boolean;
     // (undocumented)
@@ -53,7 +63,7 @@ interface CommandResult<R = Record<string, unknown>> {
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
     // (undocumented)
-    readonly ref: AggregateRef;
+    readonly ref: CommandRef;
     // (undocumented)
     readonly requestId: string;
     // (undocumented)

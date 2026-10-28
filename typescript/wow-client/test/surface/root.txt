@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 118 names, from src/index.ts.
+# @ahoo-wang/wow-client — 119 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -9,6 +9,7 @@ type  ApplyTags
 value CommandGateway
 type  CommandManifest
 type  CommandOptions
+type  CommandRef
 type  CommandRequest
 type  CommandResult
 type  CommandResultStatus

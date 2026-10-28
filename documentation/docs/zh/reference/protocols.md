@@ -36,13 +36,22 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 
 | 值 | JSON | 说明 |
 | --- | --- | --- |
-| 聚合引用 | `{"type": {"context", "name"}, "tenantId", "id"}` | 把 ID 留给服务端生成的创建命令，其 `id` 为 `(none)`。 |
+| 聚合引用 | `{"type": {"context", "name"}, "tenantId", "id"}` | 把 ID 留给服务端生成的创建命令，在服务端选定 ID 之前 `id` 为 null。`(none)` 永远不是 ID：写着它的引用会被拒绝。 |
 | 作用域 | `{"ownerId", "spaceId"}` | 两者都可以为 null。在命令上是调用方的作用域；在提交或快照上是提交后聚合的作用域。 |
 | 因果 | `{"correlationId", "causationId"}` | `correlationId` 是根命令的 ID；`causationId` 是直接原因，对 Saga 的命令是它处理的那次提交。调用方直接发出的命令没有因果，它自己就是根。 |
 | 操作人 | `{"id", "tenantId", "crossScope"}` | 提交以谁的名义记录：调用方的主体标识和它自己的租户；它在另一个租户或作用域中行事时 `crossScope` 为 true。 |
-| 跳 | `{"stage", "context", "subscription"}` | `stage` 是 `ACCEPTED`、`COMMITTED` 或 `HANDLED`；只有 `HANDLED` 才有 `subscription`；`snapshot` 指快照订阅。 |
+| 跳 | `{"stage", "context", "subscription"}` | `stage` 是 `accepted`、`committed` 或 `handled`；只有 `handled` 才有 `subscription`；`snapshot` 指快照订阅。 |
 
 时间都是纪元毫秒。
+
+## 实体标签 {#entity-tags}
+
+状态读取回答 `ETag: "<版本>-<摘要>"`：聚合的版本，接着是响应体 SHA-256 的前 64 位，写成 16 个十六进制数字。凡是改变调用方所读内容的变化都会改变标签，而不只是版本。
+
+条件头是 `*`，或逗号分隔的实体标签列表，每个标签是 `"<opaque>"` 或弱标签 `W/"<opaque>"`（RFC 9110 §8.8.3）。其他写法返回 400 `wow.command.malformed`。
+
+- **命令上的 `If-Match`** 用强比较（RFC 9110 §13.1.1）。强标签指一个版本：或者是状态读取给出的形式（`"3-0123456789abcdef"`），或者只写版本（`"3"`）。聚合处于列表所指的某个版本时命令才执行，否则返回 412 `wow.aggregate.version-mismatch`。弱标签或不指版本的标签永远不匹配。`*` 匹配已存在的聚合；聚合不存在时返回 412，创建命令也一样。
+- **状态读取上的 `If-None-Match`** 用弱比较（§13.1.2）。忽略 `W/`，`*` 匹配任何状态，标签匹配时回答 304。
 
 ## 事件流 {#event-stream}
 

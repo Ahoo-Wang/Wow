@@ -303,6 +303,16 @@ export interface CommandManifest {
 export type CommandOptions = Omit<CommandRequest, 'command' | 'routes' | 'body' | 'type' | 'id'>;
 
 // @public
+export interface CommandRef {
+    // (undocumented)
+    readonly id: string | null;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly type: AggregateType;
+}
+
+// @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
     readonly body?: object;
     readonly bodyNumbers?: TextNumbers;
@@ -338,7 +348,7 @@ export interface CommandResult<R = Record<string, unknown>> {
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
     // (undocumented)
-    readonly ref: AggregateRef;
+    readonly ref: CommandRef;
     // (undocumented)
     readonly requestId: string;
     // (undocumented)
@@ -1648,7 +1658,7 @@ export interface ScheduleSet {
     // (undocumented)
     readonly rule: ScheduleRule;
     // (undocumented)
-    readonly target: AggregateRef;
+    readonly target: CommandRef;
 }
 
 // @public

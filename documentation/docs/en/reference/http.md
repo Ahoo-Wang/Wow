@@ -54,8 +54,8 @@ Any other request under a context's path is a `404` problem.
 | `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused` |
 | `Wow-Wait` | Commands | How far to wait before answering (below); `snapshot` by default |
 | `Wow-Wait-Timeout` | Commands | How long to wait: `500ms`, `10s`, `1m` or ISO-8601; `wow.wait.default-timeout` (10 s) by default, at most `wow.wait.max-timeout` (1 min) |
-| `If-Match: "n"` | Commands | The version the aggregate must be at; `412 wow.aggregate.version-mismatch` otherwise |
-| `If-None-Match` | State reads | The state's last `ETag`; `304` when it still holds |
+| `If-Match` | Commands | The versions the aggregate must be at, or `*` for one that exists; `412 wow.aggregate.version-mismatch` otherwise ([Entity tags](./protocols#entity-tags)) |
+| `If-None-Match` | State reads | The state's last `ETag`; `304` when it still holds ([Entity tags](./protocols#entity-tags)) |
 | `Accept: text/event-stream` | Commands, `list` queries | Server-sent events (below) |
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
 | `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.cross-tenant.enabled` is on |

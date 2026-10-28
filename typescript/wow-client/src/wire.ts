@@ -48,6 +48,17 @@ export interface AggregateRef {
   readonly id: string;
 }
 
+/**
+ * The aggregate a command names: an {@link AggregateRef} whose `id` is null
+ * while admission has not chosen it, as for a creation that leaves its id to
+ * the server and was refused before one was chosen.
+ */
+export interface CommandRef {
+  readonly type: AggregateType;
+  readonly tenantId: string;
+  readonly id: string | null;
+}
+
 /** The owner and the space an aggregate belongs to, beside its tenant. */
 export interface Scope {
   readonly ownerId?: string | null;
@@ -170,7 +181,7 @@ export interface CommandResult<R = Record<string, unknown>> {
   readonly commandId: string;
   readonly requestId: string;
   readonly correlationId: string;
-  readonly ref: AggregateRef;
+  readonly ref: CommandRef;
   readonly hop: Hop;
   readonly function: FunctionInfo;
   /**
@@ -254,7 +265,7 @@ export interface TagsApplied {
 export interface ScheduleSet {
   readonly key: string;
   readonly rule: ScheduleRule;
-  readonly target: AggregateRef;
+  readonly target: CommandRef;
   readonly commandType: string;
   readonly command: string;
 }

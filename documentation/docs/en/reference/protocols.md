@@ -36,13 +36,22 @@ These values appear inside most structures.
 
 | Value | JSON | Notes |
 | --- | --- | --- |
-| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has the `id` `(none)`. |
+| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has a null `id` until the server chooses one. `(none)` is never an id: a ref that names it is refused. |
 | Scope | `{"ownerId", "spaceId"}` | Either may be null. On a command, the caller's scope; on a commit or a snapshot, the aggregate's after the commit. |
 | Causation | `{"correlationId", "causationId"}` | `correlationId` is the root command's id; `causationId` is the direct cause, for a saga's command the commit it handled. A command sent directly by a caller has none and is its own root. |
 | Operator | `{"id", "tenantId", "crossScope"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `crossScope` when it acted in another tenant or scope. |
-| Hop | `{"stage", "context", "subscription"}` | `stage` is `ACCEPTED`, `COMMITTED` or `HANDLED`; `subscription` only for `HANDLED`; `snapshot` names the snapshot subscription. |
+| Hop | `{"stage", "context", "subscription"}` | `stage` is `accepted`, `committed` or `handled`; `subscription` only for `handled`; `snapshot` names the snapshot subscription. |
 
 Times are epoch milliseconds.
+
+## Entity tags
+
+A state read answers `ETag: "<version>-<digest>"`: the aggregate's version, then the first 64 bits of the SHA-256 of the body as 16 hex digits. The tag changes with whatever changes what the caller reads, not only with the version.
+
+A conditional header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` (RFC 9110 §8.8.3). Anything else is 400 `wow.command.malformed`.
+
+- **`If-Match` on a command** compares strongly (RFC 9110 §13.1.1). A strong tag names a version, either as a state read tags it (`"3-0123456789abcdef"`) or alone (`"3"`). The command runs when the aggregate is at a version the list names; otherwise it is 412 `wow.aggregate.version-mismatch`. A weak tag, or a tag that names no version, never matches. `*` matches an aggregate that exists, and is 412 on one that doesn't, including for a creation.
+- **`If-None-Match` on a state read** compares weakly (§13.1.2). `W/` is ignored, `*` matches any state, and a matching tag answers 304.
 
 ## Event stream
 

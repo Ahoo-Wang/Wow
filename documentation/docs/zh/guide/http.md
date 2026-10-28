@@ -47,7 +47,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
   -d '{"paymentId":"p-1","amount":29.00}'
 ```
 
-请求体是命令的 JSON。成功时以 `200` 返回命令的结果：它的 `status`（`SUCCEEDED`）、提交之后聚合的 `ref` 和 `version`，以及决定附加的 `results`。`If-Match: "n"` 只在聚合处于版本 `n` 时发送命令，否则返回 `412`。
+请求体是命令的 JSON。成功时以 `200` 返回命令的结果：它的 `status`（`succeeded`）、提交之后聚合的 `ref` 和 `version`，以及决定附加的 `results`。`If-Match: "n"` 只在聚合处于版本 `n` 时发送命令，否则返回 `412`。
 
 ## 选择等待多久 {#choose-how-long-to-wait}
 

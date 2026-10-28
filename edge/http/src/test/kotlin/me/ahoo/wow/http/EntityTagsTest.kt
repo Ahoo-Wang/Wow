@@ -47,7 +47,11 @@ class EntityTagsTest {
 
     @Test
     fun `If-Match compares strongly, a tag naming a version alone or as a state read tags it`() {
-        val tags = (EntityTags.parse("\"3\", \"5-0123456789abcdef\", W/\"7\", \"x\", \"9-short\"") as Condition.Listed).tags
+        val tags = (
+            EntityTags.parse(
+                "\"3\", \"5-0123456789abcdef\", W/\"7\", \"x\", \"9-short\""
+            ) as Condition.Listed
+            ).tags
         EntityTags.versions(tags).assert().containsExactlyInAnyOrder(3, 5)
         EntityTags.versions(listOf(Tag("\"4\"", true))).assert().isEmpty()
         EntityTags.versions(listOf(Tag("\"03\"", false), Tag("\"99999999999\"", false))).assert().isEmpty()
