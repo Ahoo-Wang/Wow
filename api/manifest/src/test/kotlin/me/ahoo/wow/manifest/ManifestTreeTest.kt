@@ -555,4 +555,38 @@ class ManifestTreeTest {
             "#/\$defs/sales.Refund",
         )
     }
+
+    @Test
+    fun `a service route should come back, its defaults left out, and one of an unknown parameter location left out`() {
+        val route = ServiceRouteManifest(
+            name = "summary",
+            route = RouteManifest("GET", "/shop/summaries/{day}"),
+            parameters = listOf(
+                RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
+                RouteParameterManifest("limit", RouteParameterManifest.Location.QUERY, mapOf("type" to "integer")),
+            ),
+            response = "#/\$defs/sample.CartState",
+            errors = listOf("cart.empty"),
+            description = "The day's summary.",
+            deprecated = true,
+        )
+        val bare = ServiceRouteManifest(name = "ping", route = RouteManifest("GET", "/shop/ping"))
+        val withRoutes = manifest.copyWith(
+            contexts = manifest.contexts.map { it.copyWith(routes = listOf(route, bare)) },
+        )
+        val tree = ManifestTree.write(withRoutes)
+
+        @Suppress("UNCHECKED_CAST")
+        val written = ((tree["contexts"] as List<Map<String, Any?>>).single()["routes"] as List<Map<String, Any?>>)
+        written[1].keys.assert().containsExactly("name", "route")
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(withRoutes)
+        withRoutes.schemaRefs.assert().contains("#/\$defs/sample.CartState")
+        // A parameter read from where this reader knows nothing of leaves its route out, told.
+        val warnings = mutableListOf<String>()
+        val unknown = json.replace("\"in\":\"query\"", "\"in\":\"cookie\"")
+        ManifestTree.read(mapper.readValue(unknown, Map::class.java), warnings::add).contexts.single().routes
+            .map { it.name }.assert().containsExactly("ping")
+        warnings.assert().isNotEmpty()
+    }
 }

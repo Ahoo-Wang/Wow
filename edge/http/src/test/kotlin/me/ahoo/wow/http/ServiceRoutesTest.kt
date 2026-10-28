@@ -13,7 +13,12 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.flow.Flow
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.api.wire.WowHeaders
@@ -44,6 +49,17 @@ import kotlin.reflect.typeOf
 class ServiceRoutesTest {
     data class Note(val text: String)
 
+    enum class Level { LOW, HIGH }
+
+    /** The commands a relaying handler sends; it is only named here. */
+    private val client = object : CommandClient {
+        override fun of(caller: Caller): CommandClient = this
+        override suspend fun send(request: CommandRequest<*>): CommandResult = error("not sent")
+        override suspend fun wait(request: CommandRequest<*>): CommandResult = error("not sent")
+        override fun stream(request: CommandRequest<*>): Flow<CommandResult> = error("not sent")
+        override fun toString(): String = "the node's commands"
+    }
+
     private val manifest: Manifest = cartManifest().let { manifest ->
         val context = manifest.contexts.single()
         manifest.copyWith(
@@ -70,6 +86,8 @@ class ServiceRoutesTest {
                             response = Manifest.schemaRef("Summary"),
                             errors = listOf(CLOSED),
                         ),
+                        ServiceRouteManifest(name = "kinds", route = RouteManifest("GET", "/$CONTEXT/kinds/{n}")),
+                        ServiceRouteManifest(name = "relay", route = RouteManifest("POST", "/$CONTEXT/relay")),
                         ServiceRouteManifest(
                             name = "addNote",
                             route = RouteManifest("POST", "/$CONTEXT/notes"),
@@ -94,6 +112,15 @@ class ServiceRoutesTest {
                 else -> mapOf("day" to day, "limit" to limit, "tenant" to call.tenantId, "owner" to call.scope.ownerId)
             }
         },
+        handler("kinds") { _, request ->
+            mapOf(
+                "n" to request.path("n", Long::class),
+                "d" to request.query("d", Double::class),
+                "b" to request.query("b", Boolean::class),
+                "level" to request.query("level", Level::class),
+            )
+        },
+        handler("relay") { call, _ -> call.commands.of(call.caller).toString() },
         handler("addNote") { _, request ->
             notes += request.body<Note>(typeOf<Note>()).text
             Unit
@@ -116,7 +143,7 @@ class ServiceRoutesTest {
         }
     }
 
-    private val node = HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers, listOf(denyBob)))
+    private val node = HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers, listOf(denyBob), client))
 
     @Test
     fun `a route answers its handler's JSON, as the caller in its tenant and scope`() {
@@ -180,6 +207,39 @@ class ServiceRoutesTest {
             .message.assert().contains("service route $CONTEXT.addNote has no handler")
         assertThrows<IllegalStateException> { HttpNode(serviceRoutes = ServiceRoutes(handlers)) }
             .message.assert().contains("the handler of $CONTEXT.summary is no route of the Manifest")
+    }
+
+    @Test
+    fun `each scalar a parameter may be reads as its type`() {
+        val answer = node.get("/$CONTEXT/kinds/42?d=1.5&b=true&level=HIGH")
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["n"].asLong().assert().isEqualTo(42L)
+        answer.body["d"].asDouble().assert().isEqualTo(1.5)
+        answer.body["b"].asBoolean().assert().isTrue()
+        answer.body["level"].asString().assert().isEqualTo("HIGH")
+        node.get("/$CONTEXT/kinds/42?level=MIDDLE").body!!["violations"][0]["path"].asString().assert()
+            .isEqualTo("level")
+    }
+
+    @Test
+    fun `a caller that acts across scopes calls in the scope it names, and relays as itself`() {
+        val answer = node.get(
+            "/$CONTEXT/summaries/mon?limit=1",
+            headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to "tenant=\"other\", owner=\"bob\""),
+        )
+        answer.body!!["tenant"].asString().assert().isEqualTo("other")
+        answer.body["owner"].asString().assert().isEqualTo("bob")
+        node.post("/$CONTEXT/relay", null).body.toString().assert().contains("the node's commands")
+        // Without a command client, a handler that sends one fails.
+        HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers)).post("/$CONTEXT/relay", null)
+            .status.assert().isEqualTo(500)
+    }
+
+    @Test
+    fun `a route with two handlers stops the node`() {
+        assertThrows<IllegalStateException> {
+            HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers + handlers.first()))
+        }.message.assert().contains("service route $CONTEXT.summary has two handlers")
     }
 
     private companion object {

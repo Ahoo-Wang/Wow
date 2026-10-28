@@ -201,4 +201,48 @@ class ServiceRouteTest {
             .contains("has path '/lead'")
             .contains("query parameter item is a sample.Item")
     }
+
+    @Test
+    fun `a route that is no member, misnamed, binds twice or is declared twice should fail the compilation`() {
+        val broken = SourceFile.kotlin(
+            "Twice.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.RouteMethod
+            import me.ahoo.wow.api.annotation.ServiceRoute
+            import me.ahoo.wow.api.route.RouteCall
+
+            data class Item(val id: String)
+
+            @ServiceRoute(method = RouteMethod.GET, path = "loose")
+            suspend fun loose(): Item = Item("x")
+
+            class Twice {
+                @ServiceRoute(method = RouteMethod.POST, path = "items/{id}/{id}", name = "Bad_Name")
+                suspend fun twice(id: String?, first: Item, second: Item, a: RouteCall, b: RouteCall): Item = first
+
+                @ServiceRoute(method = RouteMethod.GET, path = "a")
+                suspend fun same(): Item = Item("a")
+
+                @ServiceRoute(method = RouteMethod.GET, path = "b", name = "same")
+                suspend fun other(): Item = Item("b")
+
+                @ServiceRoute(method = RouteMethod.GET, path = "c")
+                suspend fun scalars(@me.ahoo.wow.api.annotation.RouteQuery n: Long, @me.ahoo.wow.api.annotation.RouteQuery d: Double?, @me.ahoo.wow.api.annotation.RouteQuery b: Boolean?): Item = Item("c")
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, broken)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains("is not a member of a class")
+            .contains("is named Bad_Name")
+            .contains("names the path variable {id} twice")
+            .contains("path variable {id} is nullable")
+            .contains("takes two bodies")
+            .contains("takes two RouteCalls")
+            .contains("service route same is declared twice")
+            .doesNotContain("scalars")
+    }
 }
