@@ -94,7 +94,9 @@ internal fun forbidden(command: Command<*>) =
 /** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's. */
 internal fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =
     if (commandType.isNamed(existing.commandType)) {
-        CommandOutcome.AlreadyCommitted(existing)
+        // A retry of a command rejected with events is answered with the same rejection.
+        existing.rejection?.let { CommandOutcome.Rejected(it, existing.version, duplicate = true) }
+            ?: CommandOutcome.AlreadyCommitted(existing)
     } else {
         rejected(
             FrameworkCodes.COMMAND_REQUEST_ID_REUSED,

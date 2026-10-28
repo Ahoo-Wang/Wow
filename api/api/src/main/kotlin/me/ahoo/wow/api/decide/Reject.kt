@@ -17,11 +17,17 @@ package me.ahoo.wow.api.decide
 
 /**
  * Refuses the command being decided with the rejection [code], [message] and structured [extensions]: it throws a
- * [RejectedException], which the kernel answers as that rejection, so nothing is appended. [message] is shown to the
- * caller. The way a decide function that returns its event type rejects, with or without a [DecideScope];
+ * [RejectedException], which the kernel answers as that rejection. [message] is shown to the caller. Nothing is
+ * appended unless the rejection carries [events]: ordinary events of the aggregate, each sourced by it, appended with
+ * the rejection in one stream, and the answer then names the version they reached (an audit of the attempt, a
+ * counter of refusals). A rejection of a creation, whose aggregate does not exist, appends nothing. The way a decide function that returns its event type rejects, with or without a [DecideScope];
  * `require` (`wow.command.invalid`) and `check` (`wow.command.refused`) reject a broken precondition alike. It is
  * inline like `error()`, so the rejecting line is the caller's.
  */
 @Suppress("NOTHING_TO_INLINE")
-inline fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Nothing =
-    throw RejectedException(Rejection.of(code, message, extensions))
+inline fun reject(
+    code: String,
+    message: String,
+    events: List<Any> = emptyList(),
+    extensions: Map<String, Any?> = emptyMap(),
+): Nothing = throw RejectedException(Rejection.of(code, message, extensions), events)

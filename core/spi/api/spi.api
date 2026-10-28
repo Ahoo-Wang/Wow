@@ -496,6 +496,10 @@ public final class me/ahoo/wow/spi/log/EventRecord$Companion {
 
 public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public static final field Companion Lme/ahoo/wow/spi/log/EventStreamRecord$Companion;
+	public static final field REJECTION_CODE Ljava/lang/String;
+	public static final field REJECTION_EXTENSIONS Ljava/lang/String;
+	public static final field REJECTION_MESSAGE Ljava/lang/String;
+	public static final field REJECTION_PREFIX Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
@@ -505,6 +509,7 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRejection ()Lme/ahoo/wow/api/decide/Rejection;
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getTags ()Ljava/util/Map;

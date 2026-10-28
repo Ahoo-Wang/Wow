@@ -136,7 +136,7 @@ class View(private val state: ViewState) {
             reject(
                 ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD,
                 "The view is shown by the shared dashboards ${boards.joinToString { "\"${it.title}\" (${it.id})" }}.",
-                mapOf(ViewStoreRejections.BOARDS to boards),
+                extensions = mapOf(ViewStoreRejections.BOARDS to boards),
             )
         }
         return ViewClaimed(toOwnerId)

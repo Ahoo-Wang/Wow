@@ -33,11 +33,11 @@ class RejectedExceptionTest {
     fun `reject of a scope should throw the rejection it names`() {
         val scope = mockk<DecideScope> {
             every { reject(any(), any()) } answers { callOriginal() }
-            every { reject(any(), any(), any()) } answers { callOriginal() }
+            every { reject(any(), any(), extensions = any()) } answers { callOriginal() }
         }
         assertThrownBy<RejectedException> { scope.reject("frozen", "The account is frozen.") }
             .actual().rejection.assert().isEqualTo(Rejection.of("frozen", "The account is frozen."))
-        assertThrownBy<RejectedException> { scope.reject("short", "Only 2.", mapOf("left" to 2)) }
+        assertThrownBy<RejectedException> { scope.reject("short", "Only 2.", extensions = mapOf("left" to 2)) }
             .actual().rejection.extensions.assert().containsEntry("left", 2)
         assertThrownBy<IllegalArgumentException> { scope.reject("wow.command.busy", "No.") }
     }

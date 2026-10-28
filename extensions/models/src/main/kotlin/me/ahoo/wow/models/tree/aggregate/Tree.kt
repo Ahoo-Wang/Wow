@@ -158,7 +158,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     }
 
     private fun reject(code: String, message: String, vararg extensions: Pair<String, Any?>): Decision =
-        Decision.reject(code, message, extensions.toMap())
+        Decision.reject(code, message, extensions = extensions.toMap())
 
     private companion object {
         const val CODE = "code"

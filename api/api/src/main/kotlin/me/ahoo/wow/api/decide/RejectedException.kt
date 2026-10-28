@@ -21,6 +21,13 @@ package me.ahoo.wow.api.decide
  *
  * It carries no stack trace: it is an answer, not an error. Its message is the rejection's, which the caller reads.
  */
-class RejectedException(val rejection: Rejection) : RuntimeException(rejection.message) {
+class RejectedException @JvmOverloads constructor(
+    val rejection: Rejection,
+    /**
+     * The events the rejection carries, ordinary events of the aggregate that it sources and that are appended with
+     * the rejection: an audit of the attempt, a counter of refusals. Empty: nothing is appended.
+     */
+    val events: List<Any> = emptyList(),
+) : RuntimeException(rejection.message) {
     override fun fillInStackTrace(): Throwable = this
 }

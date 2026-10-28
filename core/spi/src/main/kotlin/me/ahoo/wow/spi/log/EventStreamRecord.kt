@@ -18,6 +18,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.WaitContext
 
@@ -68,6 +70,10 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  *   the aggregate had none.
  * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
  *   `wow.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
+ * - [rejection] is the rejection whose events this stream holds, when a decision rejected its command with events,
+ *   from the headers under [REJECTION_PREFIX] (`wow.rejection.code`, `.message`, `.extensions`); null for a commit.
+ *   Its events are ordinary events of the aggregate, which projections and sagas handle as any; a retry of the
+ *   command is answered with the same rejection.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -147,7 +153,47 @@ class EventStreamRecord @InternalWowApi constructor(
         tags,
     )
 
+    /** The rejection whose events this stream holds; null for a commit ([REJECTION_PREFIX]). */
+    val rejection: Rejection?
+        get() = headers[REJECTION_CODE]?.let { code ->
+            Rejection(
+                code,
+                headers[REJECTION_MESSAGE].orEmpty(),
+                headers[REJECTION_EXTENSIONS]?.let(::extensionsOf).orEmpty(),
+            )
+        }
+
     companion object {
+        /**
+         * The prefix of the headers a rejection's stream records its rejection under: the framework's, so a command's
+         * headers may not set any (admission refuses them).
+         */
+        const val REJECTION_PREFIX: String = "wow.rejection."
+
+        /** The rejection's code. */
+        const val REJECTION_CODE: String = REJECTION_PREFIX + "code"
+
+        /** The rejection's message. */
+        const val REJECTION_MESSAGE: String = REJECTION_PREFIX + "message"
+
+        /** The rejection's extensions, as a JSON object; absent when it has none. */
+        const val REJECTION_EXTENSIONS: String = REJECTION_PREFIX + "extensions"
+
+        /** The headers that record [rejection] on the stream of its events. */
+        @InternalWowApi
+        @JvmStatic
+        fun rejectionHeaders(rejection: Rejection): Map<String, String> = buildMap {
+            put(REJECTION_CODE, rejection.code)
+            put(REJECTION_MESSAGE, rejection.message)
+            if (rejection.extensions.isNotEmpty()) {
+                put(REJECTION_EXTENSIONS, WowJson.mapper.writeValueAsString(rejection.extensions))
+            }
+        }
+
+        @Suppress("UNCHECKED_CAST") // A JSON object reads as a map of its members.
+        private fun extensionsOf(json: String): Map<String, Any?> =
+            WowJson.mapper.readValue(json, Map::class.java) as Map<String, Any?>
+
         /** An EventStreamRecord of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads

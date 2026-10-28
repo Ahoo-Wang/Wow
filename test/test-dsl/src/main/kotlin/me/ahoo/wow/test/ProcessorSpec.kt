@@ -585,7 +585,7 @@ class ProcessorSpec private constructor(
             Handled(derived)
         }
 
-    /** The commands of one handling, the schedules it set or cancelled among them, and the commands it [calls]. */
+    /** The commands of one handling, the schedules it set or cancelled among them, extensions = and the commands it [calls]. */
     internal data class Handled(val commands: List<Command<*>>, val calls: List<Command<*>> = emptyList())
 
     private companion object {

@@ -141,7 +141,10 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
         signalTime = now,
     )
     return when (this) {
-        is CommandOutcome.Committed -> result.copyWith(version = stream.version, results = results)
+        is CommandOutcome.Committed -> rejection?.let {
+            // A rejection whose events are committed: answered as the rejection, at the version they reached.
+            result.copyWith(status = CommandResult.Status.REJECTED, version = stream.version, error = it.toError())
+        } ?: result.copyWith(version = stream.version, results = results)
         // The committed stream's aggregate, not the command's: a creation without an id retried
         // after its first id was committed may have been given another one.
         is CommandOutcome.AlreadyCommitted -> result.copyWith(
@@ -152,6 +155,8 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
         is CommandOutcome.Unchanged -> result.copyWith(version = version)
         is CommandOutcome.Rejected -> result.copyWith(
             status = CommandResult.Status.REJECTED,
+            version = version,
+            duplicate = duplicate,
             error = rejection.toError(),
         )
 
