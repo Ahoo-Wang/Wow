@@ -16,7 +16,7 @@ For what the engine does, read the [View Engine guide](../../../typescript/view-
 | Entry | Exports |
 |---|---|
 | `@ahoo-wang/wow-view-engine` | Model types, pure kernels (`validate*`, `compile*`, `project*`), runtime, the `ViewStore` port, `MemoryViewStore`, `localStorageSnapshot` |
-| `/react` | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `useRecordActions`, `RecordActionSlots` |
+| `/react` | `useCreateViewEngine`, `useEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `useRecordActions`, `RecordActionSlots` |
 | `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), the host's wiring (`ViewHost`, `bind`, `useViewNavigation`, `useColorMode`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
 | `/testing` | For a host's tests: `memorySource` and `matches` (an in-memory `ViewSource` with Wow's query semantics), `resolveNavigation`, `admit`, `actionHarness` |
 | `/react-router` | `useReactRouter`: React Router as the router port a host hands its `ViewHost` |

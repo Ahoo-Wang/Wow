@@ -25,7 +25,7 @@ import {
   EmptyMedia,
 } from '../components/empty.js';
 import { ItemContent, ItemDescription, ItemTitle } from '../components/item.js';
-import type { PanelHeadingLevel } from './DashboardPanel.js';
+import type { PanelHeadingLevel } from './DashboardPanelCard.js';
 import { RowItem } from '../kit/RowItem.js';
 import { cn } from 'cn';
 import { Truncated } from '../kit/Truncated.js';
@@ -91,8 +91,8 @@ export interface HeadingPanelProps {
  * rather than wrapped, since a heading card is one row high. Plain text on
  * purpose — no markdown, no link — so a title is never anything else. On a
  * board the grid draws a heading card as its panel title alone
- * (`DashboardPanel`), at the level of every other panel title; this is the
- * same words for a host that renders a content panel by itself.
+ * (`DashboardPanelCard`), at the level of every other panel title; this is
+ * the same words for a host that renders a content panel by itself.
  */
 export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
   const say = useSay();

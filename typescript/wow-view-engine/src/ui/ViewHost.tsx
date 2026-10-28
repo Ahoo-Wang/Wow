@@ -81,12 +81,12 @@ export interface ViewHostProps {
    */
   bindings?: readonly ViewBinding[];
   /**
-   * The theme port, the first of two paths (4.1): `host` — the engine
-   * follows the host's shadcn theme (Tailwind v4), through
-   * `shadcn-bridge.css`, which the host imports; no preset is named. The
-   * other path is `preset`.
+   * Where the engine's colours come from, the first of two paths (4.1):
+   * `host` — the host's own variables, its shadcn theme (Tailwind v4) read
+   * through `shadcn-bridge.css`, which the host imports, rather than a
+   * preset; no preset is named. The other path is `preset`.
    */
-  theme?: 'host';
+  tokenSource?: 'host';
   /**
    * The other path: the host follows the engine — a preset (its stylesheet
    * imported: `themes/<name>.css` or `themes.css`), named on `<html>`, and
@@ -131,7 +131,7 @@ export function ViewHost({
   boardsInAddress,
   navigate,
   bindings,
-  theme,
+  tokenSource,
   preset,
   brand,
   colorMode,
@@ -150,7 +150,7 @@ export function ViewHost({
       (hasRouter ? routerNavigate(latest as () => ViewRouter) : undefined),
     [navigate, hasRouter, latest],
   );
-  useHostTheme(!outer, theme, preset, brand);
+  useHostTheme(!outer, tokenSource, preset, brand);
   return (
     <ViewEngineProvider
       engine={engine}
@@ -177,18 +177,18 @@ export function ViewHost({
 /**
  * Names the preset and the brand on `<html>` (4.1), where this host paints:
  * `html[data-fve-preset]` and `--fve-brand`, which every surface, its
- * popups and the host's `fve-tokens` read. Under `theme="host"` nothing is
+ * popups and the host's `fve-tokens` read. Under `tokenSource="host"` nothing is
  * named — the bridge applies while `<html>` names no preset. What was there
  * before is put back when the host goes.
  */
 function useHostTheme(
   paints: boolean,
-  theme: 'host' | undefined,
+  tokenSource: 'host' | undefined,
   preset: ViewPreset | undefined,
   brand: string | undefined,
 ): void {
-  const named = paints && theme !== 'host' ? preset : undefined;
-  const branded = paints && theme !== 'host' ? brand : undefined;
+  const named = paints && tokenSource !== 'host' ? preset : undefined;
+  const branded = paints && tokenSource !== 'host' ? brand : undefined;
   useLayoutEffect(() => {
     if (named === undefined) return;
     const root = document.documentElement;

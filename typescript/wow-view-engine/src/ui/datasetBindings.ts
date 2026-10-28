@@ -21,16 +21,12 @@ import {
 /**
  * How `datasetBindings` binds each dataset served: the options of its
  * binding, asked of each one.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export interface DatasetBindingOptions {
   /** Where a view of `dataset` lives: the host's route of it on `instanceId`. */
   route(dataset: DatasetResource, instanceId: string | null): string;
   /** The rest of its binding, such as the actions its rows offer; none by default. */
-  options?(
+  binding?(
     dataset: DatasetResource,
   ): Omit<ViewBindingOptions, 'route'> | undefined;
 }
@@ -39,18 +35,14 @@ export interface DatasetBindingOptions {
  * A binding of each dataset served: the host spreads them into the ones
  * it hands `ViewHost`, so its navigation lists the datasets and a view of
  * one opens at its route.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export function datasetBindings(
   served: readonly DatasetResource[],
-  { route, options }: DatasetBindingOptions,
+  { route, binding }: DatasetBindingOptions,
 ): ViewBinding[] {
   return served.map(dataset =>
     bind(dataset.id, {
-      ...options?.(dataset),
+      ...binding?.(dataset),
       route: instanceId => route(dataset, instanceId),
     }),
   );

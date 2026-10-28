@@ -21,7 +21,7 @@
 | ---------------------------- | ---------------------------------------------------------------------- | ------------------ |
 | 风格（形状、面的层次、字体） | `data-fve-preset`，或面上的 `preset` 属性                              | 宿主               |
 | 品牌色                       | `--fve-brand`（暗色可另给 `--fve-dark-brand`）                         | 宿主               |
-| 明暗                         | 祖先上的 `.dark`，面上的 `theme`（`light`／`dark`／`system`）          | 宿主（可跟随系统） |
+| 明暗                         | 祖先上的 `.dark`，面上的 `colorMode`（`light`／`dark`／`system`）      | 宿主（可跟随系统） |
 | 密度                         | `data-fve-density="compact｜default｜comfortable"`，或面上的 `density` | 宿主；预设只推荐   |
 | 涨跌约定                     | `data-fve-change-colors="semantic｜green-up｜red-up"`                  | 宿主，按市场与读者 |
 

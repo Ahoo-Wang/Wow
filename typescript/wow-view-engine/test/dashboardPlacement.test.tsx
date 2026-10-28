@@ -508,8 +508,8 @@ describe('a panel whose query failed', () => {
       [pending],
       source,
     );
-    const { DashboardPanel } = await import('../src/ui/index.js');
-    render(<DashboardPanel panel={controller().panels[0]} />);
+    const { DashboardPanelCard } = await import('../src/ui/index.js');
+    render(<DashboardPanelCard panel={controller().panels[0]} />);
 
     await waitFor(() =>
       expect(screen.getByText('The query failed')).toBeTruthy(),

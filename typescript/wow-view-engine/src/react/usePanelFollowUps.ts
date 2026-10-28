@@ -33,7 +33,7 @@ import {
   withFilterMode,
   withHandedFilter,
 } from '../runtime/navigation.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 import type { WorkbenchController } from './useWorkbench.js';
 
 /**

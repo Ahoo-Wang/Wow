@@ -50,10 +50,10 @@ import {
 import { useSaveCommands, type SaveCommands } from './useSaveCommands.js';
 import {
   useOpenView,
-  useViewRuntime,
   type DashboardOpening,
   type OpenViewState,
-} from './useViewEngine.js';
+} from './useOpenView.js';
+import { useViewRuntime } from './useViewRuntime.js';
 import { useViewList, type ViewListState } from './useViewList.js';
 import {
   useViewManager,

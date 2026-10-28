@@ -17,7 +17,7 @@ import type { Issue, ViewInstance, ViewScope } from '../../model/index.js';
 import { mayCreate } from '../../runtime/permissions.js';
 import { toIssue, type DashboardController } from '../../react/index.js';
 import type { DashboardRuntime, ViewEngine } from '../../runtime/index.js';
-import { panelNames } from './DashboardPanel.js';
+import { panelNames } from './DashboardPanelCard.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { SaveAsDialog } from '../workbench/SaveAsDialog.js';
 import type { DashboardEditExtensions, NewPanelSpot } from './extensions.js';

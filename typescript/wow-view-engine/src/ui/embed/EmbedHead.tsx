@@ -21,7 +21,7 @@ import { readingTime } from '../kit/display.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { RefreshControl } from '../workbench/RefreshControl.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
-import type { PanelHeadingLevel } from '../dashboard/DashboardPanel.js';
+import type { PanelHeadingLevel } from '../dashboard/DashboardPanelCard.js';
 import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
 import { useViewExpansion, ViewExpandToggle } from '../kit/ViewExpansion.js';
 import { Truncated } from '../kit/Truncated.js';

@@ -35,7 +35,7 @@ import {
 import { DialogContent } from './popups.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { ToolbarItem, type DetachedDialog } from './toolbar.js';
+import { ToolbarItem, libraryDialog, type DetachedDialog } from './toolbar.js';
 import type { FinalFocus } from './focus.js';
 import {
   ChooseStep,
@@ -148,7 +148,7 @@ export function ExportButton({
         <ToolbarItem
           render={
             <DialogTrigger
-              handle={handle}
+              handle={libraryDialog(handle)}
               data-control="export"
               render={<Button variant="outline" size="icon-sm" />}
             />
@@ -215,7 +215,7 @@ export function ExportDialog({
 
   return (
     <Dialog
-      handle={handle}
+      handle={libraryDialog(handle)}
       open={open}
       onOpenChange={next => {
         // Escape, the backdrop and Cancel are one answer while the pages are

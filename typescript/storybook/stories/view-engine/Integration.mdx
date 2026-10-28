@@ -54,7 +54,7 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ah
 
 <Source code={readable(memoryRouter)} language="ts" />
 
-- **主题，两条路选一条**：没有主题、或愿意用引擎主题的宿主写 `preset="porcelain"`（导入 `themes/porcelain.css`，或全部预设的 `themes.css`），可加 `brand` 品牌色；宿主自己的外壳挂 `fve-tokens`，拿到同一套 shadcn 名（`--background`、`--primary`…）。已有 shadcn 主题（Tailwind v4）的宿主写 `theme="host"`，导入 `shadcn-bridge.css`，引擎读宿主的变量。
+- **主题，两条路选一条**：没有主题、或愿意用引擎主题的宿主写 `preset="porcelain"`（导入 `themes/porcelain.css`，或全部预设的 `themes.css`），可加 `brand` 品牌色；宿主自己的外壳挂 `fve-tokens`，拿到同一套 shadcn 名（`--background`、`--primary`…）。已有 shadcn 主题（Tailwind v4）的宿主写 `tokenSource="host"`，导入 `shadcn-bridge.css`，引擎读宿主的变量。
 - **明暗归 `ViewHost`**：`colorMode` 缺省 `system`，在第一次绘制前给 `<html>` 挂 `.dark` 与 `color-scheme` 并跟随系统；`rememberColorMode` 把读者经 `useColorMode()` 选的记在这台机器上；宿主已经自己管明暗（如 next-themes）时写 `colorMode="host"`，否则两边会抢 `<html>` 的 `.dark`。下面的示例就写了 `host`：Storybook 工具栏在管明暗。
 - **宿主的类名不会和引擎的撞**：引擎的工具类都带前缀 `fve:`（`fve:flex`、`fve:md:w-64`），样式表的其余部分收在边界里，导入次序不影响；宿主写在视图里的 `sm:grid-cols-3` 只和宿主自己的规则比。
 

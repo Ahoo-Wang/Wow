@@ -54,7 +54,7 @@ import {
 } from '../runtime/index.js';
 import { pendingBesides } from '../runtime/pending.js';
 import type { RecordViewConfig } from '../model/index.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 import { ladderOf, switchLayout } from './recordLayout.js';
 import {
   rowsOnScreen,

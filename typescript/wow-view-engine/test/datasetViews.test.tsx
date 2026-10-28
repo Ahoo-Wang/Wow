@@ -83,15 +83,20 @@ describe('useDatasets (D93)', () => {
   function resourcesOf2(answers: (() => Promise<DatasetResource[]>)[]) {
     let call = 0;
     return {
-      refresh: vi.fn(() => answers[Math.min(call++, answers.length - 1)]()),
-      duplicates: [],
+      refresh: vi.fn(() =>
+        answers[Math.min(call++, answers.length - 1)]().then(datasets => ({
+          datasets,
+          duplicates: [],
+        })),
+      ),
     };
   }
 
-  it('reads when it mounts and when the key changes, and reads nothing without one', async () => {
+  it('reads when it mounts and when the key changes, and reads nothing while paused', async () => {
     const resources = resourcesOf2([() => Promise.resolve([ORDERS])]);
     const { result, rerender } = renderHook(
-      ({ key }: { key: string | null }) => useDatasets(resources, key),
+      ({ key }: { key: string | null }) =>
+        useDatasets(resources, { key: key ?? undefined, paused: key === null }),
       { initialProps: { key: null as string | null } },
     );
     expect(result.current.loading).toBe(false);
@@ -120,7 +125,7 @@ describe('useDatasets (D93)', () => {
       },
     });
     const { rerender, unmount } = renderHook(
-      ({ key }: { key: string }) => useDatasets(resources, key),
+      ({ key }: { key: string }) => useDatasets(resources, { key }),
       { initialProps: { key: 'alice' } },
     );
     await waitFor(() => expect(asked).toHaveLength(1));
@@ -154,7 +159,7 @@ describe('datasetBindings (D93)', () => {
     const actions = { actions: [] };
     const bindings = datasetBindings([ORDERS, MEMBERS], {
       route: (dataset, view) => `/rows/${dataset.id}${view ? `/${view}` : ''}`,
-      options: dataset => (dataset.catalog === 1 ? actions : undefined),
+      binding: dataset => (dataset.catalog === 1 ? actions : undefined),
     });
     expect(bindings.map(binding => binding.definitionId)).toEqual([
       ORDERS.id,
@@ -269,7 +274,10 @@ describe('a board over datasets of several services (D93)', () => {
     const served = await new DatasetResources(engine, {
       catalogs: [catalog('shop', 'orders'), catalog('crm', 'members')],
     }).refresh();
-    expect(served.map(({ id }) => id)).toEqual(['shop.orders', 'crm.members']);
+    expect(served.datasets.map(({ id }) => id)).toEqual([
+      'shop.orders',
+      'crm.members',
+    ]);
 
     const view = (id: string, title: string) =>
       engine.save(

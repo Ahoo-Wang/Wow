@@ -281,7 +281,7 @@ type WrapperChip = (typeof WRAPPER_CHIPS)[number][0] | 'ring';
 function WrapperSurface({ title, note }: { title: string; note: string }) {
   return (
     <ViewSurface
-      theme="light"
+      colorMode="light"
       className="host:bg-card host:text-card-foreground"
       style={{
         padding: 12,

@@ -87,7 +87,7 @@ export const engine = new ViewEngine({
 | `navigate` | 路由 | 所有离开的方式都交到你手里；它优先于 `router` |
 | `locale`、`messages` | 语言 | 值以哪种语言显示，以及合并在引擎自带措辞之上的措辞（[见下](#messages)） |
 | `bindings` | 命令 | 每个资源一个 `bind(id, …)`：它的路由、操作和阅读方式（[见下](#bind)） |
-| `theme`、`preset`、`brand` | 主题 | 跟随宿主的 shadcn 主题，或使用引擎的某个预设（[主题](./theming)） |
+| `tokenSource`、`preset`、`brand` | 主题 | 取宿主自己的变量（它的 shadcn 主题），或使用引擎的某个预设（[主题](./theming)） |
 | `colorMode`、`rememberColorMode` | 主题 | 亮色、暗色或跟随系统，以及读者的选择保存在哪里 |
 
 <!-- typecheck: file=Host.tsx -->

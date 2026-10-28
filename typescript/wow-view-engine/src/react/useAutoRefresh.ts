@@ -30,7 +30,7 @@ import type {
 } from '../runtime/index.js';
 import { listenerSet } from '../runtime/listeners.js';
 import { refreshIntervalOf } from '../runtime/refreshTimer.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 // The ladder itself is the engine's (`RuntimeLimits.refreshIntervals`, with
 // the reasoning for its three rungs); this hook only cuts it to the bounds

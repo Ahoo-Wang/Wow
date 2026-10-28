@@ -41,11 +41,12 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 | `expandable` | 是否提供铺满屏幕，缺省开 |
 | `landmark` | 工作列是什么地标：缺省 `main`；页面已经有自己的 `<main>` 时写 `region` |
 | `defaultSidebarOpen`、`onSidebarOpenChange` | 侧栏起始状态：视图状态，不保存、离开确认也不问。缺省窄于 `md` 时折叠 |
-| `density`、`preset`、`theme`、`tokens` | 这个界面及其弹层的密度、固定的预设、明暗、宿主自己的 `--fve-*` |
+| `colorMode`、`density`、`preset`、`tokens` | 这个界面及其弹层的明暗、密度、固定的预设、宿主自己的 `--fve-*` |
 | `onRenderFailure` | 某个边界接住渲染失败时告诉宿主；那部分照常原地显示可恢复的错误状态 |
 
 ```ts
 export interface DataWorkbenchProps {
+  colorMode?: ColorMode;
   defaultSidebarOpen?: boolean;
   definitionId: string;
   density?: ViewDensity;
@@ -65,7 +66,6 @@ export interface DataWorkbenchProps {
   preset?: ViewPreset;
   record?: RecordViewProps;
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
   viewKinds?: readonly DataViewKind[];
 }
@@ -116,6 +116,7 @@ export interface RecordViewProps {
 
 ```ts
 export interface DashboardWorkbenchProps {
+  colorMode?: ColorMode;
   defaultSidebarOpen?: boolean;
   definitionId: string;
   density?: ViewDensity;
@@ -137,7 +138,6 @@ export interface DashboardWorkbenchProps {
   optionsFor?(remote: string): FieldOption[] | undefined;
   preset?: ViewPreset;
   template?: DashboardViewConfig;
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
 }
 export declare function DashboardWorkbench(props: DashboardWorkbenchProps): import('react').JSX.Element;
@@ -163,6 +163,7 @@ export declare function DashboardWorkbench(props: DashboardWorkbenchProps): impo
 export interface EmbedBaseProps {
   autoRefresh?: boolean;
   className?: string;
+  colorMode?: ColorMode;
   density?: ViewDensity;
   engine?: ViewEngine;
   expandable?: boolean;
@@ -176,7 +177,6 @@ export interface EmbedBaseProps {
   preset?: ViewPreset;
   ref?: import('react').Ref<HTMLDivElement>;
   size?: EmbedSize;
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
   withTitle?: boolean;
 }

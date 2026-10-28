@@ -31,7 +31,7 @@ import {
   useViewRuntime,
 } from '../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
-import type { PanelHeadingLevel } from './dashboard/DashboardPanel.js';
+import type { PanelHeadingLevel } from './dashboard/DashboardPanelCard.js';
 import { SurfaceAnnouncer, useAnnouncer } from './kit/Announcer.js';
 import {
   DashboardGrid,
@@ -59,10 +59,8 @@ import {
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kit/kinds.js';
 import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
-import {
-  useEngine,
-  useRoutedNavigate,
-} from './workbench/ViewEngineProvider.js';
+import { useEngine } from '../react/engineContext.js';
+import { useRoutedNavigate } from './workbench/ViewEngineProvider.js';
 import { boardKey, useAddressedBoard } from './workbench/address.js';
 import { ErrorStrip, WarningStrip } from './kit/StatusStrip.js';
 import { boardErrorTitle } from './workbench/panelsToFix.js';

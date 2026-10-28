@@ -80,12 +80,13 @@ const FORGOTTEN = {
     'TOKENS',
     'RoleArea',
     // What a chart hands the image export through `ChartImageSlot`: the
-    // engine's own wiring between two of its components, through ECharts'
-    // own types, never a value a host builds.
+    // engine's own wiring between two of its components, in the engine's
+    // own types over the chart library, never a value a host builds.
     'ChartCapture',
     'CaptureChart',
-    'ChartLibrary',
-    'Library',
+    'ChartOption',
+    'ChartPicture',
+    'ChartPictureLibrary',
     'ChartTheme',
     'LegendEntry',
   ],

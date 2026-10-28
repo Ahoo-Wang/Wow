@@ -412,7 +412,7 @@ export const CollapsedPathIsTwoLevels: Story = {
  */
 const titleBarDivider = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithActions,
-  args: { ...DisplayWithActions.args, theme },
+  args: { ...DisplayWithActions.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');

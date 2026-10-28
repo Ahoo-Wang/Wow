@@ -74,7 +74,7 @@ export function OrdersHost({
       messages={MESSAGES}
       bindings={bindings}
       // The host follows the engine's preset; a host with a shadcn theme
-      // writes `theme="host"` and imports `shadcn-bridge.css` instead.
+      // writes `tokenSource="host"` and imports `shadcn-bridge.css` instead.
       preset="porcelain"
       // Light or dark on `<html>`: the system's until the reader picks.
       colorMode={colorMode}

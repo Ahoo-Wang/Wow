@@ -74,7 +74,7 @@ import type { OptionSource } from '../runtime/index.js';
 import type { AnalysisViewRuntime } from '../runtime/viewRuntimeTypes.js';
 import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 const NO_WINDOWS: readonly WindowFunctionName[] = [];
 

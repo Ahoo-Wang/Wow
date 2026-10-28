@@ -18,7 +18,7 @@ import type {
   ViewConfig,
 } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
-import { panelName, panelNames } from './DashboardPanel.js';
+import { panelName, panelNames } from './DashboardPanelCard.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { outPanelNamer } from './PanelUnavailable.js';
 

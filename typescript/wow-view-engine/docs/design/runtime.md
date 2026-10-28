@@ -424,7 +424,7 @@ export interface OptionSource {
   ): Promise<FieldOption[]>;
 }
 
-/** runtime 与宿主环境之间的唯一接口；Node 缺省实现始终可见，`/react` 的 `useViewEngine` 注入基于 `document.visibilityState` 的实现；失败也经它交给宿主。 */
+/** runtime 与宿主环境之间的唯一接口；Node 缺省实现始终可见，`/react` 的 `useCreateViewEngine` 注入基于 `document.visibilityState` 的实现；失败也经它交给宿主。 */
 export interface RuntimeEnvironment {
   now(): Date;
   timeZone: string; // 相对日期的解析、DATE_HISTOGRAM 的缺省切桶与界面显示共用

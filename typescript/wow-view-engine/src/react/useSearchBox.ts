@@ -15,7 +15,7 @@ import { useCallback } from 'react';
 import type { ViewRuntime } from '../runtime/index.js';
 import { rootSearch, searchFieldOf, withRootSearch } from '../filter/index.js';
 import type { DataViewConfig, FieldDefinition } from '../model/index.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 /**
  * A view's search, kept on hand rather than behind the conditions editor.

@@ -32,7 +32,7 @@ import {
   BUILT_IN_PRESETS,
   ViewSurface,
   type ViewSurfaceProps,
-  useSurfaceTheme,
+  useSurfaceColorMode,
 } from '../src/ui/index.js';
 
 afterEach(cleanup);
@@ -126,7 +126,7 @@ function modeOf(testId: string) {
 
 /** Says what the nearest surface reports as its mode. */
 function ThemeProbe() {
-  return <span data-testid="probe">{useSurfaceTheme() ?? 'none'}</span>;
+  return <span data-testid="probe">{useSurfaceColorMode() ?? 'none'}</span>;
 }
 
 describe('the theme has two boundaries and only one of them is a surface', () => {
@@ -275,8 +275,8 @@ describe('the theme has two boundaries and only one of them is a surface', () =>
 describe('a surface pinned inside another surface', () => {
   function renderNested() {
     render(
-      <ViewSurface theme="dark" data-testid="outer">
-        <ViewSurface theme="light" data-testid="inner">
+      <ViewSurface colorMode="dark" data-testid="outer">
+        <ViewSurface colorMode="light" data-testid="inner">
           <p data-testid="inside">rows</p>
           <ThemeProbe />
         </ViewSurface>
@@ -316,7 +316,7 @@ describe("a host's chrome on the tokens boundary", () => {
       <div className="dark">
         <div className="fve-tokens" data-testid="chrome">
           <span data-testid="chrome-text">Customer</span>
-          <ViewSurface theme={theme} data-testid="view">
+          <ViewSurface colorMode={theme} data-testid="view">
             <p data-testid="inside">rows</p>
             <ThemeProbe />
           </ViewSurface>
@@ -967,7 +967,7 @@ describe('the density axis', () => {
 });
 
 /**
- * `theme="system"` (Q43): the surface follows `prefers-color-scheme`, live,
+ * `colorMode="system"` (Q43): the surface follows `prefers-color-scheme`, live,
  * by writing the answer as the `data-theme` a pinned mode writes — so the
  * stylesheet keeps one set of dark selectors.
  */
@@ -1002,7 +1002,7 @@ describe('a surface that follows the system', () => {
 
   function open() {
     return render(
-      <ViewSurface theme="system">
+      <ViewSurface colorMode="system">
         <ThemeProbe />
         <Dialog defaultOpen>
           <DialogContent>

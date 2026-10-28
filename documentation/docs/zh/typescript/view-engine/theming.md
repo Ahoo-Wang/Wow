@@ -13,7 +13,7 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 
 | 路         | 适合                                  | 写法                                                                                                                                                  |
 | ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `theme="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                                     |
+| 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `tokenSource="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                                     |
 | 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="porcelain"`（引入它的文件），可加 `brand="#1d4ed8"`（[预设](#预设)、[品牌色](#我有品牌色)）；宿主自己的外壳挂 [`fve-tokens`](#宿主自己的外壳) |
 
 `ViewHost` 把预设与品牌色点名在 `<html>` 上，也在那里画明暗（`colorMode`，[见下](#亮、暗与跟随系统)）。本页其余部分是这两行底下的东西，以及越过它们时伸手去拿的东西。`ViewHost` 的其余端口——路由、语言与每个资源的 `bind`——见[接入宿主](./host)；页面开着严格的内容安全策略时样式表怎样加载，见[内容安全策略](./csp)。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同。
@@ -260,8 +260,8 @@ declare const engine: ViewEngine;
 | `ViewHost` 缺省（`colorMode="system"`）                                  | 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`useColorMode()` 让宿主的开关钉住一种，按 `rememberColorMode` 记住 |
 | `ViewHost` 上写 `colorMode="light"` 或 `"dark"`                          | 从钉住开始；读者仍可另选                                                                                                               |
 | `ViewHost` 上写 `colorMode="host"`，宿主自己挂 `.dark`（通常在 `<html>`） | 视图跟随页面的明暗（next-themes、宿主自己的开关）；引擎不碰 `<html>`                                                                    |
-| 在 `ViewSurface`、工作台或嵌入组件上写 `theme="light"` 或 `theme="dark"` | 钉住这一个视图                                                                                                                         |
-| `theme="system"`                                                         | 这一个视图跟随读者的 `prefers-color-scheme` 并实时切换                                                                                 |
+| 在 `ViewSurface`、工作台或嵌入组件上写 `colorMode="light"` 或 `colorMode="dark"` | 钉住这一个视图                                                                                                                         |
+| `colorMode="system"`                                                         | 这一个视图跟随读者的 `prefers-color-scheme` 并实时切换                                                                                 |
 
 **暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`。** shadcn 的习惯——在 `.dark` 下重写同一个变量——过不了「钉住」：变量从 `<html class="dark">` 一路继承下来，钉在浅色的视图拿到的就是宿主的暗色值，分不出是给哪种模式的。两半各按自己的模式起名，每块面才能挑自己的。走[桥接](#shadcn-桥接)的宿主不受影响：桥接读的是宿主自己按 `.dark` 切换的 shadcn 变量。
 
@@ -277,7 +277,7 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="azure" />
+<EmbeddedView engine={engine} instanceId={id} colorMode="dark" preset="azure" />
 ```
 
 ## 嵌入与弹层
@@ -621,7 +621,7 @@ declare const id: string;
   <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
     ……你自己的页头，你自己的类，本主题的 token……
   </header>
-  <EmbeddedView engine={engine} instanceId={id} theme="light" />
+  <EmbeddedView engine={engine} instanceId={id} colorMode="light" />
 </div>
 ```
 

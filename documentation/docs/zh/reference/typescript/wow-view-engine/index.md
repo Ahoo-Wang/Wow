@@ -16,7 +16,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 | 入口 | 导出 |
 |---|---|
 | `@ahoo-wang/wow-view-engine` | 模型类型、纯内核（`validate*`、`compile*`、`project*`）、运行时、`ViewStore` 端口、`MemoryViewStore`、`localStorageSnapshot` |
-| `/react` | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`、`RecordActionSlots` |
+| `/react` | `useCreateViewEngine`、`useEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`、`RecordActionSlots` |
 | `/ui` | 工作台（`DataWorkbench`、`DashboardWorkbench`）、嵌入（`EmbeddedView`、`EmbeddedDashboard`）、宿主接线（`ViewHost`、`bind`、`useViewNavigation`、`useColorMode`）、视图管理（`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`）、编辑与结果（`FilterPanel`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`）、内容面板以及 `MessagesProvider` |
 | `/testing` | 给宿主的测试：`memorySource` 与 `matches`（带 Wow 查询语义的内存 `ViewSource`）、`resolveNavigation`、`admit`、`actionHarness` |
 | `/react-router` | `useReactRouter`：把 React Router 作为路由端口交给宿主的 `ViewHost` |

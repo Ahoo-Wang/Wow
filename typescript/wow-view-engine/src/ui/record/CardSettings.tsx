@@ -55,7 +55,11 @@ import {
   TooltipContent,
 } from '../kit/popups.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
+import {
+  ToolbarItem,
+  libraryPopover,
+  type DetachedPopover,
+} from '../kit/toolbar.js';
 
 interface CardSettingsProps {
   table: RecordTableController;
@@ -128,7 +132,7 @@ export function CardSettings({
         : spec.fields.filter(field => field !== name),
     });
 
-  const handle = detached?.handle;
+  const handle = libraryPopover(detached?.handle);
   const opener = (
     <>
       {trigger ? (

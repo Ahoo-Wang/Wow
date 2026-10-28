@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 20 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -31,6 +31,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `DashboardController` | interface | — | — |
 | `DashboardOpening` | type | What a dashboard opens with, as a host's address has it: the tab on screen and what the filters hold (F), and what an embedding page holds of them (`held`). | — |
 | `DashboardPanelView` | interface | One panel, ready to place: geometry, what runs inside, what is wrong. | — |
+| `DatasetsReading` | interface | When `useDatasets` reads the directories. | — |
 | `DatasetsState` | interface | The datasets a `DatasetResources` serves, as `useDatasets` reads them. | — |
 | `DrillTarget` | interface | What a drill would open, as offered to a host that takes drilling over. | — |
 | `DropCause` | type | The edit a drop is said after: a step of the chain, or any other. | — |
@@ -110,8 +111,10 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `useAnalysisEditor` | function | — | [React Hooks](./react#api-useRecordTable) |
 | `useAnalysisResult` | function | The analysis result as a host draws it (phase-2 review, developer #9): which rows, which chart over them, what the picker offers, and what a press on one group can do next. | [React Hooks](./react#api-useRecordTable) |
 | `useAutoRefresh` | function | The auto-refresh of one open view, as a control can offer it. | — |
+| `useCreateViewEngine` | function | Creates one engine for the lifetime of the component and disposes it on unmount. | [React Hooks](./react#api-useOpenView) |
 | `useDashboard` | function | A dashboard as a grid of panels. | [React Hooks](./react#api-useRecordTable) |
-| `useDatasets` | function | Keeps a host in step with the datasets `resources` serves: it reads them when it mounts and whenever `key` changes — the caller in force, say, since another caller sees other datasets — and on `refresh`; `null` reads nothing (no caller yet). | — |
+| `useDatasets` | function | Keeps a host in step with the datasets `resources` serves: it reads them when it mounts, whenever `reading.key` changes and on `refresh`, and not at all while `reading.paused` is set. | — |
+| `useEngine` | function | The engine a surface draws: its own, else the one the `ViewHost` above holds. | [React Hooks](./react#api-useOpenView) |
 | `useFilterEditor` | function | Editing of the draft filter tree, addressed by path. | [React Hooks](./react#api-useRecordTable) |
 | `useHandOver` | function | Opens each new `handOver` once, through the leave guard: a view a dashboard or an embed sent through the host's route. | — |
 | `useHandedConditions` | function | A saved view handed over (`SavedViewTarget`), once it is open by its id: what the reader set on the board goes onto its own conditions and runs — so it opens 「已修改」, the conditions on 「正在显示」 each removable, and 「还原」 takes them back off. | — |
@@ -132,7 +135,6 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `useSearchBox` | function | — | — |
 | `useUnavailable` | function | The view's unavailable parts, read again whenever its snapshot changes, or `null` when there are none — so a surface draws its strip only where there is something to say. | — |
 | `useValueCandidates` | function | A condition's values offered from the data: the list of one`ValueCandidateSource`, asked for while `active`. | — |
-| `useViewEngine` | function | Creates one engine for the lifetime of the component and disposes it on unmount. | [React Hooks](./react#api-useOpenView) |
 | `useViewList` | function | The list, the preferences and the permissions of one definition. | [React Hooks](./react#api-useViewList) |
 | `useViewManager` | function | Managing the views a list shows, rather than the one that is open: rename, move to the other audience, delete, reorder and choose a default, with the recovery actions for writes that no runtime owns. | [React Hooks](./react#api-useViewList) |
 | `useViewRuntime` | function | Subscribes to a runtime. | [React Hooks](./react#api-useOpenView) |

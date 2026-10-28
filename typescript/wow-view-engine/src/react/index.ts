@@ -90,7 +90,11 @@ export {
   type DashboardPanelView,
   useDashboard,
 } from './useDashboard.js';
-export { type DatasetsState, useDatasets } from './useDatasets.js';
+export {
+  type DatasetsReading,
+  type DatasetsState,
+  useDatasets,
+} from './useDatasets.js';
 export {
   type FollowUpHost,
   ownedNavigation,
@@ -137,16 +141,19 @@ export {
   type ValueCandidatesController,
   useValueCandidates,
 } from './useValueCandidates.js';
+export { useEngine } from './engineContext.js';
+export { useCreateViewEngine } from './useCreateViewEngine.js';
 export {
   type DashboardOpening,
   type OpenViewState,
-  type SnapshotOf,
-  type ViewRuntimeStore,
   retryableOpen,
   useOpenView,
-  useViewEngine,
+} from './useOpenView.js';
+export {
+  type SnapshotOf,
+  type ViewRuntimeStore,
   useViewRuntime,
-} from './useViewEngine.js';
+} from './useViewRuntime.js';
 export {
   type ViewListOptions,
   type ViewListReloadOptions,

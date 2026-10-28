@@ -13,7 +13,7 @@ A host makes one choice, on `ViewHost` (the package README's quick start):
 
 | Path                   | For                                                 | Write                                                                              |
 | ---------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| The engine follows you | A host with a shadcn theme (Tailwind v4)            | `theme="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))  |
+| The engine follows you | A host with a shadcn theme (Tailwind v4)            | `tokenSource="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))  |
 | You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="porcelain"` (import its file), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
 
 `ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Host the engine](./host); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy](./csp). A patch release never breaks the CSS contract in [What is public](#what-is-public).
@@ -260,8 +260,8 @@ A bar's corner follows `radius`, so a square style's bars are square with no wor
 | `ViewHost`, as it comes (`colorMode="system"`)                              | Paints `<html>`'s `.dark` and `color-scheme` before the first paint, following the system live; `useColorMode()` lets your switch pin one, kept under `rememberColorMode` |
 | `colorMode="light"` or `"dark"` on `ViewHost`                               | Starts pinned; the reader may still pick another                                                                                                                   |
 | `colorMode="host"` on `ViewHost`, and a `.dark` class of yours, usually on `<html>` | Views follow your page's mode (next-themes, a switch of your own); the engine leaves `<html>` alone                                                         |
-| `theme="light"` or `theme="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view                                                                                                                                                 |
-| `theme="system"`                                                            | Follows the reader's `prefers-color-scheme`, live, for that one view                                                                                               |
+| `colorMode="light"` or `colorMode="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view                                                                                                                                                 |
+| `colorMode="system"`                                                            | Follows the reader's `prefers-color-scheme`, live, for that one view                                                                                               |
 
 **Dark values are `--fve-dark-*`, never `--fve-*` under `.dark`.** The shadcn habit — rewriting the same variable under `.dark` — does not survive pinning: variables inherit down from `<html class="dark">`, so a view pinned light on a dark page would be handed your dark value with nothing to tell it apart. Two halves, each named for its mode, let every surface pick its own. A host on the [bridge](#the-shadcn-bridge) is not affected: the bridge reads your shadcn tokens, which you switch under `.dark` as ever.
 
@@ -277,7 +277,7 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="azure" />
+<EmbeddedView engine={engine} instanceId={id} colorMode="dark" preset="azure" />
 ```
 
 ## Embeds and popups
@@ -621,7 +621,7 @@ declare const id: string;
   <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
     …your own header, your own classes, this theme's tokens…
   </header>
-  <EmbeddedView engine={engine} instanceId={id} theme="light" />
+  <EmbeddedView engine={engine} instanceId={id} colorMode="light" />
 </div>
 ```
 

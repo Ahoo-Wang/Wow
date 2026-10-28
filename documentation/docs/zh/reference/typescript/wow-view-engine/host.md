@@ -64,7 +64,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `router` | 路由端口：`/react-router` 的 `useReactRouter()`，或在别的路由上写两个成员。有了它引擎管地址：离开看板或视图的每条路都走目标资源的路由；工作台打开地址里的 `?view=` 并写回；绑定资源的记录详情跟随 `?id=`；交接的视图、看板的筛选与页签作为历史条目的 state 旅行 |
 | `navigate` | 每条离开的路交给宿主自己处理，而不是交给路由器：经目标资源的路由解析后交出（`ViewRoute`）；URL 与没有路由的资源原样交出 |
 | `locale`、`messages` | 语言端口：值显示用的语言，以及合并在当前生效措辞之上的措辞——引擎自己的和定义的键（`text(key)`）一样。换了它，每个打开的视图重画，不重开、不重查、不变脏 |
-| `theme`、`preset`、`brand` | 主题的两条路：`theme="host"` 跟随宿主的 shadcn 主题（宿主导入 `shadcn-bridge.css`）；或 `preset` 命名一套预设（导入它的样式表），宿主自己的界面经 `fve-tokens` 穿上它。`brand` 是盖在预设上的品牌色 |
+| `tokenSource`、`preset`、`brand` | 主题的两条路：`tokenSource="host"` 取宿主自己的变量，即它的 shadcn 主题（宿主导入 `shadcn-bridge.css`），而不是预设；或 `preset` 命名一套预设（导入它的样式表），宿主自己的界面经 `fve-tokens` 穿上它。`brand` 是盖在预设上的品牌色 |
 | `colorMode`、`rememberColorMode` | 明暗：缺省 `system`，引擎在 `<html>` 上画 `.dark` 与 `color-scheme` 并实时跟随系统；`light`／`dark` 起始固定；`host` 表示宿主自己画（如 next-themes），引擎只跟随 `.dark`。读者用 `useColorMode` 另选；`rememberColorMode` 是在本机记住这个选择的 `localStorage` 键 |
 
 主题的细节见[视图引擎主题](../../../typescript/view-engine/theming.md)。
@@ -82,7 +82,7 @@ export interface ViewHostProps {
   preset?: ViewPreset;
   rememberColorMode?: string;
   router?: ViewRouter;
-  theme?: 'host';
+  tokenSource?: 'host';
 }
 export declare function ViewHost(input: ViewHostProps): import('react').JSX.Element;
 ```

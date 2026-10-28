@@ -23,7 +23,7 @@ import type { DashboardController, SaveCommands } from '../../react/index.js';
 import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
 import { SurfaceAnnouncer, useSurfaceAnnouncer } from '../kit/Announcer.js';
 import { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
-import { panelNames } from './DashboardPanel.js';
+import { panelNames } from './DashboardPanelCard.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
 import { EmptyBoardActions, type AddChoice } from './AddMenu.js';

@@ -167,7 +167,7 @@ describe('EmbeddedView', () => {
       <EmbeddedView
         engine={embed(recordConfig())}
         instanceId="orders-1"
-        theme="dark"
+        colorMode="dark"
         preset="neutral"
       />,
     );

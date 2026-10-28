@@ -135,6 +135,14 @@ export interface DatasetDuplicate {
   kept: number;
 }
 
+/** What one `DatasetResources.refresh` found. */
+export interface DatasetRefresh {
+  /** The datasets served, in the directories' order. */
+  datasets: readonly DatasetResource[];
+  /** The datasets it left out because an earlier catalog serves their id. */
+  duplicates: readonly DatasetDuplicate[];
+}
+
 /**
  * What `DatasetResources` reads and whom it tells: the catalogs, and the
  * callbacks for what it cannot serve. Every callback is optional; one left
@@ -147,7 +155,7 @@ export interface DatasetResourcesInit {
   onError?(entry: DatasetDirectoryEntry, error: unknown): void;
   /** Told when the stored wording cannot be read; the wording read last stands. */
   onWordingError?(error: unknown): void;
-  /** Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`). */
+  /** Told of each duplicate a refresh leaves out (`DatasetRefresh.duplicates`). */
   onDuplicate?(duplicate: DatasetDuplicate): void;
   /**
    * Told when the catalog at `catalog` cannot list its datasets: the ones it
@@ -175,13 +183,14 @@ interface Listed {
  * Given several catalogs — several services' directories, such as the
  * analytics catalog's and a service that serves datasets of its own — it
  * serves them in one engine (D238 ⑨): a dataset two catalogs list is the
- * first one's, and the other is reported (`duplicates`, `onDuplicate`),
- * never dropped silently. A catalog that cannot be read keeps what it served
- * and is reported (`onCatalogError`).
+ * first one's, and the other is reported (`DatasetRefresh.duplicates`,
+ * `onDuplicate`), never dropped silently. A catalog that cannot be read
+ * keeps what it served and is reported (`onCatalogError`).
  *
- * `refresh` answers the datasets served, which a host binds routes to
- * (`bind`, `datasetBindings`) so they appear in its navigation: opening
- * one is how a reader starts a view of it.
+ * `refresh` answers the datasets served and the duplicates it left out
+ * (`DatasetRefresh`); a host binds routes to the datasets (`bind`,
+ * `datasetBindings`) so they appear in its navigation: opening one is how a
+ * reader starts a view of it.
  */
 export class DatasetResources {
   private readonly catalogs: readonly DatasetCatalog[];
@@ -203,8 +212,6 @@ export class DatasetResources {
       descriptor: Parameters<typeof defineDataset>[0];
     }
   >();
-  private found: readonly DatasetDuplicate[] = [];
-
   private readonly options: DatasetResourcesInit;
 
   constructor(
@@ -226,16 +233,10 @@ export class DatasetResources {
   }
 
   /**
-   * The datasets the last refresh left out because an earlier catalog serves
-   * their id.
+   * Reads every catalog and brings the engine in step with what they list;
+   * answers the datasets served and the ones left out as duplicates.
    */
-  get duplicates(): readonly DatasetDuplicate[] {
-    return this.found;
-  }
-
-  async refresh(
-    options: ReadOptions = {},
-  ): Promise<readonly DatasetResource[]> {
+  async refresh(options: ReadOptions = {}): Promise<DatasetRefresh> {
     await this.readWordings(options);
     const lists = await Promise.allSettled(
       this.catalogs.map(catalog => catalog.list(options)),
@@ -266,7 +267,6 @@ export class DatasetResources {
     for (const [id, held] of this.held)
       if (unread.has(held.catalog) && !servable.has(id))
         servable.set(id, { entry: held.entry, catalog: held.catalog });
-    this.found = duplicates;
     for (const duplicate of duplicates) this.options.onDuplicate?.(duplicate);
     for (const id of [...this.held.keys()])
       if (!servable.has(id)) {
@@ -279,9 +279,10 @@ export class DatasetResources {
       [...servable].map(([id, listed]) => this.serve(id, listed, options)),
     );
     const order = [...servable.keys()];
-    return this.resources
-      .slice()
-      .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const datasets = [...this.held.values()].sort(
+      (a, b) => order.indexOf(a.id) - order.indexOf(b.id),
+    );
+    return { datasets, duplicates };
   }
 
   /**
