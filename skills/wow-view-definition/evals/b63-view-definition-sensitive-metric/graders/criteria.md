@@ -7,6 +7,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Notices state.buyer.annualIncome is CONFIDENTIAL and not comparable
+1. Notices state.buyer.annualIncome is `confidential` and not comparable
 2. Declares no metric, expression operand, metric filter, sort or operator on it
 3. Says the metric cannot be offered and keeps the member-level dimension only if another granted metric is wanted

@@ -7,6 +7,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Applies the ARRAY_EQUALITY constraint from the descriptor before sending and does not send EQ with an array operand
-2. Offers CONTAINS_ALL or an element condition as the granted alternative and states the semantic difference
+1. Applies the descriptor's `array-equality` constraint before sending and does not send EQ with an array operand
+2. Offers `contains-all` (`FilterOperator.CONTAINS_ALL`) or an element condition as the granted alternative and states the semantic difference
 3. If a query is refused, reads the problem's code and its violations (code, path, message) and retries at most once before handing a diagnosis to wow-develop

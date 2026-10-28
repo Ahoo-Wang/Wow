@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Writes the definition with defineView over the committed descriptor and records its version (sha256:order-snapshot-fixture-v1) beside it
+1. Writes the definition with defineView over the committed descriptor and records its version (the descriptor's `version`) beside it
 2. Lists only the fields the customer-service audience reads, filters or groups by, including the record's identity or the rowKey it chooses, and invents no path
 3. Labels every field, status value, system view and metric with text(key) and gives the words in each language the host serves, in business words
 4. Leaves capabilities open rather than restating the descriptor, narrowing only for the audience (for example analysis: false on the order number)
