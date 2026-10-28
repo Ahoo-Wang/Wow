@@ -146,7 +146,7 @@ describe('timePrecision on a field', () => {
     projectRecord(
       definition(extra),
       recordConfig({ table: { columns: [{ field: 'at' }] } }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     ).columns[0];
   const codes = (extra: Partial<FieldDefinition>) =>
     validateDefinition(definition(extra), builtinFieldKinds).map(

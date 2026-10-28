@@ -190,7 +190,7 @@ describe('projectRecord paging', () => {
     const view = projectRecord(
       definition,
       recordConfig({ pageSize: 2 }),
-      { list: [{ id: 'o-1' }, { id: 'o-2' }], total: 6 },
+      { list: [{ id: 'o-1' }, { id: 'o-2' }], total: 6, exact: true },
       2,
     );
 
@@ -211,7 +211,7 @@ describe('projectRecord paging', () => {
     const view = projectRecord(
       ordersDefinition(),
       recordConfig({ pageSize: 20 }),
-      { list: [{ id: 'o-1' }], total: 624_100 },
+      { list: [{ id: 'o-1' }], total: 624_100, exact: true },
       1,
     );
     expect(view.paging).toMatchObject({ pages: 500, reachable: 10_000 });
@@ -245,7 +245,7 @@ describe('projectRecord paging', () => {
           perRow: 2,
         },
       }),
-      { list: [], total: 0 },
+      { list: [], total: 0, exact: true },
     );
 
     expect(view.card.title).toBe('id');

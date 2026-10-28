@@ -158,7 +158,7 @@ type  DatasetOverrides
 type  DatasetRegistrar
 type  DatasetResource
 value DatasetResources
-type  DatasetResourcesOptions
+type  DatasetResourcesInit
 type  DatasetWordingEditor
 type  DatasetWordingStore
 type  DateDiffUnitName

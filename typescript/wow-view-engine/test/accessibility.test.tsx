@@ -561,7 +561,7 @@ describe('the default workbenches pass axe', () => {
         ],
         () =>
           testSource({
-            paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+            paged: () => Promise.resolve({ total: 42, exact: true, list: [...ROWS] }),
           }),
       ),
       store: new MemoryViewStore({ instances: [sortedOrders] }),

@@ -59,7 +59,7 @@ function pagedSource(rows: RecordData[], total = rows.length): ViewSource {
     paged: vi.fn((query: FilterPagedQuery) => {
       const { index, size } = query.pagination ?? { index: 1, size: 20 };
       const start = (index - 1) * size;
-      return Promise.resolve({ total, list: rows.slice(start, start + size) });
+      return Promise.resolve({ total, exact: true, list: rows.slice(start, start + size) });
     }),
   });
 }
@@ -286,7 +286,7 @@ describe('exporting every row the applied config matches', () => {
         // Cancelled while the second page is in flight, which is the moment
         // a user presses the button.
         if (asked.length === 2) controller.abort();
-        return Promise.resolve({ total: 99, list: orders(3) });
+        return Promise.resolve({ total: 99, exact: true, list: orders(3) });
       }),
     });
     const runtime = openRecord({ source });
@@ -332,7 +332,7 @@ describe('exporting every row the applied config matches', () => {
     const source = testSource({
       paged: vi.fn((query: FilterPagedQuery) =>
         Promise.resolve({
-          total: 3,
+          total: 3, exact: true,
           list: query.pagination?.index === 1 ? orders(3) : [],
         }),
       ),

@@ -185,7 +185,7 @@ const overview: ViewInstance = {
 /** More rows than one page holds, so the pagination draws its arrows. */
 function pagedSource() {
   return testSource({
-    paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+    paged: () => Promise.resolve({ total: 42, exact: true, list: [...ROWS] }),
   });
 }
 

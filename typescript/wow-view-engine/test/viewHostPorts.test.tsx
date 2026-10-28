@@ -377,12 +377,13 @@ describe('the address: two workbenches on one page', () => {
 
   it('asks for a view its list did not hold before setting it aside', async () => {
     const engine = engineOf();
-    // A store that cut its list short (WowViewStore lists 1000 of an
+    // A store that cut its list short (an engine reads RuntimeLimits.listedViews of a
     // audience): the view the address names is past the cut.
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
-      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
-    );
+    vi.spyOn(engine.store, 'list').mockImplementation(async (definitionId, options) => {
+      const page = await list(definitionId, options);
+      return { ...page, items: page.items.filter(item => item.id !== 'orders-2') };
+    });
     const asked = vi.spyOn(engine.store, 'get');
     hosted(
       {
@@ -432,9 +433,10 @@ describe('the address: two workbenches on one page', () => {
   /** The list without `orders-2`, as a store that cut it short answers. */
   function cutShort(engine: ViewEngine) {
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
-      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
-    );
+    vi.spyOn(engine.store, 'list').mockImplementation(async (definitionId, options) => {
+      const page = await list(definitionId, options);
+      return { ...page, items: page.items.filter(item => item.id !== 'orders-2') };
+    });
   }
 
   // The ways the list and the ask by id fail (R2-103): what is not known

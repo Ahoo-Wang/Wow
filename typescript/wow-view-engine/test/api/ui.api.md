@@ -29,7 +29,7 @@ import { init as init_2 } from 'echarts/core';
 import { JSX } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { MouseEventHandler } from 'react';
-import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { Popover } from '@base-ui/react/popover';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
@@ -8914,7 +8914,7 @@ interface ViewSource {
     cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
     describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
     // (undocumented)
-    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedResult<RecordData>>;
 }
 
 // @public

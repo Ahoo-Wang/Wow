@@ -930,7 +930,7 @@ export {
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
-  type DatasetResourcesOptions,
+  type DatasetResourcesInit,
   type DatasetWordingEditor,
   type DatasetWordingStore,
   type StoredDatasetWording,

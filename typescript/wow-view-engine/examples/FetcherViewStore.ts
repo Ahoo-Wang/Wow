@@ -26,8 +26,10 @@ import {
   type ViewAudience,
   type ViewConfig,
   type ViewInstance,
-  type ViewInstanceSummary,
   type ViewPermissions,
+  type ReadOptions,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPreferences,
   type ViewStore,
   type WriteOptions,
@@ -71,32 +73,35 @@ export class FetcherViewStore implements ViewStore {
   }
 
   /**
-   * The server answers with summaries rather than instances. Each one carries
+   * The server answers a page of summaries rather than instances, with the
+   * cursor of the next page (`null` after the last); the first page is asked
+   * for without one, and the page size is the server's. Each summary carries
    * the `kind` of the config it names — projected from that config, never
    * stored a second time — so a sidebar can tell a record view from an
    * analysis one without reading either config.
    */
   async list(
     definitionId: string,
-    signal?: AbortSignal,
-  ): Promise<ViewInstanceSummary[]> {
-    return this.send<ViewInstanceSummary[]>('GET', this.views(definitionId), {
+    { cursor, signal }: ViewListOptions = {},
+  ): Promise<ViewListPage> {
+    return this.send<ViewListPage>('GET', this.views(definitionId), {
+      ...(cursor ? { urlParams: { query: { cursor } } } : {}),
       signal,
     });
   }
 
-  async get(id: string, signal?: AbortSignal): Promise<ViewInstance> {
+  async get(id: string, { signal }: ReadOptions = {}): Promise<ViewInstance> {
     return this.send<ViewInstance>('GET', this.view(id), { signal });
   }
 
   async create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('POST', `${this.basePath}/views`, {
       body: input,
-      headers: idempotency(context.requestId),
-      signal: context.signal,
+      headers: idempotency(options.requestId),
+      signal: options.signal,
     });
   }
 
@@ -104,12 +109,12 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/config`, {
       body: { config },
-      headers: { ...idempotency(context.requestId), 'If-Match': revision },
-      signal: context.signal,
+      headers: { ...idempotency(options.requestId), 'If-Match': revision },
+      signal: options.signal,
     });
   }
 
@@ -117,12 +122,12 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/title`, {
       body: { title },
-      headers: { ...idempotency(context.requestId), 'If-Match': revision },
-      signal: context.signal,
+      headers: { ...idempotency(options.requestId), 'If-Match': revision },
+      signal: options.signal,
     });
   }
 
@@ -137,23 +142,23 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/audience`, {
       body: { audience },
-      headers: { ...idempotency(context.requestId), 'If-Match': revision },
-      signal: context.signal,
+      headers: { ...idempotency(options.requestId), 'If-Match': revision },
+      signal: options.signal,
     });
   }
 
   async delete(
     id: string,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<void> {
     await this.send<void>('DELETE', this.view(id), {
-      headers: { ...idempotency(context.requestId), 'If-Match': revision },
-      signal: context.signal,
+      headers: { ...idempotency(options.requestId), 'If-Match': revision },
+      signal: options.signal,
       // A delete answers with no content, so there is no body to parse.
       empty: true,
     });
@@ -172,7 +177,7 @@ export class FetcherViewStore implements ViewStore {
    */
   async getPreferences(
     definitionId: string,
-    signal?: AbortSignal,
+    { signal }: ReadOptions = {},
   ): Promise<ViewPreferences> {
     try {
       return await this.send<ViewPreferences>(
@@ -190,15 +195,15 @@ export class FetcherViewStore implements ViewStore {
   async setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewPreferences> {
     return this.send<ViewPreferences>('PUT', this.preferences(definitionId), {
       body: preferences,
       headers: {
-        ...idempotency(context.requestId),
+        ...idempotency(options.requestId),
         'If-Match': preferences.revision,
       },
-      signal: context.signal,
+      signal: options.signal,
     });
   }
 
@@ -215,7 +220,7 @@ export class FetcherViewStore implements ViewStore {
    */
   async loadPermissions(
     definitionId: string,
-    signal?: AbortSignal,
+    { signal }: ReadOptions = {},
   ): Promise<ViewPermissions> {
     const body = await this.send<PermissionsBody>(
       'GET',

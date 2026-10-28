@@ -210,7 +210,7 @@ describe('projectKanban', () => {
     const [lead] = projectKanban(
       definition,
       config,
-      [{ ...pages[0]!, page: { list: [{ id: 'd-1' }], total: 41 } }],
+      [{ ...pages[0]!, page: { list: [{ id: 'd-1' }], total: 41, exact: true } }],
       null,
     ).lanes!;
     expect(lead).toMatchObject({ total: 41, next: { index: 2 } });

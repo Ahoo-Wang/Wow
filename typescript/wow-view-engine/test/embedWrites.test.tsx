@@ -153,7 +153,7 @@ function setUp() {
         testSource({
           paged: vi.fn(() =>
             Promise.resolve({
-              total: 60,
+              total: 60, exact: true,
               list: [
                 { id: 'o-1', warehouse: 'CN', status: 'PENDING', amount: 10 },
                 { id: 'o-2', warehouse: 'EU', status: 'SHIPPED', amount: 20 },

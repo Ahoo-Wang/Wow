@@ -246,7 +246,7 @@ describe('a DataWorkbench a host draws cells in', () => {
         },
       },
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+        paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
       }),
     );
 

@@ -33,6 +33,7 @@ import {
   WowViewStore,
   WowViewStoreErrorCodes,
 } from '../src/index.js';
+import { listAll } from './conformance/wowViewStoreService.js';
 import { problem } from './support/fakeViewStore.js';
 import {
   actingAs,
@@ -139,13 +140,99 @@ describe('the V10 WowViewStore', () => {
     expect(storeOf().permissions).toBeUndefined();
   });
 
+  describe('the list', () => {
+    it('reads a definition with more views than a page across pages, system, shared, then personal, each oldest first', async () => {
+      let clock = 0;
+      const fake = installFake({ now: () => ++clock });
+      const store = storeOf();
+      const made = { system: [], shared: [], personal: [] } as Record<
+        'system' | 'shared' | 'personal',
+        string[]
+      >;
+      // Interleaved, so neither audience is listed by when it was written.
+      for (let i = 0; i < 102; i++)
+        for (const scope of ['personal', 'shared'] as const)
+          made[scope].push(
+            (
+              await store.create(
+                { definitionId: 'orders', title: `${scope} ${i}`, scope, config },
+                write(),
+              )
+            ).id,
+          );
+      for (let i = 0; i < 2; i++)
+        made.system.push(
+          (
+            await store.create(
+              {
+                definitionId: 'orders',
+                title: `system ${i}`,
+                scope: 'system',
+                config,
+              },
+              write(),
+            )
+          ).id,
+        );
+      fake.requests.length = 0;
+
+      const pages: string[][] = [];
+      const scopes: string[][] = [];
+      let cursor: string | null = null;
+      do {
+        const page = await store.list('orders', { cursor });
+        pages.push(page.items.map(({ id }) => id));
+        scopes.push([...new Set(page.items.map(({ scope }) => scope))]);
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+
+      expect(pages.map(page => page.length)).toEqual([2, 100, 2, 100, 2]);
+      expect(scopes).toEqual([
+        ['system'],
+        ['shared'],
+        ['shared'],
+        ['personal'],
+        ['personal'],
+      ]);
+      expect(pages.flat()).toEqual([
+        ...made.system,
+        ...made.shared,
+        ...made.personal,
+      ]);
+      // Each audience is read by the snapshot model's cursor, 100 at a time.
+      const queries = fake.requests.filter(request =>
+        request.path.endsWith('/snapshot/query'),
+      );
+      expect(queries.map(({ body }) => body)).toMatchObject(
+        Array(4).fill({ kind: 'cursor', size: 100 }),
+      );
+      expect(
+        queries.map(request => request.headers.get(WowHeaders.SCOPE)),
+      ).toEqual(['owner="(shared)"', 'owner="(shared)"', null, null]);
+    });
+
+    it('refuses a malformed cursor as INVALID, before asking the service', async () => {
+      const fake = installFake();
+      const store = storeOf();
+      for (const cursor of [
+        'not a cursor',
+        btoa(JSON.stringify({ audience: 'elsewhere', cursor: null })),
+        btoa('{"audience":'),
+      ])
+        await expect(
+          store.list('orders', { cursor }),
+        ).rejects.toMatchObject({ code: 'INVALID' });
+      expect(fake.requests).toEqual([]);
+    });
+  });
+
   describe('a view another tab moved', () => {
     it('is written where it went', async () => {
       installFake();
       const mine = storeOf();
       const other = storeOf();
       const made = await personal(mine);
-      await mine.list('orders');
+      await listAll(mine, 'orders');
       const shared = await other.changeAudience(
         made.id,
         'shared',
@@ -344,7 +431,11 @@ describe('the V10 WowViewStore', () => {
       fake.failNext(/snapshot\/query$/, () =>
         problem(503, 'wow.storage.unavailable', 'The store is down.'),
       );
-      await expect(storeOf().list('orders')).rejects.toMatchObject({
+      const store = storeOf();
+      const { nextCursor } = await store.list('orders');
+      await expect(
+        store.list('orders', { cursor: nextCursor }),
+      ).rejects.toMatchObject({
         code: 'UNAVAILABLE',
         reachable: true,
         detail: { code: 'wow.storage.unavailable' },

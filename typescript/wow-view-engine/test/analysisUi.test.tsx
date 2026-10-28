@@ -457,7 +457,7 @@ describe('DataWorkbench', () => {
 
     await landed(store);
     expect(
-      (await store.list('orders')).filter(
+      (await store.list('orders')).items.filter(
         item => item.title === 'Split by size',
       ),
     ).toHaveLength(1);

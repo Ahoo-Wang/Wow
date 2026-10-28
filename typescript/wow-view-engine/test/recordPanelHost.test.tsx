@@ -117,7 +117,7 @@ function engineOf(source: ViewSource, list: RecordViewConfig = recordConfig()) {
 
 function orders(pages = 45) {
   return testSource({
-    paged: vi.fn(() => Promise.resolve({ total: pages, list: [...ROWS] })),
+    paged: vi.fn(() => Promise.resolve({ total: pages, exact: true, list: [...ROWS] })),
   });
 }
 
@@ -293,7 +293,7 @@ describe('the host’s commands on a record panel (D39)', () => {
 describe('an empty record panel says what it is empty of', () => {
   const none = () =>
     testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+      paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
     });
 
   it('says no record matches, under the view’s own conditions', async () => {

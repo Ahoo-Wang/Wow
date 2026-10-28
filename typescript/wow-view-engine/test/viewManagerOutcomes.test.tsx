@@ -169,13 +169,13 @@ describe('ViewManager outcomes', () => {
 
     // Not deleted yet: the destructive answer is the dialog's, not the line's.
     const second = await screen.findByRole('alertdialog');
-    expect((await store.list('orders')).map(item => item.id)).toContain(
+    expect((await store.list('orders')).items.map(item => item.id)).toContain(
       'orders-2',
     );
 
     fireEvent.click(within(second).getByRole('button', { name: 'Delete' }));
     await landed(store);
-    expect((await store.list('orders')).map(item => item.id)).not.toContain(
+    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
       'orders-2',
     );
   });
@@ -203,7 +203,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.id)).not.toContain(
+    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
       'orders-2',
     );
   });

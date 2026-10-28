@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { conditionsDrifted } from '../src/runtime/savedConditions.js';
 import type {
@@ -130,7 +130,7 @@ describe('DataWorkbench interaction', () => {
     // the result, so paging forward needs somewhere to go.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 50, list: [...ROWS] })),
+        paged: vi.fn(() => Promise.resolve({ total: 50, exact: true, list: [...ROWS] })),
       }),
     );
 
@@ -285,7 +285,7 @@ describe('DataWorkbench interaction', () => {
    */
   async function openEmpty() {
     const source = testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+      paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
     });
     const harness = setup(source);
     render(
@@ -381,7 +381,7 @@ describe('DataWorkbench interaction', () => {
     // and there is somewhere for Next to go exactly once.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 40, list: [...ROWS] })),
+        paged: vi.fn(() => Promise.resolve({ total: 40, exact: true, list: [...ROWS] })),
       }),
     );
 
@@ -438,7 +438,7 @@ describe('DataWorkbench interaction', () => {
   });
 
   it('keeps the filter editable while a query is still running', async () => {
-    const pending = deferred<PagedList<RecordData>>();
+    const pending = deferred<PagedResult<RecordData>>();
     const { engine } = setup(testSource({ paged: () => pending.promise }));
     render(
       <DataWorkbench
@@ -459,7 +459,7 @@ describe('DataWorkbench interaction', () => {
     fireEvent.change(value, { target: { value: 'CN' } });
     expect((value as HTMLInputElement).value).toBe('CN');
 
-    pending.resolve({ total: 2, list: [...ROWS] });
+    pending.resolve({ total: 2, exact: true, list: [...ROWS] });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
   });
 
@@ -626,7 +626,7 @@ describe('the record workbench layout', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('gateway down'))
-          : Promise.resolve({ total: 2, list: [...ROWS] }),
+          : Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
       ),
     });
     workbench([mine], {}, source);
@@ -661,7 +661,7 @@ describe('the record workbench layout', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('gateway down'))
-          : Promise.resolve({ total: 2, list: [...ROWS] }),
+          : Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
       ),
     });
     workbench([filtered], {}, source);

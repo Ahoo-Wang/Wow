@@ -21,7 +21,7 @@ import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
-import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { ReactNode } from 'react';
@@ -4522,7 +4522,7 @@ interface ViewSource {
     cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
     describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
     // (undocumented)
-    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedResult<RecordData>>;
 }
 
 // @public

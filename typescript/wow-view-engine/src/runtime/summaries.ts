@@ -79,6 +79,8 @@ export async function storedSummaries(
     const cut = cursor !== null || seen.size > limit ? limit : undefined;
     return { stored, failed: null, ...(cut === undefined ? {} : { cut }) };
   } catch (error) {
+    // Called off is no failure of the store's: the caller hears the abort.
+    if (signal?.aborted) throw error;
     return { stored: [], failed: toIssue(error, 'view.list.failed') };
   }
 }

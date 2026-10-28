@@ -21,7 +21,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -76,7 +76,7 @@ describe('DataWorkbench export', () => {
   function gatedSource(): { source: ViewSource; held: (() => void)[] } {
     const held: (() => void)[] = [];
     let opened = false;
-    const answer = { total: 40, list: orders(2) };
+    const answer = { total: 40, exact: true, list: orders(2) };
     return {
       held,
       source: testSource({
@@ -85,7 +85,7 @@ describe('DataWorkbench export', () => {
             opened = true;
             return Promise.resolve(answer);
           }
-          return new Promise<PagedList<RecordData>>(resolve =>
+          return new Promise<PagedResult<RecordData>>(resolve =>
             held.push(() => resolve(answer)),
           );
         }),
@@ -248,7 +248,7 @@ describe('DataWorkbench export', () => {
     const exported = async (limits?: Partial<RuntimeLimits>) => {
       const onExported = vi.fn();
       const source = testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 1, list: rows })),
+        paged: vi.fn(() => Promise.resolve({ total: 1, exact: true, list: rows })),
       });
       render(
         <DataWorkbench
@@ -278,7 +278,7 @@ describe('DataWorkbench export', () => {
   it('warns about the ceiling first, and says afterwards what it left out', async () => {
     stubObjectUrls();
     const source = testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 10, list: orders(5) })),
+      paged: vi.fn(() => Promise.resolve({ total: 10, exact: true, list: orders(5) })),
     });
     render(
       <DataWorkbench
@@ -342,9 +342,9 @@ describe('DataWorkbench export', () => {
     const onExported = vi.fn();
     const paged = vi
       .fn()
-      .mockResolvedValueOnce({ total: 2, list: orders(2) })
+      .mockResolvedValueOnce({ total: 2, exact: true, list: orders(2) })
       .mockRejectedValueOnce(new Error('gateway down'))
-      .mockResolvedValue({ total: 2, list: orders(2) });
+      .mockResolvedValue({ total: 2, exact: true, list: orders(2) });
     render(
       <DataWorkbench
         engine={engineFor(testSource({ paged }))}

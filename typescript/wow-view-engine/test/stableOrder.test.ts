@@ -205,7 +205,7 @@ function unstableSource(): ViewSource {
       const { index, size } = query.pagination ?? { index: 1, size: 20 };
       const start = (index - 1) * size;
       return Promise.resolve({
-        total: ROWS.length,
+        total: ROWS.length, exact: true,
         list: sorted.slice(start, start + size),
       });
     }),

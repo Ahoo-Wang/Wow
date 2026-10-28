@@ -54,22 +54,28 @@ export interface ConfiguredSystemView {
 
 /**
  * A dataset the fake serves on `/wow/dataset/{context}/{dataset}/query`: a
- * source answering as the engine's 9.x-shaped `ViewSource` does (the view
- * engine's `memorySource`), which the fake answers in the V10 shapes.
+ * source answering in wow-client's shapes, as the engine's `ViewSource` does
+ * (the view engine's `memorySource`, or a query client), which the fake
+ * answers on the V10 wire.
  */
 export interface FakeDataset {
   context: string;
   dataset: string;
   title?: string;
   source: {
-    paged(query: object): Promise<{ total: number; list: unknown[] }>;
-    cursor(
-      query: object,
-    ): Promise<{ list: unknown[]; nextCursor: string | null }>;
-    aggregate(query: object): Promise<unknown[]>;
+    paged(query: object): Promise<{
+      readonly total: number | null;
+      readonly exact?: boolean;
+      readonly list: readonly unknown[];
+    }>;
+    cursor(query: object): Promise<{
+      readonly list: readonly unknown[];
+      readonly nextCursor: string | null;
+    }>;
+    aggregate(query: object): Promise<readonly unknown[]>;
     describe?(): Promise<{
-      notModified: boolean;
-      descriptor?: { version: string };
+      readonly notModified: boolean;
+      readonly descriptor?: { readonly version: string };
     }>;
   };
 }
@@ -227,6 +233,11 @@ function matches(record: Record<string, unknown>, filter: Filter): boolean {
 }
 
 /** A short hash of text, as the service's content revision of a system view. */
+/** A cursor query's position after `record`: opaque to the client. */
+function cursorOf(record: Record<string, unknown>): string {
+  return `after:${String(record.aggregateId)}`;
+}
+
 function hash(text: string): string {
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
@@ -929,7 +940,6 @@ export function fakeViewStore(
         const order = x < y ? -1 : x > y ? 1 : 0;
         return direction === SortDirection.DESC ? -order : order;
       });
-    records = records.slice(0, (body.limit as number | undefined) ?? 100);
     const include = (body.projection as { include?: string[] } | undefined)
       ?.include;
     const project = (record: Record<string, unknown>) => {
@@ -947,7 +957,48 @@ export function fakeViewStore(
         );
       return json(project(records[0]));
     }
-    if (body.kind === 'list') return json(records.map(project));
+    if (body.kind === 'list')
+      return json(
+        records
+          .slice(0, (body.limit as number | undefined) ?? 100)
+          .map(project),
+      );
+    if (body.kind === 'cursor') {
+      // The service appends the unique id to the sort and answers its cursor
+      // as an opaque position after a row; here, the last row's id.
+      records = [...records].sort((a, b) => {
+        const order = (field: string) => {
+          const x = at(a, field) as string | number;
+          const y = at(b, field) as string | number;
+          return x < y ? -1 : x > y ? 1 : 0;
+        };
+        for (const { field, direction } of (body.sort as {
+          field: string;
+          direction: string;
+        }[]) ?? []) {
+          const by = order(field);
+          if (by !== 0) return direction === SortDirection.DESC ? -by : by;
+        }
+        return order('aggregateId');
+      });
+      const after = body.cursor as string | null | undefined;
+      let start = 0;
+      if (after) {
+        const index = records.findIndex(
+          record => cursorOf(record) === after,
+        );
+        if (index < 0)
+          fail(400, 'wow.query.invalid', `Not a cursor: ${after}.`);
+        start = index + 1;
+      }
+      const size = (body.size as number | undefined) ?? 10;
+      const page = records.slice(start, start + size);
+      return json({
+        list: page.map(project),
+        nextCursor:
+          start + size < records.length ? cursorOf(page[page.length - 1]) : null,
+      });
+    }
     return fail(
       400,
       'wow.query.invalid',
@@ -1101,7 +1152,11 @@ export function fakeViewStore(
     switch (kind) {
       case 'paged': {
         const page = await source.paged(query);
-        return json({ total: page.total, exact: true, list: page.list });
+        return json({
+          total: page.total,
+          exact: page.exact ?? true,
+          list: page.list,
+        });
       }
       case 'cursor':
         return json(await source.cursor(query));

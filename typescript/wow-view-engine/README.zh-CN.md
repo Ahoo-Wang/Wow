@@ -114,7 +114,7 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   store: new MemoryViewStore(),
-  // 一个 ViewSource；@ahoo-wang/wow-view-store 的 viewSourceOf 把 Wow 的查询路由接到这里
+  // 一个 ViewSource：Wow 查询路由的客户端（生成的 …SnapshotQueryClient）本身就是
   resources: [{ definition: orders, source: sources.orders }],
 });
 ```

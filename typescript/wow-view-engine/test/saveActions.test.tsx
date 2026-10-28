@@ -184,7 +184,7 @@ describe('SaveActions, the split button group', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
+    expect((await store.list('orders')).items.map(item => item.title)).toContain(
       'Big ones',
     );
   });
@@ -760,7 +760,7 @@ describe('WriteOutcome', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
+    expect((await store.list('orders')).items.map(item => item.title)).toContain(
       'Mine after all',
     );
   });
@@ -787,7 +787,7 @@ describe('WriteOutcome', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
+    expect((await store.list('orders')).items.map(item => item.title)).toContain(
       'Mine after all',
     );
     await waitFor(() => expect(runtime.getSnapshot().write).toBeNull());
@@ -1214,7 +1214,7 @@ describe('save actions', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
+    expect((await store.list('orders')).items.map(item => item.title)).toContain(
       'Pending only',
     );
   });
@@ -1242,7 +1242,7 @@ describe('save actions', () => {
 
     await landed(store);
     expect(
-      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      (await store.list('orders')).items.find(item => item.title === 'Ours')?.scope,
     ).toBe('shared');
   });
 
@@ -1296,7 +1296,7 @@ describe('save actions', () => {
 
     await landed(store);
     expect(
-      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      (await store.list('orders')).items.find(item => item.title === 'Ours')?.scope,
     ).toBe('shared');
   });
 

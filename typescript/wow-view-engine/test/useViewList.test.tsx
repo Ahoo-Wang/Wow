@@ -22,7 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ViewStoreError,
   type ViewInstance,
-  type ViewInstanceSummary,
+  type ViewListPage,
   type ViewPreferences,
 } from '../src/index.js';
 import { useViewList } from '../src/react/index.js';
@@ -256,9 +256,9 @@ describe('useViewList', () => {
       await waitFor(() => expect(result.current.loading).toBe(false));
       expect(result.current.defaultInstanceId).toBe('orders-1');
 
-      let release: (value: ViewInstanceSummary[]) => void = () => {};
+      let release: (value: ViewListPage) => void = () => {};
       vi.spyOn(store, 'list').mockReturnValueOnce(
-        new Promise<ViewInstanceSummary[]>(resolve => {
+        new Promise<ViewListPage>(resolve => {
           release = resolve;
         }),
       );
@@ -273,7 +273,7 @@ describe('useViewList', () => {
       ]);
       expect(result.current.defaultInstanceId).toBe('system:orders:all');
 
-      act(() => release([]));
+      act(() => release({ items: [], nextCursor: null }));
       await waitFor(() => expect(result.current.loading).toBe(false));
     });
 

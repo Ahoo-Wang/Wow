@@ -134,11 +134,10 @@ export interface ViewPreferences {
 
 ```ts
 export interface ViewStore {
-  list(
-    definitionId: string,
-    signal?: AbortSignal,
-  ): Promise<ViewInstanceSummary[]>; // store 的；engine.list 包成 ViewListing { items, failed }
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  // 一页一页地答：第一页不带游标，之后带上一页的 nextCursor，直到它为 null；顺序跨页不变。
+  // engine.list 依次读到底、至多 RuntimeLimits.listedViews 个，包成 ViewListing { items, failed, cut? }
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
     ctx: WriteOptions,
@@ -164,7 +163,7 @@ export interface ViewStore {
   ): Promise<ViewInstance>;
   getPreferences(
     definitionId: string,
-    signal?: AbortSignal,
+    options?: ReadOptions,
   ): Promise<ViewPreferences>;
   setPreferences(
     definitionId: string,
@@ -172,11 +171,19 @@ export interface ViewStore {
     ctx: WriteOptions,
   ): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions; // 由应用预先取得，同步
-  readonly listLimit?: number; // 可选：list 每种受众至多答几个；某受众列满即视为截断，工作台写明（R2-26）
 }
-export interface WriteOptions {
-  requestId: string;
-  signal?: AbortSignal;
+export interface ReadOptions {
+  readonly signal?: AbortSignal;
+}
+export interface ViewListOptions extends ReadOptions {
+  readonly cursor?: string | null; // 上一页的 nextCursor；第一页不给
+}
+export interface ViewListPage {
+  items: ViewInstanceSummary[];
+  nextCursor: string | null; // 最后一页之后为 null
+}
+export interface WriteOptions extends ReadOptions {
+  readonly requestId: string;
 }
 export class ViewStoreError extends Error {
   code:

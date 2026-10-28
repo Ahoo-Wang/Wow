@@ -68,10 +68,10 @@ type Answer = RecordData | null | Error;
 function detailSource(answer: (key: unknown) => Answer | Promise<Answer>) {
   return testSource({
     paged: vi.fn(async (query: FilterPagedQuery) => {
-      if (query.pagination?.size !== 1) return { total: 2, list: [...ROWS] };
+      if (query.pagination?.size !== 1) return { total: 2, exact: true, list: [...ROWS] };
       const answered = await answer(keyOf(query));
       if (answered instanceof Error) throw answered;
-      return { total: answered ? 1 : 0, list: answered ? [answered] : [] };
+      return { total: answered ? 1 : 0, exact: true, list: answered ? [answered] : [] };
     }),
   });
 }

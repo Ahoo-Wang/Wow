@@ -44,7 +44,7 @@ describe('MemoryViewStore', () => {
       instances: [instance(), instance({ id: 'other-1', definitionId: 'x' })],
     });
 
-    const summaries = await store.list('orders');
+    const { items: summaries } = await store.list('orders');
 
     expect(summaries).toEqual([toSummary(instance())]);
     expect(summaries[0]).not.toHaveProperty('config');
@@ -88,7 +88,7 @@ describe('MemoryViewStore', () => {
     );
 
     expect(created.id).toBe('orders-2');
-    await expect(store.list('orders')).resolves.toHaveLength(2);
+    expect((await store.list('orders')).items).toHaveLength(2);
   });
 
   it('creates a system view as one it keeps, and keeps the flag its own (D81)', async () => {
@@ -103,7 +103,7 @@ describe('MemoryViewStore', () => {
       ctx,
     );
     expect(made).toMatchObject({ scope: 'system', stored: true });
-    expect((await store.list('orders'))[0]).toMatchObject({
+    expect((await store.list('orders')).items[0]).toMatchObject({
       id: made.id,
       stored: true,
     });
@@ -150,7 +150,7 @@ describe('MemoryViewStore', () => {
     const retry = await store.create(input, ctx);
 
     expect(retry).toEqual(first);
-    await expect(store.list('orders')).resolves.toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
   });
 
   it('advances the revision on save and rename', async () => {
@@ -256,7 +256,7 @@ describe('MemoryViewStore', () => {
     await store.delete('orders-1', '1', ctx);
     await store.delete('orders-1', '1', ctx);
 
-    await expect(store.list('orders')).resolves.toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
   });
 
   it('refuses to delete at a stale revision', async () => {
@@ -327,7 +327,7 @@ describe('MemoryViewStore', () => {
     await expect(store.delete('orders-1', '1', ctx)).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
-    await expect(store.list('orders')).resolves.toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
   });
 
   it('hands out copies, so a caller cannot edit what is stored', async () => {

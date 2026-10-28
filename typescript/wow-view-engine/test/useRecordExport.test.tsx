@@ -13,7 +13,7 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { FilterPagedQuery, PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -61,14 +61,14 @@ const mine: ViewInstance = {
 function gatedSource(): { source: ViewSource; held: (() => void)[] } {
   const held: (() => void)[] = [];
   let opened = false;
-  const answer = { total: 2, list: [...ROWS] };
+  const answer = { total: 2, exact: true, list: [...ROWS] };
   const source = testSource({
     paged: vi.fn(() => {
       if (!opened) {
         opened = true;
         return Promise.resolve(answer);
       }
-      return new Promise<PagedList<RecordData>>(resolve =>
+      return new Promise<PagedResult<RecordData>>(resolve =>
         held.push(() => resolve(answer)),
       );
     }),
@@ -170,7 +170,7 @@ describe('useRecordExport scopes', () => {
         paged: vi.fn(() =>
           Promise.resolve({
             list: [...ROWS],
-          } as unknown as PagedList<RecordData>),
+          } as unknown as PagedResult<RecordData>),
         ),
       }),
     });
@@ -212,7 +212,7 @@ describe('useRecordExport runs', () => {
       paged: vi.fn((query: FilterPagedQuery) => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
-          total: rows.length,
+          total: rows.length, exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),
@@ -282,7 +282,7 @@ describe('useRecordExport limits and failures', () => {
       paged: vi.fn((query: FilterPagedQuery) => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
-          total: rows.length,
+          total: rows.length, exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),
@@ -360,7 +360,7 @@ describe('useRecordExport limits and failures', () => {
       source: testSource({
         paged: vi
           .fn()
-          .mockResolvedValueOnce({ total: 2, list: [...ROWS] })
+          .mockResolvedValueOnce({ total: 2, exact: true, list: [...ROWS] })
           .mockRejectedValue(new Error('gateway down')),
       }),
     });

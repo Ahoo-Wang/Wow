@@ -27,46 +27,36 @@
 
 ## 3. 宿主怎样给描述：数据源端口多一个可选方法
 
-**裁定**（技术细节，自定）：`ViewSource` 多一个可选方法，wow-client 的 `QueryDescriptorApi.describeSnapshot` 可以直接充当它，由引擎经数据源去取。宿主不直接传描述对象。
+**裁定**（技术细节，自定）：`ViewSource` 多一个可选方法，由引擎经数据源去取；宿主不直接传描述对象。D353 V15 起端口用的就是 wow-client 的形状，所以 `QueryModelClient.describe` 原样充当它。
 
 ```ts
 export interface ViewSource {
-  paged(…): Promise<PagedList<RecordData>>;
-  cursor(…): Promise<CursorPage<RecordData>>;
-  aggregate(…): Promise<RecordData[]>;
+  paged(
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<object>>;
+  cursor(
+    query: CursorQuery,
+    options?: SourceOptions,
+  ): Promise<CursorPage<object>>;
+  aggregate(
+    query: AggregationQuery,
+    options?: SourceOptions,
+  ): Promise<object[]>;
   /** 这个源的能力描述；带上已持有的版本，未变时答 notModified。不提供即按定义运行。 */
   describe?(
-    previous?: string,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<QueryDescriptorResult>;
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
 }
 ```
 
 - **为什么经数据源，而不是宿主传描述对象**：
   - 描述随部署变化：服务端每 5 分钟（`wow.query.schema.revalidate-interval`）重新校验 schema，建了文本索引就会多出全文能力。宿主传进来的对象是某一时刻的快照，引擎无法重新验证。
-  - 描述与数据同属一个源：同一个键、同一套认证与 `Wow-Space-Id`。放在数据源上，一个源键就说清了「数据从哪来、能怎样查」。
+  - 描述与数据同属一个源：同一个键、同一套认证与 `Wow-Space`。放在数据源上，一个源键就说清了「数据从哪来、能怎样查」。
   - 与目标架构 §8.2 一致：「视图引擎的数据源端口增加获取描述的能力」。
-- **为什么是可选方法**：`test/architecture.test.ts` 断言 `QueryApi` 不经适配就是一个 `ViewSource`，这条继续成立。可选也覆盖了没有描述的源。
-- **Wow 宿主的接法**：快照查询客户端与描述客户端是两个对象，因为 schema 路由没有租户、所有者段（见 wow-client 的 `architecture.md` §7.3）。宿主拼一个对象，方法都已自绑定：
-
-  ```ts
-  const snapshots = factory.createSnapshotQueryClient();
-  const descriptors = factory.createQueryDescriptorClient();
-  resources: [
-    {
-      definition: orders,
-      source: {
-        paged: snapshots.paged,
-        cursor: snapshots.cursor,
-        aggregate: snapshots.aggregate,
-        describe: descriptors.describeSnapshot,
-      },
-    },
-  ];
-  ```
-
-  事件流的源传 `describeEventStream`。故事和测试可以传一个返回固定描述的函数，这样也能在 Storybook 里演示 G15（同一份定义配上「有全文」「无全文」两份描述）。
+- **为什么是可选方法**：手写的源、测试替身不必描述自己。`test/architecture.test.ts` 断言生成的快照查询客户端与数据集客户端不经适配就是 `ViewSource`。
+- **Wow 宿主的接法**：查询路由的 `POST` 答查询、`GET` 答描述（版本是 `ETag`），所以一个客户端就是整个数据源：`{ definition: orders, source: new OrderSnapshotQueryClient({ fetcher }) }`；事件流的源传 `…EventQueryClient`，数据集传 `DatasetClient.dataset(…)`。故事和测试可以传一个 `describe` 返回固定描述的源，这样也能在 Storybook 里演示 G15（同一份定义配上「有全文」「无全文」两份描述）。
 
 - **不加的东西**：不加 `ViewEngineOptions.descriptors`，不加单独的 `ViewEngineOptions.resolveDescriptor`。多一个入口，就多一个「两处都给了以谁为准」的问题。
 
@@ -261,7 +251,7 @@ C2～C6 是首发前的门，都已完成（[RELEASING.md](../../../RELEASING.md
 
 **已落地**：
 
-- `ViewSource.describe?`（第 3 节，签名与 wow-client 的 `describeSnapshot` 相同）；没有它的源与今天逐字节相同：运行时拿到的就是声明的那份定义、引擎的 `limits`（`test/capabilitiesRuntime.test.ts`「a source without a descriptor」，现有测试全部不改）。
+- `ViewSource.describe?`（第 3 节，签名与 wow-client 的 `QueryModelClient.describe` 相同）；没有它的源与今天逐字节相同：运行时拿到的就是声明的那份定义、引擎的 `limits`（`test/capabilitiesRuntime.test.ts`「a source without a descriptor」，现有测试全部不改）。
 - `src/capabilities/`：`narrowDefinition`（第 4 节，4.1～4.4 中不需要新成员的各行）、`sourceLimits`（4.5）、`DescriptorCache`（第 6 节）。与四个内核平级，只引 `model` 与 `filter`：收窄要用 `operatorsOf` 与 `FieldKindRegistry`（第 4 节原写「只引 `model/`」，按此修订，`test/architecture.test.ts` 守着）。
 - `runtime/capabilities.ts` 的 `SourceCapabilities`：`open` 先读描述再发第一条查询（看板的自有视图在 `open` 里读，引用的已保存视图在面板解析时读）；按（定义, 描述版本）收窄一次、发现报一次；刷新、页面切回来时超过 5 分钟就带版本重新验证；读不到、或首次读超过 `DESCRIBE_DEADLINE_MS` 时报 note `capability.descriptor.unavailable`，照定义运行（见 test/capabilitiesRuntime.test.ts「opens on the definition as declared when the descriptor does not answer in time」）。
 - 界面只改两处读法，不加分支（第 5 节）：`searchFieldOf` 跳过收窄成没有算子的检索字段（G15：MongoDB 上检索框不出现），`useFilterEditor.fieldsFor` 不列没有算子的字段（「添加」清单与高级编辑器都读它）。Storybook「能力/随部署收窄」是同一份定义配两份描述的 G15 对照，孪生故事在浏览器里断言。

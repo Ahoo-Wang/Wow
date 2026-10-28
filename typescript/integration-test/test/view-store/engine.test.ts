@@ -16,8 +16,8 @@
  * 「引擎端到端」, 10): the engine's own commands — save, save as, a
  * conflict reloaded or overwritten, an unknown outcome retried, setting a
  * view shared and taking it back, preferences — against the real view
- * store service, and the engine's queries through the query routes
- * (`viewSourceOf`).
+ * store service, and the engine's queries through the query routes (a
+ * snapshot query client, which is a view source as it is).
  *
  * The data is the service's own: a definition over the `view` aggregate's
  * snapshots, which a user reads as their own saved views. So what a record
@@ -47,7 +47,7 @@ import {
   type ViewRuntime,
   type ViewWriteError,
 } from '@ahoo-wang/wow-view-engine';
-import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
+import { WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describe, expect, it } from 'vitest';
 import { nextResult } from './nextResult';
 import { actingAs, SHARED_WRITER } from './viewStoreServer';
@@ -146,11 +146,9 @@ function tabOf(user: string, roles: readonly string[] = []): Tab {
     resources: [
       {
         definition: viewsDefinition,
-        source: viewSourceOf(
-          new SnapshotQueryClient(
-            { context: 'view-store', name: 'view' },
-            { fetcher },
-          ),
+        source: new SnapshotQueryClient(
+          { context: 'view-store', name: 'view' },
+          { fetcher },
         ),
       },
     ],

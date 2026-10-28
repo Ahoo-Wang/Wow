@@ -119,8 +119,6 @@ export interface DatasetResource {
   /**
    * Which of the catalogs serves it, by its place in the list
    * `DatasetResources` was given (0 for one catalog).
-   *
-   * @beta
    */
   catalog: number;
 }
@@ -128,10 +126,6 @@ export interface DatasetResource {
 /**
  * A dataset a catalog listed under an id an earlier catalog serves:
  * left out, the earlier one's kept.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export interface DatasetDuplicate {
   /** The definition id both name, `{context}.{dataset}`. */
@@ -144,26 +138,23 @@ export interface DatasetDuplicate {
 }
 
 /**
- * What `DatasetResources` tells besides a dataset it cannot serve: each
- * duplicate it leaves out, and a catalog whose directory cannot be read.
- *
- * Experimental (D93): it may change before 10.0 GA. Its members are tagged
- * rather than the interface, as the constructor of the public
- * `DatasetResources` names it.
+ * What `DatasetResources` reads and whom it tells: the catalogs, and the
+ * callbacks for what it cannot serve. Every callback is optional; one left
+ * out hears nothing, and the refresh goes on as it would.
  */
-export interface DatasetResourcesOptions {
-  /**
-   * Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`).
-   *
-   * @beta
-   */
+export interface DatasetResourcesInit {
+  /** One service's directory, or several, the first winning a dataset two list. */
+  catalogs: DatasetCatalog | readonly DatasetCatalog[];
+  /** Told of a dataset that could not be described or registered; it is left as it was. */
+  onError?(entry: DatasetDirectoryEntry, error: unknown): void;
+  /** Told when the stored wording cannot be read; the wording read last stands. */
+  onWordingError?(error: unknown): void;
+  /** Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`). */
   onDuplicate?(duplicate: DatasetDuplicate): void;
   /**
    * Told when the catalog at `catalog` cannot list its datasets: the ones it
    * served stay as they were, and the refresh goes on with the others. Only
    * when no catalog can list does the refresh fail.
-   *
-   * @beta
    */
   onCatalogError?(catalog: number, error: unknown): void;
 }
@@ -216,19 +207,14 @@ export class DatasetResources {
   >();
   private found: readonly DatasetDuplicate[] = [];
 
+  private readonly options: DatasetResourcesInit;
+
   constructor(
     private readonly engine: DatasetRegistrar,
-    /** One service's directory, or several, the first winning a dataset two list. */
-    catalogs: DatasetCatalog | readonly DatasetCatalog[],
-    /** Told of a dataset that could not be described or registered; it is left as it was. */
-    private readonly onError: (
-      entry: DatasetDirectoryEntry,
-      error: unknown,
-    ) => void = () => undefined,
-    /** Told when the stored wording cannot be read; the wording read last stands. */
-    private readonly onWordingError: (error: unknown) => void = () => undefined,
-    private readonly options: DatasetResourcesOptions = {},
+    init: DatasetResourcesInit,
   ) {
+    this.options = init;
+    const { catalogs } = init;
     this.catalogs = Array.isArray(catalogs)
       ? (catalogs as readonly DatasetCatalog[])
       : [catalogs as DatasetCatalog];
@@ -244,8 +230,6 @@ export class DatasetResources {
   /**
    * The datasets the last refresh left out because an earlier catalog serves
    * their id.
-   *
-   * @beta
    */
   get duplicates(): readonly DatasetDuplicate[] {
     return this.found;
@@ -313,7 +297,7 @@ export class DatasetResources {
         try {
           read.set(index, await store.list(options));
         } catch (error) {
-          this.onWordingError(error);
+          this.options.onWordingError?.(error);
         }
       }),
     );
@@ -359,7 +343,7 @@ export class DatasetResources {
       });
       this.registerWorded(id);
     } catch (error) {
-      this.onError(entry, error);
+      this.options.onError?.(entry, error);
     }
   }
 

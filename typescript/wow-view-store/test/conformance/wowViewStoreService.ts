@@ -33,15 +33,18 @@
  * Those are about where the store's requests go, not about what the service
  * decides, and the fake is installed as the page's `fetch`, so it has no
  * second host and no closed port to stand for them; the store's own tests
- * read both from a stubbed answer. So does `viewSourceOf` over a query route,
- * which is the query engine's, not the view store's.
+ * read both from a stubbed answer. So does a dataset's query client as a view
+ * source, which is the query engine's, not the view store's.
  *
  * Every case works in definitions and tenants of its own (fresh ids), so a
  * shared server needs no reset.
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ViewConfig } from '../../../wow-view-engine/src/model/index.js';
+import type {
+  ViewConfig,
+  ViewInstanceSummary,
+} from '../../../wow-view-engine/src/model/index.js';
 import { WowViewStoreErrorCodes } from '../../src/errors.js';
 import type { WowDatasetWordings, WowViewStore } from '../../src/index.js';
 
@@ -110,6 +113,30 @@ function fresh(): string {
   return `service-${crypto.randomUUID()}`;
 }
 
+/** Every page of a definition's list, in turn, and the pages as read. */
+export async function listPages(
+  views: Pick<WowViewStore, 'list'>,
+  definitionId: string,
+): Promise<ViewInstanceSummary[][]> {
+  const pages: ViewInstanceSummary[][] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await views.list(definitionId, { cursor });
+    pages.push(page.items);
+    cursor = page.nextCursor;
+  } while (cursor !== null && pages.length < 100);
+  expect(cursor).toBeNull();
+  return pages;
+}
+
+/** A definition's whole list: its pages read in turn, concatenated. */
+export async function listAll(
+  views: Pick<WowViewStore, 'list'>,
+  definitionId: string,
+): Promise<ViewInstanceSummary[]> {
+  return (await listPages(views, definitionId)).flat();
+}
+
 /** Registers the suite's cases against `subject`. */
 export function describeWowViewStoreService(
   subject: WowViewStoreService,
@@ -150,7 +177,7 @@ export function describeWowViewStoreService(
           write(),
         );
 
-        expect(await stranger.list(definitionId)).toEqual([]);
+        expect(await listAll(stranger, definitionId)).toEqual([]);
         for (const view of [mine, ours]) {
           await expect(stranger.get(view.id)).rejects.toMatchObject({
             code: 'NOT_FOUND',
@@ -203,7 +230,7 @@ export function describeWowViewStoreService(
           stored: true,
         });
         const { id } = created;
-        expect(await reader.list(definitionId)).toEqual([
+        expect(await listAll(reader, definitionId)).toEqual([
           {
             id,
             definitionId,
@@ -216,7 +243,7 @@ export function describeWowViewStoreService(
         ]);
         expect(await reader.get(id)).toEqual(created);
         expect(
-          await open({ ...READER, app: 'portal' }).views.list(definitionId),
+          await listAll(open({ ...READER, app: 'portal' }).views, definitionId),
         ).toEqual([]);
 
         // Edited at its revision (the content hash); a stale one conflicts.
@@ -249,7 +276,7 @@ export function describeWowViewStoreService(
         ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
         await admin.delete(id, saved.revision, write());
-        expect(await reader.list(definitionId)).toEqual([]);
+        expect(await listAll(reader, definitionId)).toEqual([]);
         await expect(reader.get(id)).rejects.toMatchObject({
           code: 'NOT_FOUND',
         });
@@ -271,7 +298,10 @@ export function describeWowViewStoreService(
       it('a configured one is served and stays read-only', async () => {
         const open = await storesOf();
         const reader = open({ ...READER, app: subject.configured.app }).views;
-        const [configured] = await reader.list(subject.configured.definitionId);
+        const [configured] = await listAll(
+          reader,
+          subject.configured.definitionId,
+        );
         expect(configured).toMatchObject({
           id: subject.configured.id,
           scope: 'system',
@@ -310,6 +340,57 @@ export function describeWowViewStoreService(
             code: 'FORBIDDEN',
             detail: { code: 'wow.auth.forbidden' },
           });
+      });
+    });
+
+    describe('the list, a page at a time', () => {
+      it('reads the system views, then the shared, then the caller’s own, each cursor leading to the next page', async () => {
+        const open = await storesOf();
+        const definitionId = fresh();
+        const alice = open({ ...ALICE, roles: [subject.sharedWriter, subject.systemWriter] }).views;
+        const mine = await alice.create(
+          { definitionId, title: 'Mine', scope: 'personal', config },
+          write(),
+        );
+        const ours = await alice.create(
+          { definitionId, title: 'Ours', scope: 'shared', config },
+          write(),
+        );
+        const everyone = await alice.create(
+          { definitionId, title: 'Everyone', scope: 'system', config },
+          write(),
+        );
+
+        const first = await alice.list(definitionId);
+        expect(first.items.map(({ id }) => id)).toEqual([everyone.id]);
+        expect(first.nextCursor).not.toBeNull();
+        const second = await alice.list(definitionId, {
+          cursor: first.nextCursor,
+        });
+        expect(second.items.map(({ id }) => id)).toEqual([ours.id]);
+        expect(second.nextCursor).not.toBeNull();
+        const third = await alice.list(definitionId, {
+          cursor: second.nextCursor,
+        });
+        expect(third.items.map(({ id }) => id)).toEqual([mine.id]);
+        expect(third.nextCursor).toBeNull();
+        // Read again from a cursor, a page answers the same.
+        expect(
+          await alice.list(definitionId, { cursor: first.nextCursor }),
+        ).toEqual(second);
+      });
+
+      it('ends with a null cursor for a definition the caller holds nothing of', async () => {
+        const open = await storesOf();
+        const pages = await listPages(open(ALICE).views, fresh());
+        expect(pages.flat()).toEqual([]);
+      });
+
+      it('refuses a cursor it never answered as INVALID', async () => {
+        const open = await storesOf();
+        await expect(
+          open(ALICE).views.list(fresh(), { cursor: 'not a cursor' }),
+        ).rejects.toMatchObject({ code: 'INVALID' });
       });
     });
 

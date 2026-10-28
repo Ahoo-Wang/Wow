@@ -27,6 +27,7 @@ import {
   type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { WowViewStore } from '../src/index.js';
+import { listAll } from './conformance/wowViewStoreService.js';
 import { actingAs, installFake, WRITER_ROLES, type Caller } from './support.js';
 
 const ALICE: Caller = {
@@ -74,7 +75,7 @@ describe('a board over datasets of several services, in WowViewStore', () => {
 
     // Another session: a new store over the same service.
     const next = new WowViewStore({ fetcher: actingAs(ALICE) });
-    const listed = await next.list('analytics-catalog-boards');
+    const listed = await listAll(next, 'analytics-catalog-boards');
     expect(listed.map(summary => summary.id)).toEqual([saved.id]);
     const read = await next.get(saved.id);
     expect(read.config).toEqual(board);
