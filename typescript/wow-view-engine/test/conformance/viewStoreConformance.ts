@@ -79,6 +79,7 @@ import type {
   DashboardViewConfig,
   DashboardViewPanel,
   ViewAudience,
+  ViewScope,
   ViewConfig,
   ViewInstance,
   ViewInstanceSummary,
@@ -309,7 +310,7 @@ export function describeViewStoreConformance(
     const alice = open(ALICE);
     const create = (
       title: string,
-      scope: ViewAudience = own,
+      scope: ViewScope = own,
       store: ViewStore = alice,
       config: ViewConfig = recordConfig(),
     ) => store.create({ definitionId, title, scope, config }, write());
@@ -389,6 +390,36 @@ export function describeViewStoreConformance(
           );
 
           expect(listed).toEqual(made.map(view => view.id));
+        },
+      );
+
+      it.skipIf(
+        capabilities.pageSize === undefined ||
+          !capabilities.storedSystemViews ||
+          !personal,
+      )(
+        'follows its cursor from the system views to the shared and the personal ones across pages',
+        async () => {
+          const { alice, definitionId, create } = await setup();
+          const made: ViewInstance[] = [];
+          // Interleaved, so no audience is listed by when it was written.
+          for (let round = 0; round < capabilities.pageSize!; round += 1)
+            for (const scope of ['personal', 'shared', 'system'] as const)
+              made.push(await create(`${scope} ${round}`, scope));
+          const of = (scope: ViewScope) =>
+            made.filter(view => view.scope === scope).map(view => view.id);
+
+          const first = await alice.list(definitionId);
+          expect(first.nextCursor).not.toBeNull();
+          const listed = ids(await everyView(alice, definitionId)).filter(id =>
+            made.some(view => view.id === id),
+          );
+
+          expect(listed).toEqual([
+            ...of('system'),
+            ...of('shared'),
+            ...of('personal'),
+          ]);
         },
       );
 

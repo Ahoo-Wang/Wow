@@ -9,20 +9,18 @@ description: 'Every name @ahoo-wang/wow-view-store exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-store test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-store` exports — 11 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 2 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-store` exports — 9 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 2 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
-| `SHARED_OWNER_ID` | const | The reserved owner of shared views and shared preferences (`ViewStoreService.SHARED_OWNER_ID` on the server). | — |
 | `SHARED_SCOPE` | const | The `Wow-Scope` of the shared views: the reserved owner `(shared)`. | — |
-| `SYSTEM_OWNER_ID` | const | The reserved owner of stored system views (`ViewStoreService.SYSTEM_OWNER_ID` on the server). | — |
 | `SYSTEM_SCOPE` | const | The `Wow-Scope` of the stored system views: `(system)` of `(platform)`. | — |
-| `SYSTEM_TENANT_ID` | const | The one tenant stored system views live under (`ViewStoreService.SYSTEM_TENANT_ID`): the value of CoSec's platform tenant, not the default tenant `(0)`. | — |
 | `WowDatasetWordings` | class | The wording a tenant's administrators keep over its datasets in the V10 view store: one per dataset of the caller's tenant and application, the id derived by the service from the two. | — |
 | `WowDatasetWordingsOptions` | interface | How a V10 `WowDatasetWordings` reaches the view store service: as a V10 `WowViewStore` does. | — |
 | `WowViewStore` | class | The view engine's `ViewStore` over the **V10** view store service (`platform/view-store` in the Wow repository): saved views and preferences as two Wow V10 aggregates, reached through the clients generated from the service's Manifest (`@ahoo-wang/wow-client`), and the system views through the service's own route. | [wow-view-store reference](./#api-WowViewStore) |
+| `WowViewStoreErrorCode` | type | One of `WowViewStoreErrorCodes`: a problem code the server answers. | — |
 | `WowViewStoreErrorCodes` | const | The V10 view store's own problem codes (`ViewStoreRejections` of`platform/view-store`), beside the framework's (`FrameworkErrorCodes` of`@ahoo-wang/wow-client`): generated from the service's Manifest. | [wow-view-store reference](./#api-WowViewStore) |
 | `WowViewStoreOptions` | interface | How a V10 `WowViewStore` reaches the view store service. | — |
 | `datasetCatalogOf` | function | What a `DatasetCatalog` reads of a Wow **V10** service's datasets: the directory (`GET /wow/dataset`) and each dataset's query client, which is a`ViewSource` as it is. | — |

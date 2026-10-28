@@ -28,8 +28,11 @@ object DesignIdRule {
             """(?:[A-Z]{0,3}\d|§)|\b\d{2}\s*§\s*\d""",
     )
 
-    /** The folders no repository walk enters: build output, dependencies, tool state and local worktrees. */
-    private val UNWALKED = setOf("build", "node_modules", ".git", ".gradle", ".idea", ".claude", ".kotlin")
+    /**
+     * The folders no repository walk enters: build output (a package's or the site's `dist` too: ignored by git, and
+     * stale whenever the sources moved on since it was built), dependencies, tool state and local worktrees.
+     */
+    private val UNWALKED = setOf("build", "dist", "node_modules", ".git", ".gradle", ".idea", ".claude", ".kotlin")
 
     /**
      * Whether the design-ID rule reads [path], relative to the repository root: every production source (`src/main`,

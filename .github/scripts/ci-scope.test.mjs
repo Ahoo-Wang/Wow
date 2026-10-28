@@ -744,6 +744,13 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   assert.deepEqual(unitPackages([viewStoreBaseline]), ['wow-view-store']);
   assert.ok(scopes([viewStoreBaseline]).sdk);
   assert.ok(scopes([viewStoreBaseline]).jvm);
+  // So does the service's ViewStoreContext.kt, whose reserved ids
+  // wow-view-store's are held to (test/paths.test.ts).
+  const viewStoreContext =
+    'platform/view-store/view-store-api/src/main/kotlin/me/ahoo/wow/viewstore/api/ViewStoreContext.kt';
+  assert.deepEqual(unitPackages([viewStoreContext]), ['wow-view-store']);
+  assert.ok(scopes([viewStoreContext]).sdk);
+  assert.ok(scopes([viewStoreContext]).jvm);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/ci.yml',

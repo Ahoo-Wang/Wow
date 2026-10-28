@@ -26,19 +26,10 @@ import { WriteOptions } from '@ahoo-wang/wow-view-engine';
 export function datasetCatalogOf(client: DatasetClient): Pick<DatasetCatalog, 'list' | 'source'>;
 
 // @public
-export const SHARED_OWNER_ID = "(shared)";
-
-// @public
 export const SHARED_SCOPE: TargetScope;
 
 // @public
-export const SYSTEM_OWNER_ID = "(system)";
-
-// @public
 export const SYSTEM_SCOPE: TargetScope;
-
-// @public
-export const SYSTEM_TENANT_ID = "(platform)";
 
 // @public
 export class WowDatasetWordings implements DatasetWordingStore {
@@ -69,6 +60,9 @@ export class WowViewStore implements ViewStore {
 }
 
 // @public
+export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof WowViewStoreErrorCodes];
+
+// @public
 export const WowViewStoreErrorCodes: {
     readonly APP_REQUIRED: "view-store.app-required";
     readonly INVALID: "view-store.invalid";
@@ -81,6 +75,7 @@ export const WowViewStoreErrorCodes: {
 // @public
 export interface WowViewStoreOptions {
     fetcher: Fetcher;
+    pageSize?: number;
     permissions?: (definitionId: string) => ViewPermissions;
 }
 
