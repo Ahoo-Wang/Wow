@@ -200,6 +200,7 @@ class StateViewSourcesTest {
             mapOf("type" to "array", "items" to mapOf("type" to "string"), "uniqueItems" to true) to "Set<String>",
             mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null"))) to "List<String?>",
             mapOf("type" to "object", "additionalProperties" to mapOf("type" to "boolean")) to "Map<String, Boolean>",
+            mapOf("type" to "object") to "Map<String, Any?>",
         ).forEach { (schema, type) ->
             fieldOf(schema).assert().describedAs(schema.toString()).isEqualTo("val field: $type,")
         }
@@ -236,9 +237,9 @@ class StateViewSourcesTest {
         val field = "${CartState::class.java.name}.field"
         failure(mapOf("type" to "integer")).assert().contains(field, "an integer of no format")
         failure(mapOf("type" to "integer", "format" to "int128")).assert().contains("the format int128")
-        failure(mapOf("type" to "object")).assert().contains(field, "an object of no class")
         failure(mapOf("type" to "object", "properties" to mapOf("a" to mapOf("type" to "string"))))
-            .assert().contains("an object of no class")
+            .assert().contains(field, "an object of no class")
+        failure(mapOf("type" to "object", "additionalProperties" to false)).assert().contains("accepts no property")
         failure(mapOf("anyOf" to listOf(mapOf("type" to "string"), mapOf("type" to "boolean"))))
             .assert().contains("one of several types")
         failure(mapOf("type" to "object", "x-wow-class" to "shop.domain.Page(shop.domain.Item)"))

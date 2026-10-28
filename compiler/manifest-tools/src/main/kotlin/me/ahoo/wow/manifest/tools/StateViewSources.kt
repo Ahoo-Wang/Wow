@@ -31,8 +31,8 @@ import me.ahoo.wow.manifest.Manifest
  * - A field's type is read from its schema ([WireTypes]): a `format` names the type a plain JSON type does not
  *   (`int64` a `Long`, `date-time` an `Instant`), `uniqueItems` a `Set`, and `x-wow-class` a class: one on the api's
  *   class path ([onClassPath]) is referenced, a domain's own object or enumeration is copied into the view as a nested
- *   class of its fields or constants. A type the schema does not determine (an integer of no format, an object of no
- *   class, a polymorphic or a parameterized class of the domain, an enumeration constant that is not a Kotlin name)
+ *   class of its fields or constants, and an object of no class and no properties is a `Map`. A type the schema does
+ *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized class of the domain, an enumeration constant that is not a Kotlin name)
  *   fails the generation, naming the field.
  * - A state the contract withholds (`publishState = false`) has no view, nor has a state of no field.
  */
@@ -169,10 +169,14 @@ internal class StateViewSources(
             return WireTypes.TYPES[format] ?: fail(field, "it is an integer of the format $format")
         }
 
+        /** An object of no class is a map: of the values `additionalProperties` describes, any value without it. */
         private fun mapType(node: Map<*, *>, field: String): String {
             if (properties(node).isNotEmpty()) fail(field, "it is an object of no class")
-            val values = node[ADDITIONAL_PROPERTIES]
-            if (values !is Map<*, *>) fail(field, "it is an object of no class")
+            val values = when (val additional = node[ADDITIONAL_PROPERTIES]) {
+                null, true -> emptyMap<String, Any?>()
+                is Map<*, *> -> additional
+                else -> fail(field, "it is an object that accepts no property")
+            }
             return "Map<String, ${typeOf(values, "$field{}").text}>"
         }
 
