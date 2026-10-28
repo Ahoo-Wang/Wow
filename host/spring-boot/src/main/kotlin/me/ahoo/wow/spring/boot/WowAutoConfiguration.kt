@@ -85,6 +85,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
@@ -191,6 +192,7 @@ class WowAutoConfiguration {
         providers: StoreProviders,
         transports: ObjectProvider<TransportProvider>,
         sinks: ObjectProvider<SinkProvider>,
+        discoveries: ObjectProvider<PeerDiscovery>,
     ): ConfigurationKeys {
         val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
             context.findAnnotationOnBean(
@@ -207,7 +209,8 @@ class WowAutoConfiguration {
             providers.stores.values.map { it.type to it.options } +
                 HostDatasets.providers(context.classLoader).map { it.type to it.options } +
                 ports.transports.values.map { it.type to TopicTransportOptions.of(it) } +
-                ports.sinks.values.map { it.type to it.options },
+                ports.sinks.values.map { it.type to it.options } +
+                PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()).declared,
         )
         return ConfigurationKeys.of(context.classLoader, prefixes, declared).also { it.check(environment) }
     }

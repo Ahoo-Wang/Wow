@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.transport.TopicTransportOptions
@@ -83,6 +85,16 @@ class ConfigurationMetadata(
                 provider.javaClass,
                 provider.options,
                 "The settings of the ${provider.type} Sink.",
+            )
+
+            /** A peer discovery's, under `wow.peer.<type>`. */
+            @JvmStatic
+            @OptIn(ExperimentalWowApi::class)
+            fun of(provider: PeerDiscovery): ProviderOptions = ProviderOptions(
+                "peer.${provider.type}",
+                provider.javaClass,
+                provider.options,
+                "The settings of the ${provider.type} peer discovery.",
             )
 
             /** A dataset backend's. */

@@ -46,7 +46,8 @@ class ConfigurationMetadataTest {
             } +
             ServiceLoader.load(QueryDatasetProvider::class.java).filter {
                 it.type == CLICKHOUSE
-            }.map { ConfigurationMetadata.ProviderOptions.of(it) },
+            }.map { ConfigurationMetadata.ProviderOptions.of(it) } +
+            ConfigurationMetadata.ProviderOptions.of(DnsPeerDiscovery()),
     )
 
     @Test

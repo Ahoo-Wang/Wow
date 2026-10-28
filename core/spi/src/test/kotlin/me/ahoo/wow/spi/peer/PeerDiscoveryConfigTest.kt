@@ -15,6 +15,8 @@ package me.ahoo.wow.spi.peer
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.URI
@@ -31,6 +33,30 @@ class PeerDiscoveryConfigTest {
         config.toString().assert().contains("consul", "address").doesNotContain("8500")
         PeerDiscoveryConfig.of("dns").options.assert().isEmpty()
         assertThrows<IllegalArgumentException> { PeerDiscoveryConfig.of(" ") }
+    }
+
+    @Test
+    fun `a discovery should declare nothing by default, and read its declared options, recording them`() {
+        val discovery = object : PeerDiscovery {
+            override val type: String = "consul"
+
+            override fun open(config: PeerDiscoveryConfig): PeerTargets = error("not opened")
+        }
+        discovery.options.assert().isEmpty()
+        val address = ProviderOption.string("address", "the Consul agent's address.", "http://localhost:8500")
+        val tags = ProviderOption.map("tags", "the service tags a node must have.")
+        val timeout = ProviderOption.int("timeout", "the lookup's timeout in seconds.")
+        val config = PeerDiscoveryConfig.of("consul", mapOf("tags.zone" to "a", "timeout" to "x"))
+        val defaulted: String = config.option(address)
+        defaulted.assert().isEqualTo("http://localhost:8500")
+        config.options(tags).assert().isEqualTo(mapOf("zone" to "a"))
+        assertThrows<WowConfigurationException> {
+            config.option(
+                timeout
+            )
+        }.key.assert().isEqualTo("wow.peer.consul.timeout")
+        config.optionsRead.assert().containsExactlyInAnyOrder("address", "tags", "timeout")
+        PeerDiscoveryConfig.of("consul").option(timeout).assert().isNull()
     }
 
     @Test

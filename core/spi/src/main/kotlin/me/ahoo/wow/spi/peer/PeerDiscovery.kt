@@ -16,8 +16,10 @@ package me.ahoo.wow.spi.peer
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.store.StoreResources
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Where the internal ports of a peer service's nodes are: the seeds a node calls a peer at, its sagas'
@@ -25,7 +27,7 @@ import java.net.URI
  * finds its seeds) and `static` (`wow.peers.<context>.url` alone); a community provider (Consul, the Kubernetes API)
  * is found as a [me.ahoo.wow.spi.transport.TransportProvider] is: on the classpath (`ServiceLoader`, from
  * `META-INF/services/me.ahoo.wow.spi.peer.PeerDiscovery`) and among the application's beans, configured by the keys
- * under `wow.peer.<type>`.
+ * under `wow.peer.<type>` it declares ([options]).
  *
  * Experimental: owner-direct routing (calling the node that owns an aggregate, a 10.x candidate) may need the peers'
  * membership and partition owners from it.
@@ -35,6 +37,12 @@ import java.net.URI
 interface PeerDiscovery {
     /** The type `wow.peer.discovery` names: lowercase, unique among the providers of a node. */
     val type: String
+
+    /**
+     * Every setting it reads from [PeerDiscoveryConfig.options], each read through its option, for the host to bind and
+     * check (`wow.peer.<type>.<key>`): a key it does not declare fails the start.
+     */
+    val options: List<ProviderOption<*>> get() = emptyList()
 
     /** Opens the discovery [config] configures. */
     fun open(config: PeerDiscoveryConfig): PeerTargets
@@ -82,8 +90,35 @@ class PeerDiscoveryConfig @InternalWowApi constructor(
     /** The configuration key of the discovery's settings, for a provider's failures to name. */
     val key: String get() = "wow.peer.$type"
 
+    private val read: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /** The setting [name] of [options], or null when it is not set or blank. */
-    fun option(name: String): String? = options[name]?.takeIf { it.isNotBlank() }
+    fun option(name: String): String? {
+        read += name
+        return options[name]?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
+     * value is not one of the option's type.
+     */
+    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
+
+    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
+    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
+
+    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
+    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {
+        read += option.key
+        return options.filterKeys { it.startsWith("${option.key}.") }.mapKeys { it.key.removePrefix("${option.key}.") }
+    }
+
+    /** The keys of [options] the discovery asked for, so a test can hold them to the options it declares. */
+    @InternalWowApi
+    val optionsRead: Set<String> get() = read.toSet()
+
+    private fun <T : Any> setting(option: ProviderOption<T>): T? =
+        option(option.key)?.let { option.parse(it, "$key.${option.key}") }
 
     override fun toString(): String = "PeerDiscoveryConfig(type=$type, options=${options.keys})"
 

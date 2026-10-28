@@ -85,7 +85,9 @@ override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryInde
 
 topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:spi`，`me.ahoo.wow.spi.transport`）打开承载发布事件流、发往其他上下文的命令及其回执的消息代理：它的 `open` 返回一个 `TopicTransport`，即节点使用的 `TopicProducer`、`PartitionedSource` 和 `TopicAdmin`，并且可以在节点就绪后对节点的命令主题给出警告。`SinkProvider`（`me.ahoo.wow.spi.sink`）打开一个目的地的 Sink：`open` 返回一个 `StreamSinks`，每个发布的事件流一个 `Sink`，其订阅命名为 `<processor>.<aggregate>`。宿主通过 `ServiceLoader` 从 `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider` 和 `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider` 中找到它们，也会在应用的 bean 中寻找；宿主自己不构建任何消息代理或数据仓库专有的东西。Wow 的 Kafka 传输（`kafka`）和 ClickHouse Sink（`clickhouse`）与其他提供者没有区别。
 
-在配置面定稿之前，类型为 `<type>` 的提供者读取 `wow.<type>` 下的键，这些键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`），由它的 `available` 说明这些键是否配置了它。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。
+类型为 `<type>` 的提供者声明它读取的选项（`options`，与存储提供者相同），宿主把 `wow.<type>` 下它声明的键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`）；没有任何提供者声明的键会使启动失败。由它的 `available` 说明这些键是否配置了它。主题传输只声明自己的选项：每个主题传输都有的设置（`TopicTransportOptions`：`topic-prefix`、`command-intake.enabled`、`ddl`、`topics.partition-refresh`）会与之合并。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。`TopicTransportSpec` 和 `SinkSpec` 检查提供者只读取它声明的选项。
+
+节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`。
 
 ## 契约测试 {#the-contract-tests}
 

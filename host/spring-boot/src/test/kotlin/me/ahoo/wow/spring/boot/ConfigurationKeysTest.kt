@@ -16,6 +16,9 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.peer.PeerDiscovery
+import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
+import me.ahoo.wow.spi.peer.PeerTargets
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.core.env.SystemEnvironmentPropertySource
@@ -67,6 +70,25 @@ class ConfigurationKeysTest {
         // provider alone.
         ConfigurationKeys.of(javaClass.classLoader).unknown(environment("wow.acme.region" to "eu-1"))
             .assert().containsExactly("wow.acme.region")
+    }
+
+    @Test
+    fun `a peer discovery's declared options are known under wow peer, any other key there refused`() {
+        val discoveries = PeerDiscoveries.load(javaClass.classLoader)
+        val keys = ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(discoveries.declared))
+        keys.unknown(environment("wow.peer.dns.name-template" to "_x._tcp.{service}")).assert().isEmpty()
+        keys.unknown(environment("wow.peer.dns.colour" to "red")).assert().containsExactly("wow.peer.dns.colour")
+        // A third party's discovery (an application's bean) has no metadata: its options are known from it alone.
+        val consul = object : PeerDiscovery {
+            override val type: String = "consul"
+            override val options: List<ProviderOption<*>> = listOf(ProviderOption.string("address", "the agent."))
+
+            override fun open(config: PeerDiscoveryConfig): PeerTargets = error("not opened")
+        }
+        val withBean = PeerDiscoveries.load(javaClass.classLoader, listOf(consul)).declared
+        ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(withBean))
+            .unknown(environment("wow.peer.consul.address" to "http://c:8500", "wow.peer.consul.zone" to "a"))
+            .assert().containsExactly("wow.peer.consul.zone")
     }
 
     @Test

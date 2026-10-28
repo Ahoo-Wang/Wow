@@ -50,13 +50,7 @@ internal class NodePeers {
     ): EndpointResolver = PeerEndpoints.of(
         properties,
         PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
-        { type ->
-            if (type == DnsPeerDiscovery.TYPE) {
-                mapOf(DnsPeerDiscovery.NAME_TEMPLATE to properties.peer.dns.nameTemplate)
-            } else {
-                PortProviders.optionsOf(environment, "peer.$type")
-            }
-        },
+        { type -> PortProviders.optionsOf(environment, "${PeerDiscoveries.PREFIX}.$type") },
         { peer -> serviceOf(contracts, peer) },
     )
 

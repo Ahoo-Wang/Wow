@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
@@ -160,6 +161,17 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
+    fun `the name template should be its declared option, its default when unset`() {
+        val dns = DnsPeerDiscovery()
+        dns.options.map { it.key }.assert().containsExactly("name-template")
+        val set = PeerDiscoveryConfig.of("dns", mapOf("name-template" to "_api._tcp.{service}.mesh."))
+        (dns.open(set) as DnsPeerTargets).nameOf("bank").assert().isEqualTo("_api._tcp.bank.mesh.")
+        set.optionsRead.assert().isSubsetOf(dns.options.map { it.key })
+        (dns.open(PeerDiscoveryConfig.of("dns")) as DnsPeerTargets).nameOf("bank").assert()
+            .isEqualTo("_internal._tcp.bank-cluster")
+    }
+
+    @Test
     fun `the JDK's DNS should find no record where no server answers`() {
         // A DNS server on a loopback port nothing listens on: the lookup fails at once, without the network.
         val silent = mapOf(
@@ -184,16 +196,24 @@ class DnsPeerDiscoveryTest {
             )
             WowAutoConfiguration.serviceOf(contracts, "mail").assert().isEqualTo("mail-service")
             WowAutoConfiguration.serviceOf(contracts, "box").assert().isNull()
+            val domain = ProviderOption.string("domain", "the domain of the peers' nodes.")
+            val seen = mutableListOf<Map<String, String>>()
             val custom = object : PeerDiscovery {
                 override val type: String = "custom"
 
-                override fun open(config: PeerDiscoveryConfig): PeerTargets = object : PeerTargets {
-                    override suspend fun targetsOf(service: String, context: String): List<URI> =
-                        listOf(URI.create("http://$service.${config.option("domain")}:9090"))
+                override val options: List<ProviderOption<*>> = listOf(domain)
+
+                override fun open(config: PeerDiscoveryConfig): PeerTargets {
+                    seen += config.options
+                    return object : PeerTargets {
+                        override suspend fun targetsOf(service: String, context: String): List<URI> =
+                            listOf(URI.create("http://$service.${config.option(domain)}:9090"))
+                    }
                 }
             }
             val beans = StaticListableBeanFactory().apply { addBean("custom", custom) }
             val environment = MockEnvironment().withProperty("wow.peer.custom.domain", "internal")
+                .withProperty("wow.peer.custom.undeclared", "x")
             val properties = WowProperties().apply { peer.discovery = "custom" }
             val resolver = NodePeers().wowEndpointResolver(
                 properties,
@@ -205,6 +225,8 @@ class DnsPeerDiscoveryTest {
             resolver.resolveAll("mail", Port.INTERNAL).assert()
                 .containsExactly(URI.create("http://mail-service.internal:9090"))
             resolver.reaches("mail", Port.INTERNAL).assert().isTrue()
+            // The provider is given the settings it declares alone.
+            seen.single().assert().isEqualTo(mapOf("domain" to "internal"))
             (resolver as AutoCloseable).close()
             val dns = NodePeers().wowEndpointResolver(
                 WowProperties(),
