@@ -46,6 +46,25 @@ object ManifestTree {
         },
         "errors" to context.errors.map(::writeError),
         "commands" to context.commands.map(::writeCommand).ifEmpty { null },
+        "routes" to context.routes.map(::writeServiceRoute).ifEmpty { null },
+    )
+
+    private fun writeServiceRoute(route: ServiceRouteManifest): Map<String, Any?> = obj(
+        "name" to route.name,
+        "route" to writeRoute(route.route),
+        "parameters" to route.parameters.map {
+            obj(
+                "name" to it.name,
+                "in" to wire(it.location),
+                "schema" to it.schema,
+                "required" to it.required,
+            )
+        }.ifEmpty { null },
+        "request" to route.request,
+        "response" to route.response,
+        "errors" to route.errors.ifEmpty { null },
+        "description" to route.description,
+        "deprecated" to route.deprecated.takeIf { it },
     )
 
     private fun writeCommand(command: CommandManifest): Map<String, Any?> = obj(
@@ -197,7 +216,31 @@ object ManifestTree {
         },
         errors = node.objects("errors").map(::readError),
         commands = if (node.has("commands")) node.objects("commands").mapNotNull(::readCommand) else emptyList(),
+        routes = node.objects("routes").mapNotNull(::readServiceRoute),
     )
+
+    /** The service route of [node], or null, told, when a parameter's location is unknown to this reader. */
+    private fun readServiceRoute(node: Node): ServiceRouteManifest? {
+        val parameters = node.objects("parameters").map { parameter ->
+            val location = parameter.enum("in", RouteParameterManifest.Location.entries) ?: return node.leftOut()
+            RouteParameterManifest(
+                name = parameter.string("name"),
+                location = location,
+                schema = parameter.obj("schema").map.entries.associate { (key, value) -> key.toString() to value },
+                required = parameter.booleanOrNull("required") ?: (location == RouteParameterManifest.Location.PATH),
+            )
+        }
+        return ServiceRouteManifest(
+            name = node.string("name"),
+            route = readRoute(node.obj("route")),
+            parameters = parameters,
+            request = node.stringOrNull("request"),
+            response = node.stringOrNull("response"),
+            errors = node.strings("errors"),
+            description = node.stringOrNull("description"),
+            deprecated = node.booleanOrNull("deprecated") ?: false,
+        )
+    }
 
     /** The command of [node], or null, told, when its creation is unknown to this reader. */
     private fun readCommand(node: Node): CommandManifest? = CommandManifest(

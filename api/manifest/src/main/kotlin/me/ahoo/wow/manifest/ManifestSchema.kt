@@ -64,6 +64,27 @@ object ManifestSchema {
                 "published" to array(ref(PUBLISHED)),
                 "errors" to array(ref(ERROR), "The context's own error codes."),
                 "commands" to array(ref(COMMAND), "The context's own system commands: its job commands."),
+                "routes" to array(ref(SERVICE_ROUTE), "The context's service routes, whose handlers are its own code."),
+            ),
+            SERVICE_ROUTE to objectOf(
+                "A service route: a route whose handler is the service's own code, its parameters and schemas.",
+                listOf("name", "route"),
+                "name" to string("The route's name in its context: its identity and its client's method."),
+                "route" to ref(ROUTE),
+                "parameters" to array(ref(ROUTE_PARAMETER)),
+                "request" to schemaRef(),
+                "response" to schemaRef(),
+                "errors" to strings("The codes the route refuses with, entries of the context's errors."),
+                "description" to string(),
+                "deprecated" to boolean(),
+            ),
+            ROUTE_PARAMETER to objectOf(
+                "A path variable or query parameter of a service route, and its scalar schema.",
+                listOf("name", "in", "schema", "required"),
+                "name" to string(),
+                "in" to enumOf(RouteParameterManifest.Location.entries, "Where the parameter is read from."),
+                "schema" to obj("type" to "object", "description" to "An inline JSON Schema of a scalar."),
+                "required" to boolean(),
             ),
             AGGREGATE to objectOf(
                 "An aggregate type: its state, snapshots, commands, events and query models.",
@@ -195,6 +216,8 @@ object ManifestSchema {
     private const val COMMAND = "Command"
     private const val EVENT = "Event"
     private const val ROUTE = "Route"
+    private const val SERVICE_ROUTE = "ServiceRoute"
+    private const val ROUTE_PARAMETER = "RouteParameter"
     private const val ERROR = "Error"
     private const val PUBLISHED = "Published"
     private const val SUBSCRIPTION = "Subscription"

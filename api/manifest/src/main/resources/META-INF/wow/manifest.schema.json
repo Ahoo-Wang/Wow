@@ -97,6 +97,78 @@
             "$ref" : "#/$defs/Command"
           },
           "description" : "The context's own system commands: its job commands."
+        },
+        "routes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/ServiceRoute"
+          },
+          "description" : "The context's service routes, whose handlers are its own code."
+        }
+      }
+    },
+    "ServiceRoute" : {
+      "type" : "object",
+      "description" : "A service route: a route whose handler is the service's own code, its parameters and schemas.",
+      "required" : [ "name", "route" ],
+      "properties" : {
+        "name" : {
+          "type" : "string",
+          "description" : "The route's name in its context: its identity and its client's method."
+        },
+        "route" : {
+          "$ref" : "#/$defs/Route"
+        },
+        "parameters" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/RouteParameter"
+          }
+        },
+        "request" : {
+          "type" : "string",
+          "pattern" : "^#/\\$defs/",
+          "description" : "#/$defs/<key>"
+        },
+        "response" : {
+          "type" : "string",
+          "pattern" : "^#/\\$defs/",
+          "description" : "#/$defs/<key>"
+        },
+        "errors" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The codes the route refuses with, entries of the context's errors."
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "RouteParameter" : {
+      "type" : "object",
+      "description" : "A path variable or query parameter of a service route, and its scalar schema.",
+      "required" : [ "name", "in", "schema", "required" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "in" : {
+          "type" : "string",
+          "enum" : [ "path", "query" ],
+          "description" : "Where the parameter is read from."
+        },
+        "schema" : {
+          "type" : "object",
+          "description" : "An inline JSON Schema of a scalar."
+        },
+        "required" : {
+          "type" : "boolean"
         }
       }
     },
