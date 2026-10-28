@@ -21,6 +21,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** The kernel's values are plain classes compared by value (findings R5.A-3, A-11, A-13). */
 class KernelValuesTest {
@@ -63,6 +64,13 @@ class KernelValuesTest {
         val execution = ExecutionId("shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
         ExecutionContext(execution).toString().assert().contains(execution.toString())
         ExecutionContext(execution).toString().assert().contains(execution.toString())
+    }
+
+    @Test
+    fun `only a deriving handler's context should derive commands`() {
+        val execution = ExecutionId("shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
+        assertThrows<IllegalArgumentException> { derivationOf(ExecutionContext(execution)) }
+            .message.assert().contains("derives no commands")
     }
 
     private companion object {
