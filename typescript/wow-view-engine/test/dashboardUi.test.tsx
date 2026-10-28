@@ -681,7 +681,7 @@ describe('DashboardGrid', () => {
         },
       ]);
       expect(said).toContain('This panel cannot be used');
-      expect(said).toContain('Amount does not support contains.');
+      expect(said).toContain('Amount does not support “contains”.');
     });
 
     /** An analysis the board owns has no owner but the board's maintainer. */
@@ -714,7 +714,7 @@ describe('DashboardGrid', () => {
         }),
       );
       expect(said).toContain('This panel cannot be used');
-      expect(said).toContain('Amount does not support contains.');
+      expect(said).toContain('Amount does not support “contains”.');
       expect(said).toContain('Ask whoever maintains this dashboard');
       expect(said).not.toContain("view's owner");
     });

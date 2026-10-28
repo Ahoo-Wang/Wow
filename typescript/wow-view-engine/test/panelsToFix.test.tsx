@@ -297,8 +297,8 @@ describe('the error line over a declared board, drawn', () => {
     // never the config's `status` and `CONTAINS`. The sibling board's is that
     // board's to say, when it is open.
     expect(items).toEqual([
-      'Panel one: Status does not support contains.',
-      'Panel two: Status does not support contains.',
+      'Panel one: Status does not support “contains”.',
+      'Panel two: Status does not support “contains”.',
     ]);
     expect(shown).toBe(items.length);
   });
@@ -342,7 +342,7 @@ describe('the error line over a declared board, drawn', () => {
       expect(screen.getAllByText('This panel cannot be used')).toHaveLength(2),
     );
     expect(
-      screen.getAllByText('Status does not support contains.'),
+      screen.getAllByText('Status does not support “contains”.'),
     ).toHaveLength(2);
     expect(
       document.querySelector('[data-slot="status-strip"][data-tone="error"]'),

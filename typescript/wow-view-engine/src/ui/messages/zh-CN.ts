@@ -2436,7 +2436,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '{field} 已被数据源弃用（{message}），保留它请写明理由。',
   'definition.field.not-elements': '{field} 不是数据源列出条目的数组。',
   'definition.field.sort-wider': '{field} 在数据源上不能排序。',
-  'definition.field.operator-wider': '{field} 在数据源上不收 {operator}。',
+  'definition.field.operator-wider': '{field} 在数据源上不收「{operator}」。',
   'definition.field.summary-wider': '{field} 在数据源上不能按 {fn} 汇总。',
   'definition.field.analysis-wider':
     '{field} 在数据源上不能用于分析的 {what}。',
@@ -2461,7 +2461,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源没有列出 {field}：照常显示，但条件、排序与汇总都不再用它。',
   'capability.field.unfilterable': '数据源不接受 {field} 上的任何条件。',
   'capability.field.operators-narrowed':
-    '数据源不接受 {field} 上的 {operators}。',
+    '数据源不接受 {field} 上的这些条件：{operators}。',
   'capability.field.unsortable': '数据源不能按 {field} 排序。',
   'capability.field.alias': '定义用别名 {field} 称呼 {path}：按 {path} 读取。',
   'capability.field.protected':
@@ -2494,6 +2494,10 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源不能在 {path} 的元素上聚合。',
   'capability.analysis.field-unavailable': '数据源不能聚合 {field}。',
   'capability.analysis.field-narrowed': '数据源不提供 {field} 上的 {dropped}。',
+  'label.capability.missing-key': '缺失值分组',
+  'label.capability.in-metric-filter': '按汇总值设条件',
+  'label.capability.expression-input': '对计算值汇总',
+  'label.capability.first-last': '期初值与期末值',
   'capability.descriptor.disagrees':
     '{source} 拒绝了一条它的能力描述 {version} 允许的查询（{code}）：服务与它的描述不一致。',
   'capability.descriptor.unavailable':

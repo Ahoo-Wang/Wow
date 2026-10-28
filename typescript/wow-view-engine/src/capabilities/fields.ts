@@ -41,6 +41,7 @@ import {
   type RecordPagingMode,
   type SummaryFunction,
 } from '../model/index.js';
+import { listParam } from '../model/issue.js';
 import {
   issue,
   operatorsOf,
@@ -324,9 +325,9 @@ function dropped(
   return warn(
     issue('capability.field.operators-narrowed', at, {
       field,
-      operators: offered
-        .filter(operator => !kept.includes(operator))
-        .join(', '),
+      operators: listParam(
+        offered.filter(operator => !kept.includes(operator)),
+      ),
     }),
   );
 }

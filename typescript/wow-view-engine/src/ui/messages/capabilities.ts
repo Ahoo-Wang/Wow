@@ -22,7 +22,7 @@ export const capabilitiesMessages = {
     'The source does not list {field}: it is shown, but no condition, sort or summary uses it.',
   'capability.field.unfilterable': 'The source admits no condition on {field}.',
   'capability.field.operators-narrowed':
-    'The source does not admit {operators} on {field}.',
+    'The source does not admit these conditions on {field}: {operators}.',
   'capability.field.unsortable': 'The source does not sort by {field}.',
   'capability.field.alias':
     'The definition names {path} by its alias {field}: it is read as {path}.',
@@ -66,6 +66,12 @@ export const capabilitiesMessages = {
     'The source cannot aggregate {field}.',
   'capability.analysis.field-narrowed':
     'The source does not offer {dropped} on {field}.',
+  // What `capability.analysis.field-narrowed` names beside the groups,
+  // units and summaries a source leaves out.
+  'label.capability.missing-key': 'a group of missing values',
+  'label.capability.in-metric-filter': 'conditions on a summary',
+  'label.capability.expression-input': 'summaries of a computed value',
+  'label.capability.first-last': 'opening and closing values',
   'capability.descriptor.disagrees':
     '{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.',
   'capability.descriptor.unavailable':

@@ -159,7 +159,7 @@ export type IssuePath = (string | number)[];
 | `capability.field.deprecated` | 数据源已弃用 {field}。 |
 | `capability.field.deprecated-because` | 数据源已弃用 {field}：{reason} |
 | `capability.field.not-projectable` | 数据源不返回 {field}：这一列显示为空。 |
-| `capability.field.operators-narrowed` | 数据源不接受 {field} 上的 {operators}。 |
+| `capability.field.operators-narrowed` | 数据源不接受 {field} 上的这些条件：{operators}。 |
 | `capability.field.options-undescribed` | {field} 列出的 {values} 不在数据源声明的取值里。 |
 | `capability.field.protected` | {field} 受保护：只显示，不能用来筛选、排序或检索。 |
 | `capability.field.summary-narrowed` | 数据源算不了 {field} 的 {summaries}。 |
@@ -368,7 +368,7 @@ export type IssuePath = (string | number)[];
 | `definition.field.name-invalid` | {field} 不是可用的字段名。 |
 | `definition.field.not-elements` | {field} 不是数据源列出条目的数组。 |
 | `definition.field.numeric-invalid` | {field} 声明的数值格式引擎写不出来：{value}。 |
-| `definition.field.operator-wider` | {field} 在数据源上不收 {operator}。 |
+| `definition.field.operator-wider` | {field} 在数据源上不收「{operator}」。 |
 | `definition.field.search-fields-unknown` | {field} 搜索 {missing}，定义没有声明它。 |
 | `definition.field.search-mode-invalid` | {field} 声明了未知的搜索模式：{value}。 |
 | `definition.field.sort-wider` | {field} 在数据源上不能排序。 |

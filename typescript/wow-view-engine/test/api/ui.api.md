@@ -2007,7 +2007,7 @@ export const en: {
     readonly 'label.workbench.editor-modes': "Editor options";
     readonly 'capability.field.unknown': "The source does not list {field}: it is shown, but no condition, sort or summary uses it.";
     readonly 'capability.field.unfilterable': "The source admits no condition on {field}.";
-    readonly 'capability.field.operators-narrowed': "The source does not admit {operators} on {field}.";
+    readonly 'capability.field.operators-narrowed': "The source does not admit these conditions on {field}: {operators}.";
     readonly 'capability.field.unsortable': "The source does not sort by {field}.";
     readonly 'capability.field.alias': "The definition names {path} by its alias {field}: it is read as {path}.";
     readonly 'capability.field.protected': "{field} is protected: shown, never filtered, sorted or searched by.";
@@ -2032,6 +2032,10 @@ export const en: {
     readonly 'capability.analysis.element-unavailable': "The source cannot aggregate over the elements of {path}.";
     readonly 'capability.analysis.field-unavailable': "The source cannot aggregate {field}.";
     readonly 'capability.analysis.field-narrowed': "The source does not offer {dropped} on {field}.";
+    readonly 'label.capability.missing-key': "a group of missing values";
+    readonly 'label.capability.in-metric-filter': "conditions on a summary";
+    readonly 'label.capability.expression-input': "summaries of a computed value";
+    readonly 'label.capability.first-last': "opening and closing values";
     readonly 'capability.descriptor.disagrees': "{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.";
     readonly 'capability.descriptor.unavailable': "The capability descriptor of {source} could not be read; its views run on the definition alone.";
     readonly 'definition.field.search-fields-unknown': "{field} searches {missing}, which the definition does not declare.";
@@ -2086,7 +2090,7 @@ export const en: {
     readonly 'definition.field.deprecated': "{field} is deprecated by its source ({message}); say why it is kept.";
     readonly 'definition.field.not-elements': "{field} is not an array whose entries the source lists.";
     readonly 'definition.field.sort-wider': "{field} does not sort at its source.";
-    readonly 'definition.field.operator-wider': "{field} does not take {operator} at its source.";
+    readonly 'definition.field.operator-wider': "{field} does not take “{operator}” at its source.";
     readonly 'definition.field.summary-wider': "{field} cannot be summarised by {fn} at its source.";
     readonly 'definition.field.analysis-wider': "{field} does not offer {what} to analyses at its source.";
     readonly 'definition.option.undescribed': "{value} is not one of the values the source lists for {field}.";
@@ -3812,7 +3816,7 @@ export const en: {
     readonly 'filter.kind.unknown-editor': "The {kind} type asks for a {input} editor, which this engine does not have.";
     readonly 'filter.kind.failed': "The condition on \"{label}\" couldn't be checked; ask whoever maintains this view.";
     readonly 'filter.node.invalid': "This condition could not be read.";
-    readonly 'filter.operator.unsupported': "{field} does not support {operator}.";
+    readonly 'filter.operator.unsupported': "{field} does not support “{operator}”.";
     readonly 'filter.presence.empty-is-missing': "On this source, an empty value of {field} counts as no value.";
     readonly 'filter.tree.too-deep': "The conditions nest deeper than {max} levels.";
     readonly 'filter.tree.too-many-nodes': "The conditions exceed {max} entries.";

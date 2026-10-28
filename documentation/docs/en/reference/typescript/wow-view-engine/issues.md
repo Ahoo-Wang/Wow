@@ -159,7 +159,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `capability.field.deprecated` | The source deprecates {field}. |
 | `capability.field.deprecated-because` | The source deprecates {field}: {reason} |
 | `capability.field.not-projectable` | The source does not return {field}: its column reads empty. |
-| `capability.field.operators-narrowed` | The source does not admit {operators} on {field}. |
+| `capability.field.operators-narrowed` | The source does not admit these conditions on {field}: {operators}. |
 | `capability.field.options-undescribed` | {field} lists {values}, which the source does not declare. |
 | `capability.field.protected` | {field} is protected: shown, never filtered, sorted or searched by. |
 | `capability.field.summary-narrowed` | The source cannot take the {summaries} summary of {field}. |
@@ -368,7 +368,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `definition.field.name-invalid` | {field} is not a usable field name. |
 | `definition.field.not-elements` | {field} is not an array whose entries the source lists. |
 | `definition.field.numeric-invalid` | {field} declares a number format the engine cannot write: {value}. |
-| `definition.field.operator-wider` | {field} does not take {operator} at its source. |
+| `definition.field.operator-wider` | {field} does not take “{operator}” at its source. |
 | `definition.field.search-fields-unknown` | {field} searches {missing}, which the definition does not declare. |
 | `definition.field.search-mode-invalid` | {field} declares an unknown search mode: {value}. |
 | `definition.field.sort-wider` | {field} does not sort at its source. |
@@ -429,7 +429,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `filter.kind.unknown-editor` | The {kind} type asks for a {input} editor, which this engine does not have. |
 | `filter.kind.unregistered` | No editor is registered for the {kind} type. |
 | `filter.node.invalid` | This condition could not be read. |
-| `filter.operator.unsupported` | {field} does not support {operator}. |
+| `filter.operator.unsupported` | {field} does not support “{operator}”. |
 | `filter.presence.empty-is-missing` | On this source, an empty value of {field} counts as no value. |
 | `filter.tree.too-deep` | The conditions nest deeper than {max} levels. |
 | `filter.tree.too-many-nodes` | The conditions exceed {max} entries. |

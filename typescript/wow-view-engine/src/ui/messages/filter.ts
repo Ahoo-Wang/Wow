@@ -421,7 +421,7 @@ export const filterMessages = {
   'filter.kind.failed':
     'The condition on "{label}" couldn\'t be checked; ask whoever maintains this view.',
   'filter.node.invalid': 'This condition could not be read.',
-  'filter.operator.unsupported': '{field} does not support {operator}.',
+  'filter.operator.unsupported': '{field} does not support “{operator}”.',
   // The source reads a stored null or empty array as missing (#3515).
   'filter.presence.empty-is-missing':
     'On this source, an empty value of {field} counts as no value.',

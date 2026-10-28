@@ -751,7 +751,10 @@ describe('4.4 analysis', () => {
     expect(findings).toEqual([
       expect.objectContaining({
         code: 'capability.analysis.field-narrowed',
-        params: { field: 'warehouse', dropped: AggregationGroupType.HISTOGRAM },
+        params: {
+          field: 'warehouse',
+          dropped: `label.group.type.${AggregationGroupType.HISTOGRAM}`,
+        },
       }),
     ]);
   });
@@ -791,7 +794,10 @@ describe('4.4 analysis', () => {
     expect(some.findings).toEqual([
       expect.objectContaining({
         code: 'capability.analysis.field-narrowed',
-        params: { field: 'createdAt', dropped: AggregationDateUnit.HOUR },
+        params: {
+          field: 'createdAt',
+          dropped: `label.date-unit.${AggregationDateUnit.HOUR}`,
+        },
       }),
     ]);
 

@@ -294,8 +294,8 @@ describe('WarningStrip', () => {
 
     const text = screen.getByRole('status').textContent ?? '';
     expect(text.match(/advanced editor/g)).toHaveLength(1);
-    expect(text).toContain('avg summary');
-    expect(text).toContain('sum summary');
+    expect(text).toContain('Average summary');
+    expect(text).toContain('Sum summary');
   });
 });
 
