@@ -108,6 +108,47 @@ describe('RecordPagination counts the records', () => {
     expect(screen.getByText('Page 1')).toBeTruthy();
   });
 
+  /** A route asked to count nothing (`TotalMode.NONE`) answers `null`. */
+  it('says what it can see when the total is null', () => {
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: pagedPaging({ index: 1, size: 20, total: null }),
+        })}
+      />,
+    );
+
+    expect(screen.queryByText(/in all|At least/)).toBeNull();
+    expect(screen.getByText('2 on this page')).toBeTruthy();
+  });
+
+  /**
+   * Wow's default `BOUNDED` count stops at its budget: the bar says the
+   * bound as a bound, counts no pages from it and keeps Next open.
+   */
+  it('says a lower bound as "at least", in either language, and counts no pages from it', () => {
+    const bound = () =>
+      tableController({
+        paging: pagedPaging({ index: 2, size: 20, total: 1000, exact: false }),
+      });
+    const { unmount } = render(<RecordPagination table={bound()} />);
+
+    expect(screen.getByText('At least 1,000 records')).toBeTruthy();
+    expect(screen.queryByText(/in all/)).toBeNull();
+    expect(screen.getByText('Page 2')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /next/i }).hasAttribute('disabled'),
+    ).toBe(false);
+    unmount();
+
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RecordPagination table={bound()} />
+      </MessagesProvider>,
+    );
+    expect(screen.getByText('至少 1,000 条记录')).toBeTruthy();
+  });
+
   /**
    * The rows on hand are the previous ones while a query is out, so the
    * counts stay with them instead of blanking and snapping back.

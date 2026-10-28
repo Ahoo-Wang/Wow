@@ -31,6 +31,7 @@ import {
 } from '../components/pagination.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { TEXT_UI } from '../kit/layout.js';
+import { resultCount } from './resultCount.js';
 import { cn } from 'cn';
 
 export interface RecordPaginationProps {
@@ -103,8 +104,6 @@ export function RecordPagination({
   if (table.rows.length === 0 && table.status !== 'loading' && !stranded)
     return null;
 
-  const total = paged ? paging.total : undefined;
-
   // How many pages the pager can reach, where that is knowable — the
   // kernel's count, from the size that ran and the source's window. It is
   // never the total over the draft's page size: while a new size is on its
@@ -131,12 +130,7 @@ export function RecordPagination({
   // arrived — so it is the sentence whenever the source gave one. A cursor
   // source never gives one, and rather than infer a total from a page that
   // happens to be full, the bar says the one number it actually holds.
-  const count =
-    total === undefined
-      ? messages.label('label.pagination.on-page', {
-          count: table.rows.length,
-        })
-      : messages.label('label.pagination.total', { count: total });
+  const count = resultCount(messages, table.paging, table.rows.length);
 
   // The unit belongs to the number, not to the words in front of it: Chinese
   // counts records with a measure word (`20 条`), so the option carries it

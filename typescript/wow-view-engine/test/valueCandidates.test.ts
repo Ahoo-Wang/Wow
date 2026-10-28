@@ -35,6 +35,7 @@ import {
   type DataViewDefinition,
   type FieldDefinition,
   type RecordData,
+  type SourceOptions,
   type ViewSource,
 } from '../src/index.js';
 import {
@@ -278,12 +279,11 @@ describe('value candidates in the analysis kernel', () => {
 });
 
 function answering(rows: (query: AggregationQuery) => RecordData[]) {
-  const aggregate = vi.fn(
-    (query: AggregationQuery, _attributes?: unknown, abort?: AbortController) =>
-      Promise.resolve(rows(query)).then(answer => {
-        abort?.signal.throwIfAborted();
-        return answer;
-      }),
+  const aggregate = vi.fn((query: AggregationQuery, options?: SourceOptions) =>
+    Promise.resolve(rows(query)).then(answer => {
+      options?.signal?.throwIfAborted();
+      return answer;
+    }),
   );
   return { source: testSource({ aggregate }) as ViewSource, aggregate };
 }

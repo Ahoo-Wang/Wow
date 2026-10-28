@@ -70,7 +70,7 @@ const MANY_PAGES = pagedPaging({ index: 1, size: 20, total: 42 });
 
 /** The fixture's two rows, from a source that says there are forty-two. */
 const MORE_THAN_A_PAGE: Partial<ViewSource> = {
-  paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+  paged: () => Promise.resolve({ total: 42, exact: true, list: [...ROWS] }),
 };
 
 /** The summary rows, by the scope each one carries. */

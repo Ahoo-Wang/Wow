@@ -18,9 +18,9 @@
  * moves one, and saves; the dataset registers again in the new words.
  */
 
-import type { QueryDescriptorResult } from '../src/index.js';
 import {
   QueryModels,
+  type DescriptorResult,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
 import {
@@ -66,7 +66,7 @@ function descriptor(): QueryModelDescriptor {
 }
 
 function sourceOf(described: QueryModelDescriptor) {
-  const result: QueryDescriptorResult = {
+  const result: DescriptorResult = {
     notModified: false,
     descriptor: described,
     version: described.version,
@@ -99,17 +99,19 @@ async function setup(editDatasetWording?: boolean) {
     set,
   };
   await new DatasetResources(engine, {
-    list: () =>
-      Promise.resolve([
-        {
-          contextName: 'analytics',
-          name: 'order_wide',
-          title: 'Orders',
-          version: 'sha256:1',
-        },
-      ]),
-    source: () => sourceOf(descriptor()),
-    wordings,
+    catalogs: {
+      list: () =>
+        Promise.resolve([
+          {
+            context: 'analytics',
+            dataset: 'order_wide',
+            title: 'Orders',
+            version: 'sha256:1',
+          },
+        ]),
+      source: () => sourceOf(descriptor()),
+      wordings,
+    },
   }).refresh();
   render(<DataWorkbench engine={engine} definitionId={ID} />);
   return { engine, set };

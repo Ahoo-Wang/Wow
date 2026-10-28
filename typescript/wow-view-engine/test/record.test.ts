@@ -738,7 +738,7 @@ describe('projectRecord', () => {
         ),
       }),
       config({ table: { columns: [{ field: 'warehouse' }] } }),
-      { total: 2, list: rows },
+      { total: 2, exact: true, list: rows },
     );
 
     expect(view.columns[0]).toMatchObject({ field: 'warehouse', options });
@@ -766,7 +766,7 @@ describe('projectRecord', () => {
       projectRecord(
         definition({ fields: [...definition().fields, body(elementTitle)] }),
         config({ table: { columns: [{ field: 'body' }] } }),
-        { total: 0, list: [] },
+        { total: 0, exact: true, list: [] },
       ).columns[0];
 
     expect(column('name').elementTitle).toEqual({
@@ -781,6 +781,7 @@ describe('projectRecord', () => {
   it('resolves column semantics and the row key', () => {
     const view = projectRecord(definition(), config(), {
       total: 2,
+      exact: true,
       list: rows,
     });
     expect(view.columns).toEqual([
@@ -839,7 +840,7 @@ describe('projectRecord', () => {
         // written or left out (B8).
         table: { columns: [{ field: 'id', pinned: false }] },
       } as unknown as Partial<RecordViewConfig>),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns[0]).toMatchObject({ field: 'id', pinned: 'left' });
@@ -864,8 +865,8 @@ describe('projectRecord', () => {
     expect(issues[0].path).toEqual(['table', 'columns', 0, 'pinned']);
 
     expect(
-      projectRecord(definition(), config_, { total: 0, list: [] }).columns[0]
-        .pinned,
+      projectRecord(definition(), config_, { total: 0, exact: true, list: [] })
+        .columns[0].pinned,
     ).toBeUndefined();
   });
 
@@ -892,7 +893,11 @@ describe('projectRecord', () => {
       codes(validateRecord(definition(), config_, builtinFieldKinds)),
     ).toEqual(['record.column.pin-invalid', 'record.column.pin-invalid']);
 
-    const view = projectRecord(definition(), config_, { total: 0, list: [] });
+    const view = projectRecord(definition(), config_, {
+      total: 0,
+      exact: true,
+      list: [],
+    });
     expect(view.columns.map(column => column.pinned)).toEqual([
       'left',
       undefined,
@@ -931,7 +936,7 @@ describe('projectRecord', () => {
     const view = projectRecord(
       definition(),
       config({ table: { columns: [{ field: 'id' }] } }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns.map(column => column.pinned)).toEqual(['left']);
@@ -955,7 +960,11 @@ describe('projectRecord', () => {
     });
 
     it('is left out of the columns, and the rest keep their order', () => {
-      const view = projectRecord(definition(), hidden, { total: 0, list: [] });
+      const view = projectRecord(definition(), hidden, {
+        total: 0,
+        exact: true,
+        list: [],
+      });
 
       expect(view.columns.map(column => column.field)).toEqual([
         'id',
@@ -971,7 +980,11 @@ describe('projectRecord', () => {
 
     /** D13's last column is the last one *drawn*. */
     it('is never the end the table is held by', () => {
-      const view = projectRecord(definition(), hidden, { total: 0, list: [] });
+      const view = projectRecord(definition(), hidden, {
+        total: 0,
+        exact: true,
+        list: [],
+      });
 
       expect(view.columns.map(column => column.pinned)).toEqual([
         'left',
@@ -1036,8 +1049,11 @@ describe('projectRecord', () => {
       // Read as shown in the meantime, so the column is on screen and the
       // checkbox that repairs it is the one the user is looking at.
       expect(
-        projectRecord(definition(), config_, { total: 0, list: [] }).columns
-          .length,
+        projectRecord(definition(), config_, {
+          total: 0,
+          exact: true,
+          list: [],
+        }).columns.length,
       ).toBe(3);
     });
   });
@@ -1054,7 +1070,7 @@ describe('projectRecord', () => {
           columns: [{ field: 'id' }, { field: 'amount' }, { field: 'gone' }],
         },
       }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns.map(column => column.field)).toEqual(['id', 'amount']);
@@ -1078,7 +1094,7 @@ describe('projectRecord', () => {
           ],
         },
       }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns.map(column => column.field)).toEqual([
@@ -1107,7 +1123,7 @@ describe('projectRecord', () => {
           ],
         },
       }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns.map(column => column.field)).toEqual([
@@ -1138,7 +1154,7 @@ describe('projectRecord', () => {
           columns: [{ field: 'id' }, { field: 'amount', pinned: true }],
         },
       }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
 
     expect(view.columns.map(column => column.pinned)).toEqual(['left', 'left']);
@@ -1148,7 +1164,7 @@ describe('projectRecord', () => {
     const view = projectRecord(
       definition(),
       config({ table: { columns: [{ field: 'warehouse', width: 120 }] } }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
     expect(view.columns[0]).toMatchObject({ cell: 'status', width: 120 });
   });
@@ -1157,7 +1173,7 @@ describe('projectRecord', () => {
     const view = projectRecord(
       definition(),
       config({ table: { columns: [{ field: 'gone' }, { field: 'id' }] } }),
-      { total: 0, list: [] },
+      { total: 0, exact: true, list: [] },
     );
     expect(view.columns.map(column => column.field)).toEqual(['id']);
   });
@@ -1180,6 +1196,7 @@ describe('projectRecord', () => {
     });
     const view = projectRecord(def, config(), {
       total: 1,
+      exact: true,
       list: [{ meta: { id: 'N1' } }],
     });
     expect(view.rows[0].key).toBe('N1');
@@ -1189,6 +1206,7 @@ describe('projectRecord', () => {
     expect(() =>
       projectRecord(definition({ record: undefined }), config(), {
         total: 0,
+        exact: true,
         list: [],
       }),
     ).toThrow(/no record capability/);

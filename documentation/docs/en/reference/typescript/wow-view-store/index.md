@@ -38,16 +38,16 @@ The view engine's [`ViewStore`](../wow-view-engine/store#api-ViewStore) over the
 ```ts
 export declare class WowViewStore implements ViewStore {
   constructor(options: WowViewStoreOptions);
-  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
   list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 ```
 

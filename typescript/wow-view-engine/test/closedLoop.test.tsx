@@ -56,7 +56,7 @@ function setup() {
   const source: ViewSource = {
     paged: vi.fn((query: FilterPagedQuery) => {
       queries.push(query);
-      return Promise.resolve({ total: rows.length, list: rows });
+      return Promise.resolve({ total: rows.length, exact: true, list: rows });
     }),
     cursor: vi.fn(() => Promise.resolve({ nextCursor: null, list: rows })),
     aggregate: vi.fn(() => Promise.resolve([])),
@@ -160,7 +160,7 @@ describe('closed loop one', () => {
     );
     await waitFor(() => expect(text('dirty')).toBe('clean'));
 
-    const [summary] = (await store.list('orders')).filter(
+    const [summary] = (await store.list('orders')).items.filter(
       item => item.scope === 'personal',
     );
     expect(summary).toMatchObject({

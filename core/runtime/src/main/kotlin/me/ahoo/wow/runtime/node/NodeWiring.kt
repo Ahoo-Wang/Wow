@@ -30,6 +30,7 @@ import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.wait.Origin
+import java.time.Clock
 
 /**
  * What every part of a [ServiceNode] shares: its identity and [address], its options and plug-ins, the node-wide
@@ -60,6 +61,8 @@ internal class NodeWiring(
     val classification: FailureClassification,
     val inFlight: InFlightLimit,
     val timerLoop: TimerLoop,
+    /** The node's clock: every wall time the node reads, its timers', leases' and waits' alike. */
+    val clock: Clock,
     val nodeSnapshots: NodeSnapshots,
     val stateCacheCapacity: Int?,
     val stateCacheBytes: Long?,

@@ -1028,7 +1028,9 @@ describe('a record view with no result', () => {
     workbench(
       mine,
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 0, exact: true, list: [] }),
+        ),
       }),
     );
 

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { QueryDescriptorResult } from '../../src/index.js';
 import {
   AggregationDatePart,
   DateDiffUnit,
@@ -22,6 +21,7 @@ import {
   FilterOperator,
   PagingMode,
   QueryValueKind,
+  type DescriptorResult,
   type FieldDescriptor,
   type QueryModelDescriptor,
   QueryValueTypes,
@@ -132,11 +132,11 @@ export function ordersDescriptor(
 }
 
 /** A descriptor as `describe` answers it the first time, or after a change. */
-export function read(descriptor: QueryModelDescriptor): QueryDescriptorResult {
+export function read(descriptor: QueryModelDescriptor): DescriptorResult {
   return { notModified: false, descriptor, version: descriptor.version };
 }
 
 /** The answer to a `describe` sent the version still current. */
-export function notModified(version: string): QueryDescriptorResult {
+export function notModified(version: string): DescriptorResult {
   return { notModified: true, version };
 }

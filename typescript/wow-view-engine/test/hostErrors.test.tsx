@@ -20,7 +20,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   defaultRuntimeEnvironment,
   isViewWriteError,
@@ -120,8 +120,8 @@ describe('query failures reach onError', () => {
   });
 
   it('says nothing of a query the next one took the place of', async () => {
-    const first = deferred<PagedList<RecordData>>();
-    const second = deferred<PagedList<RecordData>>();
+    const first = deferred<PagedResult<RecordData>>();
+    const second = deferred<PagedResult<RecordData>>();
     const answers = [first, second];
     const { engine, events } = watched({
       source: testSource({ paged: vi.fn(() => answers.shift()!.promise) }),
@@ -310,7 +310,7 @@ describe('export failures reach onError', () => {
       paged: vi.fn(() => {
         if (opened) return Promise.reject(failure);
         opened = true;
-        return Promise.resolve({ total: 2, list: [...ROWS] });
+        return Promise.resolve({ total: 2, exact: true, list: [...ROWS] });
       }),
     });
   }

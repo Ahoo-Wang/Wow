@@ -112,7 +112,7 @@ describe('useSaveCommands', () => {
     await act(async () => {
       expect(await result.current.commands.delete()).toBe(true);
     });
-    await expect(store.list('orders')).resolves.toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
   });
 
   it('turns a refusal into state instead of a rejection', async () => {

@@ -67,15 +67,14 @@ export function createCatalogServices(
     fetcher,
     commands: catalogCommands(fetcher),
     engine,
-    datasets: new DatasetResources(
-      engine,
-      datasetCatalogOf(new DatasetClient({ fetcher })),
-      (entry, error) =>
+    datasets: new DatasetResources(engine, {
+      catalogs: datasetCatalogOf(new DatasetClient({ fetcher })),
+      onError: (entry, error) =>
         console.warn(
-          `[datasets] ${entry.contextName}.${entry.name} is not served`,
+          `[datasets] ${entry.context}.${entry.dataset} is not served`,
           error,
         ),
-    ),
+    }),
     references: {
       actions: (dataset) => fetchReferenceActions(fetcher, dataset),
       send: referenceSend(fetcher),

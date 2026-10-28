@@ -508,9 +508,9 @@ describe('DashboardWorkbench', () => {
     );
 
     await landed(store);
-    expect((await store.list('overview')).map(item => item.title)).toContain(
-      'Night shift',
-    );
+    expect(
+      (await store.list('overview')).items.map(item => item.title),
+    ).toContain('Night shift');
     await waitFor(() =>
       expect(
         within(screen.getByRole('navigation', { name: 'Overview' })).getByRole(
@@ -596,9 +596,9 @@ describe('DashboardWorkbench', () => {
       );
 
       await landed(store);
-      expect((await store.list('overview')).map(item => item.title)).toContain(
-        'For everyone',
-      );
+      expect(
+        (await store.list('overview')).items.map(item => item.title),
+      ).toContain('For everyone');
     });
 
     it('shows a refusal inside the dialog and stays open', async () => {
@@ -627,7 +627,7 @@ describe('DashboardWorkbench', () => {
       // Said where the user is still looking, with the answer still theirs.
       expect(screen.getByRole('dialog')).toBe(dialog);
       expect(
-        (await store.list('overview')).map(item => item.title),
+        (await store.list('overview')).items.map(item => item.title),
       ).not.toContain('For everyone');
     });
 
@@ -652,9 +652,9 @@ describe('DashboardWorkbench', () => {
       );
 
       await landed(store);
-      expect((await store.list('overview')).map(item => item.title)).toContain(
-        'Mine after all',
-      );
+      expect(
+        (await store.list('overview')).items.map(item => item.title),
+      ).toContain('Mine after all');
     });
   });
 
@@ -692,6 +692,7 @@ describe('DashboardWorkbench', () => {
             paged: () =>
               Promise.resolve({
                 total: 1,
+                exact: true,
                 list: [{ id: 'o-1', createdAt: INSTANT }],
               }),
           }),

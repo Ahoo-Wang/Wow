@@ -16,7 +16,7 @@ Eight required methods and two optional ones (`changeAudience`, `permissions`); 
 | Rule | Behaviour |
 |---|---|
 | Optimistic revision | Every write carries the `revision` it expects; a mismatch throws `ViewStoreError` with code `CONFLICT`, carrying the instance or preferences the server holds, and the UI offers reload, overwrite or save as |
-| Idempotent `requestId` | Each logical write has one `requestId` in `WriteContext`; a retry after a timeout reuses it with the same payload, which is how the server deduplicates it |
+| Idempotent `requestId` | Each logical write has one `requestId` in `WriteOptions`; a retry after a timeout reuses it with the same payload, which is how the server deduplicates it |
 | A fixed list order | `list` answers summaries in a fixed order: the backend's system views first (as it declares them), then the shared views, then the user's personal ones, each audience oldest first. With no preferences, the first of the list is the view that opens by default, so every store answers the same one |
 | Permissions drive buttons only | `permissions` only decides which buttons a UI enables, and is synchronous because the application fetched it before creating the engine. Authorization, visibility filtering and deduplication are the server's |
 
@@ -28,19 +28,19 @@ Eight required methods and two optional ones (`changeAudience`, `permissions`); 
 
 ```ts
 export interface ViewStore {
-  changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
   list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
   permissions?(definitionId: string): ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 
-export interface WriteContext {
+export interface WriteOptions {
   requestId: string;
   signal?: AbortSignal;
 }
@@ -141,16 +141,16 @@ With a snapshot, several stores may share one stored state — two tabs over one
 ```ts
 export declare class MemoryViewStore implements ViewStore {
   constructor(options?: MemoryViewStoreOptions);
-  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string): Promise<ViewInstance>;
   getPreferences(definitionId: string): Promise<ViewPreferences>;
   list(definitionId: string): Promise<ViewInstanceSummary[]>;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 
 export interface MemoryViewStoreOptions {

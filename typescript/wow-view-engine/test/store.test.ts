@@ -44,10 +44,40 @@ describe('MemoryViewStore', () => {
       instances: [instance(), instance({ id: 'other-1', definitionId: 'x' })],
     });
 
-    const summaries = await store.list('orders');
+    const { items: summaries } = await store.list('orders');
 
     expect(summaries).toEqual([toSummary(instance())]);
     expect(summaries[0]).not.toHaveProperty('config');
+  });
+
+  it('pages its list by pageSize, each next page by the cursor the one before answered', async () => {
+    const store = new MemoryViewStore({
+      pageSize: 2,
+      instances: [
+        instance({ id: 'mine-1' }),
+        instance({ id: 'ours-1', scope: 'shared' }),
+        instance({ id: 'mine-2' }),
+        instance({ id: 'ours-2', scope: 'shared' }),
+        instance({ id: 'mine-3' }),
+      ],
+    });
+    const ids = (page: { items: { id: string }[] }) =>
+      page.items.map(item => item.id);
+
+    const first = await store.list('orders');
+    expect(ids(first)).toEqual(['ours-1', 'ours-2']);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await store.list('orders', { cursor: first.nextCursor });
+    expect(ids(second)).toEqual(['mine-1', 'mine-2']);
+    const last = await store.list('orders', { cursor: second.nextCursor });
+    // The port's order holds across pages: shared, then personal.
+    expect(ids(last)).toEqual(['mine-3']);
+    expect(last.nextCursor).toBeNull();
+    // A list that fits one page whole answers no cursor at all.
+    expect(
+      (await new MemoryViewStore({ instances: [instance()] }).list('orders'))
+        .nextCursor,
+    ).toBeNull();
   });
 
   it('reports a missing instance as NOT_FOUND', async () => {
@@ -88,7 +118,7 @@ describe('MemoryViewStore', () => {
     );
 
     expect(created.id).toBe('orders-2');
-    await expect(store.list('orders')).resolves.toHaveLength(2);
+    expect((await store.list('orders')).items).toHaveLength(2);
   });
 
   it('creates a system view as one it keeps, and keeps the flag its own (D81)', async () => {
@@ -103,7 +133,7 @@ describe('MemoryViewStore', () => {
       ctx,
     );
     expect(made).toMatchObject({ scope: 'system', stored: true });
-    expect((await store.list('orders'))[0]).toMatchObject({
+    expect((await store.list('orders')).items[0]).toMatchObject({
       id: made.id,
       stored: true,
     });
@@ -150,7 +180,7 @@ describe('MemoryViewStore', () => {
     const retry = await store.create(input, ctx);
 
     expect(retry).toEqual(first);
-    await expect(store.list('orders')).resolves.toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
   });
 
   it('advances the revision on save and rename', async () => {
@@ -256,7 +286,7 @@ describe('MemoryViewStore', () => {
     await store.delete('orders-1', '1', ctx);
     await store.delete('orders-1', '1', ctx);
 
-    await expect(store.list('orders')).resolves.toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
   });
 
   it('refuses to delete at a stale revision', async () => {
@@ -327,7 +357,7 @@ describe('MemoryViewStore', () => {
     await expect(store.delete('orders-1', '1', ctx)).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
-    await expect(store.list('orders')).resolves.toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
   });
 
   it('hands out copies, so a caller cannot edit what is stored', async () => {

@@ -195,7 +195,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
         work()
         gateway.standby = false
-        Resumption(node, System.currentTimeMillis(), by, reason, resumed = true).also {
+        Resumption(node, assembly.clock.millis(), by, reason, resumed = true).also {
             resumption = it
             logger.warn {
                 "Node $node of $service resumed from standby by [$by]${reason?.let { r -> " ($r)" }.orEmpty()} at " +

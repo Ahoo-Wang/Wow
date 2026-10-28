@@ -13,7 +13,7 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { FilterPagedQuery, PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -61,14 +61,14 @@ const mine: ViewInstance = {
 function gatedSource(): { source: ViewSource; held: (() => void)[] } {
   const held: (() => void)[] = [];
   let opened = false;
-  const answer = { total: 2, list: [...ROWS] };
+  const answer = { total: 2, exact: true, list: [...ROWS] };
   const source = testSource({
     paged: vi.fn(() => {
       if (!opened) {
         opened = true;
         return Promise.resolve(answer);
       }
-      return new Promise<PagedList<RecordData>>(resolve =>
+      return new Promise<PagedResult<RecordData>>(resolve =>
         held.push(() => resolve(answer)),
       );
     }),
@@ -165,16 +165,31 @@ describe('useRecordExport scopes', () => {
   it('has no count for a result whose total nobody reports', async () => {
     const { result } = await openExport({
       source: testSource({
-        // The protocol declares a total; a service that withholds it is a
-        // thing that happens, and the count is then nobody's to claim.
+        // A route asked to count nothing (`TotalMode.NONE`) answers no
+        // total, and the count is then nobody's to claim.
         paged: vi.fn(() =>
-          Promise.resolve({
-            list: [...ROWS],
-          } as unknown as PagedList<RecordData>),
+          Promise.resolve({ total: null, exact: false, list: [...ROWS] }),
         ),
       }),
     });
 
+    expect(result.current.exporter.scopes.all).toBeNull();
+  });
+
+  it('claims no count for "all" where the total is a lower bound', async () => {
+    const { result } = await openExport({
+      source: testSource({
+        // `BOUNDED` past its budget: at least 1000 match, not 1000.
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 1000, exact: false, list: [...ROWS] }),
+        ),
+      }),
+    });
+
+    expect(result.current.table.paging).toMatchObject({
+      total: 1000,
+      exact: false,
+    });
     expect(result.current.exporter.scopes.all).toBeNull();
   });
 });
@@ -213,6 +228,7 @@ describe('useRecordExport runs', () => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
           total: rows.length,
+          exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),
@@ -283,6 +299,7 @@ describe('useRecordExport limits and failures', () => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
           total: rows.length,
+          exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),
@@ -360,7 +377,7 @@ describe('useRecordExport limits and failures', () => {
       source: testSource({
         paged: vi
           .fn()
-          .mockResolvedValueOnce({ total: 2, list: [...ROWS] })
+          .mockResolvedValueOnce({ total: 2, exact: true, list: [...ROWS] })
           .mockRejectedValue(new Error('gateway down')),
       }),
     });

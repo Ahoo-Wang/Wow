@@ -83,7 +83,7 @@ describe('localStorageSnapshot: a write storage refuses', () => {
       message: expect.stringContaining('QuotaExceededError'),
     });
     // Undone in memory as well: nothing claims a view the next load lacks.
-    expect(await store.list('orders')).toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
     expect(localStorage.getItem(KEY)).toBeNull();
 
     // The write did not land, so the same request writes it once there is room.
@@ -254,7 +254,7 @@ describe('localStorageSnapshot: two tabs over one storage', () => {
     const a = tab();
     const b = tab(window);
     const created = await a.create(board('From A'), { requestId: 'a-1' });
-    expect(await b.list('orders')).toEqual([]);
+    expect((await b.list('orders')).items).toEqual([]);
 
     window.dispatchEvent(
       new StorageEvent('storage', {
@@ -264,7 +264,9 @@ describe('localStorageSnapshot: two tabs over one storage', () => {
       }),
     );
 
-    expect((await b.list('orders')).map(({ id }) => id)).toEqual([created.id]);
+    expect((await b.list('orders')).items.map(({ id }) => id)).toEqual([
+      created.id,
+    ]);
   });
 
   it('ignores a storage event for another key or another storage area', async () => {
@@ -276,11 +278,11 @@ describe('localStorageSnapshot: two tabs over one storage', () => {
     window.dispatchEvent(
       new StorageEvent('storage', { key: KEY, storageArea: sessionStorage }),
     );
-    expect(await b.list('orders')).toEqual([]);
+    expect((await b.list('orders')).items).toEqual([]);
 
     // A `clear()` in another tab is announced with no key, and is ours.
     window.dispatchEvent(new StorageEvent('storage', { key: null }));
-    expect(await b.list('orders')).toHaveLength(1);
+    expect((await b.list('orders')).items).toHaveLength(1);
   });
 
   it('listens on the window by default, and stops when unsubscribed', () => {
@@ -320,7 +322,7 @@ describe('localStorageSnapshot: what it reads', () => {
 
     localStorage.setItem(KEY, '{not json');
     const store = new MemoryViewStore({ snapshot });
-    expect(await store.list('orders')).toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
     // The next write replaces what could not be read.
     await store.create(board(), { requestId: 'c-1' });
     expect(stored().instances).toHaveLength(1);

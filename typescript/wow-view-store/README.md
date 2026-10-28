@@ -29,9 +29,9 @@ later.
 `WowViewStore` takes a fetcher and, optionally, the permissions that drive the
 buttons. It takes no tenant, user or application: the service takes them from
 the principal, which the fetcher's interceptors carry as they do for every
-other Wow request of the host. `viewSourceOf` puts a definition on a query
-route, `datasetCatalogOf` the service's datasets, and `WowDatasetWordings`
-keeps the tenant's wording over them.
+other Wow request of the host. A definition's source is the query route's
+client itself, `datasetCatalogOf` lists the service's datasets, and
+`WowDatasetWordings` keeps the tenant's wording over them.
 
 <!-- typecheck-context
 import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
@@ -47,7 +47,6 @@ import {
   WowDatasetWordings,
   WowViewStore,
   datasetCatalogOf,
-  viewSourceOf,
 } from '@ahoo-wang/wow-view-store';
 
 // The fetcher's interceptors send the authorization and `CoSec-App-Id`; no
@@ -59,12 +58,10 @@ const engine = new ViewEngine({
   resources: [
     {
       definition: orders,
-      // Any query route: a generated `…SnapshotQueryClient` fits too.
-      source: viewSourceOf(
-        new SnapshotQueryClient(
-          { context: 'sales', name: 'order' },
-          { fetcher },
-        ),
+      // Any query route's client is a source: a generated `…SnapshotQueryClient` too.
+      source: new SnapshotQueryClient(
+        { context: 'sales', name: 'order' },
+        { fetcher },
       ),
     },
   ],
@@ -72,8 +69,10 @@ const engine = new ViewEngine({
 
 // The service's datasets (`GET /wow/dataset`), worded by the tenant.
 const datasets = new DatasetResources(engine, {
-  ...datasetCatalogOf(new DatasetClient({ fetcher })),
-  wordings: new WowDatasetWordings({ fetcher }),
+  catalogs: {
+    ...datasetCatalogOf(new DatasetClient({ fetcher })),
+    wordings: new WowDatasetWordings({ fetcher }),
+  },
 });
 await datasets.refresh();
 ```

@@ -33,7 +33,7 @@ import {
   DeletionState,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
-import { memorySource } from '../src/testing/index.js';
+import { memoryRecords } from './fixtures/wowTck.js';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -171,8 +171,8 @@ function orders(size: number, seed = 7): RecordData[] {
 describe('memorySource', () => {
   describe('the time index', () => {
     const rows = orders(2_000);
-    const plain = memorySource(rows);
-    const indexed = memorySource(rows, { timeField: 'firstEventTime' });
+    const plain = memoryRecords(rows);
+    const indexed = memoryRecords(rows, { timeField: 'firstEventTime' });
     const t = (days: number) => Date.UTC(2025, 0, 1) + days * DAY;
     const cases: [string, FilterExpression][] = [
       [
@@ -282,7 +282,7 @@ describe('memorySource', () => {
 
     it('refuses a time column that is not epoch milliseconds', () => {
       expect(() =>
-        memorySource([{ firstEventTime: '2026-09-21T00:00:00Z' }], {
+        memoryRecords([{ firstEventTime: '2026-09-21T00:00:00Z' }], {
           timeField: 'firstEventTime',
         }),
       ).toThrow(/epoch milliseconds/);
@@ -296,7 +296,7 @@ describe('memorySource', () => {
       unit: AggregationDateUnit,
       zone: string,
     ) {
-      const answer = await memorySource(
+      const answer = await memoryRecords(
         times.map((time, id) => ({ id, time })),
       ).aggregate(
         query([count()], {
@@ -432,7 +432,7 @@ describe('memorySource', () => {
     });
 
     it('keys an ISO time as the instant it names', async () => {
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: '2026-09-21T15:59:59.999Z' },
         { time: '2026-09-21T16:00:00.000Z' },
       ]).aggregate(
@@ -448,7 +448,7 @@ describe('memorySource', () => {
 
     it('starts a week on Monday, as wow-mongo truncates it', async () => {
       const zone = 'Asia/Shanghai';
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: at('2026-09-20 23:59', zone) }, // Sunday
         { time: at('2026-09-21 00:00', zone) }, // Monday
         { time: at('2026-09-27 12:00', zone) }, // Sunday
@@ -466,7 +466,7 @@ describe('memorySource', () => {
     it('starts a week at its local Monday midnight across a clock change', async () => {
       const zone = 'America/New_York';
       // 2026-03-08 is a Sunday and the day the clocks go forward.
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: at('2026-03-08 12:00', zone) },
         { time: at('2026-03-09 10:00', zone) },
       ]).aggregate(
@@ -481,7 +481,7 @@ describe('memorySource', () => {
 
     it('starts a quarter in January, April, July or October', async () => {
       const zone = 'Asia/Shanghai';
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: at('2025-12-31 23:59', zone) },
         { time: at('2026-01-01 00:00', zone) },
         { time: at('2026-03-31 23:59', zone) },
@@ -530,7 +530,7 @@ describe('memorySource', () => {
     ];
 
     it('fills the empty buckets between the first and the last, as empty metrics', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query(metrics, {
           groupBy: [dates('time', AggregationDateUnit.DAY, zone, true)],
         }),
@@ -568,7 +568,7 @@ describe('memorySource', () => {
     });
 
     it('filters and sorts the filled buckets like any other', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query([count()], {
           groupBy: [dates('time', AggregationDateUnit.DAY, zone, true)],
           having: {
@@ -591,7 +591,7 @@ describe('memorySource', () => {
       ];
       const keys = async (unit: AggregationDateUnit) =>
         (
-          await memorySource(spread).aggregate(
+          await memoryRecords(spread).aggregate(
             query([count()], { groupBy: [dates('time', unit, zone, true)] }),
           )
         ).map(row => {
@@ -620,7 +620,7 @@ describe('memorySource', () => {
 
     it('fills days of 23 and 25 hours at their local midnights', async () => {
       const york = 'America/New_York';
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: at('2026-03-06 12:00', york) },
         { time: at('2026-03-10 12:00', york) },
         { time: at('2026-10-30 12:00', york) },
@@ -645,7 +645,7 @@ describe('memorySource', () => {
     });
 
     it('fills hours of a day', async () => {
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { time: at('2026-09-21 09:10', zone) },
         { time: at('2026-09-21 12:50', zone) },
       ]).aggregate(
@@ -659,7 +659,7 @@ describe('memorySource', () => {
 
     it('answers nothing when no record has a time', async () => {
       expect(
-        await memorySource([{ time: null }]).aggregate(
+        await memoryRecords([{ time: null }]).aggregate(
           query([count()], {
             groupBy: [dates('time', AggregationDateUnit.DAY, zone, true)],
           }),
@@ -669,7 +669,7 @@ describe('memorySource', () => {
 
     it('refuses a dense histogram beside another group, as Wow does', async () => {
       await expect(
-        memorySource(rows).aggregate(
+        memoryRecords(rows).aggregate(
           query([count()], {
             groupBy: [
               dates('time', AggregationDateUnit.DAY, zone, true),
@@ -704,7 +704,7 @@ describe('memorySource', () => {
     ];
 
     it('reads the ISO weekday and the hour on the zone’s wall clock', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query([count()], {
           groupBy: [
             part(AggregationDatePart.DAY_OF_WEEK, 'weekday'),
@@ -724,7 +724,7 @@ describe('memorySource', () => {
     });
 
     it('reads the day of the month and the month', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query([count()], {
           groupBy: [
             part(AggregationDatePart.MONTH_OF_YEAR, 'month'),
@@ -745,7 +745,7 @@ describe('memorySource', () => {
     });
 
     it('fills every key of the part when dense, in order', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query([count()], {
           groupBy: [part(AggregationDatePart.DAY_OF_WEEK, 'weekday', true)],
         }),
@@ -763,7 +763,7 @@ describe('memorySource', () => {
 
     it('refuses a dense part beside another group, as Wow does', async () => {
       await expect(
-        memorySource(rows).aggregate(
+        memoryRecords(rows).aggregate(
           query([count()], {
             groupBy: [
               part(AggregationDatePart.DAY_OF_WEEK, 'weekday', true),
@@ -784,7 +784,7 @@ describe('memorySource', () => {
     it('computes an exact percentile by linear interpolation', async () => {
       // Sorted [10, 20, 20, 30, 50]: rank (5 − 1) · 0.5 = 2 → 20; rank 3.8 → 30 + 0.8 · 20.
       expect(
-        await memorySource(rows).aggregate(
+        await memoryRecords(rows).aggregate(
           query([
             percentile('amount', 50, 'median'),
             percentile('amount', 95, 'p95'),
@@ -795,7 +795,7 @@ describe('memorySource', () => {
     });
 
     it('skips what is not a number and answers null over nothing', async () => {
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         ...rows,
         { amount: null },
         { amount: 'n/a' },
@@ -817,7 +817,7 @@ describe('memorySource', () => {
 
     it('computes a gated percentile over the rows its conditions admit', async () => {
       expect(
-        await memorySource(rows).aggregate(
+        await memoryRecords(rows).aggregate(
           query([
             count(),
             percentile('amount', 50, 'largeMedian', eq('kind', 'large')),
@@ -829,7 +829,7 @@ describe('memorySource', () => {
     it('computes the population standard deviation and variance', async () => {
       const spread = [2, 4, 4, 4, 5, 5, 7, 9].map(value => ({ value }));
       expect(
-        await memorySource(spread).aggregate(
+        await memoryRecords(spread).aggregate(
           query([
             numeric(AggregationFunction.STDDEV, 'value', 'stddev'),
             numeric(AggregationFunction.VARIANCE, 'value', 'variance'),
@@ -839,7 +839,7 @@ describe('memorySource', () => {
     });
 
     it('computes a spread per group and over a formula', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query(
           [
             {
@@ -867,7 +867,7 @@ describe('memorySource', () => {
     });
 
     it('answers ANY with the greatest value, as wow-mongo picks it', async () => {
-      const answer = await memorySource([
+      const answer = await memoryRecords([
         { kind: 'a', name: 'pear' },
         { kind: 'a', name: 'apple' },
         { kind: 'a', name: null },
@@ -897,7 +897,7 @@ describe('memorySource', () => {
 
     it('answers every new metric null in the one row over nothing', async () => {
       expect(
-        await memorySource([]).aggregate(
+        await memoryRecords([]).aggregate(
           query([
             count(),
             percentile('amount', 90, 'p90'),
@@ -931,7 +931,7 @@ describe('memorySource', () => {
     });
 
     it('reads the value on the earliest and the latest record by event time', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query(
           [
             edge(AggregationMetricType.FIRST, 'open'),
@@ -952,7 +952,7 @@ describe('memorySource', () => {
     });
 
     it('orders by the field it names, under its own condition', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query(
           [
             edge(AggregationMetricType.FIRST, 'open', 'placed'),
@@ -985,7 +985,7 @@ describe('memorySource', () => {
     } as const;
 
     it('measures to − from in the unit, and skips a record missing either', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query(
           [
             {
@@ -1014,7 +1014,7 @@ describe('memorySource', () => {
     });
 
     it('cuts a band of the computed number as a histogram does', async () => {
-      const answer = await memorySource(rows).aggregate(
+      const answer = await memoryRecords(rows).aggregate(
         query([count()], {
           groupBy: [
             {
@@ -1045,7 +1045,7 @@ describe('memorySource', () => {
       { id: 'c', paid: 0, shipped: null },
     ];
     it('keeps the records whose time since passes, never one missing a moment', async () => {
-      const { list } = await memorySource(rows).paged({
+      const { list } = await memoryRecords(rows).paged({
         filter: {
           op: FilterOperator.EXPRESSION,
           expression: {
@@ -1068,7 +1068,7 @@ describe('memorySource', () => {
         { kind: 'a', amount: 1 },
         { kind: 'a', amount: 2 },
       ];
-      const source = memorySource(rows, { remember: true });
+      const source = memoryRecords(rows, { remember: true });
       const totals = query([
         numeric(AggregationFunction.SUM, 'amount', 'amount'),
       ]);
@@ -1082,13 +1082,13 @@ describe('memorySource', () => {
       expect(await source.aggregate({ ...totals, limit: 10 })).toEqual([
         { amount: 102 },
       ]);
-      expect(await memorySource(rows).aggregate(totals)).toEqual([
+      expect(await memoryRecords(rows).aggregate(totals)).toEqual([
         { amount: 102 },
       ]);
     });
 
     it('does not remember a refusal', async () => {
-      const source = memorySource([{ amount: 1 }], { remember: true });
+      const source = memoryRecords([{ amount: 1 }], { remember: true });
       const refused = query([count()], {
         filter: {
           op: FilterOperator.TENANT_ID,
@@ -1105,7 +1105,7 @@ describe('memorySource', () => {
 
     it('answers again after the documents change, unless asked to remember', async () => {
       const rows: RecordData[] = [{ amount: 1 }];
-      const source = memorySource(rows);
+      const source = memoryRecords(rows);
       const totals = query([
         numeric(AggregationFunction.SUM, 'amount', 'amount'),
       ]);

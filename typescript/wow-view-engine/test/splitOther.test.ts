@@ -36,6 +36,7 @@ import { OTHER_SERIES_KEY } from '../src/analysis/chartRows.js';
 import { foldsSplit, splitWholeConfig } from '../src/analysis/splitOther.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   nextTask,
@@ -310,7 +311,7 @@ describe('the runtime asks for the whole only when a split needs it', () => {
         ...testEnvironment().environment,
         onError: event => failures.push(event),
       },
-      source: testSource({ aggregate }),
+      source: recordSource(testSource({ aggregate })),
       runner: new RequestRunner(),
     });
     return { runtime, aggregate, failures };

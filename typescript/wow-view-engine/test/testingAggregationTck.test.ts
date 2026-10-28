@@ -35,7 +35,6 @@ import {
   type AggregationGroup,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
-import { memorySource } from '../src/testing/index.js';
 import {
   ADD,
   DIVIDE,
@@ -65,6 +64,7 @@ import {
   lines,
   lte,
   max,
+  memoryRecords,
   min,
   ms,
   percentile,
@@ -472,7 +472,7 @@ describe('the aggregation TCK (SnapshotQueryBackendSpec)', () => {
         value: number,
       ) =>
         (
-          await memorySource(documents).paged({
+          await memoryRecords(documents).paged({
             filter: f({
               op: FilterOperator.EXPRESSION,
               expression,

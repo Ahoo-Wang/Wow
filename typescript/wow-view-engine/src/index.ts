@@ -903,12 +903,12 @@ export {
 } from './dashboard/wiring.js';
 // runtime — the engine, the runtime contracts and the types their
 // signatures name; never a part the runtime is built from.
-export {
-  ViewEngine,
-  type ViewEngineOptions,
-  type ViewResource,
-  type ViewListing,
-} from './runtime/viewEngine.js';
+export { ViewEngine } from './runtime/viewEngine.js';
+export type {
+  ViewEngineOptions,
+  ViewResource,
+  ViewListing,
+} from './runtime/viewEngineOptions.js';
 export type { ConflictChoice, WriteTarget } from './runtime/writeLedger.js';
 export {
   type ValidateDefinitionOptions,
@@ -930,7 +930,7 @@ export {
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
-  type DatasetResourcesOptions,
+  type DatasetResourcesInit,
   type DatasetWordingEditor,
   type DatasetWordingStore,
   type StoredDatasetWording,
@@ -1040,7 +1040,7 @@ export type {
   ProjectedBase,
   ProjectedRecord,
   ProjectedView,
-  QueryDescriptorResult,
+  SourceOptions,
   ViewSource,
 } from './runtime/source.js';
 // store — the `ViewStore` port, the in-memory one and its local snapshot.
@@ -1056,9 +1056,12 @@ export {
 } from './store/MemoryViewStore.js';
 export {
   type InstancePermissions,
+  type ReadOptions,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPermissions,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
   emptyPreferences,
 } from './store/ViewStore.js';
 export type { DefinitionLookup } from './dashboard/declared.js';

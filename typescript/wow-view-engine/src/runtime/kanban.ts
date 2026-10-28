@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { CursorPage, PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   FIRST_PAGE,
   appendLane,
@@ -59,7 +59,7 @@ export async function executeKanban(
     ),
     counts
       ? source
-          .aggregate(counts, undefined, controller)
+          .aggregate(counts, { signal: controller.signal })
           .catch(async (error: unknown) => {
             if (!isCalledOff(error, controller.signal))
               await context.queryFailed('kanban', error);
@@ -150,9 +150,9 @@ async function lanePage(
     filterContext,
     target,
   );
-  const answer: PagedList<RecordData> | CursorPage<RecordData> =
+  const answer: PagedResult<RecordData> | CursorPage<RecordData> =
     'cursor' in target
-      ? await source.cursor(query, undefined, controller)
-      : await source.paged(query, undefined, controller);
+      ? await source.cursor(query, { signal: controller.signal })
+      : await source.paged(query, { signal: controller.signal });
   return { lane, page: answer, index: 'index' in target ? target.index : 1 };
 }

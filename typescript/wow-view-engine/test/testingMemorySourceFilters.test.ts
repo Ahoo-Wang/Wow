@@ -25,7 +25,8 @@ import {
   TimeUnit,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
-import { matches, memorySource } from '../src/testing/index.js';
+import { matches } from '../src/testing/index.js';
+import { memoryRecords } from './fixtures/wowTck.js';
 
 const HOUR = 3_600_000;
 
@@ -55,7 +56,7 @@ describe('memorySource: filters and readings', () => {
       { aggregateId: 'TO-2', ownerId: 'M2', state: { tags: ['GIFT'] } },
       { aggregateId: 'TO-3', ownerId: 'M1', state: { tags: [] } },
     ];
-    const source = memorySource(rows);
+    const source = memoryRecords(rows);
     const ids = async (filter: FilterExpression) =>
       (await source.paged({ filter })).list.map(row => row.aggregateId);
 
@@ -105,7 +106,7 @@ describe('memorySource: filters and readings', () => {
       { id: 'b', state: { note: null } },
       { id: 'c', state: {} },
     ];
-    const source = memorySource(rows);
+    const source = memoryRecords(rows);
     const ids = async (op: FilterOperator) =>
       (
         await source.paged({
@@ -124,7 +125,7 @@ describe('memorySource: filters and readings', () => {
     // non-empty string. The story source read it as `!= ""` alone and
     // answered `unset` too.
     it('reads the empty-string questions as Wow lowers them', async () => {
-      const texts = memorySource([
+      const texts = memoryRecords([
         { id: 'blank', remark: '' },
         { id: 'said', remark: 'fast' },
         { id: 'unset' },
@@ -152,7 +153,7 @@ describe('memorySource: filters and readings', () => {
       { id: 'soon', timeoutAt: NOW + HOUR, inSeconds: (NOW + HOUR) / 1000 },
       { id: 'never' },
     ];
-    const source = memorySource(rows, { now: () => NOW });
+    const source = memoryRecords(rows, { now: () => NOW });
     const ids = async (
       op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW,
       rest: Record<string, unknown> = {},
@@ -222,7 +223,7 @@ describe('memorySource: filters and readings', () => {
 
   describe('refusals', () => {
     it('still refuses what it cannot translate', async () => {
-      const source = memorySource([{ amount: 1 }]);
+      const source = memoryRecords([{ amount: 1 }]);
       await expect(
         source.aggregate(
           query([count()], {
@@ -275,7 +276,7 @@ describe('memorySource: filters and readings', () => {
         alias: fn,
       });
       await expect(
-        memorySource(orders).aggregate(
+        memoryRecords(orders).aggregate(
           query([
             extreme(AggregationFunction.MIN) as AggregationMetric,
             extreme(AggregationFunction.MAX) as AggregationMetric,
@@ -292,7 +293,7 @@ describe('memorySource: filters and readings', () => {
     it('reads an ELEMENT_MATCH predicate relative to the element', async () => {
       const ids = async (predicateField: string) =>
         (
-          await memorySource(orders).paged({
+          await memoryRecords(orders).paged({
             filter: {
               op: FilterOperator.ELEMENT_MATCH,
               field: 'state.lines',
@@ -310,7 +311,7 @@ describe('memorySource: filters and readings', () => {
     });
 
     it('answers only the projected paths, through arrays as MongoDB does', async () => {
-      const { list } = await memorySource(orders).paged({
+      const { list } = await memoryRecords(orders).paged({
         filter: { op: FilterOperator.MATCH_ALL } as FilterExpression,
         projection: { include: ['aggregateId', 'state.lines.sku'] },
       });
@@ -321,7 +322,7 @@ describe('memorySource: filters and readings', () => {
     });
 
     it('reads a date group in UTC when it names no zone, as Wow defaults it', async () => {
-      const [row] = await memorySource([
+      const [row] = await memoryRecords([
         { at: Date.parse('2026-09-14T23:30:00Z') },
       ]).aggregate(
         query([count()], {

@@ -47,7 +47,6 @@ import {
   ViewEngine,
 } from '@ahoo-wang/wow-view-engine';
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
-import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 import { OrderSnapshotQueryClient } from './generated/index.js';
 
 // A timeout: the engine times no query itself.
@@ -59,7 +58,7 @@ export const engine = new ViewEngine({
     // The generated client of the order's snapshot query route, as a source.
     {
       definition: orders,
-      source: viewSourceOf(new OrderSnapshotQueryClient({ fetcher })),
+      source: new OrderSnapshotQueryClient({ fetcher }),
     },
     // A board queries nothing of its own: its panels read other resources.
     { definition: overview },
@@ -69,7 +68,7 @@ export const engine = new ViewEngine({
 });
 ```
 
-- **数据源就是一个查询路由。** `@ahoo-wang/wow-view-store` 中的 `viewSourceOf` 适配 `wow-generator` 为快照、事件或数据集查询模型生成的客户端。它执行视图需要的分页、游标和聚合查询，并读取模型的实时描述，所以引擎只提供这次部署允许的东西。
+- **数据源就是一个查询路由。** `wow-generator` 为快照、事件或数据集查询模型生成的客户端本身就是数据源：它执行视图需要的分页、游标和聚合查询，并读取模型的实时描述，所以引擎只提供这次部署允许的东西。
 - **每个应用一个引擎**，绝不是每个页面或每种语言一个：页面共享它的查询缓存、描述和偏好，切换语言只是重画。
 - **给 fetcher 设一个超时。** 否则一个接受了连接却永不回答的服务端，会占住引擎的查询名额，让仪表盘的其他面板饿死。
 - **不要改上限。** 查询队列会自己为仪表盘的面板腾出空间，描述也会提供服务端的预算。

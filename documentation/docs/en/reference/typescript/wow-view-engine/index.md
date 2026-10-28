@@ -41,14 +41,14 @@ Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`,
 interface ViewStore {
   list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, ctx: WriteContext): Promise<ViewInstance>;
-  rename(id: string, title: string, revision: string, ctx: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
   // Optional: without it the view manager offers no "Make shared" / "Make personal".
-  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteContext): Promise<ViewInstance>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteContext): Promise<ViewPreferences>;
+  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
 }
 ```
@@ -56,7 +56,7 @@ interface ViewStore {
 | Rule | Behavior |
 |---|---|
 | Optimistic revision | Writes carry the expected `revision`; a mismatch throws `ViewStoreError` with code `CONFLICT`, and the UI offers reload, overwrite, or save as |
-| Idempotent `requestId` | Each logical write gets one `requestId` in `WriteContext`; a retry after a timeout reuses it and the server deduplicates |
+| Idempotent `requestId` | Each logical write gets one `requestId` in `WriteOptions`; a retry after a timeout reuses it and the server deduplicates |
 | Permissions | `permissions` only drives button availability. Authorization, visibility filtering, and deduplication are server responsibilities |
 | Changing the audience | `changeAudience` moves a saved view between personal and shared in place, keeping its id, under the same two rules. A request for the audience the view already has answers it unchanged; a view a shared dashboard shows cannot become personal (`INVALID`, the dashboards' titles in `boards`) |
 

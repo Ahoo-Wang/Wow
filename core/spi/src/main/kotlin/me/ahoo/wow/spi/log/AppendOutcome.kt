@@ -15,10 +15,12 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * How an append ended. Every expected result is a value; only a defect is an exception.
  */
+@WowSpi
 sealed interface AppendOutcome {
     /**
      * The stream is committed at [position].

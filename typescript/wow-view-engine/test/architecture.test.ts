@@ -23,6 +23,8 @@ import {
 import { describe, expect, it } from 'vitest';
 // Type-only, so this suite still runs with nothing built — the whole point
 // of reading the Wow sources off disk below.
+import type { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import type { ViewSource } from '../src/index.js';
 
 /**
  * Dependency rules from docs/design/README.md, checked on the TypeScript AST so that
@@ -1035,6 +1037,29 @@ describe('architecture', () => {
         ),
       );
       expect(literals).toEqual([]);
+    });
+
+    it('takes a wow-client query client as a ViewSource, with no adapter', () => {
+      // Type-level, checked by `tsc -p tsconfig.test.json`: the port is
+      // wow-client's own shapes (D353), so a generated client and a
+      // dataset's client are sources as they are. A change to either side
+      // that breaks it fails the type check here, not a host's build.
+      interface OrderState {
+        id: string;
+        amount: number;
+      }
+      // What `wow-generator` writes for an aggregate: the snapshot client
+      // over its state type and its `state.*` paths.
+      type OrderSnapshotQueryClient = SnapshotQueryClient<
+        OrderState,
+        'state.id' | 'state.amount'
+      >;
+      // Each returns its client as the port, as a host hands it over.
+      const generated = (client: OrderSnapshotQueryClient): ViewSource =>
+        client;
+      const fromDirectory = (datasets: DatasetClient): ViewSource =>
+        datasets.dataset('analytics', 'order_wide');
+      expect([generated, fromDirectory]).toHaveLength(2);
     });
 
     it('imports Wow by name so every binding can be checked', () => {

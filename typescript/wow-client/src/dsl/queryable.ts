@@ -54,6 +54,27 @@ export interface FilterPagedQuery<
   pagination?: Pagination;
 }
 
+/** How a paged query counts its total (`TotalMode`). */
+export type TotalMode = 'exact' | 'bounded' | 'none';
+
+/** A paged query of a query route: a page, and how its total is counted. */
+export interface PagedQuery<
+  FIELDS extends string = string,
+> extends FilterPagedQuery<FIELDS> {
+  /** `bounded` (the server's default) counts up to the budget's limit. */
+  total?: TotalMode;
+}
+
+/**
+ * A page of a paged query: `total` is exact when `exact`, a lower bound
+ * otherwise, and null for total `none`.
+ */
+export interface PagedResult<T> {
+  readonly total: number | null;
+  readonly exact: boolean;
+  readonly list: readonly T[];
+}
+
 /** What `singleQuery`, `listQuery` and `pagedQuery` take in common. */
 type QueryOptions<FIELDS extends string = string> = Partial<
   FilterQueryable<FIELDS>

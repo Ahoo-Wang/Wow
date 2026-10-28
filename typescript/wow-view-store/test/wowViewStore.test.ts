@@ -25,7 +25,7 @@ import { WowHeaders } from '@ahoo-wang/wow-client';
 import type {
   ViewConfig,
   ViewPermissions,
-  WriteContext,
+  WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import {
   SHARED_SCOPE,
@@ -33,6 +33,7 @@ import {
   WowViewStore,
   WowViewStoreErrorCodes,
 } from '../src/index.js';
+import { listAll } from './conformance/wowViewStoreService.js';
 import { problem } from './support/fakeViewStore.js';
 import {
   actingAs,
@@ -58,7 +59,7 @@ function storeOf(caller: Caller = ALICE): WowViewStore {
   return new WowViewStore({ fetcher: actingAs(caller) });
 }
 
-function write(requestId = `r-${crypto.randomUUID()}`): WriteContext {
+function write(requestId = `r-${crypto.randomUUID()}`): WriteOptions {
   return { requestId };
 }
 
@@ -139,13 +140,104 @@ describe('the V10 WowViewStore', () => {
     expect(storeOf().permissions).toBeUndefined();
   });
 
+  describe('the list', () => {
+    it('reads a definition with more views than a page across pages, system, shared, then personal, each oldest first', async () => {
+      let clock = 0;
+      const fake = installFake({ now: () => ++clock });
+      const store = storeOf();
+      const made = { system: [], shared: [], personal: [] } as Record<
+        'system' | 'shared' | 'personal',
+        string[]
+      >;
+      // Interleaved, so neither audience is listed by when it was written.
+      for (let i = 0; i < 102; i++)
+        for (const scope of ['personal', 'shared'] as const)
+          made[scope].push(
+            (
+              await store.create(
+                {
+                  definitionId: 'orders',
+                  title: `${scope} ${i}`,
+                  scope,
+                  config,
+                },
+                write(),
+              )
+            ).id,
+          );
+      for (let i = 0; i < 2; i++)
+        made.system.push(
+          (
+            await store.create(
+              {
+                definitionId: 'orders',
+                title: `system ${i}`,
+                scope: 'system',
+                config,
+              },
+              write(),
+            )
+          ).id,
+        );
+      fake.requests.length = 0;
+
+      const pages: string[][] = [];
+      const scopes: string[][] = [];
+      let cursor: string | null = null;
+      do {
+        const page = await store.list('orders', { cursor });
+        pages.push(page.items.map(({ id }) => id));
+        scopes.push([...new Set(page.items.map(({ scope }) => scope))]);
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+
+      // A page reads on into the next audience while it has room.
+      expect(pages.map(page => page.length)).toEqual([100, 100, 6]);
+      expect(scopes).toEqual([
+        ['system', 'shared'],
+        ['shared', 'personal'],
+        ['personal'],
+      ]);
+      expect(pages.flat()).toEqual([
+        ...made.system,
+        ...made.shared,
+        ...made.personal,
+      ]);
+      // Each audience is read by the snapshot model's cursor, asking for
+      // what the page has room for.
+      const queries = fake.requests.filter(request =>
+        request.path.endsWith('/snapshot/query'),
+      );
+      expect(queries.map(({ body }) => body)).toMatchObject(
+        [98, 100, 96, 100].map(size => ({ kind: 'cursor', size })),
+      );
+      expect(
+        queries.map(request => request.headers.get(WowHeaders.SCOPE)),
+      ).toEqual(['owner="(shared)"', 'owner="(shared)"', null, null]);
+    });
+
+    it('refuses a malformed cursor as INVALID, before asking the service', async () => {
+      const fake = installFake();
+      const store = storeOf();
+      for (const cursor of [
+        'not a cursor',
+        btoa(JSON.stringify({ audience: 'elsewhere', cursor: null })),
+        btoa('{"audience":'),
+      ])
+        await expect(store.list('orders', { cursor })).rejects.toMatchObject({
+          code: 'INVALID',
+        });
+      expect(fake.requests).toEqual([]);
+    });
+  });
+
   describe('a view another tab moved', () => {
     it('is written where it went', async () => {
       installFake();
       const mine = storeOf();
       const other = storeOf();
       const made = await personal(mine);
-      await mine.list('orders');
+      await listAll(mine, 'orders');
       const shared = await other.changeAudience(
         made.id,
         'shared',

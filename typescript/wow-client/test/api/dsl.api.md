@@ -496,6 +496,16 @@ export type DerivedWindow = {
 export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
 
 // @public
+export type DescriptorResult = {
+    readonly notModified: false;
+    readonly version?: string;
+    readonly descriptor: QueryModelDescriptor;
+} | {
+    readonly notModified: true;
+    readonly version: string;
+};
+
+// @public
 export interface DistinctCountAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
@@ -1035,9 +1045,24 @@ export interface PagedList<T> {
 export function pagedList<T>(input?: Partial<PagedList<T>>): PagedList<T>;
 
 // @public
+export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+    total?: TotalMode;
+}
+
+// @public
 export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     pagination?: Pagination;
 }): FilterPagedQuery<FIELDS>;
+
+// @public
+export interface PagedResult<T> {
+    // (undocumented)
+    readonly exact: boolean;
+    // (undocumented)
+    readonly list: readonly T[];
+    // (undocumented)
+    readonly total: number | null;
+}
 
 // @public
 export interface Pagination {
@@ -1428,6 +1453,9 @@ export enum TimeUnit {
     // (undocumented)
     SECONDS = "SECONDS"
 }
+
+// @public
+export type TotalMode = 'exact' | 'bounded' | 'none';
 
 // @public
 export interface VariantDescriptor {

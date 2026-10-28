@@ -43,7 +43,12 @@ export interface BulkRun {
   title: string;
   /** Words said into `title`'s `{name}`s, each itself said first. */
   values?: Readonly<Record<string, string>>;
-  each(key: RecordKey): Promise<unknown>;
+  /**
+   * Sends one record's command. `signal` aborts when the run stops waiting
+   * for it — past `timeout`, or on the second Stop — so a host can cancel
+   * what it has not sent; the outcome is reported as unknown either way.
+   */
+  each(key: RecordKey, options: { signal: AbortSignal }): Promise<unknown>;
   /**
    * What the host's `onError` is told the command was
    * (`context.operation`): a declared action's id; `title` by default.
@@ -308,12 +313,16 @@ export function useActionRunner(
         };
       };
       const settle = async (key: RecordKey): Promise<Settled> => {
+        const controller = new AbortController();
+        let answered = false;
         const sent = (async (): Promise<Settled> => {
           try {
-            await command.each(key);
+            await command.each(key, { signal: controller.signal });
             return { kind: 'done' };
           } catch (error) {
             return judge(error, key);
+          } finally {
+            answered = true;
           }
         })();
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -331,6 +340,8 @@ export function useActionRunner(
           return await Promise.race(racers);
         } finally {
           clearTimeout(timer);
+          // No longer waited for: the host may still cancel what it sends.
+          if (!answered) controller.abort();
         }
       };
       const worker = async (): Promise<void> => {

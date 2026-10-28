@@ -19,10 +19,11 @@ import {
   type ViewAudience,
   type ViewConfig,
   type ViewInstance,
-  type ViewInstanceSummary,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPreferences,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { recordConfig } from './fixtures.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
@@ -111,8 +112,8 @@ export class OutcomeViewStore implements ViewStore {
 
   // Reads go straight through; the in-memory store answers from a map and
   // has nothing to abort, so it takes no signal.
-  list(definitionId: string): Promise<ViewInstanceSummary[]> {
-    return this.inner.list(definitionId);
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage> {
+    return this.inner.list(definitionId, options);
   }
 
   get(id: string): Promise<ViewInstance> {
@@ -125,7 +126,7 @@ export class OutcomeViewStore implements ViewStore {
 
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     // A create carries no revision, so there is nothing for a racer to get
     // ahead of: a staged conflict waits for a write that has one. That is
@@ -138,7 +139,7 @@ export class OutcomeViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.through(
       () => this.race(id),
@@ -150,7 +151,7 @@ export class OutcomeViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.through(
       () => this.race(id),
@@ -162,7 +163,7 @@ export class OutcomeViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.through(
       () => this.race(id),
@@ -170,7 +171,7 @@ export class OutcomeViewStore implements ViewStore {
     );
   }
 
-  delete(id: string, revision: string, context: WriteContext): Promise<void> {
+  delete(id: string, revision: string, context: WriteOptions): Promise<void> {
     return this.through(
       () => this.race(id),
       () => this.inner.delete(id, revision, context),
@@ -180,7 +181,7 @@ export class OutcomeViewStore implements ViewStore {
   setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewPreferences> {
     return this.through(
       () => this.racePreferences(definitionId),

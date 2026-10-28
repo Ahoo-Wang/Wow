@@ -16,7 +16,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type CursorPage,
-  type PagedList,
+  type PagedResult,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -222,7 +222,7 @@ export function compileKanbanCounts(
 /** One lane's page, as the source answered it. */
 export interface LanePage {
   lane: KanbanLane;
-  page: PagedList<RecordData> | CursorPage<RecordData>;
+  page: PagedResult<RecordData> | CursorPage<RecordData>;
   /** The page's index, for a paged source; 1 for a cursor's. */
   index: number;
 }
@@ -361,8 +361,11 @@ function countOf(row: RecordData | undefined): number {
   return typeof count === 'number' && Number.isFinite(count) ? count : 0;
 }
 
+/** A lane's count from its page, when the source counted it exactly. */
 function pagedTotal(view: RecordProjection): number | undefined {
-  return view.paging.mode === 'paged' ? view.paging.total : undefined;
+  return view.paging.mode === 'paged' && view.paging.exact !== false
+    ? view.paging.total
+    : undefined;
 }
 
 function nextTarget(
@@ -381,7 +384,13 @@ function emptyView(
   config: RecordViewConfig,
   limits: Pick<RuntimeLimits, 'maxPageWindow'>,
 ): RecordProjection {
-  return projectRecord(definition, config, { list: [], total: 0 }, 1, limits);
+  return projectRecord(
+    definition,
+    config,
+    { list: [], total: 0, exact: true },
+    1,
+    limits,
+  );
 }
 
 /**

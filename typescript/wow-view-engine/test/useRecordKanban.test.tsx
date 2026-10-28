@@ -152,8 +152,8 @@ describe('useRecordKanban', () => {
     let holding = false;
     const result = await openHook(dealsKanban, {
       ...memory,
-      cursor: (query, attributes, controller) =>
-        holding ? held.promise : memory.cursor(query, attributes, controller),
+      cursor: (query, options) =>
+        holding ? held.promise : memory.cursor(query, options),
     });
     const [lead, won] = result.current.kanban.lanes;
     holding = true;

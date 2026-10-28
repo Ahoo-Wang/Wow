@@ -177,7 +177,8 @@ function NewAnalysisForm({
   useEffect(() => {
     if (!definitionId) return;
     let live = true;
-    engine.preferences(definitionId).then(
+    const reading = new AbortController();
+    engine.preferences(definitionId, { signal: reading.signal }).then(
       preferences => {
         if (live) setAutoRunState(preferences.autoRun ?? true);
       },
@@ -185,6 +186,7 @@ function NewAnalysisForm({
     );
     return () => {
       live = false;
+      reading.abort();
     };
   }, [engine, definitionId]);
   useEffect(() => {

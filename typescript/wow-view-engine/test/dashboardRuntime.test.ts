@@ -43,6 +43,7 @@ import {
 } from '../src/runtime/dashboardRuntime.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -513,7 +514,7 @@ describe('DashboardViewRuntime unavailable references', () => {
           kinds: builtinFieldKinds,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
-          source,
+          source: recordSource(source),
           runner: new RequestRunner(),
           scopeFilter,
           autoRefresh: false,
@@ -863,7 +864,7 @@ describe('DashboardViewRuntime child refusal', () => {
           kinds: builtinFieldKinds,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
-          source,
+          source: recordSource(source),
           runner: new RequestRunner(),
           scopeFilter,
           autoRefresh: false,

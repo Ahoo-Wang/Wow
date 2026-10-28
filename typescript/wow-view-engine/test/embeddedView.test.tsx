@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -27,12 +28,7 @@ import {
   ViewStoreError,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
-import type {
-  FilterTree,
-  RecordData,
-  ViewInstance,
-  ViewNavigation,
-} from '../src/index.js';
+import type { FilterTree, ViewInstance, ViewNavigation } from '../src/index.js';
 import { EmbeddedView } from '../src/ui/index.js';
 import {
   INSTANT,
@@ -62,6 +58,7 @@ describe('EmbeddedView', () => {
           paged: () =>
             Promise.resolve({
               total: 1,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
         }),
@@ -129,6 +126,7 @@ describe('EmbeddedView', () => {
           paged: () =>
             Promise.resolve({
               total: 1,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
         }),
@@ -514,12 +512,11 @@ describe('EmbeddedView', () => {
    * refusal must not outlive the condition that earned it.
    */
   it('keeps up with a host that narrows while the first query is out', async () => {
-    const pending: ((page: { total: number; list: RecordData[] }) => void)[] =
-      [];
+    const pending: ((page: PagedResult<object>) => void)[] = [];
     const source = testSource({
       paged: vi.fn(
         () =>
-          new Promise<{ total: number; list: RecordData[] }>(resolve => {
+          new Promise<PagedResult<object>>(resolve => {
             pending.push(resolve);
           }),
       ),
@@ -554,8 +551,12 @@ describe('EmbeddedView', () => {
     // The un-narrowed answer comes back last, and answers nothing anyone
     // asked for now: the narrowed rows are what stays on screen.
     await act(async () => {
-      pending[1]({ total: 1, list: [{ id: 'narrow', amount: 1 }] });
-      pending[0]({ total: 2, list: [...ROWS] });
+      pending[1]({
+        total: 1,
+        exact: true,
+        list: [{ id: 'narrow', amount: 1 }],
+      });
+      pending[0]({ total: 2, exact: true, list: [...ROWS] });
     });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
   });
@@ -729,7 +730,11 @@ describe('EmbeddedView', () => {
       paged: () => {
         attempt += 1;
         return attempt === 1
-          ? Promise.resolve({ total: 2, list: [{ id: 'o-1' }, { id: 'o-2' }] })
+          ? Promise.resolve({
+              total: 2,
+              exact: true,
+              list: [{ id: 'o-1' }, { id: 'o-2' }],
+            })
           : Promise.reject(new Error('down'));
       },
     });

@@ -79,7 +79,7 @@ describe('a time kept in epoch seconds', () => {
       recordConfig({
         table: { columns: [{ field: 'id' }, { field: 'retryAt' }] },
       }),
-      { total: 1, list: [{ id: 'o-1', retryAt: MOMENT_S }] },
+      { total: 1, exact: true, list: [{ id: 'o-1', retryAt: MOMENT_S }] },
     );
     expect(
       view.columns.find(column => column.field === 'retryAt')?.timeUnit,

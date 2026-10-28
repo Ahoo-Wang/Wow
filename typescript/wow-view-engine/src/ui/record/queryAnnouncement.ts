@@ -15,6 +15,7 @@ import type { RecordTableController } from '../../react/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { useCallback, useEffect, useRef } from 'react';
 import type { OwnAnnouncer } from '../kit/Announcer.js';
+import { resultCount } from './resultCount.js';
 
 /**
  * What a query says about itself, or nothing at all.
@@ -50,11 +51,7 @@ export function querySentence(
   // number that did arrive when it does not — the rule the pagination bar
   // reads by, so the bar and the announcement never disagree.
   const paging = table.paging;
-  const total = paging?.mode === 'paged' ? paging.total : undefined;
-  const count =
-    total === undefined
-      ? messages.label('label.pagination.on-page', { count: table.rows.length })
-      : messages.label('label.pagination.total', { count: total });
+  const count = resultCount(messages, paging, table.rows.length);
   // Which page, past the first: a page turned over the same total is
   // otherwise read back word for word as the page it left (R2-99). The
   // first goes unsaid, as every query that lands there would say it; turned

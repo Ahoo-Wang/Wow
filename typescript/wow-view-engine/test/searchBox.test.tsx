@@ -101,7 +101,7 @@ describe('the search box', () => {
         })
       : base;
     const paged = vi.fn(() =>
-      Promise.resolve({ total: ROWS.length, list: [...ROWS] }),
+      Promise.resolve({ total: ROWS.length, exact: true, list: [...ROWS] }),
     );
     const engine = new ViewEngine({
       resources: resourcesOf([definition], () => testSource({ paged })),

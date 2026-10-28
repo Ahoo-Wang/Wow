@@ -236,6 +236,7 @@ class Reservation @InternalWowApi constructor(
 }
 
 /** How a [ReservationStore.confirm] ended. */
+@WowSpi
 sealed interface ConfirmOutcome {
     /** The owner holds the key confirmed. */
     data object Confirmed : ConfirmOutcome

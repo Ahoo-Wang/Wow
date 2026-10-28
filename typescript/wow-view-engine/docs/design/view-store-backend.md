@@ -190,7 +190,7 @@ export interface ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance>;
 }
 
@@ -226,7 +226,7 @@ export class WowViewStore implements ViewStore {
 
 - **不生成客户端**：路由只有十来条，路径变量要留给拦截器填、重放要分辨 `204`、错误要按错误码读，生成的装饰器客户端这几样都帮不上，还要多一份与服务端逐字节核对的生成代码；所以请求在 **WowViewStore** 里手写，查询体用 wow-client 的 DSL。依赖不因此变：wow-client 本来就以 `fetcher-decorator` 与 `fetcher-eventstream` 为对等依赖，宿主随它一并安装（README 的「Use」列出）。
 - **路径参数**：`{tenantId}` 与个人视图的 `{ownerId}` 留空，由 fetcher 的拦截器填——fetcher-cosec 按令牌的 `tenantId` 与 `sub`；不登录的宿主（如补偿控制台）插入自己的拦截器注入缺省值。共享视图显式填 `(shared)`（拦截器只填没给的参数）。**WowViewStore** 不收租户、用户这类选项。
-- **列表**：个人与共享各查一次（快照列表，只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime`、`aggregateId` 升序，每种受众至多 1000 个——最早的 1000 个，即服务端的查询上限），再合并系统视图，三个请求一起发；按端口的顺序作答：系统、共享、个人。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属。`WowViewStore` 在自己身上声明这个上限（`listLimit = 1000`，端口的可选成员）：某种受众列满时，`engine.list` 带上 `cut`，侧栏的视图列表与「管理视图」写明「每组只列出前 N 个视图」（R2-26）；conformance 有对应用例，由声明了 `listLimit` 的被测对象运行（本包用上限为 2 的 `MemoryViewStore`）。
+- **列表**：一页一页地答（D353 V14）。第一页是服务的系统视图（整组），之后是共享、个人，各用快照模型的游标查询（只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime` 升序、服务端补上唯一键，每页 100 个，即服务端经 HTTP 的游标页上限）；某种受众读完就转到下一种。页的游标是不透明的 base64url JSON，写明正在读的受众与它自己的游标，畸形的游标按 `INVALID` 拒绝。顺序跨页不变：系统、共享、个人。引擎按页依次读到底，至多读 `RuntimeLimits.listedViews`（缺省 1000）个：到了上限，`engine.list` 带上 `cut`，侧栏的视图列表与「管理视图」写明「只列出前 N 个视图；其余的凭链接仍能打开」（R2-26）。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属；宿主视图多到超过上限，就调高 `listedViews`。conformance 有分页的用例：各页依次拼起来是端口的顺序，每个 `nextCursor` 通向下一页，视图少的存储一页答完、`nextCursor` 为 `null`。
 - **错误的来处**：`ViewStoreError` 带 `cause`（请求本身的失败）与 `detail.code`（服务端的 `errorCode`），宿主据此分辨同为 `INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`。服务端自己的错误码常量在客户端叫 `WowViewStoreErrorCodes`，与引擎的 `ViewStoreErrorCode`（端口的码）分开。
 - **按 id 读写要知道是个人还是共享**：端口只给 id。客户端记住列表、读取、创建时得到的「id → 受众」；没见过的 id 依次按个人、共享、服务端系统视图去读。系统视图的 id 由系统视图接口给出，客户端认得。
 - 写入：显式带 `Command-Request-Id` 与期望版本，等到 `SNAPSHOT`，成功后按 id 读回实例作答；读回的版本已被别人推过时，按 `requestId` 重放读回这次写入留下的那一版。`share` 与删除发 `{}`，`claim` 不带请求体。
@@ -281,16 +281,16 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 ### 10.1 入口与形状
 
-| 导出                                                     | 是什么                                                                                                                                                                   |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `WowViewStore`、`WowViewStoreOptions`                    | 端口在 V10 上的实现；选项与 9.x 相同，`{ fetcher, permissions? }`                                                                                                        |
-| `WowDatasetWordings`、`WowDatasetWordingsOptions`        | 租户的数据集措辞（D86、D91）                                                                                                                                             |
-| `WowViewStoreErrorCodes`                                 | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                            |
-| `SHARED_SCOPE`、`SYSTEM_SCOPE`                           | 两个保留所有者的 `Wow-Scope`                                                                                                                                             |
-| `viewSourceOf`、`datasetCatalogOf`                       | 引擎的数据经 V10 查询路由：任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）作 `ViewSource`；`GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source` |
-| `SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` | 保留的 id                                                                                                                                                                |
+| 导出                                                     | 是什么                                                                                                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WowViewStore`、`WowViewStoreOptions`                    | 端口在 V10 上的实现；选项与 9.x 相同，`{ fetcher, permissions? }`                                                                                             |
+| `WowDatasetWordings`、`WowDatasetWordingsOptions`        | 租户的数据集措辞（D86、D91）                                                                                                                                  |
+| `WowViewStoreErrorCodes`                                 | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                 |
+| `SHARED_SCOPE`、`SYSTEM_SCOPE`                           | 两个保留所有者的 `Wow-Scope`                                                                                                                                  |
+| `datasetCatalogOf`                                       | `GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source`；任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）本身就是 `ViewSource`，无需适配 |
+| `SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` | 保留的 id                                                                                                                                                     |
 
-宿主用 `new WowViewStore({ fetcher })`，数据源用 `viewSourceOf(...)`。引擎本身不改：`ViewSource` 按 9.x 的 `QueryApi` 剪裁，V10 的客户端不是它（取消用请求选项而不是 `AbortController`，分页带 `exact`，描述的版本单独给），差别全在 `viewSourceOf` 这一层适配里；引擎的架构规则（只从 wow-client 的 DSL 入口按名导入）也因此不必为客户端开口子。
+宿主用 `new WowViewStore({ fetcher })`，数据源直接用查询客户端。`ViewSource` 就是 wow-client 的形状（D353 V15）：`paged(query, { signal })` 答 `PagedResult`（`total` 可为 `null`、带 `exact`），`describe` 答 `DescriptorResult`，行是 `object`，所以任意 `QueryModelClient` 不经适配就是数据源（`test/architecture.test.ts` 钉住生成的快照客户端与数据集客户端两种）；引擎在登记处把行当作记录读，只转这一次。这些类型在 wow-client 的 DSL 入口（`PagedQuery`、`PagedResult`、`TotalMode`、`DescriptorResult`），引擎的架构规则（只从 DSL 入口按名导入）不必开口子。
 
 ### 10.2 生成的客户端
 
@@ -308,7 +308,7 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 - **存储的系统视图**的 revision 是内容哈希，写入要的是版本：store 记着见过的每个（id, revision）→ 版本，重试仍能带第一次期望的版本、被认作重复；没见过的 revision 先读一次，不是现在的就是 `CONFLICT`。
 - **错误**按 problem 的 `code` 映射：`wow.aggregate.version-mismatch`、`wow.command.request-id-reused` → `CONFLICT`；`wow.aggregate.not-found`、`wow.aggregate.deleted`、`view-store.not-found` → `NOT_FOUND`；`wow.auth.*`、`wow.aggregate.forbidden`、`view-store.system-view-read-only` → `FORBIDDEN`；`view-store.invalid`、`app-required`、`owner-required`、`wow.command.*`／`wow.query.*` 的格式与校验码 → `INVALID`；服务端说可以重试的（`retry.retryable`：busy、contended、unknown、wait 超时……）→ `UNAVAILABLE`。不认识的码按状态；**不带码的 `404`** 是服务端不提供的路由（没有视图存储，或内存后端没有快照查询）→ `UNSUPPORTED`。
 - **拒绝改成个人**时 problem 带扩展成员 `boards: [{ id, title }]`（D211，`@ahoo-wang/wow-client` 的 `Problem.extensions`）；store 把标题放进 `boards`，没有标题的按 id。`detail` 只是给人读的文字，不再解析。
-- **一页的总数**：V10 服务经 HTTP 拒绝 `EXACT` 总数，`viewSourceOf` 用服务端缺省的 `BOUNDED`，超过预算时引擎拿到的是上限而不是确数（见 `todo.md`）。
+- **一页的总数**：V10 服务经 HTTP 拒绝 `EXACT` 总数，引擎不指定总数方式，用服务端缺省的 `BOUNDED`：超过预算时答上限、`exact: false`，分页条与读屏播报说「至少 N 条记录」，不按它数页、仍可翻下一页，导出的「全部」也不当它是确数；路由不计总数（`total: null`）时说「本页 N 条」。
 
 ### 10.4 验证
 

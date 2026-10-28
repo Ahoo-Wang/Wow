@@ -161,8 +161,12 @@ export function useViewList(
 
   useEffect(() => {
     let cancelled = false;
+    // Both reads stop with the effect: a definition left or an unmount
+    // aborts them rather than letting them land on nobody.
+    const reading = new AbortController();
+    const { signal } = reading;
 
-    void engine.list(definitionId).then(
+    void engine.list(definitionId, { signal }).then(
       // The store's failure rides beside what could be listed: the declared
       // views are there whatever the store said, so the sidebar keeps its
       // one guaranteed view and says why the rest are missing.
@@ -200,7 +204,7 @@ export function useViewList(
       },
     );
 
-    void engine.preferences(definitionId).then(
+    void engine.preferences(definitionId, { signal }).then(
       value => {
         if (!cancelled)
           setPreferences({ key, definitionId, value, error: null });
@@ -218,6 +222,7 @@ export function useViewList(
 
     return () => {
       cancelled = true;
+      reading.abort();
     };
   }, [engine, definitionId, key]);
 

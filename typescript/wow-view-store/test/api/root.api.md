@@ -9,18 +9,18 @@ import { DatasetClient } from '@ahoo-wang/wow-client';
 import { DatasetOverrides } from '@ahoo-wang/wow-view-engine';
 import { DatasetWordingStore } from '@ahoo-wang/wow-view-engine';
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { QueryModelClient } from '@ahoo-wang/wow-client';
+import { ReadOptions } from '@ahoo-wang/wow-view-engine';
 import { StoredDatasetWording } from '@ahoo-wang/wow-view-engine';
 import { TargetScope } from '@ahoo-wang/wow-client';
 import { ViewAudience } from '@ahoo-wang/wow-view-engine';
 import { ViewConfig } from '@ahoo-wang/wow-view-engine';
 import { ViewInstance } from '@ahoo-wang/wow-view-engine';
-import { ViewInstanceSummary } from '@ahoo-wang/wow-view-engine';
+import { ViewListOptions } from '@ahoo-wang/wow-view-engine';
+import { ViewListPage } from '@ahoo-wang/wow-view-engine';
 import { ViewPermissions } from '@ahoo-wang/wow-view-engine';
 import { ViewPreferences } from '@ahoo-wang/wow-view-engine';
-import { ViewSource } from '@ahoo-wang/wow-view-engine';
 import { ViewStore } from '@ahoo-wang/wow-view-engine';
-import { WriteContext } from '@ahoo-wang/wow-view-engine';
+import { WriteOptions } from '@ahoo-wang/wow-view-engine';
 
 // @public
 export function datasetCatalogOf(client: DatasetClient): Pick<DatasetCatalog, 'list' | 'source'>;
@@ -41,14 +41,11 @@ export const SYSTEM_SCOPE: TargetScope;
 export const SYSTEM_TENANT_ID = "(platform)";
 
 // @public
-export function viewSourceOf<F extends string>(client: QueryModelClient<object, F>): ViewSource;
-
-// @public
 export class WowDatasetWordings implements DatasetWordingStore {
     constructor(options: WowDatasetWordingsOptions);
-    clear(dataset: string, revision: string, context: WriteContext): Promise<string>;
-    list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
-    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
+    clear(dataset: string, revision: string, context: WriteOptions): Promise<string>;
+    list(input?: ReadOptions): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteOptions): Promise<string>;
 }
 
 // @public
@@ -59,17 +56,16 @@ export interface WowDatasetWordingsOptions {
 // @public
 export class WowViewStore implements ViewStore {
     constructor(options: WowViewStoreOptions);
-    changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-    delete(id: string, revision: string, context: WriteContext): Promise<void>;
-    get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
-    getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-    list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-    readonly listLimit = 1000;
+    changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+    create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+    delete(id: string, revision: string, context: WriteOptions): Promise<void>;
+    get(id: string, options?: ReadOptions): Promise<ViewInstance>;
+    getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
+    list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     readonly permissions?: (definitionId: string) => ViewPermissions;
-    rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-    save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-    setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+    rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+    save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+    setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 
 // @public

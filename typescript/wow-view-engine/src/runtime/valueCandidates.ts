@@ -28,7 +28,6 @@ import {
   type ValueCandidates,
 } from '../analysis/index.js';
 import type { KernelContext } from './execute.js';
-import { abortWith } from './abort.js';
 import { isCalledOff } from './failure/failures.js';
 import { hasError } from './runtimeStore.js';
 import { withScopeFilter } from './scope.js';
@@ -174,7 +173,7 @@ export class ValueCandidateSources {
     );
     const generation = this.generation;
     const rows = await source
-      .aggregate(query, undefined, abortWith(signal))
+      .aggregate(query, { signal })
       .catch((error: unknown) => {
         // The editor says the values could not be read; the host hears why.
         if (!isCalledOff(error, signal))

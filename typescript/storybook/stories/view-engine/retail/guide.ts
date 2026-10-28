@@ -126,7 +126,9 @@ async function answer(
 ): Promise<RecordData[]> {
   const definition = definitionOf(definitionId);
   const query = compileAnalysis(definition, config, builtinFieldKinds, CONTEXT);
-  return retailSource(definition.source as RetailSourceKey).aggregate(query);
+  return (await retailSource(definition.source as RetailSourceKey).aggregate(
+    query,
+  )) as RecordData[];
 }
 
 function savedAnalysis(id: string) {
@@ -362,7 +364,11 @@ export async function sortingLine() {
     definition.source as RetailSourceKey,
   ).paged({ filter, pagination: { index: 1, size: 1_000 } });
   const warehouses = [
-    ...new Set(list.map(row => (row.state as { warehouse: string }).warehouse)),
+    ...new Set(
+      list.map(
+        row => ((row as RecordData).state as { warehouse: string }).warehouse,
+      ),
+    ),
   ].map(id => WAREHOUSES.find(warehouse => warehouse.id === id)?.name ?? id);
   return {
     board: boardTitle(OPS_DAILY),

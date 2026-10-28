@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import org.springframework.beans.factory.ListableBeanFactory
+import java.time.Clock
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
@@ -132,9 +133,10 @@ internal object StoreInstances {
      * its provider declares ([StoreProvider.options]): the `wow.<type>.<key>` settings of its type ([typeSettings]),
      * then its own `data-source`, `query-data-source`, `client`, `database` and `options.*`, a setting its provider does
      * not declare failing the start, naming the ones it does. It is given the application's beans as [resources],
-     * `wow.ddl` unless it names its own, the tails' polling and the [service]. `wow.backend=auto` without a durable
-     * backend opens a store in memory only with a [memoryOptIn] ([BackendSelection.memoryOptIn]), and fails otherwise;
-     * with it, the node runs for development, and each store is told so ([StoreConfig.development]).
+     * `wow.ddl` unless it names its own, the tails' polling, the [service] and the node's [clock]. `wow.backend=auto`
+     * without a durable backend opens a store in memory only with a [memoryOptIn] ([BackendSelection.memoryOptIn]),
+     * and fails otherwise; with it, the node runs for development, and each store is told so
+     * ([StoreConfig.development]).
      */
     @Suppress("LongParameterList") // One parameter per input of the stores, each the host's own.
     fun open(
@@ -143,6 +145,7 @@ internal object StoreInstances {
         resources: StoreResources,
         service: String = "",
         memoryOptIn: String? = null,
+        clock: Clock = Clock.systemUTC(),
         typeSettings: (type: String) -> Map<String, String> = { emptyMap() },
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
@@ -157,6 +160,7 @@ internal object StoreInstances {
                 service = service,
                 resources = resources,
                 development = memoryOptIn != null,
+                clock = clock,
             )
             return provider.open(config)
         }

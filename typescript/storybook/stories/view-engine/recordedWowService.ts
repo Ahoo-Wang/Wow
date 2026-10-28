@@ -16,10 +16,9 @@ import { QueryModelClient } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
   CursorQuery,
-  FilterPagedQuery,
+  PagedQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData, ViewSource } from '@ahoo-wang/wow-view-engine';
-import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 import { rowSource } from './rowSource.js';
 
 /**
@@ -67,15 +66,17 @@ export function problem(code: string, detail: string, status: number) {
 }
 
 /**
- * The view source of a query route: its paged, cursor and aggregation
- * queries. A recorded service answers no capability descriptor, so the
- * source does not ask for one.
+ * The view source of a query route: its client's paged, cursor and
+ * aggregation queries. A recorded service answers no capability descriptor,
+ * so the source leaves `describe` out and the engine does not ask for one.
  */
 export function routeSource(fetcher: Fetcher, route: string): ViewSource {
-  const { paged, cursor, aggregate } = viewSourceOf(
-    new QueryModelClient<object>(route, { fetcher }),
-  );
-  return { paged, cursor, aggregate };
+  const client = new QueryModelClient<object>(route, { fetcher });
+  return {
+    paged: (query, options) => client.paged(query, options),
+    cursor: (query, options) => client.cursor(query, options),
+    aggregate: (query, options) => client.aggregate(query, options),
+  };
 }
 
 /**
@@ -102,7 +103,7 @@ export function installRecordedWowService(
     if (url.pathname === service.route)
       switch (body.kind) {
         case 'paged':
-          answer = await source.paged(body as FilterPagedQuery);
+          answer = await source.paged(body as PagedQuery);
           break;
         case 'cursor':
           answer = await source.cursor(body as CursorQuery);

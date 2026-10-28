@@ -1,4 +1,4 @@
-# Message keys — 2198.
+# Message keys — 2199.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1622,6 +1622,7 @@ label.pagination.on-page
 label.pagination.page-size
 label.pagination.page-size-option
 label.pagination.total
+label.pagination.total-at-least
 label.pagination.total-one
 label.pagination.window
 label.panel.arrange-cancelled

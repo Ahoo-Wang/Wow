@@ -15,13 +15,17 @@ import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
 import type { Projected } from './dsl/projection.js';
 import { eventNumbers, type TextNumbers } from './exactJson.js';
-import type { QueryModelDescriptor } from './dsl/descriptor.js';
+import type {
+  DescriptorResult,
+  QueryModelDescriptor,
+} from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
 import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   FilterListQuery,
-  FilterPagedQuery,
   FilterSingleQuery,
+  PagedQuery,
+  PagedResult,
 } from './dsl/queryable.js';
 import {
   entityTag,
@@ -52,17 +56,6 @@ export interface StreamOptions extends RequestOptions {
   readonly resume?: StreamResumeOptions | false;
 }
 
-/** How a paged query counts its total (`TotalMode`). */
-export type TotalMode = 'exact' | 'bounded' | 'none';
-
-/** A paged query of a query route: a page, and how its total is counted. */
-export interface PagedQuery<
-  FIELDS extends string = string,
-> extends FilterPagedQuery<FIELDS> {
-  /** `BOUNDED` (the server's default) counts up to the budget's limit. */
-  total?: TotalMode;
-}
-
 /** A count of a query route. */
 export interface CountQuery<
   FIELDS extends string = string,
@@ -76,28 +69,6 @@ export interface CountResult {
   readonly count: number;
   readonly exact: boolean;
 }
-
-/**
- * A page of a paged query: `total` is exact when `exact`, a lower bound
- * otherwise, and null for `TotalMode.NONE`.
- */
-export interface PagedResult<T> {
-  readonly total: number | null;
-  readonly exact: boolean;
-  readonly list: readonly T[];
-}
-
-/**
- * A query model's capability descriptor and its version, the `ETag` of
- * `GET …/query`; `notModified` when the version given is still current.
- */
-export type DescriptorResult =
-  | {
-      readonly notModified: false;
-      readonly version?: string;
-      readonly descriptor: QueryModelDescriptor;
-    }
-  | { readonly notModified: true; readonly version: string };
 
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body

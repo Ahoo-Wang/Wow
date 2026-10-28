@@ -103,6 +103,8 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.ledger.ParkedAmendment` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.log.AppendOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
@@ -114,12 +116,14 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.reservation.ConfirmOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.schema.EnsuredOnce` | class | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.StreamSinks` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.Opened` | class | `wow-spi` |

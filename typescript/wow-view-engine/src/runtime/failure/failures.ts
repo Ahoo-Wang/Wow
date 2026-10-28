@@ -158,15 +158,20 @@ export function reportingStore(
     return pending.catch(failed);
   };
   return {
-    list: (definitionId, signal) =>
+    list: (definitionId, options) =>
       watched(
-        () => store.list(definitionId, signal),
+        () => store.list(definitionId, options),
         'list',
         { definitionId },
-        signal,
+        options?.signal,
       ),
-    get: (id, signal) =>
-      watched(() => store.get(id, signal), 'get', { instanceId: id }, signal),
+    get: (id, options) =>
+      watched(
+        () => store.get(id, options),
+        'get',
+        { instanceId: id },
+        options?.signal,
+      ),
     create: (input, context) =>
       watched(() => store.create(input, context), 'create', {
         definitionId: input.definitionId,
@@ -187,12 +192,12 @@ export function reportingStore(
         instanceId: id,
         requestId: context.requestId,
       }),
-    getPreferences: (definitionId, signal) =>
+    getPreferences: (definitionId, options) =>
       watched(
-        () => store.getPreferences(definitionId, signal),
+        () => store.getPreferences(definitionId, options),
         'getPreferences',
         { definitionId },
-        signal,
+        options?.signal,
       ),
     setPreferences: (definitionId, preferences, context) =>
       watched(
@@ -213,7 +218,6 @@ export function reportingStore(
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),
-    ...(store.listLimit === undefined ? {} : { listLimit: store.listLimit }),
   };
 }
 

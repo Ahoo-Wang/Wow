@@ -4,7 +4,7 @@ In depth: [Host the engine](https://wow.ahoo.me/typescript/view-engine/host) (en
 
 ## Sources: where each resource's rows come from
 
-A source is the Wow V10 query client of the model the definition reads: one route, `/{context}/{aggregate}/{model}/query`, whose `POST` answers the queries and whose `GET` answers the capability descriptor (its version is the `ETag`). The engine sends only Wow queries, so `viewSourceOf` adapts the client's `paged`, `cursor`, `aggregate` and `describe` as they are; `describe` lets the engine narrow every definition to the backend it runs on before the first query, and again when the version changes.
+A source is the Wow V10 query client of the model the definition reads: one route, `/{context}/{aggregate}/{model}/query`, whose `POST` answers the queries and whose `GET` answers the capability descriptor (its version is the `ETag`). The engine sends only Wow queries, so the client is a `ViewSource` as it is (its `paged`, `cursor`, `aggregate` and `describe`), with no adapter; `describe` lets the engine narrow every definition to the backend it runs on before the first query, and again when the version changes.
 
 <!-- typecheck: file=source.ts -->
 
@@ -12,13 +12,10 @@ A source is the Wow V10 query client of the model the definition reads: one rout
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewSource } from '@ahoo-wang/wow-view-engine';
-import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 
 export function orderSource(fetcher: Fetcher): ViewSource {
   // `POST /sales/order/snapshot/query` for the rows, `GET` on it for the descriptor.
-  return viewSourceOf(
-    new SnapshotQueryClient({ context: 'sales', name: 'order' }, { fetcher }),
-  );
+  return new SnapshotQueryClient({ context: 'sales', name: 'order' }, { fetcher });
 }
 ```
 
@@ -40,10 +37,9 @@ export async function datasetBindings(
   fetcher: Fetcher,
 ): Promise<ViewBinding[]> {
   // `GET /wow/dataset` lists them; each is queried on its own route.
-  const datasets = new DatasetResources(
-    engine,
-    datasetCatalogOf(new DatasetClient({ fetcher })),
-  );
+  const datasets = new DatasetResources(engine, {
+    catalogs: datasetCatalogOf(new DatasetClient({ fetcher })),
+  });
   const served = await datasets.refresh();
   return served.map(({ id }) =>
     bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }),

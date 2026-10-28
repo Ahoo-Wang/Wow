@@ -33,6 +33,7 @@ import {
 } from '../src/index.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   nextTask,
   ordersDefinition,
@@ -206,6 +207,7 @@ function unstableSource(): ViewSource {
       const start = (index - 1) * size;
       return Promise.resolve({
         total: ROWS.length,
+        exact: true,
         list: sorted.slice(start, start + size),
       });
     }),
@@ -225,7 +227,7 @@ function open(source: ViewSource): RecordViewRuntime<'paged'> {
     kinds: builtinFieldKinds,
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: PAGE_SIZE },
     environment: testEnvironment().environment,
-    source,
+    source: recordSource(source),
     runner: new RequestRunner(),
   }) as unknown as RecordViewRuntime<'paged'>;
 }
@@ -245,7 +247,7 @@ describe('a sort that ties, paged by index', () => {
    * engine used to ask, it hands one row out twice and another not at all.
    */
   it('repeats and skips rows when the query stops at the tied key', async () => {
-    const source = unstableSource();
+    const source = recordSource(unstableSource());
     const seen: unknown[] = [];
     for (let index = 1; index <= PAGES; index += 1) {
       const page = await source.paged({

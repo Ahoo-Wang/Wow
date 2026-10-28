@@ -624,7 +624,7 @@ type DerivedWindow = {
 };
 
 // @public
-export type DescriptorResult = {
+type DescriptorResult = {
     readonly notModified: false;
     readonly version?: string;
     readonly descriptor: QueryModelDescriptor;
@@ -1320,12 +1320,12 @@ export interface OwnerTransferred {
 }
 
 // @public
-export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
     total?: TotalMode;
 }
 
 // @public
-export interface PagedResult<T> {
+interface PagedResult<T> {
     // (undocumented)
     readonly exact: boolean;
     // (undocumented)
@@ -2052,7 +2052,7 @@ enum TimeUnit {
 }
 
 // @public
-export type TotalMode = 'exact' | 'bounded' | 'none';
+type TotalMode = 'exact' | 'bounded' | 'none';
 
 // @public
 export function toWowProblemError(error: unknown): Promise<WowProblemError | undefined>;

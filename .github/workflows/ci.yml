@@ -1084,7 +1084,12 @@ jobs:
       # earlier one counts only if it passed (an earlier failure may be judged
       # on carried-forward coverage, and Codecov does not post an unchanged
       # result again). A run without coverage leaves it out, so a required
-      # codecov/patch never blocks a change Codecov does not see.
+      # codecov/patch never blocks a change Codecov does not see. A head that
+      # carried forward fewer JVM sessions than codecov.yml's after_n_builds
+      # (its main commit was pushed while the parent's shards were uploading)
+      # is never judged; the script reads Codecov's uploads API and fails at
+      # once with the first-parent merge that repairs it, and waits as before
+      # when that API cannot be read.
       - name: Check out the gate script
         if: >-
           github.event_name == 'pull_request' &&
@@ -1101,5 +1106,6 @@ jobs:
           needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/codecov-patch.mjs

@@ -22,6 +22,7 @@ import {
 import { memorySource } from '../src/testing/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
 import { executeLanePage } from '../src/runtime/kanban.js';
+import { recordSource } from '../src/runtime/source.js';
 import { builtinFieldKinds, DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
@@ -197,7 +198,7 @@ describe('one lane loading more', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: runtime.environment,
-      source: memorySource(DEALS),
+      source: recordSource(memorySource(DEALS)),
       queryFailed: () => Promise.resolve(),
     };
     const config = runtime.getSnapshot().applied;

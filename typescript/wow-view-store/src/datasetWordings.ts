@@ -18,7 +18,8 @@ import type {
   DatasetOverrides,
   DatasetWordingStore,
   StoredDatasetWording,
-  WriteContext,
+  ReadOptions,
+  WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { revisionOf } from './views.js';
 import { DatasetWordingCommandClient } from './generated/view-store/dataset_wording/commandClient.js';
@@ -67,9 +68,9 @@ export class WowDatasetWordings implements DatasetWordingStore {
    * dataset. A cleared one is listed too, saying nothing: its revision is
    * what the next write expects.
    */
-  list(
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, StoredDatasetWording>> {
+  list({ signal }: ReadOptions = {}): Promise<
+    ReadonlyMap<string, StoredDatasetWording>
+  > {
     return guard(async () => {
       const snapshots = await request(() =>
         this.snapshots.list(
@@ -95,7 +96,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
     dataset: string,
     wording: DatasetOverrides,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
       const result = await request(() =>
@@ -126,7 +127,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
   clear(
     dataset: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
       const result = await request(() =>
@@ -142,7 +143,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
 
 function optionsOf(
   revision: string,
-  { requestId, signal }: WriteContext,
+  { requestId, signal }: WriteOptions,
 ): CommandOptions {
   return {
     requestId,

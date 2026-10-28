@@ -95,7 +95,7 @@ export const ENTRIES = [
     { require: false },
   ],
   ['@ahoo-wang/wow-view-store', 'WowViewStore', { require: false }],
-  ['@ahoo-wang/wow-view-store', 'viewSourceOf', { require: false }],
+  ['@ahoo-wang/wow-view-store', 'datasetCatalogOf', { require: false }],
 ];
 
 /** The view engine's style sheets a host imports (README「Styles」). */
