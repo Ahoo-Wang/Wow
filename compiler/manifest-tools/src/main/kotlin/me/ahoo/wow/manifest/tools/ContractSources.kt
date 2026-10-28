@@ -46,15 +46,24 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `<Context>Contract` nests the same codes alike.
  *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
- * (`EshopOrderingContract.Order.TYPE`). Typed views of the state and the peer's events are not generated
- * yet: each joins an aggregate object as another group of members ([aggregate]).
+ * (`EshopOrderingContract.Order.TYPE`). The views of the states are classes of their own beside it
+ * ([StateViewSources]).
  */
 internal object ContractSources {
     /** One generated file: its [path] under the source root and its [text]. */
     data class Source(val path: String, val text: String)
 
-    fun of(contract: Manifest, queryFields: Boolean): List<Source> =
-        contract.contexts.map { of(it, contract.defs, queryFields) }
+    /**
+     * The sources of [contract]: per context its `<Context>Contract` and the views of its states ([StateViewSources]),
+     * which reference a class [onClassPath] holds; with [queryFields], the query fields too.
+     */
+    fun of(contract: Manifest, queryFields: Boolean, onClassPath: (String) -> Boolean): List<Source> {
+        val views = StateViewSources(contract.defs, onClassPath)
+        return contract.contexts.flatMap { context ->
+            val source = of(context, contract.defs, queryFields)
+            listOf(source) + views.of(context, packageOf(PeerContracts.classesOf(context)))
+        }
+    }
 
     fun of(context: ContextManifest, defs: Map<String, Any?>, queryFields: Boolean): Source {
         val pkg = packageOf(PeerContracts.classesOf(context))

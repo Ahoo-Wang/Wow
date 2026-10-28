@@ -11,9 +11,10 @@
  *   on the domain's contract, and `assembleWowContract` (`ManifestTools.assembleContract`) keeps the contexts whose
  *   command and event classes are all its own, fails when a context has only some of them, and writes
  *   `META-INF/wow/contract.json`, which the api's jar includes. A service knows a peer context by depending on its api.
- * - Generated code (decisions D256 ①, D259): `generateWowContractSources` writes `<api package>.<Context>Contract`
- *   (`ManifestTools.generateContractSources`) from that contract, with the query fields of the states when
- *   `:query-api` is on the api's class path, and the api's source set `wowContract` compiles it into the api's classes
+ * - Generated code (decisions D256 ①, D259, D362): `generateWowContractSources` writes `<api package>.<Context>Contract`
+ *   and the views of the published states, `<aggregate package>.<State>View` (`ManifestTools.generateContractSources`),
+ *   from that contract, with the query fields of the states when `:query-api` is on the api's class path (the views
+ *   reference the classes on it), and the api's source set `wowContract` compiles it into the api's classes
  *   variant and jar. The domain module compiles, runs KSP and completes its fragment against a core view of its api
  *   modules without that code or the assembled contract (the attribute `me.ahoo.wow.api-view` = `core<domain path>`,
  *   a secondary variant of the api's `apiElements` and `runtimeElements`, the `wowCoreJar` jar), so
@@ -174,24 +175,14 @@ fun coreJar(api: Project, main: SourceSet): TaskProvider<Jar> =
         }
     }
 
-/** Whether [classpath] holds `:query-api`, whose `QueryField` the generated query fields are. */
-fun hasQueryApi(classpath: Iterable<File>): Boolean = classpath.any { entry ->
-    val queryField = "me/ahoo/wow/api/query/QueryField.class"
-    when {
-        entry.isDirectory -> File(entry, queryField).isFile
-        entry.isFile -> runCatching { java.util.zip.ZipFile(entry).use { it.getEntry(queryField) != null } }
-            .getOrDefault(false)
-        else -> false
-    }
-}
-
 /** The code generated from [api]'s contract, compiled by the source set `wowContract` into its classes and jar. */
 fun contractSources(api: Project, main: SourceSet, contract: FileCollection, apiTools: Configuration) {
     val sourceSets = api.extensions.getByType<SourceSetContainer>()
     val generated = sourceSets.create("wowContract")
     val generate = api.tasks.register("generateWowContractSources") {
         group = "wow"
-        description = "Generates the constants, refs and query fields of this api module's contexts from its contract."
+        description = "Generates the constants, refs, query fields and state views of this api module's contexts " +
+            "from its contract."
         val input: FileCollection = contract
         val classpath: FileCollection = api.files(api.provider { generated.compileClasspath })
         val tools: FileCollection = api.files(apiTools)
@@ -206,7 +197,7 @@ fun contractSources(api: Project, main: SourceSet, contract: FileCollection, api
                 tools.files,
                 "generateContractSources",
                 input.files.toList(),
-                hasQueryApi(classpath.files),
+                classpath.files.toList(),
                 output.get().asFile,
             )
         }

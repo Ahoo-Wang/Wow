@@ -467,7 +467,7 @@ class WowPluginFunctionalTest {
             .containsExactlyInAnyOrder("sku", "quantity")
         // Money is written by @JsonValue: its schema is the declared override.
         (addItem["properties"] as Map<*, *>)["price"].assert().isEqualTo(
-            mapOf("type" to "string", "pattern" to "^[0-9]+$")
+            mapOf("type" to "string", "pattern" to "^[0-9]+$", "x-wow-class" to "sample.Money")
         )
         defs.keys.assert().contains("sample.CartState", "billing.AccountState", "billing.OpenAccount")
     }

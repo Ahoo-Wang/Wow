@@ -3123,7 +3123,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "unitPrice" : {
             "type" : "number",
@@ -3160,7 +3161,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "unitPrice" : {
             "type" : "number",
@@ -3176,7 +3178,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "unitPrice" : {
             "type" : "number",
@@ -3193,7 +3196,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "productId", "quantity" ],
@@ -3216,7 +3220,8 @@
             "type" : "string"
           },
           "quantity" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           }
         },
         "required" : [ "productId", "quantity" ],
@@ -3244,7 +3249,8 @@
         "type" : "object",
         "properties" : {
           "checkouts" : {
-            "type" : "integer"
+            "type" : "integer",
+            "format" : "int32"
           },
           "items" : {
             "type" : "array",
@@ -3267,7 +3273,8 @@
                   "type" : "string"
                 },
                 "quantity" : {
-                  "type" : "integer"
+                  "type" : "integer",
+                  "format" : "int32"
                 },
                 "unitPrice" : {
                   "type" : "number",
