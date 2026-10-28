@@ -13,7 +13,6 @@
 
 import type {
   DatasetClient,
-  PagedQuery,
   QueryModelClient,
   RequestOptions,
 } from '@ahoo-wang/wow-client';
@@ -21,6 +20,7 @@ import type {
   AggregationQuery,
   CursorQuery,
   FilterPagedQuery,
+  PagedQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   DatasetCatalog,

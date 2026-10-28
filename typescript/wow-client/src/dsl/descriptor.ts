@@ -33,6 +33,18 @@ import type { DeletionState } from './deletionState.js';
 import type { FilterOperator, SearchMode, TimeUnit } from './filter/index.js';
 
 /**
+ * A query model's capability descriptor and its version, the `ETag` of
+ * `GET …/query`; `notModified` when the version given is still current.
+ */
+export type DescriptorResult =
+  | {
+      readonly notModified: false;
+      readonly version?: string;
+      readonly descriptor: QueryModelDescriptor;
+    }
+  | { readonly notModified: true; readonly version: string };
+
+/**
  * The query models Wow names in a descriptor's `model`. The set is open: a
  * server may register a model of its own, so a descriptor's `model` is a
  * {@link QueryModel}.
