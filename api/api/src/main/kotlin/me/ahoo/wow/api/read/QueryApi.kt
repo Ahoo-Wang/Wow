@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
-import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -56,14 +56,20 @@ interface QueryApi {
 }
 
 /**
- * A [QueryApi] that builds the reads of a subscription handler itself ([tenant]): the node's, which pins the tenant of
- * the commit as trusted code, and a route over it. Wow's own construction of a handler's reads, so a node and a test
- * over the node's API read alike, not an entry point of an application, which reads as a caller ([of]) or as trusted
- * code ([trusted]). Any other [QueryApi], a test's fake say, serves a handler as a caller of the commit's tenant.
+ * A [QueryApi] that builds the reads of a subscription handler itself ([tenant]), which the node asks of every
+ * [QueryApi] it hands its handlers: a provider's side of the read API, not an entry point of an application, which
+ * reads as a caller ([of]) or as trusted code ([trusted]).
+ *
+ * The node's own API implements it, pinning the tenant of the commit as trusted code, and so does a test's
+ * [QueryApi] that must read as the node does (`:test-query`'s memory queries). Any other [QueryApi], a test's fake
+ * say, serves a handler as a caller of the commit's tenant with no owner, space or subject, the rest [trusted].
  */
-@InternalWowApi
+@WowSpi
 interface TenantQueryApi : QueryApi {
-    /** The queries of a subscription handler of a commit of [tenantId], which its context hands it. */
+    /**
+     * The queries of a subscription handler of a commit of [tenantId], which its context hands it: they read in
+     * [tenantId] alone, and answer [SubscriptionQueries.tenantId] with it.
+     */
     fun tenant(tenantId: String): SubscriptionQueries
 }
 

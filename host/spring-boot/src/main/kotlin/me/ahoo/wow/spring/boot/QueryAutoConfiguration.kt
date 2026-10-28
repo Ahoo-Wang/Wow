@@ -405,9 +405,11 @@ class QueryAutoConfiguration {
          * The node's typed [QueryApi]: the [engine]'s gateways and read facade, each aggregate
          * type found by its model's state class, its states read as the public port's state reads, its lists defaulted
          * by `wow.query.budgets.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
+         * An application replaces it by declaring a [QueryApi] bean, not by calling this method.
          */
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryApi(
             engine: QueryEngine,
             node: ServiceNode,

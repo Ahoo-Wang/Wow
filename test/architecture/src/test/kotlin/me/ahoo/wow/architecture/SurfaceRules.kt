@@ -157,15 +157,10 @@ object SurfaceRules {
      * names this way is stale and fails the rule.
      */
     val ABI_CLOSURE_ALLOWED: Map<String, String> = mapOf(
-        "me/ahoo/wow/manifest/CommandIndex" to "batch 3 (D348/D349 surface)",
-        "me/ahoo/wow/client/PeerClients" to "batch 3 (D348/D349 surface)",
-        "me/ahoo/wow/spring/boot/SpringdocDocument" to "batch 3 (D348/D349 surface)",
-        "me/ahoo/wow/api/read/TenantQueryApi" to "batch 3 (D348/D349 surface)",
         "me/ahoo/wow/spring/boot/WowProperties" to "D350 P6 (E10)",
         "me/ahoo/wow/spring/boot/QueryProperties" to "D350 P6 (E10)",
         "me/ahoo/wow/spring/boot/ClickHouseProperties" to "D350 P6 (E10)",
         "me/ahoo/wow/spring/boot/KafkaProperties" to "D350 P6 (E10)",
-        "me/ahoo/wow/query/engine/QueryEngine" to "D350 P6 (E10)",
     )
 
     private val ABI_REFERENCE = Regex("""me/ahoo/wow/[\w/$]+""")

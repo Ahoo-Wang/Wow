@@ -95,10 +95,12 @@ class SpringdocAutoConfiguration {
 
     /** Merges the Wow routes into springdoc's default document (`/v3/api-docs`). */
     @Bean
+    @InternalWowApi
     fun wowOpenApiCustomizer(document: SpringdocDocument): OpenApiCustomizer = document.customizer()
 
     /** The group of the Wow routes alone: none of the application's controllers or router functions. */
     @Bean
+    @InternalWowApi
     fun wowGroupedOpenApi(document: SpringdocDocument, properties: WowProperties): GroupedOpenApi {
         val group = properties.http.openapi.springdoc.group
         configCheck(
