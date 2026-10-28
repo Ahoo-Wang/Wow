@@ -60,7 +60,7 @@ class ElasticsearchStoresTest {
             // PostgreSQL's log reads both in one round trip, and MongoDB's has no such read, so nothing falls back.
             host.context.getBean(HostBackends::class.java).snapshotStoreOf(ACCOUNT)!!.name.assert().isEqualTo(log)
             host.context.getBean(SnapshotQueryBackend::class.java).storeOf(ACCOUNT).assert().isEqualTo("es")
-            host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS)
+            host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS.name)
                 .tags(WowMetrics.CAPABILITY, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ.value)
                 .counters().sumOf { it.count() }.assert().isZero()
             id
