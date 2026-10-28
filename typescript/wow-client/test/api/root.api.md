@@ -267,6 +267,9 @@ type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions 
 };
 
 // @public
+export function checkManifest(manifest: Manifest): Manifest;
+
+// @public
 type CollectionFilter<FIELDS extends string = string> = {
     op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
     field: QueryField<FIELDS>;
@@ -1206,12 +1209,16 @@ export interface Manifest {
     readonly errors?: readonly ErrorManifest[];
     // (undocumented)
     readonly format: number;
+    readonly requires?: readonly string[];
     // (undocumented)
     readonly service?: {
         readonly name: string;
         readonly version?: string;
     };
 }
+
+// @public
+export const MANIFEST_FEATURES: ReadonlySet<string>;
 
 // @public
 export const MANIFEST_FORMAT = 1;

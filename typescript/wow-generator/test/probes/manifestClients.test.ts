@@ -495,6 +495,12 @@ describe('Manifest clients', () => {
   it('refuses a Manifest of another format or without what it needs', async () => {
     const other = await generateCold({ format: 2, contexts: [] }, directories);
     expect(other.exitCode).toBe(EXIT_CODES.input);
+    // A marker of requires the generator does not understand is refused too.
+    const requiring = await generateCold(
+      { format: 1, requires: ['routes-v2'], contexts: [] },
+      directories,
+    );
+    expect(requiring.exitCode).toBe(EXIT_CODES.input);
     const broken = await generateCold(
       {
         format: 1,

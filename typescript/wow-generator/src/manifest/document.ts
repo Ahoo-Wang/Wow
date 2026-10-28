@@ -20,6 +20,8 @@ import { GeneratorError } from '../api/errors';
  */
 export interface ManifestDocument {
   readonly format: number;
+  /** The markers a reader must understand; the generator understands none yet. */
+  readonly requires?: readonly string[];
   readonly service?: { readonly name: string; readonly version?: string };
   readonly contexts: readonly ManifestContext[];
   readonly errors?: readonly ManifestError[];
@@ -85,6 +87,12 @@ export type JsonSchema = Readonly<Record<string, unknown>>;
 /** The Manifest format the generator reads. */
 export const MANIFEST_FORMAT = 1;
 
+/**
+ * The markers of a Manifest's `requires` the generator understands, as the
+ * Kotlin reader's `ManifestFeatures`: none yet.
+ */
+const MANIFEST_FEATURES: ReadonlySet<string> = new Set<string>();
+
 const DEFS_PREFIX = '#/$defs/';
 
 /** The `$defs` key a schema reference points to, or undefined for another. */
@@ -131,6 +139,15 @@ export function validateManifest(
     throw new GeneratorError(
       'input',
       `${source} is a Wow Manifest of format ${manifest.format}; wow-generator reads format ${MANIFEST_FORMAT}.`,
+    );
+  }
+  const unknown = (manifest.requires ?? []).filter(
+    marker => !MANIFEST_FEATURES.has(marker),
+  );
+  if (unknown.length > 0) {
+    throw new GeneratorError(
+      'input',
+      `${source} requires ${unknown.join(', ')}, which this wow-generator does not understand: generate with a newer one.`,
     );
   }
   const problems: string[] = [];

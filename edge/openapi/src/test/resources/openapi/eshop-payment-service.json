@@ -2318,7 +2318,7 @@
         "title" : "Wow Manifest",
         "description" : "A service's Manifest, or a module's fragment (without service), format 1.",
         "type" : "object",
-        "required" : [ "format" ],
+        "required" : [ "format", "contexts", "errors", "$defs" ],
         "properties" : {
           "format" : {
             "const" : 1,
@@ -2370,7 +2370,7 @@
       },
       "wow.Manifest.Context" : {
         "type" : "object",
-        "required" : [ "name" ],
+        "required" : [ "name", "aggregates", "subscriptions", "published", "errors" ],
         "properties" : {
           "name" : {
             "type" : "string",
@@ -2415,7 +2415,7 @@
       },
       "wow.Manifest.Aggregate" : {
         "type" : "object",
-        "required" : [ "name", "state" ],
+        "required" : [ "name", "state", "snapshot", "commands", "events", "queries" ],
         "properties" : {
           "name" : {
             "type" : "string"
@@ -2439,6 +2439,7 @@
           },
           "snapshot" : {
             "type" : "object",
+            "required" : [ "enabled" ],
             "properties" : {
               "enabled" : {
                 "type" : "boolean"
@@ -2464,7 +2465,7 @@
             "type" : "array",
             "items" : {
               "type" : "object",
-              "required" : [ "model" ],
+              "required" : [ "model", "routes" ],
               "properties" : {
                 "model" : {
                   "type" : "string"
@@ -2501,7 +2502,7 @@
       },
       "wow.Manifest.Command" : {
         "type" : "object",
-        "required" : [ "name", "schema", "creation" ],
+        "required" : [ "name", "aliases", "schema", "creation", "routes" ],
         "properties" : {
           "name" : {
             "type" : "string"
@@ -2556,7 +2557,7 @@
       },
       "wow.Manifest.Event" : {
         "type" : "object",
-        "required" : [ "name", "revision", "schema" ],
+        "required" : [ "name", "aliases", "revision", "schema" ],
         "properties" : {
           "name" : {
             "type" : "string"
@@ -2610,7 +2611,7 @@
       },
       "wow.Manifest.Published" : {
         "type" : "object",
-        "required" : [ "aggregate", "topic" ],
+        "required" : [ "aggregate", "topic", "includeState" ],
         "properties" : {
           "aggregate" : {
             "type" : "string"
@@ -2637,6 +2638,7 @@
           },
           "source" : {
             "type" : "object",
+            "required" : [ "aggregates", "events" ],
             "properties" : {
               "context" : {
                 "type" : "string"
@@ -2751,7 +2753,7 @@
           },
           "job" : {
             "type" : "object",
-            "required" : [ "name", "cron" ],
+            "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
             "properties" : {
               "name" : {
                 "type" : "string"

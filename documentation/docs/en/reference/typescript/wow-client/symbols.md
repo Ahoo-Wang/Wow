@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 108 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 110 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -54,6 +54,7 @@ Every name `@ahoo-wang/wow-client` exports — 108 — with its kind and the fir
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
 | `LifecycleCommands` | const | The lifecycle commands an aggregate may list. | — |
+| `MANIFEST_FEATURES` | const | The markers of a Manifest's `requires` this client understands, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest: its contexts, aggregates, commands, events, routes and error codes, and the JSON Schemas they refer to under `$defs`. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
@@ -104,6 +105,7 @@ Every name `@ahoo-wang/wow-client` exports — 108 — with its kind and the fir
 | `WowClientOptions` | interface | How a client reaches its service. | — |
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |
+| `checkManifest` | function | Checks that this client can read `manifest`: its format, and every marker it requires. | — |
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |

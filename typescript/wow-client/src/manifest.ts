@@ -119,6 +119,11 @@ export interface ContextManifest {
  */
 export interface Manifest {
   readonly format: number;
+  /**
+   * The markers a reader must understand to read the Manifest
+   * ({@link MANIFEST_FEATURES}); a reader refuses one it does not know.
+   */
+  readonly requires?: readonly string[];
   readonly service?: { readonly name: string; readonly version?: string };
   readonly contexts: readonly ContextManifest[];
   readonly errors?: readonly ErrorManifest[];
@@ -127,6 +132,36 @@ export interface Manifest {
 
 /** The format of the Manifest this client reads. */
 export const MANIFEST_FORMAT = 1;
+
+/**
+ * The markers of a Manifest's `requires` this client understands, as the
+ * Kotlin reader's `ManifestFeatures`: none yet.
+ */
+export const MANIFEST_FEATURES: ReadonlySet<string> = new Set<string>();
+
+/**
+ * Checks that this client can read `manifest`: its format, and every marker it
+ * requires.
+ *
+ * @param manifest - The Manifest
+ * @throws TypeError naming what this client does not understand
+ */
+export function checkManifest(manifest: Manifest): Manifest {
+  if (manifest.format !== MANIFEST_FORMAT) {
+    throw new TypeError(
+      `The Manifest is of format ${manifest.format}; this client reads format ${MANIFEST_FORMAT}.`,
+    );
+  }
+  const unknown = (manifest.requires ?? []).filter(
+    marker => !MANIFEST_FEATURES.has(marker),
+  );
+  if (unknown.length > 0) {
+    throw new TypeError(
+      `The Manifest requires ${unknown.join(', ')}, which this client does not understand: use a newer @ahoo-wang/wow-client.`,
+    );
+  }
+  return manifest;
+}
 
 /**
  * The service's Manifest, `GET /wow/manifest`, authorized as any API.
@@ -138,7 +173,9 @@ export async function fetchManifest(
   client: WowClientOptions = {},
   options?: RequestOptions,
 ): Promise<Manifest> {
-  return json<Manifest>(
-    await send(client, { method: 'GET', path: '/wow/manifest', options }),
+  return checkManifest(
+    await json<Manifest>(
+      await send(client, { method: 'GET', path: '/wow/manifest', options }),
+    ),
   );
 }

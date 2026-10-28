@@ -14,6 +14,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { aggregation, filter } from '../src/dsl.js';
 import {
+  checkManifest,
   CommandGateway,
   type CommandResult,
   DatasetClient,
@@ -24,6 +25,7 @@ import {
   formatWaitTimeout,
   FrameworkErrorCodes,
   LifecycleCommands,
+  MANIFEST_FEATURES,
   newRequestId,
   parseRetryAfter,
   type Problem,
@@ -1084,5 +1086,20 @@ describe('fetchManifest', () => {
     );
     expect(await fetchManifest(client())).toEqual({ format: 1, contexts: [] });
     expect(requests[0].url).toBe(`${BASE_URL}/wow/manifest`);
+  });
+
+  it('refuses a Manifest of another format, or requiring what it does not understand', async () => {
+    stubFetch(() => jsonResponse({ format: 2, contexts: [] }));
+    await expect(fetchManifest(client())).rejects.toThrow(
+      'this client reads format 1',
+    );
+    const requiring = { format: 1, requires: ['routes-v2'], contexts: [] };
+    expect(() => checkManifest(requiring)).toThrow(
+      'requires routes-v2, which this client does not understand',
+    );
+    expect(() => new CommandGateway(client(), requiring)).toThrow(
+      'does not understand',
+    );
+    expect(MANIFEST_FEATURES.size).toBe(0);
   });
 });

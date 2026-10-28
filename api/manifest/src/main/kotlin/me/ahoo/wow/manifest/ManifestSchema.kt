@@ -15,7 +15,8 @@ package me.ahoo.wow.manifest
 
 /**
  * The JSON Schema 2020-12 of the Manifest format ([Manifest.FORMAT]): every object [ManifestTree] writes, with its keys,
- * which of them a reader requires, and the values of each enumeration this version writes. Its objects are open, as a
+ * which of them it always writes (`required`: a reader may rely on them; [ManifestTree.read] also takes a Manifest
+ * that leaves out an empty list), and the values of each enumeration this version writes. Its objects are open, as a
  * reader of a newer writer's Manifest reads the keys it does not know past, and an enumeration's values are those of
  * this writer: a reader reads one it does not know leniently ([ManifestTree.read]).
  *
@@ -35,7 +36,7 @@ object ManifestSchema {
         "title" to "Wow Manifest",
         "description" to "A service's Manifest, or a module's fragment (without service), format ${Manifest.FORMAT}.",
         "type" to "object",
-        "required" to listOf("format"),
+        "required" to listOf("format", "contexts", "errors", "\$defs"),
         "properties" to linkedMapOf(
             "format" to obj("const" to Manifest.FORMAT, "description" to "The format of the Manifest."),
             "requires" to strings("The markers a reader must understand to read the Manifest."),
@@ -51,7 +52,7 @@ object ManifestSchema {
         "\$defs" to linkedMapOf(
             SERVICE to objectOf(listOf("name"), "name" to string(), "version" to string()),
             CONTEXT to objectOf(
-                listOf("name"),
+                listOf("name", "aggregates", "subscriptions", "published", "errors"),
                 "name" to string("The bounded context's name: lower case words joined by hyphens."),
                 "description" to string(),
                 "aggregates" to array(ref(AGGREGATE)),
@@ -61,22 +62,22 @@ object ManifestSchema {
                 "commands" to array(ref(COMMAND), "The context's own system commands: its job commands."),
             ),
             AGGREGATE to objectOf(
-                listOf("name", "state"),
+                listOf("name", "state", "snapshot", "commands", "events", "queries"),
                 "name" to string(),
                 "description" to string(),
                 "state" to objectOf(listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()),
-                "snapshot" to objectOf(emptyList(), "enabled" to boolean(), "stateRevision" to integer()),
+                "snapshot" to objectOf(listOf("enabled"), "enabled" to boolean(), "stateRevision" to integer()),
                 "commands" to array(ref(COMMAND)),
                 "events" to array(ref(EVENT)),
                 "queries" to array(
-                    objectOf(listOf("model"), "model" to string(), "routes" to array(ref(ROUTE))),
+                    objectOf(listOf("model", "routes"), "model" to string(), "routes" to array(ref(ROUTE))),
                 ),
                 "schedules" to strings("The commands the aggregate schedules."),
                 "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; OWNER when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
             ),
             COMMAND to objectOf(
-                listOf("name", "schema", "creation"),
+                listOf("name", "aliases", "schema", "creation", "routes"),
                 "name" to string(),
                 "aliases" to strings("The command's former names."),
                 "schema" to schemaRef(),
@@ -89,7 +90,7 @@ object ManifestSchema {
                 "description" to string(),
             ),
             EVENT to objectOf(
-                listOf("name", "revision", "schema"),
+                listOf("name", "aliases", "revision", "schema"),
                 "name" to string(),
                 "aliases" to strings("The event's former names."),
                 "revision" to integer(),
@@ -104,7 +105,7 @@ object ManifestSchema {
                 "description" to string(),
             ),
             PUBLISHED to objectOf(
-                listOf("aggregate", "topic"),
+                listOf("aggregate", "topic", "includeState"),
                 "aggregate" to string(),
                 "topic" to string(),
                 "includeState" to boolean(),
@@ -114,7 +115,7 @@ object ManifestSchema {
                 "name" to string("processor.function"),
                 "kind" to enumOf(SubscriptionKind.entries),
                 "source" to objectOf(
-                    emptyList(),
+                    listOf("aggregates", "events"),
                     "context" to string(),
                     "aggregates" to strings(),
                     "events" to strings(),
@@ -145,7 +146,7 @@ object ManifestSchema {
                     "multiplier" to obj("type" to "number"),
                 ),
                 "job" to objectOf(
-                    listOf("name", "cron"),
+                    listOf("name", "cron", "zone", "scope", "sharded", "misfire"),
                     "name" to string(),
                     "cron" to string(),
                     "zone" to string(),

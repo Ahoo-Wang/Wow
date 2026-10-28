@@ -54,6 +54,7 @@ export {
 } from './http.js';
 export {
   type AggregateManifest,
+  checkManifest,
   type CommandManifest,
   type ContextManifest,
   type Creation,
@@ -61,6 +62,7 @@ export {
   type EventManifest,
   fetchManifest,
   type Manifest,
+  MANIFEST_FEATURES,
   MANIFEST_FORMAT,
   type QueryManifest,
   type RouteManifest,
