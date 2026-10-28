@@ -16,7 +16,8 @@ import type { RecordDetailSectionContext } from "@ahoo-wang/wow-view-engine/reac
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { DatasetArtifact, DatasetState } from "@/generated/index.ts";
-import { useI18n } from "@/i18n.tsx";
+import { type Locale, useI18n } from "@/i18n.tsx";
+import { DATASET_WORDS } from "@/views/datasets.ts";
 import { useServices } from "@/app/services.tsx";
 import {
   CONTROL,
@@ -153,7 +154,7 @@ export function DatasetReading({
   complete,
   refresh,
 }: RecordDetailSectionContext) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const yesNo = useYesNo();
   const state = datasetOf(row.data);
   const id = String(row.key);
@@ -164,7 +165,12 @@ export function DatasetReading({
         rows={[
           [t("name"), `${state.context}.${state.name}`],
           [t("title"), state.title],
-          [t("status"), <Badge variant="secondary">{state.status}</Badge>],
+          [
+            t("status"),
+            <Badge variant="secondary">
+              {statusWord(state.status, locale)}
+            </Badge>,
+          ],
           [
             t("serving"),
             state.current > 0 ? t("version", { version: state.current }) : null,
@@ -205,4 +211,17 @@ export function DatasetReading({
       ) : null}
     </div>
   );
+}
+
+/** The status, in the words its list view shows it; a status it does not know, as it came. */
+const STATUS_WORDS: Readonly<Record<string, keyof (typeof DATASET_WORDS)["en"]>> = {
+  DRAFT: "statusDraft",
+  PUBLISHED: "statusPublished",
+  NEEDS_REVISION: "statusNeedsRevision",
+  RETIRED: "statusRetired",
+};
+
+function statusWord(status: string, locale: Locale): string {
+  const word = STATUS_WORDS[status];
+  return word === undefined ? status : DATASET_WORDS[locale][word];
 }

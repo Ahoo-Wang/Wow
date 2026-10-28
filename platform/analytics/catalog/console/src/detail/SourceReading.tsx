@@ -16,7 +16,8 @@ import type { RecordDetailSectionContext } from "@ahoo-wang/wow-view-engine/reac
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { FieldSensitivity, SourceState } from "@/generated/index.ts";
-import { useI18n } from "@/i18n.tsx";
+import { type Locale, type Message, useI18n } from "@/i18n.tsx";
+import { SOURCE_WORDS } from "@/views/sources.ts";
 import { useServices } from "@/app/services.tsx";
 import {
   CONTROL,
@@ -133,6 +134,13 @@ function ScopeForm({
 
 const LEVELS = ["", "display", "confidential"] as const;
 
+/** The word of each level, as the select shows it. */
+const LEVEL_WORDS = {
+  "": "levelNone",
+  display: "levelDisplay",
+  confidential: "levelConfidential",
+} as const satisfies Record<(typeof LEVELS)[number], Message>;
+
 /** Each value's protection, as an analyst reviews it. */
 function SensitivityForm({
   id,
@@ -211,7 +219,7 @@ function SensitivityForm({
                     >
                       {LEVELS.map((level) => (
                         <option key={level} value={level}>
-                          {level === "" ? t("levelNone") : level}
+                          {t(LEVEL_WORDS[level])}
                         </option>
                       ))}
                     </select>
@@ -252,7 +260,7 @@ export function SourceReading({
   complete,
   refresh,
 }: RecordDetailSectionContext) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const yesNo = useYesNo();
   const state = sourceOf(row.data);
   const id = String(row.key);
@@ -265,7 +273,12 @@ export function SourceReading({
           [t("connection"), state.connection],
           [t("table"), `${state.database}.${state.table}`],
           [t("tableEngine"), state.tableEngine],
-          [t("status"), <Badge variant="secondary">{state.status}</Badge>],
+          [
+            t("status"),
+            <Badge variant="secondary">
+              {statusWord(state.status, locale)}
+            </Badge>,
+          ],
           [t("approved"), yesNo(state.approved)],
           [t("missing"), yesNo(state.missing)],
           [t("platform"), yesNo(state.platform)],
@@ -307,4 +320,16 @@ export function SourceReading({
       ) : null}
     </div>
   );
+}
+
+/** The status, in the words its list view shows it; a status it does not know, as it came. */
+const STATUS_WORDS: Readonly<Record<string, keyof (typeof SOURCE_WORDS)["en"]>> = {
+  DRAFT: "statusDraft",
+  REVIEWED: "statusReviewed",
+  ADOPTED: "statusAdopted",
+};
+
+function statusWord(status: string, locale: Locale): string {
+  const word = STATUS_WORDS[status];
+  return word === undefined ? status : SOURCE_WORDS[locale][word];
 }
