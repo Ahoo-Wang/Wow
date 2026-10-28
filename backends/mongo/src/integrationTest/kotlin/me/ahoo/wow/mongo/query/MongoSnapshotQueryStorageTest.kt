@@ -59,6 +59,7 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -156,7 +157,7 @@ class MongoSnapshotQueryStorageTest {
         val type = newType()
         assertThrownBy<IllegalArgumentException> { storage(type).binding(AggregateType("elsewhere", "order")) }
         storage(type).collection(type.name).assert().isEqualTo(MongoSnapshotStore.collectionName(type.context, type.name))
-        val elsewhere = MongoQueryIndexes.plan("elsewhere", "order", schema(type), emptyList())
+        val elsewhere = MongoQueryIndexes.plan("elsewhere", "order", QueryIndexPlan.of(schema(type), emptyList()))
         assertThrownBy<IllegalArgumentException> { storage(type).manageIndexes(elsewhere) }
     }
 
@@ -214,7 +215,7 @@ class MongoSnapshotQueryStorageTest {
     fun `auto creates the indexes, validate and none only look`(): Unit = runBlocking {
         val type = newType()
         val schema = schema(type)
-        val indexes = MongoQueryIndexes.plan(type.context, type.name, schema, listOf(STATUS_INDEX))
+        val indexes = MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(STATUS_INDEX)))
         val names = indexes.map { it.name }
         storage(type, MongoQueryOptions(Ddl.NONE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
         // Before the aggregate's first snapshot the collection does not exist: every index is missing.
@@ -238,7 +239,7 @@ class MongoSnapshotQueryStorageTest {
         // A collection the store created has the scope indexes already.
         val fresh = newType()
         store(fresh).createCollection(fresh.name)
-        val planned = MongoQueryIndexes.plan(fresh.context, fresh.name, schema, emptyList())
+        val planned = MongoQueryIndexes.plan(fresh.context, fresh.name, QueryIndexPlan.of(schema, emptyList()))
         storage(fresh, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(planned).assert().isEqualTo(MongoQueryIndexReport())
     }
 
@@ -325,7 +326,7 @@ class MongoSnapshotQueryStorageTest {
                 QueryFixtures.schema(type, MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!.storage)
             }
             MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
-                .manageIndexes(MongoQueryIndexes.plan(type.context, type.name, schema, listOf(STATUS_INDEX)))
+                .manageIndexes(MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(STATUS_INDEX))))
             type
         }
     }

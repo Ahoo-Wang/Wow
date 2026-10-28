@@ -14,15 +14,12 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
-import me.ahoo.wow.query.index.QueryIndexDeclaration
-import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.spi.Ddl
 import org.slf4j.LoggerFactory
 import java.sql.Connection
@@ -59,24 +56,15 @@ data class PostgresQueryIndexReport(
 object PostgresQueryIndexes {
     private val log = LoggerFactory.getLogger(PostgresQueryIndexes::class.java)
 
-    /** The capabilities whose binding an index key takes its expression from: those an index serves. */
-    private val INDEXED = listOf(QueryCapability.SORT, QueryCapability.RANGE, QueryCapability.EXACT_MATCH)
-
     /**
-     * The indexes of [declarations] on the snapshot table of [aggregate] in [context], keyed by the expressions of
-     * [schema], the aggregate's snapshot query model on this backend. Fails on a key the model does not know or
-     * cannot index: one without an exact match, a range or a sort, or one with many values (an array).
+     * The indexes of [plan] on the snapshot table of [aggregate] in [context], keyed by the expressions of its keys'
+     * physical fields. Fails on a key with many values (an array): a B-tree indexes one.
      */
-    fun plan(
-        context: String,
-        aggregate: String,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): List<PostgresQueryIndex> {
+    fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val tables = PostgresSnapshotTables(context, aggregate)
-        return declarations.map { declaration ->
-            val keys = declaration.keys.map { key(schema, declaration, it) }
-            val name = PostgresIdentifiers.limited(tables.base + "_" + declaration.name)
+        return plan.indexes.map { index ->
+            val keys = index.keys.map { key(index, it) }
+            val name = PostgresIdentifiers.limited(tables.base + "_" + index.name)
             PostgresQueryIndex(
                 name,
                 tables.snapshot,
@@ -86,18 +74,12 @@ object PostgresQueryIndexes {
         }
     }
 
-    private fun key(schema: QueryModelSchema, declaration: QueryIndexDeclaration, key: String): String {
-        val field = requireNotNull(schema.field(QueryField(key))) {
-            "Index [${declaration.name}] has the key [$key], which the query model does not know."
+    private fun key(index: QueryIndexPlan.Index, key: QueryIndexPlan.Key): String {
+        require(key.cardinality == QueryCardinality.SINGLE) {
+            "Index [${index.name}] has the key [${key.field.path}], which holds many values: a B-tree indexes one."
         }
-        val binding = requireNotNull(INDEXED.firstNotNullOfOrNull(field::binding)) {
-            "Index [${declaration.name}] has the key [$key], which PostgreSQL neither matches, ranges nor sorts."
-        }
-        require(field.value.cardinality == QueryCardinality.SINGLE) {
-            "Index [${declaration.name}] has the key [$key], which holds many values: a B-tree indexes one."
-        }
-        val type = PostgresQueryType.require(binding.storageTypes, field.logicalField)
-        val expression = PostgresSnapshotQueryExpressions.value(binding.physicalField, type)
+        val type = PostgresQueryType.require(key.storageTypes, key.field)
+        val expression = PostgresSnapshotQueryExpressions.value(key.physicalField, type)
         val column = if (expression in PostgresSnapshotQueryExpressions.COLUMNS.values) expression else "($expression)"
         return "$column NULLS FIRST"
     }

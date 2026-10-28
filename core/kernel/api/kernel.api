@@ -189,13 +189,12 @@ public final class me/ahoo/wow/kernel/ExecutionContext : me/ahoo/wow/api/subscri
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/subscribe/SagaContext, me/ahoo/wow/kernel/Derivation {
+public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/subscribe/SagaContext {
 	public static final field Companion Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;
 	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
-	public fun commandsOf (Ljava/util/List;)Ljava/util/List;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;

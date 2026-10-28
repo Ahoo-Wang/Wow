@@ -23,10 +23,10 @@ import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap
 class SnapshotQueryBackend(
     val bindings: QueryBindings<AggregateType>?,
     private val prepare: (AggregateType) -> Unit = {},
-    private val indexes: ((AggregateType, QueryModelSchema, List<QueryIndexDeclaration>) -> QueryIndexReport)? = null,
+    private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
     /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has [bindings]. */
     private val serves: (AggregateType) -> Boolean = { bindings != null },
     /** The store whose query bulkhead [AggregateType]'s snapshot queries run under; none for the application's own. */
@@ -71,12 +71,9 @@ class SnapshotQueryBackend(
     /** The store [type]'s snapshot queries run on, or null when the host does not know it. */
     fun storeOf(type: AggregateType): String? = store.invoke(type)
 
-    /** Manages [declarations], [type]'s indexes on its query model [schema], as the `ddl` of its store says. */
-    fun manageIndexes(
-        type: AggregateType,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport = indexes?.invoke(type, schema, declarations) ?: QueryIndexReport.NONE
+    /** Manages [plan], [type]'s indexes planned on its query model, as the `ddl` of its store says. */
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport =
+        indexes?.invoke(type, plan) ?: QueryIndexReport.NONE
 
     @InternalWowApi
     companion object {
@@ -107,9 +104,7 @@ class SnapshotQueryBackend(
             return SnapshotQueryBackend(
                 bindings = { type -> backendOf(type)?.bindings?.binding(type) },
                 prepare = { type -> backendOf(type)?.prepare(type) },
-                indexes = { type, schema, declarations ->
-                    backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport.NONE
-                },
+                indexes = { type, plan -> backendOf(type)?.manageIndexes(type, plan) ?: QueryIndexReport.NONE },
                 serves = { type -> backendOf(type)?.serves(type) == true },
                 store = { type -> storeOf(type)?.takeIf { backendOf(type) != null } },
             )
@@ -287,7 +282,7 @@ class QueryIndexesLifecycle(
                 backend.prepare(type)
                 val schema = runBlocking { catalog.schema(type, QueryModel.SNAPSHOT) }
                 val declarations = QueryIndexDeclaration.of(manifest, type.context, type.name)
-                backend.manageIndexes(type, schema, declarations).also { report ->
+                backend.manageIndexes(type, QueryIndexPlan.of(schema, declarations)).also { report ->
                     if (report.created.isNotEmpty()) {
                         logger.info { "Created the query indexes ${report.created} of $type." }
                     }

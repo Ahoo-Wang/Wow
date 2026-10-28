@@ -27,6 +27,7 @@ import me.ahoo.wow.query.spec.SystemField
  * on either is an unknown field, and no default scope.
  */
 @ExperimentalWowApi
+@InternalWowApi
 class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) : QueryModelProfile(QueryModel.DATASET) {
     override val identityField: QueryField?
         get() = dataset.identity

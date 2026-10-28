@@ -19,8 +19,7 @@ import me.ahoo.wow.mongo.MongoStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
-import me.ahoo.wow.query.index.QueryIndexDeclaration
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -61,13 +60,9 @@ private class MongoSnapshotQueries(private val store: MongoStore, options: Store
 
     override val managesIndexes: Boolean get() = true
 
-    override fun manageIndexes(
-        type: AggregateType,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport {
+    override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
         // The scope indexes come first, then the declared ones; auto makes sure of the collection.
-        val indexes = MongoQueryIndexes.plan(type.context, type.name, schema, declarations)
+        val indexes = MongoQueryIndexes.plan(type.context, type.name, plan)
         val report = storage(type.context).manageIndexes(indexes)
         return QueryIndexReport(report.created, report.missing, report.invalid)
     }

@@ -16,12 +16,9 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.IndexOptions
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.query.index.QueryIndexDeclaration
-import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.spi.Ddl
 import org.bson.Document
 import org.slf4j.LoggerFactory
@@ -74,54 +71,34 @@ data class MongoQueryIndexReport(
 object MongoQueryIndexes {
     private val log = LoggerFactory.getLogger(MongoQueryIndexes::class.java)
 
-    /** The capabilities whose binding an index key takes its path from: those an index serves. */
-    private val INDEXED = listOf(QueryCapability.SORT, QueryCapability.RANGE, QueryCapability.EXACT_MATCH)
-
     /** The index names the store keeps for itself. */
     private val RESERVED = setOf(MongoSnapshotDocuments.ID + "_")
 
     /**
      * The indexes of the snapshot collection of [aggregate] in [context]: the two scope indexes, then those of
-     * [declarations], keyed by the paths of [schema], the aggregate's snapshot query model on this backend. Fails on a
-     * key the model does not know or cannot index (one without an exact match, a range or a sort), on a second
-     * multi-valued key (MongoDB cannot index parallel arrays) and on a name the collection already uses.
+     * [plan], keyed by its keys' document paths. Fails on a second multi-valued key (MongoDB cannot index parallel
+     * arrays) and on a name the collection already uses.
      */
-    fun plan(
-        context: String,
-        aggregate: String,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): List<MongoQueryIndex> {
+    fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<MongoQueryIndex> {
         val scope = MongoSnapshotStore.SCOPE_INDEXES.map { (name, field) ->
             MongoQueryIndex(context, aggregate, name, listOf(MongoSnapshotDocuments.TENANT_ID, field))
         }
         val names = scope.map { it.name }.toMutableSet()
-        val declared = declarations.map { declaration ->
-            require(declaration.name !in RESERVED && names.add(declaration.name)) {
-                "Index [${declaration.name}] of $context.$aggregate reuses a name the collection already has."
+        val declared = plan.indexes.map { index ->
+            require(index.name !in RESERVED && names.add(index.name)) {
+                "Index [${index.name}] of $context.$aggregate reuses a name the collection already has."
             }
-            val keys = declaration.keys.map { key(schema, declaration, it) }
-            require(keys.count { it.second } <= 1) {
-                "Index [${declaration.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
+            require(index.keys.count { it.cardinality != QueryCardinality.SINGLE } <= 1) {
+                "Index [${index.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
             }
-            val paths = (listOf(MongoSnapshotDocuments.TENANT_ID) + keys.map { it.first }).distinct()
-            MongoQueryIndex(context, aggregate, declaration.name, paths)
+            val paths = listOf(MongoSnapshotDocuments.TENANT_ID) + index.keys.map { key ->
+                // A planned key, not an admitted query: no admission resolved it, so its physical field is read directly.
+                val physical = key.physicalField
+                MongoSnapshotDocuments.checked(physical.path)
+            }
+            MongoQueryIndex(context, aggregate, index.name, paths.distinct())
         }
         return scope + declared
-    }
-
-    /** The document path of [key] and whether it holds many values. */
-    private fun key(schema: QueryModelSchema, declaration: QueryIndexDeclaration, key: String): Pair<String, Boolean> {
-        val field = requireNotNull(schema.field(QueryField(key))) {
-            "Index [${declaration.name}] has the key [$key], which the query model does not know."
-        }
-        val binding = requireNotNull(INDEXED.firstNotNullOfOrNull(field::binding)) {
-            "Index [${declaration.name}] has the key [$key], which MongoDB neither matches, ranges nor sorts."
-        }
-        // A schema binding, not an admitted query: no admission resolved it, so its physical field is read directly.
-        val physical = binding.physicalField
-        val path = MongoSnapshotDocuments.checked(physical.path)
-        return path to (field.value.cardinality != QueryCardinality.SINGLE)
     }
 
     /**

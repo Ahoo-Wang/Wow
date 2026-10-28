@@ -28,6 +28,10 @@ tasks.named<Test>("test") {
             )
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("moduleSources")
+    // The third-party store opts in nowhere, its tests included.
+    inputs.dir(rootProject.layout.projectDirectory.dir("test/spi-consumer/src/test"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("spiConsumerTests")
     // The ABI dumps: no data class in some (decisions D227, D228), no nested class without its outer one in any.
     inputs.files(moduleDirs.map { rootProject.layout.projectDirectory.dir("$it/api") })
         .withPathSensitivity(PathSensitivity.RELATIVE)

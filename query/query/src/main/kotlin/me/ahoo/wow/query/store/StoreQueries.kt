@@ -17,8 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.backend.QueryBindings
-import me.ahoo.wow.query.index.QueryIndexDeclaration
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StorePool
@@ -96,14 +95,10 @@ interface SnapshotQueries : QueryBindings<AggregateType> {
     fun prepare(type: AggregateType) = Unit
 
     /**
-     * Manages [declarations], [type]'s indexes on its query model [schema], as [StoreQueryOptions.indexDdl] says:
-     * creates the missing ones under `auto`, reports them under `validate`.
+     * Manages [plan], [type]'s indexes as the core planned them on its query model, as [StoreQueryOptions.indexDdl]
+     * says: creates the missing ones under `auto`, reports them under `validate`.
      */
-    fun manageIndexes(
-        type: AggregateType,
-        schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport = QueryIndexReport.NONE
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport = QueryIndexReport.NONE
 }
 
 /** What managing one aggregate's indexes did: the indexes it [created], and those it found [missing] or [invalid]. */

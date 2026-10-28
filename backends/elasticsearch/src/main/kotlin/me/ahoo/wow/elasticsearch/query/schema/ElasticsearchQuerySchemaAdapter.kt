@@ -95,16 +95,22 @@ internal class ElasticsearchQuerySchemaAdapter(
          * HAVING, top-N by a metric and dense fill over the groups this backend streams. On one primary shard a
          * single TERMS group's top N by a count is a `terms` aggregation instead ([EXACT_TERMS_TOP_N]).
          */
-        internal val STORAGE_SUPPORT = StorageSupport(
-            aggregation = AggregationSupport(
-                having = SupportMode.RESIDUAL,
-                topN = SupportMode.RESIDUAL,
-                denseFill = SupportMode.RESIDUAL,
-            ),
-            // No value is indexed for null or [], and keyword doc values are sorted and deduplicated.
-            absentValues = AbsentValues.AS_MISSING,
-            arrayEquality = SupportMode.NONE,
-        )
+        internal val STORAGE_SUPPORT = storageSupport()
+
+        /** [STORAGE_SUPPORT] with an offset window of [maxOffsetWindow] and a native top-N for [termsTopN]. */
+        private fun storageSupport(maxOffsetWindow: Int? = null, termsTopN: Set<MetricSpec> = emptySet()) =
+            StorageSupport(
+                paging = PagingSupport(maxOffsetWindow = maxOffsetWindow),
+                aggregation = AggregationSupport(
+                    having = SupportMode.RESIDUAL,
+                    topN = SupportMode.RESIDUAL,
+                    denseFill = SupportMode.RESIDUAL,
+                    termsTopN = termsTopN,
+                ),
+                // No value is indexed for null or [], and keyword doc values are sorted and deduplicated.
+                absentValues = AbsentValues.AS_MISSING,
+                arrayEquality = SupportMode.NONE,
+            )
 
         /**
          * What the index mapping proves about [logicalSchema]: per path, the capabilities its field kinds and options
@@ -178,12 +184,8 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         /** [STORAGE_SUPPORT] over this index: its offset window, and a native top-N where it has one shard. */
-        private fun ElasticsearchIndexMapping.storageSupport(): StorageSupport = STORAGE_SUPPORT.copy(
-            paging = PagingSupport(maxOffsetWindow = maxResultWindow),
-            aggregation = STORAGE_SUPPORT.aggregation.copy(
-                termsTopN = if (singleShard) EXACT_TERMS_TOP_N else emptySet(),
-            ),
-        )
+        private fun ElasticsearchIndexMapping.storageSupport(): StorageSupport =
+            storageSupport(maxResultWindow, if (singleShard) EXACT_TERMS_TOP_N else emptySet())
 
         @Suppress("LongParameterList")
         private fun ElasticsearchIndexMapping.valueBindings(

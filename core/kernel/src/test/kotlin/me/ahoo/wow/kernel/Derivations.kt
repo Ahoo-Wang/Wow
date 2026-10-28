@@ -18,3 +18,6 @@ import me.ahoo.wow.api.decide.Command
 
 /** The command this execution derives of [request], as a handler that returns it gets it sent. */
 fun Derivation.derive(request: CommandRequest<*>): Command<*> = commandsOf(listOf(request)).first()
+
+/** The command a saga's context derives from [request]. */
+fun ExecutionSagaContext.derive(request: CommandRequest<*>): Command<*> = commandsOf(listOf(request)).first()

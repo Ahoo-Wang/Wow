@@ -64,13 +64,11 @@ public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target {
-	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun aggregate$default (Lme/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target;Lme/ahoo/wow/api/query/AggregationQuery;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun count (Lme/ahoo/wow/api/query/FilterExpression;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
 	public final fun getDataset ()Lme/ahoo/wow/query/dataset/QueryDataset;
-	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
@@ -137,11 +135,9 @@ public final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture {
-	public fun <init> (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun count (Lme/ahoo/wow/api/query/FilterExpression;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
-	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun keys (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun keys$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -189,6 +185,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	protected fun getSemanticDivergences ()Ljava/util/Set;
 	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	protected final fun given (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun indexPlan ([Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun list sorts by several fields in either direction and honors the limit ()V
 	public final fun list without a limit streams every record ()V
 	public final fun logical filters combine AND, OR and NOR ()V
@@ -218,10 +215,8 @@ public final class me/ahoo/wow/query/tck/QueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/QueryBackendSpec$Fixture {
-	public fun <init> (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
-	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun ids (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun ids$default (Lme/ahoo/wow/query/tck/QueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

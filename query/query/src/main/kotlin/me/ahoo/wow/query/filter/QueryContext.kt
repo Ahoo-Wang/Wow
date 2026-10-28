@@ -33,6 +33,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 class QueryContext<Q : RewritableFilter<Q>> @InternalWowApi constructor(
     val query: Q,
     val aggregateType: AggregateType,
+    @property:InternalWowApi
     val schema: QueryModelSchema,
     val queryType: QueryType,
     val entry: QueryEntry,
@@ -53,6 +54,7 @@ class QueryContext<Q : RewritableFilter<Q>> @InternalWowApi constructor(
     companion object {
         /** A [QueryContext] of the given values. */
         @JvmStatic
+        @InternalWowApi
         fun <Q : RewritableFilter<Q>> of(
             query: Q,
             aggregateType: AggregateType,

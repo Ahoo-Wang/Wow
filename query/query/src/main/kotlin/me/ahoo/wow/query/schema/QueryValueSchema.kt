@@ -18,11 +18,13 @@ import me.ahoo.wow.api.query.QueryField
 import tools.jackson.databind.JsonNode
 
 /**
- * One immutable logical value shape, shared by backend schema snapshots.
+ * One immutable logical value shape, shared by backend schema snapshots: its [kind], the scalar [valueTypes], an
+ * object's [properties] and [additionalProperties], an array's [items], a union's [alternatives], and what the
+ * sources declare about it ([semanticType], [maskRule], [aliases], [deprecated]). The core builds it from the model's
+ * sources; a storage adapter reads it, through [LogicalQuerySchema], to report what its storage serves.
  * Collection inputs are snapshotted; mutable enum JSON is detached on read.
  */
-@InternalWowApi
-class QueryValueSchema(
+class QueryValueSchema @InternalWowApi constructor(
     val kind: QueryValueKind,
     val title: String? = null,
     val description: String? = null,
@@ -121,11 +123,13 @@ class QueryValueSchema(
 }
 
 /**
- * A native binding as a storage adapter reports it; [physicalScope] and [indexed] are [QueryFieldBinding.physicalScope]
- * and [QueryFieldBinding.indexed].
+ * Where a storage keeps a logical value for one capability, as its adapter reports it ([of]): the [physicalPath] in
+ * the stored record, whose `*` key slots the core fills from the logical path; the native [storageTypes] there, or
+ * `null` when the storage does not know them; the [physicalScope], the container whose elements the storage indexes
+ * as separate documents (an Elasticsearch `nested` mapping), when there is one; and whether an index backs it
+ * ([indexed]), `null` when the storage does not say. [indexed] never gates a capability: the descriptor publishes it.
  */
-@InternalWowApi
-class QueryFieldBindingTemplate(
+class QueryFieldBindingTemplate @InternalWowApi constructor(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
     val physicalScope: QueryField? = null,
@@ -146,10 +150,26 @@ class QueryFieldBindingTemplate(
     override fun hashCode(): Int =
         31 * (31 * (31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)) +
             (indexed?.hashCode() ?: 0)
+
+    companion object {
+        /** The binding at [physicalPath], of the native [storageTypes] (null: unknown), in [physicalScope]. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            physicalPath: QueryPathTemplate,
+            storageTypes: Set<QueryStorageType>?,
+            physicalScope: QueryField? = null,
+            indexed: Boolean? = null,
+        ): QueryFieldBindingTemplate = QueryFieldBindingTemplate(physicalPath, storageTypes, physicalScope, indexed)
+    }
 }
 
-@InternalWowApi
-class QueryValueBindings(
+/**
+ * What a storage serves at one logical path, as its adapter reports it ([of]): the [bindings], the location each
+ * capability it can execute reads, and where a projection takes the value from ([projectionPath]) and a response
+ * returns it ([responsePath]), `null` where the storage cannot project or return it.
+ */
+class QueryValueBindings @InternalWowApi constructor(
     bindings: Map<QueryCapability, QueryFieldBindingTemplate> = emptyMap(),
     val projectionPath: QueryPathTemplate? = null,
     val responsePath: QueryPathTemplate? = null,
@@ -157,4 +177,15 @@ class QueryValueBindings(
     val bindings: Map<QueryCapability, QueryFieldBindingTemplate> = java.util.Collections.unmodifiableMap(
         LinkedHashMap(bindings)
     )
+
+    companion object {
+        /** The [bindings] of each capability, with the [projectionPath] and [responsePath], if any. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            bindings: Map<QueryCapability, QueryFieldBindingTemplate>,
+            projectionPath: QueryPathTemplate? = null,
+            responsePath: QueryPathTemplate? = null,
+        ): QueryValueBindings = QueryValueBindings(bindings, projectionPath, responsePath)
+    }
 }

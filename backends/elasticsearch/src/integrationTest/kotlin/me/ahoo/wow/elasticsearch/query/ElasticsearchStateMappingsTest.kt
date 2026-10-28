@@ -36,6 +36,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel
@@ -122,7 +123,7 @@ class ElasticsearchStateMappingsTest {
             },
         ).get()
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
-        val report = queries.manageIndexes(type, schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), declaration), emptyList())
+        val report = queries.manageIndexes(type, schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), declaration).let { QueryIndexPlan.of(it, emptyList()) })
         report.invalid.assert().containsExactlyInAnyOrder("state.flat", "state.active")
         report.created.assert().contains("state.name", "state.day", "state.score", "state.labels", "state.codes", "state.matrix", "state.address.city", "state.parts", "state.parts.code", "state.flat.inner")
         report.created.assert().doesNotContain("state.either", "state.address.geo.lat")
@@ -141,7 +142,7 @@ class ElasticsearchStateMappingsTest {
             field("state.name") { types(QueryValueType.STRING) }
             field("state.extra") { types(QueryValueType.BOOLEAN) }
         }
-        validating.manageIndexes(type, schema(validating, wider), emptyList()).missing.assert().containsExactly("state.extra")
+        validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing.assert().containsExactly("state.extra")
     }
 
     @Test

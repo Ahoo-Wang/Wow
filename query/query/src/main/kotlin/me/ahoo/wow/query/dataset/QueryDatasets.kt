@@ -167,6 +167,7 @@ class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
     }
 
     /** The profile of [context]'s model: the dataset's own for [QueryModel.DATASET], the built-in one otherwise. */
+    @InternalWowApi
     fun profile(context: QuerySchemaContext): QueryModelProfile? = if (context.model == QueryModel.DATASET) {
         get(context.aggregateType)?.profile
     } else {
@@ -177,6 +178,7 @@ class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
      * The schema source of the datasets' fields: a dataset's declaration is the base of its model, as the Manifest is
      * for an aggregate's, and other sources (a bean) may enrich it at a higher priority.
      */
+    @InternalWowApi
     val schemaSource: QuerySchemaSource = object : QuerySchemaSource {
         override val priority: Int = QuerySchemaSourcePriority.MANIFEST
 

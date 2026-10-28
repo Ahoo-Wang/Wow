@@ -62,9 +62,9 @@ class QueryModel @InternalWowApi constructor(
 
 /**
  * What storage lets a field do. A closed set: a backend grants a subset per field, and every query rule is written
- * against these values.
+ * against these values. A storage adapter reports, for each logical path, the ones its native structures execute
+ * ([QueryValueBindings]).
  */
-@InternalWowApi
 enum class QueryCapability {
     PRESENCE,
     EXACT_MATCH,
@@ -109,7 +109,7 @@ class QueryValueType @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(value)
 }
 
-@InternalWowApi
+/** Whether a value holds one value per record, or many (an array, or a value inside one). */
 enum class QueryCardinality {
     SINGLE,
     MANY,

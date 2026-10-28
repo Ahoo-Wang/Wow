@@ -38,6 +38,7 @@ import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryCapability
@@ -131,9 +132,9 @@ class ElasticsearchSnapshotQueriesTest {
         store.save(snapshot("early", """{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}"""))
             .assert().isTrue()
         // A schema compiled without mapping anything (`none`), as the host compiles one before it manages the indexes.
-        val report = queries.manageIndexes(type, schema(queries(Ddl.NONE)), emptyList())
+        val report = queries.manageIndexes(type, QueryIndexPlan.of(schema(queries(Ddl.NONE)), emptyList()))
         report.created.assert().contains("state.name", "state.lines", "state.lines.sku")
-        queries.manageIndexes(type, schema(queries), emptyList()).assert().isEqualTo(QueryIndexReport.NONE)
+        queries.manageIndexes(type, QueryIndexPlan.of(schema(queries), emptyList())).assert().isEqualTo(QueryIndexReport.NONE)
         val schema = schema(queries)
         schema.field(QueryField("state.name"))?.binding(QueryCapability.EXACT_MATCH).assert().isNotNull()
         val backend = queries.binding(type).backend
@@ -163,7 +164,7 @@ class ElasticsearchSnapshotQueriesTest {
         ).get()
         val validating = queries(Ddl.VALIDATE)
         validating.prepare(type)
-        val report = validating.manageIndexes(type, schema(validating), emptyList())
+        val report = validating.manageIndexes(type, QueryIndexPlan.of(schema(validating), emptyList()))
         report.created.assert().isEmpty()
         report.missing.assert().contains("state.status")
         report.invalid.assert().containsExactly("state.name")
@@ -172,7 +173,7 @@ class ElasticsearchSnapshotQueriesTest {
         none.prepare(type)
         schema(none).field(QueryField("state.status"))?.binding(QueryCapability.EXACT_MATCH).assert().isNull()
         // Auto adds what is missing and keeps the field mapped otherwise.
-        queries().manageIndexes(type, schema(queries()), emptyList()).invalid.assert().containsExactly("state.name")
+        queries().manageIndexes(type, QueryIndexPlan.of(schema(queries()), emptyList())).invalid.assert().containsExactly("state.name")
     }
 
     @Test

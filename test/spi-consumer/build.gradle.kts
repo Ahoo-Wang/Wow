@@ -22,4 +22,5 @@ dependencies {
     implementation(project(":spi"))
     implementation(project(":query"))
     testImplementation(project(":tck"))
+    testImplementation(project(":query-tck"))
 }

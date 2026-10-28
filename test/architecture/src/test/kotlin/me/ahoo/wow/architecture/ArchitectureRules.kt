@@ -448,7 +448,7 @@ object ArchitectureRules {
         "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
         // The schemas, indexes and datasets the host loads and reports at startup.
         "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema",
-        "index.QueryIndexDeclaration", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
+        "index.QueryIndexDeclaration", "index.QueryIndexPlan", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
         "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
         // The read paths it hands out.
         "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",

@@ -14,13 +14,8 @@
 package me.ahoo.wow.consumer
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.backend.QueryBackend
-import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
-import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -117,8 +112,3 @@ class AcmeSnapshotStore(private val queries: InMemoryQueryStorage) : SnapshotSto
 }
 
 /** The queries of an `acme-snapshots` store: its snapshots, over the reference query storage; no `events`. */
-class AcmeQueries(private val storage: InMemoryQueryStorage) : StoreQueries {
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
-        override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
-    }
-}

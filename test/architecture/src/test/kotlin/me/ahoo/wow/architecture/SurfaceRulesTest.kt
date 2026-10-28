@@ -57,6 +57,32 @@ class SurfaceRulesTest {
             .containsExactly("${module.dir}/api/${module.name}.api: me/ahoo/wow/kernel/Hidden${'$'}Nested")
     }
 
+    @Test
+    fun `the public API should name no type that is not public itself`() {
+        SurfaceRules.abiClosureViolations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `closure rule should catch a public signature that names an internal type`(@TempDir root: File) {
+        val module = ArchitectureRules.KERNEL
+        File(root, "${module.dir}/api").mkdirs()
+        File(root, "${module.dir}/api/${module.name}.api").writeText(
+            """
+            public final class me/ahoo/wow/kernel/Shown {
+            	public final fun hidden ()Lme/ahoo/wow/kernel/Hidden;
+            	public final fun shown ()Lme/ahoo/wow/kernel/Shown;
+            	public synthetic fun <init> (Lme/ahoo/wow/kernel/Bridged;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+            }
+            """.trimIndent(),
+        )
+        SurfaceRules.abiClosureViolations(root).assert().contains(
+            "${module.dir}/api/${module.name}.api: me/ahoo/wow/kernel/Shown: me/ahoo/wow/kernel/Hidden",
+        ).noneMatch { "Shown: me/ahoo/wow/kernel/Shown" in it || "Bridged" in it }
+        // Every allowed type is named by no dump here: each entry is stale.
+        SurfaceRules.abiClosureViolations(root).filter { it.startsWith("stale entry: ") }.assert()
+            .hasSize(SurfaceRules.ABI_CLOSURE_ALLOWED.size)
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }

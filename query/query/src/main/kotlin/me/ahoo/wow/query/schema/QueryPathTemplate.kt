@@ -16,21 +16,50 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 
-/** Schema path parts; keys are captured by logical lookup, items describe array traversal. */
-@InternalWowApi
+/**
+ * One part of a [QueryPathTemplate]: a named [Property], a dynamic [Key] whose name the core captures from the
+ * logical path (a map's key, numbered by its [Key.slot]), or an array's [Item].
+ */
 sealed interface QueryPathSegment {
-    @InternalWowApi
-    data class Property(val name: String) : QueryPathSegment
+    /** The property [name]. */
+    class Property @InternalWowApi constructor(val name: String) : QueryPathSegment {
+        override fun equals(other: Any?): Boolean = this === other || other is Property && name == other.name
 
-    @InternalWowApi
-    data class Key(val slot: Int) : QueryPathSegment
+        override fun hashCode(): Int = name.hashCode()
 
-    @InternalWowApi
+        override fun toString(): String = "Property(name=$name)"
+
+        companion object {
+            @JvmStatic
+            fun of(name: String): Property = Property(name)
+        }
+    }
+
+    /** The dynamic key captured in [slot], from 0 in the order the keys occur. */
+    class Key @InternalWowApi constructor(val slot: Int) : QueryPathSegment {
+        override fun equals(other: Any?): Boolean = this === other || other is Key && slot == other.slot
+
+        override fun hashCode(): Int = slot
+
+        override fun toString(): String = "Key(slot=$slot)"
+
+        companion object {
+            @JvmStatic
+            fun of(slot: Int): Key = Key(slot)
+        }
+    }
+
+    /** Each element of an array. */
     data object Item : QueryPathSegment
 }
 
-@InternalWowApi
+/**
+ * A logical or physical path of a model as segments ([QueryPathSegment]): `state.lines[].sku` is
+ * `Property(state), Property(lines), Item, Property(sku)`. A storage adapter reports its bindings by the logical
+ * template ([LogicalQuerySchema.values]) and gives each binding's physical template ([of]).
+ */
 class QueryPathTemplate private constructor(input: List<QueryPathSegment>, validatedField: QueryField?) {
+    @InternalWowApi
     constructor(segments: List<QueryPathSegment>) : this(segments, null)
 
     val segments: List<QueryPathSegment> = java.util.List.copyOf(input)
@@ -93,8 +122,18 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
 
     override fun hashCode(): Int = hash
 
-    internal companion object {
-        fun fromField(field: QueryField): QueryPathTemplate =
+    override fun toString(): String = "QueryPathTemplate($segments)"
+
+    companion object {
+        /** The template of [segments]. */
+        @JvmStatic
+        fun of(segments: List<QueryPathSegment>): QueryPathTemplate = QueryPathTemplate(segments)
+
+        /** The template of [segments]. */
+        @JvmStatic
+        fun of(vararg segments: QueryPathSegment): QueryPathTemplate = QueryPathTemplate(segments.toList())
+
+        internal fun fromField(field: QueryField): QueryPathTemplate =
             QueryPathTemplate(field.path.split('.').map(QueryPathSegment::Property), field)
     }
 }

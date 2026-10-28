@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
@@ -23,7 +24,7 @@ class MongoQueryIndexesTest {
     private val schema = MongoQueryTestSchemas.SCHEMA
 
     private fun plan(vararg declarations: QueryIndexDeclaration): List<MongoQueryIndex> =
-        MongoQueryIndexes.plan("shop", "order", schema, declarations.toList())
+        MongoQueryIndexes.plan("shop", "order", QueryIndexPlan.of(schema, declarations.toList()))
 
     @Test
     fun `the scope indexes and each declared one lead with the tenant over the snapshots not deleted`() {
