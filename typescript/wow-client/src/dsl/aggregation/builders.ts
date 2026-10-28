@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { constantName } from '../constantName.js';
 import { queryField } from '../field.js';
 import type {
   ElementFilterExpression,
@@ -127,7 +128,7 @@ function groupInput<FIELDS extends string>(
   if (typeof input === 'string') return { field: aggregationField(input) };
   if (input === null || typeof input !== 'object') {
     throw new TypeError(
-      `${type} group requires exactly one of field and expression.`,
+      `${constantName(type)} group requires exactly one of field and expression.`,
     );
   }
   requireValidExpressionTrees([input]);
@@ -142,10 +143,12 @@ function groupScope(
 ): { scope?: AggregationGroupScope } {
   if (scope === undefined) return {};
   if (!Object.values(AggregationGroupScope).includes(scope)) {
-    throw new TypeError(`${type} group scope is invalid.`);
+    throw new TypeError(`${constantName(type)} group scope is invalid.`);
   }
   if (scope === AggregationGroupScope.ROOT && source.expression) {
-    throw new TypeError(`${type} with a ROOT scope requires a field input.`);
+    throw new TypeError(
+      `${constantName(type)} with a ROOT scope requires a field input.`,
+    );
   }
   return { scope };
 }

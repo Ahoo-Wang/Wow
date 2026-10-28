@@ -252,7 +252,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         metrics: anyMetrics(
           aggregation.derived(
-            { type: 'CONSTANT', value: Number.NaN } as DerivedExpression,
+            { type: 'constant', value: Number.NaN } as DerivedExpression,
             'd',
           ),
         ),
@@ -274,7 +274,7 @@ const RULES: ConformanceRule[] = [
     source: 'wow-api AggregationQuery.kt requireGroupInput',
     violate: () =>
       aggregation.query({
-        groupBy: [{ type: 'HISTOGRAM', alias: 'g', interval: 1 } as never],
+        groupBy: [{ type: 'histogram', alias: 'g', interval: 1 } as never],
         metrics: anyMetrics(count('m')),
       }),
     throws: 'HISTOGRAM group requires exactly one of field and expression.',
@@ -317,7 +317,7 @@ const RULES: ConformanceRule[] = [
   {
     wow: 'EXPRESSION must read at least one field.',
     source: 'wow-api ExpressionFilter.kt ExpressionFilter.init',
-    violate: () => filter.expression(aggregation.constant(1), 'GT' as never, 1),
+    violate: () => filter.expression(aggregation.constant(1), 'gt' as never, 1),
   },
   {
     wow: 'terms missingKey must not be blank.',
@@ -446,7 +446,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         groupBy: [
           aggregation.dateHistogram('t', 'd', {
-            unit: 'DAY' as never,
+            unit: 'day' as never,
             dense: true,
           }),
           aggregation.terms('a', 'g'),
@@ -461,7 +461,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         groupBy: [
           aggregation.datePart('t', 'd', {
-            part: 'DAY_OF_WEEK' as never,
+            part: 'day-of-week' as never,
             dense: true,
           }),
           aggregation.terms('a', 'g'),
@@ -507,7 +507,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         metrics: anyMetrics(
           aggregation.derived(
-            { type: 'METRIC_REF', metric: 'later' } as DerivedExpression,
+            { type: 'metric-ref', metric: 'later' } as DerivedExpression,
             'd',
           ),
           count('later'),
@@ -524,7 +524,7 @@ const RULES: ConformanceRule[] = [
         metrics: anyMetrics(
           aggregation.any('a', 'sample'),
           aggregation.derived(
-            { type: 'METRIC_REF', metric: 'sample' } as DerivedExpression,
+            { type: 'metric-ref', metric: 'sample' } as DerivedExpression,
             'd',
           ),
         ),
@@ -578,7 +578,7 @@ const RULES: ConformanceRule[] = [
     violate: () =>
       aggregation.query({
         metrics: anyMetrics(count('m')),
-        having: { type: 'IS_NULL', metric: 'm' } as HavingExpression,
+        having: { type: 'is-null', metric: 'm' } as HavingExpression,
       }),
   },
   {
@@ -588,7 +588,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
-        having: { type: 'IS_NULL', metric: 'nope' } as HavingExpression,
+        having: { type: 'is-null', metric: 'nope' } as HavingExpression,
       }),
     throws: 'having condition [nope] must reference a declared metric alias.',
   },
@@ -599,7 +599,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         groupBy: grouped,
         metrics: anyMetrics(aggregation.any('a', 'sample')),
-        having: { type: 'IS_NULL', metric: 'sample' } as HavingExpression,
+        having: { type: 'is-null', metric: 'sample' } as HavingExpression,
       }),
     throws: 'having condition [sample] cannot reference ANY metric.',
   },
@@ -610,7 +610,7 @@ const RULES: ConformanceRule[] = [
       aggregation.query({
         groupBy: grouped,
         metrics: anyMetrics(aggregation.last('a', 'close')),
-        having: { type: 'IS_NULL', metric: 'close' } as HavingExpression,
+        having: { type: 'is-null', metric: 'close' } as HavingExpression,
       }),
     throws: 'having condition [close] cannot reference FIRST or LAST metric.',
   },
@@ -622,9 +622,9 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'CONDITION',
+          type: 'condition',
           metric: 'm',
-          operator: 'GT',
+          operator: 'gt',
           value: Number.NaN,
         } as HavingExpression,
       }),
@@ -638,7 +638,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'BETWEEN',
+          type: 'between',
           metric: 'm',
           lower: 1,
           upper: Number.NaN,
@@ -654,7 +654,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'BETWEEN',
+          type: 'between',
           metric: 'm',
           lower: 9,
           upper: 1,
@@ -670,7 +670,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'IN',
+          type: 'in',
           metric: 'm',
           values: [],
         } as unknown as HavingExpression,
@@ -685,7 +685,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'IN',
+          type: 'in',
           metric: 'm',
           values: [Number.NaN],
         } as HavingExpression,
@@ -700,7 +700,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'AND',
+          type: 'and',
           operands: [],
         } as unknown as HavingExpression,
       }),
@@ -713,7 +713,7 @@ const RULES: ConformanceRule[] = [
         groupBy: grouped,
         metrics: anyMetrics(count('m')),
         having: {
-          type: 'OR',
+          type: 'or',
           operands: [],
         } as unknown as HavingExpression,
       }),
@@ -724,8 +724,8 @@ const RULES: ConformanceRule[] = [
     violate: () => {
       const nest = (d: number): HavingExpression =>
         d <= 1
-          ? ({ type: 'IS_NULL', metric: 'm' } as HavingExpression)
-          : ({ type: 'AND', operands: [nest(d - 1)] } as HavingExpression);
+          ? ({ type: 'is-null', metric: 'm' } as HavingExpression)
+          : ({ type: 'and', operands: [nest(d - 1)] } as HavingExpression);
       return aggregation.query({
         groupBy: grouped,
         metrics: anyMetrics(count('m')),

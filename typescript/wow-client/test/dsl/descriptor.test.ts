@@ -72,7 +72,8 @@ function kotlinFieldRoles(): Record<string, string> {
     descriptor.indexOf('data class EnumValueDescriptor'),
   );
   return Object.fromEntries([
-    ...systemFields.map(name => [name, name]),
+    // A system field's role is its wire name: TENANT_ID is tenant-id.
+    ...systemFields.map(name => [name, name.toLowerCase().replace(/_/g, '-')]),
     ...[...field.matchAll(/const val (\w+) = "([^"]*)"/g)].map(
       ([, name, value]) => [name, value],
     ),
@@ -90,31 +91,31 @@ describe('QueryFieldRoles', () => {
 describe('QuerySemanticType', () => {
   it('holds a money field to exactly one of currency and currencyField', () => {
     expectTypeOf({
-      type: 'MONEY',
+      type: 'money',
       currency: 'CNY',
       scale: 2,
     } as const).toMatchTypeOf<QuerySemanticType>();
     expectTypeOf({
-      type: 'MONEY',
+      type: 'money',
       currencyField: 'currency',
       scale: 2,
     } as const).toMatchTypeOf<QuerySemanticType>();
     expectTypeOf({
-      type: 'DECIMAL',
+      type: 'decimal',
       scale: 4,
     } as const).toMatchTypeOf<QuerySemanticType>();
     const invalid = () => {
       const both: QuerySemanticType = {
-        type: 'MONEY',
+        type: 'money',
         currency: 'CNY',
         // @ts-expect-error A money field names one currency source, not both.
         currencyField: 'currency',
         scale: 2,
       };
       // @ts-expect-error A money field names a currency source.
-      const neither: QuerySemanticType = { type: 'MONEY', scale: 2 };
+      const neither: QuerySemanticType = { type: 'money', scale: 2 };
       // @ts-expect-error scale is always sent.
-      const unscaled: QuerySemanticType = { type: 'DECIMAL' };
+      const unscaled: QuerySemanticType = { type: 'decimal' };
       return [both, neither, unscaled];
     };
     expect(typeof invalid).toBe('function');
@@ -122,24 +123,24 @@ describe('QuerySemanticType', () => {
 
   it('holds a duration to its unit and a reference to one way of naming its aggregate', () => {
     expectTypeOf({
-      type: 'DURATION',
+      type: 'duration',
       timeUnit: TimeUnit.SECONDS,
     } as const).toMatchTypeOf<QuerySemanticType>();
     expectTypeOf({
-      type: 'REFERENCE',
+      type: 'reference',
       contextName: 'example-service',
       aggregateName: 'product',
     } as const).toMatchTypeOf<QuerySemanticType>();
     expectTypeOf({
-      type: 'REFERENCE',
+      type: 'reference',
       contextNameField: 'contextName',
       aggregateNameField: 'aggregateName',
     } as const).toMatchTypeOf<QuerySemanticType>();
     const invalid = () => {
       // @ts-expect-error a duration always names its unit.
-      const unitless: QuerySemanticType = { type: 'DURATION' };
+      const unitless: QuerySemanticType = { type: 'duration' };
       const both: QuerySemanticType = {
-        type: 'REFERENCE',
+        type: 'reference',
         contextName: 'example-service',
         aggregateName: 'product',
         // @ts-expect-error a reference names its aggregate one way, not both.
@@ -147,7 +148,7 @@ describe('QuerySemanticType', () => {
       };
       // @ts-expect-error a fixed reference names its context too.
       const contextless: QuerySemanticType = {
-        type: 'REFERENCE',
+        type: 'reference',
         aggregateName: 'product',
       };
       return [unitless, both, contextless];

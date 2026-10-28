@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { constantName } from '../constantName.js';
 import {
   ComparisonOperator,
   HavingExpressionType,
@@ -127,7 +128,9 @@ function logical(
 ): HavingExpression {
   const [first, ...rest] = operands;
   if (first === undefined) {
-    throw new TypeError(`having ${type} operands must not be empty.`);
+    throw new TypeError(
+      `having ${constantName(type)} operands must not be empty.`,
+    );
   }
   return { type, operands: [first, ...rest] };
 }

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { constantName } from '../constantName.js';
 import {
   expressionFields,
   requireValidExpressionTrees,
@@ -72,15 +73,15 @@ function metadataValue(
   op: MetadataValueFilter['op'],
   value: string,
 ): MetadataValueFilter {
-  return { op, value: requiredString(`${op} value`, value) };
+  return { op, value: requiredString(`${constantName(op)} value`, value) };
 }
 
 function metadataValues(
   op: MetadataValuesFilter['op'],
   values: readonly string[],
 ): MetadataValuesFilter {
-  requireNonEmpty(`${op} values`, values);
-  values.forEach(value => requiredString(`${op} value`, value));
+  requireNonEmpty(`${constantName(op)} values`, values);
+  values.forEach(value => requiredString(`${constantName(op)} value`, value));
   return { op, values: [...values] };
 }
 
@@ -88,7 +89,7 @@ function logical<FIELDS extends string>(
   op: LogicalFilter['op'],
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
-  requireNonEmpty(`${op} operands`, operands);
+  requireNonEmpty(`${constantName(op)} operands`, operands);
   return { op, operands: [...operands] };
 }
 
@@ -118,7 +119,7 @@ function stringMatch<FIELDS extends string>(
   return {
     op,
     field: queryField(field),
-    value: requiredString(`${op} value`, value),
+    value: requiredString(`${constantName(op)} value`, value),
     stringComparison,
   };
 }
@@ -128,7 +129,7 @@ function collection<FIELDS extends string>(
   field: FIELDS,
   values: readonly ComparableFilterLiteral[],
 ): CollectionFilter<FIELDS> {
-  requireNonEmpty(`${op} values`, values);
+  requireNonEmpty(`${constantName(op)} values`, values);
   values.forEach(value => filterLiteral(value, false));
   return { op, field: queryField(field), values: [...values] };
 }

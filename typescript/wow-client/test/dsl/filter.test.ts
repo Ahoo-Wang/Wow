@@ -99,8 +99,8 @@ describe('filter', () => {
       filter.isEmptyString('state.name'),
       filter.isNotEmptyString('state.name'),
     ]).toEqual([
-      { op: 'IS_EMPTY_STRING', field: 'state.name' },
-      { op: 'IS_NOT_EMPTY_STRING', field: 'state.name' },
+      { op: 'is-empty-string', field: 'state.name' },
+      { op: 'is-not-empty-string', field: 'state.name' },
     ]);
   });
 
@@ -202,11 +202,11 @@ describe('filter', () => {
       filter.notIn('status', statuses),
       filter.containsAll('tags', tags),
     ]).toEqual([
-      { op: 'IDS', values: ['snapshot-1', 'snapshot-2'] },
-      { op: 'AGGREGATE_IDS', values: ['order-1', 'order-2'] },
-      { op: 'IN', field: 'status', values: ['PAID', 'SHIPPED'] },
-      { op: 'NOT_IN', field: 'status', values: ['PAID', 'SHIPPED'] },
-      { op: 'CONTAINS_ALL', field: 'tags', values: ['wow', 'cqrs'] },
+      { op: 'ids', values: ['snapshot-1', 'snapshot-2'] },
+      { op: 'aggregate-ids', values: ['order-1', 'order-2'] },
+      { op: 'in', field: 'status', values: ['PAID', 'SHIPPED'] },
+      { op: 'not-in', field: 'status', values: ['PAID', 'SHIPPED'] },
+      { op: 'contains-all', field: 'tags', values: ['wow', 'cqrs'] },
     ]);
     expect(filter.aggregateIds(aggregateIds).values).not.toBe(aggregateIds);
   });
@@ -222,9 +222,9 @@ describe('filter', () => {
       filter.or(operands),
       filter.nor(operands),
     ]).toEqual([
-      { op: 'AND', operands },
-      { op: 'OR', operands },
-      { op: 'NOR', operands },
+      { op: 'and', operands },
+      { op: 'or', operands },
+      { op: 'nor', operands },
     ]);
     expect(filter.and(operands).operands).not.toBe(operands);
   });
@@ -828,7 +828,7 @@ describe('filter', () => {
     expect(late).toEqual({
       op: FilterOperator.EXPRESSION,
       expression: hours,
-      comparison: 'GT',
+      comparison: 'gt',
       value: 48,
     });
     expect(() =>

@@ -43,7 +43,7 @@ describe('queryable', () => {
 
   it('refuses a condition, which only the legacy entry builds', () => {
     // @ts-expect-error The root factories take a filter, not a Condition.
-    singleQuery({ condition: { operator: 'ALL' } });
+    singleQuery({ condition: { operator: 'all' } });
   });
 
   it('matches everything when no filter is given', () => {

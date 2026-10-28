@@ -54,32 +54,32 @@ describe('AggregationQuery', () => {
       dateDiffUnit: Object.values(DateDiffUnit),
       function: Object.values(AggregationFunction),
     }).toEqual({
-      group: ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM', 'DATE_PART'],
+      group: ['terms', 'histogram', 'date-histogram', 'date-part'],
       metric: [
-        'COUNT',
-        'NUMERIC',
-        'ANY',
-        'DISTINCT_COUNT',
-        'PERCENTILE',
-        'DERIVED',
-        'FIRST',
-        'LAST',
+        'count',
+        'numeric',
+        'any',
+        'distinct-count',
+        'percentile',
+        'derived',
+        'first',
+        'last',
       ],
-      expression: ['FIELD', 'CONSTANT', 'BINARY', 'DATE_DIFF'],
-      dateDiffUnit: ['SECOND', 'MINUTE', 'HOUR', 'DAY'],
-      operator: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'],
+      expression: ['field', 'constant', 'binary', 'date-diff'],
+      dateDiffUnit: ['second', 'minute', 'hour', 'day'],
+      operator: ['add', 'subtract', 'multiply', 'divide'],
       dateUnit: [
-        'YEAR',
-        'QUARTER',
-        'MONTH',
-        'WEEK',
-        'DAY',
-        'HOUR',
-        'MINUTE',
-        'SECOND',
+        'year',
+        'quarter',
+        'month',
+        'week',
+        'day',
+        'hour',
+        'minute',
+        'second',
       ],
-      datePart: ['DAY_OF_WEEK', 'DAY_OF_MONTH', 'HOUR_OF_DAY', 'MONTH_OF_YEAR'],
-      function: ['SUM', 'AVG', 'MIN', 'MAX', 'STDDEV', 'VARIANCE'],
+      datePart: ['day-of-week', 'day-of-month', 'hour-of-day', 'month-of-year'],
+      function: ['sum', 'avg', 'min', 'max', 'stddev', 'variance'],
     });
   });
 
@@ -106,27 +106,27 @@ describe('AggregationQuery', () => {
     );
     expect(metrics.slice(6)).toEqual([
       {
-        type: 'NUMERIC',
-        function: 'STDDEV',
+        type: 'numeric',
+        function: 'stddev',
         expression,
         alias: 'stddev',
         filter: predicate,
       },
       {
-        type: 'NUMERIC',
-        function: 'VARIANCE',
+        type: 'numeric',
+        function: 'variance',
         expression,
         alias: 'variance',
         filter: predicate,
       },
       {
-        type: 'DISTINCT_COUNT',
+        type: 'distinct-count',
         expression,
         alias: 'distinct',
         filter: predicate,
       },
       {
-        type: 'PERCENTILE',
+        type: 'percentile',
         expression,
         percentile: 95,
         alias: 'p95',
@@ -145,7 +145,7 @@ describe('AggregationQuery', () => {
     expect(
       aggregation.terms('productName', 'name', { missingKey: 'Unknown' }),
     ).toEqual({
-      type: 'TERMS',
+      type: 'terms',
       field: 'productName',
       alias: 'name',
       missingKey: 'Unknown',
@@ -156,9 +156,9 @@ describe('AggregationQuery', () => {
         dense: true,
       }),
     ).toEqual({
-      type: 'DATE_HISTOGRAM',
+      type: 'date-histogram',
       field: 'createdAt',
-      unit: 'DAY',
+      unit: 'day',
       alias: 'day',
       timeZone: 'UTC',
       dense: true,
@@ -171,9 +171,9 @@ describe('AggregationQuery', () => {
         part: AggregationDatePart.DAY_OF_WEEK,
       }),
     ).toEqual({
-      type: 'DATE_PART',
+      type: 'date-part',
       field: 'createdAt',
-      part: 'DAY_OF_WEEK',
+      part: 'day-of-week',
       alias: 'weekday',
       timeZone: 'UTC',
     });
@@ -184,9 +184,9 @@ describe('AggregationQuery', () => {
         dense: true,
       }),
     ).toEqual({
-      type: 'DATE_PART',
+      type: 'date-part',
       field: 'createdAt',
-      part: 'HOUR_OF_DAY',
+      part: 'hour-of-day',
       alias: 'hour',
       timeZone: 'Asia/Shanghai',
       dense: true,
@@ -195,7 +195,7 @@ describe('AggregationQuery', () => {
 
   it('rejects an invalid date part, a blank zone and a non-boolean dense', () => {
     expect(() =>
-      aggregation.datePart('createdAt', 'd', { part: 'WEEK' as never }),
+      aggregation.datePart('createdAt', 'd', { part: 'week' as never }),
     ).toThrow('date part is invalid.');
     expect(() =>
       aggregation.datePart('createdAt', 'd', {
@@ -214,21 +214,21 @@ describe('AggregationQuery', () => {
   it('measures the time between two fields and groups by expressions', () => {
     const days = aggregation.dateDiff('paidAt', 'shippedAt', DateDiffUnit.DAY);
     expect(days).toEqual({
-      type: 'DATE_DIFF',
+      type: 'date-diff',
       from: 'paidAt',
       to: 'shippedAt',
-      unit: 'DAY',
+      unit: 'day',
     });
     expect(() =>
       aggregation.dateDiff('paidAt', 'shippedAt', 'WEEK' as never),
     ).toThrow('date diff unit is invalid.');
     expect(aggregation.terms(days, 'days')).toEqual({
-      type: 'TERMS',
+      type: 'terms',
       expression: days,
       alias: 'days',
     });
     expect(aggregation.histogram(days, 'band', { interval: 7 })).toEqual({
-      type: 'HISTOGRAM',
+      type: 'histogram',
       expression: days,
       interval: 7,
       alias: 'band',
@@ -244,7 +244,7 @@ describe('AggregationQuery', () => {
       aggregation.query({
         groupBy: [
           {
-            type: 'TERMS',
+            type: 'terms',
             field: 'status',
             expression: days,
             alias: 'g',
@@ -268,9 +268,9 @@ describe('AggregationQuery', () => {
         scope: AggregationGroupScope.ROOT,
       }),
     ).toEqual({
-      type: 'TERMS',
+      type: 'terms',
       field: 'state.id',
-      scope: 'ROOT',
+      scope: 'root',
       alias: 'aggregate',
     });
     expect(
@@ -278,19 +278,19 @@ describe('AggregationQuery', () => {
         interval: 10,
         scope: AggregationGroupScope.ELEMENT,
       }).scope,
-    ).toBe('ELEMENT');
+    ).toBe('element');
     expect(
       aggregation.dateHistogram('createTime', 'day', {
         unit: AggregationDateUnit.DAY,
         scope: AggregationGroupScope.ROOT,
       }).scope,
-    ).toBe('ROOT');
+    ).toBe('root');
     expect(
       aggregation.datePart('createTime', 'hour', {
         part: AggregationDatePart.HOUR_OF_DAY,
         scope: AggregationGroupScope.ROOT,
       }).scope,
-    ).toBe('ROOT');
+    ).toBe('root');
     expect(aggregation.terms('status', 'status')).not.toHaveProperty('scope');
     expect(() =>
       aggregation.histogram(days, 'band', {
@@ -306,10 +306,10 @@ describe('AggregationQuery', () => {
       aggregation.query({
         groupBy: [
           {
-            type: 'TERMS',
+            type: 'terms',
             expression: days,
             alias: 'g',
-            scope: 'ROOT',
+            scope: 'root',
           } as never,
         ],
         metrics: [aggregation.count('rows')],
@@ -354,7 +354,7 @@ describe('AggregationQuery', () => {
 
   it('reads the first and last value of a field, ordered on request', () => {
     expect(aggregation.first('state.price', 'open')).toEqual({
-      type: 'FIRST',
+      type: 'first',
       field: 'state.price',
       alias: 'open',
     });
@@ -365,7 +365,7 @@ describe('AggregationQuery', () => {
         filter: paid,
       }),
     ).toEqual({
-      type: 'LAST',
+      type: 'last',
       field: 'state.price',
       alias: 'close',
       orderBy: 'createdAt',
@@ -465,29 +465,29 @@ describe('AggregationQuery', () => {
     };
     expect(JSON.parse(JSON.stringify(query))).toMatchObject({
       metrics: [
-        { type: 'COUNT', alias: 'rows' },
-        { type: 'NUMERIC', alias: 'total' },
+        { type: 'count', alias: 'rows' },
+        { type: 'numeric', alias: 'total' },
         {
-          type: 'DERIVED',
+          type: 'derived',
           alias: 'ratio',
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'total' },
-            right: { type: 'CONSTANT', value: 100 },
+            type: 'binary',
+            operator: 'divide',
+            left: { type: 'metric-ref', metric: 'total' },
+            right: { type: 'constant', value: 100 },
           },
         },
       ],
       having: {
-        type: 'AND',
+        type: 'and',
         operands: [
-          { type: 'CONDITION', metric: 'ratio', operator: 'GT', value: 10 },
-          { type: 'BETWEEN', metric: 'total', lower: 1, upper: 10000 },
+          { type: 'condition', metric: 'ratio', operator: 'gt', value: 10 },
+          { type: 'between', metric: 'total', lower: 1, upper: 10000 },
           {
-            type: 'OR',
+            type: 'or',
             operands: [
-              { type: 'IN', metric: 'rows', values: [1, 2] },
-              { type: 'IS_NULL', metric: 'ratio', negated: true },
+              { type: 'in', metric: 'rows', values: [1, 2] },
+              { type: 'is-null', metric: 'ratio', negated: true },
             ],
           },
         ],
@@ -505,7 +505,7 @@ describe('AggregationQuery', () => {
     ]).toStrictEqual([
       {
         path: 'state.orders',
-        filter: { op: 'EQ', field: 'status', value: 'PAID' },
+        filter: { op: 'eq', field: 'status', value: 'PAID' },
       },
     ]);
   });
@@ -518,17 +518,17 @@ describe('AggregationQuery', () => {
         unit: AggregationDateUnit.MONTH,
       }),
     ]).toStrictEqual([
-      { type: 'TERMS', field: 'productId', alias: 'product' },
+      { type: 'terms', field: 'productId', alias: 'product' },
       {
-        type: 'HISTOGRAM',
+        type: 'histogram',
         field: 'amount',
         interval: 10,
         alias: 'amountBand',
       },
       {
-        type: 'DATE_HISTOGRAM',
+        type: 'date-histogram',
         field: 'createdAt',
-        unit: 'MONTH',
+        unit: 'month',
         alias: 'month',
         timeZone: 'UTC',
       },
@@ -553,55 +553,55 @@ describe('AggregationQuery', () => {
     };
 
     expect(query).toStrictEqual({
-      filter: { op: 'EQ', field: 'state.status', value: 'COMPLETED' },
+      filter: { op: 'eq', field: 'state.status', value: 'COMPLETED' },
       elements: [{ path: 'state.orders' }],
-      groupBy: [{ type: 'TERMS', field: 'productId', alias: 'product' }],
+      groupBy: [{ type: 'terms', field: 'productId', alias: 'product' }],
       metrics: [
-        { type: 'COUNT', alias: 'count' },
+        { type: 'count', alias: 'count' },
         {
-          type: 'NUMERIC',
-          function: 'SUM',
+          type: 'numeric',
+          function: 'sum',
           expression: {
-            type: 'BINARY',
-            operator: 'MULTIPLY',
-            left: { type: 'FIELD', field: 'amount' },
-            right: { type: 'CONSTANT', value: 1.2 },
+            type: 'binary',
+            operator: 'multiply',
+            left: { type: 'field', field: 'amount' },
+            right: { type: 'constant', value: 1.2 },
           },
           alias: 'revenue',
         },
       ],
-      sort: [{ field: 'revenue', direction: 'DESC' }],
+      sort: [{ field: 'revenue', direction: 'desc' }],
       limit: 20,
     });
   });
 
   it.each([
-    ['ADD', aggregation.add],
-    ['SUBTRACT', aggregation.subtract],
-    ['MULTIPLY', aggregation.multiply],
-    ['DIVIDE', aggregation.divide],
+    ['add', aggregation.add],
+    ['subtract', aggregation.subtract],
+    ['multiply', aggregation.multiply],
+    ['divide', aggregation.divide],
   ] as const)('builds %s arithmetic expressions', (operator, create) => {
     const field = aggregation.field<'amount'>('amount');
     const constant = aggregation.constant(2);
 
     expect(create(field, constant)).toEqual({
-      type: 'BINARY',
+      type: 'binary',
       operator,
-      left: { type: 'FIELD', field: 'amount' },
-      right: { type: 'CONSTANT', value: 2 },
+      left: { type: 'field', field: 'amount' },
+      right: { type: 'constant', value: 2 },
     });
   });
 
   it.each([
-    ['SUM', 'sum', aggregation.sum],
-    ['AVG', 'average', aggregation.avg],
-    ['MIN', 'minimum', aggregation.min],
-    ['MAX', 'maximum', aggregation.max],
+    ['sum', 'sum', aggregation.sum],
+    ['avg', 'average', aggregation.avg],
+    ['min', 'minimum', aggregation.min],
+    ['max', 'maximum', aggregation.max],
   ] as const)('builds %s numeric metrics', (fn, alias, create) => {
     const field = aggregation.field<'amount'>('amount');
 
     expect(create(field, alias)).toEqual({
-      type: 'NUMERIC',
+      type: 'numeric',
       function: fn,
       expression: field,
       alias,
@@ -619,14 +619,14 @@ describe('AggregationQuery', () => {
     };
 
     expect(query).toStrictEqual({
-      groupBy: [{ type: 'TERMS', field: 'productId', alias: 'product' }],
+      groupBy: [{ type: 'terms', field: 'productId', alias: 'product' }],
       metrics: [
-        { type: 'ANY', field: 'productName', alias: 'productName' },
-        { type: 'COUNT', alias: 'count' },
+        { type: 'any', field: 'productName', alias: 'productName' },
+        { type: 'count', alias: 'count' },
         {
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: 'numeric',
+          function: 'sum',
+          expression: { type: 'field', field: 'amount' },
           alias: 'total',
         },
       ],

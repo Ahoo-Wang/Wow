@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { constantName } from '../constantName.js';
 import { FilterOperator, type FilterExpression } from '../filter/index.js';
 import type { FieldSort } from '../sort.js';
 import { requireValidExpressionTrees } from './expressionTrees.js';
@@ -97,7 +98,7 @@ function validateExpressions(
       return;
     if ((group.field === undefined) === (group.expression === undefined)) {
       throw new TypeError(
-        `${group.type} group requires exactly one of field and expression.`,
+        `${constantName(group.type)} group requires exactly one of field and expression.`,
       );
     }
     if (group.expression) requireValidExpressionTrees([group.expression]);
@@ -110,7 +111,7 @@ function validateExpressions(
     }
     if (group.scope === AggregationGroupScope.ROOT && group.expression) {
       throw new TypeError(
-        `${group.type} with a ROOT scope requires a field input.`,
+        `${constantName(group.type)} with a ROOT scope requires a field input.`,
       );
     }
   });
@@ -182,7 +183,7 @@ function validateDerivedExpression(
         const nonNumeric = declared.get(reference);
         if (nonNumeric !== undefined) {
           throw new TypeError(
-            `derived metric [${metric.alias}] cannot reference ${nonNumeric} metric [${reference}].`,
+            `derived metric [${metric.alias}] cannot reference ${constantName(nonNumeric)} metric [${reference}].`,
           );
         }
         break;
@@ -230,12 +231,12 @@ function requireWindowMetric(
   const target = window.metric;
   if (!declared.has(target)) {
     throw new TypeError(
-      `${window.type} window of derived metric [${alias}] must read a metric declared before it, but was [${target}].`,
+      `${constantName(window.type)} window of derived metric [${alias}] must read a metric declared before it, but was [${target}].`,
     );
   }
   if (declared.get(target) !== undefined || derived.has(target)) {
     throw new TypeError(
-      `${window.type} window of derived metric [${alias}] must read a non-derived numeric metric, but was [${target}].`,
+      `${constantName(window.type)} window of derived metric [${alias}] must read a non-derived numeric metric, but was [${target}].`,
     );
   }
 }
@@ -367,7 +368,7 @@ function validateHaving(
       case HavingExpressionType.OR:
         if (expression.operands.length === 0) {
           throw new TypeError(
-            `having ${expression.type} operands must not be empty.`,
+            `having ${constantName(expression.type)} operands must not be empty.`,
           );
         }
         expression.operands.forEach(operand =>
@@ -488,7 +489,7 @@ export function admitAggregationQuery<
       groupBy.length !== 1
     ) {
       throw new TypeError(
-        `dense requires ${group.type} to be the only groupBy.`,
+        `dense requires ${constantName(group.type)} to be the only groupBy.`,
       );
     }
   });
