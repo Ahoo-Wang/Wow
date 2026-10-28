@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.PagingMode
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
@@ -28,7 +29,6 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.schema.QueryDeprecation
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySemanticType
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import tools.jackson.databind.JsonNode
 

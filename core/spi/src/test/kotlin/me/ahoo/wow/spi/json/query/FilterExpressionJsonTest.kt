@@ -14,8 +14,6 @@
 package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.wire.WireNames
-import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
@@ -26,6 +24,7 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
@@ -48,6 +47,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException

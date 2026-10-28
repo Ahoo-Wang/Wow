@@ -15,6 +15,7 @@ package me.ahoo.wow.clickhouse.query
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -22,7 +23,6 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson

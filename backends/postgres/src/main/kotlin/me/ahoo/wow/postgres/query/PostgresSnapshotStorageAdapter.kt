@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.postgres.query
 
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
@@ -25,7 +26,6 @@ import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryStorageFamily
 import me.ahoo.wow.query.schema.QueryStorageFamilyRules
 import me.ahoo.wow.query.schema.QueryValueBindings
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode

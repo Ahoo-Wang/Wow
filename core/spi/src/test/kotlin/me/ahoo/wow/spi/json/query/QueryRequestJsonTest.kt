@@ -14,7 +14,6 @@
 package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
@@ -27,6 +26,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
@@ -95,7 +95,10 @@ class QueryRequestJsonTest {
         }
         assertThrows<JacksonException> {
             // An upper-case name is not a wire name.
-            mapper.readValue("""{"filter":{"op":"match-all"},"total":"${TotalMode.EXACT.name}"}""", PagedQuery::class.java)
+            mapper.readValue(
+                """{"filter":{"op":"match-all"},"total":"${TotalMode.EXACT.name}"}""",
+                PagedQuery::class.java
+            )
         }
     }
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.MaskStrategy
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -29,7 +30,6 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QueryValueBindings
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.isFieldProtected

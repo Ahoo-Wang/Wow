@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.DATASET
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
@@ -27,7 +28,6 @@ import me.ahoo.wow.query.dataset.QueryDatasetBuilder
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson

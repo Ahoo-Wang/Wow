@@ -115,4 +115,3 @@ enum class QueryCardinality {
     SINGLE,
     MANY,
 }
-

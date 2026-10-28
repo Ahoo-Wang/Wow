@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagingMode
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
@@ -44,7 +45,6 @@ import me.ahoo.wow.query.descriptor.FieldFilterDescriptor
 import me.ahoo.wow.query.descriptor.FieldSortDescriptor
 import me.ahoo.wow.query.descriptor.HavingDescriptor
 import me.ahoo.wow.query.descriptor.LimitsDescriptor
-import me.ahoo.wow.api.query.PagingMode
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.descriptor.RecordDescriptor
 import me.ahoo.wow.query.descriptor.SearchDescriptor
@@ -172,7 +172,13 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         return FieldAggregateDescriptor(
             groups = effective.groups(allowExpensive).map(WireNames::of),
             missingKey = effective.missingKey,
-            functions = if (MetricSpec.NUMERIC in metrics) AggregationFunction.entries.map(WireNames::of) else emptyList(),
+            functions = if (MetricSpec.NUMERIC in metrics) {
+                AggregationFunction.entries.map(
+                    WireNames::of
+                )
+            } else {
+                emptyList()
+            },
             distinctCount = MetricSpec.DISTINCT_COUNT in metrics,
             percentile = MetricSpec.PERCENTILE in metrics,
             any = MetricSpec.ANY in metrics,
