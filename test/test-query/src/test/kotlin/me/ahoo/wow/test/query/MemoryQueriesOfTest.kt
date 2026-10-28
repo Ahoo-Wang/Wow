@@ -72,7 +72,7 @@ class MemoryQueriesOfTest {
                 """
                 {"format":1,"contexts":[{"name":"library","aggregates":[{"name":"shelf",
                 "state":{"schema":"#/${'$'}defs/Shelf"},"commands":[],"events":[],"lifecycle":[],
-                "queries":[{"model":"snapshot","routes":[]}],"ownership":"TENANT"}],
+                "queries":[{"model":"snapshot","routes":[]}],"ownership":"tenant"}],
                 "subscriptions":[],"published":[],"errors":[]}],"errors":[],
                 "${'$'}defs":{"Shelf":{"type":"object","properties":{"books":{"type":"integer"}}}}}
                 """.trimIndent(),

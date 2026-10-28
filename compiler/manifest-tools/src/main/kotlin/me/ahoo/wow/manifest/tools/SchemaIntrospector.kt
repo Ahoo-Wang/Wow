@@ -34,11 +34,13 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.json.StateJson
+import me.ahoo.wow.spi.json.WowEnums
 import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import tools.jackson.databind.JavaType
@@ -286,6 +288,15 @@ internal class SchemaIntrospector(
         ): CustomDefinition? {
             val rawClass = type.erasedType
             schemas[rawClass.name]?.let { return CustomDefinition(it.deepCopy()) }
+            // A Wow enumeration is written by its wire names; a domain's, by its constants' names.
+            if (rawClass in WowEnums.TYPES) {
+                val values = rawClass.enumConstants.map { it as Enum<*> }.filter { it.name != UNKNOWN }
+                return CustomDefinition(
+                    mapper.createObjectNode().put("type", "string").apply {
+                        putArray("enum").apply { values.forEach { add(WireNames.of(it)) } }
+                    },
+                )
+            }
             check(!isApplicationClass(rawClass) || isWrittenAsObject(rawClass)) {
                 "Jackson does not write ${rawClass.name} as an object (a custom serializer or @JsonValue), so its " +
                     "schema cannot be introspected: declare it in wow { schemaOverrides.put(\"${rawClass.name}\", " +
@@ -315,6 +326,8 @@ internal class SchemaIntrospector(
     }
 
     private companion object {
+        /** The value a reader older than its writer reads an unknown value as, which no writer writes. */
+        const val UNKNOWN = "UNKNOWN"
         const val DEFS = "\$defs"
         const val DESCRIPTION = "description"
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")

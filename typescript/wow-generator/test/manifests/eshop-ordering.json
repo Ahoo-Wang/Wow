@@ -19,7 +19,7 @@
               "name": "AwaitStockValidation",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["OrderAwaitingValidation"],
               "routes": [
                 {
@@ -33,7 +33,7 @@
               "name": "CancelOrder",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["OrderCancelled"],
               "routes": [
                 {
@@ -47,7 +47,7 @@
               "name": "ConfirmOrderStock",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["OrderStockConfirmed", "OrderStockItemConfirmed"],
               "routes": [
                 {
@@ -61,7 +61,7 @@
               "name": "PayOrder",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.PayOrder",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["OrderPaid"],
               "routes": [
                 {
@@ -75,7 +75,7 @@
               "name": "ShipOrder",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["OrderShipped"],
               "routes": [
                 {
@@ -89,7 +89,7 @@
               "name": "SubmitOrder",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder",
-              "creation": "REQUIRED",
+              "creation": "required",
               "produces": ["OrderSubmitted"],
               "routes": [
                 {
@@ -107,7 +107,7 @@
               "name": "wow.lifecycle.ApplyTags",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.ApplyTags",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -120,7 +120,7 @@
               "name": "wow.lifecycle.DeleteAggregate",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 { "method": "DELETE", "path": "/eshop-ordering/order/{id}" }
               ],
@@ -130,7 +130,7 @@
               "name": "wow.lifecycle.RestoreAggregate",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.RestoreAggregate",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -143,7 +143,7 @@
               "name": "wow.lifecycle.TransferOwner",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.TransferOwner",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -156,7 +156,7 @@
               "name": "wow.lifecycle.TransferSpace",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.TransferSpace",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -169,7 +169,7 @@
               "name": "wow.snapshot.Rebuild",
               "aliases": [],
               "schema": "#/$defs/wow.snapshot.Rebuild",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -264,14 +264,14 @@
       "subscriptions": [
         {
           "name": "OrderProcessSaga.onOrderAwaitingValidation",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
             "events": []
           },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onOrderAwaitingValidation"
@@ -279,18 +279,18 @@
           "derives": [
             "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
           ],
-          "start": "END"
+          "start": "end"
         },
         {
           "name": "OrderProcessSaga.onOrderCancelled",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
             "events": []
           },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onOrderCancelled"
@@ -298,18 +298,18 @@
           "derives": [
             "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
           ],
-          "start": "END"
+          "start": "end"
         },
         {
           "name": "OrderProcessSaga.onOrderShipped",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
             "events": []
           },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onOrderShipped"
@@ -317,31 +317,31 @@
           "derives": [
             "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation"
           ],
-          "start": "END"
+          "start": "end"
         },
         {
           "name": "OrderProcessSaga.onOrderSubmitted",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
             "events": []
           },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onOrderSubmitted"
           },
           "derives": ["eshop-ordering.order.AwaitStockValidation"],
-          "start": "END"
+          "start": "end"
         },
         {
           "name": "OrderProcessSaga.onReleaseRejected",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": { "aggregates": [], "events": [] },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onReleaseRejected"
@@ -353,10 +353,10 @@
         },
         {
           "name": "OrderProcessSaga.onReserveCommitted",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": { "aggregates": [], "events": [] },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onReserveCommitted"
@@ -368,10 +368,10 @@
         },
         {
           "name": "OrderProcessSaga.onReserveRejected",
-          "kind": "SAGA",
+          "kind": "saga",
           "source": { "aggregates": [], "events": [] },
           "function": {
-            "kind": "SAGA",
+            "kind": "saga",
             "context": "eshop-ordering",
             "processor": "OrderProcessSaga",
             "name": "onReserveRejected"

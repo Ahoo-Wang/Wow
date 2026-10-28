@@ -40,7 +40,7 @@ describe("a problem", () => {
     expect(
       problemOf(
         result({
-          status: "REJECTED",
+          status: "rejected",
           error: { code: "eshop-inventory.stock.insufficient", message: "Short" },
         }),
       ),
@@ -50,7 +50,7 @@ describe("a problem", () => {
       detail: "Short",
       violations: [],
     });
-    expect(problemOf(result({ status: "FAILED", error: null })).title).toBe("Failed");
+    expect(problemOf(result({ status: "failed", error: null })).title).toBe("Failed");
   });
 
   it("is anything else's message", () => {

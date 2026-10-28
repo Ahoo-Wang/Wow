@@ -29,6 +29,7 @@ import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.JobContext
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.handlerName
@@ -191,5 +192,6 @@ internal data class JobBinding(
     val misfire: String,
 ) {
     /** The job as the Manifest's subscription records it. */
-    fun manifest(): JobManifest = JobManifest(name, cron, zone, scope, sharded, misfire)
+    /** The job as the Manifest lists it, its scope and misfire by their wire names. */
+    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), sharded, WireNames.of(misfire))
 }

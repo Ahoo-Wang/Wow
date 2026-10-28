@@ -76,7 +76,7 @@ object ManifestSchema {
                 "events" to array(ref(EVENT)),
                 "queries" to array(ref(QUERY)),
                 "schedules" to strings("The commands the aggregate schedules."),
-                "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; OWNER when absent."),
+                "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; owner when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
             ),
             STATE to objectOf(
@@ -182,9 +182,9 @@ object ManifestSchema {
                 "name" to string(),
                 "cron" to string(),
                 "zone" to string(),
-                "scope" to string(),
+                "scope" to values(JobManifest.SCOPES, "Who the job runs for."),
                 "sharded" to boolean(),
-                "misfire" to string(),
+                "misfire" to values(JobManifest.MISFIRES, "What the job does with the slots it missed."),
             ),
         ),
     )
@@ -225,7 +225,10 @@ object ManifestSchema {
     private fun strings(description: String? = null) = array(obj("type" to "string"), description)
 
     private fun enumOf(entries: List<Enum<*>>, description: String? = null) =
-        obj("type" to "string", "enum" to entries.map { it.name }, "description" to description)
+        values(entries.map(ManifestTree::wire), description)
+
+    private fun values(values: List<String>, description: String? = null) =
+        obj("type" to "string", "enum" to values, "description" to description)
 
     private fun objectOf(
         description: String,

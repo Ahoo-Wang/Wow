@@ -201,7 +201,7 @@ class CommandValueAdmissionTest {
             Authorization.Allowed
         }
         val positive = CommandValidator { _, body ->
-            if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "Min", "At least 1."))
+            if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "min", "At least 1."))
         }
         val invalid = gateway(authorizer, listOf(positive)).execute(request(AddItem("apple", 0)))
         invalid.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)

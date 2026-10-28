@@ -491,7 +491,7 @@ class CommandGatewayTest {
     @Test
     fun `validators' violations refuse the command together`(): Unit = runBlocking {
         val positive = CommandValidator { _, body ->
-            if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "Min", "At least 1."))
+            if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "min", "At least 1."))
         }
         val known = CommandValidator { _, body ->
             if ((body as AddItem).sku == "apple") emptyList() else listOf(Violation("sku", "Known", "Unknown sku."))

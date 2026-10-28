@@ -89,7 +89,7 @@ class CoSecCommandAuthorizerTest {
                 CoSecCommandAuthorizer.TENANT to "acme",
                 CoSecCommandAuthorizer.OWNER to "alice",
                 CoSecCommandAuthorizer.SPACE to "s1",
-                CoSecCommandAuthorizer.CREATION to "ALLOWED",
+                CoSecCommandAuthorizer.CREATION to "allowed",
             ),
         )
         request.getHeader(AppIdCapable.APP_ID_KEY).assert().isEmpty()

@@ -168,7 +168,7 @@ sealed class Endpoints(val base: URI) {
         private fun outcome(response: HttpResponse<String>): Outcome {
             val node = runCatching { MAPPER.readTree(response.body()) }.getOrNull()
             val result = node?.get("result") ?: node
-            return if (response.statusCode() == OK && result?.get("status")?.asString() == "SUCCEEDED") {
+            return if (response.statusCode() == OK && result?.get("status")?.asString() == "succeeded") {
                 Outcome(true, result.get("version")?.asInt(), null)
             } else {
                 Outcome(false, null, "http-${response.statusCode()} ${node?.get("code")?.asString() ?: ""}")

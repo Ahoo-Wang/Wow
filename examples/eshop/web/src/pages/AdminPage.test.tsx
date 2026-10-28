@@ -131,7 +131,7 @@ describe("the catalog admin", () => {
     const { transport } = catalog(() =>
       problemAnswer(400, "Bad Request", "wow.command.invalid", {
         detail: "CreateProduct is invalid.",
-        violations: [{ path: "price", code: "Positive", message: "must be greater than 0" }],
+        violations: [{ path: "price", code: "positive", message: "must be greater than 0" }],
       }),
     );
     renderShop("/admin", ERIN, transport);

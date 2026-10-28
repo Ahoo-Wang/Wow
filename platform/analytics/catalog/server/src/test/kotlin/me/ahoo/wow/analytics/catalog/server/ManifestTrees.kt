@@ -41,7 +41,7 @@ internal fun aggregate(name: String, state: String, commands: List<Map<String, A
 internal fun command(
     name: String,
     schema: String,
-    creation: String = "NONE",
+    creation: String = "none",
     mounted: Boolean = false,
     /** The command's routes, `METHOD path` each. */
     routes: List<String> = emptyList(),

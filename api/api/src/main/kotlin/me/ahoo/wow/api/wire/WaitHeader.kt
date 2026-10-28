@@ -97,8 +97,8 @@ object WaitHeader {
             hop.stage == Stage.HANDLED ->
                 if (context == null) "handled(${hop.subscription})" else "handled($context/${hop.subscription})"
 
-            context == null -> hop.stage.name.lowercase()
-            else -> "${hop.stage.name.lowercase()}($context)"
+            context == null -> WireNames.of(hop.stage)
+            else -> "${WireNames.of(hop.stage)}($context)"
         }
     }
 

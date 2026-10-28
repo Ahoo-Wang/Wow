@@ -145,9 +145,9 @@ class ScheduleJobBindingTest {
             val manifest = subscriptions.getValue("BillingSaga.invoice")
             manifest.kind.assert().isEqualTo(SubscriptionKind.SAGA)
             manifest.source.assert().isEqualTo(SubscriptionSource("billing", listOf(ScheduleJobs.AGGREGATE)))
-            manifest.job.assert().isEqualTo(JobManifest("invoice", "0 0 0 1 * *", "Asia/Shanghai", "TENANT"))
+            manifest.job.assert().isEqualTo(JobManifest("invoice", "0 0 0 1 * *", "Asia/Shanghai", "tenant"))
             subscriptions.getValue("BillingSaga.sweep").job.assert()
-                .isEqualTo(JobManifest("sweep", "0 */5 * * * *", sharded = true, misfire = "CATCH_UP"))
+                .isEqualTo(JobManifest("sweep", "0 */5 * * * *", sharded = true, misfire = "catch-up"))
             subscriptions.getValue("BillingSaga.onEvent").job.assert().isNull()
         }
 

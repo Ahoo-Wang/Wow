@@ -65,8 +65,8 @@ class EshopFullChainTest {
 
         val checkedOut = checkout("alice", mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s"))
         // The wait ends where the payment saga's PayOrder is committed in the ordering context.
-        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("SUCCEEDED")
-        checkedOut["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("succeeded")
+        checkedOut["hop"]["stage"].asString().assert().isEqualTo("committed")
         checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
         checkedOut["function"]["name"].asString().assert().isEqualTo("PayOrder")
         checkedOut["ref"]["id"].asString().assert().isEqualTo("alice-1")
@@ -135,15 +135,15 @@ class EshopFullChainTest {
      * as it was, and marked as the chain's end, with the order's `PayOrder` commit as the hop that will not come.
      */
     private fun JsonNode.assertEndedAtThePaymentSaga() {
-        this["status"].asString().assert().describedAs(toString()).isEqualTo("SUCCEEDED")
-        this["hop"]["stage"].asString().assert().isEqualTo("HANDLED")
+        this["status"].asString().assert().describedAs(toString()).isEqualTo("succeeded")
+        this["hop"]["stage"].asString().assert().isEqualTo("handled")
         this["hop"]["context"].asString().assert().isEqualTo("eshop-payment")
         this["hop"]["subscription"].asString().assert().isEqualTo("OrderPaymentSaga.onPaymentSucceeded")
         this["derived"].values().toList().assert().isEmpty()
         this["chainEnded"].asBoolean().assert().isTrue()
         val pending = this["pending"].values().toList()
         pending.map { it["stage"].asString() to it["context"].asString() }
-            .assert().containsExactly("COMMITTED" to "eshop-ordering")
+            .assert().containsExactly("committed" to "eshop-ordering")
     }
 
     @Test
@@ -198,7 +198,7 @@ class EshopFullChainTest {
         }
 
         val checkedOut = checkout("carol", mapOf(WAIT to TO_ORDERING, WAIT_TIMEOUT to "30s"))
-        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("SUCCEEDED")
+        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("succeeded")
         val killed = checkNotNull(stack.ordering.remove(owner))
         killed.kill()
         val killedAt = System.nanoTime()

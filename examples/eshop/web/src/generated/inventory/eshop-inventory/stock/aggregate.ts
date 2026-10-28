@@ -11,7 +11,7 @@ export const StockAggregate = {
   context: 'eshop-inventory',
   name: 'stock',
   path: '/eshop-inventory/stock',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
   Errors: {
     /** 409: Fewer units are available than the order asks for. */

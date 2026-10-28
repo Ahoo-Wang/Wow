@@ -76,7 +76,7 @@ export function formatHop(value: Hop): string {
   const subscription = value.subscription ?? undefined;
   if (value.stage === Stage.HANDLED) {
     if (subscription === undefined) {
-      throw new TypeError('A HANDLED hop names its subscription.');
+      throw new TypeError('A handled hop names its subscription.');
     }
     if (subscription === SNAPSHOT_SUBSCRIPTION) {
       return context === undefined ? 'snapshot' : `snapshot(${context})`;
@@ -86,7 +86,7 @@ export function formatHop(value: Hop): string {
       : `handled(${context}/${subscription})`;
   }
   if (subscription !== undefined) {
-    throw new TypeError(`Only a HANDLED hop names a subscription.`);
+    throw new TypeError(`Only a handled hop names a subscription.`);
   }
   const keyword = value.stage.toLowerCase();
   return context === undefined ? keyword : `${keyword}(${context})`;

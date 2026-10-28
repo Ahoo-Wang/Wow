@@ -69,7 +69,7 @@ interface CommandResult<R = Record<string, unknown>> {
 export function commandResultOf<R = Record<string, unknown>>(ref: AggregateRef, overrides?: Partial<CommandResult<R>>): CommandResult<R>;
 
 // @public
-type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
+type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
 
 // @public
 export interface DevelopmentCaller {
@@ -117,7 +117,7 @@ interface FunctionInfo {
 }
 
 // @public
-type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RESERVATION' | 'TIMERS';
+type FunctionKind = 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers';
 
 // @public
 interface Hop {
@@ -161,9 +161,9 @@ interface Scope {
 
 // @public
 const Stage: {
-    readonly ACCEPTED: "ACCEPTED";
-    readonly COMMITTED: "COMMITTED";
-    readonly HANDLED: "HANDLED";
+    readonly ACCEPTED: "accepted";
+    readonly COMMITTED: "committed";
+    readonly HANDLED: "handled";
 };
 
 // @public

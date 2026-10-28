@@ -367,7 +367,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.AwaitStockValidation",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "OrderAwaitingValidation" ]
         }
       }
@@ -462,7 +462,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.CancelOrder",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "OrderCancelled" ]
         }
       }
@@ -557,7 +557,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.ConfirmOrderStock",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "OrderStockConfirmed", "OrderStockItemConfirmed" ]
         }
       }
@@ -652,7 +652,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.PayOrder",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "OrderPaid" ]
         }
       }
@@ -747,7 +747,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.ShipOrder",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "OrderShipped" ]
         }
       }
@@ -842,7 +842,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.SubmitOrder",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "OrderSubmitted" ]
         }
       }
@@ -930,7 +930,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-ordering.order.SubmitOrder",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "OrderSubmitted" ]
         }
       }
@@ -1969,7 +1969,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "SUCCEEDED", "REJECTED", "FAILED" ]
+            "enum" : [ "succeeded", "rejected", "failed" ]
           },
           "version" : {
             "type" : [ "integer", "null" ]
@@ -2047,7 +2047,7 @@
         "properties" : {
           "stage" : {
             "type" : "string",
-            "enum" : [ "ACCEPTED", "COMMITTED", "HANDLED" ]
+            "enum" : [ "accepted", "committed", "handled" ]
           },
           "context" : {
             "type" : [ "string", "null" ]
@@ -2063,7 +2063,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA", "SNAPSHOT", "RESERVATION", "TIMERS" ]
+            "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ]
           },
           "context" : {
             "type" : "string"
@@ -2464,8 +2464,8 @@
           },
           "ownership" : {
             "type" : "string",
-            "enum" : [ "OWNER", "TENANT" ],
-            "description" : "Who owns an aggregate; OWNER when absent."
+            "enum" : [ "owner", "tenant" ],
+            "description" : "Who owns an aggregate; owner when absent."
           },
           "retired" : {
             "type" : "array",
@@ -2542,7 +2542,7 @@
           },
           "creation" : {
             "type" : "string",
-            "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+            "enum" : [ "none", "required", "allowed" ],
             "description" : "Whether the command creates its aggregate."
           },
           "produces" : {
@@ -2660,7 +2660,7 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+            "enum" : [ "projection", "reactor", "saga" ]
           },
           "source" : {
             "$ref" : "#/components/schemas/wow.Manifest.Source"
@@ -2694,7 +2694,7 @@
           },
           "start" : {
             "type" : "string",
-            "enum" : [ "BEGINNING", "END" ]
+            "enum" : [ "beginning", "end" ]
           },
           "schedules" : {
             "type" : "array",
@@ -2748,7 +2748,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+            "enum" : [ "command", "project", "react", "saga" ]
           },
           "context" : {
             "type" : "string"
@@ -2809,13 +2809,17 @@
             "type" : "string"
           },
           "scope" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "system", "tenant" ],
+            "description" : "Who the job runs for."
           },
           "sharded" : {
             "type" : "boolean"
           },
           "misfire" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "coalesce", "catch-up" ],
+            "description" : "What the job does with the slots it missed."
           }
         }
       },
@@ -3118,7 +3122,7 @@
           },
           "misfire" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "COALESCE", "CATCH_UP", null ]
+            "enum" : [ "coalesce", "catch-up", null ]
           }
         }
       },

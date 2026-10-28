@@ -146,7 +146,7 @@ class OrderingServerTest {
         empty.status.assert().describedAs(empty.text).isEqualTo(BAD_REQUEST)
         empty.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
         empty.body!!["violations"].single()["path"].asString().assert().isEqualTo("items")
-        empty.body!!["violations"].single()["code"].asString().assert().isEqualTo("NotEmpty")
+        empty.body!!["violations"].single()["code"].asString().assert().isEqualTo("not-empty")
 
         val invalid = post(
             "/eshop-ordering/order/order-invalid/submit-order",
@@ -154,7 +154,7 @@ class OrderingServerTest {
         )
         invalid.status.assert().isEqualTo(BAD_REQUEST)
         invalid.body!!["violations"].values().map { it["path"].asString() to it["code"].asString() }
-            .assert().containsExactly("items[0].quantity" to "Positive", "items[0].unitPrice" to "PositiveOrZero")
+            .assert().containsExactly("items[0].quantity" to "positive", "items[0].unitPrice" to "positive-or-zero")
         read("order-invalid").status.assert().isEqualTo(NOT_FOUND)
     }
 

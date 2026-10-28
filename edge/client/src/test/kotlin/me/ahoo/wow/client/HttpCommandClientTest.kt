@@ -379,7 +379,7 @@ class HttpCommandClientTest {
     @Test
     fun `a status, stage or kind a peer upgraded first answers should be read as UNKNOWN`(): Unit = runBlocking {
         val newer = WowJson.mapper.writeValueAsString(committed())
-            .replace("\"SUCCEEDED\"", "\"DEFERRED\"").replace("\"COMMITTED\"", "\"DELIVERED\"")
+            .replace("\"succeeded\"", "\"deferred\"").replace("\"committed\"", "\"delivered\"")
         peer.reply(Reply(200, mapOf("Content-Type" to "application/json"), newer.toByteArray()))
         // A status this client does not know did not succeed as far as it knows: a problem naming the newer peer.
         val newerPeer = assertThrows<WowProblemException> {

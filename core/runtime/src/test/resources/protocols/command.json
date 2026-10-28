@@ -58,7 +58,7 @@
       },
       "remaining": [
         {
-          "stage": "HANDLED",
+          "stage": "handled",
           "context": "bank",
           "subscription": "snapshot"
         }

@@ -15,7 +15,7 @@
         "name" : "OpenVault",
         "aliases" : [ ],
         "schema" : "#/$defs/OpenVault",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "routes" : [ {
           "method" : "POST",
           "path" : "/treasury/vault/{id}/open-vault"
@@ -24,7 +24,7 @@
         "name" : "Seal",
         "aliases" : [ ],
         "schema" : "#/$defs/Seal",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/treasury/vault/{id}/seal"
@@ -61,7 +61,7 @@
         "name" : "OpenLedger",
         "aliases" : [ ],
         "schema" : "#/$defs/OpenLedger",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "routes" : [ {
           "method" : "POST",
           "path" : "/treasury/ledger/{id}/open-ledger"
@@ -70,7 +70,7 @@
         "name" : "Seal",
         "aliases" : [ ],
         "schema" : "#/$defs/Seal",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/treasury/ledger/{id}/seal"

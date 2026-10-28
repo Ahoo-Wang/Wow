@@ -21,7 +21,7 @@
         "name" : "ChargebackNotified",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/chargeback-notified"
@@ -36,7 +36,7 @@
         "name" : "ConfirmPayment",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "PaymentSucceeded" ],
         "routes" : [ {
           "method" : "POST",
@@ -47,7 +47,7 @@
         "name" : "FailPayment",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.FailPayment",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "PaymentFailed" ],
         "routes" : [ {
           "method" : "POST",
@@ -58,7 +58,7 @@
         "name" : "RefundPayment",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "PaymentRefunded" ],
         "routes" : [ {
           "method" : "POST",
@@ -69,7 +69,7 @@
         "name" : "RequestPayment",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "PaymentRequested" ],
         "routes" : [ {
           "method" : "POST",
@@ -83,7 +83,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/wow.lifecycle.apply-tags"
@@ -93,7 +93,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-payment/payment/{id}"
@@ -103,7 +103,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/wow.lifecycle.restore-aggregate"
@@ -113,7 +113,7 @@
         "name" : "wow.lifecycle.TransferOwner",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferOwner",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/wow.lifecycle.transfer-owner"
@@ -123,7 +123,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/wow.lifecycle.transfer-space"
@@ -133,7 +133,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/wow.snapshot.rebuild"
@@ -187,14 +187,14 @@
     } ],
     "subscriptions" : [ {
       "name" : "OrderPaymentSaga.onOrderStockConfirmed",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
         "events" : [ "OrderStockConfirmed" ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-payment",
         "processor" : "OrderPaymentSaga",
         "name" : "onOrderStockConfirmed"
@@ -202,13 +202,13 @@
       "derives" : [ "eshop-payment.payment.RequestPayment" ]
     }, {
       "name" : "OrderPaymentSaga.onPayRejected",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "aggregates" : [ ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-payment",
         "processor" : "OrderPaymentSaga",
         "name" : "onPayRejected"
@@ -217,52 +217,52 @@
       "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" ]
     }, {
       "name" : "OrderPaymentSaga.onPaymentFailed",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
         "events" : [ "PaymentFailed" ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-payment",
         "processor" : "OrderPaymentSaga",
         "name" : "onPaymentFailed"
       },
       "derives" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" ],
-      "start" : "END"
+      "start" : "end"
     }, {
       "name" : "OrderPaymentSaga.onPaymentSucceeded",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
         "events" : [ "PaymentSucceeded" ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-payment",
         "processor" : "OrderPaymentSaga",
         "name" : "onPaymentSucceeded"
       },
       "derives" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" ],
-      "start" : "END"
+      "start" : "end"
     }, {
       "name" : "PaymentGatewaySaga.onPaymentRequested",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
         "events" : [ "PaymentRequested" ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-payment",
         "processor" : "PaymentGatewaySaga",
         "name" : "onPaymentRequested"
       },
       "derives" : [ "eshop-payment.payment.ConfirmPayment", "eshop-payment.payment.FailPayment" ],
-      "start" : "END"
+      "start" : "end"
     } ],
     "published" : [ {
       "aggregate" : "payment",

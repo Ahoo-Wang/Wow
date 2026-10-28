@@ -73,7 +73,7 @@ class EshopSyncCallTest {
                 // The wait went on with the call: it ends at the order's commit in the ordering context.
                 val result = checkedOut.body!!
                 result["hop"]["context"].asString().assert().isEqualTo(ORDERING)
-                result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+                result["hop"]["stage"].asString().assert().isEqualTo("committed")
                 result["ref"]["id"].asString().assert().isEqualTo("alice-1")
 
                 // The state read is the snapshot's, written after the COMMITTED answer.

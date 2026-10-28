@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException
 
 /**
  * The routes of the Wow benchmark server that the load generator's E1 and E3 use (test/benchmarks/load,
- * `TransferApi.kt`), answered as Wow answers them: `{"status":"SUCCEEDED","id":…,"version":…}` once the command
+ * `TransferApi.kt`), answered as Wow answers them: `{"status":"succeeded","id":…,"version":…}` once the command
  * reached its completion point. E1's `deposit` completes when its events are stored (the command's unit of work
  * committed); E3's `prepare` when the transfer's entry is stored on the target. `open-account` seeds. The `Wow-Wait`
  * headers are not read: each route has its scenario's completion point. `GET /wow/manifest` is the harness's
@@ -87,7 +87,7 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
     private fun answer(result: CompletableFuture<Pair<String, Long?>>): Mono<ServerResponse> =
         Mono.fromFuture(result).flatMap { (id, version) ->
             ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("""{"status":"SUCCEEDED","id":"$id","version":${version ?: "null"}}""")
+                .bodyValue("""{"status":"succeeded","id":"$id","version":${version ?: "null"}}""")
         }.onErrorResume { failure -> failed(failure) }
 
     private fun failed(failure: Throwable): Mono<ServerResponse> {
@@ -100,7 +100,7 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
             else -> HttpStatus.INTERNAL_SERVER_ERROR to cause.javaClass.simpleName
         }
         return ServerResponse.status(status).contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"status":"FAILED","code":"$code"}""")
+            .bodyValue("""{"status":"failed","code":"$code"}""")
     }
 
     data class OpenBody(val owner: String, val balance: Long)

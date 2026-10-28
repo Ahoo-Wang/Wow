@@ -57,7 +57,7 @@ class OverloadRoutesTest {
             answer.body!!["detail"].asString().assert().isEqualTo(
                 "The node already has 2 commands in flight; retry later."
             )
-            answer.body!!["result"]["status"].asString().assert().isEqualTo("FAILED")
+            answer.body!!["result"]["status"].asString().assert().isEqualTo("failed")
         }
         node.commands.map { it.ref.id }.assert().containsExactlyInAnyOrder("held-1", "held-2")
 

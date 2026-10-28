@@ -109,7 +109,7 @@ class PeerCommandsTest {
                 CommandValidator { _, body ->
                     if ((body as? Reserve)?.quantity == 0) {
                         listOf(
-                            Violation("quantity", "Min", "At least 1.")
+                            Violation("quantity", "min", "At least 1.")
                         )
                     } else {
                         emptyList()

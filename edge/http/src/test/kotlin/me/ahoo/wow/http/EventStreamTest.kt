@@ -50,7 +50,7 @@ class EventStreamTest {
             .header("Content-Type", "application/json").bodyValue("{}").exchange().expectStatus().isOk
         val events = events("/shop/cart/c-1/checkout", """{"note":"throw"}""")
         val last = json.readTree(events.last().data())
-        last["status"].asString().assert().isEqualTo("FAILED")
+        last["status"].asString().assert().isEqualTo("failed")
         last["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         events.last().data().assert().doesNotContain("secret")
     }
@@ -65,9 +65,9 @@ class EventStreamTest {
         events.map { it.id() }.assert().containsExactly("0", "1")
         events.map { it.event() }.assert().containsExactly("committed", "committed")
         val committed = json.readTree(events.first().data())
-        committed["status"].asString().assert().isEqualTo("SUCCEEDED")
+        committed["status"].asString().assert().isEqualTo("succeeded")
         committed["version"].asInt().assert().isEqualTo(1)
-        committed["function"]["kind"].asString().assert().isEqualTo("COMMAND")
+        committed["function"]["kind"].asString().assert().isEqualTo("command")
     }
 
     @Test
@@ -76,7 +76,7 @@ class EventStreamTest {
         val events = events("/shop/cart/c-1/checkout", "{}")
         events.map { it.event() }.assert().containsExactly("committed")
         val rejected = json.readTree(events.last().data())
-        rejected["status"].asString().assert().isEqualTo("REJECTED")
+        rejected["status"].asString().assert().isEqualTo("rejected")
         rejected["error"]["code"].asString().assert().isEqualTo(CART_EMPTY)
     }
 
@@ -101,7 +101,7 @@ class EventStreamTest {
             .responseBody!!
             .let(json::readTree)
         problem["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        problem["result"]["hop"]["stage"].asString().assert().isEqualTo("ACCEPTED")
+        problem["result"]["hop"]["stage"].asString().assert().isEqualTo("accepted")
         // So is a wait the runtime cannot follow.
         stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""", mapOf(WowHeaders.WAIT to "snapshot"))
             .expectStatus().isBadRequest

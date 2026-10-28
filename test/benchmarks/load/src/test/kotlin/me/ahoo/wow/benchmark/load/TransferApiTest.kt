@@ -35,7 +35,7 @@ class TransferApiTest {
 
     @Test
     fun `answers should be read as the server writes them`() {
-        val v10 = """{"commandId":"c","ref":{"tenantId":"(0)","id":"acc-2"},"status":"SUCCEEDED","version":3}"""
+        val v10 = """{"commandId":"c","ref":{"tenantId":"(0)","id":"acc-2"},"status":"succeeded","version":3}"""
         TransferApi.commandError(200, v10).assert().isNull()
         TransferApi.commandVersion(v10).assert().isEqualTo(3)
         TransferApi.commandAggregate(v10).assert().isEqualTo("acc-2")

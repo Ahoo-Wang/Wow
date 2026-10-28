@@ -50,9 +50,9 @@ class StorageUnavailableRoutesTest {
         failed.assertUnavailable()
         failed.body!!["detail"].asString().assert().isEqualTo("The log is unavailable; retry later.")
         val result = failed.body!!["result"]
-        result["status"].asString().assert().isEqualTo("FAILED")
+        result["status"].asString().assert().isEqualTo("failed")
         result["requestId"].asString().assert().isEqualTo("add-1")
-        result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        result["hop"]["stage"].asString().assert().isEqualTo("committed")
         result["error"]["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
         node.commands.assert().isEmpty()
 

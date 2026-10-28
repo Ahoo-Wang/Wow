@@ -104,7 +104,7 @@ Every error is `application/problem+json`:
 | `status` | The HTTP status |
 | `title` | A short summary of the code for people, the same for every occurrence: a framework code's title ([Error Codes](./error-codes)), a domain code's `@ErrorCode(description)` |
 | `detail` | What happened to this request, for people: the rejection's or failure's message |
-| `violations` | The field-level violations: `path`, `code`, `message` |
+| `violations` | The field-level violations: `path`, `code`, `message`. A command constraint's `code` is the constraint's name in lower-kebab: `NotBlank` is `not-blank`. |
 | `result` | A command's whole result, when the command produced one |
 | Any other member | A rejection's structured extensions, by name |
 

@@ -237,7 +237,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
       },
       "remaining": [
         {
-          "stage": "HANDLED",
+          "stage": "handled",
           "context": "bank",
           "subscription": "snapshot"
         }
@@ -327,28 +327,28 @@ One structure reports the outcome of a command everywhere outside the kernel: th
 | `commandId`, `requestId`, `correlationId` | The command, its idempotency key and the root of its chain. |
 | `ref` | The aggregate. |
 | `hop` | The hop of the wait plan this result reports. |
-| `function` | Who produced it: `{kind, context, processor, name}`. `kind` is `COMMAND`, `PROJECT`, `REACT`, `SAGA`, `SNAPSHOT`, `RESERVATION` or `TIMERS`; for a command, `processor` and `name` are the aggregate and the command; for a subscription, its processor and function. |
-| `status` | `SUCCEEDED`, `REJECTED` or `FAILED`. |
+| `function` | Who produced it: `{kind, context, processor, name}`. `kind` is `command`, `project`, `react`, `saga`, `snapshot`, `reservation` or `timers`; for a command, `processor` and `name` are the aggregate and the command; for a subscription, its processor and function. |
+| `status` | `succeeded`, `rejected` or `failed`. |
 | `version` | The aggregate's version after the commit, or unchanged when nothing was appended. |
 | `duplicate` | The request had already committed; it was not decided again. |
-| `error` | For `REJECTED` and `FAILED`: `{code, message, violations, extensions}`, each violation `{path, code, message}`. |
+| `error` | For `rejected` and `failed`: `{code, message, violations, extensions}`, each violation `{path, code, message}`. |
 | `results` | Extra results decide returned; present only on the first commit, never on a duplicate. |
 | `derived` | For a saga hop: the ids of the commands it sent for this commit. |
 | `signalTime` | When the result was produced. |
 | `transformedFrom` | When a transformer rewrote the command at admission: `{command, aggregateId}` of the original. |
 | `chainEnded`, `pending` | The wait ended before its last hop because a saga sent nothing further: `chainEnded` is true and `pending` lists the hops not reached, in order. |
 
-How the kernel's outcomes map to a result at `COMMITTED`:
+How the kernel's outcomes map to a result at `committed`:
 
 | Outcome | `status` | Notes |
 | --- | --- | --- |
-| Committed | `SUCCEEDED` | `version` is the new version; `results` as decide returned them |
-| Already committed | `SUCCEEDED` | `duplicate` is true; no `results` |
-| No change | `SUCCEEDED` | `version` is unchanged |
-| Rejected | `REJECTED` | `error.code` is the rejection's code |
-| Contended | `FAILED` | `wow.command.contended`; retry with the same request id |
-| Unknown | `FAILED` | `wow.command.unknown`; retry with the same request id, which cannot commit twice |
-| Wait timed out | `FAILED` | `wow.wait.timeout`; the waiter stopped waiting, which does not mean the command failed |
+| Committed | `succeeded` | `version` is the new version; `results` as decide returned them |
+| Already committed | `succeeded` | `duplicate` is true; no `results` |
+| No change | `succeeded` | `version` is unchanged |
+| Rejected | `rejected` | `error.code` is the rejection's code |
+| Contended | `failed` | `wow.command.contended`; retry with the same request id |
+| Unknown | `failed` | `wow.command.unknown`; retry with the same request id, which cannot commit twice |
+| Wait timed out | `failed` | `wow.wait.timeout`; the waiter stopped waiting, which does not mean the command failed |
 
 Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code` and `violations`, and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
 
@@ -376,7 +376,7 @@ A hop that completes sends a signal straight to the internal port of the node th
       "id": "alice"
     },
     "hop": {
-      "stage": "HANDLED",
+      "stage": "handled",
       "context": "bank",
       "subscription": "snapshot"
     },

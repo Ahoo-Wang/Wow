@@ -76,7 +76,7 @@ class PostgresClusterTest {
         val opened = first.post("/bank/account/$id/open-account", """{"owner":"olga"}""")
         opened.status.assert().isEqualTo(200)
         opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
-        opened.body!!["status"].asString().assert().isEqualTo("SUCCEEDED")
+        opened.body!!["status"].asString().assert().isEqualTo("succeeded")
         second.decided.ids.assert().contains(id)
         first.decided.ids.assert().doesNotContain(id)
 

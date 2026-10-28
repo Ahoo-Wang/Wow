@@ -279,7 +279,7 @@ class ServiceCallRoutesTest {
             ),
         )
         answer.status.assert().isEqualTo(200)
-        answer.body!!["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        answer.body!!["hop"]["stage"].asString().assert().isEqualTo("committed")
         node.commands.single().scope.assert().isEqualTo(Scope("bob"))
     }
 

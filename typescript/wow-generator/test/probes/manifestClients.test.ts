@@ -211,7 +211,7 @@ describe('Manifest clients', () => {
             {
               name: 'DeleteAggregate',
               schema: schema('a.Delete'),
-              creation: 'ALLOWED',
+              creation: 'allowed',
               mounted: true,
               routes: [
                 { method: 'POST', path: '/probe/thing/{id}/delete-aggregate' },

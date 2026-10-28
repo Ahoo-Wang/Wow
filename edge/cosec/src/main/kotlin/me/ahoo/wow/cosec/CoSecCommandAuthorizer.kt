@@ -24,6 +24,7 @@ import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
@@ -48,7 +49,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * `POST /{context}/{aggregate}/{id}/{command}`, its full type name the last segment
  * (`POST /shop/schedule/report/wow.schedule.Tick`): the policy shape of a routeless command. The attributes [COMMAND]
  * (`context.aggregate.Command`, a system command qualified by its aggregate type), [AGGREGATE_ID], [TENANT], [OWNER],
- * [SPACE] and [CREATION] are there for condition matchers.
+ * [SPACE] and [CREATION] (the command's creation by its wire name, `none`, `required` or `allowed`) are there for
+ * condition matchers.
  * The principal is rebuilt from the [Caller]: its subject, the roles and policies of [CoSecCallerResolver.ROLES] and
  * [CoSecCallerResolver.POLICIES], its other attributes, and its tenant, [defaultTenant] being CoSec's `(0)`. A caller
  * without a subject is CoSec's anonymous principal.
@@ -93,7 +95,7 @@ class CoSecCommandAuthorizer(
             put(TENANT, action.ref.tenantId)
             action.scope.ownerId?.let { put(OWNER, it) }
             action.scope.spaceId?.let { put(SPACE, it) }
-            put(CREATION, action.creation.name)
+            put(CREATION, WireNames.of(action.creation))
         }
         val route = routes.routeOf(action)
         return if (route == null) {

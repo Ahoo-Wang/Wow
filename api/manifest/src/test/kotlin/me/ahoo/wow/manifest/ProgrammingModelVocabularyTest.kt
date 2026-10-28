@@ -16,7 +16,10 @@ package me.ahoo.wow.manifest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import me.ahoo.wow.api.aggregate.Creation as ModelCreation
 import me.ahoo.wow.api.aggregate.Ownership as ModelOwnership
@@ -32,9 +35,12 @@ class ProgrammingModelVocabularyTest {
     }
 
     @Test
-    fun `creation and ownership should name the programming model's values`() {
+    fun `creation, ownership and a job's values should name the programming model's, by their wire names`() {
         Creation.entries.map { it.name }.assert().isEqualTo(ModelCreation.entries.map { it.name })
         Ownership.entries.map { it.name }.assert().isEqualTo(ModelOwnership.entries.map { it.name })
+        JobManifest.SCOPES.assert().isEqualTo(JobScope.entries.map(WireNames::of))
+        JobManifest.MISFIRES.assert().isEqualTo(Misfire.entries.map(WireNames::of))
+        Creation.entries.map(ManifestTree::wire).assert().isEqualTo(ModelCreation.entries.map(WireNames::of))
     }
 
     @Test

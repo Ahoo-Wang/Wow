@@ -90,7 +90,7 @@ internal object WowSchemas {
             mapOf(
                 "expression" to type("string", nullable = true),
                 "zone" to type("string", nullable = true),
-                "misfire" to obj("type" to listOf("string", "null"), "enum" to listOf("COALESCE", "CATCH_UP", null)),
+                "misfire" to obj("type" to listOf("string", "null"), "enum" to listOf("coalesce", "catch-up", null)),
             ),
             description = "An instance's own rule of a job; each part that is null follows the job's default.",
         )
@@ -244,7 +244,7 @@ internal object WowSchemas {
             "ref" to schemaRef(AGGREGATE_REF),
             "hop" to schemaRef(HOP),
             "function" to schemaRef(FUNCTION_INFO),
-            "status" to obj("type" to "string", "enum" to listOf("SUCCEEDED", "REJECTED", "FAILED")),
+            "status" to obj("type" to "string", "enum" to listOf("succeeded", "rejected", "failed")),
             "version" to type("integer", nullable = true),
             "duplicate" to BOOLEAN,
             "error" to nullable(schemaRef(ERROR_INFO)),
@@ -271,7 +271,7 @@ internal object WowSchemas {
 
     private fun hop(): Map<String, Any?> = objectSchema(
         mapOf(
-            "stage" to obj("type" to "string", "enum" to listOf("ACCEPTED", "COMMITTED", "HANDLED")),
+            "stage" to obj("type" to "string", "enum" to listOf("accepted", "committed", "handled")),
             "context" to NULLABLE_STRING,
             "subscription" to NULLABLE_STRING,
         ),
@@ -282,7 +282,7 @@ internal object WowSchemas {
         mapOf(
             "kind" to obj(
                 "type" to "string",
-                "enum" to listOf("COMMAND", "PROJECT", "REACT", "SAGA", "SNAPSHOT", "RESERVATION", "TIMERS"),
+                "enum" to listOf("command", "project", "react", "saga", "snapshot", "reservation", "timers"),
             ),
             "context" to STRING,
             "processor" to STRING,

@@ -21,7 +21,7 @@
         "name" : "CreateBrand",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "BrandCreated" ],
         "routes" : [ {
           "method" : "POST",
@@ -35,7 +35,7 @@
         "name" : "RenameBrand",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "BrandRenamed" ],
         "routes" : [ {
           "method" : "POST",
@@ -46,7 +46,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/{id}/wow.lifecycle.apply-tags"
@@ -56,7 +56,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-catalog/brand/{id}"
@@ -66,7 +66,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/{id}/wow.lifecycle.restore-aggregate"
@@ -76,7 +76,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/{id}/wow.lifecycle.transfer-space"
@@ -86,7 +86,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/wow.snapshot.rebuild"
@@ -125,7 +125,7 @@
           "path" : "/eshop-catalog/brand/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     }, {
       "name" : "category",
       "description" : "A category of the catalog's products",
@@ -140,7 +140,7 @@
         "name" : "CreateCategory",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "CategoryCreated" ],
         "routes" : [ {
           "method" : "POST",
@@ -154,7 +154,7 @@
         "name" : "RenameCategory",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.RenameCategory",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "CategoryRenamed" ],
         "routes" : [ {
           "method" : "POST",
@@ -165,7 +165,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/category/{id}/wow.lifecycle.apply-tags"
@@ -175,7 +175,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-catalog/category/{id}"
@@ -185,7 +185,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/category/{id}/wow.lifecycle.restore-aggregate"
@@ -195,7 +195,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/category/{id}/wow.lifecycle.transfer-space"
@@ -205,7 +205,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/category/wow.snapshot.rebuild"
@@ -244,7 +244,7 @@
           "path" : "/eshop-catalog/category/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     }, {
       "name" : "product",
       "description" : "A product of the catalog",
@@ -259,7 +259,7 @@
         "name" : "ChangeProductPrice",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ProductPriceChanged" ],
         "routes" : [ {
           "method" : "POST",
@@ -270,7 +270,7 @@
         "name" : "CreateProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "ProductCreated" ],
         "routes" : [ {
           "method" : "POST",
@@ -284,7 +284,7 @@
         "name" : "DelistProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ProductDelisted" ],
         "routes" : [ {
           "method" : "POST",
@@ -295,7 +295,7 @@
         "name" : "DiscontinueProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ProductDiscontinued", "wow.lifecycle.AggregateDeleted" ],
         "routes" : [ {
           "method" : "POST",
@@ -306,7 +306,7 @@
         "name" : "PublishProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ProductPublished" ],
         "routes" : [ {
           "method" : "POST",
@@ -317,7 +317,7 @@
         "name" : "UpdateProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ProductUpdated" ],
         "routes" : [ {
           "method" : "POST",
@@ -328,7 +328,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/wow.lifecycle.apply-tags"
@@ -338,7 +338,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-catalog/product/{id}"
@@ -348,7 +348,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/wow.lifecycle.restore-aggregate"
@@ -358,7 +358,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/wow.lifecycle.transfer-space"
@@ -368,7 +368,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/wow.snapshot.rebuild"
@@ -431,7 +431,7 @@
           "path" : "/eshop-catalog/product/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     } ],
     "subscriptions" : [ ],
     "published" : [ {

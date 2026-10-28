@@ -53,7 +53,7 @@ function hops(count: number) {
       context: step.hop.context ?? "eshop-basket",
       hop: step.hop,
       function: {
-        kind: "SAGA",
+        kind: "saga",
         context: step.hop.context ?? "eshop-basket",
         processor: "saga",
         name: `Step${index}`,
@@ -150,7 +150,7 @@ describe("the basket", () => {
     const rejected = result({
       context: "eshop-ordering",
       hop: CHECKOUT_TO_PAID[2].hop,
-      status: "REJECTED",
+      status: "rejected",
       error: { code: "eshop-ordering.order.empty", message: "No items" },
     });
     const { transport } = basket(() => ({ events: [...hops(2), rejected] }));

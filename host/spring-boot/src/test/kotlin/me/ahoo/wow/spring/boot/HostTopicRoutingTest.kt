@@ -74,7 +74,7 @@ class HostTopicRoutingTest {
                 mapOf(WowHeaders.WAIT to "committed")
             )
             committed.status.assert().isEqualTo(200)
-            committed.body!!["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+            committed.body!!["hop"]["stage"].asString().assert().isEqualTo("committed")
             topics.messages(COMMANDS).size.assert().isEqualTo(2)
         }
 

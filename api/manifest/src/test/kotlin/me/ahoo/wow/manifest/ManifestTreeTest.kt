@@ -147,7 +147,7 @@ class ManifestTreeTest {
             ),
         )
         (commands[1] as Map<*, *>).containsKey("produces").assert().isFalse()
-        (commands[1] as Map<*, *>)["creation"].assert().isEqualTo("NONE")
+        (commands[1] as Map<*, *>)["creation"].assert().isEqualTo("none")
     }
 
     @Test
@@ -158,7 +158,7 @@ class ManifestTreeTest {
         )
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0].keys.assert().containsExactly("name", "kind", "source", "function", "start")
-        subscriptions[0]["start"].assert().isEqualTo("BEGINNING")
+        subscriptions[0]["start"].assert().isEqualTo("beginning")
         subscriptions[1]["derives"].assert().isEqualTo(listOf("shop.cart.PutItem", "#/\$defs/sales.Refund"))
         subscriptions[1]["source"].assert().isEqualTo(
             mapOf(
@@ -223,7 +223,7 @@ class ManifestTreeTest {
         val tree = ManifestTree.write(manifest)
         val context = (tree["contexts"] as List<*>).single() as Map<*, *>
         val aggregates = (context["aggregates"] as List<*>).map { it as Map<*, *> }
-        aggregates[0]["ownership"].assert().isEqualTo("TENANT")
+        aggregates[0]["ownership"].assert().isEqualTo("tenant")
         aggregates[1].containsKey("ownership").assert().isFalse()
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert()
@@ -269,7 +269,7 @@ class ManifestTreeTest {
 
     @Test
     fun `a job should come back, its defaults written too, and an absent one left out`() {
-        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "TENANT", sharded = false)
+        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant", sharded = false)
         val subscription = SubscriptionManifest(
             "Billing.nightly",
             SubscriptionKind.SAGA,
@@ -293,9 +293,9 @@ class ManifestTreeTest {
                 "name" to "nightly",
                 "cron" to "0 0 3 * * *",
                 "zone" to "Asia/Shanghai",
-                "scope" to "TENANT",
+                "scope" to "tenant",
                 "sharded" to false,
-                "misfire" to "COALESCE",
+                "misfire" to "coalesce",
             ),
         )
         subscriptions[1].containsKey("job").assert().isFalse()
@@ -304,9 +304,9 @@ class ManifestTreeTest {
         // A job written with its name and expression only reads with the defaults.
         val minimal = mapOf(
             "name" to "Billing.nightly",
-            "kind" to "SAGA",
+            "kind" to "saga",
             "source" to emptyMap<String, Any>(),
-            "function" to mapOf("kind" to "SAGA", "context" to "shop", "processor" to "Billing", "name" to "nightly"),
+            "function" to mapOf("kind" to "saga", "context" to "shop", "processor" to "Billing", "name" to "nightly"),
             "job" to mapOf("name" to "nightly", "cron" to "0 0 3 * * *"),
         )
         val read = ManifestTree.read(
@@ -384,8 +384,8 @@ class ManifestTreeTest {
         val cart = manifest.contexts.single().aggregates.first()
         val read = ManifestTree.read(
             treeWith(
-                "\"creation\":\"${cart.commands.first().creation}\"" to "\"creation\":\"SOMETIMES\"",
-                "\"kind\":\"${manifest.contexts.single().subscriptions.first().kind}\"" to "\"kind\":\"WORKFLOW\"",
+                "\"creation\":\"${ManifestTree.wire(cart.commands.first().creation)}\"" to "\"creation\":\"SOMETIMES\"",
+                "\"kind\":\"${ManifestTree.wire(manifest.contexts.single().subscriptions.first().kind)}\"" to "\"kind\":\"WORKFLOW\"",
             ),
         ) { warnings += it }
         val context = read.contexts.single()

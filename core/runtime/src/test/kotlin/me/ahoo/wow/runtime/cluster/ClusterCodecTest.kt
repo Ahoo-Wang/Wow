@@ -29,6 +29,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.json.WowEnums
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -109,9 +110,9 @@ class ClusterCodecTest {
     }
 
     @Test
-    fun `the codec registers the Kotlin module and Wow's transport module only, whatever else is on the class path`() {
+    fun `the codec registers the Kotlin module and Wow's transport and enum modules only, whatever else is on the class path`() {
         ClusterCodec.mapper.registeredModules().map { it.moduleName }
-            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport")
+            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport", WowEnums.MODULE_NAME)
         // DiscoverableModule is registered for discovery in this test class path, and would change the body.
         val discovering = JsonMapper.builder().findAndAddModules().build()
         discovering.registeredModules().map { it.javaClass.name }.assert().contains(DiscoverableModule::class.java.name)
@@ -154,7 +155,7 @@ class ClusterCodecTest {
     @Test
     fun `a node of the minor version before reads a newer node's unknown stage as UNKNOWN`() {
         val newer = ClusterCodec.encode(WaitSignal(waitId = "w-1", result = result))
-            .decodeToString().replace("\"COMMITTED\"", "\"DELIVERED\"").toByteArray()
+            .decodeToString().replace("\"committed\"", "\"delivered\"").toByteArray()
         ClusterCodec.decodeSignal(newer).result.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
     }
 
@@ -184,7 +185,7 @@ class ClusterCodecTest {
               "transport": {
                 "wait": {
                   "waitId": "w-1", "origin": {"node": "node-1", "address": "10.0.0.1:7070", "service": "bank-service",
-                  "zone": "z"}, "remaining": [{"stage": "HANDLED", "context": "bank", "subscription": "bank.projector",
+                  "zone": "z"}, "remaining": [{"stage": "handled", "context": "bank", "subscription": "bank.projector",
                   "group": "g"}], "deadline": 1000, "hops": 3
                 },
                 "baggage": {"k": "v"}
@@ -201,8 +202,8 @@ class ClusterCodecTest {
         val reply = """
             {"v": 2, "extra": true, "result": {"format": 1, "commandId": "c-1", "requestId": "r-1",
              "correlationId": "root", "ref": {"type": {"context": "bank", "name": "account"}, "tenantId": "t1",
-             "id": "acc-1"}, "hop": {"stage": "COMMITTED", "context": "bank"}, "function": {"kind": "COMMAND",
-             "context": "bank", "processor": "account", "name": "Deposit", "module": "m"}, "status": "SUCCEEDED",
+             "id": "acc-1"}, "hop": {"stage": "committed", "context": "bank"}, "function": {"kind": "command",
+             "context": "bank", "processor": "account", "name": "Deposit", "module": "m"}, "status": "succeeded",
              "version": 4, "results": {"receipt": "x-1"}, "signalTime": 99, "latency": 3}}
         """.trimIndent()
         ClusterCodec.decodeReply(reply.encodeToByteArray()).result.assert().isEqualTo(result)

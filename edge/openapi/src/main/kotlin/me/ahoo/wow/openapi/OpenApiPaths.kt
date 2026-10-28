@@ -19,6 +19,7 @@ import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
@@ -199,7 +200,7 @@ internal class OpenApiPaths(
             "x-wow-command" to obj(
                 "type" to type,
                 "aliases" to command.aliases.takeIf { it.isNotEmpty() },
-                "creation" to command.creation.name,
+                "creation" to ManifestTree.wire(command.creation),
                 "produces" to command.produces,
                 "mounted" to command.mounted.takeIf { it },
                 "transformsTo" to command.transformsTo,

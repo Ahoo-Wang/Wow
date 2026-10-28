@@ -104,7 +104,7 @@ hop  := "accepted" ["(" context ")"]
 | `status` | HTTP 状态 |
 | `title` | 给人看的错误码简短摘要，每次出现都相同：框架错误码的标题（[错误码](./error-codes)），领域错误码的 `@ErrorCode(description)` |
 | `detail` | 给人看的、这次请求发生了什么：拒绝或失败的消息 |
-| `violations` | 字段级的违规：`path`、`code`、`message` |
+| `violations` | 字段级的违规：`path`、`code`、`message`。命令约束的 `code` 是约束名的小写 kebab 形式：`NotBlank` 是 `not-blank`。 |
 | `result` | 命令产生了结果时，命令完整的结果 |
 | 其他任何成员 | 拒绝的结构化扩展，按名字 |
 

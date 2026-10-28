@@ -21,7 +21,7 @@
         "name" : "ClearDatasetWording",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.ClearDatasetWording",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetWordingCleared" ],
         "routes" : [ {
           "method" : "POST",
@@ -35,7 +35,7 @@
         "name" : "SetDatasetWording",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.SetDatasetWording",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "DatasetWordingSet" ],
         "routes" : [ {
           "method" : "POST",
@@ -49,7 +49,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/view-store/dataset_wording/wow.snapshot.rebuild"
@@ -88,7 +88,7 @@
           "path" : "/view-store/dataset_wording/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     }, {
       "name" : "view",
       "description" : "A saved view of the view engine: a record view, an analysis view or a dashboard",
@@ -103,7 +103,7 @@
         "name" : "ClaimView",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ClaimView",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ViewClaimed" ],
         "routes" : [ {
           "method" : "POST",
@@ -114,7 +114,7 @@
         "name" : "CreateView",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.CreateView",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "ViewCreated" ],
         "routes" : [ {
           "method" : "POST",
@@ -128,7 +128,7 @@
         "name" : "RenameView",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.RenameView",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ViewRenamed" ],
         "routes" : [ {
           "method" : "POST",
@@ -139,7 +139,7 @@
         "name" : "SaveView",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.SaveView",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ViewSaved" ],
         "routes" : [ {
           "method" : "POST",
@@ -150,7 +150,7 @@
         "name" : "ShareView",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ShareView",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ViewShared" ],
         "routes" : [ {
           "method" : "POST",
@@ -161,7 +161,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/view-store/view/{id}"
@@ -171,7 +171,7 @@
         "name" : "wow.lifecycle.TransferOwner",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferOwner",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/view-store/view/{id}/wow.lifecycle.transfer-owner"
@@ -181,7 +181,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/view-store/view/wow.snapshot.rebuild"
@@ -258,7 +258,7 @@
         "name" : "SetViewPreferences",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.viewstore.api.preferences.SetViewPreferences",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "ViewPreferencesSet" ],
         "routes" : [ {
           "method" : "POST",
@@ -272,7 +272,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/view-store/view_preferences/wow.snapshot.rebuild"
@@ -308,20 +308,20 @@
     } ],
     "subscriptions" : [ {
       "name" : "ViewAudienceSaga.onAudienceChanged",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "view-store",
         "aggregates" : [ "view" ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "view-store",
         "processor" : "ViewAudienceSaga",
         "name" : "onAudienceChanged"
       },
       "derives" : [ "#/$defs/me.ahoo.wow.api.lifecycle.TransferOwner" ],
-      "start" : "END"
+      "start" : "end"
     } ],
     "published" : [ {
       "aggregate" : "dataset_wording",

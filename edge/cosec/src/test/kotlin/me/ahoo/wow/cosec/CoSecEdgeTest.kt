@@ -64,7 +64,7 @@ class CoSecEdgeTest {
     fun `the principal's tenant and id are the command's tenant and owner`() {
         val result = node.post("/shop/cart/open-cart", headers = mapOf("X-User" to "alice")).assertSucceeded()
         result["ref"]["tenantId"].asString().assert().isEqualTo("acme")
-        result["status"].asString().assert().isEqualTo("SUCCEEDED")
+        result["status"].asString().assert().isEqualTo("succeeded")
     }
 
     @Test

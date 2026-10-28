@@ -21,7 +21,7 @@
         "name" : "ApproveDatasetPublication",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetPublished" ],
         "routes" : [ {
           "method" : "POST",
@@ -32,7 +32,7 @@
         "name" : "DraftDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "DatasetDrafted" ],
         "routes" : [ {
           "method" : "POST",
@@ -46,7 +46,7 @@
         "name" : "DropDatasetViews",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetViewsDropped" ],
         "routes" : [ {
           "method" : "POST",
@@ -57,7 +57,7 @@
         "name" : "PublishDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetPublicationRequested", "DatasetPublished" ],
         "routes" : [ {
           "method" : "POST",
@@ -68,7 +68,7 @@
         "name" : "RecompileDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetNeedsRevision", "DatasetPublished", "DatasetRevisionCleared" ],
         "routes" : [ {
           "method" : "POST",
@@ -79,7 +79,7 @@
         "name" : "RefuseDatasetPublication",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetPublicationRefused" ],
         "routes" : [ {
           "method" : "POST",
@@ -90,7 +90,7 @@
         "name" : "RetireDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetRetired" ],
         "routes" : [ {
           "method" : "POST",
@@ -101,7 +101,7 @@
         "name" : "ReviseDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetRevised" ],
         "routes" : [ {
           "method" : "POST",
@@ -112,7 +112,7 @@
         "name" : "RollbackDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "DatasetRolledBack" ],
         "routes" : [ {
           "method" : "POST",
@@ -123,7 +123,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/analytics-catalog/dataset/wow.snapshot.rebuild"
@@ -211,7 +211,7 @@
         } ]
       } ],
       "schedules" : [ "analytics-catalog.dataset.DropDatasetViews" ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     }, {
       "name" : "source",
       "description" : "A data source of the warehouse: a Wow table or an analyst's table, its scope and its sensitivity",
@@ -226,7 +226,7 @@
         "name" : "ApproveSensitivityChange",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SensitivityChangeApproved" ],
         "routes" : [ {
           "method" : "POST",
@@ -237,7 +237,7 @@
         "name" : "ApproveSource",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.ApproveSource",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SourceApproved" ],
         "routes" : [ {
           "method" : "POST",
@@ -248,7 +248,7 @@
         "name" : "DraftSource",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.DraftSource",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "produces" : [ "SourceDrafted" ],
         "routes" : [ {
           "method" : "POST",
@@ -262,7 +262,7 @@
         "name" : "MarkSourceReviewed",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SourceReviewed" ],
         "routes" : [ {
           "method" : "POST",
@@ -273,7 +273,7 @@
         "name" : "ReviewSourceSensitivity",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SourceSensitivityReviewed" ],
         "routes" : [ {
           "method" : "POST",
@@ -284,7 +284,7 @@
         "name" : "ReviseSource",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.ReviseSource",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SourceRevised" ],
         "routes" : [ {
           "method" : "POST",
@@ -295,7 +295,7 @@
         "name" : "SyncSource",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.SyncSource",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "SourceTableChanged", "SourceTableMissing", "WowEnrichmentAdopted", "WowEnrichmentLost", "WowEnrichmentRefused" ],
         "routes" : [ {
           "method" : "POST",
@@ -309,7 +309,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/analytics-catalog/source/wow.snapshot.rebuild"
@@ -402,24 +402,24 @@
           "path" : "/analytics-catalog/source/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     } ],
     "subscriptions" : [ {
       "name" : "DatasetRecompilation.onSourceChanged",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "analytics-catalog",
         "aggregates" : [ "source" ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "analytics-catalog",
         "processor" : "DatasetRecompilation",
         "name" : "onSourceChanged"
       },
       "derives" : [ "analytics-catalog.dataset.RecompileDataset" ],
-      "start" : "END"
+      "start" : "end"
     } ],
     "published" : [ {
       "aggregate" : "dataset",

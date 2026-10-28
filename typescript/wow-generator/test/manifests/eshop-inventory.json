@@ -19,7 +19,7 @@
               "name": "CommitReservation",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["ReservationCommitted"],
               "routes": [
                 {
@@ -33,7 +33,7 @@
               "name": "ReceiveStock",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock",
-              "creation": "ALLOWED",
+              "creation": "allowed",
               "produces": ["StockReceived"],
               "routes": [
                 {
@@ -51,7 +51,7 @@
               "name": "ReleaseReservation",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["ReservationReleased"],
               "routes": [
                 {
@@ -65,7 +65,7 @@
               "name": "ReserveStock",
               "aliases": [],
               "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock",
-              "creation": "NONE",
+              "creation": "none",
               "produces": ["StockReserved"],
               "routes": [
                 {
@@ -79,7 +79,7 @@
               "name": "wow.lifecycle.ApplyTags",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.ApplyTags",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -92,7 +92,7 @@
               "name": "wow.lifecycle.DeleteAggregate",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 { "method": "DELETE", "path": "/eshop-inventory/stock/{id}" }
               ],
@@ -102,7 +102,7 @@
               "name": "wow.lifecycle.RestoreAggregate",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.RestoreAggregate",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -115,7 +115,7 @@
               "name": "wow.lifecycle.TransferSpace",
               "aliases": [],
               "schema": "#/$defs/wow.lifecycle.TransferSpace",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -128,7 +128,7 @@
               "name": "wow.snapshot.Rebuild",
               "aliases": [],
               "schema": "#/$defs/wow.snapshot.Rebuild",
-              "creation": "NONE",
+              "creation": "none",
               "routes": [
                 {
                   "method": "POST",
@@ -196,7 +196,7 @@
               ]
             }
           ],
-          "ownership": "TENANT"
+          "ownership": "tenant"
         }
       ],
       "subscriptions": [],
@@ -229,7 +229,7 @@
           "name": "wow.schedule.Enable",
           "aliases": [],
           "schema": "#/$defs/wow.schedule.Enable",
-          "creation": "NONE",
+          "creation": "none",
           "routes": [
             {
               "method": "POST",
@@ -242,7 +242,7 @@
           "name": "wow.schedule.Reschedule",
           "aliases": [],
           "schema": "#/$defs/wow.schedule.Reschedule",
-          "creation": "NONE",
+          "creation": "none",
           "routes": [
             {
               "method": "POST",
@@ -255,7 +255,7 @@
           "name": "wow.schedule.Disable",
           "aliases": [],
           "schema": "#/$defs/wow.schedule.Disable",
-          "creation": "NONE",
+          "creation": "none",
           "routes": [
             {
               "method": "POST",

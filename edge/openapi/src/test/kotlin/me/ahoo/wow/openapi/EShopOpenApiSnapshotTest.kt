@@ -67,11 +67,11 @@ class EShopOpenApiSnapshotTest {
         /** A result as `wow-http` writes it (`HttpJson`), every member set. */
         private const val COMMAND_RESULT = """{"format":1,"commandId":"c","requestId":"r","correlationId":"co",
             "ref":{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"},
-            "hop":{"stage":"HANDLED","context":"c","subscription":"s"},
-            "function":{"kind":"SAGA","context":"c","processor":"p","name":"n"},"status":"FAILED","version":1,
+            "hop":{"stage":"handled","context":"c","subscription":"s"},
+            "function":{"kind":"saga","context":"c","processor":"p","name":"n"},"status":"failed","version":1,
             "duplicate":false,"error":{"code":"x","message":"m","violations":[{"path":"p","code":"c","message":"m"}]},
             "results":{},"derived":[],"signalTime":1,"transformedFrom":{"command":"x","aggregateId":"y"},
-            "chainEnded":true,"pending":[{"stage":"COMMITTED","context":"c"}]}"""
+            "chainEnded":true,"pending":[{"stage":"committed","context":"c"}]}"""
 
         /** The Manifest of the eShop service of [context], merged from its domain's fragment. */
         fun manifest(context: String): Manifest {

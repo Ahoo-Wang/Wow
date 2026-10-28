@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.result
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
@@ -69,7 +70,7 @@ class Hop @InternalWowApi constructor(
      * `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets the context apart.
      */
     override fun toString(): String {
-        val keyword = if (subscription == SNAPSHOT_SUBSCRIPTION) "snapshot" else stage.name.lowercase()
+        val keyword = if (subscription == SNAPSHOT_SUBSCRIPTION) "snapshot" else WireNames.of(stage)
         val argument = when {
             subscription == null || subscription == SNAPSHOT_SUBSCRIPTION -> context
             context == null -> subscription

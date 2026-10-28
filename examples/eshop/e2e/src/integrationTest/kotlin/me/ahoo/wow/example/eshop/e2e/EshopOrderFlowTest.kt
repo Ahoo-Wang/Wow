@@ -105,9 +105,9 @@ class EshopOrderFlowTest {
 
         // The wait follows the checkout into the ordering context: it answers once the order is committed there.
         val checkedOut = checkout("alice", mapOf(WAIT to CHECKOUT_CHAIN, WAIT_TIMEOUT to "30s"))
-        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("SUCCEEDED")
+        checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("succeeded")
         checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
-        checkedOut["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        checkedOut["hop"]["stage"].asString().assert().isEqualTo("committed")
         checkedOut["ref"]["id"].asString().assert().isEqualTo("alice-1")
         basketItems("alice").assert().isEmpty()
 

@@ -283,7 +283,7 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             val code = tree["code"]?.asString()
             val outcome = when {
                 code == "wow.wait.timeout" -> Outcome.TIMEOUT
-                result?.get("status")?.asString() == "REJECTED" -> Outcome.REJECTED
+                result?.get("status")?.asString() == "rejected" -> Outcome.REJECTED
                 code != null && !code.startsWith("wow.") && status < SERVER_ERROR -> Outcome.REJECTED
                 else -> Outcome.FAILED
             }

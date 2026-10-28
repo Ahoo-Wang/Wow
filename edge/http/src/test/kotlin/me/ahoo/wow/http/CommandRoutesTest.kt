@@ -43,7 +43,7 @@ class CommandRoutesTest {
     private fun Answer.assertSucceeded(status: Int = 200): Answer {
         this.status.assert().isEqualTo(status)
         contentType.assert().isEqualTo("application/json")
-        body!!["status"].asString().assert().isEqualTo("SUCCEEDED")
+        body!!["status"].asString().assert().isEqualTo("succeeded")
         return this
     }
 
@@ -73,7 +73,7 @@ class CommandRoutesTest {
         val result = answer.body!!
         UUID.fromString(result["ref"]["id"].asString()).version().assert().isEqualTo(7)
         result["ref"]["tenantId"].asString().assert().isEqualTo(TENANT)
-        result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        result["hop"]["stage"].asString().assert().isEqualTo("committed")
         result["version"].asInt().assert().isEqualTo(1)
         result["results"]["opened"].asString().assert().isEqualTo("hi")
     }
@@ -114,7 +114,7 @@ class CommandRoutesTest {
             """{"sku":"apple"}""",
             headers = mapOf(WowHeaders.WAIT to "accepted"),
         ).assertSucceeded(202)
-        answer.body!!["hop"]["stage"].asString().assert().isEqualTo("ACCEPTED")
+        answer.body!!["hop"]["stage"].asString().assert().isEqualTo("accepted")
     }
 
     @Test
@@ -149,8 +149,8 @@ class CommandRoutesTest {
             """{"sku":"apple"}""",
             headers = mapOf(WowHeaders.WAIT to "handled(shop/audit)", WowHeaders.WAIT_TIMEOUT to "200ms"),
         ).assertProblem(504, FrameworkCodes.WAIT_TIMEOUT, withResult = true)
-        answer.body!!["result"]["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
-        answer.body!!["result"]["status"].asString().assert().isEqualTo("FAILED")
+        answer.body!!["result"]["hop"]["stage"].asString().assert().isEqualTo("committed")
+        answer.body!!["result"]["status"].asString().assert().isEqualTo("failed")
     }
 
     @Test
@@ -351,7 +351,7 @@ class CommandRoutesTest {
         node.post("/shop/cart/c-1/open-cart").assertSucceeded()
         val failed = node.post("/shop/cart/c-1/checkout", """{"note":"throw"}""")
             .assertProblem(500, FrameworkCodes.COMMAND_FAILED, withResult = true).body!!
-        failed["result"]["status"].asString().assert().isEqualTo("FAILED")
+        failed["result"]["status"].asString().assert().isEqualTo("failed")
         failed["result"]["requestId"].asString().assert().isNotBlank()
         failed.toString().assert().doesNotContain("secret")
         // It committed nothing: the cart is still at version 1.
@@ -400,7 +400,7 @@ class CommandRoutesTest {
             .assertProblem(400, FrameworkCodes.COMMAND_INVALID, withResult = true).body!!
         problem["violations"].size().assert().isEqualTo(1)
         problem["violations"][0]["path"].asString().assert().isEqualTo("sku")
-        problem["violations"][0]["code"].asString().assert().isEqualTo("NotBlank")
+        problem["violations"][0]["code"].asString().assert().isEqualTo("not-blank")
         problem["violations"][0]["message"].asString().assert().isEqualTo("must not be blank")
         problem["result"]["error"]["violations"].size().assert().isEqualTo(1)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()

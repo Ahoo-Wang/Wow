@@ -11,7 +11,7 @@ export const DatasetAggregate = {
   context: 'analytics-catalog',
   name: 'dataset',
   path: '/analytics-catalog/dataset',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
 } as const;
 

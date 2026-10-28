@@ -286,7 +286,7 @@ export function renderConsole(
     if (dataset !== ORDER_ACTIONS.dataset) throw new Error("No row actions.");
     return ORDER_ACTIONS;
   });
-  const send = vi.fn(async () => ({ status: "SUCCEEDED" }));
+  const send = vi.fn(async () => ({ status: "succeeded" }));
   const services: CatalogServices = {
     callers,
     fetcher: new Fetcher({ baseURL: "" }),
