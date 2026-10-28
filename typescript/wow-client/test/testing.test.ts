@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  CommandGateway,
+  CommandClient,
   FrameworkErrorCodes,
   readProblem,
   StateClient,
@@ -155,19 +155,19 @@ describe('the wire builders', () => {
         }),
       ),
     );
-    const gateway = new CommandGateway(
+    const commands = new CommandClient(
       { fetcher: testFetcher() },
-      TEST_MANIFEST,
+      { manifest: TEST_MANIFEST },
     );
     await expect(
-      gateway.send({
+      commands.send({
         command: 'eshop-catalog.product.ChangePrice',
         id: 'mug',
         body: { price: 1 },
       }),
     ).rejects.toMatchObject({
-      status: 409,
-      code: FrameworkErrorCodes.COMMAND_REFUSED,
+      name: 'CommandRejectedError',
+      problem: { status: 409, code: FrameworkErrorCodes.COMMAND_REFUSED },
       result: { status: 'rejected', ref: MUG },
     });
   });

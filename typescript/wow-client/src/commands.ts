@@ -23,7 +23,7 @@ import {
 import type {
   AggregateType,
   CommandResult,
-  Hop,
+  CommandResultStatus,
   RefusedResult,
 } from './wire.js';
 import {
@@ -32,12 +32,17 @@ import {
   type Manifest,
   type RouteManifest,
 } from './manifest.js';
-import { rememberRequestId, WowProblemError } from './problem.js';
+import {
+  CommandRejectedError,
+  FrameworkErrorCodes,
+  rememberRequestId,
+  WowProblemError,
+} from './problem.js';
 import { commandResults, type CommandResultStream } from './streams.js';
-import { formatWaitPlan, formatWaitTimeout, wait as hop } from './wait.js';
+import { formatWaitPlan, formatWaitTimeout, WaitPlan } from './wait.js';
 
 /**
- * One command a {@link CommandGateway} sends, and how: the TypeScript
+ * One command a {@link CommandClient} sends, and how: the TypeScript
  * `CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same
  * fields. Kotlin's `command` is the command object, whose class names it;
  * here `command` is the command's name and `body` its payload, as the wire
@@ -46,26 +51,20 @@ import { formatWaitPlan, formatWaitTimeout, wait as hop } from './wait.js';
  * - `command`: the full type name, `context.aggregate.Command`, which names
  *   the aggregate type too; or a system command (`wow.*`, a lifecycle command
  *   of {@link LifecycleCommands} among them), which needs `type`.
- * - `routes`: the command's routes as its Manifest lists them; a generated
- *   client sets them. Without them, the gateway finds them in its Manifest.
  * - `id`: the aggregate's id. Absent when the command names no aggregate id:
  *   a creation, whose id the server assigns, or an `@Unaddressed` command; the
  *   route without `{id}` then sends it.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
- * - `wait` (`Wow-Wait`) and its `timeout` in milliseconds
- *   (`Wow-Wait-Timeout`); the server's default plan when absent.
+ * - `wait` (`Wow-Wait`), a {@link WaitPlan}, and `timeout` in milliseconds
+ *   (`Wow-Wait-Timeout`), which overrides the plan's: the plan the command
+ *   waits with is `wait` within `timeout`, the server's default plan when
+ *   only a timeout is given, and the server's default without either.
  * - `requestId` (`Wow-Request-Id`) and `expectedVersion` (`If-Match`).
  */
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
   /** The command's full type name, or a system command's. */
   readonly command: string;
-  /**
-   * The command's routes as its Manifest lists them, `{id}` the aggregate id:
-   * the one with `{id}` sends a request with an `id`, the one without a
-   * request without. Without them, the gateway finds them in its Manifest.
-   */
-  readonly routes?: readonly RouteManifest[];
   /** The command's body; `{}` when absent. */
   readonly body?: object;
   /** The aggregate's id; absent for a creation or an unaddressed command. */
@@ -85,14 +84,14 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
    * a command's fail to compile rather than drop their scope.
    */
   readonly scope?: never;
-  /** The hops to wait for, or the `Wow-Wait` value. */
-  readonly wait?: readonly Hop[] | string;
-  /** How long to wait, in milliseconds. */
+  /** How far to wait for the command (`Wow-Wait`). */
+  readonly wait?: WaitPlan;
+  /** How long to wait, in milliseconds, over the plan's own timeout. */
   readonly timeout?: number;
   /**
    * The request id (`Wow-Request-Id`): a retry with the same one is
    * deduplicated, answered as the first commit's duplicate. When absent, the
-   * gateway generates one ({@link newRequestId}), which a failure carries
+   * client generates one ({@link newRequestId}), which a failure carries
    * ({@link requestIdOf}). A request sent again without one is another
    * request: for an application-level retry, set it (or keep the one the
    * failure or the first result carries) and send that request again.
@@ -100,35 +99,32 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
   readonly requestId?: string;
   /** The version the aggregate must be at (`If-Match`). */
   readonly expectedVersion?: number;
+}
+
+/** How a {@link CommandClient} sends, beside how it reaches the service. */
+export interface CommandClientOptions {
   /**
-   * The body's numbers written as their exact text, unquoted JSON numbers
-   * (review R4-Q, Q-9; decision D122): a generated client sets it for a
-   * command with `int64`, `bigint` or `decimal` fields, which it types as
-   * `string`.
+   * The service's Manifest, whose routes send each command; fetched once when
+   * first needed (`GET /wow/manifest`) when absent. A generated client passes
+   * its service's.
    */
-  readonly bodyNumbers?: TextNumbers;
+  readonly manifest?: Manifest;
   /**
-   * Resolve a result that did not succeed instead of rejecting with its
-   * {@link WowProblemError}; `false` by default. A request typed with
-   * `resolveRejected: true` is answered a {@link RefusedResult} too
-   * ({@link ResolvingRejected}).
+   * The body numbers each command writes as their exact text, unquoted JSON
+   * numbers (decision D122), by the command's full type name: a generated
+   * client sets them for commands with `int64`, `bigint` or `decimal` fields,
+   * which it types as `string`.
    */
-  readonly resolveRejected?: boolean;
+  readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
 }
 
 /**
- * Options or a request that set `resolveRejected: true`: what `send`, `wait`
- * and a generated command method answer then may be a {@link RefusedResult}.
- */
-export type ResolvingRejected<O> = O & { readonly resolveRejected: true };
-
-/**
  * The options of a generated client's command method: a {@link CommandRequest}
- * without what the method fixes, its command, routes, body and type.
+ * without what the method fixes, its command, body and type.
  */
 export type CommandOptions = Omit<
   CommandRequest,
-  'command' | 'routes' | 'body' | 'type' | 'id'
+  'command' | 'body' | 'type' | 'id'
 >;
 
 /** The options of a command that may create its aggregate, with its id or not. */
@@ -169,7 +165,7 @@ export interface ApplyTags {
 }
 
 /**
- * A new request id (`Wow-Request-Id`): a random UUID. The gateway generates
+ * A new request id (`Wow-Request-Id`): a random UUID. The client generates
  * one for a command sent without; generate it first to retry with it however
  * the request fails.
  */
@@ -212,9 +208,6 @@ async function withRequestId<T>(
   }
 }
 
-/** How long {@link CommandGateway.send} waits for the command to be accepted, without a timeout of its own. */
-const ACCEPT_TIMEOUT = 10_000;
-
 /** The prefix of the system commands' names, the lifecycle commands' among them. */
 const SYSTEM_PREFIX = 'wow.';
 
@@ -222,9 +215,17 @@ const SYSTEM_PREFIX = 'wow.';
 const ID = '{id}';
 
 /** Whether `plan` waits for acceptance alone. */
-function acceptedOnly(plan: readonly Hop[] | string): boolean {
-  const spelled = formatWaitPlan(plan);
-  return spelled === 'accepted' || /^accepted\([^)]*\)$/.test(spelled);
+function acceptedOnly(plan: WaitPlan): boolean {
+  return plan.hops.length === 1 && plan.hops[0].stage === 'accepted';
+}
+
+/**
+ * The plan `request` waits with, as Kotlin's `CommandRequest.plan`: its
+ * `wait` within its `timeout`, the default plan when only a timeout is given.
+ */
+function planOf(request: CommandRequest): WaitPlan | undefined {
+  if (request.timeout === undefined) return request.wait;
+  return (request.wait ?? WaitPlan.DEFAULT).within(request.timeout);
 }
 
 /** The route of `request` among `routes`: its method and path, the id in it. */
@@ -271,17 +272,22 @@ function typeNamed(command: string): AggregateType {
 
 function commandHeaders(
   request: CommandRequest,
-  plan: readonly Hop[] | string | undefined,
+  plan: WaitPlan | undefined,
   requestId: string,
   accept?: string,
 ): Record<string, string | undefined> {
   return {
     [WowHeaders.REQUEST_ID]: requestId,
-    [WowHeaders.WAIT]: plan === undefined ? undefined : formatWaitPlan(plan),
+    // The default plan is the service's to pick: it sends no plan.
+    [WowHeaders.WAIT]:
+      plan === undefined || plan.isDefault ? undefined : formatWaitPlan(plan),
+    // A plan's own timeout, or the request's; the service's default otherwise.
     [WowHeaders.WAIT_TIMEOUT]:
-      request.timeout === undefined
-        ? undefined
-        : formatWaitTimeout(request.timeout),
+      plan !== undefined &&
+      (request.timeout !== undefined ||
+        plan.timeout !== WaitPlan.DEFAULT_TIMEOUT)
+        ? formatWaitTimeout(plan.timeout)
+        : undefined,
     [WowHeaders.IF_MATCH]:
       request.expectedVersion === undefined
         ? undefined
@@ -302,34 +308,37 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * Sends commands to the command routes of a Wow service as its Manifest lists
  * them (`POST /{context}/{aggregate}/{id}/{command}`, the route without
  * `{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}`
- * for `DeleteAggregate`): the request's own routes, else those of the
- * Manifest the gateway is given, else of the service's, fetched once
- * (`GET /wow/manifest`). As Kotlin's `CommandClient` does, {@link send} answers
+ * for `DeleteAggregate`): the Manifest the client is given, else the
+ * service's, fetched once (`GET /wow/manifest`). The TypeScript
+ * `CommandClient` of Kotlin's `me.ahoo.wow.api.client`: {@link send} answers
  * once the command is accepted, {@link wait} with the result its wait plan
  * ends with, {@link stream} with one result per hop. Generated aggregate
  * clients build on it.
  *
- * A command that did not succeed rejects with a {@link WowProblemError}
- * holding its result, unless the request resolves it. Every command carries a
- * request id, the request's or a generated one, and whatever it rejects with
- * carries that id ({@link requestIdOf}).
+ * `send` and `wait` resolve only a result that succeeded. A rejected one,
+ * by the aggregate or at admission, rejects with a
+ * {@link CommandRejectedError}; anything else that did not succeed with a
+ * {@link WowProblemError} (the table on {@link CommandRejectedError} says
+ * which). Every command carries a request id, the request's or a generated
+ * one, and whatever it rejects with carries that id ({@link requestIdOf}).
  */
-export class CommandGateway {
+export class CommandClient {
   private manifest: Promise<Manifest> | undefined;
+  private readonly bodyNumbers: Readonly<Record<string, TextNumbers>>;
 
   /**
    * @param client - How the service is reached
-   * @param manifest - The service's Manifest, whose routes send a request
-   *   without its own; fetched once when first needed when absent
+   * @param options - The service's Manifest, and the commands' exact numbers
    */
   constructor(
     readonly client: WowClientOptions = {},
-    manifest?: Manifest,
+    options: CommandClientOptions = {},
   ) {
     this.manifest =
-      manifest === undefined
+      options.manifest === undefined
         ? undefined
-        : Promise.resolve(checkManifest(manifest));
+        : Promise.resolve(checkManifest(options.manifest));
+    this.bodyNumbers = options.bodyNumbers ?? {};
   }
 
   /**
@@ -337,68 +346,43 @@ export class CommandGateway {
    * request's timeout (10 seconds without one), as Kotlin's
    * `CommandClient.send`. A request whose `wait` waits for more rejects with a
    * `TypeError` before it is sent: {@link wait} answers with that plan's result.
-   * Under `resolveRejected: true` a result that did not succeed resolves, as a
-   * {@link RefusedResult}.
    *
    * @param request - The command and how to send it
    */
-  send<R = Record<string, unknown>>(
-    request: ResolvingRejected<CommandRequest>,
-  ): Promise<CommandResult<R> | RefusedResult<R>>;
-  /**
-   * Sends a command and answers its acceptance, as the overload above; a
-   * result that did not succeed rejects with its {@link WowProblemError}.
-   *
-   * @param request - The command and how to send it
-   */
-  send<R = Record<string, unknown>>(
-    request: CommandRequest,
-  ): Promise<CommandResult<R>>;
   async send<R = Record<string, unknown>>(
     request: CommandRequest,
-  ): Promise<CommandResult<R> | RefusedResult<R>> {
-    if (request.wait !== undefined && !acceptedOnly(request.wait)) {
+  ): Promise<CommandResult<R>> {
+    const plan = planOf(request);
+    if (plan !== undefined && !plan.isDefault && !acceptedOnly(plan)) {
       throw new TypeError(
-        `send answers on acceptance: use wait() for the plan ${formatWaitPlan(request.wait)}.`,
+        `send answers on acceptance: use wait() for the plan ${formatWaitPlan(plan)}.`,
       );
     }
-    return this.exchange<R>(request, [hop.accepted()], {
-      timeout: request.timeout ?? ACCEPT_TIMEOUT,
-    });
+    return this.exchange<R>(
+      request,
+      WaitPlan.ACCEPTED.within(request.timeout ?? WaitPlan.DEFAULT_TIMEOUT),
+    );
   }
 
   /**
    * Sends a command and answers the result its wait plan ends with: 200, or
    * 202 for a plan that ends at `accepted`. Without a plan, the server's
    * default: the snapshot, or the commit where the aggregate keeps no
-   * snapshot (decision D69). Under `resolveRejected: true` a result that did
-   * not succeed resolves, as a {@link RefusedResult}.
-   *
-   * @param request - The command and how to send it
-   */
-  wait<R = Record<string, unknown>>(
-    request: ResolvingRejected<CommandRequest>,
-  ): Promise<CommandResult<R> | RefusedResult<R>>;
-  /**
-   * Sends a command and answers the result its wait plan ends with, as the
-   * overload above; a result that did not succeed rejects with its
-   * {@link WowProblemError}.
+   * snapshot (decision D69).
    *
    * @param request - The command and how to send it
    */
   wait<R = Record<string, unknown>>(
     request: CommandRequest,
-  ): Promise<CommandResult<R>>;
-  wait<R = Record<string, unknown>>(
-    request: CommandRequest,
-  ): Promise<CommandResult<R> | RefusedResult<R>> {
-    return this.exchange<R>(request, request.wait, {});
+  ): Promise<CommandResult<R>> {
+    return this.exchange<R>(request, planOf(request));
   }
 
   /**
    * Sends a command with `Accept: text/event-stream` and answers one result
-   * per hop as the wait advances. An admission refusal rejects with its
-   * problem; a rejection after admission is the stream's last result.
+   * per hop as the wait advances, whatever its status. An admission refusal
+   * rejects with its problem; a rejection after admission is the stream's
+   * last result.
    *
    * @param request - The command and how to send it
    */
@@ -408,53 +392,58 @@ export class CommandGateway {
     const requestId = request.requestId ?? newRequestId();
     return withRequestId(requestId, async () =>
       commandResults<R>(
-        await this.post(request, request.wait, requestId, 'text/event-stream'),
+        await this.post(
+          request,
+          planOf(request),
+          requestId,
+          'text/event-stream',
+        ),
       ),
     );
   }
 
   private async exchange<R>(
     request: CommandRequest,
-    plan: readonly Hop[] | string | undefined,
-    override: { timeout?: number },
-  ): Promise<CommandResult<R> | RefusedResult<R>> {
+    plan: WaitPlan | undefined,
+  ): Promise<CommandResult<R>> {
     const requestId = request.requestId ?? newRequestId();
-    const sent = { ...request, ...override };
-    try {
-      return await withRequestId(requestId, async () =>
-        json<CommandResult<R>>(await this.post(sent, plan, requestId)),
-      );
-    } catch (error) {
-      if (
-        request.resolveRejected &&
-        error instanceof WowProblemError &&
-        error.result !== undefined
-      ) {
-        return error.result as RefusedResult<R>;
+    return withRequestId(requestId, async () => {
+      let result: CommandResult<R>;
+      try {
+        result = await json<CommandResult<R>>(
+          await this.post(request, plan, requestId),
+        );
+      } catch (error) {
+        if (
+          error instanceof WowProblemError &&
+          error.result?.status === 'rejected'
+        ) {
+          throw new CommandRejectedError(error.result, {
+            problem: error.problem,
+            cause: error,
+          });
+        }
+        throw error;
       }
-      throw error;
-    }
+      return settled(result);
+    });
   }
 
   private async post(
     request: CommandRequest,
-    plan: readonly Hop[] | string | undefined,
+    plan: WaitPlan | undefined,
     requestId: string,
     accept?: string,
   ): Promise<Response> {
-    const route = routeOf(
-      request,
-      request.routes ?? (await this.routesOf(request)),
-    );
+    const route = routeOf(request, await this.routesOf(request));
     const scope = targetOf(request);
+    const bodyNumbers = this.bodyNumbers[request.command];
     return send(this.client, {
       method: route.method,
       path: route.path,
       headers: commandHeaders(request, plan, requestId, accept),
       ...(route.method === 'DELETE' ? {} : { body: request.body ?? {} }),
-      ...(request.bodyNumbers === undefined
-        ? {}
-        : { bodyNumbers: request.bodyNumbers }),
+      ...(bodyNumbers === undefined ? {} : { bodyNumbers }),
       options: {
         ...(scope === undefined ? {} : { scope }),
         ...(request.space === undefined ? {} : { space: request.space }),
@@ -498,7 +487,7 @@ export class CommandGateway {
         : undefined);
     if (declared?.routes === undefined) {
       throw new TypeError(
-        `The Manifest lists no command ${name} of ${type.context}.${type.name}: set the request's routes.`,
+        `The Manifest lists no command ${name} of ${type.context}.${type.name}.`,
       );
     }
     return declared.routes;
@@ -513,3 +502,32 @@ export class CommandGateway {
     return this.manifest;
   }
 }
+
+/**
+ * The result a command was answered with, when it succeeded; else the error
+ * that says why it did not, as Kotlin's `HttpCommandClient` settles one: a
+ * rejected result rejects with a {@link CommandRejectedError}, a status this
+ * client does not know (a newer service's) with a {@link WowProblemError}.
+ */
+function settled<R>(result: CommandResult<R>): CommandResult<R> {
+  if (result.status === 'rejected') {
+    throw new CommandRejectedError(result as RefusedResult);
+  }
+  if (!KNOWN_STATUSES.has(result.status)) {
+    throw new WowProblemError({
+      type: `urn:wow:error:${FrameworkErrorCodes.COMMAND_FAILED}`,
+      title: 'Unknown command status',
+      status: 200,
+      code: FrameworkErrorCodes.COMMAND_FAILED,
+      detail: `The command was answered with the status ${result.status}, which this client does not know: the service is newer than this client, so upgrade it.`,
+      result: result as RefusedResult,
+    });
+  }
+  return result;
+}
+
+const KNOWN_STATUSES: ReadonlySet<string> = new Set<CommandResultStatus>([
+  'succeeded',
+  'rejected',
+  'failed',
+]);

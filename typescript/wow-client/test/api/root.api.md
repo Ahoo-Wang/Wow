@@ -271,15 +271,19 @@ type CollectionFilter<FIELDS extends string = string> = {
 };
 
 // @public
-export class CommandGateway {
-    constructor(client?: WowClientOptions, manifest?: Manifest);
+export class CommandClient {
+    constructor(client?: WowClientOptions, options?: CommandClientOptions);
     // (undocumented)
     readonly client: WowClientOptions;
-    send<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
     stream<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResultStream<R>>;
-    wait<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
+}
+
+// @public
+export interface CommandClientOptions {
+    readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
+    readonly manifest?: Manifest;
 }
 
 // @public
@@ -302,7 +306,7 @@ export interface CommandManifest {
 }
 
 // @public
-export type CommandOptions = Omit<CommandRequest, 'command' | 'routes' | 'body' | 'type' | 'id'>;
+export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'id'>;
 
 // @public
 export interface CommandRef {
@@ -315,21 +319,33 @@ export interface CommandRef {
 }
 
 // @public
+export class CommandRejectedError extends Error {
+    constructor(result: RefusedResult, options?: {
+        problem?: Problem;
+        cause?: unknown;
+    });
+    readonly cause?: unknown;
+    get code(): string;
+    // (undocumented)
+    readonly name = "CommandRejectedError";
+    readonly problem?: Problem;
+    get requestId(): string;
+    readonly result: RefusedResult;
+}
+
+// @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
     readonly body?: object;
-    readonly bodyNumbers?: TextNumbers;
     readonly command: string;
     readonly expectedVersion?: number;
     readonly id?: string;
     readonly requestId?: string;
-    readonly resolveRejected?: boolean;
-    readonly routes?: readonly RouteManifest[];
     readonly scope?: never;
     readonly targetScope?: Omit<TargetScope, 'tenantId'>;
     readonly targetTenant?: string;
     readonly timeout?: number;
     readonly type?: AggregateType;
-    readonly wait?: readonly Hop[] | string;
+    readonly wait?: WaitPlan;
 }
 
 // @public
@@ -1032,10 +1048,10 @@ export function formatHop(value: Hop): string;
 export function formatScope(scope: TargetScope): string;
 
 // @public
-export function formatWaitPlan(plan: readonly Hop[] | string): string;
+export function formatWaitPlan(plan: WaitPlan): string;
 
 // @public
-export function formatWaitTimeout(timeout: number | string): string;
+export function formatWaitTimeout(timeout: number): string;
 
 // @public
 export const FRAMEWORK_ERROR_PREFIX = "wow.";
@@ -1350,10 +1366,16 @@ enum PagingMode {
 }
 
 // @public
+export function parseHop(value: string): Hop;
+
+// @public
 export function parseJson(text: string, marks?: TextNumbers): unknown;
 
 // @public
 export function parseRetryAfter(value: string | null | undefined, now?: number): number | undefined;
+
+// @public
+export function parseWaitPlan(value: string): WaitPlan;
 
 // @public
 interface PercentileAggregationMetric<FIELDS extends string = string> {
@@ -1607,11 +1629,6 @@ export interface RequestOptions {
     readonly signal?: AbortSignal;
     readonly space?: string;
 }
-
-// @public
-export type ResolvingRejected<O> = O & {
-    readonly resolveRejected: true;
-};
 
 // @public
 export interface RetryHint {
@@ -2104,6 +2121,20 @@ export const wait: {
     readonly snapshot: (context?: string) => Hop;
     readonly handled: (subscription: string, context?: string) => Hop;
 };
+
+// @public
+export class WaitPlan {
+    static readonly ACCEPTED: WaitPlan;
+    static readonly COMMITTED: WaitPlan;
+    static readonly DEFAULT: WaitPlan;
+    static readonly DEFAULT_TIMEOUT = 10000;
+    readonly hops: readonly Hop[];
+    readonly isDefault: boolean;
+    static of(...hops: Hop[]): WaitPlan;
+    static readonly SNAPSHOT: WaitPlan;
+    readonly timeout: number;
+    within(timeout: number): WaitPlan;
+}
 
 // @public
 enum WindowFunction {

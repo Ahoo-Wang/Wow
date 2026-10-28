@@ -213,10 +213,10 @@ export interface CommandResult<R = Record<string, unknown>> {
 }
 
 /**
- * A result that may not have succeeded, as a problem carries it
- * (`WowProblemError.result`) or `send` and `wait` answer it under
- * `resolveRejected: true`: a creation refused before admission chose an id
- * names none ({@link CommandRef}). The Kotlin client has no type of its own
+ * A result that may not have succeeded, as a rejection or a problem carries
+ * it (`CommandRejectedError.result`, `WowProblemError.result`): a command
+ * refused before an aggregate id was decided names none
+ * ({@link CommandRef}). The Kotlin client has no type of its own
  * for it: its `CommandResult.ref` holds such an id as
  * `AggregateRef.UNASSIGNED`.
  *

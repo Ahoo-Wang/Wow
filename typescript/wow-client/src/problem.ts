@@ -293,6 +293,66 @@ export class WowProblemError extends Error {
   }
 }
 
+/**
+ * The command was rejected: its result's status is `rejected`, decided by
+ * its aggregate (a business outcome with the domain's code) or at admission
+ * (an unknown command, an invalid one, a caller the authorizer forbids).
+ * Sending it again with the same request id is rejected again. As Kotlin's
+ * `CommandRejectedException`, a command client maps what a command is
+ * answered by the result's status, not by where it was refused:
+ *
+ * | The service answers | `send` and `wait` |
+ * | --- | --- |
+ * | a result, `succeeded` | resolve it |
+ * | a result, `rejected` | reject with {@link CommandRejectedError} |
+ * | a problem whose `result` is `rejected` | reject with {@link CommandRejectedError}, its `problem` set |
+ * | a result of a status this client does not know (a newer service) | reject with {@link WowProblemError} `wow.command.failed`, not retryable |
+ * | any other problem: refused before admission (a body that does not parse, a caller the edge refuses), a technical failure, a `failed` result | reject with {@link WowProblemError}, its `result` set when the service sent one |
+ *
+ * `stream` emits every result, whatever its status.
+ */
+export class CommandRejectedError extends Error {
+  override readonly name = 'CommandRejectedError';
+  /** The rejected result; its ref names no aggregate id when none was decided. */
+  readonly result: RefusedResult;
+  /** The problem the service answered with, when it answered one. */
+  readonly problem?: Problem;
+  /** The error this one explains. */
+  readonly cause?: unknown;
+
+  /**
+   * @param result - The rejected result
+   * @param options - The problem it came in, and the error this one explains
+   */
+  constructor(
+    result: RefusedResult,
+    options: { problem?: Problem; cause?: unknown } = {},
+  ) {
+    super(
+      `${result.ref.type.context}.${result.ref.type.name}/${result.ref.id ?? '(no id)'} rejected the command: ` +
+        `${result.error?.code ?? ''} ${result.error?.message ?? ''}`.trim(),
+    );
+    if (result.status !== 'rejected') {
+      throw new TypeError(
+        `A rejection has a rejected result, not ${result.status}.`,
+      );
+    }
+    this.result = result;
+    if (options.problem !== undefined) this.problem = options.problem;
+    if (options.cause !== undefined) this.cause = options.cause;
+  }
+
+  /** The rejection's error code. */
+  get code(): string {
+    return this.result.error?.code ?? '';
+  }
+
+  /** The request id (`Wow-Request-Id`) of the rejected command. */
+  get requestId(): string {
+    return this.result.requestId;
+  }
+}
+
 /** The request ids the client sent, by the errors the requests failed with. */
 const SENT_REQUEST_IDS = new WeakMap<object, string>();
 

@@ -14,7 +14,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { filter } from '../src/dsl.js';
 import {
-  CommandGateway,
+  CommandClient,
   EventQueryClient,
   readProblem,
   SnapshotQueryClient,
@@ -39,9 +39,9 @@ afterEach(() => {
 
 describe('client edges', () => {
   it('goes through the default fetcher and passes the signal', async () => {
-    const { requests } = stubFetch(() => jsonResponse({}));
+    const { requests } = stubFetch(() => jsonResponse({ status: 'succeeded' }));
     const controller = new AbortController();
-    await new CommandGateway({}, TEST_MANIFEST).wait({
+    await new CommandClient({}, { manifest: TEST_MANIFEST }).wait({
       command: 'c.a.X',
       signal: controller.signal,
     });
@@ -53,9 +53,9 @@ describe('client edges', () => {
     stubFetch(() => {
       throw new TypeError('network');
     });
-    const error = await new CommandGateway(client(), TEST_MANIFEST)
+    const error = await new CommandClient(client(), { manifest: TEST_MANIFEST })
       .wait({ command: 'c.a.X' })
-      .catch(e => e);
+      .catch((e: unknown) => e);
     expect(error).not.toBeInstanceOf(WowProblemError);
   });
 

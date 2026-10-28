@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -20,11 +20,13 @@ Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the fir
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
 | `ApplyTags` | interface | The body of `wow.lifecycle.ApplyTags`: the tags, names to values. | — |
-| `CommandGateway` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the request's own routes, else those of the Manifest the gateway is given, else of the service's, fetched once (`GET /wow/manifest`). | — |
+| `CommandClient` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the Manifest the client is given, else the service's, fetched once (`GET /wow/manifest`). | — |
+| `CommandClientOptions` | interface | How a `CommandClient` sends, beside how it reaches the service. | — |
 | `CommandManifest` | interface | A command of an aggregate or a context, and the routes that send it. | — |
-| `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, routes, body and type. | — |
+| `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, body and type. | — |
 | `CommandRef` | interface | The aggregate a command names: an `AggregateRef` whose `id` is null while admission has not chosen it, as for a creation that leaves its id to the server and was refused before one was chosen. | — |
-| `CommandRequest` | interface | One command a `CommandGateway` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
+| `CommandRejectedError` | class | The command was rejected: its result's status is `rejected`, decided by its aggregate (a business outcome with the domain's code) or at admission (an unknown command, an invalid one, a caller the authorizer forbids). | — |
+| `CommandRequest` | interface | One command a `CommandClient` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type | How a command ended at a hop. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
@@ -67,9 +69,8 @@ Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the fir
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
-| `RefusedResult` | interface | A result that may not have succeeded, as a problem carries it (`WowProblemError.result`) or `send` and `wait` answer it under`resolveRejected: true`: a creation refused before admission chose an id names none (`CommandRef`). | — |
+| `RefusedResult` | interface | A result that may not have succeeded, as a rejection or a problem carries it (`CommandRejectedError.result`, `WowProblemError.result`): a command refused before an aggregate id was decided names none (`CommandRef`). | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
-| `ResolvingRejected` | type | Options or a request that set `resolveRejected: true`: what `send`, `wait` and a generated command method answer then may be a `RefusedResult`. | — |
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
@@ -109,6 +110,7 @@ Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the fir
 | `TransferSpace` | interface | The body of `wow.lifecycle.TransferSpace`. | — |
 | `TransformedFrom` | interface | The command a request named before a transformer turned it into the one that ran. | — |
 | `Violation` | interface | A field-level validation error. | — |
+| `WaitPlan` | class | How far a command is waited for, and for how long: the hops, in order, and a timeout in milliseconds. | — |
 | `WowClientOptions` | interface | How a client reaches its service. | — |
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |
@@ -118,12 +120,14 @@ Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the fir
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |
 | `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and`handled(subscription)`, each with its context when it has one:`committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`. | — |
 | `formatScope` | function | A target scope as the `Wow-Scope` header spells it, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"`. | — |
-| `formatWaitPlan` | function | A wait plan as the `Wow-Wait` header spells it: its hops, in order, separated by `>`. | — |
+| `formatWaitPlan` | function | A wait plan as the `Wow-Wait` header spells it: its hops, in order, separated by `>`; the inverse of `parseWaitPlan`. | — |
 | `formatWaitTimeout` | function | A wait timeout as the `Wow-Wait-Timeout` header spells it: milliseconds as `<n>s` when whole seconds, else `<n>ms`. | — |
 | `isProblem` | function | Whether `value` reads as a problem: an object with a numeric `status`. | — |
 | `newRequestId` | function | A new request id (`Wow-Request-Id`): a random UUID. | — |
+| `parseHop` | function | The hop one part of a `Wow-Wait` value spells; see `parseWaitPlan`. | — |
 | `parseJson` | function | `text` read as `JSON.parse` reads it, but each number `marks` marks comes back as its exact text, a string. | — |
 | `parseRetryAfter` | function | The milliseconds of a `Retry-After` header: delay seconds or an HTTP date. | — |
+| `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot` or`handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of`formatWaitPlan`. | — |
 | `queryPath` | function | The query route of a model of an aggregate type. | — |
 | `readProblem` | function | The problem a response that did not succeed carries: its body when it is a problem (or a code the `type` names), else one made of its status. | — |
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |

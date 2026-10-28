@@ -14,7 +14,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type AggregateType,
-  CommandGateway,
+  CommandClient,
   EventQueryClient,
   SnapshotQueryClient,
   StateClient,
@@ -119,11 +119,16 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
 
   it('sends a command body with its marked numbers unquoted', async () => {
     const { requests } = stubFetch(() => raw('{"status":"succeeded"}'));
-    await new CommandGateway(client(), TEST_MANIFEST).wait({
+    await new CommandClient(client(), {
+      manifest: TEST_MANIFEST,
+      bodyNumbers: {
+        'eshop-catalog.product.ChangeProductPrice':
+          PRODUCT.textNumbers!.commands!.ChangeProductPrice,
+      },
+    }).wait({
       command: 'eshop-catalog.product.ChangeProductPrice',
       body: { price: '9007199254740993.10', note: '1.5' },
       id: 'p1',
-      bodyNumbers: PRODUCT.textNumbers!.commands!.ChangeProductPrice,
     });
     expect(requests[0]!.text).toBe(
       '{"price":9007199254740993.10,"note":"1.5"}',
