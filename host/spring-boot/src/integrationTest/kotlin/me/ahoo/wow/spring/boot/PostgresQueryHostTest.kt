@@ -166,6 +166,6 @@ class PostgresQueryHostTest {
         )
         val counted = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
         counted.body!!["count"].asLong().assert().isGreaterThanOrEqualTo(2)
-        host.get("/bank/account/events/query").body!!["model"].asString().assert().isEqualTo("EVENTS")
+        host.get("/bank/account/events/query").body!!["model"].asString().assert().isEqualTo("events")
     }
 }

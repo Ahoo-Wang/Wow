@@ -183,7 +183,7 @@ class OrderingAnalyticsTest {
             described = get(SALES, EMPLOYEE)
         }
         described.status.assert().describedAs(described.text).isEqualTo(OK)
-        described.body!!["model"].asString().assert().isEqualTo("DATASET")
+        described.body!!["model"].asString().assert().isEqualTo("dataset")
         described.body!!["fields"].values().map { it["path"].asString() }.assert()
             .contains("aggregate_id", "owner_id", "status", "totalAmount", "commit_time")
         val tag = described.header("ETag")
