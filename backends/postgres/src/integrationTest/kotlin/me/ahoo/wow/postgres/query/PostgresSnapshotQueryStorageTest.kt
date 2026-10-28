@@ -99,10 +99,10 @@ class PostgresSnapshotQueryStorageTest {
     @Test
     fun `a table not created yet is provisional and empty`(): Unit = runBlocking {
         val type = newType()
-        val binding = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).create(type)
-        val provisional = QueryFixtures.schema(type, binding.storage)
+        val binding = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)
+        val provisional = QueryFixtures.schema(type, binding!!.storage)
         provisional.provisional.assert().isTrue()
-        val backend = binding.backend
+        val backend = binding!!.backend
         val status = QueryField("state.status")
         backend.list(QueryAdmission.Trusted.list(ListQuery(EqualFilter(status, "NEW")), provisional)).toList().assert().isEmpty()
         backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 5), provisional))
@@ -121,7 +121,7 @@ class PostgresSnapshotQueryStorageTest {
 
         // Once the aggregate's first snapshot creates the table, its catalog proves the facts.
         PostgresFixture.snapshotStore(type.context).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}"""))
-        QueryFixtures.schema(type, binding.storage).provisional.assert().isFalse()
+        QueryFixtures.schema(type, binding!!.storage).provisional.assert().isFalse()
     }
 
     @Test
@@ -131,7 +131,7 @@ class PostgresSnapshotQueryStorageTest {
         PostgresFixture.dataSource.connection.use { connection ->
             connection.createStatement().use { it.execute("ALTER TABLE $table ALTER COLUMN version TYPE text") }
         }
-        val schema = QueryFixtures.schema(type, storage(type).create(type).storage)
+        val schema = QueryFixtures.schema(type, storage(type).binding(type)!!.storage)
         checkNotNull(schema.field(QueryField("version"))).capabilities.assert().containsExactly(QueryCapability.PRESENCE)
         checkNotNull(schema.field(QueryField("state.status"))).capabilities.assert().contains(QueryCapability.CURSOR_SORT)
     }
@@ -139,7 +139,7 @@ class PostgresSnapshotQueryStorageTest {
     @Test
     fun `a storage serves only its own context`() {
         val type = newType()
-        assertThrownBy<IllegalArgumentException> { storage(type).create(AggregateType("elsewhere", "order")) }
+        assertThrownBy<IllegalArgumentException> { storage(type).binding(AggregateType("elsewhere", "order")) }
         storage(type).table(type.name).assert().isEqualTo(PostgresSnapshotTables(type.context, type.name).snapshot)
     }
 
@@ -148,7 +148,7 @@ class PostgresSnapshotQueryStorageTest {
         val type = newType()
         val storage = storage(type)
         seed(storage.table(type.name), ROWS)
-        val backend = storage.create(type).backend
+        val backend = storage.binding(type)!!.backend
         val schema = schema(type)
         val timeout = Duration.ofMillis(1)
         // A filter no index serves, so every statement reads the whole table.

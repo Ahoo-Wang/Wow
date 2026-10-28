@@ -21,8 +21,8 @@ import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.ObjectNode
@@ -43,14 +43,16 @@ internal class ElasticsearchEventQueries(
     private val client: ElasticsearchAsyncClient,
     private val names: ElasticsearchNames,
     private val indexDdl: Ddl = Ddl.AUTO,
-) : EventQueries {
+) : QueryBindings<AggregateType> {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchEventIndex.typeMapping() }
     private val bodyMappings = ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.EventBodies)
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(type) {
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(key, ::bind)
+
+    private fun bind(type: AggregateType): QueryBackendBinding<QueryBackend> {
         val index = names.events(type.context, type.name)
-        QueryBackendBinding(
+        return QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, StreamDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.EVENTS) { logical ->
                 if (indexDdl.creates) bodyMappings.manage(index, logical)

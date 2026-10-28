@@ -17,7 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
-import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.spi.VirtualThreads
 import javax.sql.DataSource
@@ -37,15 +37,15 @@ class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     val options: PostgresQueryOptions = PostgresQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val ddlDataSource: DataSource = dataSource,
-) : AbstractQueryBackendFactory<PostgresQueryBackend>() {
+) : CachedQueryBindings<AggregateType>({ it }) {
     /** The snapshot table of [aggregateName], quoted. */
     fun table(aggregateName: String): String = PostgresSnapshotTables(context, aggregateName).snapshot
 
-    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<PostgresQueryBackend> {
-        require(aggregateType.context == context) { "$aggregateType is not in context $context." }
-        val tables = PostgresSnapshotTables(context, aggregateType.name)
+    override fun createBinding(key: AggregateType): QueryBackendBinding<PostgresQueryBackend> {
+        require(key.context == context) { "$key is not in context $context." }
+        val tables = PostgresSnapshotTables(context, key.name)
         return QueryBackendBinding(
-            PostgresQueryBackend(aggregateType, dataSource, tables.snapshot, options, dispatcher),
+            PostgresQueryBackend(key, dataSource, tables.snapshot, options, dispatcher),
             PostgresQuerySchemaAdapter(dataSource, tables, dispatcher),
         )
     }

@@ -31,13 +31,13 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
@@ -49,18 +49,18 @@ import tools.jackson.databind.node.ObjectNode
  * from `system.columns`. A host builds one over the client-v2 [client] the Sink writes with.
  */
 @ExperimentalWowApi
-class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
+class ClickHouseDatasetBindings @JvmOverloads constructor(
     private val client: Client,
     private val options: ClickHouseDatasetOptions = ClickHouseDatasetOptions(),
-) : AbstractDatasetQueryBackendFactory() {
+) : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
     private val executor = ClickHouseExecutor(client, options.settings)
 
-    override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
-        val storage = ClickHouseDatasetStorage.of(dataset, options.database)
+    override fun createBinding(key: QueryDataset): QueryBackendBinding<QueryBackend> {
+        val storage = ClickHouseDatasetStorage.of(key, options.database)
         val metadata = ClickHouseTableMetadata(options.metadataTtl) { executor.table(storage.database, storage.table) }
         return QueryBackendBinding(
-            ClickHouseDatasetQueryBackend(dataset, storage, executor, metadata),
-            ClickHouseQuerySchemaAdapter(dataset, storage, metadata),
+            ClickHouseDatasetQueryBackend(key, storage, executor, metadata),
+            ClickHouseQuerySchemaAdapter(key, storage, metadata),
         )
     }
 }
@@ -82,7 +82,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     private val storage: ClickHouseDatasetStorage,
     private val executor: ClickHouseExecutor,
     private val metadata: ClickHouseTableMetadata,
-) : DatasetQueryBackend {
+) : QueryBackend {
     override val aggregateType: AggregateType = dataset.name
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
     private val fields: List<String> = dataset.declaration.fields.keys.map(QueryField::path)

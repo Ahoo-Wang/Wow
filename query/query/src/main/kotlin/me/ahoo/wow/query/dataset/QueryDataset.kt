@@ -92,7 +92,7 @@ class QueryDatasetScope @InternalWowApi constructor(
  *
  * [name] is `{context}.{dataset}`: a dataset takes a name slot of its context, beside that context's aggregates, and
  * the query engine keys it as it keys an aggregate type. [storage] is the backend's binding of the dataset (a
- * ClickHouse table, say), opaque to the core: a [DatasetQueryBackendFactory] reads it.
+ * ClickHouse table, say), opaque to the core: its dataset's [QueryBindings][me.ahoo.wow.query.backend.QueryBindings] read it.
  *
  * A dataset whose [unavailable] names a reason is served but cannot be queried: each of its queries and its
  * descriptor are answered `wow.query.dataset-unavailable` (HTTP 409) with that reason, fixed words such as

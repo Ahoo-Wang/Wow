@@ -119,6 +119,6 @@ class AcmeSnapshotStore(private val queries: InMemoryQueryStorage) : SnapshotSto
 /** The queries of an `acme-snapshots` store: its snapshots, over the reference query storage; no `events`. */
 class AcmeQueries(private val storage: InMemoryQueryStorage) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
-        override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)
+        override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
     }
 }

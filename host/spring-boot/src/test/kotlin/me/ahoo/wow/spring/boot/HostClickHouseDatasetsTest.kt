@@ -15,14 +15,20 @@ package me.ahoo.wow.spring.boot
 
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
+import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.core.ResolvableType
 import java.time.Duration
 
 /** The ClickHouse dataset backend wired by [ClickHouseAutoConfiguration] (decision D145). */
@@ -34,11 +40,10 @@ class HostClickHouseDatasetsTest {
     @Test
     fun `with an endpoint the dataset backend should be wired over the client`() {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
-            context.getBean(DatasetQueryBackendFactory::class.java).assert()
-                .isInstanceOf(ClickHouseDatasetQueryBackendFactory::class.java)
+            context.datasetBindings().assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
         }
         runner.run { context ->
-            context.getBeansOfType(DatasetQueryBackendFactory::class.java).assert().isEmpty()
+            context.datasetBindingNames().assert().isEmpty()
         }
     }
 
@@ -47,14 +52,49 @@ class HostClickHouseDatasetsTest {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.query.enabled=false")
             .run { context ->
                 context.getBeansOfType(Client::class.java).assert().hasSize(1)
-                context.getBeansOfType(DatasetQueryBackendFactory::class.java).assert().isEmpty()
+                context.datasetBindingNames().assert().isEmpty()
             }
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
             .withBean(InMemoryDatasetStorage::class.java, { InMemoryDatasetStorage() })
             .run { context ->
-                context.getBean(DatasetQueryBackendFactory::class.java).assert()
-                    .isInstanceOf(InMemoryDatasetStorage::class.java)
+                context.datasetBindings().assert().isInstanceOf(InMemoryDatasetStorage::class.java)
             }
+    }
+
+    @Test
+    fun `an application's dataset bindings declared as a lambda should switch it off, its snapshot bindings not`() {
+        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
+            .withUserConfiguration(LambdaDatasetBindings::class.java)
+            .run { context ->
+                context.datasetBindingNames().assert().containsExactly("lambdaDatasetBindings")
+            }
+        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
+            .withUserConfiguration(LambdaSnapshotBindings::class.java)
+            .run { context ->
+                context.datasetBindings().assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
+            }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class LambdaDatasetBindings {
+        @Bean
+        fun lambdaDatasetBindings(): QueryBindings<QueryDataset> = QueryBindings { null }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class LambdaSnapshotBindings {
+        @Bean
+        fun lambdaSnapshotBindings(): QueryBindings<AggregateType> = QueryBindings { null }
+    }
+
+    private fun ApplicationContext.datasetBindingNames(): List<String> =
+        getBeanNamesForType(DATASET_BINDINGS).toList()
+
+    private fun ApplicationContext.datasetBindings(): Any = getBean(datasetBindingNames().single())
+
+    private companion object {
+        val DATASET_BINDINGS: ResolvableType =
+            ResolvableType.forClassWithGenerics(QueryBindings::class.java, QueryDataset::class.java)
     }
 
     @Test

@@ -33,6 +33,9 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.admission.under
 import me.ahoo.wow.query.backend.PositionedRecord
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.filter.QueryFilter
@@ -60,7 +63,7 @@ interface DatasetQueryGateway : QueryGateway {
 @ExperimentalWowApi
 class DefaultDatasetQueryGateway @JvmOverloads constructor(
     override val dataset: QueryDataset,
-    backend: DatasetQueryBackend,
+    backend: QueryBackend,
     schemaProvider: QueryModelSchemaProvider,
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),
@@ -144,9 +147,9 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         }
 
         /**
-         * The gateways of [datasets], each over the backend [factory] binds and the schema [catalog] compiles for it
-         * (a Catalog built over the same [datasets] and [factory], see `QueryBackendStorages`); a dataset [factory]
-         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives,
+         * The gateways of [datasets], each over the backend [bindings] gives and the schema [catalog] compiles for it
+         * (a Catalog built over the same [datasets] and [bindings], see `QueryBackendStorages`); a dataset [bindings]
+         * do not serve is refused before it joins. Each dataset's queries run under the [bulkhead] it gives,
          * none by default.
          */
         @JvmStatic
@@ -155,16 +158,16 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         fun of(
             datasets: QueryDatasets,
             catalog: QuerySchemaCatalog,
-            factory: DatasetQueryBackendFactory,
+            bindings: QueryBindings<QueryDataset>,
             filters: List<QueryFilter> = emptyList(),
             policies: List<QueryPolicy> = emptyList(),
             observer: QueryObserver = QueryObserver.NONE,
             entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
             bulkhead: (AggregateType) -> QueryBulkhead? = { null },
-        ): DatasetQueryGateways = of(datasets, requireServable = { factory.create(it) }) { dataset ->
+        ): DatasetQueryGateways = of(datasets, requireServable = { bindings.served(it) }) { dataset ->
             DefaultDatasetQueryGateway(
                 dataset = dataset,
-                backend = factory.create(dataset).backend.under(bulkhead(dataset.name)),
+                backend = bindings.served(dataset).backend.under(bulkhead(dataset.name)),
                 schemaProvider = catalog.provider(dataset.name, QueryModel.DATASET),
                 filters = filters,
                 policies = policies,
@@ -209,4 +212,11 @@ internal class UnavailableDatasetQueryGateway(override val dataset: QueryDataset
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = unavailable()
+}
+
+/** The binding of [dataset]; a dataset these bindings do not serve fails with an [IllegalArgumentException]. */
+private fun QueryBindings<QueryDataset>.served(dataset: QueryDataset): QueryBackendBinding<QueryBackend> {
+    val binding = binding(dataset)
+    require(binding != null) { "No dataset backend serves dataset [${dataset.name}]: its bindings answer none." }
+    return binding
 }

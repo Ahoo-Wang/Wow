@@ -93,7 +93,7 @@ class EventQueryGatewaysTest {
         scope = Scope("alice", "s-1"),
     )
     private val storage = InMemoryEventQueryStorage({ streams })
-    private val binding = storage.create(type)
+    private val binding = storage.binding(type)
     private val schema = QueryModelCompiler.of().compile(QuerySchemaContext(type, QueryModel.EVENTS), binding.storage)
 
     @Suppress("LongParameterList")

@@ -57,9 +57,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
-| `me.ahoo.wow.query.dataset.DatasetQueryBackend` | interface | `wow-query` |
-| `me.ahoo.wow.query.dataset.DatasetQueryBackendFactory` | interface | `wow-query` |
-| `me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryGateway` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.DefaultDatasetQueryGateway` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryGateways` | class | `wow-query` |
@@ -84,7 +81,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.schema.QueryValueKind` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
-| `me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings` | class | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions` | class | `wow-clickhouse` |
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
@@ -143,11 +140,11 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
-| `me.ahoo.wow.query.backend.QueryBackendFactory` | interface | `wow-query` |
+| `me.ahoo.wow.query.backend.QueryBindings` | interface | `wow-query` |
+| `me.ahoo.wow.query.backend.CachedQueryBindings` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
-| `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueryOptions` | class | `wow-query` |
 

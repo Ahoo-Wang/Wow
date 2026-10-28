@@ -33,6 +33,8 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 
 存储在端口之外提供的东西以 facet 的形式给出（`Store.facet`）：后端提供快照或 `events` 查询时，给出它的查询侧 `StoreQueries`（`:query`）；连接池能说出它的连接数时，给出它的连接池 `StorePool`。节点按连接池限定存储的查询并发（与追加共用的池取四分之一，查询独占的池全部可用），并从中读取存储的写入压力。facet 是一种能力，绝不是绕过端口的途径。
 
+每个查询侧都通过同一种形状 `QueryBindings`（`:query`）给出它的 binding，即查询后端及其存储的事实：`binding(key)` 的 key 可以是聚合类型（快照或事件）或数据集，不服务的 key 返回 null。`CachedQueryBindings` 为每个 key 只创建一次 binding，数据集重新声明时再创建，`forget(key)` 时丢弃。
+
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 
 ## 传输与 Sink 的提供者 {#transport-and-sink-providers}
@@ -112,7 +114,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 | `TopicTransportSpec` | `wow-tck` | `producer`、`source`、`newTopic(partitions)` | `readTimeout` |
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`、`binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`、`binding(type)` | |
-| `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetQueryBackendFactory()`、`createTable(table)` | `semanticDivergences` |
+| `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`、`createTable(table)` | `semanticDivergences` |
 
 为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，PostgreSQL 和 MongoDB 运行七个存储 spec、`QueryBackendSpec` 和 `EventQueryBackendSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec` 和 `DatasetQueryBackendSpec`。
 

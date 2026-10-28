@@ -29,5 +29,5 @@ class MongoSnapshotQueryBackendTest : QueryBackendSpec() {
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-        MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).create(type)
+        MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!
 }

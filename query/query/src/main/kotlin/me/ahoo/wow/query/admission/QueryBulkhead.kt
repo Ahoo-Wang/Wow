@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
-import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -28,7 +27,6 @@ import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.aggregate
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.error.QueryBusyException
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
@@ -220,14 +218,3 @@ internal class BulkheadQueryBackend(private val delegate: QueryBackend, private 
 /** [this] backend under [bulkhead], or as it is without one. */
 internal fun QueryBackend.under(bulkhead: QueryBulkhead?): QueryBackend =
     if (bulkhead == null) this else BulkheadQueryBackend(this, bulkhead)
-
-/** [delegate], a dataset's backend, with each of its primitives run under [bulkhead]. */
-@ExperimentalWowApi
-internal class BulkheadDatasetQueryBackend(delegate: DatasetQueryBackend, bulkhead: QueryBulkhead) :
-    DatasetQueryBackend,
-    QueryBackend by BulkheadQueryBackend(delegate, bulkhead)
-
-/** [this] dataset backend under [bulkhead], or as it is without one. */
-@ExperimentalWowApi
-internal fun DatasetQueryBackend.under(bulkhead: QueryBulkhead?): DatasetQueryBackend =
-    if (bulkhead == null) this else BulkheadDatasetQueryBackend(this, bulkhead)

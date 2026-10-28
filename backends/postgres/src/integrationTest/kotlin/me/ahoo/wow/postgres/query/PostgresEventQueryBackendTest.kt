@@ -32,7 +32,7 @@ class PostgresEventQueryBackendTest : EventQueryBackendSpec() {
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-        PostgresEventQueryStorage(PostgresFixture.dataSource, type.context).create(type)
+        PostgresEventQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!
 
     private companion object {
         const val PARTITIONS = 4

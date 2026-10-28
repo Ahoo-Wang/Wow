@@ -60,7 +60,7 @@ import java.time.Instant
  */
 class StateFlatDatasetTest {
     private val database = "wow_flat"
-    private val factory = ClickHouseDatasetQueryBackendFactory(
+    private val factory = ClickHouseDatasetBindings(
         ClickHouseContainers.client,
         ClickHouseDatasetOptions(database = database),
     )

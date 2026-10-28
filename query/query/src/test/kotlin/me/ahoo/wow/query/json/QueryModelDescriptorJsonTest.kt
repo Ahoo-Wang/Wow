@@ -88,7 +88,7 @@ class QueryModelDescriptorJsonTest {
             val schema = ManifestFixtures.orderSchema()
             val gateway = DefaultQueryGateway(
                 ManifestFixtures.ORDER,
-                InMemoryQueryStorage().create(ManifestFixtures.ORDER).backend,
+                InMemoryQueryStorage().binding(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(schema),
             )
             gateway.describe(QueryEntry.HTTP, DEFAULT_LIST_SIZE).assert()

@@ -18,10 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.backend.CachedQueryBindings
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
@@ -198,27 +198,27 @@ class HostDatasetQueryTest {
     }
 
     @Test
-    fun `a dataset that leaves should be evicted from an abstract factory`() {
+    fun `a dataset that leaves should be forgotten by the dataset bindings`() {
         var bindings = 0
         val storage = InMemoryDatasetStorage()
-        val factory = object : AbstractDatasetQueryBackendFactory() {
-            override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
+        val cached = object : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
+            override fun createBinding(key: QueryDataset): QueryBackendBinding<QueryBackend>? {
                 bindings++
-                return storage.create(dataset)
+                return storage.binding(key)
             }
         }
         val ledger = QueryDataset.parse(LEDGER, ledgerFile())
         val datasets = QueryDatasets(listOf(ledger))
-        HostDatasets.evictOnRemoval(datasets, factory)
-        factory.create(ledger)
-        factory.create(ledger)
+        HostDatasets.forgetOnRemoval(datasets, cached)
+        cached.binding(ledger)
+        cached.binding(ledger)
         bindings.assert().isEqualTo(1)
         datasets.remove(LEDGER)
-        factory.create(ledger)
+        cached.binding(ledger)
         bindings.assert().isEqualTo(2)
-        // Neither a plain factory nor the empty catalog is followed.
-        HostDatasets.evictOnRemoval(datasets, DatasetQueryBackendFactory { storage.create(it) })
-        HostDatasets.evictOnRemoval(QueryDatasets.NONE, factory)
+        // Bindings that hold nothing forget nothing, and the empty catalog is not followed.
+        HostDatasets.forgetOnRemoval(datasets, QueryBindings { storage.binding(it) })
+        HostDatasets.forgetOnRemoval(QueryDatasets.NONE, cached)
     }
 
     @Test

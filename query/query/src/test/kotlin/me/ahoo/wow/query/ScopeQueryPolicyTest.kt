@@ -203,7 +203,7 @@ class ScopeQueryPolicyTest {
             ).forEach(storage::save)
             val gateway = DefaultQueryGateway(
                 ManifestFixtures.ORDER,
-                storage.create(ManifestFixtures.ORDER).backend,
+                storage.binding(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(ManifestFixtures.orderSchema()),
                 policies = listOf(ScopeQueryPolicy()),
             )
@@ -282,7 +282,7 @@ class ScopeQueryPolicyTest {
             val schema = ManifestFixtures.orderSchema()
             fun gateway(tenants: TenantPolicy) = DefaultQueryGateway(
                 ManifestFixtures.ORDER,
-                storage.create(ManifestFixtures.ORDER).backend,
+                storage.binding(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(schema),
                 policies = listOf(ScopeQueryPolicy(tenants, crossTenant = true)),
             )

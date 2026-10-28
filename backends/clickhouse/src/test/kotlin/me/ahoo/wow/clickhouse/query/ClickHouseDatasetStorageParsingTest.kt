@@ -103,7 +103,7 @@ class ClickHouseDatasetStorageParsingTest {
             assertThrows<IllegalArgumentException>(storage) { ClickHouseDatasetStorage.of(dataset(storage), "default") }
         }
         // The factory refuses such a binding when it binds the dataset.
-        assertThrows<IllegalArgumentException> { factory().create(dataset("""{}""")) }
+        assertThrows<IllegalArgumentException> { factory().binding(dataset("""{}""")) }
     }
 
     @Test
@@ -260,7 +260,7 @@ class ClickHouseDatasetStorageParsingTest {
         reads.assert().isEqualTo(2)
         metadata.refresh()
         reads.assert().isEqualTo(3)
-        val backend = factory().create(DATASET).backend
+        val backend = factory().binding(DATASET)!!.backend
         backend.aggregateType.assert().isEqualTo(DATASET.name)
         backend.toString().assert().isEqualTo("ClickHouseDatasetQueryBackend(bi.orders on bi.orders)")
         Unit
@@ -268,7 +268,7 @@ class ClickHouseDatasetStorageParsingTest {
 
     private fun column(type: String) = TypedColumn(ClickHouseColumn("c", type))
 
-    private fun factory() = ClickHouseDatasetQueryBackendFactory(
+    private fun factory() = ClickHouseDatasetBindings(
         Client.Builder().addEndpoint("http://localhost:1").setUsername("default").setPassword("").build(),
     )
 

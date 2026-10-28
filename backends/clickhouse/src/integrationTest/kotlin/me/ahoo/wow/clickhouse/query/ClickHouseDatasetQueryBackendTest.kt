@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.clickhouse.query
 
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
+import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.tck.DatasetTable
 import me.ahoo.wow.spi.json.WowJson
@@ -21,8 +22,8 @@ import tools.jackson.databind.node.ObjectNode
 
 /** The dataset TCK on ClickHouse. */
 class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
-    override fun createDatasetQueryBackendFactory(): DatasetQueryBackendFactory =
-        ClickHouseDatasetQueryBackendFactory(ClickHouseContainers.client)
+    override fun createDatasetBindings(): QueryBindings<QueryDataset> =
+        ClickHouseDatasetBindings(ClickHouseContainers.client)
 
     override suspend fun createTable(table: DatasetTable): ObjectNode {
         ClickHouseContainers.load(table)

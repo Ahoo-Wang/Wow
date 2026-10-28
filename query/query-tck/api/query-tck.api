@@ -35,7 +35,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public final fun a single record is the first in sort order, or none ()V
 	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
 	public final fun counts are bounded by their limit ()V
-	protected abstract fun createDatasetQueryBackendFactory ()Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
+	protected abstract fun createDatasetBindings ()Lme/ahoo/wow/query/backend/QueryBindings;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun date histograms key buckets by the local start of the unit ()V
 	public final fun filter semantics matrix ()Ljava/util/List;
@@ -64,11 +64,11 @@ public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target {
-	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
+	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun aggregate$default (Lme/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target;Lme/ahoo/wow/api/query/AggregationQuery;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun count (Lme/ahoo/wow/api/query/FilterExpression;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun getBackend ()Lme/ahoo/wow/query/dataset/DatasetQueryBackend;
+	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
 	public final fun getDataset ()Lme/ahoo/wow/query/dataset/QueryDataset;
 	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

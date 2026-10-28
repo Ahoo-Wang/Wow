@@ -83,7 +83,7 @@ class ElasticsearchStoreProviderTest {
         checkNotNull(checkNotNull(store.facet<StoreQueries>()).snapshots(StoreQueryOptions.DEFAULT))
             .binding(
                 AggregateType("ctx", "order")
-            ).backend.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))
+            )?.backend?.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))
     }
 
     @Test
