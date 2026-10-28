@@ -26,8 +26,8 @@ const SERVED = [
   {
     id: "shop.order_wide",
     entry: {
-      contextName: "shop",
-      name: "order_wide",
+      context: "shop",
+      dataset: "order_wide",
       title: "Orders",
       version: "v1",
     },

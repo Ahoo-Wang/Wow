@@ -55,7 +55,7 @@ class PayloadMasksTest {
                 "properties" to mapOf(
                     "phone" to mapOf(
                         "type" to "string",
-                        "x-wow-sensitive" to mapOf("level" to "DISPLAY"),
+                        "x-wow-sensitive" to mapOf("level" to "display"),
                         "x-wow-mask" to mapOf("keepPrefix" to 3, "keepSuffix" to 4),
                     ),
                     "sku" to mapOf("type" to "string"),

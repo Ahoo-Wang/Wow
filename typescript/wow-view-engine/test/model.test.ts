@@ -16,6 +16,10 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
+  AggregationMetricType,
+  SortDirection,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -63,7 +67,7 @@ describe('model constants', () => {
     expect(new Set(BUILTIN_FIELD_KIND_IDS).size).toBe(
       BUILTIN_FIELD_KIND_IDS.length,
     );
-    expect(SUMMARY_FUNCTIONS).toContain('SUM');
+    expect(SUMMARY_FUNCTIONS).toContain(AggregationFunction.SUM);
   });
 
   it('maps every chart type to a family sub-object of ChartSpec', () => {
@@ -194,7 +198,7 @@ describe('a summary', () => {
 
 describe('configs stay plain JSON', () => {
   it('stores Wow enum values as string literals', () => {
-    const operator: FilterOperatorName = 'EQ';
+    const operator: FilterOperatorName = FilterOperator.EQ;
     expect(operator).toBe(FilterOperator.EQ);
 
     const analysis: AnalysisViewConfig = {
@@ -203,14 +207,14 @@ describe('configs stay plain JSON', () => {
       refresh: { interval: null },
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'createdAt',
           alias: 'month',
-          unit: 'MONTH',
+          unit: AggregationDateUnit.MONTH,
         },
       ],
-      metrics: [{ type: 'COUNT', alias: 'orders' }],
-      sort: [{ alias: 'orders', direction: 'DESC' }],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
+      sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       limit: 100,
       layout: 'chart',
       table: { columns: [] },
@@ -232,7 +236,7 @@ describe('configs stay plain JSON', () => {
       ...filterBase,
       kind: 'record',
       refresh: { interval: 30 },
-      sort: [{ field: 'createdAt', direction: 'DESC' }],
+      sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
       pageSize: 20,
       layout: 'table',
       table: { columns: [{ field: 'id' }, { field: 'amount', width: 120 }] },
@@ -348,9 +352,9 @@ describe('configs stay plain JSON', () => {
       analysisConfig({
         elements: [],
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'orders',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         },
         top: { within: 'warehouse', metric: 'orders', count: 3 },
@@ -388,7 +392,12 @@ describe('definitions are code', () => {
       source: 'orders',
       fields: [
         { name: 'id', label: 'Order', kind: 'string', sortable: true },
-        { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
+        {
+          name: 'amount',
+          label: 'Amount',
+          kind: 'number',
+          summary: [AggregationFunction.SUM],
+        },
         {
           name: 'createdAt',
           label: 'Created',
@@ -444,7 +453,7 @@ describe('definitions are code', () => {
       name: 'amount',
       label: 'Amount',
       kind: 'number',
-      summary: ['SUM'],
+      summary: [AggregationFunction.SUM],
       // @ts-expect-error `editor` was removed from FieldDefinition (D17-11).
       editor: 'number-range',
     };

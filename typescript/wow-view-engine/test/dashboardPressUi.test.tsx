@@ -51,6 +51,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -219,7 +220,7 @@ describe('the follow-up menu on a panel (D22 H)', () => {
     // the name the records go by once the reader takes the group off.
     expect(to.named?.subject).toBe('Orders');
     expect(to.named?.conditions).toEqual([
-      { field: 'warehouse', operator: 'EQ', value: 'CN' },
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
     ]);
   });
 
@@ -519,7 +520,7 @@ describe('a view nobody saved, opened in the workbench', () => {
       store: new MemoryViewStore({ instances: views }),
     });
     const group: FilterNode[] = [
-      { field: 'warehouse', operator: 'EQ', value: 'CN' },
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
     ];
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(

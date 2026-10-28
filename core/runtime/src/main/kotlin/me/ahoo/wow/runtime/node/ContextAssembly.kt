@@ -21,7 +21,6 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
-import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.cluster.CommandRouter
@@ -53,6 +52,7 @@ import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -72,6 +72,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 internal class ContextAssembly(private val wiring: NodeWiring) {
     private val service = wiring.service
     private val node = wiring.node
+    private val clock = wiring.clock
     private val address: String get() = wiring.address()
     private val options = wiring.options
     private val admission = wiring.admission
@@ -117,6 +118,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 notifier = notifiers,
                 observer = observer,
                 classification = classification,
+                clock = clock,
             )
         }
 
@@ -125,7 +127,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * sizes [codec] measures, each eviction observed.
      */
     private fun stateCacheOf(context: String, codec: EventCodec): StateCache {
-        val evicted = { observer.stateCache(context, StateCacheOutcome.EVICTED) }
+        val evicted = { observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.EVICTED)) }
         return when (val capacity = stateCacheCapacity) {
             null -> LruStateCache(
                 maxBytes = checkNotNull(stateCacheBytes),
@@ -174,6 +176,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             options.executor.maxBatch,
             views.forExecutor(),
             inFlight,
+            clock = clock,
         )
         return Parts(
             context,
@@ -246,6 +249,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             notifier = notifiers,
             observer = observer,
             classification = classification,
+            clock = clock,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
@@ -416,8 +420,9 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
                 observer = observer,
+                clock = clock,
             )
-            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), clock, observer = observer)
             firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
             return ContextNode(
                 context,

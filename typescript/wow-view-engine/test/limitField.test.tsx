@@ -39,6 +39,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { analysisToggle, openTray } from './fixtures/workbench.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -298,7 +299,7 @@ describe('the top-N groups field', () => {
     expect(box().getAttribute('aria-describedby')).toBe(note()!.id);
 
     runtimeOf(engine).edit({
-      sort: [{ alias: 'orders', direction: 'DESC' }],
+      sort: [{ alias: 'orders', direction: SortDirection.DESC }],
     });
     await waitFor(() => expect(note()).toBeNull());
     expect(box().hasAttribute('aria-describedby')).toBe(false);

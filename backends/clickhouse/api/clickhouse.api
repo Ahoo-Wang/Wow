@@ -1,3 +1,15 @@
+public final class me/ahoo/wow/clickhouse/ClickHouseClients {
+	public static final field DATABASE Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field ENDPOINT Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field INSTANCE Lme/ahoo/wow/clickhouse/ClickHouseClients;
+	public static final field PASSWORD Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field USERNAME Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final fun of (Ljava/util/Map;)Lcom/clickhouse/client/api/Client;
+	public static final fun of (Ljava/util/Map;Ljava/lang/String;)Lcom/clickhouse/client/api/Client;
+	public static synthetic fun of$default (Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lcom/clickhouse/client/api/Client;
+}
+
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetBindings : me/ahoo/wow/query/backend/CachedQueryBindings {
 	public fun <init> (Lcom/clickhouse/client/api/Client;)V
 	public fun <init> (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;)V
@@ -43,17 +55,22 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions$Companion {
 }
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/wow/spi/sink/SinkProvider {
+	public static final field AGGREGATES Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field BATCH_SIZE Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field Companion Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion;
+	public static final field DDL Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field DEDUPLICATION_WINDOW Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field ENABLED Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field TYPE Ljava/lang/String;
 	public fun <init> ()V
 	public fun available (Lme/ahoo/wow/spi/sink/SinkConfig;)Z
+	public fun getOptions ()Ljava/util/List;
 	public fun getRequirement ()Ljava/lang/String;
 	public fun getType ()Ljava/lang/String;
 	public fun open (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/spi/sink/StreamSinks;
 }
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion {
-	public final fun clientOf (Lme/ahoo/wow/spi/sink/SinkConfig;)Lcom/clickhouse/client/api/Client;
 	public final fun options (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
 }
 

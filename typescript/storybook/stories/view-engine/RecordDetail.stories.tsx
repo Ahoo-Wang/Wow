@@ -39,6 +39,7 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * How the source answers a read of **one** record — the detail's own query
@@ -64,7 +65,10 @@ function detailSource(
       if (query.pagination?.size !== 1) return source.paged(query);
       if (withEvents) {
         const answer = await source.paged(query);
-        return { ...answer, list: answer.list.map(withHistory) };
+        return {
+          ...answer,
+          list: answer.list.map(row => withHistory(row as RecordData)),
+        };
       }
       if (behaviour === 'slow') await delay(1_500);
       if (behaviour === 'forbidden')
@@ -176,7 +180,7 @@ function hostSections(
             children: [
               {
                 field: 'warehouse',
-                operator: 'IN',
+                operator: FilterOperator.IN,
                 value: [String(row.data.warehouse)],
               },
             ],

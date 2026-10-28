@@ -49,9 +49,10 @@ function wholeSource(
           ? Promise.reject(whole)
           : Promise.resolve({
               total: whole ? 1 : 0,
+              exact: true,
               list: whole ? [whole] : [],
             });
-      return Promise.resolve({ total: 2, list: [...ROWS] });
+      return Promise.resolve({ total: 2, exact: true, list: [...ROWS] });
     }),
   });
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import org.junit.jupiter.api.Test
@@ -68,16 +69,16 @@ class DescriptorConstraintsTest {
     fun `a custom model without a profile describes no identity, roles or default scope`() {
         val bound = boundSchemaFixture(
             objectFixture("tenantId" to scalarFixture(), "value" to scalarFixture(QueryValueType.INTEGER)),
-            model = QueryModel("CUSTOM"),
+            model = QueryModel("custom"),
         )
         val descriptor = bound.describe(QueryBudget("HTTP", maxListSize = 0, maxPageSize = 0), 10)
         descriptor.record.run {
             identity.assert().isEmpty()
             defaultScope.assert().isNull()
-            paging.assert().doesNotContain(me.ahoo.wow.query.descriptor.PagingMode.CURSOR)
+            paging.assert().doesNotContain(me.ahoo.wow.api.query.PagingMode.CURSOR)
         }
         descriptor.fields.associateBy { it.path }.run {
-            getValue("tenantId").role.assert().isEqualTo("TENANT_ID")
+            getValue("tenantId").role.assert().isEqualTo("tenant-id")
             getValue("value").role.assert().isNull()
         }
         descriptor.limits.maxListSize.assert().isNull()

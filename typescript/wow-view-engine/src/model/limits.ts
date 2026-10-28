@@ -27,6 +27,35 @@ export interface RuntimeLimits {
   /** Upper bound of `RecordViewConfig.pageSize`. */
   maxPageSize: number;
   /**
+   * The most saved views a definition's list reads. The engine reads the
+   * store's pages in turn, and stops here; the list then says it shows only
+   * the first so many and that a link to another still opens it. A
+   * definition's saved views are few, so this is a guard against a store
+   * that never ends rather than a page size; a host with more raises it.
+   */
+  listedViews: number;
+  /**
+   * The most reference ids one `OptionSource.resolve` is asked. A
+   * page asks once per remote for the ids it does not know yet, which a
+   * page's size already bounds; an export, or a result of many groups,
+   * asks in requests of this many.
+   */
+  referenceBatch: number;
+  /**
+   * The most `OptionSource.resolve` requests out at once across one engine,
+   * every remote together. A request past it waits its turn, so an
+   * export's many requests of `referenceBatch` reach a source a few at a
+   * time rather than all together.
+   */
+  referenceConcurrency: number;
+  /**
+   * How long one `OptionSource.resolve` may take, in milliseconds.
+   * Past it the lookup fails as any read does: its ids show as themselves,
+   * nothing is remembered, `onError` hears of it, and its slot is free for
+   * the next; a source that never answers holds nothing up.
+   */
+  referenceTimeout: number;
+  /**
    * The most rows a paged query may reach, page × size, whatever the
    * definition says: a definition's `RecordCapability.maxWindow` may only
    * lower it. The pager stops at the last page inside it and an export
@@ -150,6 +179,14 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   // 「其他」 was never folded when `maxAnalysisRows` was 10,000.
   // The guard refuses a page of more than 100 rows (its `maxPageSize`) …
   maxPageSize: 100,
+  // Not a server budget: the engine's own bound on a definition's list.
+  listedViews: 1_000,
+  // Not a server budget either: how many ids one label lookup carries.
+  referenceBatch: 200,
+  // Nor this: how many such lookups are out at once.
+  referenceConcurrency: 4,
+  // … nor how long one may take.
+  referenceTimeout: 10_000,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
   // … an aggregation of more than 1,000 rows (`maxListSize`) …

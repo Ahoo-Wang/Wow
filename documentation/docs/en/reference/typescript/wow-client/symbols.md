@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 117 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -36,7 +36,6 @@ Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the fir
 | `Creation` | type | Whether a command creates its aggregate. | — |
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
-| `DescriptorResult` | type | A query model's capability descriptor and its version, the `ETag` of`GET …/query`; `notModified` when the version given is still current. | — |
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
 | `DevelopmentCallerHeaders` | const | The identity headers a development run of a Wow service reads the caller from (the host's development callers, in a profile of `wow.dev-profiles`, when CoSec is off): any client can set them, so a deployment never reads them. | — |
 | `ErrorInfo` | interface | Why a command was rejected or failed. | — |
@@ -64,8 +63,6 @@ Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the fir
 | `OwnerTransferred` | interface | The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. | — |
 | `Ownership` | type | How an aggregate belongs to its callers. | — |
 | `PROBLEM_TYPE_PREFIX` | const | The prefix of a problem's `type` that carries a Wow code. | — |
-| `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
-| `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for `TotalMode.NONE`. | — |
 | `Problem` | interface | An RFC 9457 problem as a Wow service writes it:`type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
@@ -108,7 +105,6 @@ Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the fir
 | `TargetScope` | interface | The scope a caller allowed to act across scopes acts in: the `Wow-Scope` header. | — |
 | `TextNumbers` | type | Which numbers of a JSON value a client reads and writes as their exact text: an `int64`, `bigint` or `decimal` field of a Manifest, which JavaScript's `number` would round. | — |
 | `TextNumbersByName` | interface | The marks of one member of an object chosen by the value of another. | — |
-| `TotalMode` | type | How a paged query counts its total (`TotalMode`). | — |
 | `TransferOwner` | interface | The body of `wow.lifecycle.TransferOwner`. | — |
 | `TransferSpace` | interface | The body of `wow.lifecycle.TransferSpace`. | — |
 | `TransformedFrom` | interface | The command a request named before a transformer turned it into the one that ran. | — |

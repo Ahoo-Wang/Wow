@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import java.time.Clock
 
@@ -98,7 +99,7 @@ internal class PartitionThrottle(
                 "Subscription $subscription throttles partition $partition of group $group: the downstream of $ref " +
                     "pushed back; it runs at most ${state?.limit} handlings at once until handlings succeed again."
             }
-            observer.partitionThrottled(group, subscription, partition, true)
+            observer.observed(ObservedEvent.PartitionThrottled(group, subscription, partition, true))
         }
     }
 
@@ -121,7 +122,7 @@ internal class PartitionThrottle(
             "Subscription $subscription stops throttling partition $partition of group $group after " +
                 "${clock.millis() - left}ms: its handlings succeed again."
         }
-        observer.partitionThrottled(group, subscription, partition, false)
+        observer.observed(ObservedEvent.PartitionThrottled(group, subscription, partition, false))
     }
 
     /** Called under the monitor: hands the room under the limit to the longest waiters. */

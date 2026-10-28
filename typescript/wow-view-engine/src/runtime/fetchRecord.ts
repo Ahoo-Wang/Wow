@@ -88,8 +88,8 @@ export async function fetchRecord(
   );
   const controller = abortWith(signal);
   const page = cursored
-    ? await source.cursor(query, undefined, controller)
-    : await source.paged(query, undefined, controller);
+    ? await source.cursor(query, { signal: controller.signal })
+    : await source.paged(query, { signal: controller.signal });
   return page.list[0] ?? null;
 }
 

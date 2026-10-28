@@ -38,6 +38,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 function view(id: string, title: string): ViewInstance {
   return {
@@ -149,7 +150,10 @@ describe('an edit is the building’s (Q-02)', () => {
     runtime.removePanel('a');
     runtime.setFilterDefault('region', ['EU']);
     runtime.removeFilter('region');
-    runtime.setTimeGrouping({ units: ['DAY', 'MONTH'], default: 'DAY' });
+    runtime.setTimeGrouping({
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
+      default: AggregationDateUnit.DAY,
+    });
     expect(runtime.undo()).toBeNull();
     expect(runtime.redo()).toBeNull();
 
@@ -199,7 +203,10 @@ describe('a plain edit of a board and its history (A-10)', () => {
       panels: [panel('a', 'A2'), panel('b', 'B2', 4)],
       tabs: [{ id: 't', title: 'T' }],
       fields: [{ name: 'x', label: 'X', kind: 'string' }],
-      timeGrouping: { units: ['DAY', 'MONTH'], default: 'DAY' },
+      timeGrouping: {
+        units: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
+        default: AggregationDateUnit.DAY,
+      },
     });
     const draft = runtime.getSnapshot().draft;
     expect(draft.panels.map(entry => entry.title)).toEqual(['A2', 'B']);
@@ -216,7 +223,7 @@ describe('a plain edit of a board and its history (A-10)', () => {
   it('takes the rest, a member given as undefined taken out, and an undo leaves it be', async () => {
     const condition: FilterTree = {
       op: 'and',
-      children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+      children: [{ field: 'region', operator: FilterOperator.EQ, value: 'EU' }],
     };
     const { runtime } = await open(
       dashboardConfig({

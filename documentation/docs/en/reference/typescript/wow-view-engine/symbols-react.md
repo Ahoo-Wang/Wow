@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 123 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -126,6 +126,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `useRecordExport` | function | Exporting the result: the rows that are picked, or everything the applied conditions match. | — |
 | `useRecordKanban` | function | — | — |
 | `useRecordTable` | function | A record view as a table renders it, with no vendor types in sight. | [React Hooks](./react#api-useRecordTable) |
+| `useReferenceLabels` | function | The version of what reference ids read as (`ViewRuntime.labels`), followed: a component that calls it draws again when a name arrives, so an id it showed turns into that name. | — |
 | `useRefreshCountdown` | function | Whole seconds until the next automatic refresh, redrawn once a second. | — |
 | `useReleaseDeleted` | function | Lets the pinned view go once it is gone. | — |
 | `useSaveCommands` | function | The write commands of one open view, with the permissions that decide which buttons are live. | [React Hooks](./react#api-useSaveCommands) |

@@ -36,7 +36,7 @@ import {
   type ViewInstance,
   type ViewInstanceSummary,
 } from '../model/index.js';
-import type { ViewStore } from '../store/ViewStore.js';
+import type { ViewListPage, ViewStore } from '../store/ViewStore.js';
 import { toIssue } from './failure/issues.js';
 
 /**
@@ -45,43 +45,44 @@ import { toIssue } from './failure/issues.js';
  * failure is answered beside an empty list rather than thrown (management.md).
  * An id in the reserved `system:` namespace is dropped and handed to
  * `reserved`: only a definition may declare one.
+ *
+ * The store's pages are read in turn, the next asked for only once the one
+ * before has landed, until the last or `limit` views: a list that reaches
+ * the limit is `cut` there, and the rest are not read. A view seen on an
+ * earlier page is not listed twice.
  */
 export async function storedSummaries(
   store: ViewStore,
   definitionId: string,
   reserved: (id: string) => void,
+  { limit, signal }: { limit: number; signal?: AbortSignal },
 ): Promise<{
   stored: ViewInstanceSummary[];
   failed: Issue | null;
   cut?: number;
 }> {
+  const seen = new Map<string, ViewInstanceSummary>();
   try {
-    const listed = await store.list(definitionId);
-    const stored = listed.filter(summary => {
-      if (!isSystemInstanceId(summary.id)) return true;
-      reserved(summary.id);
-      return false;
-    });
-    const cut = cutAt(listed, store.listLimit);
+    let cursor: string | null = null;
+    do {
+      const page: ViewListPage = await store.list(definitionId, {
+        ...(cursor === null ? {} : { cursor }),
+        ...(signal === undefined ? {} : { signal }),
+      });
+      for (const summary of page.items) {
+        if (isSystemInstanceId(summary.id)) reserved(summary.id);
+        else if (!seen.has(summary.id)) seen.set(summary.id, summary);
+      }
+      cursor = page.nextCursor;
+    } while (cursor !== null && seen.size < limit);
+    const stored = [...seen.values()].slice(0, limit);
+    const cut = cursor !== null || seen.size > limit ? limit : undefined;
     return { stored, failed: null, ...(cut === undefined ? {} : { cut }) };
   } catch (error) {
+    // Called off is no failure of the store's: the caller hears the abort.
+    if (signal?.aborted) throw error;
     return { stored: [], failed: toIssue(error, 'view.list.failed') };
   }
-}
-
-/**
- * The limit a list was cut at: some audience holds as many as the store
- * answers of one (`ViewStore.listLimit`), so more may stand behind it.
- */
-function cutAt(
-  listed: readonly ViewInstanceSummary[],
-  limit: number | undefined,
-): number | undefined {
-  if (limit === undefined) return undefined;
-  const counts = new Map<string, number>();
-  for (const { scope } of listed)
-    counts.set(scope, (counts.get(scope) ?? 0) + 1);
-  return [...counts.values()].some(count => count >= limit) ? limit : undefined;
 }
 
 export class SummaryCache {

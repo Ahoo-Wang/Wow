@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { QueryDescriptorResult } from '../../src/index.js';
 import {
   AggregationDatePart,
   DateDiffUnit,
@@ -22,8 +21,11 @@ import {
   FilterOperator,
   PagingMode,
   QueryValueKind,
+  type DescriptorResult,
   type FieldDescriptor,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QueryModels,
 } from '@ahoo-wang/wow-client/dsl';
 
 /** Every operator Wow has: a field listing these admits whatever a kind offers. */
@@ -43,7 +45,7 @@ export function describedField(
 ): FieldDescriptor {
   return {
     path,
-    types: ['STRING'],
+    types: [QueryValueTypes.STRING],
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,
@@ -74,7 +76,7 @@ export function ordersDescriptor(
   overrides: Partial<QueryModelDescriptor> = {},
 ): QueryModelDescriptor {
   return {
-    model: 'SNAPSHOT',
+    model: QueryModels.SNAPSHOT,
     version: 'sha256:orders-1',
     timeZone: 'UTC',
     record: {
@@ -130,11 +132,11 @@ export function ordersDescriptor(
 }
 
 /** A descriptor as `describe` answers it the first time, or after a change. */
-export function read(descriptor: QueryModelDescriptor): QueryDescriptorResult {
+export function read(descriptor: QueryModelDescriptor): DescriptorResult {
   return { notModified: false, descriptor, version: descriptor.version };
 }
 
 /** The answer to a `describe` sent the version still current. */
-export function notModified(version: string): QueryDescriptorResult {
+export function notModified(version: string): DescriptorResult {
   return { notModified: true, version };
 }

@@ -19,6 +19,11 @@ import {
   AggregationGroupType,
   type QueryModelDescriptor,
   type QuerySemanticType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  QuerySemanticTypes,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
@@ -80,7 +85,7 @@ function moneyDefinition(
         name: 'amount',
         label: 'Amount',
         kind: 'number',
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
         numeric: { type: 'money', scale: 2, currencyField: 'currency' },
       },
     ],
@@ -117,9 +122,9 @@ function sumConfig(
     metrics: [
       {
         alias: 'total',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
     chart: {
@@ -144,7 +149,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
     const descriptor: QueryModelDescriptor = ordersDescriptor({
       fields: [
         ...ordersDescriptor().fields.filter(one => one.path !== 'amount'),
-        describedField('amount', { types: ['NUMBER'] as never, semantic }),
+        describedField('amount', { types: ['number'] as never, semantic }),
       ],
     });
     return narrowDefinition(
@@ -155,15 +160,22 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
   };
 
   it('writes DECIMAL and MONEY onto the field as its `numeric`', () => {
-    expect(narrowed({ type: 'DECIMAL', scale: 3 })?.numeric).toEqual({
+    expect(
+      narrowed({ type: QuerySemanticTypes.DECIMAL, scale: 3 })?.numeric,
+    ).toEqual({
       type: 'decimal',
       scale: 3,
     });
     expect(
-      narrowed({ type: 'MONEY', scale: 0, currency: 'jpy' })?.numeric,
+      narrowed({ type: QuerySemanticTypes.MONEY, scale: 0, currency: 'jpy' })
+        ?.numeric,
     ).toEqual({ type: 'money', scale: 0, currency: 'JPY' });
     expect(
-      narrowed({ type: 'MONEY', scale: 2, currencyField: 'currency' })?.numeric,
+      narrowed({
+        type: QuerySemanticTypes.MONEY,
+        scale: 2,
+        currencyField: 'currency',
+      })?.numeric,
     ).toEqual({ type: 'money', scale: 2, currencyField: 'currency' });
   });
 
@@ -175,7 +187,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
       numberFormat: { style: 'currency', currency: 'USD' },
     };
     const field = narrowed(
-      { type: 'MONEY', scale: 0, currency: 'JPY' },
+      { type: QuerySemanticTypes.MONEY, scale: 0, currency: 'JPY' },
       declared,
     );
     expect(numberFormatOf(field)).toEqual({
@@ -185,25 +197,47 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
   });
 
   it('reads a semantic it could not write as none, rather than guessing', () => {
-    expect(numericOf({ type: 'DECIMAL', scale: -1 })).toBeUndefined();
-    expect(numericOf({ type: 'DECIMAL', scale: 1.5 })).toBeUndefined();
     expect(
-      numericOf({ type: 'MONEY', scale: 2, currency: 'yuan' }),
+      numericOf({ type: QuerySemanticTypes.DECIMAL, scale: -1 }),
     ).toBeUndefined();
     expect(
-      numericOf({ type: 'MONEY', scale: 2, currencyField: 'a b' }),
+      numericOf({ type: QuerySemanticTypes.DECIMAL, scale: 1.5 }),
     ).toBeUndefined();
-    expect(numericOf({ type: 'TEMPORAL_DATE' })).toBeUndefined();
+    expect(
+      numericOf({ type: QuerySemanticTypes.MONEY, scale: 2, currency: 'yuan' }),
+    ).toBeUndefined();
+    expect(
+      numericOf({
+        type: QuerySemanticTypes.MONEY,
+        scale: 2,
+        currencyField: 'a b',
+      }),
+    ).toBeUndefined();
+    expect(
+      numericOf({ type: QuerySemanticTypes.TEMPORAL_DATE }),
+    ).toBeUndefined();
   });
 
   it('names every semantic in a mismatch — money is never called a date', () => {
-    expect(semanticText({ type: 'TEMPORAL_DATE' })).toBe('date');
-    expect(semanticText({ type: 'DECIMAL', scale: 2 })).toBe('decimal scale 2');
-    expect(semanticText({ type: 'MONEY', scale: 2, currency: 'CNY' })).toBe(
-      'money CNY scale 2',
+    expect(semanticText({ type: QuerySemanticTypes.TEMPORAL_DATE })).toBe(
+      'date',
+    );
+    expect(semanticText({ type: QuerySemanticTypes.DECIMAL, scale: 2 })).toBe(
+      'decimal scale 2',
     );
     expect(
-      semanticText({ type: 'MONEY', scale: 2, currencyField: 'currency' }),
+      semanticText({
+        type: QuerySemanticTypes.MONEY,
+        scale: 2,
+        currency: 'CNY',
+      }),
+    ).toBe('money CNY scale 2');
+    expect(
+      semanticText({
+        type: QuerySemanticTypes.MONEY,
+        scale: 2,
+        currencyField: 'currency',
+      }),
     ).toBe('money by currency scale 2');
   });
 
@@ -212,8 +246,12 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
       fields: [
         ...ordersDescriptor().fields,
         describedField('placedAt', {
-          types: ['NUMBER'] as never,
-          semantic: { type: 'MONEY', scale: 2, currency: 'CNY' },
+          types: ['number'] as never,
+          semantic: {
+            type: QuerySemanticTypes.MONEY,
+            scale: 2,
+            currency: 'CNY',
+          },
         }),
       ],
     });
@@ -332,7 +370,7 @@ describe('record views of row-currency money', () => {
   it('total a page in its one currency, and refuse a total across several', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: 'SUM' }],
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
     });
     const one = projectSummaries(definition, config, {
       scope: 'page',
@@ -358,7 +396,7 @@ describe('record views of row-currency money', () => {
   it('ask the whole range which currencies it holds', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: 'SUM' }],
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
     });
     const query = compileSummaries(
       definition,
@@ -528,7 +566,13 @@ describe('analyses of row-currency money', () => {
 
   it('reads each currency in its own row once grouped by currency', () => {
     const config = sumConfig({
-      groups: [{ alias: 'currency', field: 'currency', type: 'TERMS' }],
+      groups: [
+        {
+          alias: 'currency',
+          field: 'currency',
+          type: AggregationGroupType.TERMS,
+        },
+      ],
       chart: {
         type: 'bar',
         cartesian: { x: 'currency', series: [{ metric: 'total' }] },
@@ -570,15 +614,15 @@ describe('analyses of row-currency money', () => {
     const config = sumConfig({
       metrics: [
         ...sumConfig().metrics,
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'aov',
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'total' },
-            right: { type: 'METRIC_REF', metric: 'orders' },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+            right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
           } as never,
           format: { style: 'currency' },
         },
@@ -614,7 +658,13 @@ describe('analyses of row-currency money', () => {
 describe('what a result grouped by its currency says', () => {
   it('nothing, though its whole still holds several', () => {
     const config = sumConfig({
-      groups: [{ alias: 'currency', field: 'currency', type: 'TERMS' }],
+      groups: [
+        {
+          alias: 'currency',
+          field: 'currency',
+          type: AggregationGroupType.TERMS,
+        },
+      ],
     });
     expect(
       currencyIssues(moneyDefinition(), config, [
@@ -732,15 +782,15 @@ describe('a derived amount over money in each record’s currency', () => {
     const config = sumConfig({
       metrics: [
         ...sumConfig().metrics,
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'aov',
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'total' },
-            right: { type: 'METRIC_REF', metric: 'orders' },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+            right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
           } as never,
           format: { style: 'currency' },
         },

@@ -25,6 +25,7 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -127,10 +128,17 @@ function shipments(): DataViewDefinition {
   };
 }
 
-function trend(unit: 'DAY' | 'MONTH'): AnalysisViewConfig {
+function trend(
+  unit: `${AggregationDateUnit.DAY}` | `${AggregationDateUnit.MONTH}`,
+): AnalysisViewConfig {
   return analysisConfig({
     groups: [
-      { alias: 'createdAt', field: 'createdAt', type: 'DATE_HISTOGRAM', unit },
+      {
+        alias: 'createdAt',
+        field: 'createdAt',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit,
+      },
     ],
     chart: {
       type: 'line',
@@ -146,7 +154,7 @@ const views: ViewInstance[] = [
     title: 'Orders by day',
     scope: 'shared',
     revision: 'r1',
-    config: trend('DAY'),
+    config: trend(AggregationDateUnit.DAY),
   },
   {
     id: 'ship-trend',
@@ -154,7 +162,7 @@ const views: ViewInstance[] = [
     title: 'Shipments by month',
     scope: 'shared',
     revision: 'r1',
-    config: trend('MONTH'),
+    config: trend(AggregationDateUnit.MONTH),
   },
   {
     id: 'orders-list',
@@ -203,7 +211,14 @@ function board(): DashboardViewConfig {
       },
       { name: 'region', label: 'Region', kind: 'string', multiple: true },
     ],
-    timeGrouping: { units: ['DAY', 'WEEK', 'MONTH'], default: 'WEEK' },
+    timeGrouping: {
+      units: [
+        AggregationDateUnit.DAY,
+        AggregationDateUnit.WEEK,
+        AggregationDateUnit.MONTH,
+      ],
+      default: AggregationDateUnit.WEEK,
+    },
     panels: [
       view('a', 'orders-trend', [
         { globalField: 'created', panelField: 'createdAt' },
@@ -285,7 +300,7 @@ describe('what the filters hold', () => {
 
     expect(runtime.getSnapshot().filters).toEqual({
       values: { created: LAST_WEEK },
-      unit: 'WEEK',
+      unit: AggregationDateUnit.WEEK,
     });
     expect(scope('a')).toEqual({
       op: 'and',
@@ -293,7 +308,11 @@ describe('what the filters hold', () => {
         {
           op: 'and',
           children: [
-            { field: 'createdAt', operator: 'BETWEEN', value: LAST_WEEK },
+            {
+              field: 'createdAt',
+              operator: FilterOperator.BETWEEN,
+              value: LAST_WEEK,
+            },
           ],
         },
       ],
@@ -331,7 +350,7 @@ describe('what the filters hold', () => {
     runtime.clearFilters();
     expect(runtime.getSnapshot().filters).toEqual({
       values: { created: LAST_WEEK },
-      unit: 'WEEK',
+      unit: AggregationDateUnit.WEEK,
     });
   });
 
@@ -352,20 +371,22 @@ describe('what the filters hold', () => {
   it('opens under what a host keeps in its address', async () => {
     const { runtime, scope } = await harness(board(), {
       values: { region: ['EU'], created: LAST_MONTH },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
 
     expect(runtime.getSnapshot().filters).toEqual({
       values: { region: ['EU'], created: LAST_MONTH },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
     // The very first query carries them: no run under the defaults first.
     expect(JSON.stringify(scope('c'))).toContain('"EU"');
     expect(runtime.refusedFilters).toEqual([]);
-    expect(runtime.setFilters({ values: {}, unit: 'DAY' })).toEqual([]);
+    expect(
+      runtime.setFilters({ values: {}, unit: AggregationDateUnit.DAY }),
+    ).toEqual([]);
     expect(runtime.getSnapshot().filters).toEqual({
       values: { created: LAST_WEEK },
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
   });
 
@@ -378,12 +399,12 @@ describe('what the filters hold', () => {
         gone: ['x'],
         created: 'yesterday',
       },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
 
     expect(runtime.getSnapshot().filters).toEqual({
       values: { region: ['EU'], created: LAST_WEEK },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
     // The very first query carries what was taken.
     expect(JSON.stringify(scope('c'))).toContain('"EU"');
@@ -401,7 +422,7 @@ describe('what the filters hold', () => {
 
     const refused = runtime.setFilters({
       values: { region: ['CN'], gone: ['y'], created: 'yesterday' },
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
     expect(refused.map(found => found.code)).toEqual([
       'dashboard.filter.unknown',
@@ -411,7 +432,7 @@ describe('what the filters hold', () => {
     // A required filter refused holds its default rather than nothing.
     expect(runtime.getSnapshot().filters).toEqual({
       values: { region: ['CN'], created: LAST_WEEK },
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
     clock.advance(AUTO_APPLY_DELAY_MS);
     expect(JSON.stringify(scope('c'))).toContain('"CN"');
@@ -419,7 +440,10 @@ describe('what the filters hold', () => {
     const before = runtime.getSnapshot().filters;
     expect(
       runtime
-        .setFilters({ values: { region: ['CN'], gone: ['y'] }, unit: 'DAY' })
+        .setFilters({
+          values: { region: ['CN'], gone: ['y'] },
+          unit: AggregationDateUnit.DAY,
+        })
         .map(found => found.code),
     ).toEqual(['dashboard.filter.unknown']);
     expect(runtime.getSnapshot().filters).toBe(before);
@@ -431,7 +455,7 @@ describe('what the filters hold', () => {
 
     expect(runtime.setFilterValue('region', ['CN'])).toEqual([]);
     expect(runtime.setFilters({ values: {} })).toEqual([]);
-    runtime.setGroupingUnit('DAY');
+    runtime.setGroupingUnit(AggregationDateUnit.DAY);
     runtime.clearFilters();
     expect(runtime.getSnapshot().filters.values.region).toBeUndefined();
   });
@@ -445,31 +469,31 @@ describe('the time grouping', () => {
       const applied = config(id);
       return applied?.kind === 'analysis' ? applied.groups[0] : undefined;
     };
-    expect(group('a')).toMatchObject({ unit: 'WEEK' });
+    expect(group('a')).toMatchObject({ unit: AggregationDateUnit.WEEK });
     expect(panel('a').grouping).toBe('taken');
     // Shipments are bucketed by the month alone.
-    expect(group('b')).toMatchObject({ unit: 'MONTH' });
+    expect(group('b')).toMatchObject({ unit: AggregationDateUnit.MONTH });
     expect(panel('b').grouping).toBe('kept');
     expect(panel('b').issues).toContainEqual(
       expect.objectContaining({
         code: 'dashboard.grouping.kept',
         severity: 'note',
-        params: { unit: 'MONTH' },
+        params: { unit: AggregationDateUnit.MONTH },
       }),
     );
     // A list has no time dimension.
     expect(panel('c').grouping).toBeNull();
 
-    runtime.setGroupingUnit('DAY');
+    runtime.setGroupingUnit(AggregationDateUnit.DAY);
     clock.advance(AUTO_APPLY_DELAY_MS);
-    expect(group('a')).toMatchObject({ unit: 'DAY' });
-    runtime.setGroupingUnit('MONTH');
+    expect(group('a')).toMatchObject({ unit: AggregationDateUnit.DAY });
+    runtime.setGroupingUnit(AggregationDateUnit.MONTH);
     clock.advance(AUTO_APPLY_DELAY_MS);
-    expect(group('b')).toMatchObject({ unit: 'MONTH' });
+    expect(group('b')).toMatchObject({ unit: AggregationDateUnit.MONTH });
     expect(panel('b').grouping).toBe('taken');
     // A unit the board does not offer is not taken.
-    runtime.setGroupingUnit('YEAR');
-    expect(runtime.getSnapshot().filters.unit).toBe('MONTH');
+    runtime.setGroupingUnit(AggregationDateUnit.YEAR);
+    expect(runtime.getSnapshot().filters.unit).toBe(AggregationDateUnit.MONTH);
   });
 
   it('touches nothing on a board without one', async () => {
@@ -479,7 +503,7 @@ describe('the time grouping', () => {
     expect(panel('a').grouping).toBeNull();
     const applied = config('a');
     expect(applied?.kind === 'analysis' && applied.groups[0]).toMatchObject({
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
   });
 });
@@ -703,7 +727,9 @@ describe('what a text filter offers', () => {
         ],
         fixed: {
           op: 'and',
-          children: [{ field: 'phase', operator: 'IN', value: ['PENDING'] }],
+          children: [
+            { field: 'phase', operator: FilterOperator.IN, value: ['PENDING'] },
+          ],
         },
         panels: [
           view('a', 'orders-trend', [
@@ -776,7 +802,7 @@ describe('useDashboard', () => {
       'created',
       'region',
     ]);
-    expect(result.current.timeGrouping?.default).toBe('WEEK');
+    expect(result.current.timeGrouping?.default).toBe(AggregationDateUnit.WEEK);
     expect(result.current.panels[0].reach.created).toMatchObject({
       wired: true,
     });
@@ -784,11 +810,11 @@ describe('useDashboard', () => {
 
     act(() => {
       expect(result.current.setFilterValue('region', ['CN'])).toEqual([]);
-      result.current.setGroupingUnit('DAY');
+      result.current.setGroupingUnit(AggregationDateUnit.DAY);
     });
     expect(result.current.filters).toEqual({
       values: { created: LAST_WEEK, region: ['CN'] },
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
     act(() => clock.advance(AUTO_APPLY_DELAY_MS));
     act(() => result.current.clearFilters());
@@ -804,7 +830,7 @@ describe('useDashboard', () => {
     expect(result.current.setFilterValue('x', null)).toEqual([]);
     expect(result.current.filterCandidates('x')).toBeNull();
     expect(result.current.filterChoices('x')).toBeNull();
-    result.current.setGroupingUnit('DAY');
+    result.current.setGroupingUnit(AggregationDateUnit.DAY);
     result.current.clearFilters();
   });
 });

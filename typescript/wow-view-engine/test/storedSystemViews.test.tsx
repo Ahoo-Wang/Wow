@@ -350,7 +350,7 @@ describe('MemoryViewStore’s system views', () => {
       store.changeAudience('sys-1', 'personal', '2', ctx('b')),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await store.delete('sys-1', '2', ctx('c'));
-    expect(await store.list('orders')).toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
   });
 });
 
@@ -464,7 +464,7 @@ describe('the view manager', () => {
 
     await waitFor(() => expect(rows()).toHaveLength(7));
     expect((await store.get('orders-1')).scope).toBe('personal');
-    const listed = await store.list('orders');
+    const listed = (await store.list('orders')).items;
     expect(
       listed.filter(item => item.title === 'Mine').map(item => item.scope),
     ).toEqual(['system', 'personal']);

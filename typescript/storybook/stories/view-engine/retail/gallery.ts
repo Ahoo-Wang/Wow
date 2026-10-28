@@ -55,6 +55,16 @@ import {
   RETAIL_ORDER_ANALYSIS,
   retailOrdersDefinition,
 } from './views.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 const WAREHOUSE = 'state.warehouse';
 const EAST = 'EAST';
@@ -66,15 +76,19 @@ const and = (...children: FilterNode[]): FilterTree => ({
   op: 'and',
   children,
 });
-const inEast: FilterNode = { field: WAREHOUSE, operator: 'IN', value: [EAST] };
+const inEast: FilterNode = {
+  field: WAREHOUSE,
+  operator: FilterOperator.IN,
+  value: [EAST],
+};
 const period = (preset: string): FilterNode => ({
   field: 'firstEventTime',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'preset', preset },
 });
 const recentDays = (amount: number): FilterNode => ({
   field: 'firstEventTime',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'relative', amount, unit: 'day' },
 });
 
@@ -111,7 +125,7 @@ const galleryOrders: ViewInstance = {
     filter: and(inEast, recentDays(30)),
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 5,
     layout: 'table',
     summaries: [],
@@ -141,15 +155,15 @@ const sum = (
 ) =>
   ({
     alias,
-    type: 'NUMERIC',
-    function: 'SUM',
-    expression: { type: 'FIELD', field },
+    type: AggregationMetricType.NUMERIC,
+    function: AggregationFunction.SUM,
+    expression: { type: AggregationExpressionType.FIELD, field },
     label,
     ...(filter ? { filter } : {}),
   }) as const;
 
 const byChannel = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'state.channel',
   alias: 'channel',
   label: '渠道',
@@ -184,7 +198,7 @@ const galleryChannels: ViewInstance = {
       sum('gmvLast', GMV, '上月同期', and(period('lastMonthToDate'))),
       sum('gmv', GMV, '本月至今', and(period('monthToDate'))),
     ],
-    sort: [{ alias: 'gmv', direction: 'DESC' }],
+    sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
     chart: {
       type: 'bar',
       cartesian: {
@@ -229,15 +243,15 @@ const galleryBoard: ViewInstance = {
             filter: and(recentDays(30)),
             groups: [
               {
-                type: 'DATE_HISTOGRAM',
+                type: AggregationGroupType.DATE_HISTOGRAM,
                 field: 'firstEventTime',
                 alias: 'day',
-                unit: 'DAY',
+                unit: AggregationDateUnit.DAY,
                 label: '日期',
               },
             ],
             metrics: [sum('gmv', GMV, 'GMV')],
-            sort: [{ alias: 'day', direction: 'ASC' }],
+            sort: [{ alias: 'day', direction: SortDirection.ASC }],
             limit: 62,
             chart: {
               type: 'metric',
@@ -260,18 +274,21 @@ const galleryBoard: ViewInstance = {
             metrics: [
               {
                 alias: 'net',
-                type: 'NUMERIC',
-                function: 'SUM',
+                type: AggregationMetricType.NUMERIC,
+                function: AggregationFunction.SUM,
                 label: '净销售额',
                 expression: {
-                  type: 'BINARY',
-                  operator: 'SUBTRACT',
-                  left: { type: 'FIELD', field: PAID },
-                  right: { type: 'FIELD', field: REFUNDED },
+                  type: AggregationExpressionType.BINARY,
+                  operator: AggregationExpressionOperator.SUBTRACT,
+                  left: { type: AggregationExpressionType.FIELD, field: PAID },
+                  right: {
+                    type: AggregationExpressionType.FIELD,
+                    field: REFUNDED,
+                  },
                 },
               },
             ],
-            sort: [{ alias: 'net', direction: 'DESC' }],
+            sort: [{ alias: 'net', direction: SortDirection.DESC }],
             chart: {
               type: 'waterfall',
               waterfall: { x: 'channel', value: 'net', total: true },

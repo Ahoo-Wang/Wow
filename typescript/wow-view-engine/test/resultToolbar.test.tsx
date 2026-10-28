@@ -27,6 +27,7 @@ import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
 import { recordTableController } from './fixtures/ui.js';
 import { pagedPaging } from '../src/record/index.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -413,7 +414,7 @@ describe('ResultToolbar popups keep their own tab stops', () => {
           summaryFields: [],
         })}
         fields={[
-          { ...FIELDS[0]!, summary: ['SUM'], sortable: true },
+          { ...FIELDS[0]!, summary: [AggregationFunction.SUM], sortable: true },
           { ...FIELDS[1]!, sortable: true },
         ]}
         runtime={runtime}
@@ -623,7 +624,7 @@ describe('ResultToolbar export', () => {
               field: 'warehouse',
               label: 'Warehouse',
               kind: 'string',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: { kind: 'text', value: 'North' },
             },
           ],

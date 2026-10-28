@@ -40,12 +40,14 @@ export interface ViewStore {
    * audience keeps its place by age there). With no preferences, the first
    * of the list is the view that opens by default (`resolveDefault`), so
    * every store answers the same one.
+   *
+   * A page at a time: the first without a `cursor`, each next one with the
+   * `nextCursor` the page before answered, until that is `null`. The order
+   * holds across pages. A store chooses its own page size; the engine reads
+   * pages in turn until the end or `RuntimeLimits.listedViews`.
    */
-  list(
-    definitionId: string,
-    signal?: AbortSignal,
-  ): Promise<ViewInstanceSummary[]>;
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   /**
    * Creates a view for the scope `input` names. `scope: 'system'` creates a
    * **stored system view** (D81) — what 「发布为系统视图」 and 另存为 send
@@ -56,13 +58,13 @@ export interface ViewStore {
    */
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteContext,
+    options: WriteOptions,
   ): Promise<ViewInstance>;
   save(
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteContext,
+    options: WriteOptions,
   ): Promise<ViewInstance>;
   /**
    * Stores the title trimmed. A title blank once trimmed, or longer than
@@ -75,17 +77,17 @@ export interface ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteContext,
+    options: WriteOptions,
   ): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   getPreferences(
     definitionId: string,
-    signal?: AbortSignal,
+    options?: ReadOptions,
   ): Promise<ViewPreferences>;
   setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteContext,
+    options: WriteOptions,
   ): Promise<ViewPreferences>;
   /**
    * Moves a view to the other audience in place (设为共享／设为个人, D18
@@ -116,26 +118,36 @@ export interface ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    options: WriteOptions,
   ): Promise<ViewInstance>;
   /** Synchronous, because the application fetched it before creating the engine. */
   permissions?(definitionId: string): ViewPermissions;
-  /**
-   * The most views `list` answers of one audience, where the store answers
-   * no more (R2-26): `WowViewStore` lists the first 1000 of each. A list
-   * holding this many of an audience was cut there, and the workbench says
-   * so rather than leaving the rest unmentioned. Left out, a list is whole.
-   */
-  readonly listLimit?: number;
+}
+
+/** What every read of a store takes: the signal that cancels it. */
+export interface ReadOptions {
+  readonly signal?: AbortSignal;
+}
+
+/** One page of `ViewStore.list` to read. */
+export interface ViewListOptions extends ReadOptions {
+  /** The `nextCursor` of the page before; absent or `null` for the first. */
+  readonly cursor?: string | null;
+}
+
+/** One page of a definition's views, in the port's order. */
+export interface ViewListPage {
+  items: ViewInstanceSummary[];
+  /** The cursor of the next page, or `null` after the last. */
+  nextCursor: string | null;
 }
 
 /**
  * One logical write. A retry after a timeout reuses the same `requestId` and
  * the same payload, which is what lets a server deduplicate it.
  */
-export interface WriteContext {
-  requestId: string;
-  signal?: AbortSignal;
+export interface WriteOptions extends ReadOptions {
+  readonly requestId: string;
 }
 
 /** What the current user may do with one definition's views. */

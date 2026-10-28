@@ -226,7 +226,7 @@ class StreamHandoverTest {
                 .header("X-User", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.TEXT_EVENT_STREAM)
-                .body("""{"kind":"list","filter":{"op":"MATCH_ALL"}}"""),
+                .body("""{"kind":"list","filter":{"op":"match-all"}}"""),
         )
         val request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders())
         val response = node.http.routes.route(request).flatMap { it.handle(request) }

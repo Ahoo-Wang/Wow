@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.clickhouse
-
 /**
- * The ClickHouse module (wow-clickhouse): the Sink (`me.ahoo.wow.clickhouse.sink`) and the
- * dataset query backend (`me.ahoo.wow.clickhouse.query`). The host's `ClickHouseAutoConfiguration` conditions
- * on this class by name.
+ * The constant a wire value names, as Wow's messages name it: `not-in` is
+ * `NOT_IN`, `date-histogram` is `DATE_HISTOGRAM`. A wire value is the
+ * constant's name in lower-kebab, so this is its exact inverse; the DSL's
+ * messages quote Wow's, which name the constant.
+ *
+ * @internal
  */
-internal object ClickHouseModule {
-    override fun toString(): String = "wow-clickhouse"
+export function constantName(wire: string): string {
+  return wire.toUpperCase().replace(/-/g, '_');
 }

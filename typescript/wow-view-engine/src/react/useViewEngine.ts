@@ -232,10 +232,15 @@ export function useOpenView(
 
     let runtime: AnyViewRuntime | null = null;
     let cancelled = false;
+    const opening = new AbortController();
 
     const opensOn = latestOpening.current?.(instanceId);
     void engine
-      .open(instanceId, { ...opensOn, scopeFilter: latestScope.current })
+      .open(instanceId, {
+        ...opensOn,
+        scopeFilter: latestScope.current,
+        signal: opening.signal,
+      })
       .then(
         result => {
           if (cancelled) {
@@ -265,6 +270,7 @@ export function useOpenView(
 
     return () => {
       cancelled = true;
+      opening.abort();
       if (runtime) engine.close(runtime);
     };
   }, [engine, instanceId, reopen.attempt]);

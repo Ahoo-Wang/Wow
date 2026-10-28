@@ -137,6 +137,49 @@ describe('pagedPaging', () => {
     expect(paging).not.toHaveProperty('pages');
     expect(paging.hasNext).toBe(true);
   });
+
+  /**
+   * Wow's default `BOUNDED` count stops at its budget: a total of 1000 then
+   * means at least 1000, so no last page can be counted from it.
+   */
+  it('counts no pages from a lower bound, and keeps the next page open up to the window', () => {
+    const bound = pagedPaging({
+      index: 50,
+      size: 20,
+      total: 1000,
+      exact: false,
+      maxWindow: 10_000,
+    });
+    expect(bound).toEqual({
+      mode: 'paged',
+      index: 50,
+      size: 20,
+      total: 1000,
+      exact: false,
+      // Page 50 ends on row 1000, the bound: more may stand past it.
+      hasNext: true,
+    });
+    expect(
+      pagedPaging({
+        index: 500,
+        size: 20,
+        total: 1000,
+        exact: false,
+        maxWindow: 10_000,
+      }).hasNext,
+    ).toBe(false);
+    // An exact total says nothing of itself: it is the default.
+    expect(
+      pagedPaging({ index: 1, size: 20, total: 40, exact: true }),
+    ).not.toHaveProperty('exact');
+  });
+
+  it('reads a null total as none counted', () => {
+    const none = pagedPaging({ index: 2, size: 20, total: null });
+    expect(none).not.toHaveProperty('total');
+    expect(none).not.toHaveProperty('pages');
+    expect(none.hasNext).toBe(true);
+  });
 });
 
 describe('the pages a window allows', () => {
@@ -190,7 +233,7 @@ describe('projectRecord paging', () => {
     const view = projectRecord(
       definition,
       recordConfig({ pageSize: 2 }),
-      { list: [{ id: 'o-1' }, { id: 'o-2' }], total: 6 },
+      { list: [{ id: 'o-1' }, { id: 'o-2' }], total: 6, exact: true },
       2,
     );
 
@@ -211,7 +254,7 @@ describe('projectRecord paging', () => {
     const view = projectRecord(
       ordersDefinition(),
       recordConfig({ pageSize: 20 }),
-      { list: [{ id: 'o-1' }], total: 624_100 },
+      { list: [{ id: 'o-1' }], total: 624_100, exact: true },
       1,
     );
     expect(view.paging).toMatchObject({ pages: 500, reachable: 10_000 });
@@ -245,7 +288,7 @@ describe('projectRecord paging', () => {
           perRow: 2,
         },
       }),
-      { list: [], total: 0 },
+      { list: [], total: 0, exact: true },
     );
 
     expect(view.card.title).toBe('id');

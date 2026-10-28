@@ -20,6 +20,8 @@
 export const definitionMessages = {
   'definition.field.search-fields-unknown':
     '{field} searches {missing}, which the definition does not declare.',
+  'definition.search.reference-label':
+    '{field} searches {references}, which hold ids read as names: the server matches the stored id, not the name shown. Denormalize the name into the read model (customerName, say) and search that field.',
   'definition.field.element-search-fields-required':
     '{field} searches inside an entry, so it has to name the entry fields it looks in.',
   'definition.field.search-mode-invalid':
@@ -115,7 +117,7 @@ export const definitionMessages = {
     '{field} is not an array whose entries the source lists.',
   'definition.field.sort-wider': '{field} does not sort at its source.',
   'definition.field.operator-wider':
-    '{field} does not take {operator} at its source.',
+    '{field} does not take “{operator}” at its source.',
   'definition.field.summary-wider':
     '{field} cannot be summarised by {fn} at its source.',
   'definition.field.analysis-wider':

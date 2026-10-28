@@ -32,6 +32,7 @@ import {
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { dragHandleOnto } from './pointerDrag.js';
 import { formatRgb, parse } from 'culori';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -51,7 +52,7 @@ type Story = StoryObj<typeof displayMeta>;
 /** 「金额的总和」 and 「订单数」: the two columns a scatter plots. */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 const COUNT_HEADER = zhCN['label.analysis.row-count'];
 const WAREHOUSES = ['华东', '华南', '华北', '西南'];
@@ -144,7 +145,7 @@ export const ScatterReadsItsPoints: Story = {
 
     // Every point inside the drawing, whole; that each sits a radius in from
     // the plot's edges is measured by coordinate in the package
-    // (test/analysisChart.test.tsx「a scatter」).
+    // (test/analysisChartView.test.tsx「a scatter」).
     const surface = canvasElement
       .querySelector('[data-slot="chart-plot"] svg')!
       .getBoundingClientRect();

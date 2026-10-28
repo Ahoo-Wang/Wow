@@ -22,11 +22,15 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   formulaFormat,
   projectAnalysis,
+  type AggregationExpressionOperatorName,
   type AnalysisExpression,
   type AnalysisMetric,
   type NumberFormat,
@@ -37,18 +41,23 @@ const YUAN: NumberFormat = { style: 'currency', currency: 'CNY' };
 const DOLLAR: NumberFormat = { style: 'currency', currency: 'USD' };
 
 const field = (name: string): AnalysisExpression => ({
-  type: 'FIELD',
+  type: AggregationExpressionType.FIELD,
   field: name,
 });
 const constant = (value: number): AnalysisExpression => ({
-  type: 'CONSTANT',
+  type: AggregationExpressionType.CONSTANT,
   value,
 });
 const binary = (
-  operator: 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'DIVIDE',
+  operator: AggregationExpressionOperatorName,
   left: AnalysisExpression,
   right: AnalysisExpression,
-): AnalysisExpression => ({ type: 'BINARY', operator, left, right });
+): AnalysisExpression => ({
+  type: AggregationExpressionType.BINARY,
+  operator,
+  left,
+  right,
+});
 
 const formats: Record<string, NumberFormat | undefined> = {
   amount: YUAN,
@@ -62,21 +71,46 @@ describe('formulaFormat', () => {
   it('keeps the format two operands share across a sum or a difference', () => {
     expect(
       formulaFormat(
-        binary('SUBTRACT', field('amount'), field('cost')),
+        binary(
+          AggregationExpressionOperator.SUBTRACT,
+          field('amount'),
+          field('cost'),
+        ),
         formatOf,
       ),
     ).toEqual(YUAN);
     expect(
-      formulaFormat(binary('ADD', field('amount'), field('cost')), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.ADD,
+          field('amount'),
+          field('cost'),
+        ),
+        formatOf,
+      ),
     ).toEqual(YUAN);
   });
 
   it('gives no format to operands that do not share one', () => {
     expect(
-      formulaFormat(binary('ADD', field('amount'), field('freight')), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.ADD,
+          field('amount'),
+          field('freight'),
+        ),
+        formatOf,
+      ),
     ).toBeUndefined();
     expect(
-      formulaFormat(binary('ADD', field('amount'), field('qty')), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.ADD,
+          field('amount'),
+          field('qty'),
+        ),
+        formatOf,
+      ),
     ).toBeUndefined();
   });
 
@@ -84,45 +118,91 @@ describe('formulaFormat', () => {
     // ¥ × 1.13 and ¥ ÷ 2 are still money.
     expect(
       formulaFormat(
-        binary('MULTIPLY', field('amount'), constant(1.13)),
+        binary(
+          AggregationExpressionOperator.MULTIPLY,
+          field('amount'),
+          constant(1.13),
+        ),
         formatOf,
       ),
     ).toEqual(YUAN);
     expect(
-      formulaFormat(binary('DIVIDE', field('amount'), constant(2)), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.DIVIDE,
+          field('amount'),
+          constant(2),
+        ),
+        formatOf,
+      ),
     ).toEqual(YUAN);
     expect(
       formulaFormat(
-        binary('MULTIPLY', constant(1.13), field('amount')),
+        binary(
+          AggregationExpressionOperator.MULTIPLY,
+          constant(1.13),
+          field('amount'),
+        ),
         formatOf,
       ),
     ).toEqual(YUAN);
     // 2 ÷ ¥, ¥ × ¥ and ¥ ÷ ¥ are not.
     expect(
-      formulaFormat(binary('DIVIDE', constant(2), field('amount')), formatOf),
-    ).toBeUndefined();
-    expect(
       formulaFormat(
-        binary('MULTIPLY', field('amount'), field('cost')),
+        binary(
+          AggregationExpressionOperator.DIVIDE,
+          constant(2),
+          field('amount'),
+        ),
         formatOf,
       ),
     ).toBeUndefined();
     expect(
-      formulaFormat(binary('DIVIDE', field('amount'), field('cost')), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.MULTIPLY,
+          field('amount'),
+          field('cost'),
+        ),
+        formatOf,
+      ),
     ).toBeUndefined();
     expect(
-      formulaFormat(binary('ADD', constant(1), constant(2)), formatOf),
+      formulaFormat(
+        binary(
+          AggregationExpressionOperator.DIVIDE,
+          field('amount'),
+          field('cost'),
+        ),
+        formatOf,
+      ),
+    ).toBeUndefined();
+    expect(
+      formulaFormat(
+        binary(AggregationExpressionOperator.ADD, constant(1), constant(2)),
+        formatOf,
+      ),
     ).toBeUndefined();
   });
 
   it('follows a nested formula through each step', () => {
     // (金额 − 成本) × 1.13 is money; (金额 − 成本) ÷ 成本 is a ratio.
-    const margin = binary('SUBTRACT', field('amount'), field('cost'));
+    const margin = binary(
+      AggregationExpressionOperator.SUBTRACT,
+      field('amount'),
+      field('cost'),
+    );
     expect(
-      formulaFormat(binary('MULTIPLY', margin, constant(1.13)), formatOf),
+      formulaFormat(
+        binary(AggregationExpressionOperator.MULTIPLY, margin, constant(1.13)),
+        formatOf,
+      ),
     ).toEqual(YUAN);
     expect(
-      formulaFormat(binary('DIVIDE', margin, field('cost')), formatOf),
+      formulaFormat(
+        binary(AggregationExpressionOperator.DIVIDE, margin, field('cost')),
+        formatOf,
+      ),
     ).toBeUndefined();
   });
 });
@@ -148,21 +228,29 @@ describe('a formula column', () => {
       ],
     },
   });
-  const metric = (fn: 'SUM' | 'AVG'): AnalysisMetric => ({
+  const metric = (
+    fn: `${AggregationFunction.SUM}` | `${AggregationFunction.AVG}`,
+  ): AnalysisMetric => ({
     alias: 'margin',
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     function: fn,
-    expression: binary('SUBTRACT', field('amount'), field('cost')),
+    expression: binary(
+      AggregationExpressionOperator.SUBTRACT,
+      field('amount'),
+      field('cost'),
+    ),
   });
-  const column = (fn: 'SUM' | 'AVG') =>
+  const column = (
+    fn: `${AggregationFunction.SUM}` | `${AggregationFunction.AVG}`,
+  ) =>
     projectAnalysis(definition, analysisConfig({ metrics: [metric(fn)] }), [
       { warehouse: 'CN', margin: 12.5 },
     ]).columns.find(entry => entry.alias === 'margin')!;
 
   it('reads in the money its operands are in', () => {
-    expect(column('SUM').numberFormat).toEqual(YUAN);
+    expect(column(AggregationFunction.SUM).numberFormat).toEqual(YUAN);
     // An average of money is still money, at two decimals.
-    expect(column('AVG').numberFormat).toEqual({
+    expect(column(AggregationFunction.AVG).numberFormat).toEqual({
       ...YUAN,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -170,6 +258,6 @@ describe('a formula column', () => {
   });
 
   it('is named as the whole formula a summary is of', () => {
-    expect(column('SUM').label).toBe('(金额 − 成本)');
+    expect(column(AggregationFunction.SUM).label).toBe('(金额 − 成本)');
   });
 });

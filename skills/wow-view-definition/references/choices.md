@@ -150,7 +150,7 @@ export const orders = defineView(orderDescriptor, {
     // A total of what was paid means something; an average per page does not.
     'state.paidAmount': {
       label: text('orders.paidAmount'),
-      summary: ['SUM'],
+      summary: ['sum'],
       more: { numberFormat: { style: 'currency', currency: 'CNY' } },
     },
     // The units the team reads a trend in: wow-client's enum, not strings.
@@ -312,12 +312,12 @@ import type { FilterNode } from '@ahoo-wang/wow-view-engine';
 
 export const LARGE_PAYMENTS: FilterNode = {
   field: 'events',
-  operator: 'ELEMENT_MATCH',
+  operator: 'element-match',
   value: {
     op: 'and',
     children: [
-      { field: 'events.name', operator: 'IN', value: ['sales.order.OrderPaid'] },
-      { field: 'events.body.paidAmount', operator: 'GT', value: 1000 },
+      { field: 'events.name', operator: 'in', value: ['sales.order.OrderPaid'] },
+      { field: 'events.body.paidAmount', operator: 'gt', value: 1000 },
     ],
   },
 };

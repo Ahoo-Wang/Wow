@@ -131,7 +131,7 @@ class DatasetPublicationIntegrationTest {
                 customers,
                 "review-source-sensitivity",
                 """{"fields":[{"path":"tenant"},{"path":"id"},{"path":"name"},""" +
-                    """{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
+                    """{"path":"phone","level":"display","keepPrefix":3}]}""",
             ).assertOk()
             node.command(customers, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
 
@@ -162,7 +162,7 @@ class DatasetPublicationIntegrationTest {
             client.queryAll("SELECT name FROM system.tables WHERE database = '$VIEWS'").map { it.getString("name") }
                 .assert().containsExactly("ds_shop_order_customers_v1")
 
-            val query = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"order_id","direction":"ASC"}]}"""
+            val query = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"order_id","direction":"asc"}]}"""
             // A reader of tenant t1 with no role of the catalog: the datasets are the data plane's.
             val t1 = Who(mapOf(USER to "reader", TENANT to "t1"))
             eventually("the dataset served") { node.post(QUERY, query, t1).status == OK }

@@ -22,54 +22,83 @@ import {
   withHavingRows,
 } from '../src/analysis/index.js';
 import type { AnalysisHavingExpression } from '../src/model/index.js';
+import {
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  ComparisonOperator,
+  DerivedExpressionType,
+  HavingExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 
 describe('having rows', () => {
   it('reads one comparison, or several under one AND, as rows', () => {
     expect(havingRows(undefined)).toEqual([]);
     const one: AnalysisHavingExpression = {
-      type: 'CONDITION',
+      type: HavingExpressionType.CONDITION,
       metric: 'total',
-      operator: 'GT',
+      operator: ComparisonOperator.GT,
       value: 10_000,
     };
     expect(havingRows(one)).toEqual([
-      { metric: 'total', operator: 'GT', value: 10_000 },
+      { metric: 'total', operator: ComparisonOperator.GT, value: 10_000 },
     ]);
     expect(
       havingRows({
-        type: 'AND',
+        type: HavingExpressionType.AND,
         operands: [
           one,
-          { type: 'CONDITION', metric: 'n', operator: 'LTE', value: 5 },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'n',
+            operator: ComparisonOperator.LTE,
+            value: 5,
+          },
         ],
       }),
     ).toEqual([
-      { metric: 'total', operator: 'GT', value: 10_000 },
-      { metric: 'n', operator: 'LTE', value: 5 },
+      { metric: 'total', operator: ComparisonOperator.GT, value: 10_000 },
+      { metric: 'n', operator: ComparisonOperator.LTE, value: 5 },
     ]);
   });
 
   it('declines a shape the rows cannot say rather than flattening it', () => {
     expect(
-      havingRows({ type: 'BETWEEN', metric: 'total', lower: 1, upper: 2 }),
+      havingRows({
+        type: HavingExpressionType.BETWEEN,
+        metric: 'total',
+        lower: 1,
+        upper: 2,
+      }),
     ).toBeNull();
     expect(
       havingRows({
-        type: 'OR',
+        type: HavingExpressionType.OR,
         operands: [
-          { type: 'CONDITION', metric: 'n', operator: 'GT', value: 1 },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'n',
+            operator: ComparisonOperator.GT,
+            value: 1,
+          },
         ],
       }),
     ).toBeNull();
     // A nested AND is a tree, not a list of rows.
     expect(
       havingRows({
-        type: 'AND',
+        type: HavingExpressionType.AND,
         operands: [
           {
-            type: 'AND',
+            type: HavingExpressionType.AND,
             operands: [
-              { type: 'CONDITION', metric: 'n', operator: 'GT', value: 1 },
+              {
+                type: HavingExpressionType.CONDITION,
+                metric: 'n',
+                operator: ComparisonOperator.GT,
+                value: 1,
+              },
             ],
           },
         ],
@@ -80,64 +109,90 @@ describe('having rows', () => {
   it('writes the rows back as one condition, an AND of several, or nothing', () => {
     expect(withHavingRows([])).toBeUndefined();
     expect(
-      withHavingRows([{ metric: 'total', operator: 'GT', value: 1 }]),
-    ).toEqual({ type: 'CONDITION', metric: 'total', operator: 'GT', value: 1 });
-    expect(
       withHavingRows([
-        { metric: 'total', operator: 'GT', value: 1 },
-        { metric: 'n', operator: 'NE', value: 0 },
+        { metric: 'total', operator: ComparisonOperator.GT, value: 1 },
       ]),
     ).toEqual({
-      type: 'AND',
+      type: HavingExpressionType.CONDITION,
+      metric: 'total',
+      operator: ComparisonOperator.GT,
+      value: 1,
+    });
+    expect(
+      withHavingRows([
+        { metric: 'total', operator: ComparisonOperator.GT, value: 1 },
+        { metric: 'n', operator: ComparisonOperator.NE, value: 0 },
+      ]),
+    ).toEqual({
+      type: HavingExpressionType.AND,
       operands: [
-        { type: 'CONDITION', metric: 'total', operator: 'GT', value: 1 },
-        { type: 'CONDITION', metric: 'n', operator: 'NE', value: 0 },
+        {
+          type: HavingExpressionType.CONDITION,
+          metric: 'total',
+          operator: ComparisonOperator.GT,
+          value: 1,
+        },
+        {
+          type: HavingExpressionType.CONDITION,
+          metric: 'n',
+          operator: ComparisonOperator.NE,
+          value: 0,
+        },
       ],
     });
     // A row still being filled in is the editor's, not the query's.
     expect(
       withHavingRows([
-        { metric: 'total', operator: 'GT', value: null },
-        { metric: 'n', operator: 'NE', value: 0 },
+        { metric: 'total', operator: ComparisonOperator.GT, value: null },
+        { metric: 'n', operator: ComparisonOperator.NE, value: 0 },
       ]),
-    ).toEqual({ type: 'CONDITION', metric: 'n', operator: 'NE', value: 0 });
+    ).toEqual({
+      type: HavingExpressionType.CONDITION,
+      metric: 'n',
+      operator: ComparisonOperator.NE,
+      value: 0,
+    });
     expect(
-      withHavingRows([{ metric: 'total', operator: 'GT', value: null }]),
+      withHavingRows([
+        { metric: 'total', operator: ComparisonOperator.GT, value: null },
+      ]),
     ).toBeUndefined();
   });
 });
 
 describe('formulas', () => {
   it('starts a formula as two fields subtracted and summed, and a derived metric as a quotient', () => {
-    const formula = formulaMetric('amount', 'cost', 'SUM', ['formula_1']);
+    const formula = formulaMetric('amount', 'cost', AggregationFunction.SUM, [
+      'formula_1',
+    ]);
     expect(formula).toEqual({
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'formula_2',
-      function: 'SUM',
+      function: AggregationFunction.SUM,
       expression: {
-        type: 'BINARY',
-        operator: 'SUBTRACT',
-        left: { type: 'FIELD', field: 'amount' },
-        right: { type: 'FIELD', field: 'cost' },
+        type: AggregationExpressionType.BINARY,
+        operator: AggregationExpressionOperator.SUBTRACT,
+        left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+        right: { type: AggregationExpressionType.FIELD, field: 'cost' },
       },
     });
     expect(isFormula(formula)).toBe(true);
     expect(
       isFormula({
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'a',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       }),
     ).toBe(false);
     expect(derivedMetric('total', 'customers', [])).toEqual({
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       alias: 'derived_1',
       expression: {
-        type: 'BINARY',
-        operator: 'DIVIDE',
-        left: { type: 'METRIC_REF', metric: 'total' },
-        right: { type: 'METRIC_REF', metric: 'customers' },
+        type: DerivedExpressionType.BINARY,
+        operator: AggregationExpressionOperator.DIVIDE,
+        left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+        right: { type: DerivedExpressionType.METRIC_REF, metric: 'customers' },
       },
     });
   });
@@ -153,10 +208,10 @@ describe('formulas', () => {
     expect(
       expressionText(
         {
-          type: 'BINARY',
-          operator: 'SUBTRACT',
-          left: { type: 'FIELD', field: 'amount' },
-          right: { type: 'FIELD', field: 'cost' },
+          type: AggregationExpressionType.BINARY,
+          operator: AggregationExpressionOperator.SUBTRACT,
+          left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+          right: { type: AggregationExpressionType.FIELD, field: 'cost' },
         },
         nameOf,
       ),
@@ -165,15 +220,15 @@ describe('formulas', () => {
     expect(
       expressionText(
         {
-          type: 'BINARY',
-          operator: 'MULTIPLY',
+          type: AggregationExpressionType.BINARY,
+          operator: AggregationExpressionOperator.MULTIPLY,
           left: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
-            left: { type: 'FIELD', field: 'amount' },
-            right: { type: 'FIELD', field: 'cost' },
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
+            left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+            right: { type: AggregationExpressionType.FIELD, field: 'cost' },
           },
-          right: { type: 'CONSTANT', value: 1.13 },
+          right: { type: AggregationExpressionType.CONSTANT, value: 1.13 },
         },
         nameOf,
       ),
@@ -181,10 +236,13 @@ describe('formulas', () => {
     expect(
       derivedText(
         {
-          type: 'BINARY',
-          operator: 'DIVIDE',
-          left: { type: 'METRIC_REF', metric: 'total' },
-          right: { type: 'METRIC_REF', metric: 'customers' },
+          type: AggregationExpressionType.BINARY,
+          operator: AggregationExpressionOperator.DIVIDE,
+          left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+          right: {
+            type: DerivedExpressionType.METRIC_REF,
+            metric: 'customers',
+          },
         },
         nameOf,
       ),

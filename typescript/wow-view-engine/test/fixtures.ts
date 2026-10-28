@@ -32,6 +32,7 @@ import type {
   ViewResource,
   ViewSource,
 } from '../src/index.js';
+import { ReferenceLabels } from '../src/runtime/referenceLabels.js';
 
 export const NOW = new Date('2026-09-16T10:30:00.000Z');
 
@@ -51,7 +52,7 @@ export function ordersDefinition(
         name: 'amount',
         label: 'Amount',
         kind: 'number',
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
         sortable: true,
       },
     ],
@@ -121,7 +122,7 @@ export function namedOrdersDefinition(): DataViewDefinition {
         name: 'createdAt',
         label: 'Created',
         kind: 'datetime',
-        summary: ['MIN', 'MAX'],
+        summary: [AggregationFunction.MIN, AggregationFunction.MAX],
       },
     ],
     analysis: {
@@ -197,7 +198,13 @@ export function analysisConfig(
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'analysis',
-    groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+    groups: [
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+    ],
     metrics: [
       {
         alias: 'orders',
@@ -317,7 +324,9 @@ export const ROWS = [
 /** A `ViewSource` whose three methods are spies with sensible defaults. */
 export function testSource(overrides: Partial<ViewSource> = {}): ViewSource {
   return {
-    paged: vi.fn(() => Promise.resolve({ total: 2, list: [...ROWS] })),
+    paged: vi.fn(() =>
+      Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
+    ),
     cursor: vi.fn(() =>
       Promise.resolve({ nextCursor: 'cursor-2', list: [...ROWS] }),
     ),
@@ -435,5 +444,17 @@ export function resourcesOf(
     const source =
       definition.kind === 'data' ? resolve(definition.source) : undefined;
     return source ? { definition, source } : { definition };
+  });
+}
+
+/**
+ * The labels a runtime built on its own reads (`ViewRuntimeOptions.labels`):
+ * with no `resolveOptions` every id reads as itself and nothing is asked.
+ */
+export function testLabels(): ReferenceLabels {
+  return new ReferenceLabels({
+    batch: 200,
+    concurrency: 4,
+    failed: () => undefined,
   });
 }

@@ -15,8 +15,12 @@ import {
   AggregationDatePart,
   AggregationGroupType,
   QueryValueKind,
-  SearchMode,
   SensitivityLevel,
+  ComparisonOperator,
+  QueryValueTypes,
+  QuerySemanticTypes,
+  FilterOperator,
+  SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -88,13 +92,15 @@ describe('defineView, as reviewed', () => {
   it('7: with no descriptor of its source, a definition offers the snapshot’s comparisons and calendar parts', () => {
     const snapshot = ordersDescriptor({
       fields: [
-        describedField('id', { filter: { operators: ['EQ'] as never } }),
+        describedField('id', {
+          filter: { operators: [FilterOperator.EQ] as never },
+        }),
         describedField('createdAt', {
-          types: ['INTEGER'],
-          semantic: { type: 'TEMPORAL_EPOCH' },
+          types: [QueryValueTypes.INTEGER],
+          semantic: { type: QuerySemanticTypes.TEMPORAL_EPOCH },
         }),
         describedField('lines', {
-          types: ['OBJECT'],
+          types: [QueryValueTypes.OBJECT],
           kind: QueryValueKind.ARRAY,
         }),
         describedField('lines.sku', { scope: 'lines' }),
@@ -120,7 +126,7 @@ describe('defineView, as reviewed', () => {
       }),
     );
     const [id, , lines] = definition.fields;
-    expect(id.operators).toEqual(['EQ']);
+    expect(id.operators).toEqual([ComparisonOperator.EQ]);
     // A search box is the host's to ask for: offered as declared where the
     // source says nothing, narrowed where it does (below, and on MongoDB).
     expect(
@@ -137,7 +143,7 @@ describe('defineView, as reviewed', () => {
     expect(
       definition.analysis?.fields.find(entry => entry.field === 'createdAt')
         ?.dateParts,
-    ).toEqual(['HOUR_OF_DAY']);
+    ).toEqual([AggregationDatePart.HOUR_OF_DAY]);
     // A source that says more: the kind's comparisons, the search.
     const elastic = narrowDefinition(
       definition,
@@ -191,8 +197,8 @@ describe('defineView, as reviewed', () => {
       fields: [
         describedField('id'),
         describedField('createdAt', {
-          types: ['INTEGER'],
-          semantic: { type: 'TEMPORAL_EPOCH' },
+          types: [QueryValueTypes.INTEGER],
+          semantic: { type: QuerySemanticTypes.TEMPORAL_EPOCH },
           aliases: ['created'],
         }),
       ],
@@ -238,7 +244,7 @@ describe('defineView, as reviewed', () => {
     const variants = ordersDescriptor({
       fields: [
         describedField('lines', {
-          types: ['OBJECT'],
+          types: [QueryValueTypes.OBJECT],
           kind: QueryValueKind.ARRAY,
         }),
       ],
@@ -249,7 +255,9 @@ describe('defineView, as reviewed', () => {
         values: [
           {
             value: 'Shipped',
-            fields: [describedField('weight', { types: ['INTEGER'] })],
+            fields: [
+              describedField('weight', { types: [QueryValueTypes.INTEGER] }),
+            ],
           },
         ],
       },
@@ -266,7 +274,7 @@ describe('defineView, as reviewed', () => {
     const numbered = ordersDescriptor({
       fields: [
         describedField('priority', {
-          types: ['INTEGER'],
+          types: [QueryValueTypes.INTEGER],
           enum: [{ value: 1 }, { value: 2 }, { value: 10 }],
         }),
         describedField('state', {
@@ -334,7 +342,7 @@ describe('defineView, as reviewed', () => {
       fields: [
         describedField('id'),
         describedField('amount', {
-          types: ['DECIMAL'],
+          types: [QueryValueTypes.DECIMAL],
           aggregate: {
             ...describedField('amount').aggregate!,
             groups: [
@@ -370,7 +378,7 @@ describe('defineView, as reviewed', () => {
     );
     expect(
       narrowed.analysis?.fields.find(entry => entry.field === 'amount')?.groups,
-    ).toEqual(['TERMS']);
+    ).toEqual([AggregationGroupType.TERMS]);
     expect(codes(findings)).toContain('capability.analysis.field-narrowed');
   });
 });

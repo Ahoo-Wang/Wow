@@ -25,6 +25,7 @@ import displayMeta, {
 import { measureFocusMark } from './contrast.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { ENGINE_PRESET } from './presets.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -410,7 +411,7 @@ function ChangeCard({
         ],
         period: {
           at: DAY(22),
-          unit: 'DAY',
+          unit: AggregationDateUnit.DAY,
           previous: { at: DAY(21), value: before },
           change: { delta: after - before, ratio: (after - before) / before },
         },

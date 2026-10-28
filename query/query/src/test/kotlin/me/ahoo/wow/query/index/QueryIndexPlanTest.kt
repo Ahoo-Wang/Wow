@@ -15,9 +15,14 @@ package me.ahoo.wow.query.index
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryValueType
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class QueryIndexPlanTest {
     private val key = QueryIndexPlan.Key(
@@ -26,6 +31,47 @@ class QueryIndexPlanTest {
         setOf(QueryStorageType.of("text")),
         QueryCardinality.SINGLE,
     )
+
+    private val schema = gatewaySchema(
+        fields = mapOf(
+            QueryField("state.status") to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING)),
+            QueryField("state.tags") to QueryValueSchema(
+                QueryValueKind.ARRAY,
+                items = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING)),
+            ),
+        ),
+    )
+
+    @Test
+    fun `the core should plan each declared key where the storage keeps it`() {
+        val plan = QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix_status", listOf("state.status"))))
+        plan.logical.assert().isSameAs(schema.definition)
+        plan.indexes.assert().containsExactly(
+            QueryIndexPlan.Index(
+                "ix_status",
+                listOf(
+                    QueryIndexPlan.Key(
+                        QueryField("state.status"),
+                        QueryField("state.status"),
+                        null,
+                        QueryCardinality.SINGLE
+                    )
+                ),
+            ),
+        )
+        QueryIndexPlan.of(schema, emptyList()).indexes.assert().isEmpty()
+    }
+
+    @Test
+    fun `the core should refuse a key the model does not know or the storage cannot index, naming index and key`() {
+        assertThrows<IllegalArgumentException> {
+            QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix_none", listOf("state.none"))))
+        }.message.assert().isEqualTo("Index [ix_none] has the key [state.none], which the query model does not know.")
+        assertThrows<IllegalArgumentException> {
+            QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix_tags", listOf("state.tags"))))
+        }.message.assert()
+            .isEqualTo("Index [ix_tags] has the key [state.tags], which the storage neither matches, ranges nor sorts.")
+    }
 
     @Test
     fun `a planned index and its keys should be values`() {

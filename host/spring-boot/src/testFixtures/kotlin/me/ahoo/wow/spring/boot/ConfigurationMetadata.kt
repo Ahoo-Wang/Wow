@@ -13,7 +13,13 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.query.dataset.QueryDatasetProvider
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.sink.SinkProvider
+import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.transport.TopicTransportOptions
+import me.ahoo.wow.spi.transport.TransportProvider
 import java.beans.Introspector
 import java.beans.PropertyDescriptor
 import java.nio.file.Files
@@ -30,13 +36,66 @@ import kotlin.io.path.writeText
  * their KDoc, without the configuration processor: the [roots], each a properties class and its prefix, walked to their
  * leaves, a property whose type is a class of a package starting with [groupPackage] (not an enum) being a group. The
  * KDoc of each class and property is read from the Kotlin sources under [sources]. The host's and the platform
- * services' metadata come from it, so every `wow.*` key has a description (design rule K8).
+ * services' metadata come from it, so every `wow.*` key has a description (design rule K8). The [providers] add the
+ * `wow.<type>.<key>` options each declares for every instance of its type, described by the option itself: a store's,
+ * a topic transport's, a Sink's or a dataset backend's. Providers of one type (the ClickHouse Sink's and dataset
+ * backend's) share its group, and an option both declare is listed once.
  */
 class ConfigurationMetadata(
     private val roots: List<Pair<Class<*>, String>>,
     private val sources: Path = Path.of("src/main/kotlin"),
     private val groupPackage: String = roots.first().first.packageName + ".",
+    private val providers: List<ProviderOptions> = emptyList(),
 ) {
+    /**
+     * The options a provider of [type] declares ([source], the provider's class), and the description of their group
+     * `wow.<type>`.
+     */
+    class ProviderOptions(
+        val type: String,
+        val source: Class<*>,
+        val options: List<ProviderOption<*>>,
+        val description: String,
+    ) {
+        companion object {
+            /** A store provider's: the settings of every store of its type. */
+            @JvmStatic
+            fun of(provider: StoreProvider): ProviderOptions = ProviderOptions(
+                provider.type,
+                provider.javaClass,
+                provider.options,
+                "The settings of every ${provider.type} store; a store's own options override them.",
+            )
+
+            /** A topic transport provider's: its own options, and those every topic transport has. */
+            @JvmStatic
+            fun of(provider: TransportProvider): ProviderOptions = ProviderOptions(
+                provider.type,
+                provider.javaClass,
+                TopicTransportOptions.of(provider),
+                "The settings of the ${provider.type} topic transport.",
+            )
+
+            /** A Sink provider's. */
+            @JvmStatic
+            fun of(provider: SinkProvider): ProviderOptions = ProviderOptions(
+                provider.type,
+                provider.javaClass,
+                provider.options,
+                "The settings of the ${provider.type} Sink.",
+            )
+
+            /** A dataset backend's. */
+            @JvmStatic
+            fun of(provider: QueryDatasetProvider): ProviderOptions = ProviderOptions(
+                provider.type,
+                provider.javaClass,
+                provider.options,
+                "The settings of the ${provider.type} dataset backend.",
+            )
+        }
+    }
+
     /** The metadata document, as the committed file holds it. */
     fun document(): String {
         val docs = KDocIndex(sources)
@@ -46,9 +105,12 @@ class ConfigurationMetadata(
             groups += entry(prefix, type.name, null, docs.classDoc(type))
             walk(type, type.getDeclaredConstructor().newInstance(), prefix, docs, groups, properties)
         }
+        providers.forEach { provider -> options(provider, groups, properties) }
+        val distinctGroups = groups.distinctBy { it["name"] }
+        val distinctProperties = properties.distinctBy { it["name"] }
         val document = linkedMapOf(
-            "groups" to groups.sortedBy { it["name"] as String },
-            "properties" to properties.sortedBy { it["name"] as String },
+            "groups" to distinctGroups.sortedBy { it["name"] as String },
+            "properties" to distinctProperties.sortedBy { it["name"] as String },
         )
         return WowJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(document) + "\n"
     }
@@ -103,6 +165,32 @@ class ConfigurationMetadata(
                 properties += entry(name, typeName(property), type.name, description) +
                     listOfNotNull(defaultOf(value)?.let { "defaultValue" to it })
             }
+        }
+    }
+
+    /** The group `wow.<type>` of [provider] and a key for each option it declares for every instance of its type. */
+    private fun options(
+        provider: ProviderOptions,
+        groups: MutableList<Map<String, Any?>>,
+        properties: MutableList<Map<String, Any?>>,
+    ) {
+        val typeOptions = provider.options.filter { it.scope == ProviderOption.Scope.TYPE }
+        if (typeOptions.isEmpty()) return
+        val prefix = "$ROOT${provider.type}"
+        val source = provider.source.name
+        groups += entry(prefix, source, null, provider.description)
+        typeOptions.forEach { option ->
+            val default = when (val value = option.default) {
+                null -> emptyMap()
+                is kotlin.time.Duration -> mapOf("defaultValue" to value.toIsoString())
+                else -> mapOf("defaultValue" to value)
+            }
+            properties += entry(
+                "$prefix.${option.key}",
+                OPTION_TYPES[option.type] ?: option.type.name,
+                source,
+                option.description.replaceFirstChar(Char::uppercase),
+            ) + default
         }
     }
 
@@ -209,6 +297,17 @@ class ConfigurationMetadata(
     companion object {
         /** The environment variable that makes a metadata test rewrite its committed file. */
         const val UPDATE: String = "WOW_UPDATE_SNAPSHOTS"
+
+        private const val ROOT = "wow."
+
+        /** The metadata type of each value type of a [ProviderOption]. */
+        private val OPTION_TYPES: Map<Class<*>, String> = mapOf(
+            String::class.java to "java.lang.String",
+            kotlin.time.Duration::class.java to "java.time.Duration",
+            Int::class.javaObjectType to "java.lang.Integer",
+            Boolean::class.javaObjectType to "java.lang.Boolean",
+            Map::class.java to "java.util.Map<java.lang.String,java.lang.String>",
+        )
 
         /** Where a module's metadata is, relative to its directory. */
         @JvmField

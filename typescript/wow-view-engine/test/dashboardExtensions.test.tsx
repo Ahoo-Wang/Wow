@@ -627,7 +627,7 @@ describe('a new analysis made in the dashboard', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save view' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const saved = (await store.list('orders')).find(
+    const saved = (await store.list('orders')).items.find(
       summary => summary.title === 'Mine',
     );
     expect(saved?.scope).toBe('shared');
@@ -670,7 +670,7 @@ describe('a new analysis made in the dashboard', () => {
     ).toBe('true');
     await user.click(within(dialog).getByRole('button', { name: 'Save view' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const saved = (await store.list('orders')).find(
+    const saved = (await store.list('orders')).items.find(
       summary => summary.title === 'Mine',
     );
     expect(saved).toMatchObject({ scope: 'system', stored: true });

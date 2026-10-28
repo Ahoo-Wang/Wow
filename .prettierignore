@@ -25,6 +25,9 @@ coverage/
 # Byte-for-byte generator snapshots, compared against ts-morph's own output by
 # the e2e test; reformatting them would fail every regeneration.
 typescript/wow-generator/expected/
+# The storybook walkthrough's descriptor, written byte for byte by edge/http's
+# StorybookOrdersDescriptorTest from the walkthrough's model.
+typescript/storybook/stories/view-engine/integration/ordersDescriptor.json
 # Generated from the view store's Manifest baseline, held byte for byte by
 # typescript/wow-view-store/test/generated.test.ts.
 typescript/wow-view-store/src/generated/

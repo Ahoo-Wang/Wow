@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-import type { QueryDescriptorResult } from '../src/index.js';
 import {
   QueryModels,
+  type DescriptorResult,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  type DatasetCatalog,
   type DatasetDuplicate,
   DatasetResources,
   type DatasetOverrides,
@@ -30,7 +31,12 @@ import {
   type DataViewDefinition,
   type Issue,
 } from '../src/index.js';
-import { nextTask, ordersDefinition, testSource } from './fixtures.js';
+import {
+  deferred,
+  nextTask,
+  ordersDefinition,
+  testSource,
+} from './fixtures.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 
 const ID = 'analytics.order_wide';
@@ -52,7 +58,7 @@ function datasetOf(described: QueryModelDescriptor): DataViewDefinition {
 }
 
 function sourceOf(described: QueryModelDescriptor) {
-  const result: QueryDescriptorResult = {
+  const result: DescriptorResult = {
     notModified: false,
     descriptor: described,
     version: described.version,
@@ -147,15 +153,11 @@ describe('ViewEngine.register', () => {
 });
 
 describe('DatasetResources', () => {
-  const entry = (
-    name: string,
-    version: string | null,
-    title: string | null = null,
-  ) => ({
-    contextName: 'analytics',
-    name,
-    title,
-    version,
+  const entry = (dataset: string, version?: string, title?: string) => ({
+    context: 'analytics',
+    dataset,
+    ...(version === undefined ? {} : { version }),
+    ...(title === undefined ? {} : { title }),
   });
 
   function catalogOf(listed: { current: ReturnType<typeof entry>[] }) {
@@ -163,11 +165,14 @@ describe('DatasetResources', () => {
     const sources = vi.fn((found: ReturnType<typeof entry>) => {
       const column = found.version === 'sha256:2' ? 'region' : 'city';
       const result = descriptor(column, found.version ?? '');
-      described.set(found.name, result);
+      described.set(found.dataset, result);
       return sourceOf(result);
     });
     return {
-      catalog: { list: () => Promise.resolve(listed.current), source: sources },
+      catalog: {
+        list: () => Promise.resolve(listed.current),
+        source: sources,
+      },
       sources,
     };
   }
@@ -177,19 +182,23 @@ describe('DatasetResources', () => {
     const listed = {
       current: [
         entry('order_wide', 'sha256:1', 'Orders'),
-        entry('broken', null),
+        // A directory that keeps no version of a dataset still serves it.
+        entry('unversioned'),
       ],
     };
     const { catalog, sources } = catalogOf(listed);
-    const datasets = new DatasetResources(engine, catalog);
+    const datasets = new DatasetResources(engine, { catalogs: catalog });
 
     const first = await datasets.refresh();
-    expect(first.map(found => found.id)).toEqual([ID]);
+    expect(first.map(found => found.id)).toEqual([ID, 'analytics.unversioned']);
     expect(engine.definitions.get(ID)?.title).toBe('Orders');
-    expect(engine.definitions.has('analytics.broken')).toBe(false);
+    expect(engine.definitions.get('analytics.unversioned')?.title).toBe(
+      'unversioned',
+    );
 
+    // Unchanged, neither is described again: no version is a version too.
     await datasets.refresh();
-    expect(sources).toHaveBeenCalledTimes(1);
+    expect(sources).toHaveBeenCalledTimes(2);
 
     listed.current = [
       entry('order_wide', 'sha256:2', 'Orders'),
@@ -214,9 +223,8 @@ describe('DatasetResources', () => {
     const definition = datasetOf(own);
     engine.register({ definition, source: sourceOf(own) });
     const errors: unknown[] = [];
-    const datasets = new DatasetResources(
-      engine,
-      {
+    const datasets = new DatasetResources(engine, {
+      catalogs: {
         list: () =>
           Promise.resolve([
             entry('order_wide', 'sha256:1'),
@@ -225,8 +233,8 @@ describe('DatasetResources', () => {
         // A source without `describe`: there is no descriptor to derive from.
         source: () => testSource(),
       },
-      (_, error) => errors.push(error),
-    );
+      onError: (_, error) => errors.push(error),
+    });
     expect(await datasets.refresh()).toEqual([]);
     expect(errors).toHaveLength(1);
     expect(engine.definitions.get(ID)).toBe(definition);
@@ -234,10 +242,9 @@ describe('DatasetResources', () => {
   });
 
   describe('over several catalogs (D238 ⑨)', () => {
-    const at = (context: string, name: string, version = 'sha256:1') => ({
-      contextName: context,
-      name,
-      title: null,
+    const at = (context: string, dataset: string, version = 'sha256:1') => ({
+      context,
+      dataset,
       version,
     });
     const catalog = (
@@ -246,15 +253,14 @@ describe('DatasetResources', () => {
     ) => ({
       list: listed,
       source: (found: ReturnType<typeof at>) =>
-        sourceOf(descriptor(column, found.version ?? '')),
+        sourceOf(descriptor(column, found.version)),
     });
 
     it('serves every catalog in one engine, the first winning an id two list, and reports the other', async () => {
       const engine = engineOf();
       const reported: DatasetDuplicate[] = [];
-      const datasets = new DatasetResources(
-        engine,
-        [
+      const datasets = new DatasetResources(engine, {
+        catalogs: [
           catalog(() =>
             Promise.resolve([
               at('analytics', 'order_wide'),
@@ -270,10 +276,8 @@ describe('DatasetResources', () => {
             'region',
           ),
         ],
-        undefined,
-        undefined,
-        { onDuplicate: found => reported.push(found) },
-      );
+        onDuplicate: found => reported.push(found),
+      });
       const served = await datasets.refresh();
       expect(served.map(({ id, catalog: from }) => [id, from])).toEqual([
         [ID, 0],
@@ -297,9 +301,8 @@ describe('DatasetResources', () => {
       const engine = engineOf();
       const down = { current: false };
       const errors: [number, unknown][] = [];
-      const datasets = new DatasetResources(
-        engine,
-        [
+      const datasets = new DatasetResources(engine, {
+        catalogs: [
           catalog(() => Promise.resolve([at('shop', 'carts')])),
           catalog(() =>
             down.current
@@ -307,10 +310,8 @@ describe('DatasetResources', () => {
               : Promise.resolve([at('crm', 'members')]),
           ),
         ],
-        undefined,
-        undefined,
-        { onCatalogError: (index, error) => errors.push([index, error]) },
-      );
+        onCatalogError: (index, error) => errors.push([index, error]),
+      });
       await datasets.refresh();
       down.current = true;
       const served = await datasets.refresh();
@@ -321,12 +322,14 @@ describe('DatasetResources', () => {
       expect(engine.definitions.has('crm.members')).toBe(true);
       expect(errors).toEqual([[1, new Error('crm is down')]]);
 
-      const none = new DatasetResources(engine, [
-        catalog(() => Promise.reject(new Error('first'))),
-        catalog(() => Promise.reject(new Error('second'))),
-      ]);
+      const none = new DatasetResources(engine, {
+        catalogs: [
+          catalog(() => Promise.reject(new Error('first'))),
+          catalog(() => Promise.reject(new Error('second'))),
+        ],
+      });
       await expect(none.refresh()).rejects.toThrow('first');
-      expect(() => new DatasetResources(engine, [])).toThrow(
+      expect(() => new DatasetResources(engine, { catalogs: [] })).toThrow(
         'at least one catalog',
       );
     });
@@ -343,16 +346,18 @@ describe('DatasetResources', () => {
           ),
         set: vi.fn(() => Promise.resolve('2')),
       });
-      const datasets = new DatasetResources(engine, [
-        {
-          ...catalog(() => Promise.resolve([at('analytics', 'order_wide')])),
-          wordings: store('From the first'),
-        },
-        {
-          ...catalog(() => Promise.resolve([at('crm', 'members')])),
-          wordings: store('From the second'),
-        },
-      ]);
+      const datasets = new DatasetResources(engine, {
+        catalogs: [
+          {
+            ...catalog(() => Promise.resolve([at('analytics', 'order_wide')])),
+            wordings: store('From the first'),
+          },
+          {
+            ...catalog(() => Promise.resolve([at('crm', 'members')])),
+            wordings: store('From the second'),
+          },
+        ],
+      });
       await datasets.refresh();
       expect(engine.definitions.get(ID)?.title).toBe('From the first');
       expect(engine.definitions.get('crm.members')?.title).toBe(
@@ -366,9 +371,11 @@ describe('DatasetResources', () => {
     const words = { current: { title: 'Orders' } as DatasetOverrides };
     const source = vi.fn(() => sourceOf(descriptor('city', 'sha256:1')));
     const datasets = new DatasetResources(engine, {
-      list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
-      source,
-      overrides: () => words.current,
+      catalogs: {
+        list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+        source,
+        overrides: () => words.current,
+      },
     });
     await datasets.refresh();
     expect(engine.definitions.get(ID)?.title).toBe('Orders');
@@ -414,10 +421,12 @@ describe('DatasetResources', () => {
         },
       });
       const datasets = new DatasetResources(engine, {
-        list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
-        source: () => sourceOf(descriptor('city', 'sha256:1')),
-        overrides: () => ({ title: 'From code' }),
-        wordings: store,
+        catalogs: {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+          overrides: () => ({ title: 'From code' }),
+          wordings: store,
+        },
       });
       await datasets.refresh();
 
@@ -440,10 +449,12 @@ describe('DatasetResources', () => {
       const store = storeOf({});
       const source = vi.fn(() => sourceOf(descriptor('city', 'sha256:1')));
       const datasets = new DatasetResources(engine, {
-        list: () =>
-          Promise.resolve([entry('order_wide', 'sha256:1', 'Orders')]),
-        source,
-        wordings: store,
+        catalogs: {
+          list: () =>
+            Promise.resolve([entry('order_wide', 'sha256:1', 'Orders')]),
+          source,
+          wordings: store,
+        },
       });
       await datasets.refresh();
       const editor = engine.wordingOf(ID)!;
@@ -476,16 +487,14 @@ describe('DatasetResources', () => {
         [ID]: { wording: { title: 'Orders' }, revision: '1' },
       });
       const errors: unknown[] = [];
-      const datasets = new DatasetResources(
-        engine,
-        {
+      const datasets = new DatasetResources(engine, {
+        catalogs: {
           list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
           source: () => sourceOf(descriptor('city', 'sha256:1')),
           wordings: store,
         },
-        undefined,
-        error => errors.push(error),
-      );
+        onWordingError: error => errors.push(error),
+      });
       await datasets.refresh();
       vi.mocked(store.list).mockRejectedValueOnce(new Error('down'));
       await datasets.refresh();
@@ -497,13 +506,56 @@ describe('DatasetResources', () => {
     it('registers no editor where the catalog keeps no wording', async () => {
       const engine = engineOf();
       const datasets = new DatasetResources(engine, {
-        list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
-        source: () => sourceOf(descriptor('city', 'sha256:1')),
+        catalogs: {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+        },
       });
       await datasets.refresh();
       expect(engine.wordingOf(ID)).toBeUndefined();
       engine.unregister(ID);
       expect(engine.wordingOf(ID)).toBeUndefined();
     });
+  });
+
+  it('hands the signal of a refresh to every read it makes: the directory, the wording and each describe', async () => {
+    const engine = engineOf();
+    const source = sourceOf(descriptor('city', 'sha256:1'));
+    const list = vi.fn<DatasetCatalog['list']>(() =>
+      Promise.resolve([entry('order_wide', 'sha256:1')]),
+    );
+    const wordings: DatasetWordingStore = {
+      list: vi.fn(() => Promise.resolve(new Map())),
+      set: vi.fn(() => Promise.resolve('1')),
+    };
+    const datasets = new DatasetResources(engine, {
+      catalogs: { list, source: () => source, wordings },
+    });
+    const { signal } = new AbortController();
+
+    await datasets.refresh({ signal });
+
+    expect(list).toHaveBeenCalledWith({ signal });
+    expect(wordings.list).toHaveBeenCalledWith({ signal });
+    expect(source.describe).toHaveBeenCalledWith(undefined, { signal });
+    expect(engine.definitions.has(ID)).toBe(true);
+  });
+
+  it('rejects a refresh called off while the directory is read, and registers nothing', async () => {
+    const engine = engineOf();
+    const listed = deferred<ReturnType<typeof entry>[]>();
+    const source = vi.fn(() => sourceOf(descriptor('city', 'sha256:1')));
+    const datasets = new DatasetResources(engine, {
+      catalogs: { list: () => listed.promise, source },
+    });
+    const controller = new AbortController();
+
+    const refreshing = datasets.refresh({ signal: controller.signal });
+    controller.abort();
+    listed.resolve([entry('order_wide', 'sha256:1')]);
+
+    await expect(refreshing).rejects.toMatchObject({ name: 'AbortError' });
+    expect(source).not.toHaveBeenCalled();
+    expect(engine.definitions.has(ID)).toBe(false);
   });
 });

@@ -112,3 +112,5 @@ To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest`
 ## Client settings
 
 `wow.kafka.properties.*` passes settings to every producer and consumer as they are, such as `security.protocol` and SASL settings, `client.id` or `linger.ms`. A few settings belong to Wow and cannot be overridden, because the guarantees rest on them: the idempotent producer with `acks=all`, consumers without a group that commit nothing and reset no offset on their own, and no topic creation on read.
+
+`wow.kafka.*` accepts only the settings the Kafka transport declares, which [Configuration Keys](../reference/configuration) lists, and any key under `properties` and `topics.configs`; another key fails the start, naming it. `topic-prefix`, `command-intake.enabled`, `ddl` and `topics.partition-refresh` are settings every topic transport has, so a community transport takes them under its own type.

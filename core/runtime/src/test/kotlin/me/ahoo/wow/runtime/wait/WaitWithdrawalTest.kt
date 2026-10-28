@@ -21,7 +21,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -33,7 +32,9 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
@@ -73,12 +74,12 @@ class WaitWithdrawalTest {
     }
     private val observed = java.util.concurrent.CopyOnWriteArrayList<String>()
     private val observer = object : Observer {
-        override fun refused(type: AggregateType, code: String) {
-            observed += "refused $code"
-        }
-
-        override fun waitTimedOut(type: AggregateType, stage: Stage) {
-            observed += "timed out at $stage"
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.Refused -> observed += "refused ${event.code}"
+                is ObservedEvent.WaitTimedOut -> observed += "timed out at ${event.stage}"
+                else -> Unit
+            }
         }
     }
     private val coordinator = coordinator()
@@ -88,7 +89,7 @@ class WaitWithdrawalTest {
      * that much before the deadline thread does (review X-12).
      */
     private fun coordinator(ahead: Long = 0) = WaitCoordinator(
-        Executor(Kernel(log), clock = { System.currentTimeMillis() + ahead }),
+        Executor(Kernel(log), clock = clockOf { System.currentTimeMillis() + ahead }),
         registry,
         directory,
         LocalSignalSender(origin.node, registry),

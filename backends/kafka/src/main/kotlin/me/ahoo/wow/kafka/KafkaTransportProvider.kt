@@ -14,21 +14,22 @@
 package me.ahoo.wow.kafka
 
 import kotlinx.coroutines.withTimeout
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.transport.TopicTransport
+import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * The Kafka transport, type `kafka`: available once `bootstrap-servers` is set.
- * Its settings, relative to its configuration (`wow.kafka.*`):
+ * Its settings, relative to its configuration (`wow.kafka.*`), are its [options]:
  *
- * - `bootstrap-servers`, `properties.*` (passed to every client as they are), `poll-timeout`, and
- *   `topics.partition-refresh` (the clients' metadata age): [KafkaOptions];
+ * - `bootstrap-servers`, `properties.*` (passed to every client as they are) and `poll-timeout`, with the topic
+ *   transports' `topics.partition-refresh` as the clients' metadata age: [KafkaOptions];
  * - `offset-gap`: what a read does with an offset its partition no longer holds ([OffsetGapPolicy], `fail` by default);
  * - `topics.replication-factor`, `topics.min-insync-replicas` and `topics.configs.*`: what the topics it creates get.
  *
@@ -41,6 +42,16 @@ class KafkaTransportProvider : TransportProvider {
     override val type: String = TYPE
 
     override val requirement: String = "bootstrap-servers, the Kafka brokers"
+
+    override val options: List<ProviderOption<*>> = listOf(
+        BOOTSTRAP_SERVERS,
+        PROPERTIES,
+        POLL_TIMEOUT,
+        OFFSET_GAP,
+        REPLICATION_FACTOR,
+        MIN_INSYNC_REPLICAS,
+        TOPIC_CONFIGS,
+    )
 
     override fun available(config: TransportConfig): Boolean = config.option(BOOTSTRAP_SERVERS) != null
 
@@ -142,8 +153,67 @@ class KafkaTransportProvider : TransportProvider {
         /** The type of the Kafka transport. */
         const val TYPE: String = "kafka"
 
-        private const val BOOTSTRAP_SERVERS = "bootstrap-servers"
-        private const val TOPICS = "topics"
+        /** The brokers, `host:port` separated by commas. */
+        @JvmField
+        val BOOTSTRAP_SERVERS: ProviderOption<String> = ProviderOption.string(
+            "bootstrap-servers",
+            "the Kafka brokers, host:port separated by commas; the transport, the transport sink and the " +
+                "topic-sourced subscriptions are wired only when it is set. Unset, spring.kafka.bootstrap-servers " +
+                "when the application sets that.",
+        )
+
+        /** What every producer and consumer is given as it is. */
+        @JvmField
+        val PROPERTIES: ProviderOption<Map<String, String>> = ProviderOption.map(
+            "properties",
+            "passed to every producer and consumer as they are (security.protocol, client.id, linger.ms, ...), except " +
+                "the settings the transport's guarantees rest on.",
+        )
+
+        /** The longest a consumer's poll waits. */
+        @JvmField
+        val POLL_TIMEOUT: ProviderOption.Defaulted<Duration> = ProviderOption.duration(
+            "poll-timeout",
+            "the longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a " +
+                "topic's shared consumer, take effect within it.",
+            KafkaOptions.DEFAULT_POLL_TIMEOUT,
+        )
+
+        /** What a read does with an offset its partition no longer holds. */
+        @JvmField
+        val OFFSET_GAP: ProviderOption.Defaulted<String> = ProviderOption.string(
+            "offset-gap",
+            "what a read of another context's topic does when its partition no longer holds the offset to read from " +
+                "(the retention deleted it, or the topic was created again): fail fails the read, so the " +
+                "subscription stays where it is; earliest reads on from the earliest offset retained, and the " +
+                "skipped range is lost to that subscription. Either way the gap is logged as an error and counted " +
+                "(wow.kafka.offset.gaps).",
+            "fail",
+        )
+
+        /** The replication factor of the topics it creates. */
+        @JvmField
+        val REPLICATION_FACTOR: ProviderOption<Int> = ProviderOption.int(
+            "topics.replication-factor",
+            "the replication factor auto creates a topic with; the broker's default when not set. A command " +
+                "accepted on a command topic is durable only when it and the minimum in-sync replicas are both at " +
+                "least 2.",
+        )
+
+        /** The `min.insync.replicas` of the topics it creates. */
+        @JvmField
+        val MIN_INSYNC_REPLICAS: ProviderOption<Int> = ProviderOption.int(
+            "topics.min-insync-replicas",
+            "the min.insync.replicas auto creates a topic with; the broker's default when not set.",
+        )
+
+        /** Other configs of the topics it creates. */
+        @JvmField
+        val TOPIC_CONFIGS: ProviderOption<Map<String, String>> = ProviderOption.map(
+            "topics.configs",
+            "other topic configs auto creates a topic with, such as retention.ms.",
+        )
+
         private const val MIN_INSYNC = "min.insync.replicas"
         private val CHECK_TIMEOUT: Duration = 10.seconds
 
@@ -153,21 +223,27 @@ class KafkaTransportProvider : TransportProvider {
         /** The clients' options of [config]. */
         fun options(config: TransportConfig): KafkaOptions = KafkaOptions(
             bootstrapServers = requireNotNull(config.option(BOOTSTRAP_SERVERS)) {
-                "${config.key}.$BOOTSTRAP_SERVERS is not set: set it to the Kafka brokers, host:port, separated by commas."
+                "${config.key}.${BOOTSTRAP_SERVERS.key} is not set: set it to the Kafka brokers, host:port, " +
+                    "separated by commas."
             },
-            properties = config.options("properties"),
-            pollTimeout = duration(config, "poll-timeout") ?: KafkaOptions.DEFAULT_POLL_TIMEOUT,
-            metadataMaxAge = duration(config, "$TOPICS.partition-refresh") ?: KafkaOptions.DEFAULT_METADATA_MAX_AGE,
+            properties = config.options(PROPERTIES),
+            pollTimeout = config.option(POLL_TIMEOUT),
+            metadataMaxAge = config.option(TopicTransportOptions.PARTITION_REFRESH),
         )
 
         /** The replication factor the topics are created with; the broker's when not set. */
         internal fun replicationFactor(config: TransportConfig): Short? =
-            config.option("$TOPICS.replication-factor")?.toShort()
+            config.option(REPLICATION_FACTOR)?.let { factor ->
+                require(factor in 1..Short.MAX_VALUE) {
+                    "${config.key}.${REPLICATION_FACTOR.key} is $factor: set it to a replica count, 1 or more."
+                }
+                factor.toShort()
+            }
 
         /** The topic settings the topics are created with: `topics.configs.*`, and `topics.min-insync-replicas`. */
         internal fun creationConfigs(config: TransportConfig): Map<String, String> = buildMap {
-            putAll(config.options("$TOPICS.configs"))
-            config.option("$TOPICS.min-insync-replicas")?.let { put(MIN_INSYNC, it.toInt().toString()) }
+            putAll(config.options(TOPIC_CONFIGS))
+            config.option(MIN_INSYNC_REPLICAS)?.let { put(MIN_INSYNC, it.toString()) }
         }
 
         /** The durability check of [config]'s topics. */
@@ -181,16 +257,10 @@ class KafkaTransportProvider : TransportProvider {
         }
 
         internal fun offsetGap(config: TransportConfig): OffsetGapPolicy {
-            val text = config.option("offset-gap") ?: return OffsetGapPolicy.FAIL
+            val text = config.option(OFFSET_GAP)
             return requireNotNull(OffsetGapPolicy.entries.firstOrNull { it.name.equals(text, ignoreCase = true) }) {
-                "${config.key}.offset-gap is $text: set it to fail or earliest."
+                "${config.key}.${OFFSET_GAP.key} is $text: set it to fail or earliest."
             }
-        }
-
-        /** A duration setting: `200ms`, `10s`, ISO-8601 (`PT0.2S`), or a number of milliseconds. */
-        private fun duration(config: TransportConfig, name: String): Duration? {
-            val text = config.option(name)?.trim() ?: return null
-            return text.toLongOrNull()?.milliseconds ?: Duration.parse(text)
         }
     }
 }

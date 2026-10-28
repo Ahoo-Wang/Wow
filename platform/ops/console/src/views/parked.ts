@@ -186,19 +186,19 @@ const t = textKeys("parked", PARKED_WORDS.en);
 /** The statuses that wait on an operator: no automatic retry is coming. */
 export const ATTENTION: FilterNode = {
   field: "state.status",
-  operator: "IN",
+  operator: "in",
   value: ["exhausted", "unrecoverable"],
 };
 
 /** Still parked: every status but resolved, the 9.x dashboard's "active". */
 export const ACTIVE: FilterNode = {
   field: "state.status",
-  operator: "IN",
+  operator: "in",
   value: ["scheduled", "exhausted", "unrecoverable"],
 };
 
 export function status(...values: ParkedStatus[]): FilterNode {
-  return { field: "state.status", operator: "IN", value: values };
+  return { field: "state.status", operator: "in", value: values };
 }
 
 const COLUMNS = [
@@ -224,7 +224,7 @@ export function recordView(
     // The entries change as the services publish them: the open view reads
     // them again on its own, as the 9.x dashboard's queues did.
     refresh: { interval: REFRESH_SECONDS },
-    sort: [{ field: "state.failedAt", direction: "DESC" }],
+    sort: [{ field: "state.failedAt", direction: "desc" }],
     pageSize: 20,
     layout: "table",
     summaries: [],
@@ -254,8 +254,8 @@ export function analysisView(
     filter: { op: "and", children: filter },
     filterMode: "simple",
     refresh: { interval: null },
-    metrics: [{ alias: "count", type: "COUNT" }],
-    sort: [{ alias: "count", direction: "DESC" }],
+    metrics: [{ alias: "count", type: "count" }],
+    sort: [{ alias: "count", direction: "desc" }],
     limit: 20,
     layout: "table",
     table: { columns: [] },
@@ -288,17 +288,21 @@ export const CLUSTER_GROUPS: AnalysisViewConfig["groups"] = [
 
 /** A cluster's parked entries, and when the first and the last of them failed. */
 export function clusterMetrics(): AnalysisViewConfig["metrics"] {
-  const failedAt = (alias: string, label: Text, fn: "MIN" | "MAX") => ({
-    type: "NUMERIC" as const,
+  const failedAt = (
+    alias: string,
+    label: Text,
+    fn: AggregationFunction.MIN | AggregationFunction.MAX,
+  ) => ({
+    type: "numeric" as const,
     alias,
     label,
     function: fn,
-    expression: { type: "FIELD" as const, field: "state.failedAt" },
+    expression: { type: "field" as const, field: "state.failedAt" },
   });
   return [
-    { type: "COUNT", alias: "count", label: t.clusterCount },
-    failedAt("oldest", t.clusterOldest, "MIN"),
-    failedAt("latest", t.clusterLatest, "MAX"),
+    { type: "count", alias: "count", label: t.clusterCount },
+    failedAt("oldest", t.clusterOldest, AggregationFunction.MIN),
+    failedAt("latest", t.clusterLatest, AggregationFunction.MAX),
   ];
 }
 
@@ -357,7 +361,7 @@ const TREND: readonly [ParkedStatus, Text][] = [
  */
 export function overTime(): AnalysisViewConfig {
   const [first, ...rest] = TREND.map(([value, label]): AnalysisMetric => ({
-    type: "COUNT",
+    type: "count",
     alias: value.toLowerCase(),
     label,
     filter: { op: "and", children: [status(value)] },
@@ -369,11 +373,11 @@ export function overTime(): AnalysisViewConfig {
           type: AggregationGroupType.DATE_HISTOGRAM,
           field: "state.failedAt",
           alias: "day",
-          unit: "DAY",
+          unit: "day",
         },
       ],
       metrics: [first, ...rest],
-      sort: [{ alias: "day", direction: "ASC" }],
+      sort: [{ alias: "day", direction: "asc" }],
       limit: 366,
       layout: "chart",
       chart: {
@@ -404,8 +408,8 @@ function byContext(): AnalysisViewConfig {
         alias: "context",
       },
     ],
-    metrics: [{ alias: "count", type: "COUNT" }],
-    sort: [{ alias: "count", direction: "DESC" }],
+    metrics: [{ alias: "count", type: "count" }],
+    sort: [{ alias: "count", direction: "desc" }],
     limit: 20,
     layout: "table",
     table: { columns: [] },
@@ -428,7 +432,7 @@ export function parkedViews(): SystemView[] {
       id: "scheduled",
       title: t.viewScheduled,
       config: recordView([status("scheduled")], {
-        sort: [{ field: "state.nextRetryAt", direction: "ASC" }],
+        sort: [{ field: "state.nextRetryAt", direction: "asc" }],
       }),
     },
     {
@@ -440,7 +444,7 @@ export function parkedViews(): SystemView[] {
       id: "resolved",
       title: t.viewResolved,
       config: recordView([status("resolved")], {
-        sort: [{ field: "state.resolvedAt", direction: "DESC" }],
+        sort: [{ field: "state.resolvedAt", direction: "desc" }],
       }),
     },
     { id: "active", title: t.viewActive, config: recordView([ACTIVE]) },

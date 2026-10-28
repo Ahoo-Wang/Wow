@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator, AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
@@ -29,6 +30,7 @@ import {
 } from '../src/index.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import { firstPageOf } from '../src/runtime/execute.js';
 import {
   analysisConfig,
@@ -40,6 +42,7 @@ import {
   NOW,
   ROWS,
   testEnvironment,
+  testLabels,
   testSource,
   type TestEnvironment,
 } from './fixtures.js';
@@ -75,8 +78,9 @@ function harness(
     kinds: builtinFieldKinds,
     limits: options.limits ?? DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source,
+    source: recordSource(source),
     runner: options.runner ?? new RequestRunner(),
+    labels: testLabels(),
     scopeFilter: options.scopeFilter,
   }) as RecordDataViewRuntime;
   return { runtime, source, clock };
@@ -118,7 +122,11 @@ describe('DataViewRuntime state', () => {
 
   it('does not count a condition with no value yet as an edit (R2-100)', () => {
     const { runtime } = harness({ saved: savedInstance });
-    const blank = { field: 'warehouse', operator: 'EQ', value: '' } as const;
+    const blank = {
+      field: 'warehouse',
+      operator: FilterOperator.EQ,
+      value: '',
+    } as const;
 
     // Added and not filled in, alone or in a group of its own: it asks
     // nothing, so the view is as saved.
@@ -194,7 +202,7 @@ describe('DataViewRuntime execution', () => {
     runtime.apply();
     await nextTask();
     clock.advance(400);
-    answer({ total: 0, list: [] });
+    answer({ total: 0, exact: true, list: [] });
     await nextTask();
 
     expect(runtime.getSnapshot().result?.elapsedMs).toBe(400);
@@ -214,8 +222,7 @@ describe('DataViewRuntime execution', () => {
     expect(recordData(runtime).view.rows).toHaveLength(2);
     expect(source.paged).toHaveBeenCalledWith(
       expect.objectContaining({ pagination: { index: 1, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -230,8 +237,7 @@ describe('DataViewRuntime execution', () => {
 
     expect(source.cursor).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: null }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(recordData(runtime).view.paging).toEqual({
       mode: 'cursor',
@@ -242,7 +248,9 @@ describe('DataViewRuntime execution', () => {
 
   it('runs the summary aggregation alongside the page', async () => {
     const { runtime, source } = harness({
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
     });
 
     runtime.apply();
@@ -260,7 +268,9 @@ describe('DataViewRuntime execution', () => {
       aggregate: vi.fn(() => Promise.reject(new Error('offline'))),
     });
     const { runtime } = harness({
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
       source,
     });
 
@@ -397,16 +407,16 @@ describe('DataViewRuntime execution', () => {
   });
 
   it('drops the response of a request a newer one replaced', async () => {
-    const first = deferred<{ total: number; list: typeof ROWS }>();
+    const first = deferred<PagedResult<object>>();
     const paged = vi
       .fn()
       .mockReturnValueOnce(first.promise)
-      .mockResolvedValue({ total: 1, list: [ROWS[0]] });
+      .mockResolvedValue({ total: 1, exact: true, list: [ROWS[0]] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
     runtime.refresh();
-    first.resolve({ total: 2, list: [...ROWS] });
+    first.resolve({ total: 2, exact: true, list: [...ROWS] });
     await nextTask();
 
     expect(runtime.getSnapshot().query.status).toBe('success');
@@ -426,8 +436,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(source.paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(runtime.getSnapshot().selection).toEqual([]);
     expect(recordData(runtime).view.paging).toMatchObject({
@@ -461,7 +470,9 @@ describe('DataViewRuntime paging and selection', () => {
    * through page by page.
    */
   it('reads the page it is on again on refresh', async () => {
-    const paged = vi.fn().mockResolvedValue({ total: 45, list: [...ROWS] });
+    const paged = vi
+      .fn()
+      .mockResolvedValue({ total: 45, exact: true, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -473,19 +484,18 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
   it('steps back to the last page there is when the result shrank under it', async () => {
     const paged = vi
       .fn()
-      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
-      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 45, exact: true, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 45, exact: true, list: [...ROWS] })
       // The rows of page 3 left the result: 30 remain, two pages.
-      .mockResolvedValueOnce({ total: 30, list: [] })
-      .mockResolvedValueOnce({ total: 30, list: [...ROWS] });
+      .mockResolvedValueOnce({ total: 30, exact: true, list: [] })
+      .mockResolvedValueOnce({ total: 30, exact: true, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -497,8 +507,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 2, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     const { result, query } = runtime.getSnapshot();
     expect(query.status).toBe('success');
@@ -510,8 +519,8 @@ describe('DataViewRuntime paging and selection', () => {
   it('intersects the selection with the rows a refresh returned', async () => {
     const paged = vi
       .fn()
-      .mockResolvedValueOnce({ total: 2, list: [...ROWS] })
-      .mockResolvedValueOnce({ total: 1, list: [ROWS[1]] });
+      .mockResolvedValueOnce({ total: 2, exact: true, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 1, exact: true, list: [ROWS[1]] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -573,7 +582,7 @@ describe('DataViewRuntime scope filter', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('down'))
-          : Promise.resolve({ total: 0, list: [] }),
+          : Promise.resolve({ total: 0, exact: true, list: [] }),
       ),
     });
     const { runtime } = harness({ source });
@@ -843,11 +852,17 @@ describe('DataViewRuntime admission', () => {
   it('leaves a root that is not a group to admission, scope or not', () => {
     const { runtime } = harness({
       config: recordConfig({
-        filter: { field: 'warehouse', operator: 'EQ', value: 'CN' } as never,
+        filter: {
+          field: 'warehouse',
+          operator: FilterOperator.EQ,
+          value: 'CN',
+        } as never,
       }),
       scopeFilter: {
         op: 'and',
-        children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+        children: [
+          { field: 'status', operator: FilterOperator.EQ, value: 'open' },
+        ],
       },
     });
 
@@ -865,14 +880,16 @@ describe('DataViewRuntime admission', () => {
         filter: {
           op: 'or',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
-            { field: 'warehouse', operator: 'EQ', value: 'EU' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'EU' },
           ],
         },
       }),
       scopeFilter: {
         op: 'and',
-        children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+        children: [
+          { field: 'status', operator: FilterOperator.EQ, value: 'open' },
+        ],
       },
     });
 
@@ -1076,7 +1093,7 @@ describe('DataViewRuntime auto refresh', () => {
   });
 
   it('holds the timer while a request is still in flight', () => {
-    const gate = deferred<{ total: number; list: typeof ROWS }>();
+    const gate = deferred<PagedResult<object>>();
     const { runtime, clock } = harness({
       config: refreshing,
       source: testSource({ paged: vi.fn(() => gate.promise) }),
@@ -1165,7 +1182,7 @@ describe('DataViewRuntime auto refresh', () => {
    * only known once it lands.
    */
   it('has nothing due while the timer is held, and again once it is armed', async () => {
-    const gate = deferred<{ total: number; list: typeof ROWS }>();
+    const gate = deferred<PagedResult<object>>();
     const paged = vi.fn(() => gate.promise);
     const { runtime, clock } = harness({
       config: refreshing,
@@ -1175,7 +1192,7 @@ describe('DataViewRuntime auto refresh', () => {
     runtime.apply();
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
 
-    gate.resolve({ total: ROWS.length, list: ROWS });
+    gate.resolve({ total: ROWS.length, exact: true, list: ROWS });
     await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
 

@@ -44,6 +44,20 @@ import {
   tradeOrderDefinition,
   waybillDefinition,
 } from './definitions.js';
+import {
+  AggregationDatePart,
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  DerivedExpressionType,
+  FilterOperator,
+  HavingExpressionType,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 // ---------------------------------------------------------------- 定义的 id
 
@@ -72,7 +86,7 @@ function leaf(
 }
 
 function preset(field: string, name: string): FilterLeaf {
-  return leaf(field, 'BETWEEN', { type: 'preset', preset: name });
+  return leaf(field, FilterOperator.BETWEEN, { type: 'preset', preset: name });
 }
 
 /** 从「现在」往前数的一段：`近 3 个月`。 */
@@ -81,12 +95,16 @@ function recent(
   amount: number,
   unit: 'day' | 'month',
 ): FilterLeaf {
-  return leaf(field, 'BETWEEN', { type: 'relative', amount, unit });
+  return leaf(field, FilterOperator.BETWEEN, {
+    type: 'relative',
+    amount,
+    unit,
+  });
 }
 
 /** 上海时间的一段日历日，两头都含：`2025-10-15`～`2025-11-20`。 */
 function days(field: string, from: string, to: string): FilterLeaf {
-  return leaf(field, 'BETWEEN', {
+  return leaf(field, FilterOperator.BETWEEN, {
     type: 'absolute',
     from: `${from}T00:00:00+08:00`,
     to: `${to}T23:59:59.999+08:00`,
@@ -95,14 +113,14 @@ function days(field: string, from: string, to: string): FilterLeaf {
 
 // ---------------------------------------------------------------- 指标
 
-const SUM = 'SUM';
+const SUM = AggregationFunction.SUM;
 
 function sum(alias: string, field: string, label: string, filter?: FilterTree) {
   return {
     alias,
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     function: SUM,
-    expression: { type: 'FIELD', field },
+    expression: { type: AggregationExpressionType.FIELD, field },
     label,
     ...(filter ? { filter } : {}),
   } as const satisfies AnalysisMetric;
@@ -111,7 +129,7 @@ function sum(alias: string, field: string, label: string, filter?: FilterTree) {
 function count(alias: string, label: string, filter?: FilterTree) {
   return {
     alias,
-    type: 'COUNT',
+    type: AggregationMetricType.COUNT,
     label,
     ...(filter ? { filter } : {}),
   } as const satisfies AnalysisMetric;
@@ -127,13 +145,13 @@ function ratio(
 ): AnalysisMetric {
   return {
     alias,
-    type: 'DERIVED',
+    type: AggregationMetricType.DERIVED,
     label,
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE',
-      left: { type: 'METRIC_REF', metric: over },
-      right: { type: 'METRIC_REF', metric: under },
+      type: DerivedExpressionType.BINARY,
+      operator: AggregationExpressionOperator.DIVIDE,
+      left: { type: DerivedExpressionType.METRIC_REF, metric: over },
+      right: { type: DerivedExpressionType.METRIC_REF, metric: under },
     },
     format,
   };
@@ -150,27 +168,32 @@ const aov = ratio('aov', '客单价', 'gmv', 'orders', { style: 'currency' });
 // ---------------------------------------------------------------- 维度
 
 function byTerms(field: string, alias: string, label?: string): AnalysisGroup {
-  return { type: 'TERMS', field, alias, ...(label ? { label } : {}) };
+  return {
+    type: AggregationGroupType.TERMS,
+    field,
+    alias,
+    ...(label ? { label } : {}),
+  };
 }
 
 /** 按下单时间的一个日期部件分组：星期几、几点。 */
 function byPart(
   field: string,
   alias: string,
-  part: 'DAY_OF_WEEK' | 'HOUR_OF_DAY',
+  part: `${AggregationDatePart.DAY_OF_WEEK | AggregationDatePart.HOUR_OF_DAY}`,
 ): AnalysisGroup {
-  return { type: 'DATE_PART', field, alias, part };
+  return { type: AggregationGroupType.DATE_PART, field, alias, part };
 }
 
 function byDate(
   field: string,
   alias: string,
-  unit: 'DAY' | 'WEEK' | 'MONTH',
+  unit: `${AggregationDateUnit.DAY | AggregationDateUnit.WEEK | AggregationDateUnit.MONTH}`,
   label: string,
   dense = false,
 ): AnalysisGroup {
   return {
-    type: 'DATE_HISTOGRAM',
+    type: AggregationGroupType.DATE_HISTOGRAM,
     field,
     alias,
     unit,
@@ -233,13 +256,13 @@ function orderRecords(
     filter,
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     // 本页与全部两行：实付合计，和这批单最早、最晚的下单时间。
     summaries: [
-      { field: 'state.amounts.paidAmount', fn: 'SUM' },
-      { field: 'firstEventTime', fn: 'MIN' },
+      { field: 'state.amounts.paidAmount', fn: AggregationFunction.SUM },
+      { field: 'firstEventTime', fn: AggregationFunction.MIN },
     ],
     table: {
       columns: ORDER_COLUMNS.map(field =>
@@ -275,15 +298,20 @@ export const ORDER_SYSTEM_VIEWS: SystemView[] = [
     title: '发货超时',
     config: orderRecords(
       and(
-        leaf('state.status', 'IN', ['PAID', 'PARTIALLY_SHIPPED']),
-        leaf('state.shipSlaBreached', 'EQ', true),
-        { op: 'nor', children: [leaf('state.tags', 'IN', ['PRESALE'])] },
+        leaf('state.status', FilterOperator.IN, ['PAID', 'PARTIALLY_SHIPPED']),
+        leaf('state.shipSlaBreached', FilterOperator.EQ, true),
+        {
+          op: 'nor',
+          children: [leaf('state.tags', FilterOperator.IN, ['PRESALE'])],
+        },
       ),
       {
         filterMode: 'advanced',
         refresh: { interval: 30 },
-        sort: [{ field: 'state.timing.paidAt', direction: 'ASC' }],
-        summaries: [{ field: 'state.amounts.paidAmount', fn: 'SUM' }],
+        sort: [{ field: 'state.timing.paidAt', direction: SortDirection.ASC }],
+        summaries: [
+          { field: 'state.amounts.paidAmount', fn: AggregationFunction.SUM },
+        ],
         table: {
           columns: [
             { field: 'state.orderNo', pinned: true },
@@ -315,7 +343,7 @@ export const ORDER_SYSTEM_VIEWS: SystemView[] = [
     id: 'gift-urgent',
     title: '礼品加急',
     config: orderRecords(
-      and(leaf('state.tags', 'CONTAINS_ALL', ['GIFT', 'URGENT'])),
+      and(leaf('state.tags', FilterOperator.CONTAINS_ALL, ['GIFT', 'URGENT'])),
       {
         table: {
           columns: [
@@ -334,12 +362,18 @@ export const ORDER_SYSTEM_VIEWS: SystemView[] = [
   {
     id: 'closed',
     title: '全额退款关闭',
-    config: orderRecords(and(leaf('state.status', 'IN', ['CLOSED'])), {
-      summaries: [
-        { field: 'state.amounts.paidAmount', fn: 'SUM' },
-        { field: 'state.amounts.refundedAmount', fn: 'SUM' },
-      ],
-    }),
+    config: orderRecords(
+      and(leaf('state.status', FilterOperator.IN, ['CLOSED'])),
+      {
+        summaries: [
+          { field: 'state.amounts.paidAmount', fn: AggregationFunction.SUM },
+          {
+            field: 'state.amounts.refundedAmount',
+            fn: AggregationFunction.SUM,
+          },
+        ],
+      },
+    ),
   },
 ];
 
@@ -350,7 +384,7 @@ export const ORDER_WORKBENCH_VIEWS: ViewInstance[] = [
     RETAIL_ORDERS,
     'orders-address-change',
     '留言提到改地址',
-    orderRecords(and(leaf('keyword', 'SEARCH', '改地址'))),
+    orderRecords(and(leaf('keyword', FilterOperator.SEARCH, '改地址'))),
   ),
   // 品控组共享：近 3 个月卖出过竹纤维浴巾 70×140 · 米白、而且这一行退过款的
   // 单——商品行上的元素匹配（同一行同时满足两个条件）。分析工作台「退款率最高
@@ -362,23 +396,30 @@ export const ORDER_WORKBENCH_VIEWS: ViewInstance[] = [
     '浴巾退款单（近 3 个月）',
     orderRecords(
       and(
-        leaf('state.items', 'ELEMENT_MATCH', {
+        leaf('state.items', FilterOperator.ELEMENT_MATCH, {
           op: 'and',
           children: [
             {
               field: 'state.items.title',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: BATH_TOWEL_TITLE,
             },
-            { field: 'state.items.refundedAmount', operator: 'GT', value: 0 },
+            {
+              field: 'state.items.refundedAmount',
+              operator: FilterOperator.GT,
+              value: 0,
+            },
           ],
         }),
         recent('firstEventTime', 3, 'month'),
       ),
       {
         summaries: [
-          { field: 'state.amounts.paidAmount', fn: 'SUM' },
-          { field: 'state.amounts.refundedAmount', fn: 'SUM' },
+          { field: 'state.amounts.paidAmount', fn: AggregationFunction.SUM },
+          {
+            field: 'state.amounts.refundedAmount',
+            fn: AggregationFunction.SUM,
+          },
         ],
       },
     ),
@@ -390,7 +431,7 @@ export const ORDER_WORKBENCH_VIEWS: ViewInstance[] = [
     '我跟的大客户',
     orderRecords(
       and(
-        leaf('state.buyer.id', 'IN', {
+        leaf('state.buyer.id', FilterOperator.IN, {
           items: [{ id: 'M100002', label: '欧阳*（黑卡 · 南昌市 · M100002）' }],
         }),
       ),
@@ -413,7 +454,7 @@ const THIS_MONTH = and(preset('firstEventTime', 'monthToDate'));
 const SAME_PERIOD_LAST_MONTH = and(preset('firstEventTime', 'lastMonthToDate'));
 
 /** 已付款的单：退款率、超时率这些「按实付算」的口径只数它们。 */
-const PAID_ONLY = leaf('state.timing.paidAt', 'IS_NOT_NULL', null);
+const PAID_ONLY = leaf('state.timing.paidAt', FilterOperator.IS_NOT_NULL, null);
 
 export const ANALYSIS_VIEWS: ViewInstance[] = [
   // A-01：本月 GMV 较上月同期。指标卡，对比写百分比。
@@ -450,9 +491,12 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         orders(),
         {
           alias: 'buyers',
-          type: 'DISTINCT_COUNT',
+          type: AggregationMetricType.DISTINCT_COUNT,
           label: '买家数',
-          expression: { type: 'FIELD', field: 'state.buyer.id' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'state.buyer.id',
+          },
         },
         aov,
       ],
@@ -469,9 +513,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '客单价（按日，较前一日）',
     analysis({
       filter: and(recent('firstEventTime', 30, 'day')),
-      groups: [byDate('firstEventTime', 'day', 'DAY', '日期')],
+      groups: [
+        byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期'),
+      ],
       metrics: [gmv(), orders(), aov],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       limit: 62,
       chart: {
         type: 'metric',
@@ -488,11 +534,16 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     analysis({
       // 截至昨日：今天才过了 10 个小时，放进来就是最后一个「最低点」。
       filter: and(
-        leaf('firstEventTime', 'LTE', { type: 'preset', preset: 'yesterday' }),
+        leaf('firstEventTime', FilterOperator.LTE, {
+          type: 'preset',
+          preset: 'yesterday',
+        }),
       ),
-      groups: [byDate('firstEventTime', 'day', 'DAY', '日期', true)],
+      groups: [
+        byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期', true),
+      ],
       metrics: [gmv()],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       limit: 1000,
       chart: {
         type: 'line',
@@ -520,9 +571,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     'a02-monthly-gmv-aov',
     '月 GMV 与客单价',
     analysis({
-      groups: [byDate('firstEventTime', 'month', 'MONTH', '月份')],
+      groups: [
+        byDate('firstEventTime', 'month', AggregationDateUnit.MONTH, '月份'),
+      ],
       metrics: [gmv(), orders(), aov],
-      sort: [{ alias: 'month', direction: 'ASC' }],
+      sort: [{ alias: 'month', direction: SortDirection.ASC }],
       chart: {
         type: 'combo',
         cartesian: {
@@ -551,17 +604,20 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         sum('gmvLast', GMV, '上月同期', SAME_PERIOD_LAST_MONTH),
         {
           alias: 'delta',
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           label: 'GMV 变化',
           expression: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
-            left: { type: 'METRIC_REF', metric: 'gmv' },
-            right: { type: 'METRIC_REF', metric: 'gmvLast' },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'gmv' },
+            right: {
+              type: DerivedExpressionType.METRIC_REF,
+              metric: 'gmvLast',
+            },
           },
         },
       ],
-      sort: [{ alias: 'delta', direction: 'DESC' }],
+      sort: [{ alias: 'delta', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -584,18 +640,18 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       metrics: [
         {
           alias: 'net',
-          type: 'NUMERIC',
-          function: 'SUM',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
           label: '净销售额',
           expression: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
-            left: { type: 'FIELD', field: PAID },
-            right: { type: 'FIELD', field: REFUNDED },
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
+            left: { type: AggregationExpressionType.FIELD, field: PAID },
+            right: { type: AggregationExpressionType.FIELD, field: REFUNDED },
           },
         },
       ],
-      sort: [{ alias: 'net', direction: 'DESC' }],
+      sort: [{ alias: 'net', direction: SortDirection.DESC }],
       chart: {
         type: 'waterfall',
         waterfall: { x: 'channel', value: 'net', total: true },
@@ -615,7 +671,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         byTerms('state.items.category2', 'category2'),
       ],
       metrics: [sum('paid', 'state.items.payAmount', '实付')],
-      sort: [{ alias: 'paid', direction: 'DESC' }],
+      sort: [{ alias: 'paid', direction: SortDirection.DESC }],
       chart: {
         type: 'treemap',
         treemap: { parent: 'category1', category: 'category2', value: 'paid' },
@@ -629,11 +685,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '渠道结构（按月 GMV 占比）',
     analysis({
       groups: [
-        byDate('firstEventTime', 'month', 'MONTH', '月份'),
+        byDate('firstEventTime', 'month', AggregationDateUnit.MONTH, '月份'),
         byTerms('state.channel', 'channel'),
       ],
       metrics: [gmv()],
-      sort: [{ alias: 'month', direction: 'ASC' }],
+      sort: [{ alias: 'month', direction: SortDirection.ASC }],
       limit: 1000,
       chart: {
         type: 'bar',
@@ -656,7 +712,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     analysis({
       groups: [byTerms('state.address.province', 'province')],
       metrics: [gmv()],
-      sort: [{ alias: 'gmv', direction: 'DESC' }],
+      sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
       limit: 15,
       chart: {
         type: 'bar',
@@ -684,7 +740,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         byTerms('state.channel', 'channel'),
       ],
       metrics: [orders()],
-      sort: [{ alias: 'orders', direction: 'DESC' }],
+      sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       chart: {
         type: 'heatmap',
         heatmap: { x: 'channel', y: 'tier', value: 'orders', scale: 'log' },
@@ -709,8 +765,13 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         sum('refunded', 'state.items.refundedAmount', '已退'),
         ratio('refundRate', '退款率', 'refunded', 'paid'),
       ],
-      having: { type: 'CONDITION', metric: 'qty', operator: 'GTE', value: 30 },
-      sort: [{ alias: 'refundRate', direction: 'DESC' }],
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric: 'qty',
+        operator: ComparisonOperator.GTE,
+        value: 30,
+      },
+      sort: [{ alias: 'refundRate', direction: SortDirection.DESC }],
       limit: 10,
       chart: {
         type: 'bar',
@@ -736,25 +797,28 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       metrics: [
         {
           alias: 'nick',
-          type: 'ANY',
+          type: AggregationMetricType.ANY,
           field: 'state.buyer.nick',
           label: '昵称',
         },
         {
           alias: 'level',
-          type: 'ANY',
+          type: AggregationMetricType.ANY,
           field: 'state.buyer.level',
           label: '会员等级',
         },
         sum('paid', PAID, '实付'),
         {
           alias: 'checkouts',
-          type: 'DISTINCT_COUNT',
+          type: AggregationMetricType.DISTINCT_COUNT,
           label: '下单次数',
-          expression: { type: 'FIELD', field: 'state.parentOrderNo' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'state.parentOrderNo',
+          },
         },
       ],
-      sort: [{ alias: 'paid', direction: 'DESC' }],
+      sort: [{ alias: 'paid', direction: SortDirection.DESC }],
       limit: 20,
       layout: 'table',
       table: { columns: [], totals: true },
@@ -776,7 +840,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       elements: [{ path: 'state.items' }],
       groups: [byTerms('state.items.title', 'title', '商品')],
       metrics: [sum('qty', 'state.items.qty', '件数')],
-      sort: [{ alias: 'qty', direction: 'DESC' }],
+      sort: [{ alias: 'qty', direction: SortDirection.DESC }],
       limit: 500,
       chart: {
         type: 'bar',
@@ -807,17 +871,19 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         count(
           'shipped',
           '发货',
-          and(leaf('state.timing.shippedAt', 'IS_NOT_NULL', null)),
+          and(leaf('state.timing.shippedAt', FilterOperator.IS_NOT_NULL, null)),
         ),
         count(
           'signed',
           '签收',
-          and(leaf('state.timing.signedAt', 'IS_NOT_NULL', null)),
+          and(leaf('state.timing.signedAt', FilterOperator.IS_NOT_NULL, null)),
         ),
         count(
           'completed',
           '交易完成',
-          and(leaf('state.timing.completedAt', 'IS_NOT_NULL', null)),
+          and(
+            leaf('state.timing.completedAt', FilterOperator.IS_NOT_NULL, null),
+          ),
         ),
       ],
       chart: {
@@ -845,13 +911,13 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '下单时段热力（星期 × 时段）',
     analysis({
       groups: [
-        byPart('firstEventTime', 'hour', 'HOUR_OF_DAY'),
-        byPart('firstEventTime', 'weekday', 'DAY_OF_WEEK'),
+        byPart('firstEventTime', 'hour', AggregationDatePart.HOUR_OF_DAY),
+        byPart('firstEventTime', 'weekday', AggregationDatePart.DAY_OF_WEEK),
       ],
       metrics: [orders()],
       sort: [
-        { alias: 'weekday', direction: 'ASC' },
-        { alias: 'hour', direction: 'ASC' },
+        { alias: 'weekday', direction: SortDirection.ASC },
+        { alias: 'hour', direction: SortDirection.ASC },
       ],
       limit: 1000,
       chart: {
@@ -868,7 +934,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '双 11 零点：各支付方式的超时率',
     analysis({
       filter: and(
-        leaf('firstEventTime', 'BETWEEN', {
+        leaf('firstEventTime', FilterOperator.BETWEEN, {
           type: 'absolute',
           from: '2025-11-11T00:00:00+08:00',
           to: '2025-11-11T02:00:00+08:00',
@@ -880,18 +946,20 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         count(
           'timedOut',
           '超时取消',
-          and(leaf('state.cancelReason', 'IN', ['PAYMENT_TIMEOUT'])),
+          and(
+            leaf('state.cancelReason', FilterOperator.IN, ['PAYMENT_TIMEOUT']),
+          ),
         ),
         ratio('timeoutRate', '超时率', 'timedOut', 'orders'),
       ],
       // 两小时里只有一两单的支付方式，一单超时就是 100%：只看至少 3 单的。
       having: {
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GTE',
+        operator: ComparisonOperator.GTE,
         value: 3,
       },
-      sort: [{ alias: 'timeoutRate', direction: 'DESC' }],
+      sort: [{ alias: 'timeoutRate', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: { x: 'method', series: [{ metric: 'timeoutRate' }] },
@@ -909,9 +977,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '2025 双 11 前后的日 GMV',
     analysis({
       filter: and(days('firstEventTime', '2025-10-15', '2025-11-20')),
-      groups: [byDate('firstEventTime', 'day', 'DAY', '日期', true)],
+      groups: [
+        byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期', true),
+      ],
       metrics: [gmv(), orders(), aov],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -958,24 +1028,30 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         sum('list', 'state.amounts.listAmount', '原价合计'),
         {
           alias: 'discount',
-          type: 'NUMERIC',
-          function: 'SUM',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
           label: '优惠',
           expression: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
             left: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'FIELD', field: 'state.amounts.listAmount' },
-              right: { type: 'FIELD', field: 'state.amounts.freight' },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: {
+                type: AggregationExpressionType.FIELD,
+                field: 'state.amounts.listAmount',
+              },
+              right: {
+                type: AggregationExpressionType.FIELD,
+                field: 'state.amounts.freight',
+              },
             },
-            right: { type: 'FIELD', field: GMV },
+            right: { type: AggregationExpressionType.FIELD, field: GMV },
           },
         },
         ratio('discountRate', '优惠占比', 'discount', 'list'),
       ],
-      sort: [{ alias: 'gmv', direction: 'DESC' }],
+      sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
       layout: 'table',
       // 先读结论（GMV、单数、客单价、优惠占比），算它们用的原价与优惠在后。
       table: {
@@ -998,13 +1074,25 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '每周发货超时率',
     analysis({
       filter: and(PAID_ONLY),
-      groups: [byDate('state.timing.paidAt', 'week', 'WEEK', '付款周', true)],
+      groups: [
+        byDate(
+          'state.timing.paidAt',
+          'week',
+          AggregationDateUnit.WEEK,
+          '付款周',
+          true,
+        ),
+      ],
       metrics: [
         count('paid', '已付款'),
-        count('late', '超时', and(leaf('state.shipSlaBreached', 'EQ', true))),
+        count(
+          'late',
+          '超时',
+          and(leaf('state.shipSlaBreached', FilterOperator.EQ, true)),
+        ),
         ratio('lateRate', '超时率', 'late', 'paid'),
       ],
-      sort: [{ alias: 'week', direction: 'ASC' }],
+      sort: [{ alias: 'week', direction: SortDirection.ASC }],
       limit: 200,
       chart: {
         type: 'line',
@@ -1033,20 +1121,26 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       metrics: [
         {
           alias: 'p50',
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           percentile: 50,
           label: '中位数',
-          expression: { type: 'FIELD', field: 'state.payToShipHours' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'state.payToShipHours',
+          },
         },
         {
           alias: 'p90',
-          type: 'PERCENTILE',
+          type: AggregationMetricType.PERCENTILE,
           percentile: 90,
           label: '90 分位',
-          expression: { type: 'FIELD', field: 'state.payToShipHours' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'state.payToShipHours',
+          },
         },
       ],
-      sort: [{ alias: 'p90', direction: 'DESC' }],
+      sort: [{ alias: 'p90', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -1067,28 +1161,36 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '直播间：优惠占比 × 退款率（每天一点）',
     analysis({
       filter: and(
-        leaf('state.channel', 'IN', ['LIVE']),
+        leaf('state.channel', FilterOperator.IN, ['LIVE']),
         recent('firstEventTime', 12, 'month'),
       ),
-      groups: [byDate('firstEventTime', 'day', 'DAY', '日期')],
+      groups: [
+        byDate('firstEventTime', 'day', AggregationDateUnit.DAY, '日期'),
+      ],
       metrics: [
         orders(),
         sum('list', 'state.amounts.listAmount', '原价合计'),
         {
           alias: 'discount',
-          type: 'NUMERIC',
-          function: 'SUM',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
           label: '优惠',
           expression: {
-            type: 'BINARY',
-            operator: 'SUBTRACT',
+            type: AggregationExpressionType.BINARY,
+            operator: AggregationExpressionOperator.SUBTRACT,
             left: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'FIELD', field: 'state.amounts.listAmount' },
-              right: { type: 'FIELD', field: 'state.amounts.freight' },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: {
+                type: AggregationExpressionType.FIELD,
+                field: 'state.amounts.listAmount',
+              },
+              right: {
+                type: AggregationExpressionType.FIELD,
+                field: 'state.amounts.freight',
+              },
             },
-            right: { type: 'FIELD', field: GMV },
+            right: { type: AggregationExpressionType.FIELD, field: GMV },
           },
         },
         sum('paid', PAID, '实付'),
@@ -1097,12 +1199,12 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         ratio('refundRate', '退款率', 'refunded', 'paid'),
       ],
       having: {
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GTE',
+        operator: ComparisonOperator.GTE,
         value: 8,
       },
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       limit: 400,
       chart: {
         type: 'scatter',
@@ -1123,11 +1225,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     '新客与老客的 GMV',
     analysis({
       groups: [
-        byDate('firstEventTime', 'month', 'MONTH', '月份'),
+        byDate('firstEventTime', 'month', AggregationDateUnit.MONTH, '月份'),
         byTerms('state.buyer.isNewBuyer', 'isNew'),
       ],
       metrics: [gmv()],
-      sort: [{ alias: 'month', direction: 'ASC' }],
+      sort: [{ alias: 'month', direction: SortDirection.ASC }],
       chart: {
         type: 'area',
         cartesian: {
@@ -1148,7 +1250,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       elements: [{ path: 'state.items' }],
       groups: [
         {
-          type: 'HISTOGRAM',
+          type: AggregationGroupType.HISTOGRAM,
           field: 'state.items.salePrice',
           alias: 'price',
           interval: 100,
@@ -1159,7 +1261,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         sum('qty', 'state.items.qty', '件数'),
         sum('paid', 'state.items.payAmount', '实付'),
       ],
-      sort: [{ alias: 'price', direction: 'ASC' }],
+      sort: [{ alias: 'price', direction: SortDirection.ASC }],
       chart: {
         type: 'combo',
         cartesian: {
@@ -1182,7 +1284,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       filter: and(PAID_ONLY),
       groups: [byTerms('state.payment.method', 'method')],
       metrics: [sum('paid', PAID, '实付'), orders()],
-      sort: [{ alias: 'paid', direction: 'DESC' }],
+      sort: [{ alias: 'paid', direction: SortDirection.DESC }],
       chart: {
         type: 'pie',
         pie: { category: 'method', value: 'paid', donut: true },
@@ -1200,10 +1302,10 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       filter: and(PAID_ONLY),
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'firstEventTime',
           alias: 'quarter',
-          unit: 'QUARTER',
+          unit: AggregationDateUnit.QUARTER,
           label: '季度',
           dense: true,
         },
@@ -1212,13 +1314,13 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         gmv(),
         {
           alias: 'spread',
-          type: 'NUMERIC',
-          function: 'STDDEV',
-          expression: { type: 'FIELD', field: PAID },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.STDDEV,
+          expression: { type: AggregationExpressionType.FIELD, field: PAID },
           label: '单笔实付的标准差',
         },
       ],
-      sort: [{ alias: 'quarter', direction: 'ASC' }],
+      sort: [{ alias: 'quarter', direction: SortDirection.ASC }],
       chart: {
         type: 'combo',
         cartesian: {
@@ -1246,10 +1348,10 @@ export const MEMBER_ANALYSIS_VIEWS: ViewInstance[] = [
     'a08-purchase-count',
     '购买次数分布',
     analysis({
-      filter: and(leaf('state.orderCount', 'GTE', 1)),
+      filter: and(leaf('state.orderCount', FilterOperator.GTE, 1)),
       groups: [byTerms('state.orderCount', 'times', '购买次数')],
       metrics: [count('members', '人数')],
-      sort: [{ alias: 'members', direction: 'DESC' }],
+      sort: [{ alias: 'members', direction: SortDirection.DESC }],
       limit: 1000,
       chart: {
         type: 'bar',
@@ -1270,19 +1372,30 @@ export const MEMBER_ANALYSIS_VIEWS: ViewInstance[] = [
     '按首单月的复购率',
     analysis({
       filter: and(
-        leaf('state.firstOrderAt', 'BETWEEN', {
+        leaf('state.firstOrderAt', FilterOperator.BETWEEN, {
           type: 'absolute',
           from: '2024-09-01T00:00:00+08:00',
           to: '2026-03-31T23:59:59.999+08:00',
         }),
       ),
-      groups: [byDate('state.firstOrderAt', 'month', 'MONTH', '首单月')],
+      groups: [
+        byDate(
+          'state.firstOrderAt',
+          'month',
+          AggregationDateUnit.MONTH,
+          '首单月',
+        ),
+      ],
       metrics: [
         count('members', '新客'),
-        count('repeat', '复购', and(leaf('state.orderCount', 'GTE', 2))),
+        count(
+          'repeat',
+          '复购',
+          and(leaf('state.orderCount', FilterOperator.GTE, 2)),
+        ),
         ratio('rate', '复购率', 'repeat', 'members'),
       ],
-      sort: [{ alias: 'month', direction: 'ASC' }],
+      sort: [{ alias: 'month', direction: SortDirection.ASC }],
       chart: {
         type: 'combo',
         cartesian: {
@@ -1309,12 +1422,12 @@ function afterSaleRecords(
     filter,
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'state.requestedAt', direction: 'DESC' }],
+    sort: [{ field: 'state.requestedAt', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [
-      { field: 'state.requestedAmount', fn: 'SUM' },
-      { field: 'state.refundedAmount', fn: 'SUM' },
+      { field: 'state.requestedAmount', fn: AggregationFunction.SUM },
+      { field: 'state.refundedAmount', fn: AggregationFunction.SUM },
     ],
     table: {
       columns: [
@@ -1350,8 +1463,8 @@ export const AFTER_SALE_SYSTEM_VIEWS: SystemView[] = [
     id: 'pending',
     title: '待处理',
     config: afterSaleRecords(
-      and(leaf('state.status', 'IN', ['REQUESTED', 'APPROVED'])),
-      { sort: [{ field: 'state.requestedAt', direction: 'ASC' }] },
+      and(leaf('state.status', FilterOperator.IN, ['REQUESTED', 'APPROVED'])),
+      { sort: [{ field: 'state.requestedAt', direction: SortDirection.ASC }] },
     ),
   },
   {
@@ -1365,7 +1478,7 @@ export const AFTER_SALE_SYSTEM_VIEWS: SystemView[] = [
         count('cases', '售后单'),
         sum('refunded', 'state.refundedAmount', '实退金额'),
       ],
-      sort: [{ alias: 'cases', direction: 'DESC' }],
+      sort: [{ alias: 'cases', direction: SortDirection.DESC }],
       chart: {
         type: 'pie',
         pie: { category: 'reason', value: 'cases', donut: true },
@@ -1383,7 +1496,7 @@ export const AFTER_SALE_SYSTEM_VIEWS: SystemView[] = [
         byTerms('state.reason', 'reason'),
       ],
       metrics: [count('cases', '售后单')],
-      sort: [{ alias: 'cases', direction: 'DESC' }],
+      sort: [{ alias: 'cases', direction: SortDirection.DESC }],
       limit: 1000,
       chart: {
         type: 'bar',
@@ -1405,9 +1518,17 @@ export const AFTER_SALE_SYSTEM_VIEWS: SystemView[] = [
     title: '每日退款金额（近 30 天）',
     config: analysis({
       filter: and(recent('state.refundedAt', 30, 'day')),
-      groups: [byDate('state.refundedAt', 'day', 'DAY', '退款日', true)],
+      groups: [
+        byDate(
+          'state.refundedAt',
+          'day',
+          AggregationDateUnit.DAY,
+          '退款日',
+          true,
+        ),
+      ],
       metrics: [sum('refunded', 'state.refundedAmount', '实退金额')],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -1437,8 +1558,8 @@ export const AFTER_SALE_WORKBENCH_VIEWS: ViewInstance[] = [
     '竹纤维浴巾的质量投诉',
     afterSaleRecords(
       and(
-        leaf('state.title', 'EQ', BATH_TOWEL_TITLE),
-        leaf('state.reason', 'IN', ['QUALITY_ISSUE']),
+        leaf('state.title', FilterOperator.EQ, BATH_TOWEL_TITLE),
+        leaf('state.reason', FilterOperator.IN, ['QUALITY_ISSUE']),
       ),
     ),
     'personal',
@@ -1449,15 +1570,20 @@ export const AFTER_SALE_WORKBENCH_VIEWS: ViewInstance[] = [
     '竹纤维浴巾：每月售后理由',
     analysis({
       filter: and(
-        leaf('state.title', 'EQ', BATH_TOWEL_TITLE),
+        leaf('state.title', FilterOperator.EQ, BATH_TOWEL_TITLE),
         recent('state.requestedAt', 12, 'month'),
       ),
       groups: [
-        byDate('state.requestedAt', 'month', 'MONTH', '申请月'),
+        byDate(
+          'state.requestedAt',
+          'month',
+          AggregationDateUnit.MONTH,
+          '申请月',
+        ),
         byTerms('state.reason', 'reason'),
       ],
       metrics: [count('cases', '售后单')],
-      sort: [{ alias: 'month', direction: 'ASC' }],
+      sort: [{ alias: 'month', direction: SortDirection.ASC }],
       limit: 1000,
       chart: {
         type: 'bar',
@@ -1484,13 +1610,13 @@ function waybillRecords(
     filter,
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 50,
     layout: 'table',
     summaries: [
-      { field: 'state.itemQty', fn: 'SUM' },
-      { field: 'state.weightKg', fn: 'SUM' },
-      { field: 'state.shipToSignHours', fn: 'AVG' },
+      { field: 'state.itemQty', fn: AggregationFunction.SUM },
+      { field: 'state.weightKg', fn: AggregationFunction.SUM },
+      { field: 'state.shipToSignHours', fn: AggregationFunction.AVG },
     ],
     table: {
       columns: WAYBILL_COLUMNS.map(field =>
@@ -1518,9 +1644,12 @@ export const WAYBILL_SYSTEM_VIEWS: SystemView[] = [
   {
     id: 'in-transit',
     title: '在途包裹',
-    config: waybillRecords(and(leaf('state.status', 'IN', ['IN_TRANSIT'])), {
-      sort: [{ field: 'state.shippedAt', direction: 'ASC' }],
-    }),
+    config: waybillRecords(
+      and(leaf('state.status', FilterOperator.IN, ['IN_TRANSIT'])),
+      {
+        sort: [{ field: 'state.shippedAt', direction: SortDirection.ASC }],
+      },
+    ),
   },
   {
     // A2：台风那几天中通在两广的包裹，签收最慢的在前。
@@ -1528,12 +1657,14 @@ export const WAYBILL_SYSTEM_VIEWS: SystemView[] = [
     title: '台风期间：两广中通',
     config: waybillRecords(
       and(
-        leaf('state.carrier', 'IN', ['ZTO']),
-        leaf('state.province', 'IN', TWO_GUANG),
+        leaf('state.carrier', FilterOperator.IN, ['ZTO']),
+        leaf('state.province', FilterOperator.IN, TWO_GUANG),
         days('state.shippedAt', '2026-07-18', '2026-07-28'),
       ),
       {
-        sort: [{ field: 'state.shipToSignHours', direction: 'DESC' }],
+        sort: [
+          { field: 'state.shipToSignHours', direction: SortDirection.DESC },
+        ],
         // 查时效的人先看慢了多久、送去哪里。
         table: {
           columns: [
@@ -1558,24 +1689,27 @@ export const WAYBILL_SYSTEM_VIEWS: SystemView[] = [
     title: '两广：承运商 × 周的签收时长',
     config: analysis({
       filter: and(
-        leaf('state.province', 'IN', TWO_GUANG),
+        leaf('state.province', FilterOperator.IN, TWO_GUANG),
         days('state.shippedAt', '2026-06-01', '2026-09-20'),
       ),
       groups: [
-        byDate('state.shippedAt', 'week', 'WEEK', '发货周'),
+        byDate('state.shippedAt', 'week', AggregationDateUnit.WEEK, '发货周'),
         byTerms('state.carrier', 'carrier'),
       ],
       metrics: [
         {
           alias: 'hours',
-          type: 'NUMERIC',
-          function: 'AVG',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.AVG,
           label: '平均签收时长',
-          expression: { type: 'FIELD', field: 'state.shipToSignHours' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'state.shipToSignHours',
+          },
         },
         count('parcels', '包裹数'),
       ],
-      sort: [{ alias: 'week', direction: 'ASC' }],
+      sort: [{ alias: 'week', direction: SortDirection.ASC }],
       limit: 1000,
       chart: {
         type: 'heatmap',
@@ -1598,7 +1732,7 @@ function eventRecords(
     filter,
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'createTime', direction: 'DESC' }],
+    sort: [{ field: 'createTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -1610,10 +1744,14 @@ function eventRecords(
 
 /** 带某几种事件的事件流：对 `body` 的元素匹配。 */
 function carrying(...types: string[]): FilterNode {
-  return leaf('body', 'ELEMENT_MATCH', {
+  return leaf('body', FilterOperator.ELEMENT_MATCH, {
     op: 'and',
     children: [
-      { field: 'body.bodyType', operator: 'IN', value: types.map(eventType) },
+      {
+        field: 'body.bodyType',
+        operator: FilterOperator.IN,
+        value: types.map(eventType),
+      },
     ],
   });
 }
@@ -1624,10 +1762,10 @@ export const ORDER_EVENT_SYSTEM_VIEWS: SystemView[] = [
     // 模板：填上订单号，按版本读这张单的一生。留空就一张接一张读。
     id: 'history',
     title: '订单历史',
-    config: eventRecords(and(leaf('aggregateId', 'EQ', '')), {
+    config: eventRecords(and(leaf('aggregateId', FilterOperator.EQ, '')), {
       sort: [
-        { field: 'aggregateId', direction: 'ASC' },
-        { field: 'version', direction: 'ASC' },
+        { field: 'aggregateId', direction: SortDirection.ASC },
+        { field: 'version', direction: SortDirection.ASC },
       ],
     }),
   },
@@ -1650,7 +1788,7 @@ export const ORDER_EVENT_SYSTEM_VIEWS: SystemView[] = [
       elements: [{ path: 'body' }],
       groups: [byTerms('body.bodyType', 'type', '事件类型')],
       metrics: [count('events', '事件数')],
-      sort: [{ alias: 'events', direction: 'DESC' }],
+      sort: [{ alias: 'events', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -1666,17 +1804,22 @@ export const ORDER_EVENT_SYSTEM_VIEWS: SystemView[] = [
     id: 'daily',
     title: '每日事件量',
     config: analysis({
-      groups: [byDate('createTime', 'day', 'DAY', '日期', true)],
+      groups: [
+        byDate('createTime', 'day', AggregationDateUnit.DAY, '日期', true),
+      ],
       metrics: [
         count('streams', '事件流'),
         {
           alias: 'orders',
-          type: 'DISTINCT_COUNT',
+          type: AggregationMetricType.DISTINCT_COUNT,
           label: '涉及订单',
-          expression: { type: 'FIELD', field: 'aggregateId' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'aggregateId',
+          },
         },
       ],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       chart: {
         type: 'line',
         cartesian: {
@@ -1696,13 +1839,16 @@ export const ORDER_EVENT_SYSTEM_VIEWS: SystemView[] = [
         count('changes', '变动次数'),
         {
           alias: 'latest',
-          type: 'NUMERIC',
-          function: 'MAX',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.MAX,
           label: '最近一次',
-          expression: { type: 'FIELD', field: 'createTime' },
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'createTime',
+          },
         },
       ],
-      sort: [{ alias: 'changes', direction: 'DESC' }],
+      sort: [{ alias: 'changes', direction: SortDirection.DESC }],
       limit: 20,
       layout: 'table',
       chart: {

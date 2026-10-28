@@ -30,6 +30,7 @@ import me.ahoo.wow.kernel.QueuedCommand
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.WaitContext
+import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
@@ -79,7 +80,7 @@ class Executor(
     private val views: StateViews? = null,
     /** The node's bound on its commands in flight, shared by the executors of all its contexts. */
     private val limit: InFlightLimit = InFlightLimit(),
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     private val lanes = ConcurrentHashMap<AggregateRef, Lane>()
     private val inFlight = AtomicInteger()
@@ -127,7 +128,7 @@ class Executor(
     private suspend fun turnOf(lane: Lane, own: Queued): BatchOutcome {
         try {
             val deadline = own.wait?.deadline ?: return own.turn.await()
-            val remaining = (deadline - clock()).coerceAtLeast(0).milliseconds
+            val remaining = (deadline - clock.millis()).coerceAtLeast(0).milliseconds
             withTimeoutOrNull(remaining) { own.turn.await() }?.let { return it }
             synchronized(lane) {
                 if (!own.turn.isCompleted && lane.queue.remove(own)) {

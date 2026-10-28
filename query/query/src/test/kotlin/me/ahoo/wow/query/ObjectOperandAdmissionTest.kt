@@ -22,10 +22,10 @@ import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.arrayFixture

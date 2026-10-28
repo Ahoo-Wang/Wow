@@ -44,7 +44,7 @@ class ViewStoreServerTest {
             // dashboard.
             store.post(
                 "/view-store/view/snapshot/query",
-                """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+                """{"kind":"list","filter":{"op":"match-all"}}""",
                 Who.user("a")
             )
                 .status.assert().isEqualTo(NOT_FOUND)

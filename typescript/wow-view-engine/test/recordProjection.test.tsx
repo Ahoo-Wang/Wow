@@ -38,6 +38,12 @@ import {
 import { without } from '../src/model/json.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { NOW, recordConfig, testSource, resourcesOf } from './fixtures.js';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -55,7 +61,12 @@ function definition(
     source: 'failures',
     fields: [
       { name: 'keyword', label: 'Search', kind: 'search' },
-      { name: 'state.id', label: 'ID', kind: 'string', sortable: true },
+      {
+        name: 'state.id',
+        label: FilterOperator.ID,
+        kind: 'string',
+        sortable: true,
+      },
       { name: 'state.status', label: 'Status', kind: 'string' },
       { name: 'state.isRetryable', label: 'Retryable', kind: 'boolean' },
       { name: 'state.error', label: 'Error', kind: 'string' },
@@ -66,7 +77,7 @@ function definition(
         label: 'Retries',
         kind: 'number',
         sortable: true,
-        summary: ['SUM', 'COUNT'],
+        summary: [AggregationFunction.SUM, AggregationMetricType.COUNT],
       },
       { name: 'eventTime', label: 'Updated', kind: 'datetime', sortable: true },
     ],
@@ -137,8 +148,8 @@ describe('recordProjection', () => {
     const cfg = config({
       table: { columns: [] },
       card: { title: 'state.id', fields: [] },
-      sort: [{ field: 'eventTime', direction: 'DESC' }],
-      summaries: [{ field: 'state.retries', fn: 'SUM' }],
+      sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
+      summaries: [{ field: 'state.retries', fn: AggregationFunction.SUM }],
     });
     expect(include(definition(), cfg)).toEqual([
       'state.id',
@@ -150,7 +161,9 @@ describe('recordProjection', () => {
       include(definition(), {
         ...cfg,
         sort: [],
-        summaries: [{ field: 'state.retries', fn: 'COUNT' }],
+        summaries: [
+          { field: 'state.retries', fn: AggregationMetricType.COUNT },
+        ],
       }),
     ).toEqual(['state.id']);
   });

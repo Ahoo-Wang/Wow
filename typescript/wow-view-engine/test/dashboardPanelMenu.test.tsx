@@ -50,6 +50,7 @@ import {
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { tracked } from './fixtures/writes.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -188,7 +189,9 @@ describe('导出数据… on a record panel (D22 运维)', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
       },
       panels: [
@@ -346,7 +349,7 @@ describe('复制为共享视图并替换… (D22 B)', () => {
     );
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const copies = (await store.list('orders')).filter(
+    const copies = (await store.list('orders')).items.filter(
       view => view.title === 'My orders' && view.scope === 'shared',
     );
     expect(copies).toHaveLength(1);
@@ -459,7 +462,7 @@ describe('复制为系统视图并替换… (D81)', () => {
       within(dialog).getByRole('button', { name: 'Copy and replace' }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const copies = (await store.list('orders')).filter(
+    const copies = (await store.list('orders')).items.filter(
       view => view.title === 'Pending orders' && view.scope === 'system',
     );
     expect(copies).toMatchObject([{ stored: true }]);

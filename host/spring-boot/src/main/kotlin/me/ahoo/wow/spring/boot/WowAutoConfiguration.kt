@@ -28,7 +28,6 @@ import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
-import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.DeclaredServices
@@ -86,12 +85,15 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.peer.PeerDiscovery
+import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.tenant.TenantPolicy
+import me.ahoo.wow.spi.transport.TopicTransportOptions
+import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -106,6 +108,7 @@ import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
@@ -115,6 +118,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
+import java.time.Clock
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
 
@@ -134,7 +138,8 @@ import jakarta.validation.Validator as JakartaValidator
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
- * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s and [CommandValidator]s, the Jakarta
+ * - **Admission**: every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
+ *   ([CommandAuthorizer.allOf]); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider, the id generators: the [GlobalIdGenerator] bean
  *   (UUIDv7 unless the application or wow-cosid gives one) and, per aggregate type, the [AggregateIdGenerator] bean
  *   `wow.aggregates.*.id-generator` names, or one an [AggregateIdGeneratorSource] bean finds by that name, else the
@@ -152,7 +157,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   node's service. The internal port serves the command routes of the calls ([callRoutes]) to the service each call
  *   names ([DeclaredServices]); the public port refuses `Wow-Call`. A service may call the commands
  *   `wow.callers.<service>.commands` lets it ([CallPermits]), an optional list that catches a
- *   misconfiguration, each authorized by the [CallAuthorizer] bean when there is one, else by the [CommandAuthorizer].
+ *   misconfiguration, each authorized by the node's authorizers as every command is.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
  *   and every [PublishedSinks] bean (such as the transport sink). Those that read other contexts' published streams read
@@ -160,8 +165,8 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Parked entries**: retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
- * - **Observation**: the [Observer] bean, when there is one (wow-observability's,
- *   [ObservabilityAutoConfiguration]), sees the node's work; nothing does otherwise.
+ * - **Observation**: every [Observer] bean (wow-observability's, [ObservabilityAutoConfiguration], and the
+ *   application's), as one ([Observer.of]), in their order; nothing does without one.
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -172,21 +177,39 @@ import jakarta.validation.Validator as JakartaValidator
     ],
 )
 @EnableConfigurationProperties(WowProperties::class)
+@Import(NodeClock::class, NodePeers::class)
 class WowAutoConfiguration {
     /**
-     * Checks the environment's `wow.*` keys against the configuration metadata at startup: warns of the
-     * unknown ones, and refuses an unknown key of the security settings ([ConfigurationKeys]).
+     * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
+     * declare (`wow.<type>.<key>`, [ProviderOptionKeys]) at startup, refusing the unknown ones ([ConfigurationKeys]).
      */
     @Bean
     @InternalWowApi
-    fun wowConfigurationKeys(environment: ConfigurableEnvironment, context: ApplicationContext): ConfigurationKeys {
+    fun wowConfigurationKeys(
+        environment: ConfigurableEnvironment,
+        context: ApplicationContext,
+        providers: StoreProviders,
+        transports: ObjectProvider<TransportProvider>,
+        sinks: ObjectProvider<SinkProvider>,
+    ): ConfigurationKeys {
         val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
             context.findAnnotationOnBean(
                 name,
                 ConfigurationProperties::class.java
             )?.let { it.prefix.ifEmpty { it.value } }
         }
-        return ConfigurationKeys.of(context.classLoader, prefixes).also { it.check(environment) }
+        val ports = PortProviders.load(
+            context.classLoader,
+            transports.orderedStream().toList(),
+            sinks.orderedStream().toList(),
+        )
+        val declared = ProviderOptionKeys.of(
+            providers.stores.values.map { it.type to it.options } +
+                HostDatasets.providers(context.classLoader).map { it.type to it.options } +
+                ports.transports.values.map { it.type to TopicTransportOptions.of(it) } +
+                ports.sinks.values.map { it.type to it.options },
+        )
+        return ConfigurationKeys.of(context.classLoader, prefixes, declared).also { it.check(environment) }
     }
 
     /** Wow's JSON mapper; not a default candidate, so Spring's own mapper stays Spring's. */
@@ -272,6 +295,8 @@ class WowAutoConfiguration {
         models: WowModels,
         identity: ObjectProvider<NodeIdentity>,
         development: DevelopmentMode,
+        environment: Environment,
+        clock: Clock,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val node = identity.ifAvailable
@@ -281,7 +306,8 @@ class WowAutoConfiguration {
             BeanStoreResources(beanFactory),
             node?.service.orEmpty(),
             development.reason,
-        )
+            clock,
+        ) { type -> PortProviders.optionsOf(environment, type) }
         val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {
@@ -306,6 +332,7 @@ class WowAutoConfiguration {
 
     @Bean(defaultCandidate = false)
     @ConditionalOnMissingBean(name = [INTERNAL_HTTP_CLIENT])
+    @InternalWowApi
     fun wowInternalHttpClient(properties: WowProperties): HttpClient =
         InternalHttp.client(properties.internal.connectTimeout.toKotlinDuration())
 
@@ -329,41 +356,8 @@ class WowAutoConfiguration {
         client,
         queueCapacity = properties.internal.signalQueueCapacity,
         service = identity.service,
-        observer = observers.getIfUnique { Observer.NONE },
+        observer = Observer.of(observers.orderedStream().toList()),
     )
-
-    /**
-     * Where the peers' services are: each context's public routes at
-     * `wow.peers.<context>.public-url`; its internal port at `wow.peers.<context>.url`, else at the nodes
-     * `wow.peer.discovery` finds of the service its contract on the class path names (`dns` by default, DNS SRV). An
-     * application's own bean, a resolver that discovers them, replaces it for the sagas' calls and the clients alike.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowEndpointResolver(
-        properties: WowProperties,
-        contracts: ContractDirectory,
-        discoveries: ObjectProvider<PeerDiscovery>,
-        environment: Environment,
-        context: ApplicationContext,
-    ): EndpointResolver = PeerEndpoints.of(
-        properties,
-        PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
-        { type ->
-            if (type == DnsPeerDiscovery.TYPE) {
-                mapOf(DnsPeerDiscovery.NAME_TEMPLATE to properties.peer.dns.nameTemplate)
-            } else {
-                PortProviders.optionsOf(environment, "peer.$type")
-            }
-        },
-        { peer -> serviceOf(contracts, peer) },
-    )
-
-    /** The one HTTP client the node calls its peers with, the sagas' calls and the typed clients alike. */
-    @Bean(PEER_HTTP_CLIENT, defaultCandidate = false)
-    @ConditionalOnMissingBean(name = [PEER_HTTP_CLIENT])
-    fun wowPeerHttpClient(properties: WowProperties): HttpClient =
-        HttpCommandCaller.client(properties.peer.connectTimeout.toKotlinDuration())
 
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
@@ -482,7 +476,6 @@ class WowAutoConfiguration {
         idSources: ObjectProvider<AggregateIdGeneratorSource>,
         beanFactory: ConfigurableListableBeanFactory,
         authorizers: ObjectProvider<CommandAuthorizer>,
-        callAuthorizers: ObjectProvider<CallAuthorizer>,
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
@@ -490,12 +483,13 @@ class WowAutoConfiguration {
         providedSinks: ObjectProvider<ProvidedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
-        kafka: ObjectProvider<KafkaProperties>,
+        transports: ObjectProvider<TransportProvider>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
         classifiers: ObjectProvider<FailureClassifier>,
         queries: ObjectProvider<ContextQueries>,
+        clock: Clock,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val sourceTopics = topics.ifAvailable
@@ -505,7 +499,7 @@ class WowAutoConfiguration {
                 TransportNeeds.of(
                     topicRouted(properties, models.models),
                     properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
-                    kafka.ifAvailable?.commandIntake?.enabled == true,
+                    TransportNeeds.intake(environment, transportTypes(beanFactory, transports)),
                 ),
                 properties.transport,
                 TransportNeeds.unpublished(manifest, contexts),
@@ -514,6 +508,7 @@ class WowAutoConfiguration {
         val routing = routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
+            clock = clock,
             service = identity.service,
             node = identity.node,
             address = identity.address,
@@ -538,10 +533,7 @@ class WowAutoConfiguration {
                 snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(
-                authorizer = authorizerOf(
-                    authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
-                    callAuthorizers.ifAvailable
-                ),
+                authorizer = CommandAuthorizer.allOf(authorizers.orderedStream().toList()),
                 transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = IdGenerators(
@@ -566,7 +558,7 @@ class WowAutoConfiguration {
             contracts = contracts,
             topics = sourceTopics,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
-            observer = observers.getIfUnique { Observer.NONE },
+            observer = Observer.of(observers.orderedStream().toList()),
             caller = callers.ifAvailable,
             failureClassifiers = classifiers.orderedStream().toList(),
             queries = lazyQueries(queries),
@@ -719,6 +711,7 @@ class WowAutoConfiguration {
      * the one exemption of the host's safeguards ([DevelopmentMode]).
      */
     @Bean
+    @InternalWowApi
     fun wowDevelopmentMode(
         properties: WowProperties,
         environment: Environment,
@@ -738,6 +731,7 @@ class WowAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
         configCheck(
             development.active,
@@ -776,6 +770,7 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
         val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
         logger.info {
@@ -858,7 +853,7 @@ class WowAutoConfiguration {
         options: WowHttpOptions,
         authorizers: ObjectProvider<CommandAuthorizer>,
     ): RouterFunction<ServerResponse> {
-        val authorizer = authorizers.ifAvailable
+        val authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }?.let(CommandAuthorizer::allOf)
         if (authorizer == null) {
             logger.warn {
                 "wow.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
@@ -899,6 +894,11 @@ class WowAutoConfiguration {
     }
 
     companion object {
+        /** Refuses several beans of one single seam before any bean is built ([SingleSeams]). */
+        @Bean
+        @JvmStatic
+        internal fun wowSingleSeams(): BeanFactoryPostProcessor = SingleSeams()
+
         /** The service of the peer [context], as its contract on the class path names it. */
         internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
             .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
@@ -920,6 +920,13 @@ class WowAutoConfiguration {
          * `spring.http.codecs.max-in-memory-size`, or the older `spring.codec.max-in-memory-size`, else WebFlux's
          * default. The internal port takes a forward of a body that large.
          */
+        /** The types of the topic transports the node can open: on the classpath, and the application's beans. */
+        internal fun transportTypes(
+            beanFactory: ConfigurableListableBeanFactory,
+            transports: ObjectProvider<TransportProvider>,
+        ): Set<String> =
+            PortProviders.load(beanFactory.beanClassLoader, transports.orderedStream().toList()).transports.keys
+
         internal fun publicCodecLimit(environment: Environment): Int {
             val binder = Binder.get(environment)
             val size = CODEC_LIMITS.firstNotNullOfOrNull { binder.bind(it, DataSize::class.java).orElse(null) }
@@ -928,13 +935,6 @@ class WowAutoConfiguration {
         }
 
         private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
-
-        /**
-         * The node's authorizer: [base] for every caller but the service identities, whose
-         * commands (their synchronous calls) [calls] authorizes when the application or a module (CoSec) gives one.
-         */
-        internal fun authorizerOf(base: CommandAuthorizer, calls: CallAuthorizer?): CommandAuthorizer =
-            calls?.over(base) ?: base
 
         /** The commands each service may call on the internal port (`wow.callers.*.commands`). */
         internal fun callPermits(properties: WowProperties): CallPermits =

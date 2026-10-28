@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReferenceLabelReader } from './referenceLabels.js';
 import { dequal } from 'dequal';
 import {
   overlaid,
@@ -193,6 +194,7 @@ export class DashboardViewRuntime
       kinds: options.kinds,
       environment: options.environment,
       candidateSources: options.candidateSources,
+      labels: options.labels,
       applied: () => this.state.applied,
       current: () => this.state.filters,
       commit: filters => this.store.setState({ filters }),
@@ -315,8 +317,12 @@ export class DashboardViewRuntime
   }
 
   optionSource(remote: string): OptionSource | null {
-    const resolve = this.options.resolveOptions;
-    return resolve ? resolve(remote) : null;
+    return this.options.labels.sourceOf(remote);
+  }
+
+  /** See `ViewRuntime.labels`: the panels and the board read the one cache. */
+  get labels(): ReferenceLabelReader {
+    return this.options.labels;
   }
 
   /** What a text filter offers to pick from; see `FilterValues.candidatesOf`. */
@@ -641,6 +647,7 @@ export class DashboardViewRuntime
     // What the filters hold, read against the board as it now is: a filter
     // taken off holds nothing, a required one never less than its default.
     const filters = this.values.on(applied);
+    this.values.askLabels(applied, filters);
     const panels = boardPanels({
       applied,
       issues,

@@ -21,18 +21,17 @@ import {
   type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
-import { viewSourceOf } from "@ahoo-wang/wow-view-store";
 import { ParkedSnapshotQueryClient } from "@/generated/index.ts";
 import { overview } from "./overview.ts";
 import { parked } from "./parked.ts";
 
 /**
  * The parked entries as the engine's source: the generated snapshot query
- * client of `ops.parked` (`POST /ops/parked/snapshot/query`), adapted by the
- * V10 view store's `viewSourceOf` — paged, cursor, aggregate and describe.
+ * client of `ops.parked` (`POST /ops/parked/snapshot/query`), which is a
+ * source as it is — paged, cursor, aggregate and describe.
  */
 export function parkedSource(fetcher: Fetcher): ViewSource {
-  return viewSourceOf(new ParkedSnapshotQueryClient({ fetcher }));
+  return new ParkedSnapshotQueryClient({ fetcher });
 }
 
 /**

@@ -28,16 +28,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The queries of a MongoDB store, its [StoreQueries] facet: its snapshot collections, with the `x-wow-index` indexes,
- * and its log collections in place for the `events` model, read from the replica
- * [StoreQueryOptions.eventsReadPreference] names, and the snapshot queries from the one
- * [StoreQueryOptions.snapshotsReadPreference] names, each the primary when not set; one storage per context, opened
- * once.
+ * and its log collections in place for the `events` model, each read from the replica the store's
+ * `query-read-preference` option names ([MongoStore.queryReadPreference]), the primary when not set; one storage per
+ * context, opened once.
  */
 internal class MongoQueries(private val store: MongoStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = MongoSnapshotQueries(store, options)
 
     override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
-        val preference = options.eventsReadPreference?.let(ReadPreference::valueOf)
+        val preference = store.queryReadPreference?.let(ReadPreference::valueOf)
         val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
         return QueryBindings { type ->
             storages.computeIfAbsent(type.context) {
@@ -49,7 +48,7 @@ internal class MongoQueries(private val store: MongoStore) : StoreQueries {
 
 private class MongoSnapshotQueries(private val store: MongoStore, options: StoreQueryOptions) : SnapshotQueries {
     private val queryOptions = MongoQueryOptions(indexDdl = options.indexDdl)
-    private val readPreference = options.snapshotsReadPreference?.let(ReadPreference::valueOf)
+    private val readPreference = store.queryReadPreference?.let(ReadPreference::valueOf)
     private val storages = ConcurrentHashMap<String, MongoSnapshotQueryStorage>()
 
     private fun storage(context: String) = storages.computeIfAbsent(context) {

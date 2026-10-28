@@ -25,6 +25,7 @@ import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -43,7 +44,7 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import org.springframework.beans.factory.ListableBeanFactory
-import kotlin.time.toKotlinDuration
+import java.time.Clock
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
@@ -128,12 +129,14 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
 internal object StoreInstances {
     /**
      * The stores of `wow.stores`, by name, each opened by the provider of its `type`; when it names none, the one store
-     * `wow.backend` selects ([BackendSelection]), named [ContextBackends.DEFAULT_STORE]. Each store is given its
-     * settings as options: `data-source`, `client`, `database` (`wow.mongo.database` when not set) and its `options.*`,
-     * the application's beans as [resources], `wow.ddl` unless it names its own, the tails' polling and the [service].
-     * `wow.backend=auto` without a durable backend opens a store in memory only with a [memoryOptIn]
-     * ([BackendSelection.memoryOptIn]), and fails otherwise; with it, the node runs for development,
-     * and each store is told so ([StoreConfig.development]).
+     * `wow.backend` selects ([BackendSelection]), named [ContextBackends.DEFAULT_STORE]. Each store is given the options
+     * its provider declares ([StoreProvider.options]): the `wow.<type>.<key>` settings of its type ([typeSettings]),
+     * then its own `data-source`, `query-data-source`, `client`, `database` and `options.*`, a setting its provider does
+     * not declare failing the start, naming the ones it does. It is given the application's beans as [resources],
+     * `wow.ddl` unless it names its own, the tails' polling, the [service] and the node's [clock]. `wow.backend=auto`
+     * without a durable backend opens a store in memory only with a [memoryOptIn] ([BackendSelection.memoryOptIn]),
+     * and fails otherwise; with it, the node runs for development, and each store is told so
+     * ([StoreConfig.development]).
      */
     @Suppress("LongParameterList") // One parameter per input of the stores, each the host's own.
     fun open(
@@ -142,36 +145,29 @@ internal object StoreInstances {
         resources: StoreResources,
         service: String = "",
         memoryOptIn: String? = null,
+        clock: Clock = Clock.systemUTC(),
+        typeSettings: (type: String) -> Map<String, String> = { emptyMap() },
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
-        fun config(name: String, type: String, store: WowProperties.Store?) = StoreConfig(
-            name = name,
-            type = type,
-            ddl = store?.ddl ?: properties.ddl,
-            // Each backend's defaults under its own type: both read `operation-timeout`.
-            options = when (type) {
-                POSTGRES -> mapOf(
-                    OPERATION_TIMEOUT to properties.postgres.operationTimeout.toKotlinDuration().toString(),
-                )
-
-                else -> mapOf(
-                    APPEND_TIMEOUT to properties.mongo.appendTimeout.toKotlinDuration().toString(),
-                    SHARDING to properties.mongo.sharding,
-                    OPERATION_TIMEOUT to properties.mongo.operationTimeout.toKotlinDuration().toString(),
-                )
-            } +
-                store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
-                    store?.database.isNullOrBlank()
-                },
-            polling = polling,
-            service = service,
-            resources = resources,
-            development = memoryOptIn != null,
-        )
+        fun open(name: String, type: String, store: WowProperties.Store?, key: String): Store {
+            val provider = providers.of(type, key)
+            val config = StoreConfig(
+                name = name,
+                type = type,
+                ddl = store?.ddl ?: properties.ddl,
+                options = optionsOf(provider, typeSettings(type), store, "wow.stores.$name"),
+                polling = polling,
+                service = service,
+                resources = resources,
+                development = memoryOptIn != null,
+                clock = clock,
+            )
+            return provider.open(config)
+        }
         if (properties.stores.isEmpty()) {
             val name = ContextBackends.DEFAULT_STORE
             val type = BackendSelection.select(properties.backend, providers.stores, resources, memoryOptIn)
-            return mapOf(name to providers.of(type, "wow.backend").open(config(name, type, null)))
+            return mapOf(name to open(name, type, null, "wow.backend"))
         }
         configCheck(
             StoreTypes.of(properties.backend) == StoreTypes.AUTO,
@@ -193,18 +189,35 @@ internal object StoreInstances {
             configCheck(type != StoreTypes.AUTO, "$key.type", type, "Name the type: one of ${providers.types}.") {
                 "$key.type is auto, which only wow.backend may be."
             }
-            providers.of(type, "$key.type").open(config(name, type, store))
+            open(name, type, store, "$key.type")
         }
     }
 
-    /** The option of the MongoDB database, which `wow.mongo.database` gives a store that names none. */
-    private const val DATABASE = "database"
-
-    /** The option bounding a MongoDB append's transaction, which `wow.mongo.transaction-timeout` gives by default. */
-    private const val APPEND_TIMEOUT = "append-timeout"
-    private const val SHARDING = "sharding"
-    private const val OPERATION_TIMEOUT = "operation-timeout"
-    private const val POSTGRES = "postgres"
+    /**
+     * The options of a store of [provider]'s type: the settings of its type ([typeSettings], `wow.<type>.*`) its
+     * provider declares for every store of the type, under its own [store] settings; a setting of the store its
+     * provider does not declare fails, naming the setting under [key] and the declared options.
+     */
+    private fun optionsOf(
+        provider: StoreProvider,
+        typeSettings: Map<String, String>,
+        store: WowProperties.Store?,
+        key: String,
+    ): Map<String, String> {
+        val declared = provider.options.associateBy { it.key }
+        val own = store?.options().orEmpty()
+        own.keys.forEach { option ->
+            val setting = if (option in WowProperties.Store.NAMED) "$key.$option" else "$key.options.$option"
+            configCheck(
+                option in declared,
+                setting,
+                own[option],
+                "Set only the options of the ${provider.type} stores: ${declared.keys.sorted()}.",
+            ) { "$setting is not an option of the ${provider.type} stores." }
+        }
+        val defaults = typeSettings.filterKeys { declared[it]?.scope == ProviderOption.Scope.TYPE }
+        return defaults + own
+    }
 }
 
 /** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */
@@ -226,4 +239,13 @@ internal class BeanStoreResources(private val beanFactory: ListableBeanFactory) 
         ) { "$key names $name, which is no ${type.simpleName} bean." }
         return beanFactory.getBean(name, type)
     }
+}
+
+/** The `wow.<type>.<key>` settings the providers of the node declare for every instance of their type. */
+internal object ProviderOptionKeys {
+    /** The keys of the [ProviderOption.Scope.TYPE] options of each provider type, as `wow.<type>.<key>`. */
+    fun of(providers: List<Pair<String, List<ProviderOption<*>>>>): List<String> =
+        providers.flatMap { (type, options) ->
+            options.filter { it.scope == ProviderOption.Scope.TYPE }.map { "wow.$type.${it.key}" }
+        }
 }

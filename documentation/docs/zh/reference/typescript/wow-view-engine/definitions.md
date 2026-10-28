@@ -45,7 +45,7 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         SHIPPED: { label: text('orders.shipped'), tone: 'success' },
       },
     },
-    'state.amount': { label: text('orders.amount'), summary: ['SUM', 'AVG'] },
+    'state.amount': { label: text('orders.amount'), summary: ['sum', 'avg'] },
     firstEventTime: text('orders.placedAt'),
   },
   // 操作要读的字段即使视图不显示也要取回，见下面的 rowFields。

@@ -18,6 +18,9 @@ import {
   SensitivityLevel,
   TimeUnit,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QuerySemanticTypes,
+  QueryFieldRoles,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import { builtinFieldKinds, defineDataset } from '../src/index.js';
@@ -36,10 +39,15 @@ function dataset(
     record: { ...base.record, identity: 'order_id', rootOperators: [] },
     fields: [
       describedField('order_id'),
-      describedField('tenant_id', { role: 'TENANT_ID' }),
+      describedField('tenant_id', { role: QueryFieldRoles.TENANT_ID }),
       describedField('city', { description: 'City' }),
-      describedField('amount', { types: ['DECIMAL'], description: 'GMV' }),
-      describedField('updated_at', { semantic: { type: 'TEMPORAL_DATE' } }),
+      describedField('amount', {
+        types: [QueryValueTypes.DECIMAL],
+        description: 'GMV',
+      }),
+      describedField('updated_at', {
+        semantic: { type: QuerySemanticTypes.TEMPORAL_DATE },
+      }),
       describedField('depts', { kind: QueryValueKind.ARRAY }),
       describedField('phone', {
         sensitivity: { level: SensitivityLevel.DISPLAY, comparable: true },
@@ -98,7 +106,7 @@ describe('defineDataset', () => {
           describedField('order_id'),
           describedField('lines', {
             kind: QueryValueKind.ARRAY,
-            types: ['OBJECT'],
+            types: [QueryValueTypes.OBJECT],
           }),
           describedField('lines.sku', { scope: 'lines' }),
         ],
@@ -151,14 +159,19 @@ describe('defineDataset', () => {
     const descriptor = dataset({
       fields: [
         describedField('order_id'),
-        describedField('updated_at', { semantic: { type: 'TEMPORAL_DATE' } }),
+        describedField('updated_at', {
+          semantic: { type: QuerySemanticTypes.TEMPORAL_DATE },
+        }),
         describedField('created_at', {
-          types: ['INTEGER'],
-          semantic: { type: 'TEMPORAL_EPOCH', timeUnit: TimeUnit.SECONDS },
+          types: [QueryValueTypes.INTEGER],
+          semantic: {
+            type: QuerySemanticTypes.TEMPORAL_EPOCH,
+            timeUnit: TimeUnit.SECONDS,
+          },
         }),
         describedField('paid_at', {
-          types: ['INTEGER'],
-          semantic: { type: 'TEMPORAL_EPOCH' },
+          types: [QueryValueTypes.INTEGER],
+          semantic: { type: QuerySemanticTypes.TEMPORAL_EPOCH },
         }),
       ],
     } as Partial<QueryModelDescriptor>);
@@ -175,7 +188,7 @@ describe('defineDataset', () => {
     });
     expect(field('created_at')).toMatchObject({
       kind: 'datetime',
-      temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+      temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
     });
     // Milliseconds is the field's own default, left unsaid.
     expect(field('paid_at')?.temporal).toBeUndefined();

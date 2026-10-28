@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-store — 12 names, from src/index.ts.
+# @ahoo-wang/wow-view-store — 11 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value SHARED_OWNER_ID
@@ -12,4 +12,3 @@ value WowViewStore
 value WowViewStoreErrorCodes
 type  WowViewStoreOptions
 value datasetCatalogOf
-value viewSourceOf

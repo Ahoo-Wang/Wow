@@ -19,7 +19,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.observability.WowMetrics
-import me.ahoo.wow.spi.observation.StoreFallbacks
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.params.ParameterizedTest
@@ -50,7 +50,7 @@ class ElasticsearchStoresTest {
             host.eventually {
                 host.post(
                     "/bank/account/snapshot/query",
-                    """{"kind":"list","filter":{"op":"EQ","field":"state.owner","value":"es-$log"}}""",
+                    """{"kind":"list","filter":{"op":"eq","field":"state.owner","value":"es-$log"}}""",
                 ).body?.values()?.map { it["aggregateId"].asString() } == listOf(id)
             }
             // 3. The events query is served from the index the Sink writes, once it has written both commits.
@@ -61,7 +61,7 @@ class ElasticsearchStoresTest {
             host.context.getBean(HostBackends::class.java).snapshotStoreOf(ACCOUNT)!!.name.assert().isEqualTo(log)
             host.context.getBean(SnapshotQueryBackend::class.java).storeOf(ACCOUNT).assert().isEqualTo("es")
             host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS)
-                .tags(WowMetrics.CAPABILITY, StoreFallbacks.SNAPSHOT_TAIL_READ)
+                .tags(WowMetrics.CAPABILITY, ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ.value)
                 .counters().sumOf { it.count() }.assert().isZero()
             id
         }
@@ -73,7 +73,7 @@ class ElasticsearchStoresTest {
     }
 
     private fun Host.eventVersions(id: String): List<Int>? =
-        post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+        post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
             .takeIf { it.status == 200 }?.body?.values()?.map { it["version"].asInt() }?.sorted()
 
     private fun Host.eventually(condition: () -> Boolean) {

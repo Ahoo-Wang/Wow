@@ -55,6 +55,11 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import {
+  AggregationDateUnit,
+  FilterOperator,
+  SearchMode,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -483,13 +488,16 @@ describe('EmbeddedDashboard', () => {
 
   it('reads a locked time grouping as its unit, and draws a hidden one not at all', async () => {
     const grouped = board();
-    grouped.timeGrouping = { units: ['DAY', 'WEEK'], default: 'DAY' };
+    grouped.timeGrouping = {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+      default: AggregationDateUnit.DAY,
+    };
     const engine = engineOf(grouped);
     const { runtime, rerender } = embed({
       engine,
       interaction: 'interactive',
       groupingMode: 'locked',
-      pageValues: { values: {}, unit: 'WEEK' },
+      pageValues: { values: {}, unit: AggregationDateUnit.WEEK },
     });
 
     const locked = await screen.findByRole('group', {
@@ -497,8 +505,8 @@ describe('EmbeddedDashboard', () => {
     });
     expect(locked.textContent).toContain('By week');
     expect(screen.queryByRole('group', { name: 'Time grouping' })).toBeNull();
-    runtime().setGroupingUnit('DAY');
-    expect(runtime().getSnapshot().filters.unit).toBe('WEEK');
+    runtime().setGroupingUnit(AggregationDateUnit.DAY);
+    expect(runtime().getSnapshot().filters.unit).toBe(AggregationDateUnit.WEEK);
     // The reader's filters are still theirs to clear.
     expect(screen.getByRole('button', { name: 'Clear' })).toBeDefined();
 
@@ -554,17 +562,23 @@ describe('EmbeddedDashboard', () => {
   it('ignores an address that names a held filter: the page’s value wins', async () => {
     const onFiltersChange = vi.fn();
     const grouped = board();
-    grouped.timeGrouping = { units: ['DAY', 'WEEK'], default: 'DAY' };
+    grouped.timeGrouping = {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+      default: AggregationDateUnit.DAY,
+    };
     const { runtime } = embed({
       engine: engineOf(grouped),
       filterModes: { region: 'locked', status: 'hidden' },
       groupingMode: 'locked',
-      pageValues: { values: { region: ['CN'] }, unit: 'WEEK' },
+      pageValues: {
+        values: { region: ['CN'] },
+        unit: AggregationDateUnit.WEEK,
+      },
       // A reader who edited the address to another customer, a hidden value
       // and another unit.
       initialFilters: {
         values: { region: ['EU'], status: ['SHIPPED'] },
-        unit: 'DAY',
+        unit: AggregationDateUnit.DAY,
       },
       onFiltersChange,
     });
@@ -572,7 +586,7 @@ describe('EmbeddedDashboard', () => {
     await waitFor(() =>
       expect(runtime().getSnapshot().filters).toEqual({
         values: { region: ['CN'] },
-        unit: 'WEEK',
+        unit: AggregationDateUnit.WEEK,
       }),
     );
     await waitFor(() =>
@@ -673,7 +687,10 @@ describe('EmbeddedDashboard', () => {
    */
   it('reads every filter as what it holds in the static tier, with no control on the bar', async () => {
     const grouped = board();
-    grouped.timeGrouping = { units: ['DAY', 'WEEK'], default: 'DAY' };
+    grouped.timeGrouping = {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+      default: AggregationDateUnit.DAY,
+    };
     const { runtime } = embed({
       engine: engineOf(grouped),
       initialFilters: { values: { status: ['SHIPPED'] } },
@@ -1001,9 +1018,9 @@ describe('EmbeddedDashboard', () => {
     await userEvent.type(within(find).getByRole('textbox'), 'SO-1');
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.lastCall?.[0].filter).toEqual({
-        op: 'SEARCH',
+        op: FilterOperator.SEARCH,
         query: 'SO-1',
-        mode: 'TERMS',
+        mode: SearchMode.TERMS,
         fields: ['id', 'status'],
       }),
     );

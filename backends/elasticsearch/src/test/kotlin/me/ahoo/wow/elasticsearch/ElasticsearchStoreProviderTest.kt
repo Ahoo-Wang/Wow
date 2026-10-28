@@ -65,7 +65,7 @@ class ElasticsearchStoreProviderTest {
         provider.available(StoreResources.of(mapOf("elasticsearch" to restClient))).assert().isFalse()
         provider.requirement.assert().contains("Rest5Client")
         val store = provider.open(
-            config(mapOf(ElasticsearchStoreProvider.INDEX_PREFIX to "Prod-A"))
+            config(mapOf(ElasticsearchStoreProvider.INDEX_PREFIX.key to "Prod-A"))
         ) as ElasticsearchStore
         store.holdsLogs.assert().isFalse()
         store.holdsSnapshots.assert().isTrue()
@@ -93,7 +93,7 @@ class ElasticsearchStoreProviderTest {
         ElasticsearchStoreProvider.refreshOf("TRUE").assert().isEqualTo(Refresh.True)
         ElasticsearchStoreProvider.refreshOf("false").assert().isEqualTo(Refresh.False)
         assertThrownBy<IllegalArgumentException> { ElasticsearchStoreProvider.refreshOf("sometimes") }
-        val store = ElasticsearchStoreProvider().open(config(mapOf(ElasticsearchStoreProvider.REFRESH to "true")))
+        val store = ElasticsearchStoreProvider().open(config(mapOf(ElasticsearchStoreProvider.REFRESH.key to "true")))
         (store as ElasticsearchStore).refresh.assert().isEqualTo(Refresh.True)
     }
 

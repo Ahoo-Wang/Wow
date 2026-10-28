@@ -11,7 +11,15 @@
  * limitations under the License.
  */
 
-import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationDateUnit,
+  AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  ComparisonOperator,
+  AggregationExpressionOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MISSING_KEY,
@@ -57,43 +65,63 @@ const amount: FieldDefinition = {
 
 describe('groupOfType', () => {
   it('builds each type whole, with the default it starts with', () => {
-    const facts = groupFacts(warehouse, ['MONTH', 'DAY']);
-    expect(groupOfType(facts, 'TERMS', 'w')).toEqual({
-      type: 'TERMS',
+    const facts = groupFacts(warehouse, [
+      AggregationDateUnit.MONTH,
+      AggregationDateUnit.DAY,
+    ]);
+    expect(groupOfType(facts, AggregationGroupType.TERMS, 'w')).toEqual({
+      type: AggregationGroupType.TERMS,
       field: 'warehouse',
       alias: 'w',
       missingKey: DEFAULT_MISSING_KEY,
     });
-    expect(groupOfType(facts, 'HISTOGRAM', 'w')).toEqual({
-      type: 'HISTOGRAM',
+    expect(groupOfType(facts, AggregationGroupType.HISTOGRAM, 'w')).toEqual({
+      type: AggregationGroupType.HISTOGRAM,
       field: 'warehouse',
       alias: 'w',
       interval: 1,
     });
     // The first unit the capability offers, unless a unit is recommended.
-    expect(groupOfType(facts, 'DATE_HISTOGRAM', 'w')).toMatchObject({
-      unit: 'MONTH',
-    });
-    expect(groupOfType(facts, 'DATE_HISTOGRAM', 'w', 'YEAR')).toMatchObject({
-      unit: 'YEAR',
+    expect(
+      groupOfType(facts, AggregationGroupType.DATE_HISTOGRAM, 'w'),
+    ).toMatchObject({
+      unit: AggregationDateUnit.MONTH,
     });
     expect(
-      groupOfType(groupFacts(warehouse), 'DATE_HISTOGRAM', 'w'),
-    ).toMatchObject({ unit: 'DAY' });
+      groupOfType(
+        facts,
+        AggregationGroupType.DATE_HISTOGRAM,
+        'w',
+        AggregationDateUnit.YEAR,
+      ),
+    ).toMatchObject({
+      unit: AggregationDateUnit.YEAR,
+    });
+    expect(
+      groupOfType(
+        groupFacts(warehouse),
+        AggregationGroupType.DATE_HISTOGRAM,
+        'w',
+      ),
+    ).toMatchObject({ unit: AggregationDateUnit.DAY });
   });
 
   it('gives the sentinel bucket only to a field that can carry one', () => {
-    expect(groupOfType(groupFacts(amount), 'TERMS', 'a')).not.toHaveProperty(
-      'missingKey',
-    );
+    expect(
+      groupOfType(groupFacts(amount), AggregationGroupType.TERMS, 'a'),
+    ).not.toHaveProperty('missingKey');
     // A registered kind answers for itself over the built-in list.
     expect(
-      groupOfType(groupFacts(amount, [], { singleString: true }), 'TERMS', 'a'),
+      groupOfType(
+        groupFacts(amount, [], { singleString: true }),
+        AggregationGroupType.TERMS,
+        'a',
+      ),
     ).toHaveProperty('missingKey', DEFAULT_MISSING_KEY);
     expect(
       groupOfType(
         groupFacts(warehouse, [], builtinFieldKinds.get('string')),
-        'TERMS',
+        AggregationGroupType.TERMS,
         'w',
       ),
     ).toHaveProperty('missingKey', DEFAULT_MISSING_KEY);
@@ -108,17 +136,28 @@ describe('groupOfType', () => {
     const option = {
       field: 'warehouse',
       label: 'Warehouse',
-      groups: ['TERMS', 'DATE_HISTOGRAM'] as AggregationGroupTypeName[],
+      groups: [
+        AggregationGroupType.TERMS,
+        AggregationGroupType.DATE_HISTOGRAM,
+      ] as AggregationGroupTypeName[],
       functions: [],
-      dateUnits: ['WEEK' as const],
+      dateUnits: [AggregationDateUnit.WEEK as const],
       distinctCount: false,
       percentile: false,
       any: false,
       missingKey: true,
     };
-    for (const type of ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM'] as const)
+    for (const type of [
+      AggregationGroupType.TERMS,
+      AggregationGroupType.HISTOGRAM,
+      AggregationGroupType.DATE_HISTOGRAM,
+    ] as const)
       expect(groupOfType(option, type, 'w')).toEqual(
-        groupOfType(groupFacts(warehouse, ['WEEK']), type, 'w'),
+        groupOfType(
+          groupFacts(warehouse, [AggregationDateUnit.WEEK]),
+          type,
+          'w',
+        ),
       );
   });
 
@@ -132,38 +171,45 @@ describe('groupOfType', () => {
    */
   it('takes the type a definition lists first, in the tray and in a split alike', () => {
     for (const groups of [
-      ['DATE_HISTOGRAM', 'TERMS'],
-      ['TERMS', 'DATE_HISTOGRAM'],
-      ['HISTOGRAM', 'TERMS'],
+      [AggregationGroupType.DATE_HISTOGRAM, AggregationGroupType.TERMS],
+      [AggregationGroupType.TERMS, AggregationGroupType.DATE_HISTOGRAM],
+      [AggregationGroupType.HISTOGRAM, AggregationGroupType.TERMS],
     ] as AggregationGroupTypeName[][])
-      expect(groupFor(warehouse, { groups, dateUnits: ['WEEK'] }).type).toBe(
-        groups[0],
-      );
+      expect(
+        groupFor(warehouse, { groups, dateUnits: [AggregationDateUnit.WEEK] })
+          .type,
+      ).toBe(groups[0]);
   });
 });
 
 describe('the summaries a field offers', () => {
   it('lists them in the order the model declares the metric types', () => {
     expect(FIELD_METRIC_TYPES).toEqual([
-      'NUMERIC',
-      'DISTINCT_COUNT',
-      'PERCENTILE',
-      'FIRST',
-      'LAST',
-      'ANY',
+      AggregationMetricType.NUMERIC,
+      AggregationMetricType.DISTINCT_COUNT,
+      AggregationMetricType.PERCENTILE,
+      AggregationMetricType.FIRST,
+      AggregationMetricType.LAST,
+      AggregationMetricType.ANY,
     ]);
     expect(
       summaryChoices({
         field: 'amount',
-        functions: ['SUM', 'AVG'],
+        functions: [AggregationFunction.SUM, AggregationFunction.AVG],
         distinctCount: true,
         percentile: true,
         any: true,
       }),
-    ).toEqual(['SUM', 'AVG', 'DISTINCT_COUNT', 'PERCENTILE', 'ANY']);
+    ).toEqual([
+      AggregationFunction.SUM,
+      AggregationFunction.AVG,
+      AggregationMetricType.DISTINCT_COUNT,
+      AggregationMetricType.PERCENTILE,
+      AggregationMetricType.ANY,
+    ]);
     expect(
       summaryChoices({ field: 'amount', functions: [], percentile: true }),
-    ).toEqual(['PERCENTILE']);
+    ).toEqual([AggregationMetricType.PERCENTILE]);
     // A capability as a definition declares it is read the same way.
     const capability: AggregationFieldCapability = {
       field: 'amount',
@@ -171,33 +217,46 @@ describe('the summaries a field offers', () => {
       functions: [AggregationFunction.MAX],
       any: true,
     };
-    expect(summaryChoices(capability)).toEqual(['MAX', 'ANY']);
+    expect(summaryChoices(capability)).toEqual([
+      AggregationFunction.MAX,
+      AggregationMetricType.ANY,
+    ]);
   });
 
   it('builds every choice whole, and reads the choice back off it', () => {
     const choices: SummaryChoice[] = [
-      'SUM',
-      'AVG',
-      'DISTINCT_COUNT',
-      'PERCENTILE',
-      'ANY',
+      AggregationFunction.SUM,
+      AggregationFunction.AVG,
+      AggregationMetricType.DISTINCT_COUNT,
+      AggregationMetricType.PERCENTILE,
+      AggregationMetricType.ANY,
     ];
     for (const choice of choices)
       expect(summaryOf(metricOfSummary({ field: 'amount' }, choice, 'm'))).toBe(
         choice,
       );
-    expect(metricOfSummary({ field: 'amount' }, 'PERCENTILE', 'm')).toEqual({
-      type: 'PERCENTILE',
+    expect(
+      metricOfSummary(
+        { field: 'amount' },
+        AggregationMetricType.PERCENTILE,
+        'm',
+      ),
+    ).toEqual({
+      type: AggregationMetricType.PERCENTILE,
       alias: 'm',
-      expression: { type: 'FIELD', field: 'amount' },
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       percentile: DEFAULT_PERCENTILE,
     });
-    expect(metricOfSummary({ field: 'amount' }, 'ANY', 'm')).toEqual({
-      type: 'ANY',
+    expect(
+      metricOfSummary({ field: 'amount' }, AggregationMetricType.ANY, 'm'),
+    ).toEqual({
+      type: AggregationMetricType.ANY,
       alias: 'm',
       field: 'amount',
     });
-    expect(summaryOf({ type: 'COUNT', alias: 'count' })).toBeNull();
+    expect(
+      summaryOf({ type: AggregationMetricType.COUNT, alias: 'count' }),
+    ).toBeNull();
   });
 
   /** A fresh config's first metric comes out of the same builder. */
@@ -206,21 +265,27 @@ describe('the summaries a field offers', () => {
       firstMetric(false, [
         { field: 'amount', groups: [], functions: [], percentile: true },
       ]),
-    ).toEqual(metricOfSummary({ field: 'amount' }, 'PERCENTILE', 'amount_p95'));
+    ).toEqual(
+      metricOfSummary(
+        { field: 'amount' },
+        AggregationMetricType.PERCENTILE,
+        'amount_p95',
+      ),
+    );
   });
 });
 
 describe('groupableFields', () => {
   const fields = [
-    { field: 'warehouse', groups: ['TERMS'] },
-    { field: 'status', groups: ['TERMS'] },
+    { field: 'warehouse', groups: [AggregationGroupType.TERMS] },
+    { field: 'status', groups: [AggregationGroupType.TERMS] },
     { field: 'amount', groups: [] },
   ];
 
   it('offers the groupable fields not already grouped by, in their order', () => {
     expect(groupableFields(fields, [])).toEqual([fields[0], fields[1]]);
     const groups: AnalysisGroup[] = [
-      { type: 'TERMS', field: 'warehouse', alias: 'w' },
+      { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'w' },
     ];
     expect(groupableFields(fields, groups)).toEqual([fields[1]]);
   });
@@ -233,12 +298,19 @@ describe('the operator lists', () => {
    * shows them in.
    */
   it('lists every operator the model has, in the order a select shows them', () => {
-    expect(HAVING_OPERATORS).toEqual(['GT', 'GTE', 'LT', 'LTE', 'EQ', 'NE']);
+    expect(HAVING_OPERATORS).toEqual([
+      ComparisonOperator.GT,
+      ComparisonOperator.GTE,
+      ComparisonOperator.LT,
+      ComparisonOperator.LTE,
+      ComparisonOperator.EQ,
+      ComparisonOperator.NE,
+    ]);
     expect(EXPRESSION_OPERATORS).toEqual([
-      'ADD',
-      'SUBTRACT',
-      'MULTIPLY',
-      'DIVIDE',
+      AggregationExpressionOperator.ADD,
+      AggregationExpressionOperator.SUBTRACT,
+      AggregationExpressionOperator.MULTIPLY,
+      AggregationExpressionOperator.DIVIDE,
     ]);
   });
 });

@@ -24,6 +24,10 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -82,20 +86,23 @@ function definition(currency = 'CNY'): DataViewDefinition {
 
 const gmv: AnalysisMetric = {
   alias: 'gmv',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
-const orders: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const orders: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 const ratio = (format?: DerivedFormat): AnalysisMetric => ({
   alias: 'aov',
-  type: 'DERIVED',
+  type: AggregationMetricType.DERIVED,
   label: 'AOV',
   expression: {
-    type: 'BINARY',
-    operator: 'DIVIDE',
-    left: { type: 'METRIC_REF', metric: 'gmv' },
-    right: { type: 'METRIC_REF', metric: 'orders' },
+    type: DerivedExpressionType.BINARY,
+    operator: AggregationExpressionOperator.DIVIDE,
+    left: { type: DerivedExpressionType.METRIC_REF, metric: 'gmv' },
+    right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
   },
   ...(format ? { format } : {}),
 });

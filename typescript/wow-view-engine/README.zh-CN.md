@@ -28,6 +28,11 @@ Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`rea
 <!-- typecheck: file=orders.ts -->
 
 ```ts
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
 
 export const orders: ViewDefinition = {
@@ -51,7 +56,7 @@ export const orders: ViewDefinition = {
       name: 'amount',
       label: 'Amount',
       kind: 'number',
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
     },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
@@ -68,13 +73,19 @@ export const orders: ViewDefinition = {
           op: 'and',
           // enum 是封闭集合，因此提供 IN 与 NOT_IN 而不是 EQ：
           // 一个条件即表达“取其中之一”，两者互换时保留已选项。
-          children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+          children: [
+            {
+              field: 'status',
+              operator: FilterOperator.IN,
+              value: ['PENDING'],
+            },
+          ],
         },
         filterMode: 'simple',
         refresh: { interval: null },
-        sort: [{ field: 'createdAt', direction: 'DESC' }],
+        sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [
@@ -103,7 +114,7 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   store: new MemoryViewStore(),
-  // 一个 ViewSource；@ahoo-wang/wow-view-store 的 viewSourceOf 把 Wow 的查询路由接到这里
+  // 一个 ViewSource：Wow 查询路由的客户端（生成的 …SnapshotQueryClient）本身就是
   resources: [{ definition: orders, source: sources.orders }],
 });
 ```
@@ -127,6 +138,32 @@ export function OrdersPage() {
 ```
 
 真实应用的页面外面套一层 `ViewHost`，把引擎、你的路由、语言、主题与命令接起来：见[把引擎放进宿主](https://wow.ahoo.me/zh/typescript/view-engine/host)。
+
+### 引用字段的排序与搜索
+
+带 `remote` 的 `reference` 字段存的是 id、显示的是名称（由宿主的选项读出）。服务端按存储的 id 排序、在存储的文本里搜索，从不按显示的名称，所以这样的字段只有写了 `sortable: true` 才排序——按 id，表头和排序编辑器都会标明「按 ID」——而且不能作为搜索字段：准入会拒绝保存在它上面的排序（`record.sort.reference-label`）和点名它的搜索（`definition.search.reference-label`）。要按名称排序或搜索，把名称冗余进读模型，用那个字段：
+
+```ts
+import type { FieldDefinition } from '@ahoo-wang/wow-view-engine';
+
+export const customerFields: FieldDefinition[] = [
+  // 存客户的 id，显示它的名称。
+  {
+    name: 'customerId',
+    label: '客户',
+    kind: 'reference',
+    remote: 'customers',
+  },
+  // 冗余在读模型里的名称：行按它排序、在它里面搜索。
+  {
+    name: 'customerName',
+    label: '客户名称',
+    kind: 'string',
+    sortable: true,
+  },
+  { name: 'q', label: '搜索', kind: 'search', searchFields: ['customerName'] },
+];
+```
 
 ## 文档
 

@@ -53,12 +53,14 @@ import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
+import java.time.Clock
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
@@ -143,7 +145,7 @@ class CommandGateway @InternalWowApi constructor(
     @InternalWowApi
     val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val mapper: JsonMapper = ClusterCodec.mapper,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
     detachedContext: CoroutineContext = Dispatchers.Default,
     /** The streams committed for a request, which a creation without an id looks up first. */
     committed: CommittedRequests = CommittedRequests.NONE,
@@ -292,7 +294,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /** [refused], told to the observer by its code. */
     private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
-        result.error?.let { observer.refused(result.ref.type, it.code) }
+        result.error?.let { observer.observed(ObservedEvent.Refused(result.ref.type, it.code)) }
     }
 
     /** Runs [block] in the admission's [trace], switching context only when there is one. */
@@ -755,7 +757,7 @@ class CommandGateway @InternalWowApi constructor(
                 ref = ref,
                 function = function,
                 error = ErrorInfo(code, message, violations),
-                now = clock(),
+                now = clock.millis(),
             )
             return Admission.Refused(rejected.copyWith(status = status, transformedFrom = transformedFrom))
         }

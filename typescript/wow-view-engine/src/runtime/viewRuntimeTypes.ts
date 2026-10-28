@@ -12,6 +12,10 @@
  */
 
 import type {
+  ReferenceLabelReader,
+  ReferenceLabels,
+} from './referenceLabels.js';
+import type {
   DataViewConfig,
   AnalysisViewConfig,
   DashboardDefinition,
@@ -35,7 +39,7 @@ import type {
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ProjectedView, ViewSource } from './source.js';
+import type { OptionSource, ProjectedView, RecordSource } from './source.js';
 import type { ExportRowsOptions, ExportedRows } from './exportRows.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { WriteState } from './write.js';
@@ -77,6 +81,13 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * holds, and a value editor two levels down has no engine to reach.
    */
   optionSource(remote: string): OptionSource | null;
+  /**
+   * What reference ids read as, read from the engine's one cache:
+   * the engine asks for the ids of each page and result it shows, and a
+   * cell, legend or pill reads its id here — the id itself until the name
+   * arrives, or where it never does.
+   */
+  readonly labels: ReferenceLabelReader;
   /**
    * The values a condition on `field` may be picked from, counted from this
    * view's data within the injected scope (`ValueCandidateSources`), or
@@ -422,10 +433,10 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
   kinds: FieldKindRegistry;
   limits: RuntimeLimits;
   environment: RuntimeEnvironment;
-  source: ViewSource;
+  source: RecordSource;
   runner: RequestRunner;
-  /** See `ViewRuntime.optionSource`. */
-  resolveOptions?(key: string): OptionSource;
+  /** See `ViewRuntime.optionSource` and `ViewRuntime.labels`. */
+  labels: ReferenceLabels;
   /** An outer condition in force from the first execution on. */
   scopeFilter?: FilterTree | null;
   /**
@@ -476,6 +487,12 @@ export interface CreateInput<C extends ViewConfig> {
 
 /** How `ViewEngine.open` opens a view, beyond which one. */
 export interface OpenOptions {
+  /**
+   * Cancels the opening: the reads it waits on are aborted, and a view
+   * opened by then is disposed rather than handed back. A hook aborts it
+   * when the component that asked unmounts.
+   */
+  signal?: AbortSignal;
   /**
    * An outer condition in force from the first query, in the view's own field
    * names. It is admitted with the config rather than after it, so a host that

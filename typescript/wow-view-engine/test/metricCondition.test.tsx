@@ -15,6 +15,10 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
+  AggregationMetricType,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -119,12 +123,12 @@ function conditionDefinition(): DataViewDefinition {
 /** The record count and one summed field: a card with a funnel, twice. */
 function twoMetrics(): AnalysisViewConfig['metrics'] {
   return [
-    { alias: 'orders', type: 'COUNT' },
+    { alias: 'orders', type: AggregationMetricType.COUNT },
     {
       alias: 'amount',
-      type: 'NUMERIC',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'amount' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     },
   ];
 }
@@ -174,7 +178,7 @@ const label = (
  */
 const AMOUNT = formatMessage(defaultMessages, 'label.summary.of', {
   field: 'Amount',
-  fn: defaultMessages['label.summary.fn.SUM'],
+  fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /** The funnel of the card called `name`. */
@@ -465,15 +469,20 @@ describe('a metric’s own conditions', () => {
   it('says what it counts, on the card, at rest', async () => {
     await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
           filter: {
             op: 'and',
-            children: [{ field: 'status', operator: 'IN', value: ['PAID'] }],
+            children: [
+              { field: 'status', operator: FilterOperator.IN, value: ['PAID'] },
+            ],
           },
         },
       ],
@@ -508,15 +517,20 @@ describe('a metric’s own conditions', () => {
   it('heads its result column with what it counts', async () => {
     await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
           filter: {
             op: 'and',
-            children: [{ field: 'status', operator: 'IN', value: ['PAID'] }],
+            children: [
+              { field: 'status', operator: FilterOperator.IN, value: ['PAID'] },
+            ],
           },
         },
       ],
@@ -552,16 +566,23 @@ describe('a metric’s own conditions', () => {
   it('asks for a name when no one value names it', async () => {
     const { engine } = await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
           filter: {
             op: 'and',
             children: [
-              { field: 'status', operator: 'IN', value: ['PAID', 'PENDING'] },
+              {
+                field: 'status',
+                operator: FilterOperator.IN,
+                value: ['PAID', 'PENDING'],
+              },
             ],
           },
         },
@@ -622,9 +643,9 @@ describe('a metric’s own conditions', () => {
     await waitFor(() => expect(draft(engine).metrics).toHaveLength(3));
     const copy = draft(engine).metrics[2]!;
     expect(copy).toMatchObject({
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'amount_1',
-      function: 'SUM',
+      function: AggregationFunction.SUM,
     });
     expect('label' in (copy as object)).toBe(false);
     // No condition yet: the copy's block is open for one, and an empty
@@ -657,22 +678,25 @@ describe('a metric’s own conditions', () => {
   it('gives a derived metric no funnel at all', async () => {
     await open({
       metrics: [
-        { alias: 'orders', type: 'COUNT' },
+        { alias: 'orders', type: AggregationMetricType.COUNT },
         {
           alias: 'amount',
-          type: 'NUMERIC',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'amount' },
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.SUM,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
         {
           alias: 'avg',
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           label: 'Per order',
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'amount' },
-            right: { type: 'METRIC_REF', metric: 'orders' },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'amount' },
+            right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
           },
         },
       ],
@@ -680,7 +704,7 @@ describe('a metric’s own conditions', () => {
 
     const derived = await waitFor(() => {
       const found = document.querySelector<HTMLElement>(
-        '[data-slot="metric-card"][data-metric="DERIVED"]',
+        `[data-slot="metric-card"][data-metric="${AggregationMetricType.DERIVED}"]`,
       );
       expect(found).not.toBeNull();
       return found!;

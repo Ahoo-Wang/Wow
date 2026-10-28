@@ -14,6 +14,8 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -58,7 +60,7 @@ const latest: AnalysisProjection['columns'][number] = {
   alias: 'latest',
   label: 'Created',
   role: 'metric',
-  fn: 'MAX',
+  fn: AggregationFunction.MAX,
   kind: 'datetime',
   cell: 'datetime',
 };
@@ -72,7 +74,7 @@ describe('the earliest and the latest of a date, on screen', () => {
             columns: [
               { alias: 'wh', label: 'Warehouse', role: 'group' },
               latest,
-              { ...latest, alias: 'first', fn: 'MIN' },
+              { ...latest, alias: 'first', fn: AggregationFunction.MIN },
             ],
             rows: [{ wh: 'CN', latest: INSTANT, first: INSTANT - 86_400_000 }],
             totals: { latest: INSTANT },
@@ -134,10 +136,13 @@ describe('the earliest and the latest of a date, on screen', () => {
         groups: [],
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'latest',
-            function: 'MAX',
-            expression: { type: 'FIELD', field: 'deliveredOn' },
+            function: AggregationFunction.MAX,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'deliveredOn',
+            },
           },
         ],
         layout: 'chart',
@@ -197,10 +202,10 @@ function dated(): DataViewDefinition {
 }
 
 const latestMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'latest',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 } as const;
 
 async function open(config: Partial<AnalysisViewConfig>) {
@@ -265,7 +270,10 @@ describe('an analysis view over the latest of a date', () => {
 
   it('draws the count and leaves the latest to the table', async () => {
     const { engine } = await open({
-      metrics: [{ type: 'COUNT', alias: 'orders' }, latestMetric],
+      metrics: [
+        { type: AggregationMetricType.COUNT, alias: 'orders' },
+        latestMetric,
+      ],
       layout: 'chart',
       chart: {
         type: 'bar',

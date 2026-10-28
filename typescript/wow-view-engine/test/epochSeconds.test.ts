@@ -20,6 +20,7 @@ import {
 } from '../src/index.js';
 import { displayValue } from '../src/ui/kit/display.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
+import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 
 const MOMENT_S = 1_790_115_665;
 const MOMENT_MS = MOMENT_S * 1000;
@@ -28,20 +29,20 @@ const seconds: FieldDefinition = {
   name: 'retryAt',
   label: 'Retry at',
   kind: 'datetime',
-  temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+  temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
 };
 
 describe('a time kept in epoch seconds', () => {
   it('is read in its unit, as a number or as digits', () => {
-    expect(readInstant(MOMENT_S, 'SECONDS')?.ms).toBe(MOMENT_MS);
-    expect(readInstant(String(MOMENT_S), 'SECONDS')?.ms).toBe(MOMENT_MS);
+    expect(readInstant(MOMENT_S, TimeUnit.SECONDS)?.ms).toBe(MOMENT_MS);
+    expect(readInstant(String(MOMENT_S), TimeUnit.SECONDS)?.ms).toBe(MOMENT_MS);
     // Milliseconds stay the default, and a wall-clock text has no unit.
     expect(readInstant(MOMENT_MS)?.ms).toBe(MOMENT_MS);
-    expect(readInstant('2026-09-18', 'SECONDS')?.dayOnly).toBe(true);
+    expect(readInstant('2026-09-18', TimeUnit.SECONDS)?.dayOnly).toBe(true);
   });
 
   it('is said only where it is not the default', () => {
-    expect(epochUnitOf(seconds)).toBe('SECONDS');
+    expect(epochUnitOf(seconds)).toBe(TimeUnit.SECONDS);
     expect(
       epochUnitOf({ ...seconds, temporal: { type: 'epoch' } }),
     ).toBeUndefined();
@@ -56,14 +57,14 @@ describe('a time kept in epoch seconds', () => {
     expect(
       displayValue(
         MOMENT_S,
-        { cell: 'datetime', timeUnit: 'SECONDS' },
+        { cell: 'datetime', timeUnit: TimeUnit.SECONDS },
         context,
       ),
     ).toBe(displayValue(MOMENT_MS, { cell: 'datetime' }, context));
     expect(
       displayValue(
         MOMENT_S,
-        { cell: 'datetime', timeUnit: 'SECONDS' },
+        { cell: 'datetime', timeUnit: TimeUnit.SECONDS },
         context,
       ),
     ).toContain('2026');
@@ -78,14 +79,14 @@ describe('a time kept in epoch seconds', () => {
       recordConfig({
         table: { columns: [{ field: 'id' }, { field: 'retryAt' }] },
       }),
-      { total: 1, list: [{ id: 'o-1', retryAt: MOMENT_S }] },
+      { total: 1, exact: true, list: [{ id: 'o-1', retryAt: MOMENT_S }] },
     );
     expect(
       view.columns.find(column => column.field === 'retryAt')?.timeUnit,
-    ).toBe('SECONDS');
+    ).toBe(TimeUnit.SECONDS);
     expect(
       view.columns.find(column => column.field === 'id')?.timeUnit,
     ).toBeUndefined();
-    expect(cardField(seconds).timeUnit).toBe('SECONDS');
+    expect(cardField(seconds).timeUnit).toBe(TimeUnit.SECONDS);
   });
 });

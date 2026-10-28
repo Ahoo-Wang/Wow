@@ -35,7 +35,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /** Streamed lists are resumable (decision D253): ids, `Last-Event-ID`, the `end` event and the hold time. */
 class ResumableStreamRoutesTest {
-    private val byItems = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"ASC"}]}"""
+    private val byItems = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"asc"}]}"""
 
     private fun QueryNode.saveFive() = (1..5).forEach { save("c-$it", items = it) }
 
@@ -60,7 +60,7 @@ class ResumableStreamRoutesTest {
     fun `a sort that is not unique has the unique key appended, so no record repeats or goes missing`() {
         val node = QueryNode(streams = QueryStreams(chunkSize = 2))
         (1..5).forEach { node.save("c-$it", items = 7) }
-        val body = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"DESC"}]}"""
+        val body = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"desc"}]}"""
         val all = node.stream(body)
         ids(all).assert().hasSize(5).doesNotHaveDuplicates()
         ids(node.stream(body, lastEventId = all.rows[2].id)).assert().isEqualTo(ids(all).drop(3))
@@ -100,10 +100,10 @@ class ResumableStreamRoutesTest {
         }
         invalid(node.stream(byItems, lastEventId = "not-a-token"))
         // A position of another sort, or of another model.
-        val bySnapshotId = node.stream("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""").rows.first().id
+        val bySnapshotId = node.stream("""{"kind":"list","filter":{"op":"match-all"}}""").rows.first().id
         invalid(node.stream(byItems, lastEventId = bySnapshotId))
-        val ofEvents = node.stream("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", QueryRoutes.EVENTS).rows.first()
-        invalid(node.stream("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", lastEventId = ofEvents.id))
+        val ofEvents = node.stream("""{"kind":"list","filter":{"op":"match-all"}}""", QueryRoutes.EVENTS).rows.first()
+        invalid(node.stream("""{"kind":"list","filter":{"op":"match-all"}}""", lastEventId = ofEvents.id))
     }
 
     @Test

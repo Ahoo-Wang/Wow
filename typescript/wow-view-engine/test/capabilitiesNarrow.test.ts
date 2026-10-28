@@ -22,6 +22,13 @@ import {
   QueryValueKind,
   SearchMode,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  HavingExpressionType,
+  TimeUnit,
+  QuerySemanticTypes,
+  ComparisonOperator,
+  StringComparison,
+  QueryConstraintTypes,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
@@ -132,24 +139,29 @@ describe('4.1 fields', () => {
       dynamic: [
         {
           pattern: 'tags.{key}',
-          types: ['STRING'],
-          kind: 'SCALAR' as never,
+          types: [QueryValueTypes.STRING],
+          kind: QueryValueKind.SCALAR as never,
           filter: { operators: [FilterOperator.EQ] },
           excludedKeys: ['size'],
         },
         {
           pattern: 'tags.{key}',
-          types: ['STRING'],
-          kind: 'ARRAY' as never,
+          types: [QueryValueTypes.STRING],
+          kind: QueryValueKind.ARRAY as never,
           filter: { operators: [FilterOperator.IN] },
         },
       ],
     });
     const { definition, findings } = narrow(declared, descriptor);
 
-    expect(field(definition, 'tags.color')?.operators).toEqual(['EQ', 'IN']);
+    expect(field(definition, 'tags.color')?.operators).toEqual([
+      FilterOperator.EQ,
+      FilterOperator.IN,
+    ]);
     // `size` is excluded from the first pattern, and only the second admits it.
-    expect(field(definition, 'tags.size')?.operators).toEqual(['IN']);
+    expect(field(definition, 'tags.size')?.operators).toEqual([
+      HavingExpressionType.IN,
+    ]);
     expect(codes(findings)).toEqual([
       'warning capability.field.operators-narrowed',
       'warning capability.field.operators-narrowed',
@@ -170,8 +182,8 @@ describe('4.1 fields', () => {
       dynamic: [
         {
           pattern: 'secrets.{key}',
-          types: ['STRING'],
-          kind: 'SCALAR' as never,
+          types: [QueryValueTypes.STRING],
+          kind: QueryValueKind.SCALAR as never,
           filter: { operators: [] },
         },
       ],
@@ -191,7 +203,7 @@ describe('4.1 fields', () => {
           name: 'shippedAt',
           label: 'Shipped',
           kind: 'datetime',
-          temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+          temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
         },
         {
           name: 'dueOn',
@@ -208,18 +220,21 @@ describe('4.1 fields', () => {
         ...base.fields,
         // Milliseconds, as declared by default: no finding.
         describedField('createdAt', {
-          semantic: { type: 'TEMPORAL_EPOCH' },
+          semantic: { type: QuerySemanticTypes.TEMPORAL_EPOCH },
         }),
         // Declared seconds, kept as milliseconds.
         describedField('shippedAt', {
           semantic: {
-            type: 'TEMPORAL_EPOCH',
-            timeUnit: 'MILLISECONDS' as never,
+            type: QuerySemanticTypes.TEMPORAL_EPOCH,
+            timeUnit: TimeUnit.MILLISECONDS as never,
           },
         }),
         // Declared a date, kept as text.
         describedField('dueOn', {
-          semantic: { type: 'TEMPORAL_FORMATTED', pattern: 'yyyy-MM-dd' },
+          semantic: {
+            type: QuerySemanticTypes.TEMPORAL_FORMATTED,
+            pattern: 'yyyy-MM-dd',
+          },
         }),
       ],
     };
@@ -291,7 +306,10 @@ describe('4.2 conditions', () => {
     });
     const { definition, findings } = narrow(ordersDefinition(), descriptor);
 
-    expect(field(definition, 'warehouse')?.operators).toEqual(['EQ', 'IN']);
+    expect(field(definition, 'warehouse')?.operators).toEqual([
+      FilterOperator.EQ,
+      FilterOperator.IN,
+    ]);
     expect(findings).toEqual([
       expect.objectContaining({
         code: 'capability.field.operators-narrowed',
@@ -302,14 +320,17 @@ describe('4.2 conditions', () => {
 
   it('narrows a declared operator list and never widens it', () => {
     const declared = ordersDefinition();
-    declared.fields[1] = { ...declared.fields[1], operators: ['EQ', 'NE'] };
+    declared.fields[1] = {
+      ...declared.fields[1],
+      operators: [FilterOperator.EQ, FilterOperator.NE],
+    };
     const descriptor = withField('warehouse', {
       filter: { operators: [FilterOperator.EQ, FilterOperator.IN] },
     });
 
     expect(
       field(narrow(declared, descriptor).definition, 'warehouse')?.operators,
-    ).toEqual(['EQ']);
+    ).toEqual([ComparisonOperator.EQ]);
   });
 
   it('offers no condition on a field whose path admits none', () => {
@@ -324,17 +345,19 @@ describe('4.2 conditions', () => {
     const declared = ordersDefinition();
     declared.fields[2] = {
       ...declared.fields[2],
-      stringComparison: 'CASE_SENSITIVE',
+      stringComparison: StringComparison.CASE_SENSITIVE,
     };
     const descriptor = ordersDescriptor({
-      constraints: [{ type: 'STARTS_WITH_REQUIRES_PREFIX' }],
+      constraints: [{ type: QueryConstraintTypes.STARTS_WITH_REQUIRES_PREFIX }],
     });
     const { definition } = narrow(declared, descriptor);
 
     expect(field(definition, 'warehouse')?.operators).not.toContain(
-      'STARTS_WITH',
+      FilterOperator.STARTS_WITH,
     );
-    expect(field(definition, 'id')?.operators).not.toContain('STARTS_WITH');
+    expect(field(definition, 'id')?.operators).not.toContain(
+      FilterOperator.STARTS_WITH,
+    );
     // `status` compares case-sensitively and keeps it.
     expect(field(definition, 'status')?.operators).toBeUndefined();
   });
@@ -399,7 +422,9 @@ describe('4.2 conditions', () => {
       const narrowed = field(definition, 'items');
 
       expect(narrowed?.operators).toBeUndefined();
-      expect(narrowed?.elements?.[1].operators).toEqual(['GT']);
+      expect(narrowed?.elements?.[1].operators).toEqual([
+        ComparisonOperator.GT,
+      ]);
     });
 
     it("admits ELEMENT_MATCH from the element's entry, never from the array's own operators", () => {
@@ -457,7 +482,9 @@ describe('4.2 conditions', () => {
             : entry,
         ),
       });
-      expect(field(definition, 'items')?.operators).toEqual(['ELEMENT_MATCH']);
+      expect(field(definition, 'items')?.operators).toEqual([
+        FilterOperator.ELEMENT_MATCH,
+      ]);
     });
 
     it('offers no element condition where the elements cannot be filtered', () => {
@@ -481,7 +508,7 @@ describe('4.2 search (G15)', () => {
     label: 'Search errors',
     kind: 'search',
     searchFields: ['state.error.errorMsg', 'state.error.stackTrace'],
-    searchMode: 'PHRASE',
+    searchMode: SearchMode.PHRASE,
   };
   const declared = ordersDefinition({
     fields: [...ordersDefinition().fields, errorSearch],
@@ -534,7 +561,7 @@ describe('4.2 search (G15)', () => {
       searching({ modes: [SearchMode.TERMS], fields: errorFields }),
     );
 
-    expect(searchFieldOf(definition.fields)?.searchMode).toBe('TERMS');
+    expect(searchFieldOf(definition.fields)?.searchMode).toBe(SearchMode.TERMS);
     expect(codes(findings)).toEqual(['note capability.search.as-terms']);
   });
 
@@ -542,7 +569,7 @@ describe('4.2 search (G15)', () => {
     const words = ordersDefinition({
       fields: [
         ...ordersDefinition().fields,
-        { ...errorSearch, searchMode: 'TERMS' },
+        { ...errorSearch, searchMode: SearchMode.TERMS },
       ],
     });
     const { definition } = narrow(
@@ -620,7 +647,9 @@ describe('4.3 sort and paging', () => {
       narrow(
         cursor,
         ordersDescriptor({
-          constraints: [{ type: 'CURSOR_UNIQUE_SORT', appended }],
+          constraints: [
+            { type: QueryConstraintTypes.CURSOR_UNIQUE_SORT, appended },
+          ],
         }),
       ).findings;
 
@@ -632,7 +661,7 @@ describe('4.3 sort and paging', () => {
 
   it('asks a paged view for a condition where the source counts only what one narrows (Q3)', () => {
     const counted = ordersDescriptor({
-      constraints: [{ type: 'COUNT_REQUIRES_FILTER' }],
+      constraints: [{ type: QueryConstraintTypes.COUNT_REQUIRES_FILTER }],
     });
 
     expect(
@@ -677,7 +706,10 @@ describe('4.3 sort and paging', () => {
 
   it("cuts a column's summaries to the metrics its path feeds", () => {
     const declared = ordersDefinition();
-    declared.fields[3] = { ...declared.fields[3], summary: ['SUM', 'COUNT'] };
+    declared.fields[3] = {
+      ...declared.fields[3],
+      summary: [AggregationFunction.SUM, AggregationMetricType.COUNT],
+    };
     const descriptor = ordersDescriptor();
     descriptor.analysis = {
       ...descriptor.analysis,
@@ -685,11 +717,13 @@ describe('4.3 sort and paging', () => {
     };
     const { definition, findings } = narrow(declared, descriptor);
 
-    expect(field(definition, 'amount')?.summary).toEqual(['COUNT']);
+    expect(field(definition, 'amount')?.summary).toEqual([
+      AggregationMetricType.COUNT,
+    ]);
     expect(findings).toContainEqual(
       expect.objectContaining({
         code: 'capability.field.summary-narrowed',
-        params: { field: 'amount', summaries: 'SUM' },
+        params: { field: 'amount', summaries: AggregationFunction.SUM },
       }),
     );
   });
@@ -711,11 +745,16 @@ describe('4.4 analysis', () => {
     });
     const { definition, findings } = narrow(declared, descriptor);
 
-    expect(definition.analysis?.fields[0].groups).toEqual(['TERMS']);
+    expect(definition.analysis?.fields[0].groups).toEqual([
+      AggregationGroupType.TERMS,
+    ]);
     expect(findings).toEqual([
       expect.objectContaining({
         code: 'capability.analysis.field-narrowed',
-        params: { field: 'warehouse', dropped: 'HISTOGRAM' },
+        params: {
+          field: 'warehouse',
+          dropped: `label.group.type.${AggregationGroupType.HISTOGRAM}`,
+        },
       }),
     ]);
   });
@@ -749,19 +788,22 @@ describe('4.4 analysis', () => {
       described([AggregationDateUnit.DAY, AggregationDateUnit.MONTH]),
     );
     expect(some.definition.analysis?.fields[2]).toMatchObject({
-      groups: ['DATE_HISTOGRAM', 'TERMS'],
-      dateUnits: ['MONTH', 'DAY'],
+      groups: [AggregationGroupType.DATE_HISTOGRAM, AggregationGroupType.TERMS],
+      dateUnits: [AggregationDateUnit.MONTH, AggregationDateUnit.DAY],
     });
     expect(some.findings).toEqual([
       expect.objectContaining({
         code: 'capability.analysis.field-narrowed',
-        params: { field: 'createdAt', dropped: 'HOUR' },
+        params: {
+          field: 'createdAt',
+          dropped: `label.date-unit.${AggregationDateUnit.HOUR}`,
+        },
       }),
     ]);
 
     const none = narrow(declared, described([AggregationDateUnit.YEAR]));
     expect(none.definition.analysis?.fields[2]).toMatchObject({
-      groups: ['TERMS'],
+      groups: [AggregationGroupType.TERMS],
       dateUnits: [],
     });
   });
@@ -890,7 +932,9 @@ describe('4.4 analysis', () => {
     expect(definition.analysis?.elements).toEqual([
       {
         path: 'lines',
-        aggregations: [{ field: 'qty', groups: [], functions: ['SUM'] }],
+        aggregations: [
+          { field: 'qty', groups: [], functions: [AggregationFunction.SUM] },
+        ],
       },
     ]);
     expect(codes(findings)).toEqual([

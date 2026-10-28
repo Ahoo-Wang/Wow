@@ -21,7 +21,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -57,6 +57,7 @@ import {
 } from './fixtures.js';
 import { editorToggle } from './fixtures/workbench.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -320,8 +321,8 @@ describe('DataWorkbench', () => {
         filter: {
           op: 'and',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
-            { field: 'warehouse', operator: 'EQ', value: 'US' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'US' },
           ],
         },
       }),
@@ -396,6 +397,7 @@ describe('DataWorkbench', () => {
             Promise.resolve({
               // More than a page, so both scopes are drawn (D26 Q40).
               total: 42,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
           // Wow answers MIN on a date with the instant it keeps.
@@ -407,7 +409,7 @@ describe('DataWorkbench', () => {
           {
             ...mine,
             config: recordConfig({
-              summaries: [{ field: 'createdAt', fn: 'MIN' }],
+              summaries: [{ field: 'createdAt', fn: AggregationFunction.MIN }],
               table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
             }),
           },
@@ -447,7 +449,7 @@ describe('DataWorkbench', () => {
     ).toMatch(/^18 Sept 2026, 15:06$/);
     // Both scopes read the column's way, under the word a moment takes.
     expect(footer.textContent).toContain(
-      defaultMessages['label.summary.fn.date.MIN'],
+      defaultMessages[`label.summary.fn.date.${AggregationFunction.MIN}`],
     );
     expect(
       [...footer.querySelectorAll('[data-slot="summary-value"]')].map(
@@ -709,7 +711,9 @@ describe('DataWorkbench', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );
@@ -793,6 +797,7 @@ describe('DataWorkbench', () => {
               paged: vi.fn(() =>
                 Promise.resolve({
                   total: 1,
+                  exact: true,
                   list: [
                     {
                       id: 'o-1',
@@ -819,7 +824,7 @@ describe('DataWorkbench', () => {
    * them is in production.
    */
   it('shows a placeholder while the first rows are still coming', async () => {
-    const pending = deferred<PagedList<RecordData>>();
+    const pending = deferred<PagedResult<RecordData>>();
     const engine = new ViewEngine({
       resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: () => pending.promise }),
@@ -835,7 +840,7 @@ describe('DataWorkbench', () => {
       expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull(),
     );
 
-    pending.resolve({ total: 2, list: [...ROWS] });
+    pending.resolve({ total: 2, exact: true, list: [...ROWS] });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
   });
 

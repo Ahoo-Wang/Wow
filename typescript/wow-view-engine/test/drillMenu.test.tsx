@@ -14,6 +14,8 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  FilterOperator,
+  AggregationDateUnit,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -334,7 +336,9 @@ describe('the follow-up menu on one group', () => {
       .find(runtime => runtime !== saved && runtime.kind === 'analysis')!;
     expect(appliedIn(followed).filter).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     });
     // Still grouped as it was: only the range moved.
     expect(appliedIn(followed).groups.map(group => group.field)).toEqual([
@@ -423,8 +427,8 @@ describe('the follow-up menu on one group', () => {
           {
             alias: 'month',
             field: 'createdAt',
-            type: 'DATE_HISTOGRAM',
-            unit: 'MONTH',
+            type: AggregationGroupType.DATE_HISTOGRAM,
+            unit: AggregationDateUnit.MONTH,
           },
         ],
         table: { columns: [] },
@@ -490,7 +494,12 @@ describe('the follow-up menu on one group', () => {
       config: analysisConfig({
         layout: 'table',
         groups: [
-          { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+          {
+            alias: 'band',
+            field: 'amount',
+            type: AggregationGroupType.HISTOGRAM,
+            interval: 500,
+          },
         ],
         table: { columns: [] },
         chart: {
@@ -572,7 +581,9 @@ describe('the follow-up menu on one group', () => {
     expect(applied.groups.map(group => group.field)).toEqual(['status']);
     expect(applied.filter).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     });
     await waitFor(() => expect(menu()).toBeNull());
     expect(saved.getSnapshot().dirty).toBe(false);
@@ -691,10 +702,10 @@ describe('the follow-up menu on one group', () => {
         unresolved: false,
         field: 'createdAt',
         label: 'Created',
-        operator: 'BETWEEN' as const,
+        operator: FilterOperator.BETWEEN as const,
         value: {
           kind: 'period' as const,
-          unit: 'WEEK' as const,
+          unit: AggregationDateUnit.WEEK as const,
           from: new Date(start).toISOString(),
           timeZone: 'UTC',
         },
@@ -707,7 +718,7 @@ describe('the follow-up menu on one group', () => {
         unresolved: false,
         field: 'createdAt',
         label: 'Created',
-        operator: 'IS_NULL' as const,
+        operator: FilterOperator.IS_NULL as const,
       },
     ];
     const day = new Intl.DateTimeFormat('en-GB', {
@@ -753,8 +764,12 @@ describe('the follow-up menu on one group', () => {
         {
           op: 'and',
           children: [
-            { field: 'price', operator: 'GTE', value: key },
-            { field: 'price', operator: 'LT', value: key + interval },
+            { field: 'price', operator: FilterOperator.GTE, value: key },
+            {
+              field: 'price',
+              operator: FilterOperator.LT,
+              value: key + interval,
+            },
           ],
         },
         builtinFieldKinds,

@@ -25,11 +25,13 @@ import { executeSummaries, firstPageOf } from './execute.js';
 import {
   fetchExportRows,
   isExportCancelledError,
+  wantExportLabels,
   type ExportRowsOptions,
   type ExportedRows,
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
 import { executeLanePage } from './kanban.js';
+import { fieldHolders, idsOf } from './labelIds.js';
 import { isCalledOff } from './failure/failures.js';
 import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
@@ -128,16 +130,27 @@ export class RecordDataViewRuntime
   exportRows(options: ExportRowsOptions = {}): Promise<ExportedRows> {
     if (this.disposed)
       return Promise.reject(new Error(`View ${this.id} is closed`));
-    return fetchExportRows(
-      this.context,
-      withScopeFilter(this.state.applied, this.scopeFilter),
-      options,
-    ).catch((error: unknown) => {
-      // A cancel is the user's answer, not a failure (`isExportCancelledError`).
-      if (!isExportCancelledError(error) && !isCalledOff(error, options.signal))
-        this.exportFailed('fetch', error);
-      throw error;
-    });
+    const config = withScopeFilter(this.state.applied, this.scopeFilter);
+    return fetchExportRows(this.context, config, options)
+      .then(async exported => {
+        await wantExportLabels(
+          this.labels,
+          this.context,
+          config,
+          exported.rows,
+          options.signal,
+        );
+        return exported;
+      })
+      .catch((error: unknown) => {
+        // A cancel is the user's answer, not a failure (`isExportCancelledError`).
+        if (
+          !isExportCancelledError(error) &&
+          !isCalledOff(error, options.signal)
+        )
+          this.exportFailed('fetch', error);
+        throw error;
+      });
   }
 
   fetchRecord(
@@ -152,11 +165,28 @@ export class RecordDataViewRuntime
       this.scopeFilter,
       key,
       signal,
-    ).catch((error: unknown) => {
-      if (!isCalledOff(error, signal))
-        void this.context.queryFailed('record', error);
-      throw error;
-    });
+    ).then(
+      record => {
+        if (record) this.askRecordLabels(record, signal);
+        return record;
+      },
+      (error: unknown) => {
+        if (!isCalledOff(error, signal))
+          void this.context.queryFailed('record', error);
+        throw error;
+      },
+    );
+  }
+
+  /**
+   * Asks the names of the ids a record read whole holds: every
+   * reference field of the definition, since a detail shows them all. The
+   * record shows at once with its ids; the read's signal calls them off.
+   */
+  private askRecordLabels(record: RecordData, signal?: AbortSignal): void {
+    const holders = fieldHolders(this.context.definition.fields);
+    for (const [remote, ids] of idsOf([record], holders))
+      this.labels.want(remote, ids, { signal }).catch(() => undefined);
   }
 
   /**

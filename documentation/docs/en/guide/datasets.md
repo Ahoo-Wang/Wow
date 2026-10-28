@@ -22,16 +22,16 @@ A dataset is a JSON file named `<context>.<dataset>.json`, on the class path und
   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
   "storage": { "table": "eshop_ordering_order_state_flat" },
   "fields": {
-    "id": { "types": ["STRING"], "nullable": false, "description": "The commit of the order's current state: ref@version." },
-    "tenant_id": { "types": ["STRING"], "nullable": false },
-    "aggregate_id": { "types": ["STRING"], "nullable": false, "description": "The order's id." },
-    "owner_id": { "types": ["STRING"], "nullable": false, "description": "The buyer whose checkout the order is: its owner." },
-    "space_id": { "types": ["STRING"], "nullable": false },
-    "version": { "types": ["INTEGER"], "nullable": false },
-    "commit_time": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" }, "nullable": false },
-    "deleted": { "types": ["BOOLEAN"], "nullable": false },
-    "status": { "types": ["STRING"], "nullable": false, "description": "SUBMITTED, AWAITING_VALIDATION, STOCK_CONFIRMED, PAID, SHIPPED or CANCELLED." },
-    "totalAmount": { "types": ["DECIMAL"], "nullable": false, "description": "The order's total: each line's unit price times its quantity." }
+    "id": { "types": ["string"], "nullable": false, "description": "The commit of the order's current state: ref@version." },
+    "tenant_id": { "types": ["string"], "nullable": false },
+    "aggregate_id": { "types": ["string"], "nullable": false, "description": "The order's id." },
+    "owner_id": { "types": ["string"], "nullable": false, "description": "The buyer whose checkout the order is: its owner." },
+    "space_id": { "types": ["string"], "nullable": false },
+    "version": { "types": ["integer"], "nullable": false },
+    "commit_time": { "types": ["string"], "semantic": { "type": "temporal-date" }, "nullable": false },
+    "deleted": { "types": ["boolean"], "nullable": false },
+    "status": { "types": ["string"], "nullable": false, "description": "SUBMITTED, AWAITING_VALIDATION, STOCK_CONFIRMED, PAID, SHIPPED or CANCELLED." },
+    "totalAmount": { "types": ["decimal"], "nullable": false, "description": "The order's total: each line's unit price times its quantity." }
   }
 }
 ```
@@ -45,13 +45,13 @@ A dataset is a JSON file named `<context>.<dataset>.json`, on the class path und
 | `storage` | The backend's binding: on ClickHouse, the `table` it reads |
 | `fields` | Each column: its `types`, `nullable`, an optional `semantic` type, `enum` values and a `description` |
 
-A field may also be masked, with `"sensitive": {"level": "CONFIDENTIAL", "keepSuffix": 4}`, as a `@Sensitive` state field is.
+A field may also be masked, with `"sensitive": {"level": "confidential", "keepSuffix": 4}`, as a `@Sensitive` state field is.
 
 A file in the working directory, `<wow.query.dataset.config-directory>/wow/dataset/` (`config/wow/dataset/` by default), takes precedence over the class path's file of the same name, so an operator can adjust a dataset without a new build.
 
 ## Where the rows come from
 
-Datasets are served when a dataset backend is wired; in 10.0, ClickHouse's: `wow-clickhouse` on the class path and `wow.clickhouse.endpoint` set. The ClickHouse sink writes each published aggregate's commits to tables a dataset reads, such as `<context>_<aggregate>_state_flat`, the current states with the state's scalar fields as columns ([ClickHouse](../operate/clickhouse)).
+Datasets are served when a dataset backend is wired; in 10.0, ClickHouse's: `wow-clickhouse` on the class path, with `wow.clickhouse.endpoint` set or a ClickHouse `Client` bean. The ClickHouse sink, switched on by `wow.clickhouse.sink.enabled: true`, writes each published aggregate's commits to tables a dataset reads, such as `<context>_<aggregate>_state_flat`, the current states with the state's scalar fields as columns ([ClickHouse](../operate/clickhouse)).
 
 ## Query it
 

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 884 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 891 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -158,7 +158,7 @@ type  DatasetOverrides
 type  DatasetRegistrar
 type  DatasetResource
 value DatasetResources
-type  DatasetResourcesOptions
+type  DatasetResourcesInit
 type  DatasetWordingEditor
 type  DatasetWordingStore
 type  DateDiffUnitName
@@ -362,7 +362,6 @@ type  ProjectedAnalysis
 type  ProjectedBase
 type  ProjectedRecord
 type  ProjectedView
-type  QueryDescriptorResult
 type  QueryStatus
 value RECORD_PRESENTATION_MEMBERS
 value REFERENCE_STATISTICS
@@ -370,6 +369,7 @@ value RELATIVE_DATE_UNITS
 type  RadarData
 type  RadarSpec
 type  RangeEdge
+type  ReadOptions
 type  RecordAction
 type  RecordActions
 type  RecordCapability
@@ -395,7 +395,11 @@ type  RecordViewConfig
 type  RecordViewRuntime
 type  ReferenceBand
 type  ReferenceFilterValue
+type  ReferenceId
 type  ReferenceItem
+type  ReferenceLabel
+type  ReferenceLabelReader
+value ReferenceLabelTimeoutError
 type  ReferenceLine
 type  ReferenceStatistic
 type  RefreshConfig
@@ -430,6 +434,7 @@ type  ShapeContext
 type  ShapeFacts
 type  SizedPanel
 type  SortDirectionName
+type  SourceOptions
 type  StoredDatasetWording
 type  StringComparisonName
 type  StringFilterValue
@@ -486,6 +491,8 @@ type  ViewHandOver
 type  ViewInstance
 type  ViewInstanceSummary
 type  ViewKind
+type  ViewListOptions
+type  ViewListPage
 type  ViewListing
 type  ViewNavigation
 type  ViewPermissions
@@ -507,8 +514,8 @@ type  WaterfallSpec
 type  WaterfallStep
 type  WindowFunctionName
 type  WriteAction
-type  WriteContext
 type  WriteHandle
+type  WriteOptions
 type  WritePayload
 type  WriteState
 type  WriteTarget

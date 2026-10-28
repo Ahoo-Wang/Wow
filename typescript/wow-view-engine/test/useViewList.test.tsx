@@ -22,8 +22,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ViewStoreError,
   type ViewInstance,
-  type ViewInstanceSummary,
+  type ViewListPage,
   type ViewPreferences,
+  type ViewStore,
 } from '../src/index.js';
 import { useViewList } from '../src/react/index.js';
 import { analysisConfig, mine } from './fixtures.js';
@@ -82,6 +83,28 @@ describe('useViewList', () => {
       expect(result.current.defaultInstanceId).toBe('orders-1'),
     );
     expect(result.current.preferencesSettled).toBe(true);
+  });
+
+  it('calls off its reads of the list and the preferences when it is unmounted', async () => {
+    const { engine, store } = engineWith();
+    const list = vi
+      .spyOn<ViewStore, 'list'>(store, 'list')
+      .mockReturnValueOnce(new Promise<ViewListPage>(() => {}));
+    const preferences = vi
+      .spyOn<ViewStore, 'getPreferences'>(store, 'getPreferences')
+      .mockReturnValueOnce(new Promise<ViewPreferences>(() => {}));
+
+    const { unmount } = renderHook(() => useViewList(engine, 'orders'));
+    await waitFor(() => expect(preferences).toHaveBeenCalled());
+    const signals = [
+      list.mock.calls[0]?.[1]?.signal,
+      preferences.mock.calls[0]?.[1]?.signal,
+    ];
+    expect(signals.map(signal => signal?.aborted)).toEqual([false, false]);
+
+    unmount();
+
+    expect(signals.map(signal => signal?.aborted)).toEqual([true, true]);
   });
 
   it('falls back to server order once preferences have failed', async () => {
@@ -256,9 +279,9 @@ describe('useViewList', () => {
       await waitFor(() => expect(result.current.loading).toBe(false));
       expect(result.current.defaultInstanceId).toBe('orders-1');
 
-      let release: (value: ViewInstanceSummary[]) => void = () => {};
+      let release: (value: ViewListPage) => void = () => {};
       vi.spyOn(store, 'list').mockReturnValueOnce(
-        new Promise<ViewInstanceSummary[]>(resolve => {
+        new Promise<ViewListPage>(resolve => {
           release = resolve;
         }),
       );
@@ -273,7 +296,7 @@ describe('useViewList', () => {
       ]);
       expect(result.current.defaultInstanceId).toBe('system:orders:all');
 
-      act(() => release([]));
+      act(() => release({ items: [], nextCursor: null }));
       await waitFor(() => expect(result.current.loading).toBe(false));
     });
 

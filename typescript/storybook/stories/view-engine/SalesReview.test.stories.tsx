@@ -38,6 +38,7 @@ import {
   expectShownWhole,
 } from './panelFit.js';
 import { expectMetricCardsFit } from './metricFit.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 销售复盘, as a lightweight twin (docs/scenarios.md 6.1): it draws without a
@@ -252,7 +253,7 @@ export const RangeNamesItsDays: Story = {
 export const DailyPastTheLimitSaysSo: Story = {
   ...DisplayOverview,
   name: '按日不设日期：卡片不拿第 400 天当最新',
-  args: { filters: { values: {}, unit: 'DAY' } },
+  args: { filters: { values: {}, unit: AggregationDateUnit.DAY } },
   play: async () => {
     await waitFor(
       () =>

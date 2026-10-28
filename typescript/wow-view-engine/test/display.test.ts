@@ -35,6 +35,13 @@ import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { formatMessage, type ViewMessages } from '../src/ui/kit/messages.js';
+import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationMetricType,
+  ComparisonOperator,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Expected text comes from the same Intl call, not a literal: the ICU data a
@@ -256,10 +263,10 @@ describe('displayValue', () => {
       '失败, 已成功',
     );
     // A code the definition does not name is left to the caller, as is.
-    expect(displayValue('UNKNOWN', field, {})).toBeUndefined();
-    expect(displayValue(['UNKNOWN'], field, {})).toBeUndefined();
-    expect(displayValue(['FAILED', 'UNKNOWN'], field, {})).toBe(
-      '失败, UNKNOWN',
+    expect(displayValue('RETIRED', field, {})).toBeUndefined();
+    expect(displayValue(['RETIRED'], field, {})).toBeUndefined();
+    expect(displayValue(['FAILED', 'RETIRED'], field, {})).toBe(
+      '失败, RETIRED',
     );
   });
 
@@ -267,29 +274,37 @@ describe('displayValue', () => {
     const day = Date.UTC(2026, 8, 18);
     const utc = { locale: 'en-GB', timeZone: 'UTC' };
 
-    expect(displayValue(day, { dateUnit: 'DAY' }, utc)).toBe(
+    expect(displayValue(day, { dateUnit: AggregationDateUnit.DAY }, utc)).toBe(
       formatted(day, 'en-GB', { dateStyle: 'medium', timeZone: 'UTC' }),
     );
-    expect(displayValue(day, { dateUnit: 'MONTH' }, utc)).toBe(
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.MONTH }, utc),
+    ).toBe(
       formatted(day, 'en-GB', {
         year: 'numeric',
         month: 'long',
         timeZone: 'UTC',
       }),
     );
-    expect(displayValue(day, { dateUnit: 'QUARTER' }, utc)).toBe('2026 Q3');
-    expect(displayValue(day, { dateUnit: 'YEAR' }, utc)).toBe('2026');
-    expect(displayValue(day, { dateUnit: 'HOUR' }, utc)).toBe(
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.QUARTER }, utc),
+    ).toBe('2026 Q3');
+    expect(displayValue(day, { dateUnit: AggregationDateUnit.YEAR }, utc)).toBe(
+      '2026',
+    );
+    expect(displayValue(day, { dateUnit: AggregationDateUnit.HOUR }, utc)).toBe(
       formatted(day, 'en-GB', {
         dateStyle: 'medium',
         timeStyle: 'short',
         timeZone: 'UTC',
       }),
     );
-    expect(displayValue(day, { dateUnit: 'SECOND' }, utc)).toBe(
-      formatted(day, 'en-GB', { ...DATE_TIME, timeZone: 'UTC' }),
-    );
-    expect(displayValue('soon', { dateUnit: 'DAY' }, utc)).toBeUndefined();
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.SECOND }, utc),
+    ).toBe(formatted(day, 'en-GB', { ...DATE_TIME, timeZone: 'UTC' }));
+    expect(
+      displayValue('soon', { dateUnit: AggregationDateUnit.DAY }, utc),
+    ).toBeUndefined();
   });
 
   // Persian writes its own numerals, which `Number` reads as NaN, and dates by
@@ -300,19 +315,21 @@ describe('displayValue', () => {
     const month = { year: 'numeric', month: 'long', timeZone: 'UTC' } as const;
     const persian = { locale: 'fa-IR', timeZone: 'UTC' };
 
-    expect(displayValue(day, { dateUnit: 'QUARTER' }, persian)).toBe(
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.QUARTER }, persian),
+    ).toBe(
       `${formatted(day, 'fa-IR', {
         year: 'numeric',
         calendar: 'gregory',
         timeZone: 'UTC',
       })} Q3`,
     );
-    expect(displayValue(day, { dateUnit: 'MONTH' }, persian)).toBe(
-      formatted(day, 'fa-IR', { ...month, calendar: 'gregory' }),
-    );
-    expect(displayValue(day, { dateUnit: 'MONTH' }, persian)).not.toBe(
-      formatted(day, 'fa-IR', month),
-    );
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.MONTH }, persian),
+    ).toBe(formatted(day, 'fa-IR', { ...month, calendar: 'gregory' }));
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.MONTH }, persian),
+    ).not.toBe(formatted(day, 'fa-IR', month));
   });
 
   // Buckets cut at UTC midnight and read in Los Angeles would each carry the
@@ -321,7 +338,7 @@ describe('displayValue', () => {
     const day = Date.UTC(2026, 8, 18);
     const shown = displayValue(
       day,
-      { dateUnit: 'DAY', timeZone: 'UTC' },
+      { dateUnit: AggregationDateUnit.DAY, timeZone: 'UTC' },
       { locale: 'en-GB', timeZone: 'America/Los_Angeles' },
     );
 
@@ -811,7 +828,7 @@ describe('summaryText', () => {
     field: 'items.sku',
     label: 'SKU',
     kind: 'string',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: { kind: 'text', value },
   });
   const predicate = (
@@ -824,7 +841,7 @@ describe('summaryText', () => {
     field: 'items',
     label: 'Items',
     kind: 'elementMatch',
-    operator: 'ELEMENT_MATCH',
+    operator: FilterOperator.ELEMENT_MATCH,
     value: { kind: 'none' },
     group,
     items,
@@ -891,7 +908,7 @@ describe('summaryText', () => {
       field: 'createdAt',
       label: 'Created',
       kind: 'datetime',
-      operator: 'BETWEEN',
+      operator: FilterOperator.BETWEEN,
       value: { kind: 'range', from, to },
     });
 
@@ -978,7 +995,7 @@ describe('summaryText', () => {
         label: 'Amount',
         kind: 'number',
         numberFormat: yuan,
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { kind: 'range', from: 1000, to: 2000 },
       }),
     ).toBe(
@@ -1000,7 +1017,7 @@ describe('summaryText', () => {
         field: 'createdAt',
         label: 'Created',
         kind: 'date',
-        operator: 'GTE',
+        operator: FilterOperator.GTE,
         value: { kind: 'text', value: '2026-01-01' },
       }),
     ).toBe(
@@ -1025,7 +1042,8 @@ describe('summaryText', () => {
         field: 'createdAt',
         label: 'Created',
         kind: 'datetime',
-        operator: bound === 'window' ? 'BETWEEN' : 'LTE',
+        operator:
+          bound === 'window' ? FilterOperator.BETWEEN : FilterOperator.LTE,
         value: { kind: 'relative', amount: 7, unit: 'day', direction, bound },
       });
 
@@ -1050,7 +1068,7 @@ describe('summaryText', () => {
       field: 'createdAt',
       label: 'Created',
       kind: 'datetime',
-      operator: 'BETWEEN',
+      operator: FilterOperator.BETWEEN,
       ...overrides,
     });
     expect(say(item({ value: { kind: 'preset', preset: 'yesterday' } }))).toBe(
@@ -1060,12 +1078,15 @@ describe('summaryText', () => {
     expect(
       say(
         item({
-          operator: 'GTE',
+          operator: FilterOperator.GTE,
           value: { kind: 'preset', preset: 'yesterday' },
         }),
       ),
     ).not.toBe('Created yesterday');
-    const late = (operator: 'EQ' | 'NE', value: boolean) =>
+    const late = (
+      operator: `${FilterOperator.EQ}` | `${FilterOperator.NE}`,
+      value: boolean,
+    ) =>
       say(
         item({
           field: 'late',
@@ -1075,9 +1096,9 @@ describe('summaryText', () => {
           value: { kind: 'text', value },
         }),
       );
-    expect(late('EQ', true)).toBe('Late: Yes');
-    expect(late('EQ', false)).toBe('Late: No');
-    expect(late('NE', true)).toBe('Late is not Yes');
+    expect(late(ComparisonOperator.EQ, true)).toBe('Late: Yes');
+    expect(late(ComparisonOperator.EQ, false)).toBe('Late: No');
+    expect(late(ComparisonOperator.NE, true)).toBe('Late is not Yes');
     // A field that names its answers (新客／老客) says the answer alone.
     expect(
       say(
@@ -1085,7 +1106,7 @@ describe('summaryText', () => {
           field: 'isNew',
           label: '新客',
           kind: 'boolean',
-          operator: 'EQ',
+          operator: FilterOperator.EQ,
           value: { kind: 'text', value: false, label: '老客' },
         }),
       ),
@@ -1101,7 +1122,7 @@ describe('summaryText', () => {
         field: '@ownerId',
         label: 'Owner',
         kind: 'ownerId',
-        operator: 'OWNER_ID',
+        operator: FilterOperator.OWNER_ID,
         value: { kind: 'text', value: 'u-7', label: 'ACME' },
       }),
     ).toBe('Owner is ACME');
@@ -1116,7 +1137,7 @@ describe('summaryText', () => {
         field: 'status',
         label: 'Status',
         kind: 'enum',
-        operator: 'EQ',
+        operator: FilterOperator.EQ,
         value: { kind: 'blank' },
       }),
     ).toBe('Status');
@@ -1150,8 +1171,8 @@ describe('columnTitle', () => {
     expect(
       columnTitle(
         {
-          label: `${metricReferenceText('SUM', 'Amount')} ÷ ${metricReferenceText('COUNT', 'orders')}`,
-          fn: 'DERIVED',
+          label: `${metricReferenceText(AggregationFunction.SUM, 'Amount')} ÷ ${metricReferenceText(AggregationMetricType.COUNT, 'orders')}`,
+          fn: AggregationMetricType.DERIVED,
         },
         words,
       ),
@@ -1159,17 +1180,20 @@ describe('columnTitle', () => {
     expect(
       columnTitle(
         {
-          label: `${metricReferenceText('PERCENTILE', 'Amount')} − 1`,
-          fn: 'DERIVED',
+          label: `${metricReferenceText(AggregationMetricType.PERCENTILE, 'Amount')} − 1`,
+          fn: AggregationMetricType.DERIVED,
         },
         words,
       ),
     ).toBe(
-      `≈ ${words.label('label.summary.of', { field: 'Amount', fn: words.label('label.summary.fn.PERCENTILE') })} − 1`,
+      `≈ ${words.label('label.summary.of', { field: 'Amount', fn: words.label(`label.summary.fn.${AggregationMetricType.PERCENTILE}`) })} − 1`,
     );
-    expect(columnTitle({ label: 'Amount − Cost', fn: 'SUM' }, words)).toBe(
-      'Sum of Amount − Cost',
-    );
+    expect(
+      columnTitle(
+        { label: 'Amount − Cost', fn: AggregationFunction.SUM },
+        words,
+      ),
+    ).toBe('Sum of Amount − Cost');
   });
 
   const zh: MessageFormatters = {
@@ -1191,7 +1215,7 @@ describe('columnTitle', () => {
    * over a totals row read as the one thing twice). One word per concept.
    */
   it('keeps 「合计」 for the totals row and names SUM 「总和」', () => {
-    expect(zhCN['label.summary.fn.SUM']).toBe('总和');
+    expect(zhCN[`label.summary.fn.${AggregationFunction.SUM}`]).toBe('总和');
     expect(zhCN['label.summary.total']).toBe('合计');
     const totalsKeys = new Set([
       'label.summary.total',
@@ -1219,16 +1243,21 @@ describe('columnTitle', () => {
   });
 
   it('composes a metric’s header as one phrase, in either language', () => {
-    expect(columnTitle({ label: '金额', fn: 'SUM' }, zh)).toBe('金额的总和');
     expect(
-      columnTitle({ label: '创建时间', fn: 'MAX', cell: 'datetime' }, zh),
+      columnTitle({ label: '金额', fn: AggregationFunction.SUM }, zh),
+    ).toBe('金额的总和');
+    expect(
+      columnTitle(
+        { label: '创建时间', fn: AggregationFunction.MAX, cell: 'datetime' },
+        zh,
+      ),
     ).toBe('创建时间的最晚');
-    expect(columnTitle({ label: '金额', fn: 'PERCENTILE' }, zh)).toBe(
-      '≈ 金额的百分位',
-    );
-    expect(columnTitle({ label: 'Amount', fn: 'SUM' }, words)).toBe(
-      'Sum of Amount',
-    );
+    expect(
+      columnTitle({ label: '金额', fn: AggregationMetricType.PERCENTILE }, zh),
+    ).toBe('≈ 金额的百分位');
+    expect(
+      columnTitle({ label: 'Amount', fn: AggregationFunction.SUM }, words),
+    ).toBe('Sum of Amount');
   });
 
   /**
@@ -1238,14 +1267,20 @@ describe('columnTitle', () => {
    * named is titled by the name alone, and any other dimension by its field.
    */
   it('says what one row of a time dimension spans', () => {
-    expect(columnTitle({ label: '创建时间', dateUnit: 'DAY' }, zh)).toBe(
-      '创建时间（按日）',
-    );
-    expect(columnTitle({ label: 'Created', dateUnit: 'MONTH' }, words)).toBe(
-      'Created (by month)',
-    );
     expect(
-      columnTitle({ label: '下单日', dateUnit: 'DAY', named: true }, zh),
+      columnTitle({ label: '创建时间', dateUnit: AggregationDateUnit.DAY }, zh),
+    ).toBe('创建时间（按日）');
+    expect(
+      columnTitle(
+        { label: 'Created', dateUnit: AggregationDateUnit.MONTH },
+        words,
+      ),
+    ).toBe('Created (by month)');
+    expect(
+      columnTitle(
+        { label: '下单日', dateUnit: AggregationDateUnit.DAY, named: true },
+        zh,
+      ),
     ).toBe('下单日');
     expect(columnTitle({ label: 'Warehouse' }, words)).toBe('Warehouse');
   });

@@ -23,6 +23,7 @@
  * runtime for either — so this is also where those are built.
  */
 
+import type { ReferenceLabels } from './referenceLabels.js';
 import { queryFailureReporter } from './failure/failures.js';
 import { panelsOf, type PanelDefinition } from '../dashboard/index.js';
 import { analysisScope } from '../analysis/index.js';
@@ -44,7 +45,7 @@ import type {
 import { issue, readFilter, type FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ViewSource } from './source.js';
+import type { RecordSource } from './source.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import { dataViewRuntime, isRecordRuntime } from './recordRuntime.js';
 import { watchActionReads } from './actionReads.js';
@@ -78,9 +79,9 @@ interface RuntimeFactoryHost {
   readonly environment: RuntimeEnvironment;
   readonly runner: RequestRunner;
   /** Where a definition's data comes from, by `DataViewDefinition.source`. */
-  resolveSource(key: string): ViewSource;
-  /** Remote candidates of `reference` fields; absent when the host wired none. */
-  resolveOptions?(key: string): OptionSource;
+  resolveSource(key: string): RecordSource;
+  /** Reference ids read as names, and the sources they are read from. */
+  readonly labels: ReferenceLabels;
   /** One instance, from the definition's code or from the store. */
   readInstance(instanceId: string): Promise<ViewInstance>;
   /**
@@ -153,7 +154,7 @@ export class RuntimeFactory {
         environment: this.host.environment,
         source: this.host.resolveSource(definition.source),
         runner: this.host.runner,
-        resolveOptions: this.host.resolveOptions,
+        labels: this.host.labels,
         scopeFilter,
         capabilities: this.follow(definition),
       }),
@@ -199,7 +200,7 @@ export class RuntimeFactory {
       resolve: this.resolvePanel,
       definitions: this.panelDefinition,
       createPanelRuntime: this.createPanelRuntime,
-      resolveOptions: this.host.resolveOptions,
+      labels: this.host.labels,
       candidateSources: (panelDefinition, scope) =>
         new ValueCandidateSources(
           {
@@ -326,7 +327,7 @@ export class RuntimeFactory {
         environment: this.host.environment,
         source: this.host.resolveSource(definition.source),
         runner: this.host.runner,
-        resolveOptions: this.host.resolveOptions,
+        labels: this.host.labels,
         scopeFilter,
         autoRefresh: false,
         capabilities: this.follow(definition),

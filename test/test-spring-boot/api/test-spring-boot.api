@@ -34,7 +34,7 @@ public final class me/ahoo/wow/test/server/WowServer : java/lang/AutoCloseable {
 
 public final class me/ahoo/wow/test/server/WowServerKt {
 	public static final fun getTEST_PROPERTIES ()Ljava/util/Map;
-	public static final fun wowServer (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;)Lme/ahoo/wow/test/server/WowServer;
-	public static synthetic fun wowServer$default (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowServer;
+	public static final fun wowServer (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;)Lme/ahoo/wow/test/server/WowServer;
+	public static synthetic fun wowServer$default (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowServer;
 }
 

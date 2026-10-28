@@ -28,6 +28,7 @@ public abstract class me/ahoo/wow/tck/StoreTck {
 	public final fun the store should answer its probe, and close once however often it is closed ()V
 	public final fun the store should have each facet it says it has, of that type, and none it does not know ()V
 	public final fun the store should name its provider's type ()V
+	public final fun the store should read only the options its provider declares, each declared once ()V
 }
 
 public final class me/ahoo/wow/tck/StoreTck$Checkpoints : me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
@@ -215,7 +216,9 @@ public abstract class me/ahoo/wow/tck/sink/SinkSpec {
 	protected abstract fun createSink ()Lme/ahoo/wow/spi/sink/Sink;
 	protected fun getAggregateType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	protected fun getVisibleWithin-UwyO8pc ()J
+	protected fun provided ()Lkotlin/Pair;
 	protected fun record (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public final fun the sink should read only the options it declares, each declared once ()V
 	public final fun what a write returned is at the destination ()V
 	protected abstract fun written (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
@@ -350,8 +353,10 @@ public abstract class me/ahoo/wow/tck/transport/TopicTransportSpec {
 	protected fun getReadTimeout-UwyO8pc ()J
 	protected abstract fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;
 	protected abstract fun newTopic (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected fun provided ()Lkotlin/Pair;
 	public final fun the messages of a key should be read back from one partition in the order sent ()V
 	public final fun the offsets should run from the first message retained to the next one written ()V
+	public final fun the transport should read only the options it declares, each declared once ()V
 }
 
 public abstract class me/ahoo/wow/tck/values/ValueSemanticsSpec {

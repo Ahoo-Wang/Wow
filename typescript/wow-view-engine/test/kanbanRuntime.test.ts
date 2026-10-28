@@ -22,6 +22,7 @@ import {
 import { memorySource } from '../src/testing/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
 import { executeLanePage } from '../src/runtime/kanban.js';
+import { recordSource } from '../src/runtime/source.js';
 import { builtinFieldKinds, DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
@@ -36,6 +37,7 @@ import {
   dealsKanban,
   kanbanConfig,
 } from './fixtures/kanban.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 async function openKanban(
   source: ViewSource = memorySource(DEALS),
@@ -196,7 +198,7 @@ describe('one lane loading more', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: runtime.environment,
-      source: memorySource(DEALS),
+      source: recordSource(memorySource(DEALS)),
       queryFailed: () => Promise.resolve(),
     };
     const config = runtime.getSnapshot().applied;
@@ -242,7 +244,7 @@ describe('restyledOnly under a kanban', () => {
     expect(
       restyledOnly(kanban, {
         ...kanban,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
     ).toBeNull();
   });

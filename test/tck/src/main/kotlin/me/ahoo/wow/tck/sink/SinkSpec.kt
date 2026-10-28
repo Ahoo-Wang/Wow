@@ -21,8 +21,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.sink.Sink
+import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.time.Duration
@@ -63,6 +66,23 @@ abstract class SinkSpec {
 
     /** How long a destination read through a consumer (a topic's) may take to show what a write returned. */
     protected open val visibleWithin: Duration = 10.seconds
+
+    /**
+     * The provider of this sink and a configuration it opens one from, for the check that it reads only the options it
+     * declares; null for a sink no provider opens.
+     */
+    protected open fun provided(): Pair<SinkProvider, SinkConfig>? = null
+
+    @Test
+    fun `the sink should read only the options it declares, each declared once`() {
+        val provided = provided()
+        assumeTrue(provided != null, "No provider opens this sink.")
+        val (provider, config) = checkNotNull(provided)
+        provider.open(config).close()
+        val declared = provider.options.map { it.key }
+        declared.assert().describedAs("option keys").doesNotHaveDuplicates()
+        config.optionsRead.assert().describedAs("the options the sink read").isSubsetOf(declared)
+    }
 
     private val sink: Sink by lazy { createSink() }
 

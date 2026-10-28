@@ -16,7 +16,9 @@ import type {
   ViewNavigation,
   DataViewDefinition,
   FilterTree,
+  OptionSource,
   ViewEngine,
+  ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import {
   EmbeddedView,
@@ -41,9 +43,12 @@ import { ToggleGroup, ToggleGroupItem } from '@/ui/components/toggle-group';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
+  analysisConfig,
   createStoryEngine,
+  customerSource,
   ordersDefinition,
   overviewDefinition,
+  recordConfig,
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
@@ -51,6 +56,10 @@ import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './EmbeddedView.stories.tsx?raw';
 import { hostSource } from './hostSource.js';
+import {
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 一个已经存好的视图，嵌在宿主自己的业务页面里——只有结果，没有别的。
@@ -285,13 +294,17 @@ function HostPage({
 /** 宿主把视图收到「只看华东仓」，用的是视图自己的字段名。 */
 const EAST_ONLY: FilterTree = {
   op: 'and',
-  children: [{ field: 'warehouse', operator: 'IN', value: ['CN-EAST'] }],
+  children: [
+    { field: 'warehouse', operator: FilterOperator.IN, value: ['CN-EAST'] },
+  ],
 };
 
 /** 宿主想按一个这份定义根本没有的字段收窄——于是收窄被拒。 */
 const UNKNOWN_SCOPE: FilterTree = {
   op: 'and',
-  children: [{ field: 'customerId', operator: 'EQ', value: 'C-8812' }],
+  children: [
+    { field: 'customerId', operator: FilterOperator.EQ, value: 'C-8812' },
+  ],
 };
 
 const SCOPE_FILTERS: Record<ScopeChoice, FilterTree | null> = {
@@ -337,6 +350,113 @@ function EmbeddedViewDemo({
           embed={embed}
           {...(scopePicker ? { scopeChoice: picked, onScope: setPicked } : {})}
         />
+      )}
+    </StoryEngine>
+  );
+}
+
+/** 订单的客户也能分组：「客户读成名字」那两条故事用它。 */
+const referenceOrders: DataViewDefinition = {
+  ...ordersDefinition,
+  analysis: {
+    ...ordersDefinition.analysis!,
+    fields: [
+      ...ordersDefinition.analysis!.fields,
+      {
+        field: 'customer',
+        groups: [AggregationGroupType.TERMS],
+        functions: [],
+      },
+    ],
+  },
+};
+
+/** 一份带客户列的明细，一份按客户分组的分析。 */
+const REFERENCE_VIEWS: ViewInstance[] = [
+  {
+    id: 'orders-customers',
+    definitionId: ordersDefinition.id,
+    title: '各单的客户',
+    scope: 'shared',
+    revision: '1',
+    config: recordConfig({
+      table: {
+        columns: [
+          { field: 'id', pinned: true },
+          { field: 'customer' },
+          { field: 'amount' },
+        ],
+      },
+    }),
+  },
+  {
+    id: 'orders-by-customer',
+    definitionId: ordersDefinition.id,
+    title: '各客户的单量',
+    scope: 'shared',
+    revision: '1',
+    config: analysisConfig({
+      groups: [
+        {
+          alias: 'customer',
+          field: 'customer',
+          type: AggregationGroupType.TERMS,
+        },
+      ],
+      layout: 'table',
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'customer', series: [{ metric: 'orders' }] },
+      },
+    }),
+  },
+];
+
+/** 客户的选项源，每读一次名字就告诉宿主一声。 */
+function countedCustomers(onResolve: () => void): OptionSource {
+  const source = customerSource(800);
+  return {
+    search: (input, options) => source.search(input, options),
+    resolve: (ids, options) => {
+      onResolve();
+      return source.resolve(ids, options);
+    },
+  };
+}
+
+/**
+ * 客户是另一份数据里的行（D354）：表里存的是客户号，读出来是名字。引擎按
+ * 一页一次去问名字，问到之前格子里先写客户号；页脚下那一行是宿主数的「问
+ * 了几次」。
+ */
+function ReferenceNamesDemo({
+  instanceId,
+  caption,
+}: {
+  instanceId: string;
+  caption: string;
+}) {
+  const [asked, setAsked] = useState(0);
+  return (
+    <StoryEngine
+      create={() =>
+        createStoryEngine({
+          definitions: [referenceOrders],
+          instances: REFERENCE_VIEWS,
+          customers: countedCustomers(() => setAsked(count => count + 1)),
+        })
+      }
+    >
+      {engine => (
+        <div className="host:flex host:flex-col host:gap-2">
+          <HostPage engine={engine} instanceId={instanceId} caption={caption} />
+          <p
+            data-host-resolves={asked}
+            className="host:text-muted-foreground host:text-xs"
+          >
+            按客户号读名字：{asked} 次
+          </p>
+        </div>
       )}
     </StoryEngine>
   );
@@ -563,5 +683,33 @@ export const AnalysisInteractive: Story = {
     instanceId: savedViews[1].id,
     caption: '可交互：表格｜图表切换、按一组追问。',
     embed: { interaction: 'interactive' },
+  },
+};
+
+/**
+ * 客户读成名字（D354）：「客户」一列存的是客户号，引擎按这一页一次去问名字，
+ * 问到之前先写客户号，问到了换成名字——表格、导出、条件条都一样。
+ */
+export const ReferenceNames: Story = {
+  name: '客户读成名字',
+  args: {
+    instanceId: REFERENCE_VIEWS[0].id,
+    caption: '客户号先出现，名字随后换上。',
+  },
+  render: ({ instanceId, caption }) => (
+    <ReferenceNamesDemo
+      instanceId={instanceId ?? REFERENCE_VIEWS[0].id}
+      caption={caption ?? ''}
+    />
+  ),
+};
+
+/** 按客户分组的分析：每一组读成客户的名字，一页的结果问一次。 */
+export const ReferenceNamesAnalysis: Story = {
+  ...ReferenceNames,
+  name: '按客户分组读成名字',
+  args: {
+    instanceId: REFERENCE_VIEWS[1].id,
+    caption: '按客户分组，组名是客户的名字。',
   },
 };

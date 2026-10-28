@@ -31,6 +31,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -43,7 +44,9 @@ const chart = {
   config: analysisConfig({
     filter: {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     },
   }),
 } satisfies ViewInstance;
@@ -54,7 +57,9 @@ function draftOf(state: { draft: ViewConfig } | null | undefined) {
 }
 
 /** The row the user pressed: the warehouse bar. */
-const ROW: FilterNode[] = [{ field: 'warehouse', operator: 'EQ', value: 'CN' }];
+const ROW: FilterNode[] = [
+  { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+];
 
 /** What the caller names the records: `/ui` says it, this layer carries it. */
 const TITLE = 'Orders · Warehouse is CN';
@@ -94,7 +99,7 @@ describe('drilling from an analysis view', () => {
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
     // The chart is scoped to one status; its bars are statuses too.
     const status: FilterNode[] = [
-      { field: 'status', operator: 'EQ', value: 'PENDING' },
+      { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
     ];
 
     act(() => {
@@ -111,7 +116,7 @@ describe('drilling from an analysis view', () => {
     expect(draftOf(result.current.state)?.filter).toEqual({
       op: 'and',
       children: [
-        { field: 'status', operator: 'EQ', value: 'PENDING' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
         { op: 'and', children: status },
       ],
     });
@@ -136,7 +141,10 @@ describe('drilling from an analysis view', () => {
     expect(result.current.state?.title).toBe(TITLE);
     expect(draftOf(result.current.state)?.filter).toEqual({
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }, ...ROW],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+        ...ROW,
+      ],
     });
     expect(draftOf(result.current.state)?.filterMode).toBe('simple');
     // And the workbench knows where it came from.
@@ -179,7 +187,9 @@ describe('drilling from an analysis view', () => {
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'NE', value: 'XX' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.NE, value: 'XX' },
+      ],
     };
     act(() => {
       result.current.runtime!.setScopeFilter(scope);
@@ -330,7 +340,11 @@ describe('following a group into a view of its own', () => {
     filter: {
       op: 'and' as const,
       children: [
-        { field: 'status', operator: 'EQ' as const, value: 'PENDING' },
+        {
+          field: 'status',
+          operator: FilterOperator.EQ as const,
+          value: 'PENDING',
+        },
         ...ROW,
       ],
     },
@@ -497,7 +511,9 @@ describe('following a group into a view of its own', () => {
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'NE', value: 'XX' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.NE, value: 'XX' },
+      ],
     };
     act(() => {
       result.current.runtime!.setScopeFilter(scope);
@@ -515,7 +531,10 @@ describe('following a group into a view of its own', () => {
 describe('the name a view opened from a group goes by', () => {
   const focusedFilter: FilterTree = {
     op: 'and',
-    children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }, ...ROW],
+    children: [
+      { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ...ROW,
+    ],
   };
   const NARROWED = 'By warehouse · Warehouse is CN';
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.store
 
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.config.ProviderOption
 
 /**
  * A backend of the node's stores: what opens a store instance of one [type], `wow.stores.<name>.type`,
@@ -41,6 +42,13 @@ interface StoreProvider {
      * takes the one provider that is available (PostgreSQL with a `DataSource`, MongoDB with a `MongoClient`).
      */
     fun available(resources: StoreResources): Boolean = false
+
+    /**
+     * Every setting a store of this type reads from its [StoreConfig.options], each read through its option
+     * ([StoreConfig.option]): the host binds `wow.<type>.<key>` for each [ProviderOption.Scope.TYPE] one, and refuses
+     * a store's setting no option declares, naming these.
+     */
+    val options: List<ProviderOption<*>> get() = emptyList()
 
     /** Opens the store [config] configures. It opens nothing in the database yet: its ports open on first use. */
     fun open(config: StoreConfig): Store

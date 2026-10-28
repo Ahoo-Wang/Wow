@@ -26,7 +26,7 @@ class MongoStoreTck : StoreTck() {
     override fun config(): StoreConfig = StoreConfig.of(
         name = "tck",
         type = MongoStoreProvider.TYPE,
-        options = mapOf(MongoStoreProvider.DATABASE to MongoLogFixture.DATABASE),
+        options = mapOf(MongoStoreProvider.DATABASE.key to MongoLogFixture.DATABASE),
         resources = StoreResources.of(mapOf("client" to MongoLogFixture.client)),
     )
 

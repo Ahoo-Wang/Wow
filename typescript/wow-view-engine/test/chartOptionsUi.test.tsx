@@ -14,6 +14,8 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -57,7 +59,12 @@ function richDefinition(): DataViewDefinition {
       { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'status', label: 'Status', kind: 'string' },
-      { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
+      {
+        name: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        summary: [AggregationFunction.SUM],
+      },
     ],
     analysis: {
       count: true,
@@ -85,25 +92,28 @@ function richDefinition(): DataViewDefinition {
 const WAREHOUSE: AnalysisGroup = {
   alias: 'warehouse',
   field: 'warehouse',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
 const STATUS: AnalysisGroup = {
   alias: 'status',
   field: 'status',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
-const ORDERS: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const ORDERS: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 const TOTAL: AnalysisMetric = {
   alias: 'total',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
   alias: 'average',
-  type: 'NUMERIC',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 /** The analysis config every case below varies one part of. */

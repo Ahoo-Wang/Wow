@@ -146,9 +146,9 @@ class HostQueryTest {
             host.context.getBean(EventQueryBackend::class.java).binding(ACCOUNT).assert().isNull()
             val id = host.openAccount("mona")
 
-            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
                 .status.assert().isEqualTo(404)
-            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
                 .status.assert().isEqualTo(404)
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()
         }
@@ -184,7 +184,7 @@ class HostQueryTest {
             host.context.getBean(EventQueryBackend::class.java).binding(ACCOUNT).assert().isNull()
             host.context.getBean(HttpQueries::class.java).events(ACCOUNT).assert().isNull()
             val id = host.openAccount("mona")
-            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
                 .status.assert().isEqualTo(404)
         }
     }
@@ -230,7 +230,7 @@ class HostQueryTest {
             val id = host.openAccount("mona")
             val queries = host.context.getBean(HttpQueries::class.java)
             queries.visibility(ACCOUNT).assert().isNull()
-            val events = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            val events = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"match-all"}}""")
             events.status.assert().isEqualTo(200)
             events.body!!.values().map { it["aggregateId"].asString() }.assert().containsExactly(id)
         }
@@ -254,14 +254,14 @@ class HostQueryTest {
 
             val listed = host.post(
                 "/bank/account/snapshot/query",
-                """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.owner","direction":"ASC"}]}""",
+                """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.owner","direction":"asc"}]}""",
             )
             listed.status.assert().isEqualTo(200)
             listed.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("lisa", "mona")
-            val counted = host.post("/bank/account/snapshot/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+            val counted = host.post("/bank/account/snapshot/query", """{"kind":"count","filter":{"op":"match-all"}}""")
             counted.body!!["count"].asLong().assert().isEqualTo(3)
             counted.body!!["exact"].asBoolean().assert().isTrue()
-            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":8}""")
+            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"},"limit":8}""")
                 .status.assert().isEqualTo(400)
 
             val described = host.get("/bank/account/snapshot/query")
@@ -335,7 +335,7 @@ class HostQueryTest {
 
             val listed = host.post(
                 "/bank/account/snapshot/query",
-                """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.owner","direction":"ASC"}]}""",
+                """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.owner","direction":"asc"}]}""",
             )
             listed.status.assert().isEqualTo(200)
             listed.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("lisa", "mona")
@@ -344,7 +344,7 @@ class HostQueryTest {
             host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
             val events = host.post(
                 "/bank/account/events/query",
-                """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+                """{"kind":"list","filter":{"op":"id","value":"$id"}}"""
             )
             events.status.assert().isEqualTo(200)
             events.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
@@ -434,7 +434,7 @@ class HostQueryTest {
     fun `the query plane should be off when wow-query-enabled is false`() {
         startHost("wow.query.enabled" to false).use { host ->
             host.context.getBeanNamesForType(HttpQueries::class.java).assert().isEmpty()
-            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"a"}}""")
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"a"}}""")
                 .status.assert().isEqualTo(404)
         }
     }

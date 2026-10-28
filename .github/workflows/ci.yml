@@ -55,6 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       jvm: ${{ steps.scope.outputs.jvm }}
+      architecture: ${{ steps.scope.outputs.architecture }}
       typescript: ${{ steps.scope.outputs.typescript }}
       sdk: ${{ steps.scope.outputs.sdk }}
       unit-packages: ${{ steps.scope.outputs.unitPackages }}
@@ -147,6 +148,31 @@ jobs:
   # `integrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
   # (.github/scripts/integration-shards.mjs). The shards are balanced by the tests' measured durations (eShop end
   # to end about 3 minutes, the host's about 1¾, Elasticsearch's 1¼, MongoDB's ¾, the rest under ½ each).
+  # The design-ID rule (`:architecture:test`) alone, for a change it reads
+  # that runs no JVM job: user documentation, a README, the reference pages a
+  # TypeScript change regenerates. With the JVM jobs on, `check` runs it.
+  architecture:
+    name: Architecture rules
+    needs: scope
+    if: needs.scope.outputs.architecture == 'true' && needs.scope.outputs.jvm != 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Check the architecture rules
+        run: ./gradlew :architecture:test --stacktrace
+
   integration:
     name: Integration Test (${{ matrix.shard }})
     needs: scope
@@ -1031,6 +1057,7 @@ jobs:
       [
         scope,
         check,
+        architecture,
         integration,
         docs-layout,
         quality,
@@ -1084,7 +1111,12 @@ jobs:
       # earlier one counts only if it passed (an earlier failure may be judged
       # on carried-forward coverage, and Codecov does not post an unchanged
       # result again). A run without coverage leaves it out, so a required
-      # codecov/patch never blocks a change Codecov does not see.
+      # codecov/patch never blocks a change Codecov does not see. A head that
+      # carried forward fewer JVM sessions than codecov.yml's after_n_builds
+      # (its main commit was pushed while the parent's shards were uploading)
+      # is never judged; the script reads Codecov's uploads API and fails at
+      # once with the first-parent merge that repairs it, and waits as before
+      # when that API cannot be read.
       - name: Check out the gate script
         if: >-
           github.event_name == 'pull_request' &&
@@ -1101,5 +1133,6 @@ jobs:
           needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/codecov-patch.mjs

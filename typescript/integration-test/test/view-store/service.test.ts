@@ -20,14 +20,20 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { asc, desc, filter } from '@ahoo-wang/wow-client/dsl';
-import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
-import type { ViewConfig, ViewInstance } from '@ahoo-wang/wow-view-engine';
 import {
-  viewSourceOf,
-  WowDatasetWordings,
-  WowViewStore,
-} from '@ahoo-wang/wow-view-store';
+  asc,
+  desc,
+  filter,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import type {
+  ViewConfig,
+  ViewInstance,
+  ViewSource,
+} from '@ahoo-wang/wow-view-engine';
+import { WowDatasetWordings, WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describe, expect, it } from 'vitest';
 import { describeWowViewStoreService } from '../../../wow-view-store/test/conformance/wowViewStoreService.js';
 import {
@@ -114,7 +120,7 @@ describe('errors', () => {
   });
 });
 
-describe('viewSourceOf over a query route', () => {
+describe('a snapshot query client as the view source', () => {
   it('pages, walks a cursor, aggregates and describes the view snapshots', async () => {
     const definitionId = fresh();
     const store = storeOf(ALICE);
@@ -126,11 +132,10 @@ describe('viewSourceOf over a query route', () => {
           write(),
         ),
       );
-    const source = viewSourceOf(
-      new SnapshotQueryClient(
-        { context: 'view-store', name: 'view' },
-        { fetcher: actingAs(ALICE) },
-      ),
+    // The client itself, with no adapter: what a host hands the engine.
+    const source: ViewSource = new SnapshotQueryClient(
+      { context: 'view-store', name: 'view' },
+      { fetcher: actingAs(ALICE) },
     );
     const mine = filter.eq('state.definitionId', definitionId);
 
@@ -140,10 +145,9 @@ describe('viewSourceOf over a query route', () => {
       pagination: { index: 1, size: 2 },
     });
     expect(page.total).toBe(3);
-    expect(page.list.map(row => row.aggregateId)).toEqual([
-      made[2].id,
-      made[1].id,
-    ]);
+    expect(
+      page.list.map(row => (row as { aggregateId: string }).aggregateId),
+    ).toEqual([made[2].id, made[1].id]);
 
     const first = await source.cursor({
       filter: mine,
@@ -155,8 +159,14 @@ describe('viewSourceOf over a query route', () => {
 
     const rows = await source.aggregate({
       filter: mine,
-      groupBy: [{ type: 'TERMS', field: 'state.kind', alias: 'kind' }],
-      metrics: [{ type: 'COUNT', alias: 'views' }],
+      groupBy: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.kind',
+          alias: 'kind',
+        },
+      ],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'views' }],
     } as Parameters<typeof source.aggregate>[0]);
     expect(rows).toEqual([{ kind: 'record', views: 3 }]);
 

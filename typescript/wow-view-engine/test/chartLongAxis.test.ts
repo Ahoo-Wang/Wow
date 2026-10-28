@@ -31,6 +31,7 @@ import {
 import { shortDateTicks } from '../src/ui/charts/dateTicks.js';
 import { composed, zoomWindow } from '../src/ui/charts/EChart.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A long axis read clearly (D33 batch A): zoomed by a slider — and by
@@ -110,10 +111,10 @@ const context = (
   pickable: false,
   ticks: shortDateTicks(
     data.points.map(point => point.x),
-    'DAY',
+    AggregationDateUnit.DAY,
     display,
   ),
-  tickFor: values => shortDateTicks(values, 'DAY', display),
+  tickFor: values => shortDateTicks(values, AggregationDateUnit.DAY, display),
   ...extra,
 });
 

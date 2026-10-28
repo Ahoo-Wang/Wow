@@ -17,6 +17,7 @@
  * the page sizes a runtime's limits leave on offer.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -37,6 +38,11 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -57,7 +63,9 @@ describe('useRecordTable', () => {
   /** More rows than one page holds, so there is a next page to move to. */
   function manyPages(): ViewSource {
     return testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 200, list: [...ROWS] })),
+      paged: vi.fn(() =>
+        Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
+      ),
     });
   }
 
@@ -80,14 +88,16 @@ describe('useRecordTable', () => {
     expect(result.current.isSelected('o-1')).toBe(false);
     expect(() => {
       result.current.toggleSort('id');
-      result.current.setSort([{ field: 'amount', direction: 'ASC' }]);
+      result.current.setSort([
+        { field: 'amount', direction: SortDirection.ASC },
+      ]);
       result.current.toggle('o-1');
       result.current.toggleAll();
       result.current.clearSelection();
       result.current.setColumns(['id']);
       result.current.setColumnOrder(['id']);
       result.current.setPinned('id', true);
-      result.current.setSummary('amount', 'SUM');
+      result.current.setSummary('amount', AggregationFunction.SUM);
       result.current.setLayout('card');
       result.current.setPageSize(10);
       result.current.goTo(2);
@@ -204,8 +214,8 @@ describe('useRecordTable', () => {
     act(() => result.current.table.toggleSort('amount'));
 
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
   });
 
@@ -226,7 +236,9 @@ describe('useRecordTable', () => {
       runtime().edit({
         filter: {
           op: 'and',
-          children: [{ field: 'nowhere', operator: 'EQ', value: 1 }],
+          children: [
+            { field: 'nowhere', operator: FilterOperator.EQ, value: 1 },
+          ],
         },
       }),
     );
@@ -238,7 +250,7 @@ describe('useRecordTable', () => {
 
     // The draft moved, the applied config did not, and the report says so:
     // the refused condition and the sort, one each.
-    expect(result.current.table.sortOf('amount')).toBe('ASC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.ASC);
     expect(snapshot().applied.sort).toEqual([]);
     expect(report()).toEqual({ pending: true, count: 2, conditions: true });
   });
@@ -264,10 +276,10 @@ describe('useRecordTable', () => {
     const result = await openTable();
 
     act(() => result.current.table.toggleSort('amount'));
-    expect(result.current.table.sortOf('amount')).toBe('ASC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.ASC);
 
     act(() => result.current.table.toggleSort('amount'));
-    expect(result.current.table.sortOf('amount')).toBe('DESC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.DESC);
 
     act(() => result.current.table.toggleSort('amount'));
     expect(result.current.table.sort).toEqual([]);
@@ -333,7 +345,7 @@ describe('useRecordTable', () => {
    */
   it('stops at the source window, and a jump past it lands on its last page', async () => {
     const paged = vi.fn(() =>
-      Promise.resolve({ total: 624_100, list: [...ROWS] }),
+      Promise.resolve({ total: 624_100, exact: true, list: [...ROWS] }),
     );
     const { engine } = engineWith({
       source: testSource({ paged }),
@@ -367,8 +379,7 @@ describe('useRecordTable', () => {
     );
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 500, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
 
     // The last reachable page is the last page: Next asks nothing further.
@@ -388,10 +399,11 @@ describe('useRecordTable', () => {
     let answer: (() => void) | undefined;
     const paged = vi.fn((query: { pagination?: { size: number } }) =>
       query.pagination?.size === 50
-        ? new Promise<{ total: number; list: typeof ROWS }>(resolve => {
-            answer = () => resolve({ total: 200, list: [...ROWS] });
+        ? new Promise<PagedResult<object>>(resolve => {
+            answer = () =>
+              resolve({ total: 200, exact: true, list: [...ROWS] });
           })
-        : Promise.resolve({ total: 200, list: [...ROWS] }),
+        : Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
     );
     const result = await openTable(testSource({ paged }));
     expect(result.current.table.paging).toMatchObject({ size: 20, pages: 10 });
@@ -566,7 +578,7 @@ describe('useRecordTable', () => {
       testSource({
         paged: vi
           .fn()
-          .mockResolvedValueOnce({ total: 0, list: [] })
+          .mockResolvedValueOnce({ total: 0, exact: true, list: [] })
           .mockRejectedValue(new Error('gateway down')),
       }),
     );

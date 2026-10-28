@@ -86,7 +86,11 @@ export interface FieldSpec {
   timePrecision?: TimePrecision;
   /** The comparisons offered, a subset of the path's. */
   operators?: FilterOperatorName[];
-  /** `false` offers no sort on a path that sorts. */
+  /**
+   * `false` offers no sort on a path that sorts. A `reference` read as
+   * names (`more.remote`) sorts only with `true`, by the stored id rather
+   * than the name shown, and its header says so.
+   */
   sortable?: boolean;
   /** The footer summaries offered, among the functions the path feeds. */
   summary?: SummaryFunction[];

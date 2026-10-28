@@ -58,8 +58,8 @@ class HostQueryIsolationTest {
             bulkhead.maxConcurrent.assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
             hold(bulkhead.maxConcurrent, bulkhead) {
                 listOf(
-                    host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""),
-                    host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""),
+                    host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}"""),
+                    host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}"""),
                 ).forEach { busy ->
                     busy.status.assert().isEqualTo(429)
                     busy.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isEqualTo("1")
@@ -68,7 +68,7 @@ class HostQueryIsolationTest {
                 // The commands do not wait for the queries' permits.
                 host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(200)
             }
-            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
                 .status.assert().isEqualTo(200)
         }
     }
@@ -167,7 +167,7 @@ class HostQueryIsolationTest {
     fun `an events query naming no aggregate should run by default and be refused where a store opts in`() {
         startHost().use { host ->
             host.openAccount("free")
-            host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+            host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
                 .status.assert().isEqualTo(200)
             host.context.getBean(QueryStores::class.java).unpinned(account).assert().isEqualTo(UnpinnedEvents.ALLOW)
         }
@@ -176,11 +176,11 @@ class HostQueryIsolationTest {
             "wow.stores.main.query.events.unpinned" to "refuse",
         ).use { host ->
             val id = host.openAccount("pinned")
-            val refused = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+            val refused = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"match-all"}}""")
             refused.status.assert().isEqualTo(400)
             refused.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
             refused.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
-            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
                 .status.assert().isEqualTo(200)
             val described = host.get("/bank/account/events/query").body!!
             described["constraints"].values().map { it["type"].asString() }
@@ -207,30 +207,14 @@ class HostQueryIsolationTest {
     }
 
     @Test
-    fun `a store's read preference and ddl should be its queries', over the global ones`() {
-        (null as WowProperties?).storeQueryOptions("main").also {
-            it.indexDdl.assert().isEqualTo(Ddl.AUTO)
-            it.eventsReadPreference.assert().isNull()
-            it.snapshotsReadPreference.assert().isNull()
-        }
+    fun `a store's ddl should be its queries', over the global one`() {
+        (null as WowProperties?).storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.AUTO)
         val properties = WowProperties().apply {
             ddl = Ddl.VALIDATE
-            mongo.queryReadPreference = "secondaryPreferred"
-            stores["other"] = WowProperties.Store().apply {
-                ddl = Ddl.NONE
-                options[WowProperties.QUERY_READ_PREFERENCE] = "nearest"
-            }
+            stores["other"] = WowProperties.Store().apply { ddl = Ddl.NONE }
         }
-        properties.storeQueryOptions("main").also {
-            it.indexDdl.assert().isEqualTo(Ddl.VALIDATE)
-            it.eventsReadPreference.assert().isEqualTo("secondaryPreferred")
-            it.snapshotsReadPreference.assert().isEqualTo("secondaryPreferred")
-        }
-        properties.storeQueryOptions("other").also {
-            it.indexDdl.assert().isEqualTo(Ddl.NONE)
-            it.eventsReadPreference.assert().isEqualTo("nearest")
-            it.snapshotsReadPreference.assert().isEqualTo("nearest")
-        }
+        properties.storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.VALIDATE)
+        properties.storeQueryOptions("other").indexDdl.assert().isEqualTo(Ddl.NONE)
         WowProperties.Store().apply { queryDataSource = "reads" }.options()["query-data-source"]
             .assert().isEqualTo("reads")
     }

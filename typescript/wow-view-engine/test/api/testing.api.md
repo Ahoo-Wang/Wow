@@ -16,11 +16,12 @@ import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
-import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
 import { SortDirection } from '@ahoo-wang/wow-client/dsl';
@@ -74,7 +75,9 @@ export interface ActionHarness {
     form(id: string): HarnessField[] | null;
     readonly ids: readonly string[];
     missing(id: string, input: ActionInput): string[];
-    run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
+    run(id: string, key: RecordKey, input?: ActionInput, options?: {
+        signal?: AbortSignal;
+    }): Promise<unknown>;
     state(id: string, key: RecordKey, input?: ActionInput): HarnessState;
 }
 
@@ -805,7 +808,7 @@ interface DerivedSeries {
 }
 
 // @public
-const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
+const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];
@@ -887,7 +890,6 @@ interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -1505,16 +1507,6 @@ interface PieSpec {
 }
 
 // @public
-type QueryDescriptorResult = {
-    notModified: false;
-    descriptor: QueryModelDescriptor;
-    version: string;
-} | {
-    notModified: true;
-    version: string;
-};
-
-// @public
 interface RadarSpec {
     category: string;
     metrics: string[];
@@ -1533,7 +1525,9 @@ interface RecordAction {
     readonly moves?: string;
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
-    run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    run(row: RecordRow, input: ActionInput, options: {
+        signal: AbortSignal;
+    }): Promise<unknown>;
     readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
@@ -1711,6 +1705,7 @@ interface RuntimeLimits {
     defaultPageSize: number;
     exportMax: number;
     exportNeutralizeFormulas: boolean;
+    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
@@ -1724,6 +1719,9 @@ interface RuntimeLimits {
     maxRefreshInterval: number;
     minRefreshInterval: number;
     pageSizes: readonly number[];
+    referenceBatch: number;
+    referenceConcurrency: number;
+    referenceTimeout: number;
     refreshIntervals: readonly number[];
 }
 
@@ -1760,6 +1758,11 @@ type SearchModeName = `${SearchMode}`;
 
 // @public
 type SortDirectionName = `${SortDirection}`;
+
+// @public
+interface SourceOptions {
+    readonly signal?: AbortSignal;
+}
 
 // @public
 type StringComparisonName = `${StringComparison}`;
@@ -1868,12 +1871,12 @@ interface ViewRouteState {
 // @public
 interface ViewSource {
     // (undocumented)
-    aggregate(query: AggregationQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<RecordData[]>;
+    aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
     // (undocumented)
-    cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
-    describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
+    cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
+    describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
     // (undocumented)
-    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
 }
 
 // @public

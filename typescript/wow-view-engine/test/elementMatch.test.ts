@@ -106,16 +106,16 @@ describe('the elementMatch kind', () => {
     expect(
       compile(
         outer(
-          'ELEMENT_MATCH',
+          FilterOperator.ELEMENT_MATCH,
           predicate(
-            { field: 'items.sku', operator: 'EQ', value: 'A' },
-            { field: 'items.qty', operator: 'GT', value: 2 },
+            { field: 'items.sku', operator: FilterOperator.EQ, value: 'A' },
+            { field: 'items.qty', operator: FilterOperator.GT, value: 2 },
             {
               field: 'items.tags',
-              operator: 'ELEMENT_MATCH',
+              operator: FilterOperator.ELEMENT_MATCH,
               value: predicate({
                 field: 'items.tags.name',
-                operator: 'EQ',
+                operator: FilterOperator.EQ,
                 value: 'gift',
               }) as never,
             },
@@ -149,11 +149,11 @@ describe('the elementMatch kind', () => {
       { op: FilterOperator.IS_EMPTY, field: 'items' },
       { op: FilterOperator.IS_NULL, field: 'items' },
     ];
-    expect(compile(outer('IS_EMPTY', null))).toEqual({
+    expect(compile(outer(FilterOperator.IS_EMPTY, null))).toEqual({
       op: FilterOperator.OR,
       operands: none,
     });
-    expect(compile(outer('IS_NOT_NULL', null))).toEqual({
+    expect(compile(outer(FilterOperator.IS_NOT_NULL, null))).toEqual({
       op: FilterOperator.NOR,
       operands: none,
     });
@@ -165,10 +165,10 @@ describe('the elementMatch kind', () => {
         validateFilter(
           fields,
           outer(
-            'ELEMENT_MATCH',
+            FilterOperator.ELEMENT_MATCH,
             predicate({
               field: 'items.sku',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: 'A',
             }) as never,
           ),
@@ -185,10 +185,10 @@ describe('the elementMatch kind', () => {
         validateFilter(
           fields,
           outer(
-            'ELEMENT_MATCH',
+            FilterOperator.ELEMENT_MATCH,
             predicate({
               field: 'warehouse',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: 'CN',
             }) as never,
           ),
@@ -203,7 +203,7 @@ describe('the elementMatch kind', () => {
       errors(
         validateFilter(
           fields,
-          outer('ELEMENT_MATCH', 'nonsense'),
+          outer(FilterOperator.ELEMENT_MATCH, 'nonsense'),
           builtinFieldKinds,
         ),
       ),
@@ -216,8 +216,12 @@ describe('the elementMatch kind', () => {
         validateFilter(
           fields,
           outer(
-            'ELEMENT_MATCH',
-            predicate({ field: 'x', operator: 'EQ', value: 1 }) as never,
+            FilterOperator.ELEMENT_MATCH,
+            predicate({
+              field: 'x',
+              operator: FilterOperator.EQ,
+              value: 1,
+            }) as never,
             'bare',
           ),
           builtinFieldKinds,
@@ -227,7 +231,7 @@ describe('the elementMatch kind', () => {
   });
 
   it('treats an empty predicate as a question not yet asked', () => {
-    const empty = outer('ELEMENT_MATCH', predicate() as never);
+    const empty = outer(FilterOperator.ELEMENT_MATCH, predicate() as never);
 
     expect(errors(validateFilter(fields, empty, builtinFieldKinds))).toEqual(
       [],
@@ -243,13 +247,15 @@ describe('the elementMatch kind', () => {
     // blank leaf and answer MATCH_ALL, and `ELEMENT_MATCH` over MATCH_ALL
     // narrows the result to "the array is non-empty", which nobody asked.
     const unfilled = predicate(
-      { field: 'items.sku', operator: 'EQ', value: '' },
+      { field: 'items.sku', operator: FilterOperator.EQ, value: '' },
       {
         op: 'or',
-        children: [{ field: 'items.qty', operator: 'GT', value: null }],
+        children: [
+          { field: 'items.qty', operator: FilterOperator.GT, value: null },
+        ],
       },
     );
-    const alone = outer('ELEMENT_MATCH', unfilled as never);
+    const alone = outer(FilterOperator.ELEMENT_MATCH, unfilled as never);
     expect(errors(validateFilter(fields, alone, builtinFieldKinds))).toEqual(
       [],
     );
@@ -261,8 +267,12 @@ describe('the elementMatch kind', () => {
     const beside: FilterTree = {
       op: 'and',
       children: [
-        { field: 'warehouse', operator: 'EQ', value: 'SH' },
-        { field: 'items', operator: 'ELEMENT_MATCH', value: unfilled as never },
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+        {
+          field: 'items',
+          operator: FilterOperator.ELEMENT_MATCH,
+          value: unfilled as never,
+        },
       ],
     };
     const without: FilterTree = { op: 'and', children: [beside.children[0]] };
@@ -288,11 +298,11 @@ describe('the elementMatch kind', () => {
     // calling the predicate blank would hide it.
     const cases: [FilterTree['children'][number], string][] = [
       [
-        { field: 'items.gone', operator: 'EQ', value: '' },
+        { field: 'items.gone', operator: FilterOperator.EQ, value: '' },
         'filter.field.unknown',
       ],
       [
-        { field: 'items.qty', operator: 'CONTAINS', value: '' },
+        { field: 'items.qty', operator: FilterOperator.CONTAINS, value: '' },
         'filter.operator.unsupported',
       ],
     ];
@@ -301,7 +311,7 @@ describe('the elementMatch kind', () => {
         errors(
           validateFilter(
             fields,
-            outer('ELEMENT_MATCH', predicate(leaf) as never),
+            outer(FilterOperator.ELEMENT_MATCH, predicate(leaf) as never),
             builtinFieldKinds,
           ),
         ),
@@ -321,10 +331,10 @@ describe('the elementMatch kind', () => {
         validateFilter(
           mystery,
           outer(
-            'ELEMENT_MATCH',
+            FilterOperator.ELEMENT_MATCH,
             predicate({
               field: 'items.tag',
-              operator: 'EQ',
+              operator: FilterOperator.EQ,
               value: '',
             }) as never,
           ),
@@ -338,18 +348,22 @@ describe('the elementMatch kind', () => {
     expect(
       builtinFieldKinds
         .get('elementMatch')!
-        .emptyValue('ELEMENT_MATCH', fields[1]),
+        .emptyValue(FilterOperator.ELEMENT_MATCH, fields[1]),
     ).toEqual({ op: 'and', children: [] });
   });
 
   it('asks the editor for a condition rather than a value', () => {
     const kind = builtinFieldKinds.get('elementMatch')!;
 
-    expect(kind.editor('ELEMENT_MATCH', fields[1])).toEqual({
+    expect(kind.editor(FilterOperator.ELEMENT_MATCH, fields[1])).toEqual({
       input: 'predicate',
     });
-    expect(kind.editor('IS_EMPTY', fields[1])).toEqual({ input: 'none' });
-    expect(kind.editor('IS_NOT_NULL', fields[1])).toEqual({ input: 'none' });
+    expect(kind.editor(FilterOperator.IS_EMPTY, fields[1])).toEqual({
+      input: 'none',
+    });
+    expect(kind.editor(FilterOperator.IS_NOT_NULL, fields[1])).toEqual({
+      input: 'none',
+    });
   });
 
   it("summarises a predicate with the predicate's own operator", () => {
@@ -357,18 +371,18 @@ describe('the elementMatch kind', () => {
     const either: FilterTree = {
       op: 'or',
       children: [
-        { field: 'items.sku', operator: 'EQ', value: 'A' },
-        { field: 'items.qty', operator: 'GT', value: 2 },
+        { field: 'items.sku', operator: FilterOperator.EQ, value: 'A' },
+        { field: 'items.qty', operator: FilterOperator.GT, value: 2 },
       ],
     };
 
     expect(
       describeFilter(
         fields,
-        outer('ELEMENT_MATCH', either as never),
+        outer(FilterOperator.ELEMENT_MATCH, either as never),
         builtinFieldKinds,
       ).map(item => item.text),
-    ).toEqual(['Items has an entry where SKU EQ A or Qty GT 2']);
+    ).toEqual(['Items has an entry where SKU eq A or Qty gt 2']);
   });
 
   it('names the field alone for a value that is not a condition', () => {
@@ -377,7 +391,7 @@ describe('the elementMatch kind', () => {
     expect(
       describeFilter(
         fields,
-        outer('ELEMENT_MATCH', 'nonsense'),
+        outer(FilterOperator.ELEMENT_MATCH, 'nonsense'),
         builtinFieldKinds,
       ).map(item => item.text),
     ).toEqual(['Items']);
@@ -403,10 +417,10 @@ describe('the elementMatch kind', () => {
         validateFilter(
           custom,
           outer(
-            'ELEMENT_MATCH',
+            FilterOperator.ELEMENT_MATCH,
             predicate({
               field: 'items.text',
-              operator: 'SEARCH',
+              operator: FilterOperator.SEARCH,
               value: 'widget',
             }) as never,
           ),
@@ -418,12 +432,16 @@ describe('the elementMatch kind', () => {
 
   it.each([
     [
-      'ELEMENT_MATCH',
-      predicate({ field: 'items.sku', operator: 'EQ', value: 'A' }),
-      'Items has an entry where SKU EQ A',
+      FilterOperator.ELEMENT_MATCH,
+      predicate({
+        field: 'items.sku',
+        operator: FilterOperator.EQ,
+        value: 'A',
+      }),
+      'Items has an entry where SKU eq A',
     ],
-    ['IS_EMPTY', null, 'Items has no entries'],
-    ['IS_NOT_NULL', null, 'Items has entries'],
+    [FilterOperator.IS_EMPTY, null, 'Items has no entries'],
+    [FilterOperator.IS_NOT_NULL, null, 'Items has entries'],
   ] as [FilterOperatorName, FilterValue, string][])(
     'summarises %s',
     (operator, value, want) => {
@@ -445,7 +463,7 @@ describe('the budget reaches into a predicate', () => {
   it('counts nested depth', () => {
     let deep: FilterTree = predicate({
       field: 'items.sku',
-      operator: 'EQ',
+      operator: FilterOperator.EQ,
       value: 'A',
     });
     for (let index = 0; index < 10; index += 1)
@@ -455,7 +473,7 @@ describe('the budget reaches into a predicate', () => {
       errors(
         validateFilter(
           fields,
-          outer('ELEMENT_MATCH', deep as never),
+          outer(FilterOperator.ELEMENT_MATCH, deep as never),
           builtinFieldKinds,
         ),
       ),
@@ -466,7 +484,7 @@ describe('the budget reaches into a predicate', () => {
     const many = predicate(
       ...Array.from({ length: 300 }, () => ({
         field: 'items.sku',
-        operator: 'EQ' as FilterOperatorName,
+        operator: FilterOperator.EQ as FilterOperatorName,
         value: 'A',
       })),
     );
@@ -475,7 +493,7 @@ describe('the budget reaches into a predicate', () => {
       errors(
         validateFilter(
           fields,
-          outer('ELEMENT_MATCH', many as never),
+          outer(FilterOperator.ELEMENT_MATCH, many as never),
           builtinFieldKinds,
         ),
       ),
@@ -492,7 +510,7 @@ describe('the budget reaches into a predicate', () => {
         children: [
           {
             field: 'items.sku',
-            operator: 'EQ' as FilterOperatorName,
+            operator: FilterOperator.EQ as FilterOperatorName,
             value: 'A',
           },
         ],
@@ -503,7 +521,7 @@ describe('the budget reaches into a predicate', () => {
       errors(
         validateFilter(
           fields,
-          outer('ELEMENT_MATCH', many as never),
+          outer(FilterOperator.ELEMENT_MATCH, many as never),
           builtinFieldKinds,
           { limits: { maxFilterDepth: 8, maxFilterNodes: 1000 } },
         ),
@@ -517,7 +535,7 @@ describe('the budget reaches into a predicate', () => {
     // budget all the same, and refused for a depth nothing would validate.
     let deep: FilterTree = predicate({
       field: 'items.sku',
-      operator: 'EQ',
+      operator: FilterOperator.EQ,
       value: 'A',
     });
     for (let index = 0; index < 10; index += 1)
@@ -527,7 +545,7 @@ describe('the budget reaches into a predicate', () => {
       errors(
         validateFilter(
           fields,
-          outer('IS_EMPTY', deep as never),
+          outer(FilterOperator.IS_EMPTY, deep as never),
           builtinFieldKinds,
         ),
       ),
@@ -540,10 +558,10 @@ describe('the budget reaches into a predicate', () => {
         validateFilter(
           fields,
           outer(
-            'ELEMENT_MATCH',
+            FilterOperator.ELEMENT_MATCH,
             predicate({
               field: 'items.qty',
-              operator: 'GT',
+              operator: FilterOperator.GT,
               value: 1,
             }) as never,
           ),

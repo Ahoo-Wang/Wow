@@ -64,9 +64,9 @@ function threeDimensions(): DataViewDefinition {
 }
 
 const THREE_GROUPS: AnalysisViewConfig['groups'] = [
-  { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-  { alias: 'status', field: 'status', type: 'TERMS' },
-  { alias: 'channel', field: 'channel', type: 'TERMS' },
+  { alias: 'warehouse', field: 'warehouse', type: AggregationGroupType.TERMS },
+  { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
+  { alias: 'channel', field: 'channel', type: AggregationGroupType.TERMS },
 ];
 
 /**

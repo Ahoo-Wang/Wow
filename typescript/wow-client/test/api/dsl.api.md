@@ -50,30 +50,30 @@ export const AGGREGATION_LIMITS: Readonly<{
 
 // @public
 export enum AggregationDatePart {
-    DAY_OF_MONTH = "DAY_OF_MONTH",
-    DAY_OF_WEEK = "DAY_OF_WEEK",
-    HOUR_OF_DAY = "HOUR_OF_DAY",
-    MONTH_OF_YEAR = "MONTH_OF_YEAR"
+    DAY_OF_MONTH = "day-of-month",
+    DAY_OF_WEEK = "day-of-week",
+    HOUR_OF_DAY = "hour-of-day",
+    MONTH_OF_YEAR = "month-of-year"
 }
 
 // @public
 export enum AggregationDateUnit {
     // (undocumented)
-    DAY = "DAY",
+    DAY = "day",
     // (undocumented)
-    HOUR = "HOUR",
+    HOUR = "hour",
     // (undocumented)
-    MINUTE = "MINUTE",
+    MINUTE = "minute",
     // (undocumented)
-    MONTH = "MONTH",
+    MONTH = "month",
     // (undocumented)
-    QUARTER = "QUARTER",
+    QUARTER = "quarter",
     // (undocumented)
-    SECOND = "SECOND",
+    SECOND = "second",
     // (undocumented)
-    WEEK = "WEEK",
+    WEEK = "week",
     // (undocumented)
-    YEAR = "YEAR"
+    YEAR = "year"
 }
 
 // @public
@@ -87,28 +87,28 @@ export type AggregationExpression<FIELDS extends string = string> = FieldAggrega
 
 // @public
 export enum AggregationExpressionOperator {
-    ADD = "ADD",
-    DIVIDE = "DIVIDE",
-    MULTIPLY = "MULTIPLY",
-    SUBTRACT = "SUBTRACT"
+    ADD = "add",
+    DIVIDE = "divide",
+    MULTIPLY = "multiply",
+    SUBTRACT = "subtract"
 }
 
 // @public
 export enum AggregationExpressionType {
-    BINARY = "BINARY",
-    CONSTANT = "CONSTANT",
-    DATE_DIFF = "DATE_DIFF",
-    FIELD = "FIELD"
+    BINARY = "binary",
+    CONSTANT = "constant",
+    DATE_DIFF = "date-diff",
+    FIELD = "field"
 }
 
 // @public
 export enum AggregationFunction {
-    AVG = "AVG",
-    MAX = "MAX",
-    MIN = "MIN",
-    STDDEV = "STDDEV",
-    SUM = "SUM",
-    VARIANCE = "VARIANCE"
+    AVG = "avg",
+    MAX = "max",
+    MIN = "min",
+    STDDEV = "stddev",
+    SUM = "sum",
+    VARIANCE = "variance"
 }
 
 // @public
@@ -132,8 +132,8 @@ export type AggregationGroupInput<FIELDS extends string = string> = {
 
 // @public
 export enum AggregationGroupScope {
-    ELEMENT = "ELEMENT",
-    ROOT = "ROOT"
+    ELEMENT = "element",
+    ROOT = "root"
 }
 
 // @public
@@ -143,10 +143,10 @@ export interface AggregationGroupScopeOptions {
 
 // @public
 export enum AggregationGroupType {
-    DATE_HISTOGRAM = "DATE_HISTOGRAM",
-    DATE_PART = "DATE_PART",
-    HISTOGRAM = "HISTOGRAM",
-    TERMS = "TERMS"
+    DATE_HISTOGRAM = "date-histogram",
+    DATE_PART = "date-part",
+    HISTOGRAM = "histogram",
+    TERMS = "terms"
 }
 
 // @public
@@ -170,14 +170,14 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
 
 // @public
 export enum AggregationMetricType {
-    ANY = "ANY",
-    COUNT = "COUNT",
-    DERIVED = "DERIVED",
-    DISTINCT_COUNT = "DISTINCT_COUNT",
-    FIRST = "FIRST",
-    LAST = "LAST",
-    NUMERIC = "NUMERIC",
-    PERCENTILE = "PERCENTILE"
+    ANY = "any",
+    COUNT = "count",
+    DERIVED = "derived",
+    DISTINCT_COUNT = "distinct-count",
+    FIRST = "first",
+    LAST = "last",
+    NUMERIC = "numeric",
+    PERCENTILE = "percentile"
 }
 
 // @public
@@ -283,12 +283,12 @@ export type ComparisonFilter<FIELDS extends string = string> = {
 
 // @public
 export enum ComparisonOperator {
-    EQ = "EQ",
-    GT = "GT",
-    GTE = "GTE",
-    LT = "LT",
-    LTE = "LTE",
-    NE = "NE"
+    EQ = "eq",
+    GT = "gt",
+    GTE = "gte",
+    LT = "lt",
+    LTE = "lte",
+    NE = "ne"
 }
 
 // @public
@@ -343,13 +343,13 @@ export interface DateDiffAggregationExpression<FIELDS extends string = string> {
 // @public
 export enum DateDiffUnit {
     // (undocumented)
-    DAY = "DAY",
+    DAY = "day",
     // (undocumented)
-    HOUR = "HOUR",
+    HOUR = "hour",
     // (undocumented)
-    MINUTE = "MINUTE",
+    MINUTE = "minute",
     // (undocumented)
-    SECOND = "SECOND"
+    SECOND = "second"
 }
 
 // @public
@@ -405,9 +405,9 @@ export type DeletionFilter = {
 
 // @public
 export enum DeletionState {
-    ACTIVE = "ACTIVE",
-    ALL = "ALL",
-    DELETED = "DELETED"
+    ACTIVE = "active",
+    ALL = "all",
+    DELETED = "deleted"
 }
 
 // @public
@@ -458,13 +458,13 @@ export interface DerivedExpressionDsl {
 
 // @public
 export enum DerivedExpressionType {
-    BINARY = "BINARY",
-    CONSTANT = "CONSTANT",
-    METRIC_REF = "METRIC_REF",
-    PREVIOUS = "PREVIOUS",
-    RANK = "RANK",
-    RUNNING = "RUNNING",
-    TOTAL = "TOTAL"
+    BINARY = "binary",
+    CONSTANT = "constant",
+    METRIC_REF = "metric-ref",
+    PREVIOUS = "previous",
+    RANK = "rank",
+    RUNNING = "running",
+    TOTAL = "total"
 }
 
 // @public
@@ -494,6 +494,16 @@ export type DerivedWindow = {
 
 // @public
 export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
+
+// @public
+export type DescriptorResult = {
+    readonly notModified: false;
+    readonly version?: string;
+    readonly descriptor: QueryModelDescriptor;
+} | {
+    readonly notModified: true;
+    readonly version: string;
+};
 
 // @public
 export interface DistinctCountAggregationMetric<FIELDS extends string = string> {
@@ -734,109 +744,109 @@ export type FilterLiteral = null | string | number | boolean;
 
 // @public
 export enum FilterOperator {
-    AFTER_NOW = "AFTER_NOW",
+    AFTER_NOW = "after-now",
     // (undocumented)
-    AGGREGATE_ID = "AGGREGATE_ID",
+    AGGREGATE_ID = "aggregate-id",
     // (undocumented)
-    AGGREGATE_IDS = "AGGREGATE_IDS",
+    AGGREGATE_IDS = "aggregate-ids",
     // (undocumented)
-    AND = "AND",
-    BEFORE_NOW = "BEFORE_NOW",
+    AND = "and",
+    BEFORE_NOW = "before-now",
     // (undocumented)
-    BEFORE_TODAY = "BEFORE_TODAY",
+    BEFORE_TODAY = "before-today",
     // (undocumented)
-    BETWEEN = "BETWEEN",
+    BETWEEN = "between",
     // (undocumented)
-    CONTAINS = "CONTAINS",
+    CONTAINS = "contains",
     // (undocumented)
-    CONTAINS_ALL = "CONTAINS_ALL",
+    CONTAINS_ALL = "contains-all",
     // (undocumented)
-    DELETION = "DELETION",
+    DELETION = "deletion",
     // (undocumented)
-    EARLIER_DAYS = "EARLIER_DAYS",
+    EARLIER_DAYS = "earlier-days",
     // (undocumented)
-    ELEMENT_MATCH = "ELEMENT_MATCH",
+    ELEMENT_MATCH = "element-match",
     // (undocumented)
-    ENDS_WITH = "ENDS_WITH",
+    ENDS_WITH = "ends-with",
     // (undocumented)
-    EQ = "EQ",
+    EQ = "eq",
     // (undocumented)
-    EXISTS = "EXISTS",
-    EXPRESSION = "EXPRESSION",
+    EXISTS = "exists",
+    EXPRESSION = "expression",
     // (undocumented)
-    GT = "GT",
+    GT = "gt",
     // (undocumented)
-    GTE = "GTE",
+    GTE = "gte",
     // (undocumented)
-    ID = "ID",
+    ID = "id",
     // (undocumented)
-    IDS = "IDS",
+    IDS = "ids",
     // (undocumented)
-    IN = "IN",
+    IN = "in",
     // (undocumented)
-    IS_EMPTY = "IS_EMPTY",
+    IS_EMPTY = "is-empty",
     // (undocumented)
-    IS_EMPTY_STRING = "IS_EMPTY_STRING",
+    IS_EMPTY_STRING = "is-empty-string",
     // (undocumented)
-    IS_NOT_EMPTY_STRING = "IS_NOT_EMPTY_STRING",
+    IS_NOT_EMPTY_STRING = "is-not-empty-string",
     // (undocumented)
-    IS_NOT_NULL = "IS_NOT_NULL",
+    IS_NOT_NULL = "is-not-null",
     // (undocumented)
-    IS_NULL = "IS_NULL",
+    IS_NULL = "is-null",
     // (undocumented)
-    LAST_MONTH = "LAST_MONTH",
+    LAST_MONTH = "last-month",
     // (undocumented)
-    LAST_WEEK = "LAST_WEEK",
+    LAST_WEEK = "last-week",
     // (undocumented)
-    LAST_YEAR = "LAST_YEAR",
+    LAST_YEAR = "last-year",
     // (undocumented)
-    LT = "LT",
+    LT = "lt",
     // (undocumented)
-    LTE = "LTE",
+    LTE = "lte",
     // (undocumented)
-    MATCH_ALL = "MATCH_ALL",
+    MATCH_ALL = "match-all",
     // (undocumented)
-    MATCH_NONE = "MATCH_NONE",
+    MATCH_NONE = "match-none",
     // (undocumented)
-    NE = "NE",
+    NE = "ne",
     // (undocumented)
-    NEXT_MONTH = "NEXT_MONTH",
+    NEXT_MONTH = "next-month",
     // (undocumented)
-    NEXT_WEEK = "NEXT_WEEK",
+    NEXT_WEEK = "next-week",
     // (undocumented)
-    NEXT_YEAR = "NEXT_YEAR",
+    NEXT_YEAR = "next-year",
     // (undocumented)
-    NOR = "NOR",
+    NOR = "nor",
     // (undocumented)
-    NOT_EXISTS = "NOT_EXISTS",
+    NOT_EXISTS = "not-exists",
     // (undocumented)
-    NOT_IN = "NOT_IN",
+    NOT_IN = "not-in",
     // (undocumented)
-    OR = "OR",
+    OR = "or",
     // (undocumented)
-    OWNER_ID = "OWNER_ID",
+    OWNER_ID = "owner-id",
     // (undocumented)
-    RECENT_DAYS = "RECENT_DAYS",
+    RECENT_DAYS = "recent-days",
     // (undocumented)
-    SEARCH = "SEARCH",
+    SEARCH = "search",
     // (undocumented)
-    SPACE_ID = "SPACE_ID",
+    SPACE_ID = "space-id",
     // (undocumented)
-    STARTS_WITH = "STARTS_WITH",
+    STARTS_WITH = "starts-with",
     // (undocumented)
-    TENANT_ID = "TENANT_ID",
+    TENANT_ID = "tenant-id",
     // (undocumented)
-    THIS_MONTH = "THIS_MONTH",
+    THIS_MONTH = "this-month",
     // (undocumented)
-    THIS_WEEK = "THIS_WEEK",
+    THIS_WEEK = "this-week",
     // (undocumented)
-    THIS_YEAR = "THIS_YEAR",
+    THIS_YEAR = "this-year",
     // (undocumented)
-    TODAY = "TODAY",
+    TODAY = "today",
     // (undocumented)
-    TOMORROW = "TOMORROW",
+    TOMORROW = "tomorrow",
     // (undocumented)
-    YESTERDAY = "YESTERDAY"
+    YESTERDAY = "yesterday"
 }
 
 // @public
@@ -900,12 +910,12 @@ export type HavingExpression = {
 
 // @public
 export enum HavingExpressionType {
-    AND = "AND",
-    BETWEEN = "BETWEEN",
-    CONDITION = "CONDITION",
-    IN = "IN",
-    IS_NULL = "IS_NULL",
-    OR = "OR"
+    AND = "and",
+    BETWEEN = "between",
+    CONDITION = "condition",
+    IN = "in",
+    IS_NULL = "is-null",
+    OR = "or"
 }
 
 // @public
@@ -1035,9 +1045,24 @@ export interface PagedList<T> {
 export function pagedList<T>(input?: Partial<PagedList<T>>): PagedList<T>;
 
 // @public
+export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+    total?: TotalMode;
+}
+
+// @public
 export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     pagination?: Pagination;
 }): FilterPagedQuery<FIELDS>;
+
+// @public
+export interface PagedResult<T> {
+    // (undocumented)
+    readonly exact: boolean;
+    // (undocumented)
+    readonly list: readonly T[];
+    // (undocumented)
+    readonly total: number | null;
+}
 
 // @public
 export interface Pagination {
@@ -1052,9 +1077,9 @@ export function pagination(input?: Partial<Pagination>): Pagination;
 
 // @public
 export enum PagingMode {
-    CURSOR = "CURSOR",
-    LIST = "LIST",
-    PAGED = "PAGED"
+    CURSOR = "cursor",
+    LIST = "list",
+    PAGED = "paged"
 }
 
 // @public
@@ -1102,12 +1127,12 @@ export type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof Que
 
 // @public
 export const QueryConstraintTypes: Readonly<{
-    readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
-    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
-    readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
-    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
-    readonly NULL_OR_EMPTY_AS_MISSING: "NULL_OR_EMPTY_AS_MISSING";
-    readonly ARRAY_EQUALITY: "ARRAY_EQUALITY";
+    readonly CURSOR_UNIQUE_SORT: "cursor-unique-sort";
+    readonly COUNT_REQUIRES_FILTER: "count-requires-filter";
+    readonly STARTS_WITH_REQUIRES_PREFIX: "starts-with-requires-prefix";
+    readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
+    readonly NULL_OR_EMPTY_AS_MISSING: "null-or-empty-as-missing";
+    readonly ARRAY_EQUALITY: "array-equality";
 }>;
 
 // @public
@@ -1120,55 +1145,55 @@ export type QueryErrorCode = KnownQueryErrorCode | (string & {});
 
 // @public
 export const QueryErrorCodes: Readonly<{
-    readonly INVALID_JSON: "INVALID_JSON";
-    readonly BODY_NOT_OBJECT: "BODY_NOT_OBJECT";
-    readonly EMPTY_BODY: "EMPTY_BODY";
-    readonly UNKNOWN_PROPERTY: "UNKNOWN_PROPERTY";
-    readonly UNKNOWN_TYPE: "UNKNOWN_TYPE";
-    readonly UNKNOWN_VALUE: "UNKNOWN_VALUE";
-    readonly INVALID_VALUE: "INVALID_VALUE";
-    readonly INVALID_REQUEST: "INVALID_REQUEST";
-    readonly CURSOR_SORT_DUPLICATE: "CURSOR_SORT_DUPLICATE";
-    readonly CURSOR_SORT_TOO_MANY: "CURSOR_SORT_TOO_MANY";
-    readonly INVALID_CURSOR: "INVALID_CURSOR";
-    readonly SIZE_OUT_OF_RANGE: "SIZE_OUT_OF_RANGE";
-    readonly FILTER_TOO_LARGE: "FILTER_TOO_LARGE";
-    readonly EXPENSIVE_OPERATOR_DISABLED: "EXPENSIVE_OPERATOR_DISABLED";
-    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
-    readonly RESIDUAL_GROUPS_EXCEEDED: "RESIDUAL_GROUPS_EXCEEDED";
-    readonly TOO_MANY_GROUPS: "TOO_MANY_GROUPS";
-    readonly EXPLICIT_ENTRY_REQUIRED: "EXPLICIT_ENTRY_REQUIRED";
-    readonly REPLAY_TOO_LONG: "REPLAY_TOO_LONG";
-    readonly UNKNOWN_FIELD: "UNKNOWN_FIELD";
-    readonly UNSUPPORTED_CAPABILITY: "UNSUPPORTED_CAPABILITY";
-    readonly ELEMENT_SCOPE_REQUIRED: "ELEMENT_SCOPE_REQUIRED";
-    readonly VALUE_MISMATCH: "VALUE_MISMATCH";
-    readonly NOT_COLLECTION: "NOT_COLLECTION";
-    readonly NOT_SINGLE_STRING: "NOT_SINGLE_STRING";
-    readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
-    readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
-    readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
-    readonly PROTECTED_COMPARISON: "PROTECTED_COMPARISON";
-    readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
-    readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
-    readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
-    readonly METRIC_FILTER_SEARCH: "METRIC_FILTER_SEARCH";
-    readonly METRIC_FILTER_ELEMENT_MATCH: "METRIC_FILTER_ELEMENT_MATCH";
-    readonly METRIC_FILTER_ARRAY_FIELD: "METRIC_FILTER_ARRAY_FIELD";
-    readonly NOT_PROJECTABLE: "NOT_PROJECTABLE";
-    readonly EVENT_PROJECTION_TYPE_REQUIRED: "EVENT_PROJECTION_TYPE_REQUIRED";
-    readonly TEMPORAL_REPRESENTATION_REQUIRED: "TEMPORAL_REPRESENTATION_REQUIRED";
-    readonly TEMPORAL_CONFIGURATION_CONFLICT: "TEMPORAL_CONFIGURATION_CONFLICT";
-    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
-    readonly ARRAY_EQUALITY: "ARRAY_EQUALITY";
-    readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "FIRST_LAST_REQUIRES_SINGLE_VALUE";
-    readonly FIRST_LAST_REQUIRES_ORDER_BY: "FIRST_LAST_REQUIRES_ORDER_BY";
-    readonly TEMPORAL_AGGREGATION_UNSUPPORTED: "TEMPORAL_AGGREGATION_UNSUPPORTED";
-    readonly SORT_TOO_MANY: "SORT_TOO_MANY";
-    readonly SORT_FIELD_DUPLICATE: "SORT_FIELD_DUPLICATE";
-    readonly IDENTITY_UNDEFINED: "IDENTITY_UNDEFINED";
-    readonly STORAGE_UNSUPPORTED: "STORAGE_UNSUPPORTED";
-    readonly PREVIOUS_UNSHIFTABLE: "PREVIOUS_UNSHIFTABLE";
+    readonly INVALID_JSON: "invalid-json";
+    readonly BODY_NOT_OBJECT: "body-not-object";
+    readonly EMPTY_BODY: "empty-body";
+    readonly UNKNOWN_PROPERTY: "unknown-property";
+    readonly UNKNOWN_TYPE: "unknown-type";
+    readonly UNKNOWN_VALUE: "unknown-value";
+    readonly INVALID_VALUE: "invalid-value";
+    readonly INVALID_REQUEST: "invalid-request";
+    readonly CURSOR_SORT_DUPLICATE: "cursor-sort-duplicate";
+    readonly CURSOR_SORT_TOO_MANY: "cursor-sort-too-many";
+    readonly INVALID_CURSOR: "invalid-cursor";
+    readonly SIZE_OUT_OF_RANGE: "size-out-of-range";
+    readonly FILTER_TOO_LARGE: "filter-too-large";
+    readonly EXPENSIVE_OPERATOR_DISABLED: "expensive-operator-disabled";
+    readonly COUNT_REQUIRES_FILTER: "count-requires-filter";
+    readonly RESIDUAL_GROUPS_EXCEEDED: "residual-groups-exceeded";
+    readonly TOO_MANY_GROUPS: "too-many-groups";
+    readonly EXPLICIT_ENTRY_REQUIRED: "explicit-entry-required";
+    readonly REPLAY_TOO_LONG: "replay-too-long";
+    readonly UNKNOWN_FIELD: "unknown-field";
+    readonly UNSUPPORTED_CAPABILITY: "unsupported-capability";
+    readonly ELEMENT_SCOPE_REQUIRED: "element-scope-required";
+    readonly VALUE_MISMATCH: "value-mismatch";
+    readonly NOT_COLLECTION: "not-collection";
+    readonly NOT_SINGLE_STRING: "not-single-string";
+    readonly MODEL_SEARCH_UNSUPPORTED: "model-search-unsupported";
+    readonly CURSOR_NOT_ALLOWED: "cursor-not-allowed";
+    readonly PROTECTED_AGGREGATION: "protected-aggregation";
+    readonly PROTECTED_COMPARISON: "protected-comparison";
+    readonly MISSING_KEY_REQUIRES_STRING: "missing-key-requires-string";
+    readonly ANY_REQUIRES_SINGLE_VALUE: "any-requires-single-value";
+    readonly INCOMPLETE_PROJECTION: "incomplete-projection";
+    readonly METRIC_FILTER_SEARCH: "metric-filter-search";
+    readonly METRIC_FILTER_ELEMENT_MATCH: "metric-filter-element-match";
+    readonly METRIC_FILTER_ARRAY_FIELD: "metric-filter-array-field";
+    readonly NOT_PROJECTABLE: "not-projectable";
+    readonly EVENT_PROJECTION_TYPE_REQUIRED: "event-projection-type-required";
+    readonly TEMPORAL_REPRESENTATION_REQUIRED: "temporal-representation-required";
+    readonly TEMPORAL_CONFIGURATION_CONFLICT: "temporal-configuration-conflict";
+    readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
+    readonly ARRAY_EQUALITY: "array-equality";
+    readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "first-last-requires-single-value";
+    readonly FIRST_LAST_REQUIRES_ORDER_BY: "first-last-requires-order-by";
+    readonly TEMPORAL_AGGREGATION_UNSUPPORTED: "temporal-aggregation-unsupported";
+    readonly SORT_TOO_MANY: "sort-too-many";
+    readonly SORT_FIELD_DUPLICATE: "sort-field-duplicate";
+    readonly IDENTITY_UNDEFINED: "identity-undefined";
+    readonly STORAGE_UNSUPPORTED: "storage-unsupported";
+    readonly PREVIOUS_UNSHIFTABLE: "previous-unshiftable";
 }>;
 
 // @public
@@ -1179,14 +1204,14 @@ export type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRol
 
 // @public
 export const QueryFieldRoles: Readonly<{
-    readonly IDENTITY: "IDENTITY";
-    readonly AGGREGATE_ID: "AGGREGATE_ID";
-    readonly TENANT_ID: "TENANT_ID";
-    readonly OWNER_ID: "OWNER_ID";
-    readonly SPACE_ID: "SPACE_ID";
-    readonly DELETED: "DELETED";
-    readonly EVENT_TIME: "EVENT_TIME";
-    readonly FIRST_EVENT_TIME: "FIRST_EVENT_TIME";
+    readonly IDENTITY: "identity";
+    readonly AGGREGATE_ID: "aggregate-id";
+    readonly TENANT_ID: "tenant-id";
+    readonly OWNER_ID: "owner-id";
+    readonly SPACE_ID: "space-id";
+    readonly DELETED: "deleted";
+    readonly EVENT_TIME: "event-time";
+    readonly FIRST_EVENT_TIME: "first-event-time";
 }>;
 
 // @public
@@ -1209,9 +1234,9 @@ export interface QueryModelDescriptor {
 
 // @public
 export const QueryModels: Readonly<{
-    readonly SNAPSHOT: "SNAPSHOT";
-    readonly EVENT_STREAM: "EVENT_STREAM";
-    readonly DATASET: "DATASET";
+    readonly SNAPSHOT: "snapshot";
+    readonly EVENT_STREAM: "events";
+    readonly DATASET: "dataset";
 }>;
 
 // @public
@@ -1222,23 +1247,23 @@ export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted
 
 // @public
 export const QuerySemanticTypes: Readonly<{
-    readonly TEMPORAL_DATE: "TEMPORAL_DATE";
-    readonly TEMPORAL_EPOCH: "TEMPORAL_EPOCH";
-    readonly TEMPORAL_FORMATTED: "TEMPORAL_FORMATTED";
-    readonly DECIMAL: "DECIMAL";
-    readonly MONEY: "MONEY";
-    readonly DURATION: "DURATION";
-    readonly REFERENCE: "REFERENCE";
+    readonly TEMPORAL_DATE: "temporal-date";
+    readonly TEMPORAL_EPOCH: "temporal-epoch";
+    readonly TEMPORAL_FORMATTED: "temporal-formatted";
+    readonly DECIMAL: "decimal";
+    readonly MONEY: "money";
+    readonly DURATION: "duration";
+    readonly REFERENCE: "reference";
 }>;
 
 // @public
 export enum QueryValueKind {
-    ARRAY = "ARRAY",
-    NULL = "NULL",
-    OBJECT = "OBJECT",
-    SCALAR = "SCALAR",
-    UNION = "UNION",
-    UNKNOWN = "UNKNOWN"
+    ARRAY = "array",
+    NULL = "null",
+    OBJECT = "object",
+    SCALAR = "scalar",
+    UNION = "union",
+    UNKNOWN = "unknown"
 }
 
 // @public
@@ -1246,11 +1271,11 @@ export type QueryValueType = (typeof QueryValueTypes)[keyof typeof QueryValueTyp
 
 // @public
 export const QueryValueTypes: Readonly<{
-    readonly STRING: "STRING";
-    readonly INTEGER: "INTEGER";
-    readonly DECIMAL: "DECIMAL";
-    readonly BOOLEAN: "BOOLEAN";
-    readonly OBJECT: "OBJECT";
+    readonly STRING: "string";
+    readonly INTEGER: "integer";
+    readonly DECIMAL: "decimal";
+    readonly BOOLEAN: "boolean";
+    readonly OBJECT: "object";
 }>;
 
 // @public
@@ -1294,9 +1319,9 @@ export interface RelativeTimeFilterOptions {
 // @public
 export enum RunningFunction {
     // (undocumented)
-    AVG = "AVG",
+    AVG = "avg",
     // (undocumented)
-    SUM = "SUM"
+    SUM = "sum"
 }
 
 // @public
@@ -1331,8 +1356,8 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 
 // @public
 export enum SearchMode {
-    PHRASE = "PHRASE",
-    TERMS = "TERMS"
+    PHRASE = "phrase",
+    TERMS = "terms"
 }
 
 // @public
@@ -1343,8 +1368,8 @@ export interface SensitivityDescriptor {
 
 // @public
 export enum SensitivityLevel {
-    CONFIDENTIAL = "CONFIDENTIAL",
-    DISPLAY = "DISPLAY"
+    CONFIDENTIAL = "confidential",
+    DISPLAY = "display"
 }
 
 // @public
@@ -1359,15 +1384,15 @@ export interface SortCapable<FIELDS extends string = string> {
 // @public
 export enum SortDirection {
     // (undocumented)
-    ASC = "ASC",
+    ASC = "asc",
     // (undocumented)
-    DESC = "DESC"
+    DESC = "desc"
 }
 
 // @public
 export enum StringComparison {
-    CASE_INSENSITIVE = "CASE_INSENSITIVE",
-    CASE_SENSITIVE = "CASE_SENSITIVE"
+    CASE_INSENSITIVE = "case-insensitive",
+    CASE_SENSITIVE = "case-sensitive"
 }
 
 // @public
@@ -1430,6 +1455,9 @@ export enum TimeUnit {
 }
 
 // @public
+export type TotalMode = 'exact' | 'bounded' | 'none';
+
+// @public
 export interface VariantDescriptor {
     description?: string;
     fields: FieldDescriptor[];
@@ -1446,13 +1474,13 @@ export interface VariantsDescriptor {
 // @public
 export enum WindowFunction {
     // (undocumented)
-    PREVIOUS = "PREVIOUS",
+    PREVIOUS = "previous",
     // (undocumented)
-    RANK = "RANK",
+    RANK = "rank",
     // (undocumented)
-    RUNNING = "RUNNING",
+    RUNNING = "running",
     // (undocumented)
-    TOTAL = "TOTAL"
+    TOTAL = "total"
 }
 
 // (No @packageDocumentation comment for this package)

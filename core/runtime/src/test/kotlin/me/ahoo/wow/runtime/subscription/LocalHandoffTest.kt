@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
@@ -92,7 +93,7 @@ class LocalHandoffTest {
             eventually { handled.size == 200 }
             runtime.stop()
 
-            reads.reasons.toSet().assert().isSubsetOf(setOf(HandoffLog.START))
+            reads.reasons.toSet().assert().isSubsetOf(setOf(ObservedEvent.TailRead.Reason.START))
             reads.reasons.size.assert().isLessThanOrEqualTo(PARTITIONS)
             handled.entries.map { it.first to it.second }.toSet().size.assert().isEqualTo(200)
         }
@@ -110,7 +111,7 @@ class LocalHandoffTest {
             eventually { handled.size == 200 }
             runtime.stop()
 
-            reads.reasons.assert().isEqualTo(List(PARTITIONS) { HandoffLog.START })
+            reads.reasons.assert().isEqualTo(List(PARTITIONS) { ObservedEvent.TailRead.Reason.START })
             store.tails.get().assert().isEqualTo(PARTITIONS)
             handled.entries.map { it.first to it.second }.toSet().size.assert().isEqualTo(200)
         }
@@ -157,9 +158,12 @@ private class HeadsLog(private val delegate: EventLog) : EventLog by delegate {
 
 /** The reason of every read of the store a tail made. */
 private class TailReads : Observer {
-    val reasons = CopyOnWriteArrayList<String>()
+    val reasons = CopyOnWriteArrayList<ObservedEvent.TailRead.Reason>()
 
-    override fun tailRead(context: String, partition: Int, reason: String) {
-        reasons += reason
+    override fun observed(event: ObservedEvent) {
+        when (event) {
+            is ObservedEvent.TailRead -> reasons += event.reason
+            else -> Unit
+        }
     }
 }

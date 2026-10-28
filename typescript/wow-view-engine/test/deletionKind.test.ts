@@ -42,7 +42,7 @@ const context = { now: new Date('2026-09-21T00:00:00Z'), timeZone: 'UTC' };
 function tree(value: FilterValue): FilterTree {
   return {
     op: 'and',
-    children: [{ field: '@deleted', operator: 'DELETION', value }],
+    children: [{ field: '@deleted', operator: FilterOperator.DELETION, value }],
   };
 }
 
@@ -69,9 +69,11 @@ describe('deletion field kind', () => {
 
   it('offers one operator and starts blank, which asks nothing', () => {
     const kind = builtinFieldKinds.get('deletion');
-    expect(kind?.operators).toEqual(['DELETION']);
-    expect(kind?.emptyValue('DELETION', fields[0]!)).toBeNull();
-    expect(kind?.editor('DELETION', fields[0]!)).toEqual({ input: 'deletion' });
+    expect(kind?.operators).toEqual([FilterOperator.DELETION]);
+    expect(kind?.emptyValue(FilterOperator.DELETION, fields[0]!)).toBeNull();
+    expect(kind?.editor(FilterOperator.DELETION, fields[0]!)).toEqual({
+      input: 'deletion',
+    });
   });
 
   /**
@@ -84,15 +86,30 @@ describe('deletion field kind', () => {
       compileFilter(fields, tree(null), builtinFieldKinds, context),
     ).toEqual({ op: FilterOperator.MATCH_ALL });
     expect(
-      compileFilter(fields, tree('DELETED'), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        tree(DeletionState.DELETED),
+        builtinFieldKinds,
+        context,
+      ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.DELETED });
     expect(
-      compileFilter(fields, tree('ALL'), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        tree(DeletionState.ALL),
+        builtinFieldKinds,
+        context,
+      ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.ALL });
     // Written out explicitly, "not deleted" is the same query the default
     // runs; it is only no longer implied.
     expect(
-      compileFilter(fields, tree('ACTIVE'), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        tree(DeletionState.ACTIVE),
+        builtinFieldKinds,
+        context,
+      ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.ACTIVE });
   });
 
@@ -101,7 +118,9 @@ describe('deletion field kind', () => {
       errors(validateFilter(fields, tree('GONE'), builtinFieldKinds)),
     ).toEqual(['filter.value.expected-deletion-state']);
     expect(
-      errors(validateFilter(fields, tree('ALL'), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, tree(DeletionState.ALL), builtinFieldKinds),
+      ),
     ).toEqual([]);
     // Blank is unfinished, not wrong.
     expect(
@@ -110,12 +129,16 @@ describe('deletion field kind', () => {
   });
 
   it('describes a written reading by its token, for the bar to word', () => {
-    const [item] = describeFilter(fields, tree('DELETED'), builtinFieldKinds);
+    const [item] = describeFilter(
+      fields,
+      tree(DeletionState.DELETED),
+      builtinFieldKinds,
+    );
     expect(item).toMatchObject({
       field: '@deleted',
       kind: 'deletion',
-      operator: 'DELETION',
-      value: { kind: 'text', value: 'DELETED' },
+      operator: FilterOperator.DELETION,
+      value: { kind: 'text', value: DeletionState.DELETED },
     });
   });
 
@@ -127,13 +150,13 @@ describe('deletion field kind', () => {
         [
           {
             path: [],
-            text: 'Deleted ACTIVE',
+            text: 'Deleted active',
             unresolved: false,
             field: '@deleted',
             label: 'Deleted',
             kind: 'deletion',
-            operator: 'DELETION',
-            value: { kind: 'text', value: 'ACTIVE' },
+            operator: FilterOperator.DELETION,
+            value: { kind: 'text', value: DeletionState.ACTIVE },
           },
         ],
       );
@@ -144,11 +167,15 @@ describe('deletion field kind', () => {
     });
 
     it('is nothing once the view or the host scope has answered', () => {
-      expect(impliedDeletion(fields, [tree('ALL')], builtinFieldKinds)).toEqual(
-        [],
-      );
       expect(
-        impliedDeletion(fields, [empty, tree('DELETED')], builtinFieldKinds),
+        impliedDeletion(fields, [tree(DeletionState.ALL)], builtinFieldKinds),
+      ).toEqual([]);
+      expect(
+        impliedDeletion(
+          fields,
+          [empty, tree(DeletionState.DELETED)],
+          builtinFieldKinds,
+        ),
       ).toEqual([]);
     });
 

@@ -29,11 +29,8 @@
  */
 
 // The engine: the one way a host opens, creates and writes views.
-export {
-  ViewEngine,
-  type ViewEngineOptions,
-  type ViewListing,
-} from './viewEngine.js';
+export { ViewEngine } from './viewEngine.js';
+export type { ViewEngineOptions, ViewListing } from './viewEngineOptions.js';
 export type { ConflictChoice, WriteTarget } from './writeLedger.js';
 export {
   validateDefinition,
@@ -136,3 +133,9 @@ export type {
   ProjectedView,
   ViewSource,
 } from './source.js';
+export {
+  ReferenceLabelTimeoutError,
+  type ReferenceId,
+  type ReferenceLabel,
+  type ReferenceLabelReader,
+} from './referenceLabels.js';

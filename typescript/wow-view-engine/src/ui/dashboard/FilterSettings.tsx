@@ -75,6 +75,7 @@ import { ControlFrame } from '../kit/variants.js';
 import { searchPlaceholder } from './FilterBar.js';
 import { boardOf } from './landing.js';
 import { focusableIn } from '../kit/focus.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
   date: CalendarIcon,
@@ -434,6 +435,12 @@ function SourceField({
   onChange(options: FieldOption[] | null): void;
 }) {
   const messages = useViewMessages();
+  // A reference id typed into the list is named as the engine knows it,
+  // its id until then.
+  const { labels } = useSurfaceDisplay();
+  const remote = field.kind === 'reference' ? field.remote : undefined;
+  const labelOf = (value: string | number): string =>
+    remote !== undefined && labels ? labels.text(remote, value) : String(value);
   const listed = Array.isArray(field.options);
   const values = (field.options ?? []).map(option => option.value);
   return (
@@ -477,7 +484,7 @@ function SourceField({
               unparsable={messages.label('label.filter.not-a-number')}
               inputMode={numeric ? 'decimal' : 'text'}
               onChange={next =>
-                onChange(next.map(value => ({ value, label: String(value) })))
+                onChange(next.map(value => ({ value, label: labelOf(value) })))
               }
             />
           </ControlFrame>

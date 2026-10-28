@@ -98,16 +98,64 @@ afterEach(() => {
 describe('FetcherViewStore reads', () => {
   it('lists the views of one definition', async () => {
     // What a backend answers with: the summary projection, kind included.
-    fetchMock.mockResolvedValueOnce(reply([toSummary(instance)]));
+    fetchMock.mockResolvedValueOnce(
+      reply({ items: [toSummary(instance)], nextCursor: 'page-2' }),
+    );
 
-    const summaries = await store().list('orders');
+    const page = await store().list('orders');
 
-    expect(summaries).toHaveLength(1);
-    expect(summaries[0].kind).toBe('record');
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0].kind).toBe('record');
+    expect(page.nextCursor).toBe('page-2');
     expect(sent().url).toBe(
       'https://views.test/view-engine/definitions/orders/views',
     );
     expect(sent().method).toBe('GET');
+  });
+
+  it('asks for the next page by the cursor the page before answered', async () => {
+    fetchMock.mockResolvedValueOnce(reply({ items: [], nextCursor: null }));
+    const controller = new AbortController();
+
+    const page = await store().list('orders', {
+      cursor: 'page 2',
+      signal: controller.signal,
+    });
+
+    expect(page).toEqual({ items: [], nextCursor: null });
+    expect(sent().url).toBe(
+      'https://views.test/view-engine/definitions/orders/views?cursor=page+2',
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBe(controller.signal);
+  });
+
+  it('reads every page through the engine, in order', async () => {
+    const second = { ...instance, id: 'orders-2', title: 'Second' };
+    fetchMock
+      .mockResolvedValueOnce(
+        reply({ items: [toSummary(instance)], nextCursor: 'c2' }),
+      )
+      .mockResolvedValueOnce(
+        reply({ items: [toSummary(second)], nextCursor: null }),
+      )
+      .mockResolvedValue(reply(emptyPreferences()));
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: store(),
+      environment: testEnvironment().environment,
+    });
+
+    const listed = await engine.list('orders');
+
+    expect(listed.items.map(item => item.id)).toEqual([
+      'system:orders:all',
+      'orders-1',
+      'orders-2',
+    ]);
+    expect(sent(1).url).toBe(
+      'https://views.test/view-engine/definitions/orders/views?cursor=c2',
+    );
   });
 
   it('escapes an id that would otherwise change the path', async () => {

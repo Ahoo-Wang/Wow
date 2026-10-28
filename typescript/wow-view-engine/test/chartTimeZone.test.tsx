@@ -38,6 +38,10 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The chart is shaped in the engine's zone, not the browser's
@@ -112,7 +116,12 @@ const ROWS = [
 const daily = (chart: AnalysisViewConfig['chart']): AnalysisViewConfig =>
   analysisConfig({
     groups: [
-      { alias: 'day', field: 'createdAt', type: 'DATE_HISTOGRAM', unit: 'DAY' },
+      {
+        alias: 'day',
+        field: 'createdAt',
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        unit: AggregationDateUnit.DAY,
+      },
     ],
     layout: 'chart',
     chart,
@@ -146,7 +155,7 @@ describe('the chart in the engine’s zone', () => {
   });
 
   it('writes the ticks of the filled axis a day each in the engine’s zone', () => {
-    const ticks = shortDateTicks(midnights, 'DAY', {
+    const ticks = shortDateTicks(midnights, AggregationDateUnit.DAY, {
       locale: 'en-US',
       timeZone: ENGINE.zone,
     });

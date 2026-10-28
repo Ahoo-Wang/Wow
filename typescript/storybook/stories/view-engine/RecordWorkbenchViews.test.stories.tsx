@@ -621,7 +621,7 @@ export const DeleteConflictAsksTwice: Story = {
     // belongs to the dialog, not to the line.
     const second = await deleteDialog();
     await expect(
-      (await outcomesStore.current!.list('orders')).map(item => item.id),
+      (await outcomesStore.current!.list('orders')).items.map(item => item.id),
     ).toContain('orders-pending');
 
     await userEvent.click(
@@ -631,7 +631,9 @@ export const DeleteConflictAsksTwice: Story = {
     );
     await waitFor(async () =>
       expect(
-        (await outcomesStore.current!.list('orders')).map(item => item.id),
+        (await outcomesStore.current!.list('orders')).items.map(
+          item => item.id,
+        ),
       ).not.toContain('orders-pending'),
     );
   },
@@ -1049,7 +1051,7 @@ export const PublishAsSystemView: Story = {
           ?.textContent,
       ).toBe(say('label.manage.published', { title: '我盯的大额单' })),
     );
-    const listed = await tableSettingsStore.current!.list('orders');
+    const { items: listed } = await tableSettingsStore.current!.list('orders');
     await expect(
       listed
         .filter(item => item.title === '我盯的大额单')

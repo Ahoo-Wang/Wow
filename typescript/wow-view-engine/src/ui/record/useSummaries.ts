@@ -31,6 +31,7 @@ function holdsEveryRow(paging: RecordPaging | null): boolean {
     paging?.mode === 'paged' &&
     paging.index <= 1 &&
     paging.total !== undefined &&
+    paging.exact !== false &&
     paging.total <= paging.size
   );
 }

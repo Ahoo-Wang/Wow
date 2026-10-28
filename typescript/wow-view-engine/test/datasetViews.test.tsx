@@ -20,6 +20,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type DatasetResource,
@@ -28,7 +29,6 @@ import {
   type DashboardPanel,
   defaultRecordConfig,
   MemoryViewStore,
-  type QueryDescriptorResult,
   ViewEngine,
 } from '../src/index.js';
 import { useDatasets } from '../src/react/index.js';
@@ -49,21 +49,22 @@ import { ordersDescriptor } from './fixtures/descriptor.js';
 afterEach(cleanup);
 
 /** A dataset served from catalog `catalog`, as `DatasetResources` answers it. */
-function served(
-  id: string,
-  title: string | null,
-  catalog = 0,
-): DatasetResource {
-  const [contextName, name] = id.split('.');
+function served(id: string, title?: string, catalog = 0): DatasetResource {
+  const [context, dataset] = id.split('.');
   return {
     id,
-    entry: { contextName, name, title, version: 'sha256:1' },
+    entry: {
+      context,
+      dataset,
+      ...(title === undefined ? {} : { title }),
+      version: 'sha256:1',
+    },
     catalog,
   };
 }
 
 const ORDERS = served('shop.orders', 'Orders');
-const MEMBERS = served('crm.members', null, 1);
+const MEMBERS = served('crm.members', undefined, 1);
 
 function engineOf() {
   return new ViewEngine({
@@ -105,6 +106,31 @@ describe('useDatasets (D93)', () => {
     await waitFor(() => expect(resources.refresh).toHaveBeenCalledTimes(2));
     act(() => result.current.refresh());
     await waitFor(() => expect(resources.refresh).toHaveBeenCalledTimes(3));
+  });
+
+  it('calls off the read it no longer wants: on a new key, and when it is unmounted', async () => {
+    const asked: AbortSignal[] = [];
+    const resources = new DatasetResources(engineOf(), {
+      catalogs: {
+        list: options => {
+          asked.push(options!.signal!);
+          return new Promise(() => {});
+        },
+        source: () => testSource(),
+      },
+    });
+    const { rerender, unmount } = renderHook(
+      ({ key }: { key: string }) => useDatasets(resources, key),
+      { initialProps: { key: 'alice' } },
+    );
+    await waitFor(() => expect(asked).toHaveLength(1));
+
+    rerender({ key: 'bob' });
+    await waitFor(() => expect(asked).toHaveLength(2));
+    expect(asked.map(signal => signal.aborted)).toEqual([true, false]);
+
+    unmount();
+    expect(asked.map(signal => signal.aborted)).toEqual([true, true]);
   });
 
   it('keeps what it read when a read fails, and says why', async () => {
@@ -225,13 +251,10 @@ describe('a board over datasets of several services (D93)', () => {
       store: new MemoryViewStore(),
     });
     const sources: ReturnType<typeof testSource>[] = [];
-    const catalog = (context: string, name: string) => ({
-      list: () =>
-        Promise.resolve([
-          { contextName: context, name, title: null, version: 'sha256:1' },
-        ]),
+    const catalog = (context: string, dataset: string) => ({
+      list: () => Promise.resolve([{ context, dataset, version: 'sha256:1' }]),
       source: () => {
-        const result: QueryDescriptorResult = {
+        const result: DescriptorResult = {
           notModified: false,
           descriptor: ordersDescriptor(),
           version: 'sha256:1',
@@ -243,10 +266,9 @@ describe('a board over datasets of several services (D93)', () => {
         return source;
       },
     });
-    const served = await new DatasetResources(engine, [
-      catalog('shop', 'orders'),
-      catalog('crm', 'members'),
-    ]).refresh();
+    const served = await new DatasetResources(engine, {
+      catalogs: [catalog('shop', 'orders'), catalog('crm', 'members')],
+    }).refresh();
     expect(served.map(({ id }) => id)).toEqual(['shop.orders', 'crm.members']);
 
     const view = (id: string, title: string) =>

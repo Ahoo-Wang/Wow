@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -53,6 +54,39 @@ class ConfigurationKeysTest {
         )
         keys.unknown(environment).assert().isEmpty()
         keys.check(environment)
+    }
+
+    @Test
+    fun `the options the providers declare for their types are known at runtime, any other key under a type refused`() {
+        val providers = StoreProviders.load(javaClass.classLoader).stores.values.map { it.type to it.options }
+        val keys = ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(providers))
+        keys.unknown(environment("wow.mongo.append-timeout" to "5s", "wow.acme.region" to "eu-1")).assert().isEmpty()
+        keys.unknown(environment("wow.mongo.nonsense" to "x", "wow.acme.colour" to "red"))
+            .assert().containsExactlyInAnyOrder("wow.mongo.nonsense", "wow.acme.colour")
+        // A third party's type (the test's `acme`, on the class path) has no metadata: its options are known from its
+        // provider alone.
+        ConfigurationKeys.of(javaClass.classLoader).unknown(environment("wow.acme.region" to "eu-1"))
+            .assert().containsExactly("wow.acme.region")
+    }
+
+    @Test
+    fun `any sub-key of a declared map option is known, and nothing beside it`() {
+        val labels = ProviderOption.map("labels", "the labels of every acme resource.")
+        val declared = ProviderOptionKeys.of(listOf("acme" to listOf(labels)))
+        val keys = ConfigurationKeys.of(javaClass.classLoader, declared = declared)
+        keys.unknown(
+            environment("wow.acme.labels.team" to "a", "wow.acme.labels.cost.center" to "b")
+        ).assert().isEmpty()
+        keys.unknown(environment("wow.acme.labelz.team" to "a", "wow.acme.colour" to "red"))
+            .assert().containsExactlyInAnyOrder("wow.acme.labelz.team", "wow.acme.colour")
+        // Wow's own transports and Sinks declare theirs in the metadata: Kafka's client properties pass as they are.
+        val passed = environment(
+            "wow.kafka.properties.linger.ms" to "5",
+            "wow.clickhouse.query.settings.max_threads" to "2",
+        )
+        keys.unknown(passed).assert().isEmpty()
+        keys.unknown(environment("wow.kafka.propertiez.linger.ms" to "5", "wow.kafka.linger" to "5"))
+            .assert().containsExactlyInAnyOrder("wow.kafka.propertiez.linger.ms", "wow.kafka.linger")
     }
 
     @Test

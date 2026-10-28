@@ -213,7 +213,7 @@ class PostgresAdaptiveQueryLimitTest {
     }
 
     private fun Host.list(): Answer =
-        post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":10}""")
+        post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"},"limit":10}""")
 
     private fun Host.openAccount(owner: String): String {
         val opened = post("/bank/account/open-account", """{"owner":"$owner"}""", COMMITTED)

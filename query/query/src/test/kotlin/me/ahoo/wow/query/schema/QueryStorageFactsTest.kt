@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 import org.junit.jupiter.api.Test
@@ -62,7 +63,7 @@ class QueryStorageFactsTest {
         schema.storage.arrayEquality.assert().isEqualTo(SupportMode.NONE)
         schema.provisional.assert().isTrue()
         schema.profile.assert().isSameAs(SnapshotQueryModelProfile)
-        facts.compile(QueryModel("CUSTOM"), bound.definition).profile.assert().isNull()
+        facts.compile(QueryModel("custom"), bound.definition).profile.assert().isNull()
     }
 
     @Test

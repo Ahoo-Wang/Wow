@@ -56,30 +56,30 @@ export interface AggregateType {
 
 // @public
 enum AggregationDatePart {
-    DAY_OF_MONTH = "DAY_OF_MONTH",
-    DAY_OF_WEEK = "DAY_OF_WEEK",
-    HOUR_OF_DAY = "HOUR_OF_DAY",
-    MONTH_OF_YEAR = "MONTH_OF_YEAR"
+    DAY_OF_MONTH = "day-of-month",
+    DAY_OF_WEEK = "day-of-week",
+    HOUR_OF_DAY = "hour-of-day",
+    MONTH_OF_YEAR = "month-of-year"
 }
 
 // @public
 enum AggregationDateUnit {
     // (undocumented)
-    DAY = "DAY",
+    DAY = "day",
     // (undocumented)
-    HOUR = "HOUR",
+    HOUR = "hour",
     // (undocumented)
-    MINUTE = "MINUTE",
+    MINUTE = "minute",
     // (undocumented)
-    MONTH = "MONTH",
+    MONTH = "month",
     // (undocumented)
-    QUARTER = "QUARTER",
+    QUARTER = "quarter",
     // (undocumented)
-    SECOND = "SECOND",
+    SECOND = "second",
     // (undocumented)
-    WEEK = "WEEK",
+    WEEK = "week",
     // (undocumented)
-    YEAR = "YEAR"
+    YEAR = "year"
 }
 
 // @public
@@ -93,28 +93,28 @@ type AggregationExpression<FIELDS extends string = string> = FieldAggregationExp
 
 // @public
 enum AggregationExpressionOperator {
-    ADD = "ADD",
-    DIVIDE = "DIVIDE",
-    MULTIPLY = "MULTIPLY",
-    SUBTRACT = "SUBTRACT"
+    ADD = "add",
+    DIVIDE = "divide",
+    MULTIPLY = "multiply",
+    SUBTRACT = "subtract"
 }
 
 // @public
 enum AggregationExpressionType {
-    BINARY = "BINARY",
-    CONSTANT = "CONSTANT",
-    DATE_DIFF = "DATE_DIFF",
-    FIELD = "FIELD"
+    BINARY = "binary",
+    CONSTANT = "constant",
+    DATE_DIFF = "date-diff",
+    FIELD = "field"
 }
 
 // @public
 enum AggregationFunction {
-    AVG = "AVG",
-    MAX = "MAX",
-    MIN = "MIN",
-    STDDEV = "STDDEV",
-    SUM = "SUM",
-    VARIANCE = "VARIANCE"
+    AVG = "avg",
+    MAX = "max",
+    MIN = "min",
+    STDDEV = "stddev",
+    SUM = "sum",
+    VARIANCE = "variance"
 }
 
 // @public
@@ -138,16 +138,16 @@ type AggregationGroupInput<FIELDS extends string = string> = {
 
 // @public
 enum AggregationGroupScope {
-    ELEMENT = "ELEMENT",
-    ROOT = "ROOT"
+    ELEMENT = "element",
+    ROOT = "root"
 }
 
 // @public
 enum AggregationGroupType {
-    DATE_HISTOGRAM = "DATE_HISTOGRAM",
-    DATE_PART = "DATE_PART",
-    HISTOGRAM = "HISTOGRAM",
-    TERMS = "TERMS"
+    DATE_HISTOGRAM = "date-histogram",
+    DATE_PART = "date-part",
+    HISTOGRAM = "histogram",
+    TERMS = "terms"
 }
 
 // @public
@@ -166,14 +166,14 @@ type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<
 
 // @public
 enum AggregationMetricType {
-    ANY = "ANY",
-    COUNT = "COUNT",
-    DERIVED = "DERIVED",
-    DISTINCT_COUNT = "DISTINCT_COUNT",
-    FIRST = "FIRST",
-    LAST = "LAST",
-    NUMERIC = "NUMERIC",
-    PERCENTILE = "PERCENTILE"
+    ANY = "any",
+    COUNT = "count",
+    DERIVED = "derived",
+    DISTINCT_COUNT = "distinct-count",
+    FIRST = "first",
+    LAST = "last",
+    NUMERIC = "numeric",
+    PERCENTILE = "percentile"
 }
 
 // @public
@@ -404,12 +404,12 @@ type ComparisonFilter<FIELDS extends string = string> = {
 
 // @public
 enum ComparisonOperator {
-    EQ = "EQ",
-    GT = "GT",
-    GTE = "GTE",
-    LT = "LT",
-    LTE = "LTE",
-    NE = "NE"
+    EQ = "eq",
+    GT = "gt",
+    GTE = "gte",
+    LT = "lt",
+    LTE = "lte",
+    NE = "ne"
 }
 
 // @public
@@ -518,13 +518,13 @@ interface DateDiffAggregationExpression<FIELDS extends string = string> {
 // @public
 enum DateDiffUnit {
     // (undocumented)
-    DAY = "DAY",
+    DAY = "day",
     // (undocumented)
-    HOUR = "HOUR",
+    HOUR = "hour",
     // (undocumented)
-    MINUTE = "MINUTE",
+    MINUTE = "minute",
     // (undocumented)
-    SECOND = "SECOND"
+    SECOND = "second"
 }
 
 // @public
@@ -560,9 +560,9 @@ type DeletionFilter = {
 
 // @public
 enum DeletionState {
-    ACTIVE = "ACTIVE",
-    ALL = "ALL",
-    DELETED = "DELETED"
+    ACTIVE = "active",
+    ALL = "all",
+    DELETED = "deleted"
 }
 
 // @public
@@ -589,13 +589,13 @@ type DerivedExpression = {
 
 // @public
 enum DerivedExpressionType {
-    BINARY = "BINARY",
-    CONSTANT = "CONSTANT",
-    METRIC_REF = "METRIC_REF",
-    PREVIOUS = "PREVIOUS",
-    RANK = "RANK",
-    RUNNING = "RUNNING",
-    TOTAL = "TOTAL"
+    BINARY = "binary",
+    CONSTANT = "constant",
+    METRIC_REF = "metric-ref",
+    PREVIOUS = "previous",
+    RANK = "rank",
+    RUNNING = "running",
+    TOTAL = "total"
 }
 
 // @public
@@ -624,7 +624,7 @@ type DerivedWindow = {
 };
 
 // @public
-export type DescriptorResult = {
+type DescriptorResult = {
     readonly notModified: false;
     readonly version?: string;
     readonly descriptor: QueryModelDescriptor;
@@ -906,109 +906,109 @@ type FilterLiteral = null | string | number | boolean;
 
 // @public
 enum FilterOperator {
-    AFTER_NOW = "AFTER_NOW",
+    AFTER_NOW = "after-now",
     // (undocumented)
-    AGGREGATE_ID = "AGGREGATE_ID",
+    AGGREGATE_ID = "aggregate-id",
     // (undocumented)
-    AGGREGATE_IDS = "AGGREGATE_IDS",
+    AGGREGATE_IDS = "aggregate-ids",
     // (undocumented)
-    AND = "AND",
-    BEFORE_NOW = "BEFORE_NOW",
+    AND = "and",
+    BEFORE_NOW = "before-now",
     // (undocumented)
-    BEFORE_TODAY = "BEFORE_TODAY",
+    BEFORE_TODAY = "before-today",
     // (undocumented)
-    BETWEEN = "BETWEEN",
+    BETWEEN = "between",
     // (undocumented)
-    CONTAINS = "CONTAINS",
+    CONTAINS = "contains",
     // (undocumented)
-    CONTAINS_ALL = "CONTAINS_ALL",
+    CONTAINS_ALL = "contains-all",
     // (undocumented)
-    DELETION = "DELETION",
+    DELETION = "deletion",
     // (undocumented)
-    EARLIER_DAYS = "EARLIER_DAYS",
+    EARLIER_DAYS = "earlier-days",
     // (undocumented)
-    ELEMENT_MATCH = "ELEMENT_MATCH",
+    ELEMENT_MATCH = "element-match",
     // (undocumented)
-    ENDS_WITH = "ENDS_WITH",
+    ENDS_WITH = "ends-with",
     // (undocumented)
-    EQ = "EQ",
+    EQ = "eq",
     // (undocumented)
-    EXISTS = "EXISTS",
-    EXPRESSION = "EXPRESSION",
+    EXISTS = "exists",
+    EXPRESSION = "expression",
     // (undocumented)
-    GT = "GT",
+    GT = "gt",
     // (undocumented)
-    GTE = "GTE",
+    GTE = "gte",
     // (undocumented)
-    ID = "ID",
+    ID = "id",
     // (undocumented)
-    IDS = "IDS",
+    IDS = "ids",
     // (undocumented)
-    IN = "IN",
+    IN = "in",
     // (undocumented)
-    IS_EMPTY = "IS_EMPTY",
+    IS_EMPTY = "is-empty",
     // (undocumented)
-    IS_EMPTY_STRING = "IS_EMPTY_STRING",
+    IS_EMPTY_STRING = "is-empty-string",
     // (undocumented)
-    IS_NOT_EMPTY_STRING = "IS_NOT_EMPTY_STRING",
+    IS_NOT_EMPTY_STRING = "is-not-empty-string",
     // (undocumented)
-    IS_NOT_NULL = "IS_NOT_NULL",
+    IS_NOT_NULL = "is-not-null",
     // (undocumented)
-    IS_NULL = "IS_NULL",
+    IS_NULL = "is-null",
     // (undocumented)
-    LAST_MONTH = "LAST_MONTH",
+    LAST_MONTH = "last-month",
     // (undocumented)
-    LAST_WEEK = "LAST_WEEK",
+    LAST_WEEK = "last-week",
     // (undocumented)
-    LAST_YEAR = "LAST_YEAR",
+    LAST_YEAR = "last-year",
     // (undocumented)
-    LT = "LT",
+    LT = "lt",
     // (undocumented)
-    LTE = "LTE",
+    LTE = "lte",
     // (undocumented)
-    MATCH_ALL = "MATCH_ALL",
+    MATCH_ALL = "match-all",
     // (undocumented)
-    MATCH_NONE = "MATCH_NONE",
+    MATCH_NONE = "match-none",
     // (undocumented)
-    NE = "NE",
+    NE = "ne",
     // (undocumented)
-    NEXT_MONTH = "NEXT_MONTH",
+    NEXT_MONTH = "next-month",
     // (undocumented)
-    NEXT_WEEK = "NEXT_WEEK",
+    NEXT_WEEK = "next-week",
     // (undocumented)
-    NEXT_YEAR = "NEXT_YEAR",
+    NEXT_YEAR = "next-year",
     // (undocumented)
-    NOR = "NOR",
+    NOR = "nor",
     // (undocumented)
-    NOT_EXISTS = "NOT_EXISTS",
+    NOT_EXISTS = "not-exists",
     // (undocumented)
-    NOT_IN = "NOT_IN",
+    NOT_IN = "not-in",
     // (undocumented)
-    OR = "OR",
+    OR = "or",
     // (undocumented)
-    OWNER_ID = "OWNER_ID",
+    OWNER_ID = "owner-id",
     // (undocumented)
-    RECENT_DAYS = "RECENT_DAYS",
+    RECENT_DAYS = "recent-days",
     // (undocumented)
-    SEARCH = "SEARCH",
+    SEARCH = "search",
     // (undocumented)
-    SPACE_ID = "SPACE_ID",
+    SPACE_ID = "space-id",
     // (undocumented)
-    STARTS_WITH = "STARTS_WITH",
+    STARTS_WITH = "starts-with",
     // (undocumented)
-    TENANT_ID = "TENANT_ID",
+    TENANT_ID = "tenant-id",
     // (undocumented)
-    THIS_MONTH = "THIS_MONTH",
+    THIS_MONTH = "this-month",
     // (undocumented)
-    THIS_WEEK = "THIS_WEEK",
+    THIS_WEEK = "this-week",
     // (undocumented)
-    THIS_YEAR = "THIS_YEAR",
+    THIS_YEAR = "this-year",
     // (undocumented)
-    TODAY = "TODAY",
+    TODAY = "today",
     // (undocumented)
-    TOMORROW = "TOMORROW",
+    TOMORROW = "tomorrow",
     // (undocumented)
-    YESTERDAY = "YESTERDAY"
+    YESTERDAY = "yesterday"
 }
 
 // @public
@@ -1142,12 +1142,12 @@ type HavingExpression = {
 
 // @public
 enum HavingExpressionType {
-    AND = "AND",
-    BETWEEN = "BETWEEN",
-    CONDITION = "CONDITION",
-    IN = "IN",
-    IS_NULL = "IS_NULL",
-    OR = "OR"
+    AND = "and",
+    BETWEEN = "between",
+    CONDITION = "condition",
+    IN = "in",
+    IS_NULL = "is-null",
+    OR = "or"
 }
 
 // @public
@@ -1320,12 +1320,12 @@ export interface OwnerTransferred {
 }
 
 // @public
-export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
     total?: TotalMode;
 }
 
 // @public
-export interface PagedResult<T> {
+interface PagedResult<T> {
     // (undocumented)
     readonly exact: boolean;
     // (undocumented)
@@ -1344,9 +1344,9 @@ interface Pagination {
 
 // @public
 enum PagingMode {
-    CURSOR = "CURSOR",
-    LIST = "LIST",
-    PAGED = "PAGED"
+    CURSOR = "cursor",
+    LIST = "list",
+    PAGED = "paged"
 }
 
 // @public
@@ -1422,12 +1422,12 @@ type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConst
 
 // @public
 const QueryConstraintTypes: Readonly<{
-    readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
-    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
-    readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
-    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
-    readonly NULL_OR_EMPTY_AS_MISSING: "NULL_OR_EMPTY_AS_MISSING";
-    readonly ARRAY_EQUALITY: "ARRAY_EQUALITY";
+    readonly CURSOR_UNIQUE_SORT: "cursor-unique-sort";
+    readonly COUNT_REQUIRES_FILTER: "count-requires-filter";
+    readonly STARTS_WITH_REQUIRES_PREFIX: "starts-with-requires-prefix";
+    readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
+    readonly NULL_OR_EMPTY_AS_MISSING: "null-or-empty-as-missing";
+    readonly ARRAY_EQUALITY: "array-equality";
 }>;
 
 // @public
@@ -1443,14 +1443,14 @@ type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRoles] | (
 
 // @public
 const QueryFieldRoles: Readonly<{
-    readonly IDENTITY: "IDENTITY";
-    readonly AGGREGATE_ID: "AGGREGATE_ID";
-    readonly TENANT_ID: "TENANT_ID";
-    readonly OWNER_ID: "OWNER_ID";
-    readonly SPACE_ID: "SPACE_ID";
-    readonly DELETED: "DELETED";
-    readonly EVENT_TIME: "EVENT_TIME";
-    readonly FIRST_EVENT_TIME: "FIRST_EVENT_TIME";
+    readonly IDENTITY: "identity";
+    readonly AGGREGATE_ID: "aggregate-id";
+    readonly TENANT_ID: "tenant-id";
+    readonly OWNER_ID: "owner-id";
+    readonly SPACE_ID: "space-id";
+    readonly DELETED: "deleted";
+    readonly EVENT_TIME: "event-time";
+    readonly FIRST_EVENT_TIME: "first-event-time";
 }>;
 
 // @public
@@ -1513,9 +1513,9 @@ interface QueryModelDescriptor {
 
 // @public
 const QueryModels: Readonly<{
-    readonly SNAPSHOT: "SNAPSHOT";
-    readonly EVENT_STREAM: "EVENT_STREAM";
-    readonly DATASET: "DATASET";
+    readonly SNAPSHOT: "snapshot";
+    readonly EVENT_STREAM: "events";
+    readonly DATASET: "dataset";
 }>;
 
 // @public
@@ -1526,23 +1526,23 @@ type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | Nume
 
 // @public
 const QuerySemanticTypes: Readonly<{
-    readonly TEMPORAL_DATE: "TEMPORAL_DATE";
-    readonly TEMPORAL_EPOCH: "TEMPORAL_EPOCH";
-    readonly TEMPORAL_FORMATTED: "TEMPORAL_FORMATTED";
-    readonly DECIMAL: "DECIMAL";
-    readonly MONEY: "MONEY";
-    readonly DURATION: "DURATION";
-    readonly REFERENCE: "REFERENCE";
+    readonly TEMPORAL_DATE: "temporal-date";
+    readonly TEMPORAL_EPOCH: "temporal-epoch";
+    readonly TEMPORAL_FORMATTED: "temporal-formatted";
+    readonly DECIMAL: "decimal";
+    readonly MONEY: "money";
+    readonly DURATION: "duration";
+    readonly REFERENCE: "reference";
 }>;
 
 // @public
 enum QueryValueKind {
-    ARRAY = "ARRAY",
-    NULL = "NULL",
-    OBJECT = "OBJECT",
-    SCALAR = "SCALAR",
-    UNION = "UNION",
-    UNKNOWN = "UNKNOWN"
+    ARRAY = "array",
+    NULL = "null",
+    OBJECT = "object",
+    SCALAR = "scalar",
+    UNION = "union",
+    UNKNOWN = "unknown"
 }
 
 // @public
@@ -1550,11 +1550,11 @@ type QueryValueType = (typeof QueryValueTypes)[keyof typeof QueryValueTypes] | (
 
 // @public
 const QueryValueTypes: Readonly<{
-    readonly STRING: "STRING";
-    readonly INTEGER: "INTEGER";
-    readonly DECIMAL: "DECIMAL";
-    readonly BOOLEAN: "BOOLEAN";
-    readonly OBJECT: "OBJECT";
+    readonly STRING: "string";
+    readonly INTEGER: "integer";
+    readonly DECIMAL: "decimal";
+    readonly BOOLEAN: "boolean";
+    readonly OBJECT: "object";
 }>;
 
 // @public
@@ -1653,9 +1653,9 @@ export interface RouteManifest {
 // @public
 enum RunningFunction {
     // (undocumented)
-    AVG = "AVG",
+    AVG = "avg",
     // (undocumented)
-    SUM = "SUM"
+    SUM = "sum"
 }
 
 // @public
@@ -1709,8 +1709,8 @@ type SearchFilter<FIELDS extends string = string> = {
 
 // @public
 enum SearchMode {
-    PHRASE = "PHRASE",
-    TERMS = "TERMS"
+    PHRASE = "phrase",
+    TERMS = "terms"
 }
 
 // @public
@@ -1721,8 +1721,8 @@ interface SensitivityDescriptor {
 
 // @public
 enum SensitivityLevel {
-    CONFIDENTIAL = "CONFIDENTIAL",
-    DISPLAY = "DISPLAY"
+    CONFIDENTIAL = "confidential",
+    DISPLAY = "display"
 }
 
 // @public
@@ -1788,9 +1788,9 @@ interface SortCapable<FIELDS extends string = string> {
 // @public
 enum SortDirection {
     // (undocumented)
-    ASC = "ASC",
+    ASC = "asc",
     // (undocumented)
-    DESC = "DESC"
+    DESC = "desc"
 }
 
 // @public
@@ -1923,8 +1923,8 @@ export interface StreamResumeOptions {
 
 // @public
 enum StringComparison {
-    CASE_INSENSITIVE = "CASE_INSENSITIVE",
-    CASE_SENSITIVE = "CASE_SENSITIVE"
+    CASE_INSENSITIVE = "case-insensitive",
+    CASE_SENSITIVE = "case-sensitive"
 }
 
 // @public
@@ -2052,7 +2052,7 @@ enum TimeUnit {
 }
 
 // @public
-export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
+type TotalMode = 'exact' | 'bounded' | 'none';
 
 // @public
 export function toWowProblemError(error: unknown): Promise<WowProblemError | undefined>;
@@ -2108,13 +2108,13 @@ export const wait: {
 // @public
 enum WindowFunction {
     // (undocumented)
-    PREVIOUS = "PREVIOUS",
+    PREVIOUS = "previous",
     // (undocumented)
-    RANK = "RANK",
+    RANK = "rank",
     // (undocumented)
-    RUNNING = "RUNNING",
+    RUNNING = "running",
     // (undocumented)
-    TOTAL = "TOTAL"
+    TOTAL = "total"
 }
 
 // @public

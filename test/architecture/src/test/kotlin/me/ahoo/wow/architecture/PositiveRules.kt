@@ -167,21 +167,12 @@ object PositiveRules {
     fun nineXNameViolations(repositoryRoot: File): List<String> =
         NINE_X_NAMES.violations(repositoryRoot).filterNot { violation -> NINE_X_DETECTORS.any(violation::startsWith) }
 
-    /**
-     * The configuration key groups only 9.x has (07 §4), from the `@ConfigurationProperties` prefixes of
-     * `v10-9x-baseline` that no Wow 10 key is under: 9.x's buses and stores, its WebFlux and Redis modules, the
-     * compensation, BI and OpenAPI services' keys, and its per-aggregate, metrics and message settings.
-     */
-    val NINE_X_KEYS: List<String> = listOf(
-        "wow.command", "wow.event", "wow.eventsourcing", "wow.prepare", "wow.webflux", "wow.redis", "wow.compensation",
-        "wow.bi", "wow.metrics", "wow.elasticsearch", "wow.openapi", "wow.message", "wow.aggregate",
-        "wow.aggregate-tracing", "wow.query.clickhouse",
-    )
-
-    private const val METADATA = "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json"
-    private val METADATA_NAME = Regex(""""name"\s*:\s*"([^"]+)"""")
+    private val METADATA_PROPERTY = Regex(""""name"\s*:\s*"([^"]+)"\s*,\s*"type"\s*:\s*"([^"]*)"""")
+    private val OPEN_TYPE = Regex("""\b(?:Map|List|Set|Collection)\b""")
     private val CONFIG_FILE = Regex("""application[\w-]*\.(ya?ml|properties)""")
+    private val INDEX = Regex("""\[[^]]*]""")
     private const val MAIN_RESOURCES = "/src/main/resources/"
+    private const val MODULE_METADATA = "src/main/resources/META-INF/spring-configuration-metadata.json"
     private val SKIPPED = setOf("node_modules", "build", ".gradle")
 
     /**
@@ -192,16 +183,41 @@ object PositiveRules {
     val CONFIG_DIRS: List<String> =
         MODULES.map { it.dir } + listOf("examples", "platform", "test/benchmarks/server", "test/migration-rehearsal")
 
+    private fun relaxed(key: String): String = key.lowercase().replace("-", "").replace("_", "")
+
     /**
-     * The 9.x keys Wow 10 knows or configures: a key of the host's configuration metadata, or of an
-     * `application*.yml`, `.yaml` or `.properties` of a module, an example or a platform service, under one of
-     * [NINE_X_KEYS], under [dirs] ([CONFIG_DIRS]). (The host refuses an unknown `wow.*` key at startup, so the metadata is what it accepts.)
+     * Whether [key] is one Wow 10 declares in [properties], the configuration metadata's `name` and `type` of each key
+     * (the host's, the platform services' and Wow's own providers' options): a declared key, a group above one, or a
+     * key under a declared map or list, whose entries are free. As the documentation's check reads its samples
+     * (`docs-consistency.mjs`, `knownKeys`).
      */
-    fun nineXKeyViolations(repositoryRoot: File, dirs: List<String>): List<String> {
-        val metadata = File(repositoryRoot, METADATA).takeIf { it.isFile }?.readText().orEmpty()
-        val known = METADATA_NAME.findAll(metadata).map { it.groupValues[1] }.filter { it.startsWith("wow.") }
-            .map { "$METADATA: $it" }
-        val configured = dirs.map { File(repositoryRoot, it) }.filter { it.isDirectory }
+    internal fun declared(properties: List<Pair<String, String>>): (String) -> Boolean {
+        val keys = properties.map { (name, type) -> relaxed(name) to OPEN_TYPE.containsMatchIn(type.replace(Regex("[<.]"), " ")) }
+        return { key ->
+            val relaxedKey = relaxed(key.replace(INDEX, ""))
+            keys.any { (name, open) ->
+                relaxedKey == name || name.startsWith("$relaxedKey.") || open && relaxedKey.startsWith("$name.")
+            }
+        }
+    }
+
+    /**
+     * The `wow.*` keys of an `application*.yml`, `.yaml` or `.properties` of a module, an example or a platform
+     * service, under [dirs] ([CONFIG_DIRS]), that Wow 10 does not declare: the configuration metadata of every module
+     * under [repositoryRoot] names the keys it reads. A key of an earlier version, a typo or a key Wow 10 removed alike:
+     * the host refuses each at startup, so a configuration Wow ships must not carry one.
+     */
+    fun undeclaredConfigKeys(repositoryRoot: File, dirs: List<String>): List<String> {
+        val properties = repositoryRoot.walkTopDown().onEnter { it.name !in SKIPPED }
+            .filter { it.isFile && it.invariantSeparatorsPath.endsWith(MODULE_METADATA) }
+            .flatMap { file ->
+                METADATA_PROPERTY.findAll(
+                    file.readText()
+                ).map { it.groupValues[1] to it.groupValues[2] }
+            }
+            .toList()
+        val known = declared(properties)
+        return dirs.map { File(repositoryRoot, it) }.filter { it.isDirectory }
             .flatMap { root ->
                 root.walkTopDown().onEnter { it.name !in SKIPPED }
                     .filter { it.isFile && CONFIG_FILE.matches(it.name) && MAIN_RESOURCES in it.invariantSeparatorsPath }
@@ -210,12 +226,8 @@ object PositiveRules {
             .sortedBy { it.path }
             .flatMap { file ->
                 val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
-                keysOf(file).map { "$path: $it" }
+                keysOf(file).filter { (it == "wow" || it.startsWith("wow.")) && !known(it) }.map { "$path: $it" }
             }
-        return (known + configured).filter { entry ->
-            val key = entry.substringAfterLast(": ")
-            NINE_X_KEYS.any { key == it || key.startsWith("$it.") }
-        }.toList()
     }
 
     /**

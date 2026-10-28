@@ -24,6 +24,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -47,8 +48,8 @@ describe('FilterPanel and auto refresh', () => {
         filter: {
           op: 'and',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
-            { field: 'status', operator: 'EQ', value: 'open' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+            { field: 'status', operator: FilterOperator.EQ, value: 'open' },
           ],
         },
       }),

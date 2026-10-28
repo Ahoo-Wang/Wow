@@ -30,6 +30,8 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.SignalDropped.Reason
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import java.net.ConnectException
@@ -71,10 +73,10 @@ import kotlin.time.toJavaDuration
  * nodes, so a request that reached it and failed after is safe to send again. An origin's definite
  * answer, any other status, is never retried.
  *
- * A signal is dropped when its queue is full, when its wait is over before it is sent ([EXPIRED]), when its request
+ * A signal is dropped when its queue is full, when its wait is over before it is sent ([ObservedEvent.SignalDropped.Reason.EXPIRED]), when its request
  * fails otherwise, or after its last attempt, or outlives its waits, or when the origin answers other than 2xx: a lost
  * signal costs its waiter a timeout, never a fact. Every drop is counted ([dropped], and [observer]'s
- * [Observer.signalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
+ * [ObservedEvent.SignalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
  * after, at DEBUG otherwise: never silent, never a log line per signal of a burst.
  *
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
@@ -129,10 +131,10 @@ class HttpSignalSender(
                 offered.isSuccess -> return
                 // The queue went idle and away meanwhile: take the origin's next one.
                 offered.isClosed -> continue
-                else -> return drop(origin.address, signal, QUEUE_FULL)
+                else -> return drop(origin.address, signal, Reason.QUEUE_FULL)
             }
         }
-        drop(origin.address, signal, CLOSED)
+        drop(origin.address, signal, Reason.CLOSED)
     }
 
     override fun close() {
@@ -142,9 +144,9 @@ class HttpSignalSender(
         outboxes.clear()
     }
 
-    private fun drop(address: String, signal: WaitSignal, reason: String, detail: String = reason) {
+    private fun drop(address: String, signal: WaitSignal, reason: Reason, detail: String = reason.value) {
         val count = drops.incrementAndGet()
-        observer.signalDropped(address, reason)
+        observer.observed(ObservedEvent.SignalDropped(address, reason))
         val message = { "Dropped the signal of wait ${signal.waitId} to $address ($detail); $count dropped so far." }
         if (count == 1L || count % WARN_EVERY == 0L) logger.warn(message) else logger.debug(message)
     }
@@ -154,7 +156,7 @@ class HttpSignalSender(
 
     /** The queue of one origin and the coroutine that sends from it. */
     private inner class Outbox(val address: String) {
-        val queue = Channel<Pending>(queueCapacity) { drop(address, it.signal, CLOSED) }
+        val queue = Channel<Pending>(queueCapacity) { drop(address, it.signal, Reason.CLOSED) }
         private val permits = Semaphore(concurrency)
 
         /** Whether the origin refused a batch: it is sent one signal a request. */
@@ -215,7 +217,7 @@ class HttpSignalSender(
                 live += entry
                 latest = maxOf(latest, entry.deadline)
             } else {
-                drop(outbox.address, entry.signal, EXPIRED, "its wait was over before it was sent")
+                drop(outbox.address, entry.signal, Reason.EXPIRED, "its wait was over before it was sent")
             }
         }
         if (live.isEmpty()) {
@@ -226,9 +228,9 @@ class HttpSignalSender(
         when (val sent = post(outbox, body, latest - now)) {
             is Sent.Answered -> answered(outbox, live, sent.status, attempt, latest)
             is Sent.Failed -> if (sent.failure.isTransient()) {
-                retry(outbox, live, attempt, latest, FAILED, sent.failure.toString())
+                retry(outbox, live, attempt, latest, Reason.FAILED, sent.failure.toString())
             } else {
-                live.forEach { drop(outbox.address, it.signal, FAILED, sent.failure.toString()) }
+                live.forEach { drop(outbox.address, it.signal, Reason.FAILED, sent.failure.toString()) }
             }
         }
     }
@@ -243,8 +245,8 @@ class HttpSignalSender(
                 live.forEach { deliver(outbox, listOf(it)) }
             }
 
-            status in BUSY -> retry(outbox, live, attempt, latest, REFUSED, "it answered HTTP $status")
-            else -> live.forEach { drop(outbox.address, it.signal, REFUSED, "it answered HTTP $status") }
+            status in BUSY -> retry(outbox, live, attempt, latest, Reason.REFUSED, "it answered HTTP $status")
+            else -> live.forEach { drop(outbox.address, it.signal, Reason.REFUSED, "it answered HTTP $status") }
         }
     }
 
@@ -257,7 +259,7 @@ class HttpSignalSender(
         live: List<Pending>,
         attempt: Int,
         latest: Long,
-        reason: String,
+        reason: Reason,
         detail: String,
     ) {
         val backoff = backoffOf(attempt)
@@ -318,12 +320,6 @@ class HttpSignalSender(
         /** A drop is logged at WARN the first time and every this many times after. */
         const val WARN_EVERY: Long = 100
 
-        /** The reasons of [Observer.signalDropped]. */
-        const val QUEUE_FULL: String = "queue-full"
-        const val CLOSED: String = "closed"
-        const val EXPIRED: String = "expired"
-        const val REFUSED: String = "refused"
-        const val FAILED: String = "failed"
         private const val BAD_REQUEST = 400
         private val SUCCESS = 200..299
         private val logger = KotlinLogging.logger {}

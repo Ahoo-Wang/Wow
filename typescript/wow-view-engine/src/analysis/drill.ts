@@ -60,6 +60,12 @@ import { bucketRange } from './buckets.js';
 export interface DrillContext {
   /** The engine's zone: the one a histogram that names none was cut in. */
   timeZone: string;
+  /**
+   * What a reference id of `remote` reads as now (`ViewRuntime.labels`),
+   * written beside the id in the condition a group leads to; the id
+   * itself when left out.
+   */
+  labelOf?(remote: string, id: string | number): string;
 }
 
 /**
@@ -338,7 +344,7 @@ function conditionsOf(
             value: null,
           },
         ];
-      return [equal(group.field, value, field, kinds)];
+      return [equal(group.field, value, field, kinds, context)];
     }
     case AggregationGroupTypes.HISTOGRAM: {
       if (group.field === undefined) return null;
@@ -392,6 +398,7 @@ function equal(
   value: unknown,
   field: FieldDefinition,
   kinds: FieldKindRegistry,
+  context: DrillContext,
 ): FilterLeaf {
   const kind = kinds.get(field.kind);
   const scalar = value as string | number | boolean;
@@ -401,9 +408,22 @@ function equal(
     return {
       field: name,
       operator: FilterOperators.IN,
-      value: { items: [{ id: scalar, label: String(scalar) }] },
+      value: {
+        items: [{ id: scalar, label: labelOf(field, scalar, context) }],
+      },
     };
   return { field: name, operator: FilterOperators.IN, value: [scalar] };
+}
+
+/** A reference id's label as `context` reads it now, else the id. */
+function labelOf(
+  field: FieldDefinition,
+  id: string | number | boolean,
+  context: DrillContext,
+): string {
+  return field.remote && typeof id !== 'boolean' && context.labelOf
+    ? context.labelOf(field.remote, id)
+    : String(id);
 }
 
 /**

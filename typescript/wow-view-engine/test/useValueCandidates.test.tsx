@@ -34,6 +34,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine, settle } from './fixtures/ui.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -166,10 +167,10 @@ describe('the filter editor offers value candidates', () => {
     const filter: FilterTree = {
       op: 'and',
       children: [
-        { field: 'warehouse', operator: 'EQ', value: '' },
-        { field: 'warehouse', operator: 'CONTAINS', value: '' },
-        { field: 'status', operator: 'IN', value: [] },
-        { field: 'warehouse', operator: 'IS_NULL', value: null },
+        { field: 'warehouse', operator: FilterOperator.EQ, value: '' },
+        { field: 'warehouse', operator: FilterOperator.CONTAINS, value: '' },
+        { field: 'status', operator: FilterOperator.IN, value: [] },
+        { field: 'warehouse', operator: FilterOperator.IS_NULL, value: null },
         { op: 'or', children: [] },
       ],
     };
@@ -213,7 +214,9 @@ describe('the filter editor offers value candidates', () => {
       config: recordConfig({
         filter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'IN', value: [] }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.IN, value: [] },
+          ],
         },
       }),
     });

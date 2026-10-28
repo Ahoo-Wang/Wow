@@ -16,6 +16,7 @@ package me.ahoo.wow.viewstore.starter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType

@@ -103,7 +103,7 @@ class StreamCancellationTest {
         )
         serving(node.http.routes) { client ->
             val left = runCatching {
-                client.stream("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+                client.stream("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
                     .timeout(Duration.ofMillis(300)).blockFirst()
             }
             left.isFailure.assert().isTrue()
@@ -121,7 +121,7 @@ class StreamCancellationTest {
             },
         )
         serving(node.http.routes) { client ->
-            val first = client.stream("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            val first = client.stream("/shop/cart/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
                 .take(1).blockFirst(Duration.ofSeconds(10))
             first.assert().contains("first")
             ended(listEnded).assert().isInstanceOf(CancellationException::class.java)

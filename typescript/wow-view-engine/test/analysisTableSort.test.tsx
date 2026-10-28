@@ -47,11 +47,22 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { analysisToggle, openTray } from './fixtures/workbench.js';
+import {
+  AggregationDateUnit,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
-const asc = (alias: string): AnalysisSort => ({ alias, direction: 'ASC' });
-const desc = (alias: string): AnalysisSort => ({ alias, direction: 'DESC' });
+const asc = (alias: string): AnalysisSort => ({
+  alias,
+  direction: SortDirection.ASC,
+});
+const desc = (alias: string): AnalysisSort => ({
+  alias,
+  direction: SortDirection.DESC,
+});
 
 /**
  * An analysis's sort decides which groups 「前 N 组」 keeps, so a header's
@@ -108,7 +119,7 @@ describe('an analysis column’s own width', () => {
         label: 'D',
         role: 'group',
         cell: 'number',
-        dateUnit: 'DAY',
+        dateUnit: AggregationDateUnit.DAY,
       }),
     ).toBe('date');
   });
@@ -222,7 +233,9 @@ describe('sorting an analysis from its header', () => {
 
     press('Record count');
     await waitFor(() =>
-      expect(asked(source)).toEqual([{ field: 'orders', direction: 'ASC' }]),
+      expect(asked(source)).toEqual([
+        { field: 'orders', direction: SortDirection.ASC },
+      ]),
     );
     await waitFor(() =>
       expect(header('Record count').getAttribute('aria-sort')).toBe(
@@ -243,14 +256,18 @@ describe('sorting an analysis from its header', () => {
         'descending',
       ),
     );
-    expect(asked(source)).toEqual([{ field: 'orders', direction: 'DESC' }]);
+    expect(asked(source)).toEqual([
+      { field: 'orders', direction: SortDirection.DESC },
+    ]);
     expect(named()).toBe('Back to the order before sorting by Record count');
 
     press('Record count');
     await waitFor(() =>
       expect(header('Warehouse').getAttribute('aria-sort')).toBe('descending'),
     );
-    expect(asked(source)).toEqual([{ field: 'warehouse', direction: 'DESC' }]);
+    expect(asked(source)).toEqual([
+      { field: 'warehouse', direction: SortDirection.DESC },
+    ]);
     expect(header('Record count').getAttribute('aria-sort')).toBeNull();
   });
 
@@ -264,8 +281,8 @@ describe('sorting an analysis from its header', () => {
 
     await waitFor(() =>
       expect(asked(source)).toEqual([
-        { field: 'warehouse', direction: 'DESC' },
-        { field: 'orders', direction: 'ASC' },
+        { field: 'warehouse', direction: SortDirection.DESC },
+        { field: 'orders', direction: SortDirection.ASC },
       ]),
     );
   });
@@ -283,7 +300,9 @@ describe('sorting an analysis from its header', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(asked(source)).toEqual([{ field: 'orders', direction: 'ASC' }]),
+      expect(asked(source)).toEqual([
+        { field: 'orders', direction: SortDirection.ASC },
+      ]),
     );
   });
 
@@ -313,7 +332,9 @@ describe('sorting an analysis from its header', () => {
     const ran = vi.mocked(source.aggregate).mock.calls.length;
     const paid: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PAID' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PAID' },
+      ],
     };
     act(() => engine.openRuntimes()[0].edit({ filter: paid }));
 
@@ -348,7 +369,9 @@ describe('sorting an analysis from its header', () => {
       ),
     );
     const [query] = vi.mocked(source.aggregate).mock.lastCall!;
-    expect(query.sort).toEqual([{ field: 'orders', direction: 'DESC' }]);
+    expect(query.sort).toEqual([
+      { field: 'orders', direction: SortDirection.DESC },
+    ]);
     expect(JSON.stringify(query)).toContain('PAID');
   });
 
@@ -364,7 +387,9 @@ describe('sorting an analysis from its header', () => {
     press('Record count');
 
     await waitFor(() =>
-      expect(asked(source)).toEqual([{ field: 'orders', direction: 'ASC' }]),
+      expect(asked(source)).toEqual([
+        { field: 'orders', direction: SortDirection.ASC },
+      ]),
     );
     expect(engine.openRuntimes()[0].getSnapshot().applied).toMatchObject({
       sort: [asc('orders')],

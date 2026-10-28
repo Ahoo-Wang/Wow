@@ -15,24 +15,28 @@ import {
   defineDataset,
   type DefineDatasetSpec,
 } from './define/defineDataset.js';
-import type { WriteContext } from '../store/ViewStore.js';
+import type { ReadOptions, WriteOptions } from '../store/ViewStore.js';
 import type { ViewSource } from './source.js';
 
 /**
- * One dataset of a service's directory: where it lives, how it is titled,
- * and the version it was published at (`null` while it is not servable).
+ * One dataset of a service's directory, named as wow-client's `DatasetEntry`
+ * names it: the bounded context it lives in, its name there, and its title.
+ * A directory lists only what it serves. `version` is the directory's own
+ * version of the dataset where it keeps one; a refresh registers the
+ * dataset again when it moves. Without one, a changed dataset is told by
+ * its descriptor's version, which the engine checks on its own schedule.
  */
 export interface DatasetDirectoryEntry {
-  contextName: string;
-  name: string;
-  title: string | null;
-  version: string | null;
+  context: string;
+  dataset: string;
+  title?: string;
+  version?: string;
 }
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
 export interface DatasetCatalog {
-  /** The datasets the service serves (`GET /dataset`). */
-  list(): Promise<readonly DatasetDirectoryEntry[]>;
+  /** The datasets the service serves (`GET /wow/dataset`). */
+  list(options?: ReadOptions): Promise<readonly DatasetDirectoryEntry[]>;
   /** The source of one, such as wow-client's `DatasetQueryClient`; it must describe itself. */
   source(entry: DatasetDirectoryEntry): ViewSource;
   /**
@@ -61,14 +65,14 @@ export interface StoredDatasetWording {
 export interface DatasetWordingStore {
   /** Every dataset's stored wording, by definition id (`{context}.{dataset}`). */
   list(
-    signal?: AbortSignal,
+    options?: ReadOptions,
   ): Promise<ReadonlyMap<string, StoredDatasetWording>>;
   /** Writes one whole at the expected revision; answers the new revision. */
   set(
     dataset: string,
     wording: DatasetOverrides,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string>;
 }
 
@@ -89,7 +93,7 @@ export interface DatasetWordingEditor {
   /** The revision a save expects. */
   readonly revision: string;
   /** Stores `wording` whole and registers the dataset again in it. */
-  save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+  save(wording: DatasetOverrides, context: WriteOptions): Promise<void>;
 }
 
 /** What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. */
@@ -115,8 +119,6 @@ export interface DatasetResource {
   /**
    * Which of the catalogs serves it, by its place in the list
    * `DatasetResources` was given (0 for one catalog).
-   *
-   * @beta
    */
   catalog: number;
 }
@@ -124,10 +126,6 @@ export interface DatasetResource {
 /**
  * A dataset a catalog listed under an id an earlier catalog serves:
  * left out, the earlier one's kept.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export interface DatasetDuplicate {
   /** The definition id both name, `{context}.{dataset}`. */
@@ -140,26 +138,23 @@ export interface DatasetDuplicate {
 }
 
 /**
- * What `DatasetResources` tells besides a dataset it cannot serve: each
- * duplicate it leaves out, and a catalog whose directory cannot be read.
- *
- * Experimental (D93): it may change before 10.0 GA. Its members are tagged
- * rather than the interface, as the constructor of the public
- * `DatasetResources` names it.
+ * What `DatasetResources` reads and whom it tells: the catalogs, and the
+ * callbacks for what it cannot serve. Every callback is optional; one left
+ * out hears nothing, and the refresh goes on as it would.
  */
-export interface DatasetResourcesOptions {
-  /**
-   * Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`).
-   *
-   * @beta
-   */
+export interface DatasetResourcesInit {
+  /** One service's directory, or several, the first winning a dataset two list. */
+  catalogs: DatasetCatalog | readonly DatasetCatalog[];
+  /** Told of a dataset that could not be described or registered; it is left as it was. */
+  onError?(entry: DatasetDirectoryEntry, error: unknown): void;
+  /** Told when the stored wording cannot be read; the wording read last stands. */
+  onWordingError?(error: unknown): void;
+  /** Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`). */
   onDuplicate?(duplicate: DatasetDuplicate): void;
   /**
    * Told when the catalog at `catalog` cannot list its datasets: the ones it
    * served stay as they were, and the refresh goes on with the others. Only
    * when no catalog can list does the refresh fail.
-   *
-   * @beta
    */
   onCatalogError?(catalog: number, error: unknown): void;
 }
@@ -173,8 +168,8 @@ interface Listed {
 /**
  * Keeps an engine's datasets in step with services' directories: each
  * `refresh` registers a dataset a directory newly lists, registers again
- * one whose descriptor version changed, and removes one no directory lists
- * any more or whose schema does not compile (`version` `null`). A dataset's
+ * one whose version changed, and removes one no directory lists any more.
+ * A dataset's
  * definition id is its name, `{context}.{dataset}`, and its title the
  * directory's; a definition the host registered in code under that id wins
  * and the dataset is left out.
@@ -212,19 +207,14 @@ export class DatasetResources {
   >();
   private found: readonly DatasetDuplicate[] = [];
 
+  private readonly options: DatasetResourcesInit;
+
   constructor(
     private readonly engine: DatasetRegistrar,
-    /** One service's directory, or several, the first winning a dataset two list. */
-    catalogs: DatasetCatalog | readonly DatasetCatalog[],
-    /** Told of a dataset that could not be described or registered; it is left as it was. */
-    private readonly onError: (
-      entry: DatasetDirectoryEntry,
-      error: unknown,
-    ) => void = () => undefined,
-    /** Told when the stored wording cannot be read; the wording read last stands. */
-    private readonly onWordingError: (error: unknown) => void = () => undefined,
-    private readonly options: DatasetResourcesOptions = {},
+    init: DatasetResourcesInit,
   ) {
+    this.options = init;
+    const { catalogs } = init;
     this.catalogs = Array.isArray(catalogs)
       ? (catalogs as readonly DatasetCatalog[])
       : [catalogs as DatasetCatalog];
@@ -240,18 +230,19 @@ export class DatasetResources {
   /**
    * The datasets the last refresh left out because an earlier catalog serves
    * their id.
-   *
-   * @beta
    */
   get duplicates(): readonly DatasetDuplicate[] {
     return this.found;
   }
 
-  async refresh(): Promise<readonly DatasetResource[]> {
-    await this.readWordings();
+  async refresh(
+    options: ReadOptions = {},
+  ): Promise<readonly DatasetResource[]> {
+    await this.readWordings(options);
     const lists = await Promise.allSettled(
-      this.catalogs.map(catalog => catalog.list()),
+      this.catalogs.map(catalog => catalog.list(options)),
     );
+    options.signal?.throwIfAborted();
     if (lists.every(list => list.status === 'rejected')) throw lists[0].reason;
     const servable = new Map<string, Listed>();
     const duplicates: DatasetDuplicate[] = [];
@@ -263,8 +254,7 @@ export class DatasetResources {
         return;
       }
       for (const entry of list.value) {
-        if (entry.version === null) continue;
-        const id = `${entry.contextName}.${entry.name}`;
+        const id = `${entry.context}.${entry.dataset}`;
         const kept = servable.get(id);
         if (kept) {
           duplicates.push({ id, entry, dropped: catalog, kept: kept.catalog });
@@ -288,7 +278,7 @@ export class DatasetResources {
         this.derived.delete(id);
       }
     await Promise.all(
-      [...servable].map(([id, listed]) => this.serve(id, listed)),
+      [...servable].map(([id, listed]) => this.serve(id, listed, options)),
     );
     const order = [...servable.keys()];
     return this.resources
@@ -300,16 +290,16 @@ export class DatasetResources {
    * Reads the stored wording before a refresh registers; one that cannot be
    * read leaves what was read last, and is told for no dataset in particular.
    */
-  private async readWordings(): Promise<void> {
+  private async readWordings(options: ReadOptions): Promise<void> {
     const read = new Map(this.stored);
     await Promise.all(
       this.catalogs.map(async (catalog, index) => {
         const store = catalog.wordings;
         if (!store) return;
         try {
-          read.set(index, await store.list());
+          read.set(index, await store.list(options));
         } catch (error) {
-          this.onWordingError(error);
+          this.options.onWordingError?.(error);
         }
       }),
     );
@@ -326,7 +316,11 @@ export class DatasetResources {
     );
   }
 
-  private async serve(id: string, listed: Listed): Promise<void> {
+  private async serve(
+    id: string,
+    listed: Listed,
+    options: ReadOptions,
+  ): Promise<void> {
     const { entry, catalog } = listed;
     const held = this.held.get(id);
     const { wording } = this.wordingOf(id, listed);
@@ -340,7 +334,7 @@ export class DatasetResources {
     if (!held && this.engine.definitions.has(id)) return;
     try {
       const source = this.catalogs[catalog].source(entry);
-      const described = await source.describe?.();
+      const described = await source.describe?.(undefined, options);
       if (!described || described.notModified)
         throw new Error(`Dataset [${id}] does not describe itself.`);
       this.derived.set(id, {
@@ -351,7 +345,7 @@ export class DatasetResources {
       });
       this.registerWorded(id);
     } catch (error) {
-      this.onError(entry, error);
+      this.options.onError?.(entry, error);
     }
   }
 
@@ -361,7 +355,7 @@ export class DatasetResources {
     if (!derived) return;
     const { entry, catalog, source, descriptor } = derived;
     const current = this.wordingOf(id, { entry, catalog });
-    const title = entry.title ?? entry.name;
+    const title = entry.title ?? entry.dataset;
     const definition = defineDataset(descriptor, {
       id,
       source: id,

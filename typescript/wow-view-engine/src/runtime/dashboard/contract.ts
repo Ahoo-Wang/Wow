@@ -17,6 +17,7 @@
  * class behind it.
  */
 
+import type { ReferenceLabels } from '../referenceLabels.js';
 import type { EditHistoryState } from './history.js';
 import type {
   AggregationDateUnitName,
@@ -40,7 +41,6 @@ import type { FieldKindRegistry } from '../../filter/index.js';
 import type { PanelDefinition } from '../../dashboard/index.js';
 import type { RuntimeEnvironment } from '../environment.js';
 import type { HandOver } from '../navigation.js';
-import type { OptionSource } from '../source.js';
 import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
@@ -294,8 +294,8 @@ export interface DashboardRuntimeOptions {
    */
   definitions(definitionId: string): PanelDefinition | null;
   createPanelRuntime: PanelRuntimeFactory;
-  /** See `ViewRuntime.optionSource`. */
-  resolveOptions?(key: string): OptionSource;
+  /** See `ViewRuntime.optionSource` and `ViewRuntime.labels`. */
+  labels: ReferenceLabels;
   /**
    * The values a definition's fields hold, counted, asked under `scope`
    * (`ValueCandidateSources`) — what a text filter offers from the fields it

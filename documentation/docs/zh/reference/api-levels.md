@@ -78,7 +78,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryValueType` | class | `wow-query` |
-| `me.ahoo.wow.query.schema.QueryValueKind` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings` | class | `wow-clickhouse` |
@@ -87,7 +86,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
-| `me.ahoo.wow.cosec.CoSecAuthorizers` | class | `wow-cosec` |
 
 ## SPI 声明 {#spi-declarations}
 
@@ -99,14 +97,18 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.config.ProviderOption` | class | `wow-spi` |
 | `me.ahoo.wow.spi.id.GlobalIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.ledger.ParkedAmendment` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.log.AppendOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
+| `me.ahoo.wow.spi.observation.ObservedEvent` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observation` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.TraceContext` | class | `wow-spi` |
@@ -114,12 +116,14 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.reservation.ConfirmOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.schema.EnsuredOnce` | class | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.StreamSinks` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.Opened` | class | `wow-spi` |
@@ -137,12 +141,15 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicTransportOptions` | object | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.QueryBindings` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.CachedQueryBindings` | class | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetProvider` | interface | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetConfig` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |

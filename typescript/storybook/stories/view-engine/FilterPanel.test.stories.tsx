@@ -30,6 +30,7 @@ import displayMeta, {
 import { colorsSettled, measureTextContrast } from './contrast.js';
 import { nextFrame } from './panelEdges.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
+import { FilterOperator, QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -120,10 +121,10 @@ export const Advanced: Story = {
     // hard-coded expectation would only ever prove that nothing changed.
     await expect(badges).toEqual([
       `仓库 ${zhCN['label.relation.is']} 华东`,
-      `状态 ${zhCN['label.operator.IN']} 待出库${JOIN}已发运`,
+      `状态 ${zhCN[`label.operator.${FilterOperator.IN}`]} 待出库${JOIN}已发运`,
       // The field's own `numberFormat`, from the same Intl call the bar
       // makes — which currency symbol ICU picks is not what this is about.
-      `金额 ${zhCN['label.operator.BETWEEN']} ${yuan(100)} ~ ${yuan(5000)}`,
+      `金额 ${zhCN[`label.operator.${FilterOperator.BETWEEN}`]} ${yuan(100)} ~ ${yuan(5000)}`,
       // A period, not a range: the operator asks for the window it names.
       formatMessage(zhCN, 'label.filter.during', {
         field: '创建时间',
@@ -131,17 +132,17 @@ export const Advanced: Story = {
       }),
       // A group says how its conditions combine before it lists them.
       `${zhCN['label.filter.any-of']} 仓库 ${zhCN['label.relation.is']} 华北` +
-        `${JOIN}金额 ${zhCN['label.operator.GT']} ${yuan(20000)}`,
+        `${JOIN}金额 ${zhCN[`label.operator.${FilterOperator.GT}`]} ${yuan(20000)}`,
       // And a predicate reads its own conditions out once, under the one
       // operator it holds them by.
-      `商品行 ${zhCN['label.operator.ELEMENT_MATCH']} ` +
+      `商品行 ${zhCN[`label.operator.${FilterOperator.ELEMENT_MATCH}`]} ` +
         `${zhCN['label.filter.all-of']} SKU ${zhCN['label.relation.is']} A-1` +
-        `${JOIN}数量 ${zhCN['label.operator.GT']} 2`,
+        `${JOIN}数量 ${zhCN[`label.operator.${FilterOperator.GT}`]} 2`,
       // Last, the reading nobody wrote: the definition declares the
       // soft-delete dimension and this tree leaves it blank, so the rows
       // are the ones not deleted, and the bar says so (D17-2). The trailing
       // words are the reader's note that this is the default.
-      `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']} ` +
+      `删除状态 ${zhCN[`label.operator.${FilterOperator.DELETION}`]} ${zhCN['label.deletion.active']} ` +
         zhCN['label.applied.implied'],
     ]);
   },
@@ -331,7 +332,7 @@ export const DeletionReading: Story = {
     // removable.
     await waitFor(() => expect(implied()).not.toBeNull());
     await expect(implied()?.textContent).toContain(
-      `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']}`,
+      `删除状态 ${zhCN[`label.operator.${FilterOperator.DELETION}`]} ${zhCN['label.deletion.active']}`,
     );
     await expect(implied()?.querySelector('button')).toBeNull();
 
@@ -378,7 +379,7 @@ export const DeletionReading: Story = {
     await expect(
       within(bar()).getByRole('button', {
         name: formatMessage(zhCN, 'label.filter.unset-of', {
-          condition: `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.all']}`,
+          condition: `删除状态 ${zhCN[`label.operator.${FilterOperator.DELETION}`]} ${zhCN['label.deletion.all']}`,
         }),
       }),
     ).toBeVisible();
@@ -493,12 +494,12 @@ export const WithTime: Story = {
           badge.textContent?.trim(),
         ),
       ).toEqual([
-        `创建时间 ${zhCN['label.operator.BETWEEN']} ` +
+        `创建时间 ${zhCN[`label.operator.${FilterOperator.BETWEEN}`]} ` +
           `${shown(Date.UTC(2026, 8, 15, 9, 5), true)} ~ ` +
           shown(Date.UTC(2026, 8, 17), false),
         // The definition's soft-delete dimension, left blank: said as the
         // default (D17-2).
-        `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']} ` +
+        `删除状态 ${zhCN[`label.operator.${FilterOperator.DELETION}`]} ${zhCN['label.deletion.active']} ` +
           zhCN['label.applied.implied'],
       ]),
     );
@@ -890,7 +891,7 @@ const aSelectedDayKeepsItsColours = (
     );
     await userEvent.click(
       await within(document.body).findByRole('option', {
-        name: zhCN['label.operator.GTE'],
+        name: zhCN[`label.operator.${FilterOperator.GTE}`],
       }),
     );
     let single = await openCalendar(canvasElement);
@@ -1033,10 +1034,14 @@ export const RejectedCondition: Story = {
     const canvas = within(canvasElement);
     await expect(
       await canvas.findByText(
-        formatMessage(zhCN, 'runtime.query.failed.unsupported_capability', {
-          field: '仓库',
-          reason: 'Field [warehouse] does not support [EXACT_MATCH].',
-        }),
+        formatMessage(
+          zhCN,
+          `runtime.query.failed.${QueryErrorCodes.UNSUPPORTED_CAPABILITY}`,
+          {
+            field: '仓库',
+            reason: 'Field [warehouse] does not support [EXACT_MATCH].',
+          },
+        ),
         { exact: false },
       ),
     ).toBeVisible();

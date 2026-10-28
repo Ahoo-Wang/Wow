@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
+import { QueryErrorCodes, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -129,7 +129,9 @@ const byStatus: ViewInstance = {
   config: recordConfig({
     filter: {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     },
   }),
 };
@@ -217,7 +219,7 @@ describe('a capability refusal (C5)', () => {
       path: [],
       params: {
         source: 'orders',
-        code: 'UNSUPPORTED_CAPABILITY',
+        code: QueryErrorCodes.UNSUPPORTED_CAPABILITY,
         version: 'sha256:orders-1',
       },
     });

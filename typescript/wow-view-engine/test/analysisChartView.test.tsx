@@ -22,6 +22,12 @@ import type {
 import { CHART_COLOR_SLOTS, groupKeyText, shapeChart } from '../src/index.js';
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationMetricType,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -381,7 +387,7 @@ describe('AnalysisChart', () => {
         alias: 'orders',
         label: 'Amount',
         role: 'metric',
-        fn: 'SUM',
+        fn: AggregationFunction.SUM,
         numberFormat: { style: 'currency', currency: 'CNY' },
       },
     ];
@@ -437,10 +443,20 @@ describe('AnalysisChart', () => {
         label: '创建时间',
         role: 'group',
         kind: 'datetime',
-        dateUnit: 'DAY',
+        dateUnit: AggregationDateUnit.DAY,
       },
-      { alias: 'amount', label: '金额', role: 'metric', fn: 'SUM' },
-      { alias: 'orders', label: '订单', role: 'metric', fn: 'COUNT' },
+      {
+        alias: 'amount',
+        label: '金额',
+        role: 'metric',
+        fn: AggregationFunction.SUM,
+      },
+      {
+        alias: 'orders',
+        label: '订单',
+        role: 'metric',
+        fn: AggregationMetricType.COUNT,
+      },
     ];
     const { container } = render(
       <ViewSurface messages={zhCN}>
@@ -646,8 +662,16 @@ describe('AnalysisChart', () => {
     const pivoted = shapeChart(
       analysisConfig({
         groups: [
-          { alias: 'month', field: 'createdAt', type: 'TERMS' },
-          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+          {
+            alias: 'month',
+            field: 'createdAt',
+            type: AggregationGroupType.TERMS,
+          },
+          {
+            alias: 'warehouse',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
         ],
         chart: spec,
       }),
@@ -681,8 +705,12 @@ describe('AnalysisChart', () => {
     const colors = { '7': '#eb6834', true: '#2a78d6', '': '#1f9d55' };
     expect(categories.map(groupKeyText)).toEqual(Object.keys(colors));
     const groups: AnalysisViewConfig['groups'] = [
-      { alias: 'month', field: 'createdAt', type: 'TERMS' },
-      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+      { alias: 'month', field: 'createdAt', type: AggregationGroupType.TERMS },
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
     ];
     const pieSpec: ChartSpec = {
       type: 'pie',
@@ -772,7 +800,7 @@ describe('AnalysisChart', () => {
         alias: 'amount',
         label: 'Amount',
         role: 'metric',
-        fn: 'SUM',
+        fn: AggregationFunction.SUM,
         numberFormat: { style: 'currency', currency: 'CNY' },
       },
     ];
@@ -1170,7 +1198,7 @@ describe('AnalysisChart', () => {
    * stands in, exactly as every slot on the options panel is named.
    */
   it('names a metric stage by its column until the analyst names it', () => {
-    const spec = {
+    const spec: ChartSpec = {
       type: 'funnel',
       funnel: {
         stages: {
@@ -1178,7 +1206,7 @@ describe('AnalysisChart', () => {
           items: [{ metric: 'orders' }, { metric: 'orders', label: 'Bought' }],
         },
       },
-    } as const;
+    };
     const { rerender } = render(
       <ViewSurface>
         <AnalysisChart

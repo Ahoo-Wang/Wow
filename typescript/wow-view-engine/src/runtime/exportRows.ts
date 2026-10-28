@@ -17,6 +17,7 @@ import {
   compileRecord,
   lastPageInWindow,
   pageWindow,
+  projectRecord,
 } from '../record/index.js';
 import type { FilterCompileContext } from '../filter/index.js';
 import {
@@ -29,6 +30,8 @@ import {
   type RuntimeLimits,
 } from '../model/index.js';
 import type { KernelContext } from './execute.js';
+import { idsOf } from './labelIds.js';
+import type { ReferenceLabels } from './referenceLabels.js';
 
 export interface ExportRowsOptions {
   /** Stops the run; the promise then rejects with an `ExportCancelledError`. */
@@ -173,6 +176,39 @@ export async function fetchExportRows(
   }
 }
 
+/**
+ * Reads the ids the file's reference columns hold as names before it is
+ * written, so the file says what the screen says. Each remote's ids
+ * are handed to the cache at once, which asks them `referenceBatch` to a
+ * request and `referenceConcurrency` requests at a time. A failed read
+ * leaves its ids in the file and the export goes on; the export's signal
+ * calls it off like any of its reads.
+ */
+export async function wantExportLabels(
+  labels: ReferenceLabels,
+  context: Pick<KernelContext, 'definition'>,
+  config: RecordViewConfig,
+  rows: readonly RecordData[],
+  signal?: AbortSignal,
+): Promise<void> {
+  const empty = { list: [], total: 0, exact: true };
+  const { columns } = projectRecord(context.definition, config, empty);
+  const holders = columns.map(column => ({
+    remote: column.remote,
+    path: column.field,
+  }));
+  try {
+    await Promise.all(
+      [...idsOf(rows, holders)].map(([remote, ids]) =>
+        labels.want(remote, ids, { signal, lane: 'export' }),
+      ),
+    );
+  } catch {
+    // `want` rejects only with the caller's abort: the export was cancelled.
+    throw new ExportCancelledError();
+  }
+}
+
 /** One page, and where the next one is — `null` at the end of the result. */
 async function fetchPage(
   context: KernelContext,
@@ -185,20 +221,23 @@ async function fetchPage(
   total?: number;
   next: RecordPageTarget | null;
 }> {
-  // `ViewSource` cancels through a controller because that is what Wow's
-  // `QueryApi` takes; the caller cancels through a signal because that is what
-  // a component holds. One export's controllers all follow the one signal.
+  // Each read is called off by its own controller, so one export's reads all
+  // follow the caller's one signal and none outlives the export.
   const controller = new AbortController();
   const unlink = follow(signal, controller);
   try {
     if ('cursor' in target) {
-      const page = await context.source.cursor(query, undefined, controller);
+      const page = await context.source.cursor(query, {
+        signal: controller.signal,
+      });
       return {
         list: page.list,
         next: page.nextCursor === null ? null : { cursor: page.nextCursor },
       };
     }
-    const page = await context.source.paged(query, undefined, controller);
+    const page = await context.source.paged(query, {
+      signal: controller.signal,
+    });
     // A short page is the last one. A full page may still be the last, and
     // the next request answers that; asking once more is cheaper than the
     // row a wrong guess would drop.

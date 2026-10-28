@@ -15,7 +15,9 @@ package me.ahoo.wow.spi.transport
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.store.StoreResources
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A topic transport: what opens the broker a node's published streams, its commands to
@@ -34,6 +36,14 @@ interface TransportProvider {
 
     /** What a transport of this type needs, in the words of a startup failure that says it is missing. */
     val requirement: String get() = "its settings"
+
+    /**
+     * Every setting of its own it reads from [TransportConfig.options], each read through its option, for the host to
+     * bind and check (`wow.<type>.<key>`); a transport has no instances of its own, so it reads a
+     * [ProviderOption.Scope.PER_STORE] option as one of its type. The settings every topic transport has
+     * ([TopicTransportOptions]) are not listed again: [TopicTransportOptions.of] joins them.
+     */
+    val options: List<ProviderOption<*>> get() = emptyList()
 
     /** Whether [config] configures a transport of this type: the settings it cannot do without are set. */
     fun available(config: TransportConfig): Boolean
@@ -89,12 +99,39 @@ class TransportConfig @InternalWowApi constructor(
     /** The configuration key of the transport's settings, for a provider's failures to name. */
     val key: String get() = "wow.$name"
 
-    /** The setting [name] of [options], or null when it is not set or blank. */
-    fun option(name: String): String? = options[name]?.takeIf { it.isNotBlank() }
+    private val read: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-    /** The settings under [prefix] (`properties` gives `properties.linger.ms` as `linger.ms`). */
+    /** The setting [name] of [options], or null when it is not set or blank. */
+    fun option(name: String): String? {
+        read += name
+        return options[name]?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The value of [option]: its setting in [options], parsed, else its default; fails naming the setting when the
+     * value is not one of the option's type.
+     */
+    fun <T : Any> option(option: ProviderOption<T>): T? = setting(option) ?: option.default
+
+    /** The value of the [ProviderOption.Defaulted] [option]: its setting, parsed, else its default, so always one. */
+    fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
+
+    private fun <T : Any> setting(option: ProviderOption<T>): T? =
+        option(option.key)?.let { option.parse(it, "$key.${option.key}") }
+
+    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
+    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {
+        read += option.key
+        return options(option.key)
+    }
+
+    /** The settings under [prefix], their keys relative to it. */
     fun options(prefix: String): Map<String, String> = options.filterKeys { it.startsWith("$prefix.") }
         .mapKeys { it.key.removePrefix("$prefix.") }
+
+    /** The keys of [options] the transport asked for, so a test can hold them to the options its provider declares. */
+    @InternalWowApi
+    val optionsRead: Set<String> get() = read.toSet()
 
     override fun toString(): String = "TransportConfig(name=$name, type=$type, options=${options.keys})"
 

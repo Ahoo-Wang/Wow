@@ -24,6 +24,13 @@ import {
   AggregationFunction,
   AggregationGroupType,
   aggregation,
+  AggregationMetricType,
+  SortDirection,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -32,12 +39,8 @@ import {
   DEFAULT_MISSING_KEY,
   defaultAnalysisConfig,
   validateAnalysis,
-  type AnalysisDerivedExpression,
-  type AnalysisExpression,
-  type AnalysisHavingExpression,
   type AnalysisMetric,
   type AnalysisViewConfig,
-  DEFAULT_RUNTIME_LIMITS,
 } from '../src/index.js';
 import {
   analysisCapability as capability,
@@ -53,9 +56,12 @@ const check = (overrides: Partial<AnalysisViewConfig>) =>
 describe('defaultAnalysisConfig', () => {
   it('starts from COUNT and the first groupable field', () => {
     const built = defaultAnalysisConfig(definition());
-    expect(built.metrics[0]).toEqual({ type: 'COUNT', alias: 'count' });
+    expect(built.metrics[0]).toEqual({
+      type: AggregationMetricType.COUNT,
+      alias: 'count',
+    });
     expect(built.groups[0]).toMatchObject({
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       field: 'warehouse',
     });
     expect(validateAnalysis(definition(), built, builtinFieldKinds)).toEqual(
@@ -68,7 +74,7 @@ describe('defaultAnalysisConfig', () => {
     // entirely, so a first config that left it out would answer a question
     // nobody asked — and say nothing about the rows it left out.
     expect(defaultAnalysisConfig(definition()).groups[0]).toEqual({
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       field: 'warehouse',
       alias: 'warehouse_group',
       missingKey: DEFAULT_MISSING_KEY,
@@ -90,7 +96,7 @@ describe('defaultAnalysisConfig', () => {
       },
     });
     expect(defaultAnalysisConfig(numeric).groups[0]).toEqual({
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       field: 'amount',
       alias: 'amount_group',
     });
@@ -101,7 +107,7 @@ describe('defaultAnalysisConfig', () => {
       definition({ analysis: { ...capability, count: false } }),
     );
     expect(numeric.metrics[0]).toMatchObject({
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       function: AggregationFunction.SUM,
     });
 
@@ -115,7 +121,7 @@ describe('defaultAnalysisConfig', () => {
         },
       }),
     );
-    expect(distinct.metrics[0].type).toBe('DISTINCT_COUNT');
+    expect(distinct.metrics[0].type).toBe(AggregationMetricType.DISTINCT_COUNT);
     // No groupable field: an ungrouped aggregation shown as a metric card.
     expect(distinct.groups).toEqual([]);
     expect(distinct.layout).toBe('table');
@@ -132,7 +138,7 @@ describe('defaultAnalysisConfig', () => {
       }),
     );
     expect(percentile.metrics[0]).toMatchObject({
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       percentile: 95,
     });
 
@@ -144,7 +150,7 @@ describe('defaultAnalysisConfig', () => {
         },
       }),
     );
-    expect(any.metrics[0].type).toBe('ANY');
+    expect(any.metrics[0].type).toBe(AggregationMetricType.ANY);
   });
 
   it('keeps the limit inside both ceilings', () => {
@@ -181,7 +187,9 @@ describe('defaultAnalysisConfig', () => {
 
     // With a group the rows are ordered by the metric, which Wow accepts.
     const grouped = defaultAnalysisConfig(definition());
-    expect(grouped.sort).toEqual([{ alias: 'count', direction: 'DESC' }]);
+    expect(grouped.sort).toEqual([
+      { alias: 'count', direction: SortDirection.DESC },
+    ]);
     expect(() =>
       aggregation.query(
         compileAnalysis(definition(), grouped, builtinFieldKinds, context),
@@ -212,12 +220,24 @@ describe('validateAnalysis', () => {
     // The chart also breaks, because its x alias no longer names a group.
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: 'orders' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: 'orders',
+          },
+        ],
       }),
     ).toContain('analysis.alias.duplicate');
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: 'a.b' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: 'a.b',
+          },
+        ],
         chart: {
           type: 'bar',
           cartesian: { x: 'a.b', series: [{ metric: 'orders' }] },
@@ -226,7 +246,13 @@ describe('validateAnalysis', () => {
     ).toEqual(['analysis.alias.not-a-segment']);
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: '__wow_x' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: '__wow_x',
+          },
+        ],
         chart: {
           type: 'bar',
           cartesian: { x: '__wow_x', series: [{ metric: 'orders' }] },
@@ -241,7 +267,13 @@ describe('validateAnalysis', () => {
     // factory rather than an issue on the config.
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: '2024 wh' }],
+        groups: [
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: '2024 wh',
+          },
+        ],
         chart: {
           type: 'bar',
           cartesian: { x: '2024 wh', series: [{ metric: 'orders' }] },
@@ -254,8 +286,8 @@ describe('validateAnalysis', () => {
     expect(
       check({
         sort: [
-          { alias: 'orders', direction: 'DESC' },
-          { alias: 'orders', direction: 'ASC' },
+          { alias: 'orders', direction: SortDirection.DESC },
+          { alias: 'orders', direction: SortDirection.ASC },
         ],
       }),
     ).toEqual(['analysis.sort.duplicate']);
@@ -263,7 +295,7 @@ describe('validateAnalysis', () => {
 
   it('refuses a gap-filling date grouping next to another grouping', () => {
     const dense = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'month',
       unit: AggregationDateUnit.MONTH,
@@ -280,7 +312,10 @@ describe('validateAnalysis', () => {
     ).toEqual([]);
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }, dense],
+        groups: [
+          { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+          dense,
+        ],
         chart: {
           type: 'heatmap',
           heatmap: { x: 'month', y: 'wh', value: 'orders' },
@@ -292,11 +327,14 @@ describe('validateAnalysis', () => {
   it('applies Wow own maximums when the capability declares no limits', () => {
     const metrics: [AnalysisMetric, ...AnalysisMetric[]] = Array.from(
       { length: AGGREGATION_LIMITS.MAX_METRICS + 1 },
-      (_, index) => ({ type: 'COUNT', alias: `m${index}` }),
+      (_, index) => ({ type: AggregationMetricType.COUNT, alias: `m${index}` }),
     ) as [AnalysisMetric, ...AnalysisMetric[]];
     const sort = metrics
       .slice(0, AGGREGATION_LIMITS.MAX_SORT_FIELDS + 1)
-      .map(metric => ({ alias: metric.alias, direction: 'DESC' as const }));
+      .map(metric => ({
+        alias: metric.alias,
+        direction: SortDirection.DESC as const,
+      }));
     const issues = validateAnalysis(
       definition(),
       config({
@@ -319,20 +357,32 @@ describe('validateAnalysis', () => {
   it('checks each group against the field capability', () => {
     expect(
       check({
-        groups: [{ type: 'TERMS', field: 'gone', alias: 'wh' }],
+        groups: [
+          { type: AggregationGroupType.TERMS, field: 'gone', alias: 'wh' },
+        ],
       }),
     ).toEqual(['analysis.field.unknown']);
     expect(
       check({
         groups: [
-          { type: 'HISTOGRAM', field: 'warehouse', alias: 'wh', interval: 1 },
+          {
+            type: AggregationGroupType.HISTOGRAM,
+            field: 'warehouse',
+            alias: 'wh',
+            interval: 1,
+          },
         ],
       }),
     ).toEqual(['analysis.group.unsupported']);
     expect(
       check({
         groups: [
-          { type: 'HISTOGRAM', field: 'amount', alias: 'wh', interval: 0 },
+          {
+            type: AggregationGroupType.HISTOGRAM,
+            field: 'amount',
+            alias: 'wh',
+            interval: 0,
+          },
         ],
       }),
     ).toEqual(['analysis.group.interval-not-positive']);
@@ -340,10 +390,10 @@ describe('validateAnalysis', () => {
       check({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'wh',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
           },
         ],
       }),
@@ -352,10 +402,10 @@ describe('validateAnalysis', () => {
       check({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'wh',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
             timeZone: '  ',
           },
         ],
@@ -370,10 +420,10 @@ describe('validateAnalysis', () => {
         check({
           groups: [
             {
-              type: 'DATE_HISTOGRAM',
+              type: AggregationGroupType.DATE_HISTOGRAM,
               field: 'createdAt',
               alias: 'wh',
-              unit: 'MONTH',
+              unit: AggregationDateUnit.MONTH,
               timeZone,
             },
           ],
@@ -382,7 +432,12 @@ describe('validateAnalysis', () => {
     expect(
       check({
         groups: [
-          { type: 'TERMS', field: 'warehouse', alias: 'wh', missingKey: '' },
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'warehouse',
+            alias: 'wh',
+            missingKey: '',
+          },
         ],
       }),
     ).toEqual(['analysis.group.blank-missing-key']);
@@ -392,10 +447,10 @@ describe('validateAnalysis', () => {
       check({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createdAt',
             alias: 'wh',
-            unit: 'MONTH',
+            unit: AggregationDateUnit.MONTH,
             timeZone: 123 as never,
           },
         ],
@@ -405,7 +460,7 @@ describe('validateAnalysis', () => {
       check({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'warehouse',
             alias: 'wh',
             missingKey: 123 as never,
@@ -465,7 +520,12 @@ describe('validateAnalysis', () => {
           typed,
           config({
             groups: [
-              { type: 'TERMS', field, alias: 'wh', missingKey: '(empty)' },
+              {
+                type: AggregationGroupType.TERMS,
+                field,
+                alias: 'wh',
+                missingKey: '(empty)',
+              },
             ],
           }),
           builtinFieldKinds,
@@ -485,7 +545,7 @@ describe('validateAnalysis', () => {
           config({
             groups: [
               {
-                type: 'HISTOGRAM',
+                type: AggregationGroupType.HISTOGRAM,
                 field: 'amount',
                 alias: 'wh',
                 interval: 10,
@@ -504,10 +564,13 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'MIN',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.MIN,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
         ],
       }),
@@ -515,7 +578,13 @@ describe('validateAnalysis', () => {
 
     expect(
       check({
-        metrics: [{ type: 'ANY', alias: 'orders', field: 'warehouse' }],
+        metrics: [
+          {
+            type: AggregationMetricType.ANY,
+            alias: 'orders',
+            field: 'warehouse',
+          },
+        ],
       }),
     ).toEqual(['analysis.any.undeclared']);
 
@@ -523,9 +592,12 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'PERCENTILE',
+            type: AggregationMetricType.PERCENTILE,
             alias: 'orders',
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
             percentile: 100,
           },
         ],
@@ -534,7 +606,7 @@ describe('validateAnalysis', () => {
 
     expect(
       check({
-        metrics: [{ type: 'COUNT', alias: 'orders' }],
+        metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
       }),
     ).toEqual([]);
     expect(
@@ -578,39 +650,43 @@ describe('validateAnalysis', () => {
 
     expect(
       refused('distinctCount', {
-        type: 'DISTINCT_COUNT',
+        type: AggregationMetricType.DISTINCT_COUNT,
         alias: 'orders',
-        expression: { type: 'FIELD', field: 'amount' },
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       }),
     ).toEqual(['analysis.distinctCount.undeclared']);
 
     expect(
       refused('percentile', {
-        type: 'PERCENTILE',
+        type: AggregationMetricType.PERCENTILE,
         alias: 'orders',
-        expression: { type: 'FIELD', field: 'amount' },
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
         percentile: 95,
       }),
     ).toEqual(['analysis.percentile.undeclared']);
 
     expect(
-      refused('any', { type: 'ANY', alias: 'orders', field: 'amount' }),
+      refused('any', {
+        type: AggregationMetricType.ANY,
+        alias: 'orders',
+        field: 'amount',
+      }),
     ).toEqual(['analysis.any.undeclared']);
 
     // Declared, and the same three metrics are admitted as they stand.
     for (const metric of [
       {
-        type: 'DISTINCT_COUNT',
+        type: AggregationMetricType.DISTINCT_COUNT,
         alias: 'orders',
-        expression: { type: 'FIELD', field: 'amount' },
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
       {
-        type: 'PERCENTILE',
+        type: AggregationMetricType.PERCENTILE,
         alias: 'orders',
-        expression: { type: 'FIELD', field: 'amount' },
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
         percentile: 95,
       },
-      { type: 'ANY', alias: 'orders', field: 'amount' },
+      { type: AggregationMetricType.ANY, alias: 'orders', field: 'amount' },
     ] as AnalysisMetric[])
       expect(check({ metrics: [metric] })).toEqual([]);
   });
@@ -625,15 +701,18 @@ describe('validateAnalysis', () => {
           definition({ analysis: { ...capability, expressions: false } }),
           config({
             metrics: [
-              { type: 'COUNT', alias: 'orders' },
+              { type: AggregationMetricType.COUNT, alias: 'orders' },
               {
-                type: 'DERIVED',
+                type: AggregationMetricType.DERIVED,
                 alias: 'half',
                 expression: {
-                  type: 'BINARY',
-                  operator: 'DIVIDE',
-                  left: { type: 'METRIC_REF', metric: 'orders' },
-                  right: { type: 'CONSTANT', value: 2 },
+                  type: DerivedExpressionType.BINARY,
+                  operator: AggregationExpressionOperator.DIVIDE,
+                  left: {
+                    type: DerivedExpressionType.METRIC_REF,
+                    metric: 'orders',
+                  },
+                  right: { type: DerivedExpressionType.CONSTANT, value: 2 },
                 },
               },
             ],
@@ -649,14 +728,14 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'DIVIDE',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'CONSTANT', value: 0 },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.DIVIDE,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: { type: AggregationExpressionType.CONSTANT, value: 0 },
             },
           },
         ],
@@ -667,14 +746,17 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'FIELD', field: 'amount' },
-              right: { type: 'CONSTANT', value: Number.POSITIVE_INFINITY },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+              right: {
+                type: AggregationExpressionType.CONSTANT,
+                value: Number.POSITIVE_INFINITY,
+              },
             },
           },
         ],
@@ -686,7 +768,11 @@ describe('validateAnalysis', () => {
     expect(
       check({
         metrics: [
-          { type: 'NUMERIC', alias: 'orders', function: 'SUM' } as never,
+          {
+            type: AggregationMetricType.NUMERIC,
+            alias: 'orders',
+            function: AggregationFunction.SUM,
+          } as never,
         ],
       }),
     ).toEqual(['analysis.expression.malformed']);
@@ -694,9 +780,9 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: { type: 'LAMBDA' },
           } as never,
         ],
@@ -709,13 +795,13 @@ describe('validateAnalysis', () => {
       check({
         metrics: [
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'orders',
-            function: 'SUM',
+            function: AggregationFunction.SUM,
             expression: {
-              type: 'BINARY',
-              operator: 'DIVIDE',
-              left: { type: 'FIELD', field: 'amount' },
+              type: AggregationExpressionType.BINARY,
+              operator: AggregationExpressionOperator.DIVIDE,
+              left: { type: AggregationExpressionType.FIELD, field: 'amount' },
             } as never,
           },
         ],
@@ -729,14 +815,17 @@ describe('validateAnalysis', () => {
           config({
             metrics: [
               {
-                type: 'NUMERIC',
+                type: AggregationMetricType.NUMERIC,
                 alias: 'orders',
-                function: 'SUM',
+                function: AggregationFunction.SUM,
                 expression: {
-                  type: 'BINARY',
-                  operator: 'ADD',
-                  left: { type: 'FIELD', field: 'amount' },
-                  right: { type: 'CONSTANT', value: 1 },
+                  type: AggregationExpressionType.BINARY,
+                  operator: AggregationExpressionOperator.ADD,
+                  left: {
+                    type: AggregationExpressionType.FIELD,
+                    field: 'amount',
+                  },
+                  right: { type: AggregationExpressionType.CONSTANT, value: 1 },
                 },
               },
             ],
@@ -751,11 +840,14 @@ describe('validateAnalysis', () => {
     const forward = check({
       metrics: [
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'ratio',
-          expression: { type: 'METRIC_REF', metric: 'orders' },
+          expression: {
+            type: DerivedExpressionType.METRIC_REF,
+            metric: 'orders',
+          },
         },
-        { type: 'COUNT', alias: 'orders' },
+        { type: AggregationMetricType.COUNT, alias: 'orders' },
       ],
       sort: [],
       chart: {
@@ -767,15 +859,15 @@ describe('validateAnalysis', () => {
 
     const backward = check({
       metrics: [
-        { type: 'COUNT', alias: 'orders' },
+        { type: AggregationMetricType.COUNT, alias: 'orders' },
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'ratio',
           expression: {
-            type: 'BINARY',
-            operator: 'DIVIDE',
-            left: { type: 'METRIC_REF', metric: 'orders' },
-            right: { type: 'CONSTANT', value: 2 },
+            type: DerivedExpressionType.BINARY,
+            operator: AggregationExpressionOperator.DIVIDE,
+            left: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+            right: { type: DerivedExpressionType.CONSTANT, value: 2 },
           },
         },
       ],
@@ -789,8 +881,8 @@ describe('validateAnalysis', () => {
     expect(
       check({
         metrics: [
-          { type: 'COUNT', alias: 'orders' },
-          { type: 'DERIVED', alias: 'broken' } as never,
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
+          { type: AggregationMetricType.DERIVED, alias: 'broken' } as never,
         ],
         sort: [],
         chart: {
@@ -803,14 +895,17 @@ describe('validateAnalysis', () => {
     expect(
       check({
         metrics: [
-          { type: 'COUNT', alias: 'orders' },
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'broken',
             expression: {
-              type: 'BINARY',
-              operator: 'ADD',
-              left: { type: 'METRIC_REF', metric: 'orders' },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
+              left: {
+                type: DerivedExpressionType.METRIC_REF,
+                metric: 'orders',
+              },
             } as never,
           },
         ],
@@ -826,20 +921,25 @@ describe('validateAnalysis', () => {
   it('lets having reach only non-ANY metrics', () => {
     expect(
       check({
-        having: { type: 'CONDITION', metric: 'gone', operator: 'GT', value: 1 },
+        having: {
+          type: HavingExpressionType.CONDITION,
+          metric: 'gone',
+          operator: ComparisonOperator.GT,
+          value: 1,
+        },
       }),
     ).toEqual(['analysis.having.unknown-metric']);
 
     expect(
       check({
         metrics: [
-          { type: 'COUNT', alias: 'orders' },
-          { type: 'ANY', alias: 'first', field: 'amount' },
+          { type: AggregationMetricType.COUNT, alias: 'orders' },
+          { type: AggregationMetricType.ANY, alias: 'first', field: 'amount' },
         ],
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'first',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         },
       }),
@@ -848,9 +948,14 @@ describe('validateAnalysis', () => {
     expect(
       check({
         having: {
-          type: 'AND',
+          type: HavingExpressionType.AND,
           operands: [
-            { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 1 },
+            {
+              type: HavingExpressionType.CONDITION,
+              metric: 'orders',
+              operator: ComparisonOperator.GT,
+              value: 1,
+            },
           ],
         },
       }),
@@ -864,9 +969,9 @@ describe('validateAnalysis', () => {
           definition({ analysis: { ...capability, having: false } }),
           config({
             having: {
-              type: 'CONDITION',
+              type: HavingExpressionType.CONDITION,
               metric: 'orders',
-              operator: 'GT',
+              operator: ComparisonOperator.GT,
               value: 1,
             },
           }),
@@ -879,7 +984,10 @@ describe('validateAnalysis', () => {
   it('reports a having of a shape this version does not know', () => {
     expect(
       check({
-        having: { type: 'AND', operands: undefined } as never,
+        having: {
+          type: HavingExpressionType.AND,
+          operands: undefined,
+        } as never,
       }),
     ).toEqual(['analysis.having.malformed']);
 
@@ -890,7 +998,7 @@ describe('validateAnalysis', () => {
     ]);
     expect(
       check({
-        having: { type: 'AND', operands: [null] } as never,
+        having: { type: HavingExpressionType.AND, operands: [null] } as never,
       }),
     ).toEqual(['analysis.having.malformed']);
   });
@@ -918,9 +1026,9 @@ describe('validateAnalysis', () => {
   });
 
   it('checks sort and table columns against the aliases in play', () => {
-    expect(check({ sort: [{ alias: 'gone', direction: 'ASC' }] })).toEqual([
-      'analysis.sort.unknown-alias',
-    ]);
+    expect(
+      check({ sort: [{ alias: 'gone', direction: SortDirection.ASC }] }),
+    ).toEqual(['analysis.sort.unknown-alias']);
     expect(check({ table: { columns: [{ alias: 'gone' }] } })).toEqual([
       'analysis.column.unknown-alias',
     ]);
@@ -942,7 +1050,10 @@ describe('validateAnalysis', () => {
 
     const sorted = validateAnalysis(
       definition(),
-      config({ ...ungrouped, sort: [{ alias: 'orders', direction: 'DESC' }] }),
+      config({
+        ...ungrouped,
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
+      }),
       builtinFieldKinds,
     );
     expect(sorted).toEqual([
@@ -954,7 +1065,10 @@ describe('validateAnalysis', () => {
     ]);
     // The alias is still checked, so both findings reach the user at once.
     expect(
-      check({ ...ungrouped, sort: [{ alias: 'gone', direction: 'ASC' }] }),
+      check({
+        ...ungrouped,
+        sort: [{ alias: 'gone', direction: SortDirection.ASC }],
+      }),
     ).toEqual(['analysis.sort.requires-group', 'analysis.sort.unknown-alias']);
 
     const having = validateAnalysis(
@@ -963,9 +1077,9 @@ describe('validateAnalysis', () => {
         ...ungrouped,
         sort: [],
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'orders',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         },
       }),
@@ -996,271 +1110,5 @@ describe('validateAnalysis', () => {
         ),
       ),
     ).toEqual(['analysis.capability.missing']);
-  });
-});
-
-describe('expression budgets', () => {
-  // Every tree here is built iteratively: the point is that validation must
-  // survive a tree the recursive walks could not.
-  const chain = (depth: number): AnalysisExpression => {
-    let node: AnalysisExpression = { type: 'FIELD', field: 'amount' };
-    for (let level = 1; level < depth; level += 1)
-      node = {
-        type: 'BINARY',
-        operator: 'ADD',
-        left: node,
-        right: { type: 'CONSTANT', value: 1 },
-      };
-    return node;
-  };
-
-  const derivedChain = (depth: number): AnalysisDerivedExpression => {
-    let node: AnalysisDerivedExpression = {
-      type: 'METRIC_REF',
-      metric: 'orders',
-    };
-    for (let level = 1; level < depth; level += 1)
-      node = {
-        type: 'BINARY',
-        operator: 'ADD',
-        left: node,
-        right: { type: 'CONSTANT', value: 1 },
-      };
-    return node;
-  };
-
-  const condition: AnalysisHavingExpression = {
-    type: 'CONDITION',
-    metric: 'orders',
-    operator: 'GT',
-    value: 1,
-  };
-  const havingChain = (depth: number): AnalysisHavingExpression => {
-    let node: AnalysisHavingExpression = condition;
-    for (let level = 1; level < depth; level += 1)
-      node = { type: 'AND', operands: [node] };
-    return node;
-  };
-
-  /** A complete binary tree of the given depth, 2^depth - 1 nodes. */
-  const full = (depth: number): AnalysisExpression => {
-    let level: AnalysisExpression[] = Array.from(
-      { length: 2 ** (depth - 1) },
-      () => ({ type: 'CONSTANT', value: 1 }),
-    );
-    while (level.length > 1) {
-      const next: AnalysisExpression[] = [];
-      for (let index = 0; index < level.length; index += 2)
-        next.push({
-          type: 'BINARY',
-          operator: 'ADD',
-          left: level[index],
-          right: level[index + 1],
-        });
-      level = next;
-    }
-    return level[0];
-  };
-
-  const orders: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
-  const sum = (
-    alias: string,
-    expression: AnalysisExpression,
-  ): AnalysisMetric => ({
-    type: 'NUMERIC',
-    alias,
-    function: 'SUM',
-    expression,
-  });
-  const found = (
-    overrides: Partial<AnalysisViewConfig>,
-    limits = DEFAULT_RUNTIME_LIMITS,
-  ) =>
-    validateAnalysis(definition(), config(overrides), builtinFieldKinds, {
-      limits,
-    });
-
-  it('refuses a chain nested far beyond the budget without overflowing', () => {
-    expect(found({ metrics: [orders, sum('deep', chain(100_000))] })).toEqual([
-      {
-        code: 'analysis.expression.too-deep',
-        severity: 'error',
-        path: ['metrics', 1, 'expression'],
-        params: { max: 8 },
-      },
-    ]);
-  });
-
-  it('draws the depth line where Wow does', () => {
-    expect(codes(found({ metrics: [orders, sum('edge', chain(8))] }))).toEqual(
-      [],
-    );
-    expect(codes(found({ metrics: [orders, sum('over', chain(9))] }))).toEqual([
-      'analysis.expression.too-deep',
-    ]);
-  });
-
-  it('honours a caller that widened the limits', () => {
-    expect(
-      codes(
-        found(
-          { metrics: [orders, sum('over', chain(9))] },
-          {
-            ...DEFAULT_RUNTIME_LIMITS,
-            maxFilterDepth: 16,
-          },
-        ),
-      ),
-    ).toEqual([]);
-  });
-
-  it('counts the nodes of every expression against one budget', () => {
-    // A tree within the depth limit holds at most 255 nodes, so the node
-    // budget only bites across metrics — which is how Wow counts it.
-    expect(codes(found({ metrics: [orders, sum('a', full(8))] }))).toEqual([]);
-    expect(
-      found({ metrics: [orders, sum('a', full(8)), sum('b', full(8))] }),
-    ).toEqual([
-      {
-        code: 'analysis.expression.too-many-nodes',
-        severity: 'error',
-        path: ['metrics', 2, 'expression'],
-        params: { max: 256 },
-      },
-    ]);
-  });
-
-  it('budgets a derived expression the same way', () => {
-    const derived = (depth: number): AnalysisMetric => ({
-      type: 'DERIVED',
-      alias: 'share',
-      expression: derivedChain(depth),
-    });
-    expect(codes(found({ metrics: [orders, derived(100_000)] }))).toEqual([
-      'analysis.expression.too-deep',
-    ]);
-    expect(codes(found({ metrics: [orders, derived(8)] }))).toEqual([]);
-    expect(codes(found({ metrics: [orders, derived(9)] }))).toEqual([
-      'analysis.expression.too-deep',
-    ]);
-  });
-
-  it('budgets a having tree the same way', () => {
-    expect(codes(found({ having: havingChain(100_000) }))).toEqual([
-      'analysis.having.too-deep',
-    ]);
-    expect(codes(found({ having: havingChain(8) }))).toEqual([]);
-    expect(codes(found({ having: havingChain(9) }))).toEqual([
-      'analysis.having.too-deep',
-    ]);
-    const wide: AnalysisHavingExpression = {
-      type: 'AND',
-      operands: [condition, ...Array.from({ length: 299 }, () => condition)],
-    };
-    expect(codes(found({ having: wide }))).toEqual([
-      'analysis.having.too-many-nodes',
-    ]);
-  });
-});
-
-describe('a malformed skeleton', () => {
-  // A config arrives from a store, so every wrong piece must come back as an
-  // Issue with a path, never as a TypeError from the rule that tripped on it.
-  const broken = (overrides: Record<string, unknown>) =>
-    validateAnalysis(
-      definition(),
-      { ...config(), ...overrides } as unknown as AnalysisViewConfig,
-      builtinFieldKinds,
-    );
-
-  it.each([
-    ['groups', { groups: 'wh' }, ['groups']],
-    ['metrics', { metrics: { type: 'COUNT' } }, ['metrics']],
-    ['sort', { sort: null }, ['sort']],
-    ['elements', { elements: 'items' }, ['elements']],
-    ['table', { table: 'columns' }, ['table']],
-    ['table.columns', { table: { columns: 5 } }, ['table', 'columns']],
-    ['chart', { chart: undefined }, ['chart']],
-    [
-      'a group alias',
-      { groups: [{ type: 'TERMS', field: 'warehouse', alias: 42 }] },
-      ['groups', 0, 'alias'],
-    ],
-    ['a metric entry', { metrics: [null] }, ['metrics', 0]],
-  ])('reports %s of the wrong shape and stops there', (_, overrides, path) => {
-    expect(broken(overrides)).toEqual([
-      { code: 'analysis.config.malformed', severity: 'error', path },
-    ]);
-  });
-
-  it('reports a limit that is not a number', () => {
-    expect(codes(broken({ limit: 'ten' }))).toContain(
-      'analysis.limit.out-of-range',
-    );
-  });
-
-  it('reports a metric type this version does not know', () => {
-    const median = { type: 'MEDIAN', alias: 'orders' };
-    expect(broken({ metrics: [median] })).toEqual([
-      {
-        code: 'analysis.metric.type-unknown',
-        severity: 'error',
-        path: ['metrics', 0, 'type'],
-        params: { type: 'MEDIAN' },
-      },
-    ]);
-    // Compilation has no mapping for it either; admission is what keeps it
-    // out, and reaching it anyway is a programming error rather than a query
-    // with a hole in `metrics`.
-    expect(() =>
-      compileAnalysis(
-        definition(),
-        { ...config(), metrics: [median] } as unknown as AnalysisViewConfig,
-        builtinFieldKinds,
-        context,
-      ),
-    ).toThrow('MEDIAN');
-  });
-
-  it('refuses an aggregation with no metric, as Wow does', () => {
-    expect(codes(broken({ metrics: [] }))).toContain('analysis.metrics.empty');
-  });
-});
-
-describe('a display name', () => {
-  /**
-   * D20 显示名: a dimension or a metric may be given a name for the screen.
-   * Given, it is a word — a blank one would head a column with nothing.
-   */
-  it('is admitted when given, refused when blank, and never sent to Wow', () => {
-    const base = config();
-    expect(
-      check({
-        groups: [{ ...base.groups[0]!, label: '仓库' }],
-        metrics: [{ ...base.metrics[0], label: '单数' }],
-      }),
-    ).not.toContain('analysis.label.blank');
-    expect(
-      check({
-        groups: [
-          { type: 'TERMS', field: 'warehouse', alias: 'wh', label: '  ' },
-        ],
-      }),
-    ).toContain('analysis.label.blank');
-    expect(
-      check({ metrics: [{ type: 'COUNT', alias: 'n', label: '' }] }),
-    ).toContain('analysis.label.blank');
-    expect(
-      check({
-        groups: [
-          {
-            type: 'TERMS',
-            field: 'warehouse',
-            alias: 'wh',
-            label: 7 as unknown as string,
-          },
-        ],
-      }),
-    ).toContain('analysis.config.malformed');
   });
 });

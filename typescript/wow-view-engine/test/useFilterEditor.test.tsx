@@ -20,6 +20,9 @@
 import {
   AggregationGroupType,
   FilterOperator,
+  SortDirection,
+  ComparisonOperator,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -319,7 +322,9 @@ describe('useFilterEditor', () => {
                 path: 'items',
                 filter: {
                   op: 'and',
-                  children: [{ field: 'ghost', operator: 'EQ', value: 'x' }],
+                  children: [
+                    { field: 'ghost', operator: FilterOperator.EQ, value: 'x' },
+                  ],
                 },
               },
             ],
@@ -559,7 +564,7 @@ describe('useFilterEditor pending and applied', () => {
 
     act(() =>
       (runtime() as RecordViewRuntime | null)?.edit({
-        sort: [{ field: 'amount', direction: 'DESC' }],
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
       }),
     );
 
@@ -646,13 +651,15 @@ describe('useFilterEditor pending and applied', () => {
       op: 'and',
       children: Array.from({ length: 400 }, () => ({
         field: 'amount',
-        operator: 'EQ' as const,
+        operator: ComparisonOperator.EQ as const,
         value: 1,
       })),
     };
     act(() =>
       result.current.opened.runtime?.edit({
-        metrics: [{ type: 'COUNT', alias: 'orders', filter: wide }],
+        metrics: [
+          { type: AggregationMetricType.COUNT, alias: 'orders', filter: wide },
+        ],
       }),
     );
     expect(
@@ -698,7 +705,7 @@ describe('useFilterEditor under a host scope filter', () => {
   /** What an embedding host narrows the view to; never in the draft. */
   const scope: FilterTree = {
     op: 'and',
-    children: [{ field: 'status', operator: 'EQ', value: 'OPEN' }],
+    children: [{ field: 'status', operator: FilterOperator.EQ, value: 'OPEN' }],
   };
 
   /** A summary item's path as the tree editor addresses a node. */
@@ -886,11 +893,11 @@ describe('treeController', () => {
   it('answers what a field offers and what edits it', () => {
     const own = controller({
       op: 'and',
-      children: [{ field: 'sku', operator: 'EQ', value: 'A' }],
+      children: [{ field: 'sku', operator: FilterOperator.EQ, value: 'A' }],
     });
 
     own.act(c => {
-      expect(c.operatorsFor('sku')).toContain('CONTAINS');
+      expect(c.operatorsFor('sku')).toContain(FilterOperator.CONTAINS);
       expect(c.operatorsFor('gone')).toEqual([]);
       expect(c.editorFor([0])).toMatchObject({ input: 'text' });
       expect(c.editorFor([9])).toBeNull();

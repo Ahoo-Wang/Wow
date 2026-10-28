@@ -33,9 +33,9 @@ import co.elastic.clients.json.JsonData
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.dsl.filter
 import me.ahoo.wow.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
@@ -268,7 +268,7 @@ class ElasticsearchFilterCompilerTest {
     }
 
     companion object {
-        private val ANY = QueryValueType("ANY")
+        private val ANY = QueryValueType("any")
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
         private val SCHEMA = nativeSchema(

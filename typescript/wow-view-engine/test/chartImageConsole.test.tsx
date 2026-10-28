@@ -21,6 +21,7 @@
  * once per module instance.
  */
 
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -65,7 +66,7 @@ const columns = [
     label: 'Day',
     role: 'group' as const,
     kind: 'datetime',
-    dateUnit: 'DAY' as const,
+    dateUnit: AggregationDateUnit.DAY as const,
     timeZone: 'UTC',
   },
 ];

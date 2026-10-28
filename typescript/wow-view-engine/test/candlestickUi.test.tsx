@@ -22,6 +22,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -48,7 +50,11 @@ import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
 
-const CLOSE: AnalysisMetric = { alias: 'close', type: 'LAST', field: 'price' };
+const CLOSE: AnalysisMetric = {
+  alias: 'close',
+  type: AggregationMetricType.LAST,
+  field: 'price',
+};
 
 /** Each metric by what it is: a candle's four prices, rising or falling. */
 function answer(query: {
@@ -62,10 +68,12 @@ function answer(query: {
   ): number => {
     // Day 2 closes below its open; the others above.
     const [open, close] = day === 2 ? [12, 9] : [10, 11 + day];
-    if (metric.type === 'FIRST') return open;
-    if (metric.type === 'LAST') return close;
-    if (metric.function === 'MAX') return Math.max(open, close) + 1;
-    if (metric.function === 'MIN') return Math.min(open, close) - 1;
+    if (metric.type === AggregationMetricType.FIRST) return open;
+    if (metric.type === AggregationMetricType.LAST) return close;
+    if (metric.function === AggregationFunction.MAX)
+      return Math.max(open, close) + 1;
+    if (metric.function === AggregationFunction.MIN)
+      return Math.min(open, close) - 1;
     return day;
   };
   if ((query.groupBy ?? []).length === 0) return [{}];
@@ -95,7 +103,12 @@ async function open(
     filterMode: 'simple',
     refresh: { interval: null },
     groups: [
-      { type: 'DATE_HISTOGRAM', field: 'placedAt', alias: 'day', unit: 'DAY' },
+      {
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        field: 'placedAt',
+        alias: 'day',
+        unit: AggregationDateUnit.DAY,
+      },
     ],
     metrics,
     sort: [],
@@ -184,7 +197,7 @@ describe('the opening and the closing value in the tray', () => {
     const { draft } = await open();
     const tray = await openTray();
     const card = tray.querySelector<HTMLElement>('[data-slot="metric-card"]')!;
-    expect(card.getAttribute('data-metric')).toBe('LAST');
+    expect(card.getAttribute('data-metric')).toBe(AggregationMetricType.LAST);
     expect(
       card.querySelector('[data-slot="metric-note"]')?.textContent,
     ).toContain('earliest and latest record');
@@ -208,7 +221,7 @@ describe('the opening and the closing value in the tray', () => {
     await waitFor(() =>
       expect(draft().metrics[0]).toEqual({
         alias: 'close',
-        type: 'LAST',
+        type: AggregationMetricType.LAST,
         field: 'price',
         orderBy: 'paidAt',
       }),
@@ -223,7 +236,7 @@ describe('the opening and the closing value in the tray', () => {
     );
     await waitFor(() =>
       expect(draft().metrics[0]).toMatchObject({
-        type: 'FIRST',
+        type: AggregationMetricType.FIRST,
         orderBy: 'paidAt',
       }),
     );
@@ -262,10 +275,10 @@ describe('the candlestick in the workbench (N1)', () => {
     );
     await waitFor(() => expect(draft().metrics).toHaveLength(4));
     expect(draft().metrics.map(metric => metric.type)).toEqual([
-      'LAST',
-      'FIRST',
-      'NUMERIC',
-      'NUMERIC',
+      AggregationMetricType.LAST,
+      AggregationMetricType.FIRST,
+      AggregationMetricType.NUMERIC,
+      AggregationMetricType.NUMERIC,
     ]);
     fireEvent.click(await screen.findByRole('button', { name: /^Apply/ }));
     await waitFor(() =>
@@ -367,20 +380,20 @@ describe('two fields’ candles', () => {
   it('ask whose moves are drawn, and swap the four together', async () => {
     const user = userEvent.setup();
     const four = (field: string, at: string): AnalysisMetric[] => [
-      { alias: `${at}o`, type: 'FIRST', field },
+      { alias: `${at}o`, type: AggregationMetricType.FIRST, field },
       {
         alias: `${at}h`,
-        type: 'NUMERIC',
-        function: 'MAX',
-        expression: { type: 'FIELD', field },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MAX,
+        expression: { type: AggregationExpressionType.FIELD, field },
       },
       {
         alias: `${at}l`,
-        type: 'NUMERIC',
-        function: 'MIN',
-        expression: { type: 'FIELD', field },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MIN,
+        expression: { type: AggregationExpressionType.FIELD, field },
       },
-      { alias: `${at}c`, type: 'LAST', field },
+      { alias: `${at}c`, type: AggregationMetricType.LAST, field },
     ];
     const { draft } = await open(
       [...four('price', 'p'), ...four('amount', 'a')],

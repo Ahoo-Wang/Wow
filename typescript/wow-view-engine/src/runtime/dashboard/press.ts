@@ -442,6 +442,7 @@ export class PanelPresses {
       return null;
     const groups = drillGroups(ran, child.fields, this.host.kinds, row, {
       timeZone: child.environment.timeZone,
+      labelOf: (remote, id) => child.labels.text(remote, id),
     });
     return groups ? { ...found, groups } : null;
   }

@@ -14,8 +14,13 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.sink.SinkProvider
+import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.transport.TransportProvider
 import org.junit.jupiter.api.Test
+import java.util.ServiceLoader
 
 /**
  * The host's Spring configuration metadata, `META-INF/spring-configuration-metadata.json`, generated
@@ -23,7 +28,26 @@ import org.junit.jupiter.api.Test
  * what the classes give, and `WOW_UPDATE_SNAPSHOTS=1` rewrites it.
  */
 class ConfigurationMetadataTest {
-    private val metadata = ConfigurationMetadata(ROOTS)
+    private val metadata = ConfigurationMetadata(
+        ROOTS,
+        providers = ServiceLoader.load(StoreProvider::class.java).filter { it.type in WOW_STORES }.sortedBy { it.type }
+            .map { ConfigurationMetadata.ProviderOptions.of(it) } +
+            ServiceLoader.load(TransportProvider::class.java).filter {
+                it.type == KAFKA
+            }.map { ConfigurationMetadata.ProviderOptions.of(it) } +
+            ServiceLoader.load(SinkProvider::class.java).filter { it.type == CLICKHOUSE }.map { sink ->
+                ConfigurationMetadata.ProviderOptions(
+                    CLICKHOUSE,
+                    sink.javaClass,
+                    sink.options,
+                    "The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's " +
+                        "and the datasets'.",
+                )
+            } +
+            ServiceLoader.load(QueryDatasetProvider::class.java).filter {
+                it.type == CLICKHOUSE
+            }.map { ConfigurationMetadata.ProviderOptions.of(it) },
+    )
 
     @Test
     fun `the committed metadata should be what the properties classes give`() {
@@ -43,6 +67,19 @@ class ConfigurationMetadataTest {
             "wow.cosec.trust-injected-app",
             "wow.tenant.default",
             "wow.executor.max-in-flight",
+            "wow.mongo.append-timeout",
+            "wow.mongo.query-read-preference",
+            "wow.postgres.operation-timeout",
+            "wow.elasticsearch.refresh",
+            "wow.kafka.bootstrap-servers",
+            "wow.kafka.properties",
+            "wow.kafka.topic-prefix",
+            "wow.kafka.command-intake.enabled",
+            "wow.kafka.topics.partition-refresh",
+            "wow.kafka.topics.configs",
+            "wow.clickhouse.endpoint",
+            "wow.clickhouse.sink.batch-size",
+            "wow.clickhouse.query.settings",
         )
     }
 
@@ -55,11 +92,16 @@ class ConfigurationMetadataTest {
     }
 
     private companion object {
+        /** Wow's own store types, whose options the host's metadata lists; a third party's ship their own. */
+        val WOW_STORES = setOf("postgres", "mongo", "elasticsearch")
+
+        const val CLICKHOUSE = "clickhouse"
+
+        const val KAFKA = "kafka"
+
         val ROOTS: List<Pair<Class<*>, String>> = listOf(
             WowProperties::class.java to WowProperties.PREFIX,
             QueryProperties::class.java to QueryProperties.PREFIX,
-            KafkaProperties::class.java to KafkaProperties.PREFIX,
-            ClickHouseProperties::class.java to ClickHouseProperties.PREFIX,
             ObservabilityProperties::class.java to ObservabilityProperties.PREFIX,
         )
     }

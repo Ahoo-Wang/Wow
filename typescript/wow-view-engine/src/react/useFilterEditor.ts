@@ -62,6 +62,7 @@ import {
 } from '../runtime/pending.js';
 import { VALUE_CANDIDATE_OPERATORS } from '../analysis/index.js';
 import { useViewRuntime } from './useViewEngine.js';
+import { useReferenceNamer } from './referenceNames.js';
 
 /**
  * One view's filter editor: a tree to edit, plus the things that belong to
@@ -299,6 +300,8 @@ export function useFilterEditor(
     [runtime, state],
   );
   const kinds = runtime?.kinds;
+  // A reference value stored as its bare id reads as its name once known.
+  const named = useReferenceNamer(runtime?.labels);
   // The runtime whose conditions are edited here: none on a dashboard.
   const owner = runtime?.kind === 'dashboard' ? null : runtime;
   const tree = ownFilter(state?.draft) ?? EMPTY_TREE;
@@ -403,24 +406,30 @@ export function useFilterEditor(
     // did. `own` rather than `config`: a merged scope moves every path.
     applied: useMemo(() => {
       const ran = askedFilter(state);
-      return !ran || !kinds ? [] : describeFilter(fields, ran, kinds);
-    }, [state, fields, kinds]),
+      return !ran || !kinds
+        ? []
+        : describeFilter(fields, named(ran, fields), kinds);
+    }, [state, fields, kinds, named]),
     // The scope in force now rather than the one the result ran under: it is
     // the host's statement about what the user is looking at, and a host that
     // narrows it has narrowed the question before the answer arrives.
     scoped: useMemo(
       () => {
         const scope = runtime?.scopeFilter;
-        return !scope || !kinds ? [] : describeFilter(fields, scope, kinds);
+        return !scope || !kinds
+          ? []
+          : describeFilter(fields, named(scope, fields), kinds);
       },
       // eslint-disable-next-line react-hooks/exhaustive-deps -- `scopeFilter` is a getter the runtime notifies through
-      [runtime, state, fields, kinds],
+      [runtime, state, fields, kinds, named],
     ),
     // The board's own, which the reader sees in force and cannot take out.
     fixed: useMemo(() => {
       const fixed = fixedScope(runtime, state);
-      return !fixed || !kinds ? [] : describeFilter(fields, fixed, kinds);
-    }, [runtime, state, fields, kinds]),
+      return !fixed || !kinds
+        ? []
+        : describeFilter(fields, named(fixed, fields), kinds);
+    }, [runtime, state, fields, kinds, named]),
     // Against the same trees the lists above describe: what ran, and what
     // the host and the board hold in force beside it.
     implied: useMemo(() => {

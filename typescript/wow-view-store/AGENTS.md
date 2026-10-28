@@ -24,11 +24,11 @@ The port's conformance suite runs over this package against the service in `type
 
 ```
 src/
-  index.ts          — the entry: WowViewStore, WowDatasetWordings and their options, WowViewStoreErrorCodes, SHARED_SCOPE, SYSTEM_SCOPE, viewSourceOf, datasetCatalogOf, the reserved ids, by name
+  index.ts          — the entry: WowViewStore, WowDatasetWordings and their options, WowViewStoreErrorCodes, SHARED_SCOPE, SYSTEM_SCOPE, datasetCatalogOf, the reserved ids, by name
   wowViewStore.ts   — the store: the owner as the audience (`Wow-Scope`), writes by request id and If-Match, the move waited for (ViewAudienceSaga), read back by state version
   datasetWordings.ts — WowDatasetWordings: the tenant's wording over its datasets (view engine D86), ids derived by the service
   systemViews.ts    — the system views route (`GET /view-store/system-views[/{id}]`), hand-called: it is outside the Manifest
-  source.ts         — viewSourceOf (a query route as the engine's ViewSource) and datasetCatalogOf (`GET /wow/dataset`)
+  source.ts         — datasetCatalogOf (`GET /wow/dataset`); a query route's client is the engine's ViewSource as it is
   errors.ts         — Failure, the problem codes onto the port's, the claim refusal's board titles, guard
   wire.ts           — the service's shapes as the port's, the reserved owners' scopes
   views.ts          — the system views' and preferences' readings

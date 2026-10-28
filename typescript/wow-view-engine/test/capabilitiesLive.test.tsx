@@ -52,6 +52,17 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import {
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  FilterOperator,
+  HavingExpressionType,
+  PagingMode,
+  QueryConstraintTypes,
+  SortDirection,
+  QueryErrorCodes,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -66,11 +77,11 @@ const pending: ViewInstance = {
     filter: {
       op: 'and',
       children: [
-        { field: 'status', operator: 'EQ', value: 'PENDING' },
-        { field: 'warehouse', operator: 'EQ', value: 'CN' },
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
       ],
     },
-    sort: [{ field: 'amount', direction: 'DESC' }],
+    sort: [{ field: 'amount', direction: SortDirection.DESC }],
   }),
 };
 
@@ -147,7 +158,9 @@ describe('a saved view using what the source no longer admits (Q2)', () => {
     expect(draft).toMatchObject({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
       sort: [],
     });
@@ -165,7 +178,7 @@ describe('a saved view using what the source no longer admits (Q2)', () => {
       ...pending,
       id: 'broken',
       config: recordConfig({
-        sort: [{ field: 'status', direction: 'ASC' }],
+        sort: [{ field: 'status', direction: SortDirection.ASC }],
       }),
     };
     const { engine } = harness([narrower()], { instances: [broken] });
@@ -254,10 +267,10 @@ describe('a search inside an element on a source that has none (#3608)', () => {
         filter: {
           op: 'and',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
             {
               field: 'lines',
-              operator: 'ELEMENT_MATCH',
+              operator: FilterOperator.ELEMENT_MATCH,
               value: { op: 'and', children: inside },
             },
           ],
@@ -266,7 +279,11 @@ describe('a search inside an element on a source that has none (#3608)', () => {
     };
   }
 
-  const search = { field: 'lines.q', operator: 'SEARCH', value: 'tea' };
+  const search = {
+    field: 'lines.q',
+    operator: FilterOperator.SEARCH,
+    value: 'tea',
+  };
 
   it('takes the element match out with its only condition', async () => {
     const { engine } = harness([noElementSearch], {
@@ -282,12 +299,18 @@ describe('a search inside an element on a source that has none (#3608)', () => {
     expect(runtime.unavailable()).toEqual([]);
     expect(runtime.getSnapshot().draft.filter).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     });
   });
 
   it('keeps the element match when another condition is left in it', async () => {
-    const sku = { field: 'lines.sku', operator: 'EQ', value: 'TEA-01' };
+    const sku = {
+      field: 'lines.sku',
+      operator: FilterOperator.EQ,
+      value: 'TEA-01',
+    };
     const { engine } = harness([noElementSearch], {
       definition: withLines,
       instances: [saved(sku, search)],
@@ -300,7 +323,7 @@ describe('a search inside an element on a source that has none (#3608)', () => {
     expect(runtime.unavailable()).toEqual([]);
     expect(runtime.getSnapshot().draft.filter.children[1]).toEqual({
       field: 'lines',
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperator.ELEMENT_MATCH,
       value: { op: 'and', children: [sku] },
     });
   });
@@ -393,7 +416,10 @@ describe('an open view when the descriptor changes version', () => {
     const contradicting = {
       ...ordersDescriptor(),
       version: 'sha256:orders-cursor-only',
-      record: { ...ordersDescriptor().record, paging: ['CURSOR'] as never },
+      record: {
+        ...ordersDescriptor().record,
+        paging: [PagingMode.CURSOR] as never,
+      },
     };
     const { engine, source, describe, clock } = harness([ordersDescriptor()]);
     const runtime = await openData(engine, 'system:orders:all');
@@ -416,7 +442,7 @@ describe('an open view when the descriptor changes version', () => {
 describe('an entry that needs a condition (Q3)', () => {
   const counted = (): QueryModelDescriptor => ({
     ...ordersDescriptor(),
-    constraints: [{ type: 'COUNT_REQUIRES_FILTER' }],
+    constraints: [{ type: QueryConstraintTypes.COUNT_REQUIRES_FILTER }],
   });
 
   it('sends nothing for a view without one, and runs once one is added', async () => {
@@ -442,7 +468,9 @@ describe('an entry that needs a condition (Q3)', () => {
     runtime.edit({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     });
     runtime.apply();
@@ -562,7 +590,9 @@ function codedInvalidCursor(detail = 'Invalid cursor.') {
   const body = {
     code: 'wow.query.malformed',
     detail,
-    violations: [{ path: 'cursor', message: detail, code: 'INVALID_CURSOR' }],
+    violations: [
+      { path: 'cursor', message: detail, code: QueryErrorCodes.INVALID_CURSOR },
+    ],
   };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
@@ -615,11 +645,12 @@ describe('a cursor-paged view (#3502)', () => {
     await nextTask();
     expect(cursor).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'next' }),
-      undefined,
-      expect.anything(),
+      { signal: expect.any(AbortSignal) },
     );
 
-    runtime.edit({ sort: [{ field: 'amount', direction: 'DESC' }] });
+    runtime.edit({
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
+    });
     runtime.apply();
     await nextTask();
     expect(cursor.mock.lastCall?.[0]).not.toHaveProperty('cursor', 'next');
@@ -629,7 +660,9 @@ describe('a cursor-paged view (#3502)', () => {
     runtime.edit({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     });
     runtime.apply();
@@ -739,24 +772,29 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
       {
         alias: 'warehouse',
         field: 'warehouse',
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         missingKey: '(empty)',
       },
     ],
     metrics: [
       {
         alias: 'orders',
-        type: 'COUNT',
+        type: AggregationMetricType.COUNT,
         filter: {
           op: 'and',
           children: [
-            { field: 'status', operator: 'EQ', value: 'PENDING' },
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
           ],
         },
       },
     ],
-    having: { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 1 },
+    having: {
+      type: HavingExpressionType.CONDITION,
+      metric: 'orders',
+      operator: ComparisonOperator.GT,
+      value: 1,
+    },
   });
 
   it('a dimension loses its missing-value group, and keeps its field', () => {
@@ -766,7 +804,7 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
     expect(next?.groups[0]).toEqual({
       alias: 'warehouse',
       field: 'warehouse',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
     });
   });
 
@@ -779,7 +817,9 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
     ]);
     expect(next?.metrics[0]).toMatchObject({
       filter: {
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     });
   });
@@ -790,14 +830,18 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
         metrics: [
           {
             alias: 'orders',
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             filter: {
               op: 'and',
               children: [
-                { field: 'status', operator: 'EQ', value: 'PENDING' },
+                {
+                  field: 'status',
+                  operator: FilterOperator.EQ,
+                  value: 'PENDING',
+                },
                 {
                   field: 'lines',
-                  operator: 'ELEMENT_MATCH',
+                  operator: FilterOperator.ELEMENT_MATCH,
                   value: { op: 'and', children },
                 },
               ],
@@ -805,8 +849,16 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
           },
         ],
       });
-    const sku = { field: 'lines.sku', operator: 'EQ', value: 'TEA-01' };
-    const search = { field: 'lines.q', operator: 'SEARCH', value: 'tea' };
+    const sku = {
+      field: 'lines.sku',
+      operator: FilterOperator.EQ,
+      value: 'TEA-01',
+    };
+    const search = {
+      field: 'lines.q',
+      operator: FilterOperator.SEARCH,
+      value: 'tea',
+    };
     const at = unavailable([
       'metrics',
       0,

@@ -24,6 +24,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  SortDirection,
+  DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -71,23 +75,25 @@ const definition = analysisDefinition({
 });
 
 /** Keys no word on screen contains, so a leak is a substring match. */
-const KEYS = [
-  'g_wh',
-  'm_n',
-  'm_last',
-  'm_d',
-  'warehouse',
-  'createdAt',
-  'MIN',
-  'HISTOGRAM',
-  'DAY',
+const KEYS = ['g_wh', 'm_n', 'm_last', 'm_d', 'warehouse', 'createdAt'];
+
+/**
+ * Wire values: lower-kebab, so 'day' is also the English word a sentence
+ * may say, and only the Chinese one can be held to not containing them.
+ */
+const WIRE_VALUES = [
+  AggregationFunction.MIN,
+  AggregationGroupType.HISTOGRAM,
+  AggregationDateUnit.DAY,
 ];
 
 /** A table over these parts, sorted by nothing unless asked. */
 function config(overrides: Partial<AnalysisViewConfig>): AnalysisViewConfig {
   return analysisKernelConfig({
-    groups: [{ type: 'TERMS', field: 'warehouse', alias: 'g_wh' }],
-    metrics: [{ type: 'COUNT', alias: 'm_n' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'g_wh' },
+    ],
+    metrics: [{ type: AggregationMetricType.COUNT, alias: 'm_n' }],
     sort: [],
     layout: 'table',
     ...overrides,
@@ -95,10 +101,10 @@ function config(overrides: Partial<AnalysisViewConfig>): AnalysisViewConfig {
 }
 
 const latest = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'm_last',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 } as const;
 
 const CASES: {
@@ -111,8 +117,8 @@ const CASES: {
     code: 'analysis.sort.duplicate',
     config: config({
       sort: [
-        { alias: 'm_n', direction: 'DESC' },
-        { alias: 'm_n', direction: 'ASC' },
+        { alias: 'm_n', direction: SortDirection.DESC },
+        { alias: 'm_n', direction: SortDirection.ASC },
       ],
     }),
     en: 'The sort already orders by Record count.',
@@ -122,7 +128,12 @@ const CASES: {
     code: 'analysis.group.unsupported',
     config: config({
       groups: [
-        { type: 'HISTOGRAM', field: 'warehouse', alias: 'g_wh', interval: 1 },
+        {
+          type: AggregationGroupType.HISTOGRAM,
+          field: 'warehouse',
+          alias: 'g_wh',
+          interval: 1,
+        },
       ],
     }),
     en: 'Warehouse cannot be grouped this way: By number range.',
@@ -133,10 +144,10 @@ const CASES: {
     config: config({
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'createdAt',
           alias: 'g_wh',
-          unit: 'DAY',
+          unit: AggregationDateUnit.DAY,
         },
       ],
     }),
@@ -147,7 +158,7 @@ const CASES: {
     // The earliest of a moment, as the summary select words it.
     code: 'analysis.function.unsupported',
     config: config({
-      metrics: [{ ...latest, function: 'MIN' }],
+      metrics: [{ ...latest, function: AggregationFunction.MIN }],
     }),
     en: 'Created cannot be summarised as Earliest.',
     zh: '「Created」不能求最早。',
@@ -158,9 +169,12 @@ const CASES: {
       metrics: [
         latest,
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'm_d',
-          expression: { type: 'METRIC_REF', metric: 'm_last' },
+          expression: {
+            type: DerivedExpressionType.METRIC_REF,
+            metric: 'm_last',
+          },
         },
       ],
     }),
@@ -172,11 +186,11 @@ const CASES: {
     config: config({
       metrics: [
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'm_d',
-          expression: { type: 'METRIC_REF', metric: 'm_n' },
+          expression: { type: DerivedExpressionType.METRIC_REF, metric: 'm_n' },
         },
-        { type: 'COUNT', alias: 'm_n' },
+        { type: AggregationMetricType.COUNT, alias: 'm_n' },
       ],
     }),
     en: 'The derived metric refers to Record count',
@@ -238,11 +252,12 @@ describe('an analysis finding says what the screen shows', () => {
     expect(chinese).toContain(zh);
     for (const sentence of [english, chinese])
       for (const key of KEYS) expect(sentence).not.toContain(key);
+    for (const value of WIRE_VALUES) expect(chinese).not.toContain(value);
   });
 
   it('leaves what the draft does not have as the kernel said it', () => {
     const shape = config({
-      sort: [{ alias: 'm_gone', direction: 'DESC' }],
+      sort: [{ alias: 'm_gone', direction: SortDirection.DESC }],
     });
     const raised = validateAnalysis(definition, shape, builtinFieldKinds);
     expect(raised.map(found => found.code)).toContain(

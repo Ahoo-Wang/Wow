@@ -19,10 +19,10 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordData } from '../src/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench, zhCN } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import { querySentence } from '../src/ui/record/queryAnnouncement.js';
 import {
@@ -49,7 +49,7 @@ function announced(): string {
   return region.textContent ?? '';
 }
 
-function engineWith(paged: () => Promise<PagedList<RecordData>>): ViewEngine {
+function engineWith(paged: () => Promise<PagedResult<RecordData>>): ViewEngine {
   return new ViewEngine({
     resources: resourcesOf([ordersDefinition()], () => testSource({ paged })),
     store: new MemoryViewStore({ instances: [mine] }),
@@ -66,7 +66,7 @@ describe('what a record query says out loud', () => {
     render(
       <DataWorkbench
         engine={engineWith(() =>
-          Promise.resolve({ total: 2, list: [...ROWS] }),
+          Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
         )}
         definitionId="orders"
         instanceId="orders-1"
@@ -87,7 +87,7 @@ describe('what a record query says out loud', () => {
   });
 
   it('says a query is running, then what came back', async () => {
-    const first = deferred<PagedList<RecordData>>();
+    const first = deferred<PagedResult<RecordData>>();
     render(
       <DataWorkbench
         engine={engineWith(() => first.promise)}
@@ -98,14 +98,16 @@ describe('what a record query says out loud', () => {
 
     await waitFor(() => expect(announced()).toBe('Running the query'));
 
-    first.resolve({ total: 2, list: [...ROWS] });
+    first.resolve({ total: 2, exact: true, list: [...ROWS] });
     await waitFor(() => expect(announced()).toBe('2 records in all'));
   });
 
   it('says a result that matched nothing, in the words on the screen', async () => {
     render(
       <DataWorkbench
-        engine={engineWith(() => Promise.resolve({ total: 0, list: [] }))}
+        engine={engineWith(() =>
+          Promise.resolve({ total: 0, exact: true, list: [] }),
+        )}
         definitionId="orders"
         instanceId="orders-1"
       />,
@@ -124,7 +126,9 @@ describe('what a record query says out loud', () => {
   it("says the empty result in the host's own words, where it has some", async () => {
     render(
       <DataWorkbench
-        engine={engineWith(() => Promise.resolve({ total: 0, list: [] }))}
+        engine={engineWith(() =>
+          Promise.resolve({ total: 0, exact: true, list: [] }),
+        )}
         definitionId="orders"
         instanceId="orders-1"
         record={{ emptyTitle: 'No orders are waiting' }}
@@ -147,6 +151,51 @@ describe('what a record query says out loud', () => {
         messages,
       ),
     ).toBe('2 on this page');
+  });
+
+  it('counts what arrived when the route counted nothing', async () => {
+    render(
+      <DataWorkbench
+        engine={engineWith(() =>
+          Promise.resolve({ total: null, exact: false, list: [...ROWS] }),
+        )}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    await waitFor(() => expect(announced()).toBe('2 on this page'));
+  });
+
+  /**
+   * Wow's default `BOUNDED` count stops at its budget, and says so
+   * (`exact: false`): the announcement says the bound as the bar does.
+   */
+  it('says a lower bound as "at least", as the bar does, in either language', async () => {
+    render(
+      <DataWorkbench
+        engine={engineWith(() =>
+          Promise.resolve({ total: 1000, exact: false, list: [...ROWS] }),
+        )}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(announced()).toBe('At least 1,000 records'));
+    expect(
+      screen.getByRole('navigation', { name: 'Pagination' }).textContent,
+    ).toContain('At least 1,000 records');
+
+    const bound = recordTableController({
+      paging: pagedPaging({ index: 2, size: 20, total: 1000, exact: false }),
+    });
+    // Past the first page, the page reached on its own: no count of pages.
+    expect(querySentence(bound, formattersFor(defaultMessages))).toBe(
+      'At least 1,000 records; Page 2',
+    );
+    expect(
+      querySentence(bound, formattersFor({ ...defaultMessages, ...zhCN })),
+    ).toMatch(/^至少 1,000 条记录/);
   });
 
   it('says which page, past the first (R2-99)', () => {
@@ -190,11 +239,11 @@ describe('what a record query says out loud', () => {
   });
 
   it('empties the region on a failure, and says each retry again (#3603)', async () => {
-    const answers: ReturnType<typeof deferred<PagedList<RecordData>>>[] = [];
+    const answers: ReturnType<typeof deferred<PagedResult<RecordData>>>[] = [];
     render(
       <DataWorkbench
         engine={engineWith(() => {
-          const answer = deferred<PagedList<RecordData>>();
+          const answer = deferred<PagedResult<RecordData>>();
           answers.push(answer);
           return answer.promise;
         })}
@@ -224,7 +273,7 @@ describe('what a record query says out loud', () => {
     render(
       <DataWorkbench
         engine={engineWith(() =>
-          Promise.resolve({ total: 2, list: [...ROWS] }),
+          Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
         )}
         definitionId="orders"
         instanceId="orders-1"
@@ -245,7 +294,7 @@ describe('what a record query says out loud', () => {
     render(
       <DataWorkbench
         engine={engineWith(() =>
-          Promise.resolve({ total: 2, list: [...ROWS] }),
+          Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
         )}
         definitionId="orders"
         instanceId="orders-1"

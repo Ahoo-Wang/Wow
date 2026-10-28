@@ -28,6 +28,7 @@ import {
   type Issue,
   type IssuePath,
 } from '../model/index.js';
+import { listParam } from '../model/issue.js';
 import { issue } from '../filter/index.js';
 import { warn } from './fields.js';
 import { describedField, type DescribedField } from './match.js';
@@ -250,7 +251,7 @@ function narrowAggregations(
         warn(
           issue('capability.analysis.field-narrowed', where, {
             field: path,
-            dropped: narrowed.dropped.join(', '),
+            dropped: listParam(narrowed.dropped),
           }),
         ),
       );
@@ -316,34 +317,46 @@ function narrowAggregation(
     declared.missingKey !== false &&
     aggregate.missingKey &&
     groups.includes(AggregationGroupType.TERMS);
+  // What the source does not offer, each as the key of its word: the
+  // finding names it in the reader's language, never by its wire value.
   const dropped = [
-    ...declared.groups.filter(group => !groups.includes(group)),
+    ...declared.groups
+      .filter(group => !groups.includes(group))
+      .map(group => `label.group.type.${group}`),
     ...(groups.includes(AggregationGroupType.TERMS) &&
     declared.missingKey !== false &&
     !aggregate.missingKey
-      ? ['MISSING_KEY']
+      ? ['label.capability.missing-key']
       : []),
     ...(declared.inMetricFilter !== false && !aggregate.inMetricFilter
-      ? ['IN_METRIC_FILTER']
+      ? ['label.capability.in-metric-filter']
       : []),
     ...(declared.expressionInput !== false && !aggregate.expressionInput
-      ? ['EXPRESSION_INPUT']
+      ? ['label.capability.expression-input']
       : []),
     ...(groups.includes(AggregationGroupType.DATE_HISTOGRAM)
-      ? (declared.dateUnits ?? []).filter(unit => !dateUnits?.includes(unit))
+      ? (declared.dateUnits ?? [])
+          .filter(unit => !dateUnits?.includes(unit))
+          .map(unit => `label.date-unit.${unit}`)
       : []),
     ...(groups.includes(AggregationGroupType.DATE_PART)
-      ? wantedParts.filter(part => !dateParts.includes(part))
+      ? wantedParts
+          .filter(part => !dateParts.includes(part))
+          .map(part => `label.date-part.${part}`)
       : []),
-    ...declared.functions.filter(fn => !functions.includes(fn)),
-    ...(declared.any && !any ? [AggregationMetricTypes.ANY] : []),
-    ...(declared.distinctCount && !distinctCount
-      ? [AggregationMetricTypes.DISTINCT_COUNT]
+    ...[
+      ...declared.functions.filter(fn => !functions.includes(fn)),
+      ...(declared.any && !any ? [AggregationMetricTypes.ANY] : []),
+      ...(declared.distinctCount && !distinctCount
+        ? [AggregationMetricTypes.DISTINCT_COUNT]
+        : []),
+      ...(declared.percentile && !percentile
+        ? [AggregationMetricTypes.PERCENTILE]
+        : []),
+    ].map(fn => `label.summary.fn.${fn}`),
+    ...(declared.firstLast && !firstLast
+      ? ['label.capability.first-last']
       : []),
-    ...(declared.percentile && !percentile
-      ? [AggregationMetricTypes.PERCENTILE]
-      : []),
-    ...(declared.firstLast && !firstLast ? ['FIRST_LAST'] : []),
   ];
   if (
     groups.length === 0 &&

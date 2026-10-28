@@ -92,6 +92,8 @@ export const recordMessages = {
   // many there are, and without one it says only what it can see.
   'label.pagination.total': '{count} records in all',
   'label.pagination.total-one': '1 record in all',
+  // A lower bound: the source counts only up to its budget (`BOUNDED`).
+  'label.pagination.total-at-least': 'At least {count} records',
   'label.pagination.on-page': '{count} on this page',
   // The words before the size control and the sizes it offers. The unit
   // rides with the number, which is what a Chinese measure word needs —
@@ -198,6 +200,11 @@ export const recordMessages = {
   // Said as the header button's description: the plain click sorts by this
   // column alone, and the way to add a column is otherwise invisible.
   'label.sort.additive': 'Hold Shift to add to the sort',
+  // A reference read as names sorts by the stored id: the header's
+  // mark, its reason, and the field as the sort editor lists it.
+  'label.sort.by-id': 'by id',
+  'label.sort.by-id-hint': 'Sorts by the stored id, not the name shown.',
+  'label.sort.by-id-field': '{field} (by id)',
 
   // A summary's scope belongs on screen: `all` comes from its own query over
   // everything the conditions match, `page` only from the rows in front of
@@ -398,6 +405,8 @@ export const recordMessages = {
     'The source cannot sort by {fields} together: keep one of them.',
   'record.sort.invalid': 'The sort settings could not be read.',
   'record.sort.not-sortable': '{field} cannot be sorted on.',
+  'record.sort.reference-label':
+    '{field} shows names but holds ids, so the server can only sort it by id. Denormalize the name into the read model (customerName, say) and sort by that field.',
   'record.sort.too-many': 'A cursor view sorts on at most {max} fields.',
   'record.summaries.invalid': 'The summary settings could not be read.',
   'record.summary.duplicate': 'The {fn} summary of {field} is listed twice.',

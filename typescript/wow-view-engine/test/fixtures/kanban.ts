@@ -19,6 +19,7 @@ import type {
   ViewInstance,
 } from '../../src/index.js';
 import { ordersDefinition, recordConfig } from '../fixtures.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Deals moving through three stages (D83): the kanban suites' definition,
@@ -41,7 +42,7 @@ export function dealsDefinition(
         name: 'amount',
         label: 'Amount',
         kind: 'number',
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
         sortable: true,
       },
     ],

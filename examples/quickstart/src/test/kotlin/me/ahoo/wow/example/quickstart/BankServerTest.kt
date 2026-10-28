@@ -52,7 +52,7 @@ class BankServerTest {
 
         val rich = post(
             "/bank/account/snapshot/query",
-            """{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}""",
+            """{"kind":"list","filter":{"op":"gte","field":"state.balance","value":100}}""",
         ).status(OK).body!!
         rich.values().map { it["aggregateId"].asString() }.assert().containsExactly("alice")
     }

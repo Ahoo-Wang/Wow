@@ -147,7 +147,7 @@ export const arrayFieldKind: FieldKind = {
       leaf.operator === FilterOperators.CONTAINS_ALL ||
       leaf.operator === FilterOperators.NOT_IN
         ? RELATIONS[leaf.operator]
-        : RELATIONS.IN;
+        : RELATIONS[FilterOperators.IN];
     return {
       text: `${field.label} ${RELATION_TEXT[relation]} ${shownEntries(values, labels)}`,
       relation,

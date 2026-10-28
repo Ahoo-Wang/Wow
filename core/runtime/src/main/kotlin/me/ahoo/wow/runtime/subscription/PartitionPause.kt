@@ -18,6 +18,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClass
 import java.time.Clock
@@ -105,7 +106,7 @@ internal class PartitionPause(
                 "(${resumed.probes} failed probes), as the handling of $ref succeeded."
         }
         resumed.resumed.complete(Unit)
-        observer.partitionResumed(group, subscription, partition, pausedMillis)
+        observer.observed(ObservedEvent.PartitionResumed(group, subscription, partition, pausedMillis))
     }
 
     /**
@@ -147,7 +148,7 @@ internal class PartitionPause(
             "Subscription $subscription pauses partition $partition of group $group on $reason; it retries until a " +
                 "handling succeeds, parking nothing."
         }
-        observer.partitionPaused(group, subscription, partition, reason)
+        observer.observed(ObservedEvent.PartitionPaused(group, subscription, partition, reason))
         return true
     }
 

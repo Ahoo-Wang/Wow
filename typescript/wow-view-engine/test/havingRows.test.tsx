@@ -14,6 +14,10 @@
 import {
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -57,7 +61,7 @@ afterEach(cleanup);
  */
 const AMOUNT_SUM = formatMessage(defaultMessages, 'label.summary.of', {
   field: 'Amount',
-  fn: defaultMessages['label.summary.fn.SUM'],
+  fn: defaultMessages[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /**
@@ -118,14 +122,14 @@ function keepingConfig(
 ): AnalysisViewConfig {
   return analysisConfig({
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
-      { alias: 'sample', type: 'ANY', field: 'amount' },
+      { alias: 'sample', type: AggregationMetricType.ANY, field: 'amount' },
     ],
     chart: {
       type: 'bar',
@@ -287,9 +291,9 @@ describe('keeping only some of the groups', () => {
 
     await waitFor(() =>
       expect(draft(engine).having).toEqual({
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 2000,
       }),
     );
@@ -352,7 +356,9 @@ describe('keeping only some of the groups', () => {
 
     fireEvent.click(addRow()!);
     type(await waitFor(() => value(0)), '2000');
-    await waitFor(() => expect(draft(engine).having?.type).toBe('CONDITION'));
+    await waitFor(() =>
+      expect(draft(engine).having?.type).toBe(HavingExpressionType.CONDITION),
+    );
 
     fireEvent.click(addRow()!);
     await waitFor(() => expect(rows()).toHaveLength(2));
@@ -370,10 +376,20 @@ describe('keeping only some of the groups', () => {
 
     await waitFor(() =>
       expect(draft(engine).having).toEqual({
-        type: 'AND',
+        type: HavingExpressionType.AND,
         operands: [
-          { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 2000 },
-          { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 5 },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'orders',
+            operator: ComparisonOperator.GT,
+            value: 2000,
+          },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'orders',
+            operator: ComparisonOperator.GT,
+            value: 5,
+          },
         ],
       }),
     );
@@ -388,7 +404,9 @@ describe('keeping only some of the groups', () => {
         name: defaultMessages['label.analysis.remove-having'],
       }),
     );
-    await waitFor(() => expect(draft(engine).having?.type).toBe('CONDITION'));
+    await waitFor(() =>
+      expect(draft(engine).having?.type).toBe(HavingExpressionType.CONDITION),
+    );
 
     fireEvent.click(
       within(rows()[0]).getByRole('button', {
@@ -428,7 +446,12 @@ describe('keeping only some of the groups', () => {
   it('writes the comparison the row is set to', async () => {
     const user = userEvent.setup();
     const { engine } = await open({
-      having: { type: 'CONDITION', metric: 'amount', operator: 'GT', value: 1 },
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric: 'amount',
+        operator: ComparisonOperator.GT,
+        value: 1,
+      },
     });
 
     await user.click(
@@ -438,15 +461,15 @@ describe('keeping only some of the groups', () => {
     );
     await user.click(
       await screen.findByRole('option', {
-        name: defaultMessages['label.having.op.LTE'],
+        name: defaultMessages[`label.having.op.${ComparisonOperator.LTE}`],
       }),
     );
 
     await waitFor(() =>
       expect(draft(engine).having).toEqual({
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'amount',
-        operator: 'LTE',
+        operator: ComparisonOperator.LTE,
         value: 1,
       }),
     );
@@ -459,7 +482,12 @@ describe('keeping only some of the groups', () => {
   it('writes the metric the row keeps by', async () => {
     const user = userEvent.setup();
     const { engine } = await open({
-      having: { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 3 },
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.GT,
+        value: 3,
+      },
     });
 
     await user.click(
@@ -471,9 +499,9 @@ describe('keeping only some of the groups', () => {
 
     await waitFor(() =>
       expect(draft(engine).having).toEqual({
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'amount',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 3,
       }),
     );
@@ -488,7 +516,12 @@ describe('keeping only some of the groups', () => {
    */
   it('shows a stored shape the rows cannot say, and clears it', async () => {
     const { engine } = await open({
-      having: { type: 'BETWEEN', metric: 'amount', lower: 10, upper: 20 },
+      having: {
+        type: HavingExpressionType.BETWEEN,
+        metric: 'amount',
+        lower: 10,
+        upper: 20,
+      },
     });
 
     expect(rows()).toHaveLength(0);
@@ -533,9 +566,9 @@ describe('keeping only some of the groups', () => {
 
     await waitFor(() =>
       expect(lastQuery(source)?.having).toEqual({
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'orders',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 2000,
       }),
     );
@@ -602,9 +635,9 @@ describe("the result's reading says which groups were kept", () => {
   it('says the having after the metrics with the tray folded', async () => {
     await showSaved({
       having: {
-        type: 'CONDITION',
+        type: HavingExpressionType.CONDITION,
         metric: 'amount',
-        operator: 'GT',
+        operator: ComparisonOperator.GT,
         value: 2000,
       },
     });
@@ -618,10 +651,20 @@ describe("the result's reading says which groups were kept", () => {
   it('joins several rows with the word the tray joins them with', async () => {
     await showSaved({
       having: {
-        type: 'AND',
+        type: HavingExpressionType.AND,
         operands: [
-          { type: 'CONDITION', metric: 'amount', operator: 'GT', value: 2000 },
-          { type: 'CONDITION', metric: 'orders', operator: 'GTE', value: 2 },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'amount',
+            operator: ComparisonOperator.GT,
+            value: 2000,
+          },
+          {
+            type: HavingExpressionType.CONDITION,
+            metric: 'orders',
+            operator: ComparisonOperator.GTE,
+            value: 2,
+          },
         ],
       },
     });
@@ -637,7 +680,12 @@ describe("the result's reading says which groups were kept", () => {
    */
   it('says a having of another shape is there without spelling it', async () => {
     await showSaved({
-      having: { type: 'BETWEEN', metric: 'amount', lower: 10, upper: 20 },
+      having: {
+        type: HavingExpressionType.BETWEEN,
+        metric: 'amount',
+        lower: 10,
+        upper: 20,
+      },
     });
 
     expect(reading()!.textContent).toBe(
@@ -655,15 +703,20 @@ describe("the result's reading says which groups were kept", () => {
     await showSaved(
       {
         having: {
-          type: 'AND',
+          type: HavingExpressionType.AND,
           operands: [
             {
-              type: 'CONDITION',
+              type: HavingExpressionType.CONDITION,
               metric: 'amount',
-              operator: 'GT',
+              operator: ComparisonOperator.GT,
               value: 2000,
             },
-            { type: 'CONDITION', metric: 'orders', operator: 'LTE', value: 5 },
+            {
+              type: HavingExpressionType.CONDITION,
+              metric: 'orders',
+              operator: ComparisonOperator.LTE,
+              value: 5,
+            },
           ],
         },
       },
@@ -676,7 +729,14 @@ describe("the result's reading says which groups were kept", () => {
 
     cleanup();
     await showSaved(
-      { having: { type: 'BETWEEN', metric: 'amount', lower: 10, upper: 20 } },
+      {
+        having: {
+          type: HavingExpressionType.BETWEEN,
+          metric: 'amount',
+          lower: 10,
+          upper: 20,
+        },
+      },
       { messages: zhCN, locale: 'zh-CN' },
     );
     expect(reading()!.textContent).toBe(
@@ -692,9 +752,9 @@ describe("the result's reading says which groups were kept", () => {
     await showSaved(
       {
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'amount',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 2000,
         },
       },

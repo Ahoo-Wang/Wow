@@ -357,6 +357,7 @@ enum class LedgerRequest {
 }
 
 /** A change of a parked entry's retry state ([FailureLedger.amend]). */
+@WowSpi
 sealed interface ParkedAmendment {
     /**
      * Claims an automatic retry: when the entry has still made [retries] retries, it has made one more, started [at]

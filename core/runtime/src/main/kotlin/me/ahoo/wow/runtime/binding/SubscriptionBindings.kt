@@ -241,6 +241,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         context.coordinator::signal,
         commandTypes = context.commandTypes,
         queries = context.queries,
+        clock = context.coordinator.clock,
     )
 
     /**

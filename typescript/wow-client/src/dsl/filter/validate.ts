@@ -13,6 +13,7 @@
 
 // Internal: not re-exported by filter/index.ts. The argument checks the
 // filter builders share.
+import { constantName } from '../constantName.js';
 import { validateDatePattern } from './datePattern.js';
 import { StringComparison, TimeUnit, type FilterOperator } from './operator.js';
 import type { FilterLiteral, RelativeTimeFilterOptions } from './types.js';
@@ -124,7 +125,9 @@ export function validateRelativeTimeOptions({
 
 export function validateDays(operator: FilterOperator, days: number): void {
   if (!Number.isInteger(days) || days < 1 || days > 2_147_483_647) {
-    throw new TypeError(`${operator} days must be a positive JVM Int.`);
+    throw new TypeError(
+      `${constantName(operator)} days must be a positive JVM Int.`,
+    );
   }
 }
 
@@ -139,7 +142,7 @@ export function requireDuration(
 ): string {
   if (typeof offset !== 'string' || !DURATION_PATTERN.test(offset)) {
     throw new TypeError(
-      `${operator} offset must be an ISO-8601 duration such as PT0S or -PT30M.`,
+      `${constantName(operator)} offset must be an ISO-8601 duration such as PT0S or -PT30M.`,
     );
   }
   return offset;

@@ -361,7 +361,9 @@ describe('DashboardWorkbench', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
         panels: [
           panel({
@@ -402,8 +404,8 @@ describe('DashboardWorkbench', () => {
         {
           op: 'and',
           children: [
-            { field: 'region', operator: 'IN', value: ['CN'] },
-            { field: 'region', operator: 'NE', value: 'north' },
+            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
           ],
         },
         {
@@ -506,9 +508,9 @@ describe('DashboardWorkbench', () => {
     );
 
     await landed(store);
-    expect((await store.list('overview')).map(item => item.title)).toContain(
-      'Night shift',
-    );
+    expect(
+      (await store.list('overview')).items.map(item => item.title),
+    ).toContain('Night shift');
     await waitFor(() =>
       expect(
         within(screen.getByRole('navigation', { name: 'Overview' })).getByRole(
@@ -594,9 +596,9 @@ describe('DashboardWorkbench', () => {
       );
 
       await landed(store);
-      expect((await store.list('overview')).map(item => item.title)).toContain(
-        'For everyone',
-      );
+      expect(
+        (await store.list('overview')).items.map(item => item.title),
+      ).toContain('For everyone');
     });
 
     it('shows a refusal inside the dialog and stays open', async () => {
@@ -625,7 +627,7 @@ describe('DashboardWorkbench', () => {
       // Said where the user is still looking, with the answer still theirs.
       expect(screen.getByRole('dialog')).toBe(dialog);
       expect(
-        (await store.list('overview')).map(item => item.title),
+        (await store.list('overview')).items.map(item => item.title),
       ).not.toContain('For everyone');
     });
 
@@ -650,9 +652,9 @@ describe('DashboardWorkbench', () => {
       );
 
       await landed(store);
-      expect((await store.list('overview')).map(item => item.title)).toContain(
-        'Mine after all',
-      );
+      expect(
+        (await store.list('overview')).items.map(item => item.title),
+      ).toContain('Mine after all');
     });
   });
 
@@ -690,6 +692,7 @@ describe('DashboardWorkbench', () => {
             paged: () =>
               Promise.resolve({
                 total: 1,
+                exact: true,
                 list: [{ id: 'o-1', createdAt: INSTANT }],
               }),
           }),
@@ -1029,8 +1032,8 @@ describe('DashboardWorkbench', () => {
     // condition has nothing to say about it.
     const rounded: FieldKind = {
       id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => null,
       validate: ({ value, field, path }) =>
         field.name === 'mass' &&
@@ -1106,7 +1109,9 @@ describe('DashboardWorkbench', () => {
       runtime.edit({
         fixed: {
           op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+          children: [
+            { field: 'weight', operator: FilterOperator.EQ, value: 2.5 },
+          ],
         },
       }),
     );

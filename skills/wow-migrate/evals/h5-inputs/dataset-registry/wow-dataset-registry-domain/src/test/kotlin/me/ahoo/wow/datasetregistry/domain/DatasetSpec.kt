@@ -42,11 +42,11 @@ private fun document(tenant: Boolean = true, cityType: String = "STRING"): Objec
       "scope": { ${if (tenant) "\"tenant\": \"tenant_id\"" else ""} },
       "storage": { "table": "bi.orders" },
       "fields": {
-        "id": { "types": ["STRING"], "nullable": false },
-        "tenant_id": { "types": ["STRING"], "nullable": false },
+        "id": { "types": ["string"], "nullable": false },
+        "tenant_id": { "types": ["string"], "nullable": false },
         "city": { "types": ["$cityType"], "nullable": false },
-        "amount": { "types": ["DECIMAL"], "nullable": false },
-        "depts": { "kind": "ARRAY", "items": { "types": ["STRING"] }, "nullable": false }
+        "amount": { "types": ["decimal"], "nullable": false },
+        "depts": { "kind": "array", "items": { "types": ["string"] }, "nullable": false }
       }
     }
 """.trimIndent().toObjectNode()

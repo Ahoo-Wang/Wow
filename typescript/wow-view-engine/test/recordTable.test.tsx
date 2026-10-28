@@ -29,6 +29,10 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { describedText, mine, twoColumnTable } from './fixtures/ui.js';
+import {
+  AggregationMetricType,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -338,7 +342,9 @@ describe('sorting from the headers', () => {
    */
   it('marks a header once, on the inner side of its name', () => {
     const { container } = render(
-      <RecordTable table={sorted([{ field: 'amount', direction: 'DESC' }])} />,
+      <RecordTable
+        table={sorted([{ field: 'amount', direction: SortDirection.DESC }])}
+      />,
     );
 
     const marks = (field: string) => [
@@ -375,7 +381,9 @@ describe('sorting from the headers', () => {
 
   it('says which way one sorted column goes, and what a click would do next', () => {
     const { container } = render(
-      <RecordTable table={sorted([{ field: 'amount', direction: 'ASC' }])} />,
+      <RecordTable
+        table={sorted([{ field: 'amount', direction: SortDirection.ASC }])}
+      />,
     );
 
     const head = header(container, 'amount');
@@ -392,9 +400,9 @@ describe('sorting from the headers', () => {
     const { container } = render(
       <RecordTable
         table={sorted([
-          { field: 'status', direction: 'ASC' },
-          { field: 'amount', direction: 'DESC' },
-          { field: 'id', direction: 'ASC' },
+          { field: 'status', direction: SortDirection.ASC },
+          { field: 'amount', direction: SortDirection.DESC },
+          { field: 'id', direction: SortDirection.ASC },
         ])}
       />,
     );
@@ -421,7 +429,7 @@ describe('sorting from the headers', () => {
 
   it('cycles a column off through the pointer and the keyboard alike', async () => {
     const toggled: string[] = [];
-    const table = sorted([{ field: 'amount', direction: 'DESC' }]);
+    const table = sorted([{ field: 'amount', direction: SortDirection.DESC }]);
     const { container } = render(
       <RecordTable table={{ ...table, toggleSort: f => toggled.push(f) }} />,
     );
@@ -444,7 +452,7 @@ describe('sorting from the headers', () => {
    */
   it('sorts by the column alone on a plain click, and adds it with Shift', async () => {
     const calls: Array<[string, boolean | undefined]> = [];
-    const table = sorted([{ field: 'status', direction: 'ASC' }]);
+    const table = sorted([{ field: 'status', direction: SortDirection.ASC }]);
     const { container } = render(
       <RecordTable
         table={{
@@ -608,7 +616,14 @@ describe('the table chrome', () => {
   /** A count under `Amount`: a band is drawn only under a summarised column. */
   const AMOUNT_COUNTED: SummaryRow = {
     scope: 'page',
-    cells: [{ field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 }],
+    cells: [
+      {
+        field: 'amount',
+        label: 'Amount',
+        fn: AggregationMetricType.COUNT,
+        value: 2,
+      },
+    ],
   };
 
   it('sticks the header over the rows and the summaries under them', () => {
@@ -1013,7 +1028,9 @@ describe('a record view with no result', () => {
     workbench(
       mine,
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 0, exact: true, list: [] }),
+        ),
       }),
     );
 

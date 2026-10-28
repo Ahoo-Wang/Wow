@@ -24,8 +24,6 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **分析的注释；「对比上一期」一步生成两个指标**（Q59 余项）：整段对比已由 D88（上一期、去年同期两种算出的线）与 D90（指标卡较去年同期）做完。剩两点：注释要随视图存下（视图存储已有，要在配置里加成员）；D71 里「对比上一期」一步生成两个带时间条件的指标与变化指标。落点：`src/analysis/`、[ui/analysis.md](ui/analysis.md)。
 - **「指定日期」切换时自动打开日历；看板筛选条吸顶**（R2-41 余项）：#3849 已做「指定日期」预填当前生效日、选一天即关上日历并把焦点交回日期按钮。没做的两点按 #3849 的理由：预填之后看板不再等日期，自动打开不再必要；吸顶是超出本项的布局改动。判据：真人走查（D73）或宿主反馈仍有「多一步」「选完看不到筛选条」时再做；做时切到「指定日期」即打开日历，筛选条滚动时吸顶，在 390 宽与键盘下不遮住面板与焦点。落点：[ui/dashboard.md](ui/dashboard.md)、`src/ui/dashboard/FilterBar.tsx`、`src/ui/filter/inputs/date.tsx`。
 
-- **V10 的有界总数**（7.3a，[view-store-backend.md](view-store-backend.md) 10.3）：V10 服务经 HTTP 拒绝 `EXACT` 总数，`viewSourceOf` 只能取 `BOUNDED`（超过预算答上限、`exact: false`）；端口的 `PagedList` 没有 `exact`，引擎把上限当确数显示。判据：`ViewSource.paged` 的结果可带可选的 `exact`，分页条与导出在它为 `false` 时说「至少 N 条」，`viewSourceOf` 传过来；9.x 源不变。落点：`src/runtime/source.ts`、记录视图的分页条与导出、`wow-view-store/src/source.ts`。
-
 ### Wow 服务端（Kotlin）
 
 视图引擎之外、要改 Wow 服务端的事。

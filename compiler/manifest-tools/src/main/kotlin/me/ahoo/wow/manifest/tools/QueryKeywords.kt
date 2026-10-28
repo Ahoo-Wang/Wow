@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Modifier
@@ -48,7 +49,7 @@ import kotlin.reflect.jvm.kotlinProperty
  *
  * | Keyword | Shape | From |
  * | --- | --- | --- |
- * | `x-wow-sensitive` | `{"level": "DISPLAY" \| "CONFIDENTIAL"}` | `@Sensitive` on the property, on an annotation class it carries, or on its value type |
+ * | `x-wow-sensitive` | `{"level": "display" \| "confidential"}` | `@Sensitive` on the property, on an annotation class it carries, or on its value type |
  * | `x-wow-mask` | `{"keepPrefix": n, "keepSuffix": n}` or `{"strategy": "<binary class name>"}` | `@Sensitive.mask`; always next to `x-wow-sensitive` |
  * | `x-wow-alias` | `["state.oldName", …]` | `@QueryAlias` |
  * | `x-wow-temporal` | `{"unit": "<TimeUnit>"}` (epoch) or `{"pattern": "<DateTimeFormatter pattern>"}` | `@QueryTemporal` |
@@ -186,7 +187,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
             }
         }
         val rule = own ?: inherited ?: return
-        attributes.putObject(QueryKeywords.SENSITIVE_KEYWORD).put("level", rule.level.name)
+        attributes.putObject(QueryKeywords.SENSITIVE_KEYWORD).put("level", WireNames.of(rule.level))
         attributes.putObject(QueryKeywords.MASK_KEYWORD).apply {
             if (rule.strategy == null) {
                 put("keepPrefix", rule.keepPrefix)

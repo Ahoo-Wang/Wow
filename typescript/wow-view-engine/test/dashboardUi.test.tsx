@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -52,6 +53,7 @@ import {
 import { tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { settle } from './fixtures/ui.js';
+import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -306,7 +308,9 @@ describe('DashboardGrid', () => {
   it('keeps the summary scope readable without the selection column', async () => {
     const summarised: ViewInstance = {
       ...pending,
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
     };
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
@@ -666,14 +670,18 @@ describe('DashboardGrid', () => {
             filter: {
               op: 'and',
               children: [
-                { field: 'amount', operator: 'CONTAINS', value: 'CN' },
+                {
+                  field: 'amount',
+                  operator: FilterOperator.CONTAINS,
+                  value: 'CN',
+                },
               ],
             },
           }),
         },
       ]);
       expect(said).toContain('This panel cannot be used');
-      expect(said).toContain('Amount does not support contains.');
+      expect(said).toContain('Amount does not support “contains”.');
     });
 
     /** An analysis the board owns has no owner but the board's maintainer. */
@@ -690,7 +698,11 @@ describe('DashboardGrid', () => {
                   filter: {
                     op: 'and',
                     children: [
-                      { field: 'amount', operator: 'CONTAINS', value: '1' },
+                      {
+                        field: 'amount',
+                        operator: FilterOperator.CONTAINS,
+                        value: '1',
+                      },
                     ],
                   },
                 }),
@@ -702,7 +714,7 @@ describe('DashboardGrid', () => {
         }),
       );
       expect(said).toContain('This panel cannot be used');
-      expect(said).toContain('Amount does not support contains.');
+      expect(said).toContain('Amount does not support “contains”.');
       expect(said).toContain('Ask whoever maintains this dashboard');
       expect(said).not.toContain("view's owner");
     });
@@ -743,7 +755,13 @@ describe('DashboardGrid', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'CN',
+                },
+              ],
             },
           }),
         },
@@ -778,7 +796,13 @@ describe('DashboardGrid', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.EQ,
+                  value: 'CN',
+                },
+              ],
             },
             pageSize: 0,
           }),
@@ -1272,7 +1296,7 @@ describe('DashboardGrid', () => {
   });
 
   it('shows a skeleton until a panel has data', async () => {
-    const waiting = deferred<{ total: number; list: [] }>();
+    const waiting = deferred<PagedResult<object>>();
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
       [pending],

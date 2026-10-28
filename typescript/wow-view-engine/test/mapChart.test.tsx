@@ -50,6 +50,13 @@ import {
   type ChartMapGeoJson,
 } from '../src/ui/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 const unregister: (() => void)[] = [];
 afterEach(() => {
@@ -58,21 +65,21 @@ afterEach(() => {
 });
 
 const COUNTRY: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'country',
   alias: 'country',
 };
 const MONTH: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'at',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 };
 const GMV: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'gmv',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 /** Two squares side by side: a world of two countries. */

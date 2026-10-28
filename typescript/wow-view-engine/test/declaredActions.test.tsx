@@ -272,6 +272,7 @@ describe('a record’s declared actions', () => {
     expect(run).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'o-1' }),
       {},
+      { signal: expect.any(AbortSignal) },
     );
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(before),
@@ -345,6 +346,7 @@ describe('a record’s declared actions', () => {
       expect(run).toHaveBeenCalledWith(
         expect.objectContaining({ key: 'o-1' }),
         { priority: 'HIGH' },
+        { signal: expect.any(AbortSignal) },
       ),
     );
     await waitFor(() =>
@@ -397,6 +399,7 @@ describe('a record’s declared actions', () => {
       expect(run).toHaveBeenCalledWith(
         expect.objectContaining({ key: 'o-1' }),
         { note: 'Call first' },
+        { signal: expect.any(AbortSignal) },
       ),
     );
   });
@@ -423,7 +426,9 @@ describe('a record’s declared actions', () => {
     await waitFor(() =>
       expect(status()?.textContent).toContain('Nudge · o-1 done'),
     );
-    expect(each).toHaveBeenCalledWith('o-1');
+    expect(each).toHaveBeenCalledWith('o-1', {
+      signal: expect.any(AbortSignal),
+    });
   });
 });
 
@@ -463,6 +468,7 @@ describe('a selection’s declared actions', () => {
     expect(run).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'o-1' }),
       {},
+      { signal: expect.any(AbortSignal) },
     );
   });
 

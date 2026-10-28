@@ -53,6 +53,7 @@ import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
+import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -117,7 +118,7 @@ class CommandIntake internal constructor(
     private val limit: InFlightLimit = InFlightLimit(),
     /** The longest the intake waits for a scheduled command's due time before it runs it. */
     private val maxScheduleWait: Duration = DEFAULT_MAX_SCHEDULE_WAIT,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
     /**
      * Whether it runs the ledger's system commands alone ([LEDGER_NAME]): the intake of a node that publishes its
      * failure ledger but takes no other command from its topic, so the operators' actions on its parked entries reach it.
@@ -180,7 +181,11 @@ class CommandIntake internal constructor(
     private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
         logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
         val error = ErrorInfo(FrameworkCodes.COMMAND_UNHANDLED, message)
-        wait?.takeUnless { it.expiredAt(clock()) }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
+        wait?.takeUnless {
+            it.expiredAt(
+                clock.millis()
+            )
+        }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
         reply(wire, error, null)
     }
 
@@ -198,7 +203,7 @@ class CommandIntake internal constructor(
             function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, wire.type.substringAfterLast('.')),
             status = CommandResult.Status.REJECTED,
             error = error,
-            signalTime = clock(),
+            signalTime = clock.millis(),
         )
     }
 
@@ -211,7 +216,7 @@ class CommandIntake internal constructor(
      */
     private suspend fun awaitDue(command: Command<*>) {
         val due = command.schedule?.due ?: return
-        val early = (due - clock()).milliseconds
+        val early = (due - clock.millis()).milliseconds
         if (early.isPositive()) {
             delay(minOf(early, maxScheduleWait))
         }

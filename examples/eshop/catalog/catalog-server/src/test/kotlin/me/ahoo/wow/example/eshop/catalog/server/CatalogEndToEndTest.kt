@@ -120,7 +120,7 @@ class CatalogEndToEndTest {
 
     @Test
     fun `the memory backend should serve its snapshot queries by default`() {
-        catalog.post(CatalogQueryContract.PRODUCTS, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""").status
+        catalog.post(CatalogQueryContract.PRODUCTS, """{"kind":"list","filter":{"op":"match-all"}}""").status
             .assert().isEqualTo(OK)
     }
 

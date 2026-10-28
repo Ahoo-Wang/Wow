@@ -48,6 +48,7 @@ import {
 } from '../src/index.js';
 import { boardFieldsOf } from '../src/dashboard/boardFields.js';
 import { dashboardConfig } from './fixtures.js';
+import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const ORDERS: FieldDefinition[] = [
   { name: 'warehouse', label: 'Warehouse', kind: 'string' },
@@ -608,12 +609,18 @@ describe('setting up the filters', () => {
   });
 
   it('sets the time grouping, and takes it off', () => {
-    const grouping = { units: ['DAY', 'WEEK'], default: 'DAY' } as const;
+    const grouping = {
+      units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+      default: AggregationDateUnit.DAY,
+    } as const;
     const grouped = setTimeGrouping(board, {
       units: [...grouping.units],
       default: grouping.default,
     });
-    expect(grouped.timeGrouping?.units).toEqual(['DAY', 'WEEK']);
+    expect(grouped.timeGrouping?.units).toEqual([
+      AggregationDateUnit.DAY,
+      AggregationDateUnit.WEEK,
+    ]);
     expect(setTimeGrouping(grouped, null).timeGrouping).toBeUndefined();
     expect(setTimeGrouping(board, null)).toBe(board);
   });
@@ -622,7 +629,9 @@ describe('setting up the filters', () => {
     const fixed = dashboardConfig({
       fixed: {
         op: 'or',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'EU' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'EU' },
+        ],
       },
     });
     const removed = removeFixedScope(fixed);

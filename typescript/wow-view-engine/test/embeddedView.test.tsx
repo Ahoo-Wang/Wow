@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -27,12 +28,7 @@ import {
   ViewStoreError,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
-import type {
-  FilterTree,
-  RecordData,
-  ViewInstance,
-  ViewNavigation,
-} from '../src/index.js';
+import type { FilterTree, ViewInstance, ViewNavigation } from '../src/index.js';
 import { EmbeddedView } from '../src/ui/index.js';
 import {
   INSTANT,
@@ -50,6 +46,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -61,6 +58,7 @@ describe('EmbeddedView', () => {
           paged: () =>
             Promise.resolve({
               total: 1,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
         }),
@@ -128,6 +126,7 @@ describe('EmbeddedView', () => {
           paged: () =>
             Promise.resolve({
               total: 1,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
         }),
@@ -265,7 +264,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );
@@ -359,7 +360,9 @@ describe('EmbeddedView', () => {
     const { engine, source } = setup();
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const { rerender } = render(
       <EmbeddedView
@@ -378,7 +381,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -402,7 +407,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -428,11 +435,13 @@ describe('EmbeddedView', () => {
     const { engine, source } = setup();
     const refused: FilterTree = {
       op: 'and',
-      children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+      children: [{ field: 'nope', operator: FilterOperator.EQ, value: 'x' }],
     };
     const accepted: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const embed = (scope: FilterTree) => (
       <EmbeddedView engine={engine} instanceId="orders-1" scopeFilter={scope} />
@@ -454,7 +463,7 @@ describe('EmbeddedView', () => {
     rerender(
       embed({
         op: 'and',
-        children: [{ field: 'gone', operator: 'EQ', value: 'y' }],
+        children: [{ field: 'gone', operator: FilterOperator.EQ, value: 'y' }],
       }),
     );
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
@@ -482,7 +491,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+          children: [
+            { field: 'nope', operator: FilterOperator.EQ, value: 'x' },
+          ],
         }}
       />,
     );
@@ -501,12 +512,11 @@ describe('EmbeddedView', () => {
    * refusal must not outlive the condition that earned it.
    */
   it('keeps up with a host that narrows while the first query is out', async () => {
-    const pending: ((page: { total: number; list: RecordData[] }) => void)[] =
-      [];
+    const pending: ((page: PagedResult<object>) => void)[] = [];
     const source = testSource({
       paged: vi.fn(
         () =>
-          new Promise<{ total: number; list: RecordData[] }>(resolve => {
+          new Promise<PagedResult<object>>(resolve => {
             pending.push(resolve);
           }),
       ),
@@ -519,7 +529,7 @@ describe('EmbeddedView', () => {
     const { rerender } = render(
       embed({
         op: 'and',
-        children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        children: [{ field: 'nope', operator: FilterOperator.EQ, value: 'x' }],
       }),
     );
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
@@ -528,7 +538,9 @@ describe('EmbeddedView', () => {
     rerender(
       embed({
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       }),
     );
     await waitFor(() => expect(pending).toHaveLength(2));
@@ -539,8 +551,12 @@ describe('EmbeddedView', () => {
     // The un-narrowed answer comes back last, and answers nothing anyone
     // asked for now: the narrowed rows are what stays on screen.
     await act(async () => {
-      pending[1]({ total: 1, list: [{ id: 'narrow', amount: 1 }] });
-      pending[0]({ total: 2, list: [...ROWS] });
+      pending[1]({
+        total: 1,
+        exact: true,
+        list: [{ id: 'narrow', amount: 1 }],
+      });
+      pending[0]({ total: 2, exact: true, list: [...ROWS] });
     });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
   });
@@ -606,7 +622,13 @@ describe('EmbeddedView', () => {
               filterMode: 'simple',
               filter: {
                 op: 'or',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.EQ,
+                    value: 'CN',
+                  },
+                ],
               },
               // Blocks: the page size must be positive.
               pageSize: 0,
@@ -642,7 +664,9 @@ describe('EmbeddedView', () => {
         instanceId="orders-1"
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         }}
       />,
     );
@@ -672,7 +696,13 @@ describe('EmbeddedView', () => {
             config: recordConfig({
               filter: {
                 op: 'and',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.EQ,
+                    value: 'CN',
+                  },
+                ],
               },
             }),
           },
@@ -700,7 +730,11 @@ describe('EmbeddedView', () => {
       paged: () => {
         attempt += 1;
         return attempt === 1
-          ? Promise.resolve({ total: 2, list: [{ id: 'o-1' }, { id: 'o-2' }] })
+          ? Promise.resolve({
+              total: 2,
+              exact: true,
+              list: [{ id: 'o-1' }, { id: 'o-2' }],
+            })
           : Promise.reject(new Error('down'));
       },
     });
@@ -792,7 +826,7 @@ describe('EmbeddedView tiers and switches', () => {
     );
     await waitFor(() =>
       expect(engine.openRuntimes()[0].getSnapshot().applied).toMatchObject({
-        sort: [{ field: 'amount', direction: 'ASC' }],
+        sort: [{ field: 'amount', direction: SortDirection.ASC }],
       }),
     );
     expect(
@@ -904,7 +938,9 @@ describe('EmbeddedView tiers and switches', () => {
     const onNavigate = vi.fn();
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
     const engine = engineOf(recordConfig());
     const { rerender } = render(
@@ -993,7 +1029,9 @@ describe('EmbeddedView tiers and switches', () => {
     const engine = engineOf(analysisConfig({ layout: 'table' }));
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+      ],
     };
     render(
       <EmbeddedView

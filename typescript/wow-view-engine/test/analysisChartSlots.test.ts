@@ -26,30 +26,40 @@ import {
   type ChartType,
 } from '../src/index.js';
 import { analysisKernelConfig } from './fixtures/analysis.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 const WAREHOUSE: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'wh',
 };
 const MONTH: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 };
-const COUNT: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const COUNT: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const TOTAL: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'average',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 /** The chart's own issues, which is what a switch must not produce. */

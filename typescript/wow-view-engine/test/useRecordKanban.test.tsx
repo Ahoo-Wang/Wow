@@ -37,6 +37,7 @@ import {
   dealsKanban,
   kanbanConfig,
 } from './fixtures/kanban.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -135,7 +136,9 @@ describe('useRecordKanban', () => {
       runtime.edit({
         filter: {
           op: 'and',
-          children: [{ field: 'amount', operator: 'GT', value: 10 }],
+          children: [
+            { field: 'amount', operator: FilterOperator.GT, value: 10 },
+          ],
         },
       }),
     );
@@ -149,8 +152,8 @@ describe('useRecordKanban', () => {
     let holding = false;
     const result = await openHook(dealsKanban, {
       ...memory,
-      cursor: (query, attributes, controller) =>
-        holding ? held.promise : memory.cursor(query, attributes, controller),
+      cursor: (query, options) =>
+        holding ? held.promise : memory.cursor(query, options),
     });
     const [lead, won] = result.current.kanban.lanes;
     holding = true;

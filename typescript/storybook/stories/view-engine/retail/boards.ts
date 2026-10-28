@@ -63,6 +63,18 @@ import {
   retailOrdersDefinition,
   retailWaybillsDefinition,
 } from './views.js';
+import {
+  AggregationDatePart,
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  DerivedExpressionType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 // ---------------------------------------------------------------- 小工具
 
@@ -73,30 +85,30 @@ const and = (...children: FilterNode[]) => ({
 
 const PAID: FilterNode = {
   field: 'state.timing.paidAt',
-  operator: 'IS_NOT_NULL',
+  operator: FilterOperator.IS_NOT_NULL,
   value: null,
 };
 const NOT_CANCELLED: FilterNode = {
   field: 'state.cancelReason',
-  operator: 'IS_NULL',
+  operator: FilterOperator.IS_NULL,
   value: null,
 };
 const ON_TIME: FilterNode = {
   field: 'state.shipSlaBreached',
-  operator: 'EQ',
+  operator: FilterOperator.EQ,
   value: false,
 };
 
 const YESTERDAY = (field: string): FilterNode => ({
   field,
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'preset', preset: 'yesterday' },
 });
 
 /** 近 N 天：今天与它之前的 N − 1 天，按整天算（D39）。 */
 const RECENT_DAYS = (field: string, amount: number): FilterNode => ({
   field,
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'relative', amount, unit: 'day' },
 });
 
@@ -106,10 +118,10 @@ const sum = (
   label?: string,
   filter?: FilterNode[],
 ): AnalysisMetric => ({
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias,
-  function: 'SUM',
-  expression: { type: 'FIELD', field },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field },
   ...(label ? { label } : {}),
   ...(filter ? { filter: and(...filter) } : {}),
 });
@@ -120,10 +132,10 @@ const avg = (
   label?: string,
   filter?: FilterNode[],
 ): AnalysisMetric => ({
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias,
-  function: 'AVG',
-  expression: { type: 'FIELD', field },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field },
   ...(label ? { label } : {}),
   ...(filter ? { filter: and(...filter) } : {}),
 });
@@ -133,7 +145,7 @@ const count = (
   label?: string,
   filter?: FilterNode[],
 ): AnalysisMetric => ({
-  type: 'COUNT',
+  type: AggregationMetricType.COUNT,
   alias,
   ...(label ? { label } : {}),
   ...(filter ? { filter: and(...filter) } : {}),
@@ -144,10 +156,10 @@ const distinct = (
   field: string,
   label: string,
 ): AnalysisMetric => ({
-  type: 'DISTINCT_COUNT',
+  type: AggregationMetricType.DISTINCT_COUNT,
   alias,
   label,
-  expression: { type: 'FIELD', field },
+  expression: { type: AggregationExpressionType.FIELD, field },
 });
 
 /** 一个指标除以另一个，读作百分比或金额（D38）。 */
@@ -158,31 +170,31 @@ const ratio = (
   under: string,
   format: DerivedFormat = { style: 'percent' },
 ): AnalysisMetric => ({
-  type: 'DERIVED',
+  type: AggregationMetricType.DERIVED,
   alias,
   label,
   format,
   expression: {
-    type: 'BINARY',
-    operator: 'DIVIDE',
-    left: { type: 'METRIC_REF', metric: over },
-    right: { type: 'METRIC_REF', metric: under },
+    type: DerivedExpressionType.BINARY,
+    operator: AggregationExpressionOperator.DIVIDE,
+    left: { type: DerivedExpressionType.METRIC_REF, metric: over },
+    right: { type: DerivedExpressionType.METRIC_REF, metric: under },
   },
 });
 
 const byDay = (field: string): AnalysisGroup => ({
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field,
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   dense: true,
 });
 
 const byMonth = (field: string): AnalysisGroup => ({
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field,
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
 });
 
 /** 一个分析视图的配置，其余成员取常用的缺省。 */
@@ -323,7 +335,7 @@ const orderLinesView: ViewInstance = {
     elements: [{ path: 'state.items' }],
     groups: [
       {
-        type: 'TERMS',
+        type: AggregationGroupType.TERMS,
         field: 'state.items.title',
         alias: 'title',
         label: '商品',
@@ -334,7 +346,7 @@ const orderLinesView: ViewInstance = {
       sum('pay', 'state.items.payAmount', '实付'),
       sum('refunded', 'state.items.refundedAmount', '已退'),
     ],
-    sort: [{ alias: 'pay', direction: 'DESC' }],
+    sort: [{ alias: 'pay', direction: SortDirection.DESC }],
     limit: 10,
     layout: 'table',
     table: { columns: [], totals: true },
@@ -403,7 +415,7 @@ function card(
     filter: and(RECENT_DAYS(time, 30)),
     groups: [byDay(time)],
     metrics,
-    sort: [{ alias: 'day', direction: 'ASC' }],
+    sort: [{ alias: 'day', direction: SortDirection.ASC }],
     limit: 62,
     chart: {
       type: 'metric',
@@ -480,7 +492,11 @@ function opsDailyConfig(): DashboardViewConfig {
         buyers,
         card([
           count('newBuyers', '新客数', [
-            { field: 'state.buyer.isNewBuyer', operator: 'EQ', value: true },
+            {
+              field: 'state.buyer.isNewBuyer',
+              operator: FilterOperator.EQ,
+              value: true,
+            },
           ]),
         ]),
         layouts[3],
@@ -550,10 +566,10 @@ function opsDailyConfig(): DashboardViewConfig {
         analysis({
           groups: [
             {
-              type: 'DATE_PART',
+              type: AggregationGroupType.DATE_PART,
               field: 'firstEventTime',
               alias: 'hour',
-              part: 'HOUR_OF_DAY',
+              part: AggregationDatePart.HOUR_OF_DAY,
             },
           ],
           metrics: [
@@ -563,12 +579,12 @@ function opsDailyConfig(): DashboardViewConfig {
             sum('today', 'state.amounts.payableAmount', '今日', [
               {
                 field: 'firstEventTime',
-                operator: 'BETWEEN',
+                operator: FilterOperator.BETWEEN,
                 value: { type: 'preset', preset: 'today' },
               },
             ]),
           ],
-          sort: [{ alias: 'hour', direction: 'ASC' }],
+          sort: [{ alias: 'hour', direction: SortDirection.ASC }],
           limit: 24,
           chart: {
             type: 'bar',
@@ -593,14 +609,14 @@ function opsDailyConfig(): DashboardViewConfig {
         analysis({
           groups: [
             {
-              type: 'TERMS',
+              type: AggregationGroupType.TERMS,
               field: 'state.channel',
               alias: 'channel',
               label: '渠道',
             },
           ],
           metrics: [sum('gmv', 'state.amounts.payableAmount', 'GMV')],
-          sort: [{ alias: 'gmv', direction: 'DESC' }],
+          sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
           limit: 10,
           chart: {
             type: 'bar',
@@ -633,7 +649,7 @@ function opsDailyConfig(): DashboardViewConfig {
           filter: and(RECENT_DAYS('state.refundedAt', 30)),
           groups: [
             {
-              type: 'TERMS',
+              type: AggregationGroupType.TERMS,
               field: 'state.title',
               alias: 'sku',
               label: '商品',
@@ -643,7 +659,7 @@ function opsDailyConfig(): DashboardViewConfig {
             sum('refunded', 'state.refundedAmount', '退款金额'),
             count('cases', '售后单数'),
           ],
-          sort: [{ alias: 'refunded', direction: 'DESC' }],
+          sort: [{ alias: 'refunded', direction: SortDirection.DESC }],
           limit: 5,
           chart: {
             type: 'bar',
@@ -684,12 +700,12 @@ function opsDailyConfig(): DashboardViewConfig {
           // 时间先后画。
           filter: and({
             field: 'firstEventTime',
-            operator: 'LTE',
+            operator: FilterOperator.LTE,
             value: { type: 'preset', preset: 'yesterday' },
           }),
           groups: [byDay('firstEventTime')],
           metrics: [sum('gmv', 'state.amounts.payableAmount', 'GMV')],
-          sort: [{ alias: 'day', direction: 'DESC' }],
+          sort: [{ alias: 'day', direction: SortDirection.DESC }],
           limit: 30,
           chart: {
             type: 'bar',
@@ -780,12 +796,12 @@ function monthCard(metric: AnalysisMetric): AnalysisViewConfig {
   return analysis({
     filter: and({
       field: 'firstEventTime',
-      operator: 'GTE',
+      operator: FilterOperator.GTE,
       value: { type: 'preset', preset: 'lastYear' },
     }),
     groups: [byMonth('firstEventTime')],
     metrics: [metric],
-    sort: [{ alias: 'month', direction: 'ASC' }],
+    sort: [{ alias: 'month', direction: SortDirection.ASC }],
     limit: 400,
     chart: {
       type: 'metric',
@@ -822,7 +838,14 @@ function salesReviewConfig(): DashboardViewConfig {
     fixed: and(),
     tabs: Object.entries(SALES_TABS).map(([id, title]) => ({ id, title })),
     fields: SALES_FIELDS,
-    timeGrouping: { units: ['MONTH', 'WEEK', 'DAY'], default: 'MONTH' },
+    timeGrouping: {
+      units: [
+        AggregationDateUnit.MONTH,
+        AggregationDateUnit.WEEK,
+        AggregationDateUnit.DAY,
+      ],
+      default: AggregationDateUnit.MONTH,
+    },
     panels: [
       ...cards.map(([id, title, config], index) =>
         owned(
@@ -859,7 +882,7 @@ function salesReviewConfig(): DashboardViewConfig {
         analysis({
           filter: and({
             field: 'firstEventTime',
-            operator: 'GTE',
+            operator: FilterOperator.GTE,
             value: { type: 'preset', preset: 'thisYear' },
           }),
           groups: [byMonth('firstEventTime')],
@@ -870,7 +893,7 @@ function salesReviewConfig(): DashboardViewConfig {
             distinct('buyers', 'state.buyer.id', '买家数'),
             avg('aov', 'state.amounts.payableAmount', '客单价'),
           ],
-          sort: [{ alias: 'month', direction: 'DESC' }],
+          sort: [{ alias: 'month', direction: SortDirection.DESC }],
           limit: 12,
           layout: 'table',
           table: { columns: [], totals: true },
@@ -1052,27 +1075,27 @@ function fulfilmentConfig(): DashboardViewConfig {
         analysis({
           filter: and({
             field: 'state.shippedAt',
-            operator: 'GTE',
+            operator: FilterOperator.GTE,
             value: { type: 'preset', preset: 'thisYear' },
           }),
           groups: [
             {
-              type: 'TERMS',
+              type: AggregationGroupType.TERMS,
               field: 'state.carrier',
               alias: 'carrier',
               label: '承运商',
             },
             {
-              type: 'DATE_HISTOGRAM',
+              type: AggregationGroupType.DATE_HISTOGRAM,
               field: 'state.shippedAt',
               alias: 'week',
-              unit: 'WEEK',
+              unit: AggregationDateUnit.WEEK,
             },
           ],
           metrics: [
             avg('hours', 'state.shipToSignHours', '平均签收时长（小时）'),
           ],
-          sort: [{ alias: 'week', direction: 'ASC' }],
+          sort: [{ alias: 'week', direction: SortDirection.ASC }],
           limit: 1000,
           chart: {
             type: 'heatmap',
@@ -1190,7 +1213,7 @@ function memberBoardConfig(): DashboardViewConfig {
         analysis({
           groups: [byMonth('firstEventTime')],
           metrics: [sum('paid', 'state.amounts.paidAmount', '实付金额')],
-          sort: [{ alias: 'month', direction: 'ASC' }],
+          sort: [{ alias: 'month', direction: SortDirection.ASC }],
           limit: 60,
           chart: {
             type: 'bar',

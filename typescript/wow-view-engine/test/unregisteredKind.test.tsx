@@ -43,6 +43,7 @@ import {
 } from '../src/index.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import type { FieldDefinition, FieldKind, FilterValue } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
@@ -53,9 +54,11 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -84,7 +87,9 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     config: recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
+        children: [
+          { field: 'colour', operator: FilterOperator.EQ, value: 'red' },
+        ],
       },
     }),
     title: 'Orders',
@@ -93,8 +98,9 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     kinds: builtinFieldKinds,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: testEnvironment().environment,
-    source: testSource(),
+    source: recordSource(testSource()),
     runner: new RequestRunner(),
+    labels: testLabels(),
   });
   let latest: FilterEditorController | null = null;
   function Probe() {
@@ -193,7 +199,9 @@ describe('a registered kind that asks for an editor nobody wrote', () => {
       [COLOUR],
       {
         op: 'and',
-        children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
+        children: [
+          { field: 'colour', operator: FilterOperator.EQ, value: 'red' },
+        ],
       },
       withFieldKinds(builtinFieldKinds, [swatch]),
     );

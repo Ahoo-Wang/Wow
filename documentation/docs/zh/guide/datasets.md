@@ -22,16 +22,16 @@ outline: deep
   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
   "storage": { "table": "eshop_ordering_order_state_flat" },
   "fields": {
-    "id": { "types": ["STRING"], "nullable": false, "description": "The commit of the order's current state: ref@version." },
-    "tenant_id": { "types": ["STRING"], "nullable": false },
-    "aggregate_id": { "types": ["STRING"], "nullable": false, "description": "The order's id." },
-    "owner_id": { "types": ["STRING"], "nullable": false, "description": "The buyer whose checkout the order is: its owner." },
-    "space_id": { "types": ["STRING"], "nullable": false },
-    "version": { "types": ["INTEGER"], "nullable": false },
-    "commit_time": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" }, "nullable": false },
-    "deleted": { "types": ["BOOLEAN"], "nullable": false },
-    "status": { "types": ["STRING"], "nullable": false, "description": "SUBMITTED, AWAITING_VALIDATION, STOCK_CONFIRMED, PAID, SHIPPED or CANCELLED." },
-    "totalAmount": { "types": ["DECIMAL"], "nullable": false, "description": "The order's total: each line's unit price times its quantity." }
+    "id": { "types": ["string"], "nullable": false, "description": "The commit of the order's current state: ref@version." },
+    "tenant_id": { "types": ["string"], "nullable": false },
+    "aggregate_id": { "types": ["string"], "nullable": false, "description": "The order's id." },
+    "owner_id": { "types": ["string"], "nullable": false, "description": "The buyer whose checkout the order is: its owner." },
+    "space_id": { "types": ["string"], "nullable": false },
+    "version": { "types": ["integer"], "nullable": false },
+    "commit_time": { "types": ["string"], "semantic": { "type": "temporal-date" }, "nullable": false },
+    "deleted": { "types": ["boolean"], "nullable": false },
+    "status": { "types": ["string"], "nullable": false, "description": "SUBMITTED, AWAITING_VALIDATION, STOCK_CONFIRMED, PAID, SHIPPED or CANCELLED." },
+    "totalAmount": { "types": ["decimal"], "nullable": false, "description": "The order's total: each line's unit price times its quantity." }
   }
 }
 ```
@@ -45,13 +45,13 @@ outline: deep
 | `storage` | 后端的绑定：在 ClickHouse 上，是它读取的 `table` |
 | `fields` | 每一列：它的 `types`、`nullable`、可选的 `semantic` 类型、`enum` 值和 `description` |
 
-字段也可以用 `"sensitive": {"level": "CONFIDENTIAL", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
+字段也可以用 `"sensitive": {"level": "confidential", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
 
 工作目录中 `<wow.query.dataset.config-directory>/wow/dataset/`（默认 `config/wow/dataset/`）下的文件，优先于类路径上的同名文件，所以运维人员不用重新构建就能调整一个数据集。
 
 ## 行从哪里来 {#where-the-rows-come-from}
 
-装配了数据集后端时才提供数据集；在 10.0 中是 ClickHouse 的后端：类路径上有 `wow-clickhouse`，并设置了 `wow.clickhouse.endpoint`。ClickHouse Sink 把每个发布的聚合的提交写入数据集所读取的表，例如 `<context>_<aggregate>_state_flat`，即以状态的标量字段为列的当前状态（[ClickHouse](../operate/clickhouse)）。
+装配了数据集后端时才提供数据集；在 10.0 中是 ClickHouse 的后端：类路径上有 `wow-clickhouse`，并设置了 `wow.clickhouse.endpoint` 或声明了 ClickHouse `Client` bean。ClickHouse Sink 由 `wow.clickhouse.sink.enabled: true` 开启，它把每个发布的聚合的提交写入数据集所读取的表，例如 `<context>_<aggregate>_state_flat`，即以状态的标量字段为列的当前状态（[ClickHouse](../operate/clickhouse)）。
 
 ## 查询它 {#query-it}
 

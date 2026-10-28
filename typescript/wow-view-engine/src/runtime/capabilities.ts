@@ -36,7 +36,7 @@ import {
   type NarrowedDefinition,
 } from '../capabilities/index.js';
 import type { RuntimeEnvironment } from './environment.js';
-import type { ViewSource } from './source.js';
+import type { RecordSource } from './source.js';
 import { ViewCommandError } from './write.js';
 
 /** What the capabilities read from the engine that owns them. */
@@ -45,7 +45,7 @@ interface CapabilityHost {
   /** The host's own limits, as it gave them; the source budgets may be left out. */
   readonly limits: Partial<RuntimeLimits> | undefined;
   readonly environment: RuntimeEnvironment;
-  resolveSource(key: string): ViewSource;
+  resolveSource(key: string): RecordSource;
   /** A definition as the application declared it, by id. */
   declared(id: string): ViewDefinition | undefined;
   /** A finding with nobody to reject: `onIssue`. */
@@ -256,7 +256,7 @@ export class SourceCapabilities {
    * over it is built — so a board's other panels are not taken down with it.
    */
   private describer(source: string): Describe | null {
-    let resolved: ViewSource;
+    let resolved: RecordSource;
     try {
       resolved = this.host.resolveSource(source);
     } catch {

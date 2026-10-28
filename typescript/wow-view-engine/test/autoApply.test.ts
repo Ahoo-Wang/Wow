@@ -25,6 +25,7 @@ import { AUTO_APPLY_DELAY_MS, autoApplyDue } from '../src/runtime/autoApply.js';
 import { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -32,9 +33,14 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  FilterOperator,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** An analysis runtime on the test clock, with auto-apply switched on. */
 function analysis(source: ViewSource = testSource()) {
@@ -49,8 +55,9 @@ function analysis(source: ViewSource = testSource()) {
     kinds: builtinFieldKinds,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source,
+    source: recordSource(source),
     runner: new RequestRunner(),
+    labels: testLabels(),
   });
   runtime.apply();
   runtime.setAutoApply(true);
@@ -100,7 +107,9 @@ describe('改了就跑: the analysis runs again on its own', () => {
       ...topFive(),
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+        ],
       },
     });
     clock.advance(AUTO_APPLY_DELAY_MS * 2);
@@ -117,7 +126,13 @@ describe('改了就跑: the analysis runs again on its own', () => {
     const before = vi.mocked(source.aggregate).mock.calls.length;
 
     runtime.edit({
-      groups: [{ type: 'TERMS', field: 'nowhere', alias: 'nowhere' }],
+      groups: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'nowhere',
+          alias: 'nowhere',
+        },
+      ],
     });
     clock.advance(AUTO_APPLY_DELAY_MS * 2);
 
@@ -166,8 +181,9 @@ describe('改了就跑: the analysis runs again on its own', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
-      source,
+      source: recordSource(source),
       runner: new RequestRunner(),
+      labels: testLabels(),
     });
     runtime.apply();
     runtime.setAutoApply(true);
@@ -223,7 +239,9 @@ describe('改了就跑: the analysis runs again on its own', () => {
           ...topFive(),
           filter: {
             op: 'and',
-            children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+            children: [
+              { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+            ],
           },
         }),
       ),

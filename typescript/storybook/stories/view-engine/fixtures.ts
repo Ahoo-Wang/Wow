@@ -36,6 +36,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  FilterOperator,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { rowSource } from './rowSource.js';
@@ -128,7 +132,7 @@ export const ordersDefinition: DataViewDefinition = {
       label: '金额',
       kind: 'number',
       sortable: true,
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
     // 第二个可度量的字段，公式才说得出一句话：「金额 − 成本」是毛利，
@@ -138,7 +142,7 @@ export const ordersDefinition: DataViewDefinition = {
       label: '成本',
       kind: 'number',
       sortable: true,
-      summary: ['SUM'],
+      summary: [AggregationFunction.SUM],
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
     // 一列时刻有最早与最晚，没有合计也没有平均——声明得出来的就只有这两个
@@ -151,7 +155,7 @@ export const ordersDefinition: DataViewDefinition = {
       kind: 'datetime',
       temporal: { type: 'date' },
       sortable: true,
-      summary: ['MIN', 'MAX'],
+      summary: [AggregationFunction.MIN, AggregationFunction.MAX],
     },
   ],
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
@@ -413,7 +417,7 @@ export function recordConfig(
     sort: [],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'amount', fn: 'SUM' }],
+    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
     table: {
       columns: [
         // The row key stays put while the middle scrolls, which is what the
@@ -437,14 +441,20 @@ export function analysisConfig(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+    groups: [
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+    ],
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
     sort: [],
@@ -531,9 +541,11 @@ export const savedViews: ViewInstance[] = [
         op: 'and',
         // An enum's operators take a list, which is what keeps a selection
         // when the operator flips between IN and NOT_IN.
-        children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+        children: [
+          { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        ],
       },
-      sort: [{ field: 'amount', direction: 'DESC' }],
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
     }),
   },
   {
@@ -555,9 +567,11 @@ export const savedViews: ViewInstance[] = [
     config: recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'amount', operator: 'GT', value: 5000 }],
+        children: [
+          { field: 'amount', operator: FilterOperator.GT, value: 5000 },
+        ],
       },
-      sort: [{ field: 'createdAt', direction: 'DESC' }],
+      sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
     }),
   },
 ];
@@ -666,9 +680,9 @@ export const CUSTOMERS: FieldOption[] = [
 export function customerSource(delayMs = 300): OptionSource {
   const PAGE = 8;
   return {
-    async search({ query, cursor }, signal) {
-      await delay(delayMs);
-      if (signal?.aborted) throw new Error('aborted');
+    async search({ query, cursor }, { signal } = {}) {
+      await delay(delayMs, signal);
+      signal?.throwIfAborted();
       const needle = query.trim().toLowerCase();
       const matched = CUSTOMERS.filter(
         option =>
@@ -683,7 +697,10 @@ export function customerSource(delayMs = 300): OptionSource {
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
-    async resolve(ids) {
+    // As slow as a search, so a table's ids are seen turning into names
+    // (D354); a page the reader left calls it off.
+    async resolve(ids, { signal } = {}) {
+      await delay(delayMs, signal);
       return CUSTOMERS.filter(option => ids.includes(option.value));
     },
   };
@@ -739,8 +756,20 @@ function behavingSource(
   };
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+/** `ms` of waiting, cut short with the signal's reason when it aborts. */
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 /**
@@ -821,6 +850,8 @@ export interface StoryEngineOptions {
   definitions?: (DataViewDefinition | DashboardDefinition)[];
   /** A source of the story's own, where `behaviour` has no shape for it. */
   source?: ViewSource;
+  /** The customers' option source, for a story that watches it asked. */
+  customers?: OptionSource;
   /** Budgets the story is about, merged over the engine's defaults. */
   limits?: Partial<RuntimeLimits>;
   /**
@@ -864,7 +895,7 @@ export function createStoryEngine(
     store:
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
-    resolveOptions: () => customerSource(),
+    resolveOptions: () => options.customers ?? customerSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),
@@ -990,14 +1021,14 @@ export const waybillsDefinition: DataViewDefinition = {
       label: '件数',
       kind: 'number',
       sortable: true,
-      summary: ['SUM'],
+      summary: [AggregationFunction.SUM],
     },
     {
       name: 'weight',
       label: '重量',
       kind: 'number',
       sortable: true,
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
       numberFormat: {
         style: 'unit',
         unit: 'kilogram',
@@ -1009,7 +1040,7 @@ export const waybillsDefinition: DataViewDefinition = {
       label: '运费',
       kind: 'number',
       sortable: true,
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
     { name: 'insured', label: '已保价', kind: 'boolean' },
@@ -1169,16 +1200,16 @@ export function waybillConfig(
     filterMode: 'simple',
     refresh: { interval: null },
     sort: [
-      { field: 'shipDate', direction: 'DESC' },
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'shipDate', direction: SortDirection.DESC },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ],
     pageSize: 50,
     layout: 'table',
     summaries: [
-      { field: 'pieces', fn: 'SUM' },
-      { field: 'weight', fn: 'SUM' },
-      { field: 'amount', fn: 'SUM' },
+      { field: 'pieces', fn: AggregationFunction.SUM },
+      { field: 'weight', fn: AggregationFunction.SUM },
+      { field: 'amount', fn: AggregationFunction.SUM },
     ],
     table: {
       columns: [

@@ -20,6 +20,7 @@ import displayMeta, {
   SavedOnMongoDb as DisplaySavedOnMongoDb,
 } from './CapabilityNarrowing.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -156,7 +157,7 @@ export const UnavailableSaidOnce: Story = {
     });
     await expect(
       within(pill).getByRole('combobox', { name: /操作符/ }),
-    ).toHaveTextContent(zhCN['label.operator.CONTAINS']);
+    ).toHaveTextContent(zhCN[`label.operator.${FilterOperator.CONTAINS}`]);
     await expect(pill).toHaveAccessibleDescription('「备注」不支持「包含」。');
   },
 };

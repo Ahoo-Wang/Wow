@@ -14,6 +14,7 @@
 // Internal: not re-exported by filter/index.ts. `filter.elementMatch` and an
 // aggregation element's own filter both scope a filter to an element; this is
 // the one rule they share.
+import { constantName } from '../constantName.js';
 import { FilterOperator } from './operator.js';
 import type { FilterExpression } from './types.js';
 
@@ -59,10 +60,14 @@ export function requireElementScopedFilter(
     case FilterOperator.OR:
     case FilterOperator.NOR:
       if (expression.operands.length === 0) {
-        throw new TypeError(`${expression.op} operands cannot be empty.`);
+        throw new TypeError(
+          `${constantName(expression.op)} operands cannot be empty.`,
+        );
       }
       if (expression.operands.some(operand => operand == null)) {
-        throw new TypeError(`${expression.op} operands cannot contain null.`);
+        throw new TypeError(
+          `${constantName(expression.op)} operands cannot contain null.`,
+        );
       }
       expression.operands.forEach(operand =>
         requireElementScopedFilter(operand, subject, fieldSearch),

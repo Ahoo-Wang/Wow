@@ -26,6 +26,8 @@ import displayMeta, {
   Interactive as DisplayInteractive,
   AnalysisInteractive as DisplayAnalysisInteractive,
   WithRecordDetail as DisplayWithRecordDetail,
+  ReferenceNames as DisplayReferenceNames,
+  ReferenceNamesAnalysis as DisplayReferenceNamesAnalysis,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
@@ -535,5 +537,56 @@ export const WithRecordDetail: Story = {
         within(again).getByRole('heading', { name: 'SO-1003' }),
       ),
     );
+  },
+};
+
+/** The customers the page's orders point at, by name (`CUSTOMERS`). */
+const CUSTOMER_NAMES = ['晨光食品', '蓝海物流', '天工机械', '瑞丰药业'];
+
+/** How many times the page asked its customers' names, as the host counts. */
+const resolves = (canvasElement: HTMLElement) =>
+  canvasElement
+    .querySelector('[data-host-resolves]')
+    ?.getAttribute('data-host-resolves');
+
+/**
+ * D354: the customer column holds ids, shown as themselves — marked
+ * pending — until the one resolve for the page answers, then as names.
+ */
+export const ReferenceNames: Story = {
+  ...DisplayReferenceNames,
+  play: async ({ canvasElement }) => {
+    const table = await within(canvasElement).findByRole('table');
+    await waitFor(() =>
+      expect(
+        table.querySelector(
+          '[data-slot="cell-reference"][data-label="pending"]',
+        ),
+      ).not.toBeNull(),
+    );
+    await expect(readColumn(table, '客户')).toContain('c-03');
+
+    await waitFor(() =>
+      expect(readColumn(table, '客户')).toEqual(
+        expect.arrayContaining(CUSTOMER_NAMES),
+      ),
+    );
+    await expect(table.querySelector('[data-label]')).toBeNull();
+    await expect(resolves(canvasElement)).toBe('1');
+  },
+};
+
+/** A group by the customer reads each group by its name, one resolve asked. */
+export const ReferenceNamesAnalysis: Story = {
+  ...DisplayReferenceNamesAnalysis,
+  play: async ({ canvasElement }) => {
+    const table = await within(canvasElement).findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '客户')).toEqual(
+        expect.arrayContaining(CUSTOMER_NAMES),
+      ),
+    );
+    await expect(readColumn(table, '客户')).not.toContain('c-03');
+    await expect(resolves(canvasElement)).toBe('1');
   },
 };

@@ -27,8 +27,6 @@ import { expectTypeOf, it } from 'vitest';
 import type {
   CountQuery,
   CountResult,
-  PagedQuery,
-  PagedResult,
   RequestOptions,
   StreamedRow,
   StreamOptions,
@@ -40,6 +38,8 @@ import type {
   CursorQuery,
   FilterListQuery,
   FilterSingleQuery,
+  PagedQuery,
+  PagedResult,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   StreamExecutor,

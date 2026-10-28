@@ -92,27 +92,27 @@ class OrderingAnalyticsTest {
         ids(post(ORDERS, MATCH_ALL, alice)).assert().containsExactlyInAnyOrderElementsOf(hers)
         ids(post(ORDERS, MATCH_ALL, bob)).assert().containsExactly(his)
         // Naming another buyer's order reads nothing: the caller's scope is ANDed with the query.
-        ids(post(ORDERS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice)).assert().isEmpty()
+        ids(post(ORDERS, """{"kind":"list","filter":{"op":"id","value":"$his"}}""", alice)).assert().isEmpty()
         post(
             ORDERS,
-            """{"kind":"single","filter":{"op":"ID","value":"$his"}}""",
+            """{"kind":"single","filter":{"op":"id","value":"$his"}}""",
             alice
         ).status.assert().isEqualTo(NOT_FOUND)
         val all = ids(
             post(
                 ORDERS,
-                """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":${array(hers + his)}}}""",
+                """{"kind":"list","filter":{"op":"in","field":"aggregateId","values":${array(hers + his)}}}""",
                 EMPLOYEE
             )
         )
         all.assert().containsExactlyInAnyOrderElementsOf(hers + his)
         // An order's events, for its buyer only.
-        val events = post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", bob)
+        val events = post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"id","value":"$his"}}""", bob)
         events.status.assert().isEqualTo(OK)
         events.body!!.values().first()["events"][0]["name"].asString().assert().isEqualTo(
             "eshop-ordering.order.OrderSubmitted"
         )
-        post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice).body!!.values().toList()
+        post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"id","value":"$his"}}""", alice).body!!.values().toList()
             .assert().isEmpty()
     }
 
@@ -122,8 +122,8 @@ class OrderingAnalyticsTest {
         val bob = buyer()
         val hers = listOf(submit(alice), submit(alice))
         val his = submit(bob)
-        val ours = """{"kind":"list","filter":{"op":"IN","field":"aggregate_id","values":${array(hers + his)}},""" +
-            """"sort":[{"field":"aggregate_id","direction":"ASC"}]}"""
+        val ours = """{"kind":"list","filter":{"op":"in","field":"aggregate_id","values":${array(hers + his)}},""" +
+            """"sort":[{"field":"aggregate_id","direction":"asc"}]}"""
 
         // The order process has each order await its stock validation: version 2 replaces version 1 in the flat view.
         val rows = awaitSales(ours, EMPLOYEE) { rows ->
@@ -140,14 +140,14 @@ class OrderingAnalyticsTest {
         sales(ours, alice).map { it["aggregate_id"].asString() }.assert().containsExactlyInAnyOrderElementsOf(hers)
         sales(ours, bob).map { it["aggregate_id"].asString() }.assert().containsExactly(his)
         sales(
-            """{"kind":"list","filter":{"op":"EQ","field":"aggregate_id","value":"$his"}}""",
+            """{"kind":"list","filter":{"op":"eq","field":"aggregate_id","value":"$his"}}""",
             alice
         ).assert().isEmpty()
 
         // An employee's revenue by buyer, over the tenant.
-        val byBuyer = """{"kind":"aggregate","filter":{"op":"IN","field":"aggregate_id","values":${array(hers + his)}},""" +
-            """"groupBy":[{"type":"TERMS","field":"owner_id","alias":"buyer"}],""" +
-            """"metrics":[{"type":"COUNT","alias":"orders"},$REVENUE]}"""
+        val byBuyer = """{"kind":"aggregate","filter":{"op":"in","field":"aggregate_id","values":${array(hers + his)}},""" +
+            """"groupBy":[{"type":"terms","field":"owner_id","alias":"buyer"}],""" +
+            """"metrics":[{"type":"count","alias":"orders"},$REVENUE]}"""
         sales(
             byBuyer,
             EMPLOYEE
@@ -160,7 +160,7 @@ class OrderingAnalyticsTest {
             )
         val count = post(
             SALES,
-            """{"kind":"count","filter":{"op":"IN","field":"aggregate_id","values":${array(hers)}}}""",
+            """{"kind":"count","filter":{"op":"in","field":"aggregate_id","values":${array(hers)}}}""",
             alice
         )
         count.body!!["count"].asLong().assert().isEqualTo(2)
@@ -183,7 +183,7 @@ class OrderingAnalyticsTest {
             described = get(SALES, EMPLOYEE)
         }
         described.status.assert().describedAs(described.text).isEqualTo(OK)
-        described.body!!["model"].asString().assert().isEqualTo("DATASET")
+        described.body!!["model"].asString().assert().isEqualTo("dataset")
         described.body!!["fields"].values().map { it["path"].asString() }.assert()
             .contains("aggregate_id", "owner_id", "status", "totalAmount", "commit_time")
         val tag = described.header("ETag")
@@ -250,9 +250,9 @@ class OrderingAnalyticsTest {
         const val ORDERS = "/eshop-ordering/order/snapshot/query"
         const val ORDER_EVENTS = "/eshop-ordering/order/events/query"
         const val SALES = "/wow/dataset/eshop-ordering/sales/query"
-        const val MATCH_ALL = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+        const val MATCH_ALL = """{"kind":"list","filter":{"op":"match-all"}}"""
         const val REVENUE =
-            """{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"totalAmount"},"alias":"revenue"}"""
+            """{"type":"numeric","function":"sum","expression":{"type":"field","field":"totalAmount"},"alias":"revenue"}"""
         const val OK = 200
         const val NOT_MODIFIED = 304
         const val NOT_FOUND = 404

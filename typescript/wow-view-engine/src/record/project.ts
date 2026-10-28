@@ -12,11 +12,13 @@
  */
 
 import type { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
-import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { CursorPage, PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
   columnHidden,
   epochUnitOf,
+  labelRemoteOf,
+  readsAsNames,
   columnPinned,
   isDateCell,
   currencyPathOf,
@@ -104,6 +106,17 @@ export interface RecordColumnView {
   currencyPath?: string;
   /** An enum's choices, so a cell can show a value by its label. */
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are read as names from,
+   * so a cell reads `ViewRuntime.labels` rather than the id.
+   */
+  remote?: string;
+  /**
+   * True on a sortable `reference` read as names: the server sorts it by
+   * the stored id, not the name a cell shows, so the header says so.
+   * Derived from the field, never configured.
+   */
+  sortsById?: true;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
   /** A time kept in epoch seconds; milliseconds when unsaid. */
@@ -181,6 +194,11 @@ export interface RecordCardField {
   kind?: string;
   cell?: string;
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are read as names from,
+   * so a cell reads `ViewRuntime.labels` rather than the id.
+   */
+  remote?: string;
   numberFormat?: NumberFormat;
   /**
    * For money whose currency each record holds: where the row holds it
@@ -274,6 +292,7 @@ export function cardField(field: FieldDefinition): RecordCardField {
     kind: field.kind,
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
+    ...labelRemoteOf(field),
     ...numberFormatPart(field),
     ...elementTitleOf(field),
     ...elementsOf(field),
@@ -329,12 +348,16 @@ function columnView(
     ...(place.pinned ? { pinned: place.pinned } : {}),
     ...(place.primary ? { primary: true } : {}),
     sortable: field.sortable === true,
+    ...(field.sortable === true && readsAsNames(field)
+      ? { sortsById: true as const }
+      : {}),
     numberFormat: numberFormatOf(field),
     ...currencyPart(field),
     ...(field.numberFormat === undefined && field.numeric
       ? { numeric: field.numeric }
       : {}),
     ...(field.options ? { options: field.options } : {}),
+    ...labelRemoteOf(field),
     ...elementTitleOf(field),
     ...timeUnitOf(field),
     // The default is the minute, and only a table cell is ever short, so
@@ -414,7 +437,7 @@ function columnOrder<T extends ColumnPlacement>(
 }
 
 function isCursorPage(
-  page: PagedList<RecordData> | CursorPage<RecordData>,
+  page: PagedResult<RecordData> | CursorPage<RecordData>,
 ): page is CursorPage<RecordData> {
   return 'nextCursor' in page;
 }
@@ -509,7 +532,7 @@ export function restyleRecord(
 export function projectRecord(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-  page: PagedList<RecordData> | CursorPage<RecordData>,
+  page: PagedResult<RecordData> | CursorPage<RecordData>,
   pageIndex = 1,
   limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
 ): RecordProjection {
@@ -531,6 +554,7 @@ export function projectRecord(
           index: pageIndex,
           size: config.pageSize,
           total: page.total,
+          exact: page.exact,
           maxWindow: pageWindow(definition.record, limits),
         }),
   };

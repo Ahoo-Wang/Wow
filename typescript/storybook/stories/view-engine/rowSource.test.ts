@@ -43,7 +43,7 @@ describe('rowSource', () => {
   it('answers a repeated aggregation from memory, each time with its own copy', async () => {
     const rows: RecordData[] = [{ amount: 1 }, { amount: 2 }];
     const source = rowSource(rows);
-    const first = await source.aggregate(totals);
+    const first = (await source.aggregate(totals)) as RecordData[];
     expect(first).toEqual([{ amount: 3 }]);
     first[0].amount = 1_000;
     // A story's rows are fixed for its source's life; changing one under it
@@ -71,6 +71,9 @@ describe('rowSource', () => {
         offset: 'PT1S',
       } as FilterExpression,
     });
-    expect(list.map(row => row.id)).toEqual(['earlier', 'later']);
+    expect(list.map(row => (row as RecordData).id)).toEqual([
+      'earlier',
+      'later',
+    ]);
   });
 });

@@ -15,102 +15,65 @@ package me.ahoo.wow.spring.boot
 
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
-import me.ahoo.wow.query.memory.InMemoryDatasetStorage
+import me.ahoo.wow.query.dataset.QueryDatasetConfig
+import me.ahoo.wow.query.dataset.QueryDatasetProvider
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.AutoConfigurations
-import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.context.ApplicationContext
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.core.ResolvableType
-import java.time.Duration
+import org.junit.jupiter.api.assertThrows
 
-/** The ClickHouse dataset backend wired by [ClickHouseAutoConfiguration] (decision D145). */
+/**
+ * The ClickHouse dataset backend, found by `ServiceLoader` and opened over the application's client, or over one of its
+ * own that the node's bindings close ([HostDatasets.provided]).
+ */
 class HostClickHouseDatasetsTest {
-    private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(ClickHouseAutoConfiguration::class.java))
-        .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+    private val client: Client = Client.Builder().addEndpoint("http://127.0.0.1:1").setUsername("default").build()
+
+    private val providers = HostDatasets.providers(javaClass.classLoader)
+
+    private fun provided(
+        resources: StoreResources = StoreResources.of(mapOf("client" to client)),
+        vararg settings: Pair<String, String>,
+    ) = HostDatasets.provided(providers, resources) { mapOf(*settings) }
 
     @Test
-    fun `with an endpoint the dataset backend should be wired over the client`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
-            context.datasetBindings().assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
+    fun `without the application's client the endpoint should give the backend its own, which the node closes`() {
+        val own = provided(StoreResources.NONE, "endpoint" to "http://127.0.0.1:1", "sink.batch-size" to "5")
+        own.assert().isInstanceOf(AutoCloseable::class.java)
+        HostDatasetBindings(own, provided = true).close()
+        val application = provided()
+        application.assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
+        application.assert().isNotInstanceOf(AutoCloseable::class.java)
+    }
+
+    @Test
+    fun `the dataset backend on the class path should serve the datasets over the application's client`() {
+        providers.map { it.type }.assert().containsExactly("clickhouse")
+        provided().assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
+    }
+
+    @Test
+    fun `the dataset backend should be switched off by its setting, and absent without a client`() {
+        provided(settings = arrayOf("query.enabled" to "false")).assert().isNull()
+        provided(StoreResources.NONE).assert().isNull()
+    }
+
+    @Test
+    fun `several available dataset backends should refuse the start, naming them`() {
+        val other = object : QueryDatasetProvider {
+            override val type: String = "other"
+
+            override fun available(config: QueryDatasetConfig): Boolean = true
+
+            override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> = QueryBindings { null }
         }
-        runner.run { context ->
-            context.datasetBindingNames().assert().isEmpty()
+        val failure = assertThrows<WowConfigurationException> {
+            HostDatasets.provided(providers + other, StoreResources.of(mapOf("client" to client))) { emptyMap() }
         }
-    }
-
-    @Test
-    fun `the dataset backend should be switched off by its property or the application's own`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.query.enabled=false")
-            .run { context ->
-                context.getBeansOfType(Client::class.java).assert().hasSize(1)
-                context.datasetBindingNames().assert().isEmpty()
-            }
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
-            .withBean(InMemoryDatasetStorage::class.java, { InMemoryDatasetStorage() })
-            .run { context ->
-                context.datasetBindings().assert().isInstanceOf(InMemoryDatasetStorage::class.java)
-            }
-    }
-
-    @Test
-    fun `an application's dataset bindings declared as a lambda should switch it off, its snapshot bindings not`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
-            .withUserConfiguration(LambdaDatasetBindings::class.java)
-            .run { context ->
-                context.datasetBindingNames().assert().containsExactly("lambdaDatasetBindings")
-            }
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1")
-            .withUserConfiguration(LambdaSnapshotBindings::class.java)
-            .run { context ->
-                context.datasetBindings().assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
-            }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class LambdaDatasetBindings {
-        @Bean
-        fun lambdaDatasetBindings(): QueryBindings<QueryDataset> = QueryBindings { null }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class LambdaSnapshotBindings {
-        @Bean
-        fun lambdaSnapshotBindings(): QueryBindings<AggregateType> = QueryBindings { null }
-    }
-
-    private fun ApplicationContext.datasetBindingNames(): List<String> =
-        getBeanNamesForType(DATASET_BINDINGS).toList()
-
-    private fun ApplicationContext.datasetBindings(): Any = getBean(datasetBindingNames().single())
-
-    private companion object {
-        val DATASET_BINDINGS: ResolvableType =
-            ResolvableType.forClassWithGenerics(QueryBindings::class.java, QueryDataset::class.java)
-    }
-
-    @Test
-    fun `the properties should become the dataset backend's options`() {
-        runner.withPropertyValues(
-            "wow.clickhouse.endpoint=http://127.0.0.1:1",
-            "wow.clickhouse.database=analytics",
-            "wow.clickhouse.query.metadata-ttl=10s",
-            "wow.clickhouse.query.settings.max_memory_usage=1000000",
-        ).run { context ->
-            val options = ClickHouseAutoConfiguration.datasetOptions(context.getBean(ClickHouseProperties::class.java))
-            options.database.assert().isEqualTo("analytics")
-            options.metadataTtl.assert().isEqualTo(Duration.ofSeconds(10))
-            options.settings.assert().isEqualTo(mapOf("max_memory_usage" to "1000000"))
-        }
-        ClickHouseAutoConfiguration.datasetOptions(ClickHouseProperties()).metadataTtl.assert()
-            .isEqualTo(Duration.ofMinutes(1))
+        failure.key.assert().isEqualTo("wow.query.dataset")
+        failure.message.assert().contains("clickhouse", "other")
     }
 }

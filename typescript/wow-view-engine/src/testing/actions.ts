@@ -110,7 +110,12 @@ export interface ActionHarness {
    * `initial` under `input` — refused with the reason (`ActionRefusedError`)
    * where it does not take it, else the host's `run` itself.
    */
-  run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
+  run(
+    id: string,
+    key: RecordKey,
+    input?: ActionInput,
+    options?: { signal?: AbortSignal },
+  ): Promise<unknown>;
 }
 
 export function actionHarness(
@@ -188,9 +193,11 @@ export function actionHarness(
     },
     changesAt: key =>
       nextChange(list, key === undefined ? rows : [rowOf(key)], now),
-    run: (id, key, input) => {
+    run: (id, key, input, options = {}) => {
       const action = find(id);
-      return runOne(action, byKey.get(key), pressed(action, input), now);
+      return runOne(action, byKey.get(key), pressed(action, input), now, {
+        signal: options.signal ?? new AbortController().signal,
+      });
     },
   };
 }

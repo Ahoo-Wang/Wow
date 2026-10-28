@@ -29,13 +29,13 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.cosec.CoSecAuthorizers
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.ClickHouseProperties
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.SignedInCallerResolver
 import me.ahoo.wow.spring.boot.WowProperties
@@ -43,10 +43,13 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.context.properties.bind.Bindable
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.health.contributor.Health
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import java.time.Instant
@@ -61,9 +64,10 @@ import kotlin.time.toKotlinDuration
  *   answered 401, as behind the gateway. A node outside development without CoSec does not start.
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
  *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
- * - The catalog: the [WarehouseCatalog] of the ClickHouse server the host's client reaches
- *   (`wow.clickhouse.endpoint`), over `wow.analytics.catalog.databases` (`wow.clickhouse.database` when none), or
- *   [WarehouseCatalog.NONE] without one; the [TrustedWriters] of `wow.analytics.catalog.trusted-writers`; the
+ * - The ClickHouse client: one client of `wow.clickhouse.endpoint` and its credentials ([ClickHouseClients]) the
+ *   catalog, its datasets' warehouse, and the host's Sink and dataset backend share, closed with the context.
+ * - The catalog: the [WarehouseCatalog] of the ClickHouse server that client reaches, over
+ *   `wow.analytics.catalog.databases` (`wow.clickhouse.database` when none), or [WarehouseCatalog.NONE] without one; the [TrustedWriters] of `wow.analytics.catalog.trusted-writers`; the
  *   [KnownAggregates] of the sources' snapshots; the [DatasetSources] a dataset's definition is checked against,
  *   the sources' latest states; and the [CatalogWatcher] that syncs what changed every
  *   `wow.analytics.catalog.refresh-interval`, unless `wow.analytics.catalog.watch.enabled=false`.
@@ -76,26 +80,49 @@ import kotlin.time.toKotlinDuration
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AnalyticsCatalogProperties::class)
 class AnalyticsCatalogConfiguration {
+    /**
+     * Who sends what: steps aside when CoSec decides ([CoSecCommandAuthorizer], its policies alone, this one then having
+     * no objection); otherwise the catalog's roles decide ([AnalyticsCatalogAuthorizer]).
+     */
     @Bean
-    fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
-        AnalyticsCatalogAuthorizer(cosec.ifAvailable?.authorizer())
+    fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
+        if (cosec.ifAvailable == null) AnalyticsCatalogAuthorizer() else CommandAuthorizer.ALLOW_ALL
 
     @Bean
     fun analyticsCatalogQueryPolicy(): QueryPolicy = AnalyticsCatalogQueryPolicy()
 
-    /** The warehouse catalog: over `databases`, else the host's `wow.clickhouse.database`, its one reader. */
+    /**
+     * The service's one ClickHouse client, of `wow.clickhouse.*` as the Sink and the dataset backend read it: they use
+     * it rather than each opening its own, and never close it; the context closes it.
+     */
+    // region shared-client
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
+    fun analyticsCatalogClickHouseClient(environment: Environment): Client {
+        val settings = Binder.get(environment)
+            .bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
+            .orElse(emptyMap())
+            .orEmpty()
+        return ClickHouseClients.of(settings)
+    }
+    // endregion
+
+    /** The warehouse catalog: over `databases`, else `wow.clickhouse.database`, its one reader. */
     @Bean
-    @OptIn(InternalWowApi::class)
     fun warehouseCatalog(
         client: ObjectProvider<Client>,
         properties: AnalyticsCatalogProperties,
-        clickhouse: ObjectProvider<ClickHouseProperties>,
+        environment: Environment,
     ): WarehouseCatalog {
         val warehouse = client.ifAvailable ?: return WarehouseCatalog.NONE.also {
             logger.warn { "No ClickHouse client (wow.clickhouse.endpoint): the catalog has no warehouse table." }
         }
-        val databases = properties.databases.filter { it.isNotBlank() }
-            .ifEmpty { listOf((clickhouse.ifAvailable ?: ClickHouseProperties()).database) }
+        val databases = properties.databases.filter { it.isNotBlank() }.ifEmpty {
+            listOf(
+                clickHouseSettings(environment)[ClickHouseClients.DATABASE.key]?.takeIf { it.isNotBlank() }
+                    ?: ClickHouseClients.DATABASE.default,
+            )
+        }
         require(properties.engine == ClickHouseWarehouseCatalog.ENGINE) {
             "${AnalyticsCatalogProperties.PREFIX}.engine is ${ClickHouseWarehouseCatalog.ENGINE}, not ${properties.engine}: " +
                 "the one warehouse engine 10.0 implements."
@@ -206,6 +233,12 @@ class AnalyticsCatalogConfiguration {
         commands: ObjectProvider<CommandClient>,
         properties: AnalyticsCatalogProperties,
     ): CatalogWatcher = CatalogWatcher(catalog, { commands.getObject() }, properties.refreshInterval)
+
+    /** The settings under `wow.clickhouse`, keys relative to it, as the Sink and the dataset backend read them. */
+    private fun clickHouseSettings(environment: Environment): Map<String, String> =
+        Binder.get(environment).bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
+            .orElse(emptyMap())
+            .orEmpty()
 
     companion object {
         /**

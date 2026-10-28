@@ -49,6 +49,13 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+  DateDiffUnit,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -94,14 +101,14 @@ const DAILY_COLUMNS = [
     label: 'Day',
     role: 'group' as const,
     kind: 'datetime',
-    dateUnit: 'DAY' as const,
+    dateUnit: AggregationDateUnit.DAY as const,
     timeZone: 'UTC',
   },
   {
     alias: 'orders',
     label: 'Orders',
     role: 'metric' as const,
-    fn: 'COUNT' as const,
+    fn: AggregationMetricType.COUNT as const,
   },
 ];
 
@@ -444,12 +451,12 @@ describe('the follow-up menu over a span', () => {
             field: 'createdAt',
             label: 'Created',
             kind: 'datetime',
-            operator: 'BETWEEN',
+            operator: FilterOperator.BETWEEN,
             text: '',
             unresolved: false,
             value: {
               kind: 'periods',
-              unit: 'DAY',
+              unit: DateDiffUnit.DAY,
               from: new Date(day(0)).toISOString(),
               last: new Date(day(2)).toISOString(),
               timeZone: 'UTC',
@@ -533,8 +540,8 @@ describe('a span picked from the table with Shift', () => {
         {
           alias: 'day',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'DAY',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
         },
       ],
     } satisfies Partial<AnalysisViewConfig>),
@@ -593,13 +600,12 @@ describe('a span picked from the table with Shift', () => {
         expect.objectContaining({
           filter: {
             field: 'createdAt',
-            op: 'BETWEEN',
+            op: FilterOperator.BETWEEN,
             lowerBound: day(0),
             upperBound: day(3) - 1,
           },
         }),
-        undefined,
-        expect.anything(),
+        { signal: expect.any(AbortSignal) },
       ),
     );
   });

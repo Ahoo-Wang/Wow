@@ -42,6 +42,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SingleQuery

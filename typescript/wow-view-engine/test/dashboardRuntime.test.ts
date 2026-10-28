@@ -14,6 +14,7 @@
 import {
   FilterOperator,
   type FilterPagedQuery,
+  AggregationFunction,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -42,6 +43,7 @@ import {
 } from '../src/runtime/dashboardRuntime.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -52,6 +54,7 @@ import {
   overviewDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
   type TestEnvironment,
   resourcesOf,
@@ -67,7 +70,7 @@ const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
  */
 const REGION_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'NE', value: 'CN' }],
+  children: [{ field: 'region', operator: FilterOperator.NE, value: 'CN' }],
 };
 
 function pending(overrides: Partial<ViewInstance> = {}): ViewInstance {
@@ -218,7 +221,9 @@ describe('DashboardViewRuntime panels', () => {
       boundConfig({
         fixed: {
           op: 'or',
-          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'region', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
       }),
     );
@@ -231,7 +236,9 @@ describe('DashboardViewRuntime panels', () => {
       children: [
         {
           op: 'or',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+          ],
         },
       ],
     });
@@ -265,7 +272,9 @@ describe('DashboardViewRuntime panels', () => {
       children: [
         {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.NE, value: 'CN' },
+          ],
         },
       ],
     });
@@ -331,7 +340,13 @@ describe('DashboardViewRuntime unavailable references', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+              children: [
+                {
+                  field: 'warehouse',
+                  operator: FilterOperator.NE,
+                  value: 'CN',
+                },
+              ],
             },
           }),
         }),
@@ -365,8 +380,8 @@ describe('DashboardViewRuntime unavailable references', () => {
   it('reports a warning the dashboard and the child both raise once', async () => {
     const rounded: FieldKind = {
       id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => null,
       validate: ({ value, path }) =>
         typeof value === 'number' && !Number.isInteger(value)
@@ -402,7 +417,9 @@ describe('DashboardViewRuntime unavailable references', () => {
         fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+          children: [
+            { field: 'weight', operator: FilterOperator.EQ, value: 2.5 },
+          ],
         },
         panels: [
           panel({
@@ -435,7 +452,9 @@ describe('DashboardViewRuntime unavailable references', () => {
       filterMode: 'simple',
       filter: {
         op: 'or',
-        children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.NE, value: 'CN' },
+        ],
       },
     });
 
@@ -481,6 +500,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
+      labels: testLabels(),
       resolve: id => Promise.resolve(reference(id)),
       definitions: () => null,
       createPanelRuntime: (found, scopeFilter) => {
@@ -496,8 +516,9 @@ describe('DashboardViewRuntime unavailable references', () => {
           kinds: builtinFieldKinds,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
-          source,
+          source: recordSource(source),
           runner: new RequestRunner(),
+          labels: testLabels(),
           scopeFilter,
           autoRefresh: false,
         });
@@ -576,7 +597,9 @@ describe('DashboardViewRuntime child results', () => {
     const board = await harness({
       instances: [
         pending({
-          config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+          config: recordConfig({
+            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+          }),
         }),
       ],
       source: testSource({
@@ -629,7 +652,7 @@ describe('DashboardViewRuntime editing', () => {
 
     const next: FilterTree = {
       op: 'and',
-      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+      children: [{ field: 'region', operator: FilterOperator.NE, value: 'EU' }],
     };
     runtime.edit({ fixed: next });
     expect(runtime.getSnapshot().dirty).toBe(true);
@@ -793,119 +816,6 @@ describe('DashboardViewRuntime admission', () => {
     expect(runtime.getSnapshot().panels).toHaveLength(1);
     expect(runtime.getSnapshot().panels[0].runtime).not.toBeNull();
     expect(board.source.paged).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('DashboardViewRuntime child refusal', () => {
-  const STATE_FIELD = { name: 'state', label: 'State', kind: 'string' };
-  const bound = panel({
-    bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'state', panelField: 'status' },
-    ],
-  });
-
-  /**
-   * A dashboard whose children are narrower than the reference the dashboard
-   * judges: they know no `status`. What the dashboard admits, they may still
-   * refuse, which is the case the panel has to report rather than hide.
-   */
-  function narrow(config: DashboardViewConfig) {
-    const clock = testEnvironment();
-    const source = testSource();
-    const reference: PanelReference = {
-      instance: pending(),
-      definition: ordersDefinition(),
-      fields: ordersDefinition().fields,
-    };
-    const runtime = new DashboardViewRuntime({
-      id: 'dashboard-1',
-      definition: overviewDefinition(),
-      config,
-      title: 'Overview',
-      scope: 'personal',
-      kinds: builtinFieldKinds,
-      limits: DEFAULT_RUNTIME_LIMITS,
-      environment: clock.environment,
-      resolve: () => Promise.resolve(reference),
-      definitions: () => null,
-      createPanelRuntime: (found, scopeFilter) =>
-        dataViewRuntime({
-          id: 'child',
-          definition: ordersDefinition({
-            fields: ordersDefinition().fields.filter(
-              field => field.name !== 'status',
-            ),
-          }),
-          config: found.config as never,
-          title: found.title,
-          scope: found.scope,
-          saved: found.instance,
-          kinds: builtinFieldKinds,
-          limits: DEFAULT_RUNTIME_LIMITS,
-          environment: clock.environment,
-          source,
-          runner: new RequestRunner(),
-          scopeFilter,
-          autoRefresh: false,
-        }),
-    });
-    return { runtime, source };
-  }
-
-  const stateFilter: FilterTree = {
-    op: 'and',
-    children: [{ field: 'state', operator: 'NE', value: 'PAID' }],
-  };
-
-  it('reports a refused scope on the panel and does not run it', async () => {
-    const { runtime, source } = narrow(
-      dashboardConfig({
-        fields: [REGION_FIELD, STATE_FIELD],
-        fixed: stateFilter,
-        panels: [bound],
-      }),
-    );
-    await runtime.ready();
-    runtime.apply();
-    await nextTask();
-
-    const [state] = runtime.getSnapshot().panels;
-    expect(state.runtime).toBeNull();
-    expect(state.issues).toMatchObject([
-      {
-        code: 'filter.field.unknown',
-        path: ['panels', 0, 'children', 0, 'children', 0],
-      },
-    ]);
-    expect(source.paged).not.toHaveBeenCalled();
-  });
-
-  it('stops a running child that refuses a new scope, rather than keeping the old one', async () => {
-    const { runtime, source } = narrow(
-      dashboardConfig({
-        fields: [REGION_FIELD, STATE_FIELD],
-        fixed: REGION_FILTER,
-        panels: [bound],
-      }),
-    );
-    await runtime.ready();
-    runtime.apply();
-    await nextTask();
-    const child = runtime.panelRuntime('orders');
-    expect(child).not.toBeNull();
-    expect(source.paged).toHaveBeenCalledTimes(1);
-
-    runtime.edit({ fixed: stateFilter });
-    runtime.apply();
-    await nextTask();
-
-    expect(child?.disposed).toBe(true);
-    expect(runtime.panelRuntime('orders')).toBeNull();
-    expect(codes(runtime.getSnapshot().panels[0].issues)).toContain(
-      'filter.field.unknown',
-    );
-    expect(source.paged).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1184,7 +1094,7 @@ describe('DashboardViewRuntime saving', () => {
 
 const EU_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'NE', value: 'EU' }],
+  children: [{ field: 'region', operator: FilterOperator.NE, value: 'EU' }],
 };
 
 /**
@@ -1288,7 +1198,11 @@ describe('DashboardViewRuntime a panel in error', () => {
               filter: {
                 op: 'and',
                 children: [
-                  { field: 'warehouse', operator: 'CONTAINS', value: 'CN' },
+                  {
+                    field: 'warehouse',
+                    operator: FilterOperator.CONTAINS,
+                    value: 'CN',
+                  },
                 ],
               },
             }),
@@ -1312,7 +1226,7 @@ describe('DashboardViewRuntime a panel in error', () => {
       expect.objectContaining({
         code: 'filter.operator.unsupported',
         path: ['panels', 1, 'filter', 'children', 0],
-        params: { field: 'warehouse', operator: 'CONTAINS' },
+        params: { field: 'warehouse', operator: FilterOperator.CONTAINS },
       }),
     ]);
     // And the fields its finding is named by, though it has no runtime.

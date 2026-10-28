@@ -50,7 +50,7 @@ class KernelObservationTest {
             }
         }
 
-        override fun executing(command: Command<*>): Observation = stage("execute")
+        override fun executing(command: Command<*>, commandType: String): Observation = stage("execute")
 
         override fun deciding(command: Command<*>): Observation = stage("decide")
 

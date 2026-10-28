@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-store exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-store test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-store` exports — 12 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 2 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-store` exports — 11 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 2 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -25,7 +25,6 @@ Every name `@ahoo-wang/wow-view-store` exports — 12 — with its kind and the 
 | `WowViewStore` | class | The view engine's `ViewStore` over the **V10** view store service (`platform/view-store` in the Wow repository): saved views and preferences as two Wow V10 aggregates, reached through the clients generated from the service's Manifest (`@ahoo-wang/wow-client`), and the system views through the service's own route. | [wow-view-store reference](./#api-WowViewStore) |
 | `WowViewStoreErrorCodes` | const | The V10 view store's own problem codes (`ViewStoreRejections` of`platform/view-store`), beside the framework's (`FrameworkErrorCodes` of`@ahoo-wang/wow-client`): generated from the service's Manifest. | [wow-view-store reference](./#api-WowViewStore) |
 | `WowViewStoreOptions` | interface | How a V10 `WowViewStore` reaches the view store service. | — |
-| `datasetCatalogOf` | function | What a `DatasetCatalog` reads of a Wow **V10** service's datasets: the directory (`GET /wow/dataset`) and each dataset's query route as a`ViewSource` (`viewSourceOf`). | — |
-| `viewSourceOf` | function | The view engine's `ViewSource` over one query route of a Wow **V10** service: a generated `…SnapshotQueryClient`, a `QueryModelClient`, or a dataset's (`DatasetClient.dataset(…)`). | — |
+| `datasetCatalogOf` | function | What a `DatasetCatalog` reads of a Wow **V10** service's datasets: the directory (`GET /wow/dataset`) and each dataset's query client, which is a`ViewSource` as it is. | — |
 
 :::

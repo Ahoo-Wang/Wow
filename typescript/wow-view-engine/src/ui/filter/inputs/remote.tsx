@@ -33,6 +33,7 @@ import {
   useComboboxAnchor,
 } from '../../components/combobox.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 import { ComboboxContent } from '../../kit/popups.js';
 import { PillChips } from '../../kit/variants.js';
 import { useCandidates } from './candidates.js';
@@ -59,10 +60,13 @@ export function RemoteValue({
   multiple,
   options,
   source,
+  remote,
 }: ValueProps & {
   multiple: boolean;
   options?: FieldOption[];
   source?: OptionSource | null;
+  /** The remote the ids are named by (`EditorDescriptor.remote`). */
+  remote?: string;
 }) {
   if (!options && !source)
     return (
@@ -85,6 +89,7 @@ export function RemoteValue({
       multiple={multiple}
       options={options}
       source={source ?? null}
+      remote={remote}
     />
   );
 }
@@ -115,12 +120,15 @@ function CandidateValue({
   multiple,
   options,
   source,
+  remote,
 }: ValueProps & {
   multiple: boolean;
   options?: FieldOption[];
   source: OptionSource | null;
+  remote?: string;
 }) {
   const messages = useViewMessages();
+  const { labels } = useSurfaceDisplay();
   const anchor = useComboboxAnchor();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -134,10 +142,18 @@ function CandidateValue({
 
   const reference = isReferenceFilterValue(value);
   const listed: ReferenceItem[] = (options ?? state.items).map(toItem);
+  // An id the candidates do not hold reads as the engine's name for it,
+  // its id until that is known.
   const labelOf = (id: string | number): string =>
-    listed.find(item => item.id === id)?.label ?? String(id);
+    listed.find(item => item.id === id)?.label ??
+    (remote !== undefined && labels ? labels.text(remote, id) : String(id));
+  // A stored label that is only its id is no name: it is looked up too.
   const selected: ReferenceItem[] = reference
-    ? value.items
+    ? value.items.map(item =>
+        item.label === String(item.id)
+          ? { id: item.id, label: labelOf(item.id) }
+          : item,
+      )
     : idsOf(value).map(id => ({ id, label: labelOf(id) }));
 
   // The value keeps its shape: labels travel with a reference, ids alone

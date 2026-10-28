@@ -31,6 +31,12 @@ export interface PagedPaging {
   /** Every row the conditions match, when the source says. */
   total?: number;
   /**
+   * `false` when `total` is a lower bound: the source counts only up to its
+   * budget (Wow's default `BOUNDED`), so more may match. The pager then
+   * counts no pages from it and reads it as "at least".
+   */
+  exact?: boolean;
+  /**
    * The pages the pager can reach: all of them, or only those inside the
    * source's window (`pageWindow`). Absent when the source
    * reported no total, since then there is nothing to count them from.
@@ -103,17 +109,24 @@ export function lastPageInWindow(
 export function pagedPaging(facts: {
   index: number;
   size: number;
-  total?: number;
+  /** `null` when the source counts none. */
+  total?: number | null;
+  /** Whether `total` is the count itself rather than a lower bound. */
+  exact?: boolean;
   maxWindow?: number;
 }): PagedPaging {
-  const { index, size, total, maxWindow } = facts;
+  const { index, size, maxWindow } = facts;
+  const total = facts.total ?? undefined;
+  const exact = facts.exact ?? true;
   const last = lastPageInWindow(size, maxWindow);
-  if (total === undefined || !(size > 0))
+  // A lower bound counts no pages: the last one is past it, somewhere.
+  if (total === undefined || !exact || !(size > 0))
     return {
       mode: 'paged',
       index,
       size,
       ...(total === undefined ? {} : { total }),
+      ...(total !== undefined && !exact ? { exact: false } : {}),
       // Without a total nothing rules the next page out — except the window,
       // which is a bound on the request and not on the result.
       hasNext: last === undefined || index < last,

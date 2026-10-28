@@ -24,15 +24,19 @@ import {
   type ViewAudience,
   type ViewConfig,
   type ViewInstance,
-  type ViewInstanceSummary,
   type ViewPreferences,
 } from '../model/index.js';
 import {
-  emptyPreferences,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPermissions,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
+  emptyPreferences,
 } from './ViewStore.js';
+
+/** The views one page of `MemoryViewStore.list` answers by default. */
+const DEFAULT_PAGE_SIZE = 100;
 
 export interface MemoryViewStoreOptions {
   instances?: ViewInstance[];
@@ -41,11 +45,10 @@ export interface MemoryViewStoreOptions {
   /** Lets an example keep its data across reloads; not a second store. */
   snapshot?: MemorySnapshot;
   /**
-   * The most views `list` answers of one audience, oldest first, as a
-   * server with a query budget answers (`ViewStore.listLimit`). Left out,
-   * every view is listed. For a test of what a cut list does (R2-26).
+   * The views one page of `list` answers; 100 when left out. A test sets it
+   * low to read a list across pages, as a server's own page size makes it.
    */
-  listLimit?: number;
+  pageSize?: number;
 }
 
 /**
@@ -116,15 +119,15 @@ export class MemoryViewStore implements ViewStore {
   private readonly preferenceOutcomes = new Map<string, ViewPreferences>();
   private readonly snapshot?: MemorySnapshot;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  /** See `MemoryViewStoreOptions.listLimit`; absent unless one was given. */
-  readonly listLimit?: number;
+  /** See `MemoryViewStoreOptions.pageSize`. */
+  private readonly pageSize: number;
   private sequence = 0;
 
   constructor(options: MemoryViewStoreOptions = {}) {
     // Left undefined when the caller declared none, which the port reads as
     // "everything is allowed".
     if (options.permissions) this.permissions = options.permissions;
-    if (options.listLimit !== undefined) this.listLimit = options.listLimit;
+    this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     this.snapshot = options.snapshot;
 
     const restored = options.snapshot?.load();
@@ -138,25 +141,23 @@ export class MemoryViewStore implements ViewStore {
   /**
    * In the port's order: system, shared, personal, each oldest first. The
    * map keeps insertion order — the order views were created or seeded in,
-   * which a change of audience does not move — and the sort is stable.
+   * which a change of audience does not move — and the sort is stable. A
+   * page is `pageSize` of them; the cursor is where the next page starts.
    */
-  list(definitionId: string): Promise<ViewInstanceSummary[]> {
+  list(
+    definitionId: string,
+    options: ViewListOptions = {},
+  ): Promise<ViewListPage> {
     const summaries = [...this.instances.values()]
       .filter(instance => instance.definitionId === definitionId)
       .map(toSummary)
       .sort((a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope]);
-    const limit = this.listLimit;
-    if (limit === undefined) return Promise.resolve(summaries);
-    // The first `limit` of each audience, the rest left out as a server's
-    // budget would leave them.
-    const seen = new Map<string, number>();
-    return Promise.resolve(
-      summaries.filter(summary => {
-        const count = (seen.get(summary.scope) ?? 0) + 1;
-        seen.set(summary.scope, count);
-        return count <= limit;
-      }),
-    );
+    const start = options.cursor ? Number(options.cursor) : 0;
+    const end = start + this.pageSize;
+    return Promise.resolve({
+      items: summaries.slice(start, end),
+      nextCursor: end < summaries.length ? String(end) : null,
+    });
   }
 
   get(id: string): Promise<ViewInstance> {
@@ -168,7 +169,7 @@ export class MemoryViewStore implements ViewStore {
 
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
@@ -207,7 +208,7 @@ export class MemoryViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.update(
       id,
@@ -222,7 +223,7 @@ export class MemoryViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.update(
       id,
@@ -246,7 +247,7 @@ export class MemoryViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.update(id, revision, context, current => {
       if (isSystemScope(current.scope))
@@ -265,7 +266,7 @@ export class MemoryViewStore implements ViewStore {
     });
   }
 
-  delete(id: string, revision: string, context: WriteContext): Promise<void> {
+  delete(id: string, revision: string, context: WriteOptions): Promise<void> {
     if (this.outcomes.has(context.requestId)) return Promise.resolve();
     this.reload();
     const current = this.instances.get(id);
@@ -299,7 +300,7 @@ export class MemoryViewStore implements ViewStore {
   setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewPreferences> {
     // A replay answers with the outcome the first attempt produced, as every
     // other write does: a retry after a lost answer is the same logical
@@ -345,7 +346,7 @@ export class MemoryViewStore implements ViewStore {
   private update(
     id: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
     change: (current: ViewInstance) => ViewInstance | ViewStoreError | null,
     refused?: ViewStoreError,
   ): Promise<ViewInstance> {
@@ -416,7 +417,7 @@ export class MemoryViewStore implements ViewStore {
   }
 
   private commit(
-    context: WriteContext,
+    context: WriteOptions,
     instance: ViewInstance,
     undo: () => void,
   ): Promise<ViewInstance> {

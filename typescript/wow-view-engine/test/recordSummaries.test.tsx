@@ -58,6 +58,10 @@ import {
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { mine, settle, twoColumnTable } from './fixtures/ui.js';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -66,7 +70,7 @@ const MANY_PAGES = pagedPaging({ index: 1, size: 20, total: 42 });
 
 /** The fixture's two rows, from a source that says there are forty-two. */
 const MORE_THAN_A_PAGE: Partial<ViewSource> = {
-  paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+  paged: () => Promise.resolve({ total: 42, exact: true, list: [...ROWS] }),
 };
 
 /** The summary rows, by the scope each one carries. */
@@ -87,7 +91,9 @@ function summaryRow(footer: HTMLElement, scope: string): HTMLTableRowElement {
 describe('the summary row', () => {
   const withSummary: ViewInstance = {
     ...mine,
-    config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+    config: recordConfig({
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    }),
   };
 
   function setupSummary(source: ViewSource = testSource(MORE_THAN_A_PAGE)) {
@@ -131,8 +137,8 @@ describe('the summary row', () => {
       ...mine,
       config: recordConfig({
         summaries: [
-          { field: 'amount', fn: 'SUM' },
-          { field: 'amount', fn: 'AVG' },
+          { field: 'amount', fn: AggregationFunction.SUM },
+          { field: 'amount', fn: AggregationFunction.AVG },
         ],
       }),
     };
@@ -145,7 +151,13 @@ describe('the summary row', () => {
             ...definition,
             fields: definition.fields.map(field =>
               field.name === 'amount'
-                ? { ...field, summary: ['SUM' as const, 'AVG' as const] }
+                ? {
+                    ...field,
+                    summary: [
+                      AggregationFunction.SUM as const,
+                      AggregationFunction.AVG as const,
+                    ],
+                  }
                 : field,
             ),
           },
@@ -212,7 +224,7 @@ describe('the summary rows', () => {
           {
             field: 'amount',
             label: 'Amount',
-            fn: 'SUM',
+            fn: AggregationFunction.SUM,
             value: 900,
             numberFormat: { style: 'currency', currency: 'CNY' },
           },
@@ -256,7 +268,12 @@ describe('the summary rows', () => {
           summaries: {
             scope: 'total',
             cells: [
-              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+              {
+                field: 'amount',
+                label: 'Amount',
+                fn: AggregationMetricType.COUNT,
+                value: 2,
+              },
             ],
           },
         })}
@@ -302,7 +319,7 @@ describe('the summary rows', () => {
                 {
                   field: 'createdAt',
                   label: 'Created',
-                  fn: 'MIN',
+                  fn: AggregationFunction.MIN,
                   value: INSTANT,
                   cell: 'datetime',
                 },
@@ -320,11 +337,11 @@ describe('the summary rows', () => {
       const row = summaryRow(footer, scope);
       expect(row.textContent).toContain(inZone(INSTANT));
       expect(row.textContent).toContain(
-        defaultMessages['label.summary.fn.date.MIN'],
+        defaultMessages[`label.summary.fn.date.${AggregationFunction.MIN}`],
       );
       expect(row.textContent).not.toContain(String(INSTANT));
       expect(row.textContent).not.toContain(
-        defaultMessages['label.summary.fn.MIN'],
+        defaultMessages[`label.summary.fn.${AggregationFunction.MIN}`],
       );
     }
   });
@@ -349,8 +366,18 @@ describe('the summary rows', () => {
           summaries: {
             scope: 'total',
             cells: [
-              { field: 'warehouse', label: 'Warehouse', fn: 'SUM', value: 12 },
-              { field: 'warehouse', label: 'Warehouse', fn: 'COUNT', value: 7 },
+              {
+                field: 'warehouse',
+                label: 'Warehouse',
+                fn: AggregationFunction.SUM,
+                value: 12,
+              },
+              {
+                field: 'warehouse',
+                label: 'Warehouse',
+                fn: AggregationMetricType.COUNT,
+                value: 7,
+              },
             ],
           },
         })}
@@ -410,7 +437,14 @@ describe('the summary rows on a single page', () => {
     twoColumnTable({
       summaries: {
         scope: 'total',
-        cells: [{ field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 }],
+        cells: [
+          {
+            field: 'amount',
+            label: 'Amount',
+            fn: AggregationMetricType.COUNT,
+            value: 2,
+          },
+        ],
       },
       ...overrides,
     });
@@ -462,7 +496,12 @@ describe('the summary rows on a single page', () => {
           summaries: {
             scope: 'page',
             cells: [
-              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+              {
+                field: 'amount',
+                label: 'Amount',
+                fn: AggregationMetricType.COUNT,
+                value: 2,
+              },
             ],
           },
         })}
@@ -477,7 +516,9 @@ describe('the summary rows on a single page', () => {
   it('draws the one row in a dashboard panel as in the workbench', async () => {
     const summarised: ViewInstance = {
       ...pending,
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
     };
     const store = new MemoryViewStore({ instances: [summarised] });
     const engine = new ViewEngine({
@@ -533,7 +574,14 @@ describe('the summary rows on a single page', () => {
 describe('the summary band without a summarised column', () => {
   const offColumn: SummaryRow = {
     scope: 'total',
-    cells: [{ field: 'customer', label: 'Customer', fn: 'COUNT', value: 2 }],
+    cells: [
+      {
+        field: 'customer',
+        label: 'Customer',
+        fn: AggregationMetricType.COUNT,
+        value: 2,
+      },
+    ],
   };
 
   it('draws no footer when no drawn column carries a summary', () => {
@@ -553,7 +601,12 @@ describe('the summary band without a summarised column', () => {
             ...offColumn,
             cells: [
               ...offColumn.cells,
-              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+              {
+                field: 'amount',
+                label: 'Amount',
+                fn: AggregationMetricType.COUNT,
+                value: 2,
+              },
             ],
           },
           paging: MANY_PAGES,
@@ -579,7 +632,7 @@ describe('the summary band without a summarised column', () => {
   const hidden = (base: ViewInstance): ViewInstance => ({
     ...base,
     config: recordConfig({
-      summaries: [{ field: 'amount', fn: 'SUM' }],
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }] },
     }),
   });

@@ -17,14 +17,12 @@ import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
-import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -131,15 +129,15 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `the application's own resolver and authorizer win`() {
+    fun `the application's own resolver wins, and its authorizer is asked beside CoSec's`() {
         runner.withUserConfiguration(Application::class.java, CoSec::class.java)
             .withPropertyValues("wow.cosec.authorizer.enabled=true")
             .run { context ->
                 context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
-                context.getBean(CommandAuthorizer::class.java).assert().isSameAs(CommandAuthorizer.ALLOW_ALL)
-                // CoSec's decision is still handed out, for the application's authorizer to wrap.
-                context.getBean(CoSecAuthorizers::class.java).authorizer().assert()
-                    .isInstanceOf(CoSecCommandAuthorizer::class.java)
+                // Both are the node's authorizers: each must allow a command.
+                context.getBeansOfType(CommandAuthorizer::class.java).values.assert()
+                    .contains(CommandAuthorizer.ALLOW_ALL)
+                    .anyMatch { it is CoSecCommandAuthorizer }
             }
     }
 
@@ -147,11 +145,9 @@ class CoSecAutoConfigurationTest {
     fun `the CoSec authorizer is opt-in and needs CoSec's authorization`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
-            context.getBeansOfType(CoSecAuthorizers::class.java).assert().isEmpty()
         }
         runner.withPropertyValues("wow.cosec.authorizer.enabled=true").run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
-            context.getBeansOfType(CoSecAuthorizers::class.java).assert().isEmpty()
         }
         runner.withUserConfiguration(CoSec::class.java)
             .withPropertyValues("wow.cosec.authorizer.enabled=true")
@@ -198,7 +194,6 @@ class CoSecAutoConfigurationTest {
         val runner = ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
         runner.withUserConfiguration(CallCoSec::class.java).run { context ->
-            context.getBeansOfType(CallAuthorizer::class.java).assert().isEmpty()
             // The host's own authorizer stays opt-in.
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
         }

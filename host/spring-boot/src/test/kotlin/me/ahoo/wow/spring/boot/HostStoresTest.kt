@@ -48,6 +48,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -418,6 +421,18 @@ class HostStoresTest {
     }
 
     @Test
+    fun `every store should read the node's clock`() {
+        val clock = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC)
+        val stores = StoreInstances.open(
+            properties { stores["a"] = WowProperties.Store().apply { type = "memory" } },
+            providers,
+            BeanStoreResources(DefaultListableBeanFactory()),
+            clock = clock,
+        )
+        stores.getValue("a").config.clock.assert().isSameAs(clock)
+    }
+
+    @Test
     fun `a named bean backs its store`() {
         val beans = DefaultListableBeanFactory()
         beans.registerBeanDefinition("first", RootBeanDefinition(Unpooled::class.java))
@@ -432,8 +447,10 @@ class HostStoresTest {
             beans,
         )
         stores.getValue("a").location.assert().isSameAs(beans.getBean("second"))
-        stores.getValue("a").config.options.assert().containsEntry("data-source", "second")
-            .containsEntry("database", WowProperties.DEFAULT_MONGO_DATABASE)
+        // Only the options of its own type: a PostgreSQL store is given no MongoDB database.
+        stores.getValue(
+            "a"
+        ).config.options.assert().containsEntry("data-source", "second").doesNotContainKey("database")
         stores.getValue("a").toString().assert().isEqualTo("a (postgres)")
     }
 

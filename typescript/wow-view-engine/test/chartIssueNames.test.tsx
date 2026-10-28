@@ -22,6 +22,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -88,27 +90,34 @@ const ALIASES = ['g_wh', 'g_st', 'g_day', 'm_n', 'm_avg', 'm_last'];
 const byWarehouse = {
   alias: 'g_wh',
   field: 'warehouse',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 } as const;
-const byStatus = { alias: 'g_st', field: 'status', type: 'TERMS' } as const;
+const byStatus = {
+  alias: 'g_st',
+  field: 'status',
+  type: AggregationGroupType.TERMS,
+} as const;
 const byDay = {
   alias: 'g_day',
   field: 'createdAt',
-  type: 'DATE_HISTOGRAM',
-  unit: 'DAY',
+  type: AggregationGroupType.DATE_HISTOGRAM,
+  unit: AggregationDateUnit.DAY,
 } as const;
-const count: AnalysisMetric = { alias: 'm_n', type: 'COUNT' };
+const count: AnalysisMetric = {
+  alias: 'm_n',
+  type: AggregationMetricType.COUNT,
+};
 const average: AnalysisMetric = {
   alias: 'm_avg',
-  type: 'NUMERIC',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const latest: AnalysisMetric = {
   alias: 'm_last',
-  type: 'NUMERIC',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'createdAt' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
 };
 
 /** A drawn chart over these dimensions and metrics. */

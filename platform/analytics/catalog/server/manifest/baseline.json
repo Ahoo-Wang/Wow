@@ -12,7 +12,7 @@
       "description" : "A wide table over the catalog's sources: its definition, its versions and where each is published",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState",
-        "fingerprint" : "2df3de7c2a98136b9e574844130ed272b3b912e89d837842799932e978e40bc4"
+        "fingerprint" : "0a98fcccfd4b1214d0bf7a5689c74ccf2e4766f963de746068a9af059a5bb2de"
       },
       "snapshot" : {
         "enabled" : true
@@ -217,7 +217,7 @@
       "description" : "A data source of the warehouse: a Wow table or an analyst's table, its scope and its sensitivity",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.source.SourceState",
-        "fingerprint" : "c96e74dd91190b2c7b38c3d717c65f9aae6eebc2b21838635eeb6fddbfc02c99"
+        "fingerprint" : "f12bcabeb4bb61316220cb11b1eda045d88ef736fc2e998b547e38eba8160bcc"
       },
       "snapshot" : {
         "enabled" : true
@@ -1643,7 +1643,7 @@
         "type" : "null"
       }, {
         "type" : "string",
-        "enum" : [ "DISPLAY", "CONFIDENTIAL" ]
+        "enum" : [ "display", "confidential" ]
       } ]
     },
     "wow.snapshot.Rebuild" : {

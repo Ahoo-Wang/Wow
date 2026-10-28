@@ -22,17 +22,19 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
-import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.support.StaticListableBeanFactory
+import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import org.springframework.core.env.MapPropertySource
 import reactor.core.publisher.Mono
+import java.util.function.Supplier
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 @OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
@@ -47,23 +49,45 @@ class OpsConfigurationTest {
     /** A caller without the operator's role, whom only CoSec's policies may let act. */
     private val granted = Caller.of(subject = "grace")
 
+    private val record = CommandAction(
+        CommandType("ops.parked.RecordParked", RecordParked::class.java),
+        AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, "p-1"),
+        Scope.NONE,
+        Creation.NONE,
+    )
+
+    /** The node's decision on [action] by [caller]: every authorizer the ops service and the host register, all asked. */
     private fun authorize(
         policies: CoSecAuthorization?,
         authorizerEnabled: Boolean,
         caller: Caller = granted,
         defaultTenant: String? = null,
+        action: CommandAction = resume,
     ): Authorization {
-        val beans = StaticListableBeanFactory()
-        val wow = WowProperties().apply {
-            cosec.authorizer.enabled = authorizerEnabled
-            defaultTenant?.let { tenant.default = it }
+        val properties = mutableMapOf<String, Any>("wow.cosec.authorizer.enabled" to authorizerEnabled)
+        defaultTenant?.let { properties["wow.tenant.default"] = it }
+        return AnnotationConfigApplicationContext().use { context ->
+            context.environment.propertySources.addFirst(MapPropertySource("test", properties))
+            context.registerBean(Manifest::class.java, Supplier { Manifest() })
+            policies?.let { context.registerBean(CoSecAuthorization::class.java, Supplier { it }) }
+            context.register(CoSecAutoConfiguration::class.java, OpsConfiguration::class.java)
+            context.refresh()
+            val authorizers = context.getBeanProvider(CommandAuthorizer::class.java).orderedStream().toList()
+            runBlocking { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
         }
-        // What the host hands out when CoSec authorizes the requests itself.
-        if (policies != null && authorizerEnabled) {
-            beans.addBean("cosec", CoSecAutoConfiguration().wowCoSecAuthorizers(policies, Manifest(), wow))
-        }
-        val authorizer = OpsConfiguration().opsAuthorizer(beans.getBeanProvider(CoSecAuthorizers::class.java))
-        return runBlocking { authorizer.authorize(caller, resume) }
+    }
+
+    @Test
+    fun `a record should be refused whoever decides who the operators are, CoSec allowing all`() {
+        authorize({ _, _ -> Mono.just(AuthorizeResult.ALLOW) }, authorizerEnabled = true, action = record).assert()
+            .isInstanceOf(Authorization.Denied::class.java)
+        val operator = Caller.of(
+            subject = "alice",
+            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.OPERATOR))
+        )
+        authorize(null, authorizerEnabled = false, caller = operator, action = record).assert()
+            .isInstanceOf(Authorization.Denied::class.java)
+        authorize(null, authorizerEnabled = false, caller = operator).assert().isEqualTo(Authorization.Allowed)
     }
 
     @Test

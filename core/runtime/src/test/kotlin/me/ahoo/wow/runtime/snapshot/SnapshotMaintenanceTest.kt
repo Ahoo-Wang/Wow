@@ -35,6 +35,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -115,8 +116,13 @@ class SnapshotMaintenanceTest {
             // Finding R5.B-9: the rebuild control plane is an optional capability of a snapshot store.
             val fallbacks = ArrayList<String>()
             val observer = object : Observer {
-                override fun storeFellBack(context: String, capability: String, reason: String) {
-                    fallbacks += "$context $capability $reason"
+                override fun observed(event: ObservedEvent) {
+                    when (event) {
+                        is ObservedEvent.StoreFellBack -> {
+                            fallbacks += "${event.context} ${event.capability.value} ${event.reason.value}"
+                        }
+                        else -> Unit
+                    }
                 }
             }
             val memory = InMemorySnapshotStore()

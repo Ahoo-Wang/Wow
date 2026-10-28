@@ -156,12 +156,7 @@ object SurfaceRules {
      * third party cannot use without opting in to Wow's internals. A fix removes its entry: an entry no dump still
      * names this way is stale and fails the rule.
      */
-    val ABI_CLOSURE_ALLOWED: Map<String, String> = mapOf(
-        "me/ahoo/wow/spring/boot/WowProperties" to "D350 P6 (E10)",
-        "me/ahoo/wow/spring/boot/QueryProperties" to "D350 P6 (E10)",
-        "me/ahoo/wow/spring/boot/ClickHouseProperties" to "D350 P6 (E10)",
-        "me/ahoo/wow/spring/boot/KafkaProperties" to "D350 P6 (E10)",
-    )
+    val ABI_CLOSURE_ALLOWED: Map<String, String> = emptyMap()
 
     private val ABI_REFERENCE = Regex("""me/ahoo/wow/[\w/$]+""")
 
@@ -174,14 +169,17 @@ object SurfaceRules {
 
     /**
      * The public signatures of the ABI dumps of [MODULES] that name a `me/ahoo/wow` type no dump declares, outside
-     * [ABI_CLOSURE_ALLOWED], as `dump: class: type`, and each allowed type no dump names that way any more (a stale
-     * entry): the public API is closed when every type it names is public too.
+     * [allowed] ([ABI_CLOSURE_ALLOWED]), as `dump: class: type`, and each allowed type no dump names that way any more
+     * (a stale entry): the public API is closed when every type it names is public too.
      *
      * Two kinds of line are read apart. A synthetic default-arguments bridge is skipped: it mirrors a declaration the
      * dump lists too, or an internal constructor no other module can call, so it promises nothing of its own. A
      * protected class counts as declared, as a spec's protected companion is: a subclass reaches it.
      */
-    fun abiClosureViolations(repositoryRoot: File): List<String> {
+    fun abiClosureViolations(
+        repositoryRoot: File,
+        allowed: Map<String, String> = ABI_CLOSURE_ALLOWED,
+    ): List<String> {
         val dumps = MODULES.map { "${it.dir}/api/${it.name}.api" to File(repositoryRoot, "${it.dir}/api/${it.name}.api") }
             .filter { (_, dump) -> dump.isFile }
             .map { (path, dump) -> path to dump.readLines() }
@@ -196,10 +194,10 @@ object SurfaceRules {
                 if (ABI_SYNTHETIC.containsMatchIn(line)) return@flatMap emptyList()
                 ABI_REFERENCE.findAll(line).map { it.value }.filter { it !in declared }.map { owner to it }.toList()
             }.distinct().onEach { (_, type) -> leaked += type }
-                .filter { (_, type) -> type !in ABI_CLOSURE_ALLOWED }
+                .filter { (_, type) -> type !in allowed }
                 .map { (owner, type) -> "$path: $owner: $type" }
         }
-        return violations + (ABI_CLOSURE_ALLOWED.keys - leaked).map { "stale entry: $it" }
+        return violations + (allowed.keys - leaked).map { "stale entry: $it" }
     }
 
     private val ANY_OPT_IN = Regex("""\b(?:OptIn|optIn)\b""")
@@ -221,5 +219,68 @@ object SurfaceRules {
                     if (ANY_OPT_IN.containsMatchIn(line)) "$path:${index + 1}: ${line.trim()}" else null
                 }
             }.toList()
+    }
+
+    /**
+     * The classes of `:spi`'s ABI dump that may keep a public constructor, each with why. Any other final class of the
+     * SPI but an exception is a value a provider receives or returns: its constructor is internal to Wow and it is
+     * built with `of`, so a field can be added without breaking a backend (D216).
+     */
+    val SPI_PUBLIC_CONSTRUCTORS: Map<String, String> = mapOf(
+        "me/ahoo/wow/spi/log/LogPosition" to "a position is its partition and sequence, a closed value",
+        "me/ahoo/wow/spi/schema/EnsuredOnce" to "a helper a store creates for its structures, not a value",
+    )
+
+    private val SPI_CLASS = Regex("""^public final class ([\w/$]+)(?: : ([^{]*))?\s*\{""")
+    private val SPI_CONSTRUCTOR = Regex("""^\s+public fun <init> """)
+
+    /**
+     * The final classes of `:spi`'s ABI dump with a public constructor, but the exceptions and
+     * [SPI_PUBLIC_CONSTRUCTORS], and each allowed class that has none any more (a stale entry).
+     */
+    fun spiPublicConstructors(repositoryRoot: File): List<String> {
+        val dump = File(repositoryRoot, "${SPI.dir}/api/${SPI.name}.api").takeIf { it.isFile } ?: return emptyList()
+        var owner: String? = null
+        val constructed = mutableSetOf<String>()
+        dump.readLines().forEach { line ->
+            val match = SPI_CLASS.find(line)
+            when {
+                match != null -> {
+                    val exception = match.groupValues[1].endsWith("Exception") || "Exception" in match.groupValues[2]
+                    owner = match.groupValues[1].takeUnless { exception }
+                }
+                line.startsWith("public ") -> owner = null
+                SPI_CONSTRUCTOR.containsMatchIn(line) -> owner?.let(constructed::add)
+            }
+        }
+        return (constructed - SPI_PUBLIC_CONSTRUCTORS.keys).sorted() +
+            (SPI_PUBLIC_CONSTRUCTORS.keys - constructed).map { "stale entry: $it" }
+    }
+
+    private val SPI_DECLARATION =
+        Regex("""^(?:public )?(?:(?:fun|sealed|abstract) )*(interface|abstract class|sealed class) (\w+)""")
+
+    /**
+     * The public interfaces and abstract classes of `:spi`'s sources that carry neither `@WowSpi` (a port or a value
+     * of a port, which a backend opts in to) nor `@InternalWowApi`, as `file:line: declaration`: every extension point
+     * of the SPI says what it is.
+     */
+    fun spiUnmarkedTypes(repositoryRoot: File): List<String> {
+        val root = File(repositoryRoot, "${SPI.dir}/src/main/kotlin")
+        return root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }.flatMap { file ->
+            val lines = file.readLines()
+            lines.mapIndexedNotNull { index, line ->
+                if (!SPI_DECLARATION.containsMatchIn(line)) return@mapIndexedNotNull null
+                val annotations = lines.subList(0, index).asReversed().takeWhile { it.startsWith("@") }
+                val marked = annotations.any { it.startsWith("@WowSpi") || it.startsWith("@InternalWowApi") }
+                if (marked) {
+                    null
+                } else {
+                    "${file.relativeTo(
+                        repositoryRoot
+                    ).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+                }
+            }
+        }.toList()
     }
 }

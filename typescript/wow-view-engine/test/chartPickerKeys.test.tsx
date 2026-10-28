@@ -18,6 +18,12 @@ import { fitCharts } from '../src/analysis/index.js';
 import type { AnalysisGroup, AnalysisMetric } from '../src/index.js';
 import { ChartPicker } from '../src/ui/analysis/ChartPicker.js';
 import { ViewSurface } from '../src/ui/index.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(() => {
   cleanup();
@@ -25,15 +31,15 @@ afterEach(() => {
 });
 
 const WAREHOUSE: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'warehouse',
 };
 const TOTAL: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const fits = fitCharts({ groups: [WAREHOUSE], metrics: [TOTAL] });
 

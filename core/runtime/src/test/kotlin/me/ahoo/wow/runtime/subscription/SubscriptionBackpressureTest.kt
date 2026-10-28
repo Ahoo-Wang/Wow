@@ -25,6 +25,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -253,22 +254,24 @@ class SubscriptionBackpressureTest {
         val events = CopyOnWriteArrayList<String>()
         val codes = CopyOnWriteArrayList<String>()
 
-        override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) {
-            events += "paused $subscription@$partition"
-        }
-
-        override fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) {
-            events += "${if (throttled) "throttled" else "unthrottled"} $subscription@$partition"
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.PartitionPaused -> events += "paused ${event.subscription}@${event.partition}"
+                is ObservedEvent.PartitionThrottled -> {
+                    val kind = if (event.throttled) "throttled" else "unthrottled"
+                    events += "$kind ${event.subscription}@${event.partition}"
+                }
+                is ObservedEvent.Backpressured -> {
+                    codes += event.code
+                    onBackpressure(codes.size)
+                }
+                else -> Unit
+            }
         }
 
         /** Told how many backpressures were reported so far, after each one. */
         @Volatile
         var onBackpressure: (Int) -> Unit = {}
-
-        override fun backpressured(group: String, subscription: String, partition: Int, code: String) {
-            codes += code
-            onBackpressure(codes.size)
-        }
     }
 
     private companion object {

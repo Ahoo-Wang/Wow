@@ -45,7 +45,9 @@ import { andTree as tree, filterFields as fields } from './fixtures/filter.js';
 describe('isSimpleTree', () => {
   it('admits one AND group of leaves and nothing else', () => {
     expect(
-      isSimpleTree(tree({ field: 'id', operator: 'EQ', value: 'A' })),
+      isSimpleTree(
+        tree({ field: 'id', operator: FilterOperator.EQ, value: 'A' }),
+      ),
     ).toBe(true);
     expect(isSimpleTree({ op: 'or', children: [] })).toBe(false);
     expect(isSimpleTree(tree(tree()))).toBe(false);
@@ -58,7 +60,11 @@ describe('isSimpleTree', () => {
    * editor's.
    */
   it('admits a negated condition, which is a nor group of one leaf', () => {
-    const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
+    const leaf: FilterLeaf = {
+      field: 'id',
+      operator: FilterOperator.EQ,
+      value: 'A',
+    };
     const negated: FilterTree = { op: 'nor', children: [leaf] };
 
     expect(isNegation(negated)).toBe(true);
@@ -73,8 +79,16 @@ describe('isSimpleTree', () => {
   });
 
   it('negates a condition in place and un-negates it by the same path', () => {
-    const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
-    const other: FilterLeaf = { field: 'name', operator: 'EQ', value: 'B' };
+    const leaf: FilterLeaf = {
+      field: 'id',
+      operator: FilterOperator.EQ,
+      value: 'A',
+    };
+    const other: FilterLeaf = {
+      field: 'name',
+      operator: FilterOperator.EQ,
+      value: 'B',
+    };
 
     const wrapped = negateAt(tree(leaf, other), [0]);
     expect(wrapped.children).toEqual([{ op: 'nor', children: [leaf] }, other]);
@@ -94,8 +108,16 @@ describe('isSimpleTree', () => {
  * the condition sits, and never read `children[0]` themselves.
  */
 describe('reading a condition', () => {
-  const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
-  const other: FilterLeaf = { field: 'amount', operator: 'GT', value: 1 };
+  const leaf: FilterLeaf = {
+    field: 'id',
+    operator: FilterOperator.EQ,
+    value: 'A',
+  };
+  const other: FilterLeaf = {
+    field: 'amount',
+    operator: FilterOperator.GT,
+    value: 1,
+  };
   const negated: FilterTree = { op: 'nor', children: [leaf] };
 
   it('answers the condition a node asks, wrapper or no wrapper', () => {
@@ -241,8 +263,8 @@ describe('tree editing', () => {
     const any: FilterTree = {
       op: 'or',
       children: [
-        { field: 'id', operator: 'EQ', value: 'a' },
-        { field: 'amount', operator: 'GT', value: 1 },
+        { field: 'id', operator: FilterOperator.EQ, value: 'a' },
+        { field: 'amount', operator: FilterOperator.GT, value: 1 },
       ],
     };
     expect(mergeFilters(any)).toBe(any);
@@ -257,7 +279,9 @@ describe('tree editing', () => {
     const broken = { op: 'and', children: [null] } as unknown as FilterTree;
     const scope: FilterTree = {
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     };
 
     expect(isEmptyFilter(broken)).toBe(false);

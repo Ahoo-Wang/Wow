@@ -20,6 +20,10 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  DateDiffUnit,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -50,8 +54,10 @@ async function open(analysis: Partial<AnalysisCapability> = {}) {
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }],
-    metrics: [{ type: 'COUNT', alias: 'orders' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+    ],
+    metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
     sort: [],
     limit: 100,
     layout: 'table',
@@ -130,14 +136,14 @@ describe('a time between two moments in the tray', () => {
     fireEvent.click((await addItem())!);
     await waitFor(() =>
       expect(draft().metrics[1]).toEqual({
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'duration_1',
-        function: 'AVG',
+        function: AggregationFunction.AVG,
         expression: {
-          type: 'DATE_DIFF',
+          type: AggregationExpressionType.DATE_DIFF,
           from: 'paidAt',
           to: 'shippedAt',
-          unit: 'HOUR',
+          unit: DateDiffUnit.HOUR,
         },
       }),
     );
@@ -153,7 +159,7 @@ describe('a time between two moments in the tray', () => {
     await user.click(await screen.findByRole('option', { name: 'Days' }));
     await waitFor(() =>
       expect(draft().metrics[1]).toMatchObject({
-        expression: { unit: 'DAY' },
+        expression: { unit: DateDiffUnit.DAY },
       }),
     );
 
@@ -176,14 +182,14 @@ describe('a time between two moments in the tray', () => {
     await user.click(await screen.findByRole('option', { name: 'Percentile' }));
     await waitFor(() =>
       expect(draft().metrics[1]).toEqual({
-        type: 'PERCENTILE',
+        type: AggregationMetricType.PERCENTILE,
         alias: 'duration_1',
         percentile: 95,
         expression: {
-          type: 'DATE_DIFF',
+          type: AggregationExpressionType.DATE_DIFF,
           from: 'shippedAt',
           to: 'paidAt',
-          unit: 'DAY',
+          unit: DateDiffUnit.DAY,
         },
       }),
     );
@@ -191,14 +197,14 @@ describe('a time between two moments in the tray', () => {
     await user.click(await screen.findByRole('option', { name: 'Max' }));
     await waitFor(() =>
       expect(draft().metrics[1]).toEqual({
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'duration_1',
-        function: 'MAX',
+        function: AggregationFunction.MAX,
         expression: {
-          type: 'DATE_DIFF',
+          type: AggregationExpressionType.DATE_DIFF,
           from: 'shippedAt',
           to: 'paidAt',
-          unit: 'DAY',
+          unit: DateDiffUnit.DAY,
         },
       }),
     );
@@ -212,13 +218,13 @@ describe('a time between two moments in the tray', () => {
     );
     await waitFor(() =>
       expect(draft().groups[1]).toEqual({
-        type: 'HISTOGRAM',
+        type: AggregationGroupType.HISTOGRAM,
         alias: 'band_1',
         expression: {
-          type: 'DATE_DIFF',
+          type: AggregationExpressionType.DATE_DIFF,
           from: 'shippedAt',
           to: 'paidAt',
-          unit: 'DAY',
+          unit: DateDiffUnit.DAY,
         },
         interval: 1,
       }),

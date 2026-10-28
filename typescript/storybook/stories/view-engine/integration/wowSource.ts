@@ -14,14 +14,14 @@
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewSource } from '@ahoo-wang/wow-view-engine';
-import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 
 // Step 2a: where the rows come from — a Wow service's query route, through
 // wow-client. The engine sends queries (paged, cursor, aggregation) and asks
 // what the route admits on the store it runs on, so it offers only what the
-// service will answer; `viewSourceOf` hands it the snapshot query client.
+// service will answer. The snapshot query client is the source as it is.
 export function wowOrderSource(fetcher: Fetcher): ViewSource {
-  return viewSourceOf(
-    new SnapshotQueryClient({ context: 'example', name: 'order' }, { fetcher }),
+  return new SnapshotQueryClient(
+    { context: 'example', name: 'order' },
+    { fetcher },
   );
 }

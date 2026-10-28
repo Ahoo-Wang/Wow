@@ -36,7 +36,7 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ah
 
 ## 2. 注册资源，接上数据
 
-引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-view-store 的 `viewSourceOf` 把 wow-client 的快照查询客户端交给它就是数据源；数据源还带着 `describe`，引擎在第一次查询前读服务端当下的能力描述，只提供这个部署接得住的算子、排序、分组与指标——同一份定义部署到 MongoDB 与 Elasticsearch，各得各的能力。
+引擎只发 Wow 的查询（分页、游标、聚合），读的就是 wow-client 的形状，所以 wow-client 的快照查询客户端原样就是数据源，不需要适配；数据源还带着 `describe`，引擎在第一次查询前读服务端当下的能力描述，只提供这个部署接得住的算子、排序、分组与指标——同一份定义部署到 MongoDB 与 Elasticsearch，各得各的能力。
 
 <Source code={readable(wowSource)} language="ts" />
 

@@ -134,7 +134,7 @@ class HostEventStoresTest {
             // The search index holds nothing the Sink did not write: the log's commit is not there.
             val found = host.post(
                 "/bank/account/events/query",
-                """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+                """{"kind":"list","filter":{"op":"id","value":"$id"}}"""
             )
             found.status.assert().isEqualTo(200)
             found.body!!.size().assert().isZero()

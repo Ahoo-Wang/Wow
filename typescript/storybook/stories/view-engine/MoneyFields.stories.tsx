@@ -24,6 +24,10 @@ import {
   type FieldDescriptor,
   type QueryModelDescriptor,
   type QuerySemanticType,
+  QuerySemanticTypes,
+  QueryValueTypes,
+  QueryModels,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import {
@@ -70,8 +74,18 @@ const crossBorderOrders: DataViewDefinition = {
       ],
     },
     { name: 'currency', label: '币种', kind: 'string' },
-    { name: 'amount', label: '金额', kind: 'number', summary: ['SUM'] },
-    { name: 'shipping', label: '运费', kind: 'number', summary: ['SUM'] },
+    {
+      name: 'amount',
+      label: '金额',
+      kind: 'number',
+      summary: [AggregationFunction.SUM],
+    },
+    {
+      name: 'shipping',
+      label: '运费',
+      kind: 'number',
+      summary: [AggregationFunction.SUM],
+    },
     { name: 'weight', label: '重量（kg）', kind: 'number' },
   ],
   record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
@@ -117,16 +131,20 @@ const ROWS: RecordData[] = [
 }));
 
 const SEMANTICS: Record<string, QuerySemanticType> = {
-  amount: { type: 'MONEY', scale: 2, currencyField: 'currency' },
-  shipping: { type: 'MONEY', scale: 0, currency: 'JPY' },
-  weight: { type: 'DECIMAL', scale: 3 },
+  amount: {
+    type: QuerySemanticTypes.MONEY,
+    scale: 2,
+    currencyField: 'currency',
+  },
+  shipping: { type: QuerySemanticTypes.MONEY, scale: 0, currency: 'JPY' },
+  weight: { type: QuerySemanticTypes.DECIMAL, scale: 3 },
 };
 
 function described(path: string): FieldDescriptor {
   const semantic = SEMANTICS[path];
   return {
     path,
-    types: [semantic ? 'NUMBER' : 'STRING'] as never,
+    types: [semantic ? 'number' : QueryValueTypes.STRING] as never,
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,
@@ -150,7 +168,7 @@ function described(path: string): FieldDescriptor {
 
 /** What the orders service answers at `GET …/snapshot/schema`. */
 const descriptor: QueryModelDescriptor = {
-  model: 'SNAPSHOT',
+  model: QueryModels.SNAPSHOT,
   version: 'sha256:cross-border-orders-1',
   timeZone: 'Asia/Shanghai',
   record: {
@@ -211,8 +229,8 @@ const orders: ViewInstance = {
   revision: '1',
   config: recordConfig({
     summaries: [
-      { field: 'amount', fn: 'SUM' },
-      { field: 'shipping', fn: 'SUM' },
+      { field: 'amount', fn: AggregationFunction.SUM },
+      { field: 'shipping', fn: AggregationFunction.SUM },
     ],
     table: {
       columns: [
@@ -234,19 +252,24 @@ const byMarket: ViewInstance = {
   scope: 'personal',
   revision: '1',
   config: analysisConfig({
-    groups: [{ alias: 'market', field: 'market', type: 'TERMS' }],
+    groups: [
+      { alias: 'market', field: 'market', type: AggregationGroupType.TERMS },
+    ],
     metrics: [
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
       {
         alias: 'shipping',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'shipping' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: {
+          type: AggregationExpressionType.FIELD,
+          field: 'shipping',
+        },
       },
     ],
     layout: 'table',

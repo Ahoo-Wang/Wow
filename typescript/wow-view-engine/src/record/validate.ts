@@ -15,6 +15,7 @@ import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
+  readsAsNames,
   summaryFunctionsOf,
   DeletionStates,
   FilterOperators,
@@ -281,9 +282,17 @@ function validateSort(
       issues.push(issue('record.field.unknown', path, { field: sort.field }));
       return;
     }
+    // A reference read as names is shown by name and sorted by its id: the
+    // refusal names the fix, a name denormalized into the read model.
     if (!field.sortable)
       issues.push(
-        issue('record.sort.not-sortable', path, { field: field.name }),
+        issue(
+          readsAsNames(field)
+            ? 'record.sort.reference-label'
+            : 'record.sort.not-sortable',
+          path,
+          { field: field.name },
+        ),
       );
   });
   return issues;

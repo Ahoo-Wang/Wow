@@ -18,7 +18,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
@@ -27,16 +26,15 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.cosec.CoSecAuthorizers
-import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.query.dataset.QueryDatasets
-import me.ahoo.wow.spring.boot.ClickHouseProperties
-import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
-import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.health.contributor.Status
+import org.springframework.core.env.MapPropertySource
+import org.springframework.core.env.StandardEnvironment
 import java.time.Duration
 
 @OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
@@ -50,14 +48,34 @@ class AnalyticsCatalogConfigurationTest {
         every { it.getObject() } answers { checkNotNull(value) }
     }
 
+    private fun environment(vararg properties: Pair<String, Any>) = StandardEnvironment().apply {
+        propertySources.addFirst(MapPropertySource("test", mapOf(*properties)))
+    }
+
+    @Test
+    fun `the service's ClickHouse client should be one of the endpoint and credentials of wow clickhouse`() {
+        val environment = environment(
+            "wow.clickhouse.endpoint" to "http://127.0.0.1:1",
+            "wow.clickhouse.username" to "catalog",
+        )
+        configuration.analyticsCatalogClickHouseClient(environment).use { client ->
+            client.assert().isNotNull()
+        }
+        assertThrows<IllegalArgumentException> { configuration.analyticsCatalogClickHouseClient(environment()) }
+            .message.assert().contains("wow.clickhouse.endpoint")
+    }
+
     @Test
     fun `the catalog should be ClickHouse's over the configured databases, or none without a client`() {
-        val clickhouse = provider(ClickHouseProperties().apply { database = "wow" })
+        val clickhouse = environment("wow.clickhouse.database" to "wow")
         configuration.warehouseCatalog(provider<Client>(null), AnalyticsCatalogProperties(), clickhouse)
             .assert().isSameAs(WarehouseCatalog.NONE)
         val client = mockk<Client>()
         val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), clickhouse)
         defaulted.databases.assert().containsExactly("wow")
+        // Without wow.clickhouse.database, ClickHouse's own default database.
+        configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), environment())
+            .databases.assert().containsExactly("default")
         defaulted.engine.assert().isEqualTo("clickhouse")
         val listed = configuration.warehouseCatalog(
             provider(client),
@@ -106,15 +124,12 @@ class AnalyticsCatalogConfigurationTest {
     }
 
     @Test
-    fun `CoSec's policies should decide only when the authorizer switch is on`(): Unit = runBlocking {
-        val policies = mockk<Authorization>()
-        val enabled = WowProperties().apply { cosec.authorizer.enabled = true }
-        // What the host hands out when CoSec authorizes the requests itself.
-        val cosec = CoSecAutoConfiguration().wowCoSecAuthorizers(policies, Manifest(), enabled)
-        val off = configuration.analyticsCatalogAuthorizer(provider<CoSecAuthorizers>(null))
-        val on = configuration.analyticsCatalogAuthorizer(provider(cosec))
-        off.assert().isNotSameAs(on)
-        off.assert().isInstanceOf(AnalyticsCatalogAuthorizer::class.java)
+    fun `the catalog's roles should decide only where CoSec does not authorize the commands`(): Unit = runBlocking {
+        configuration.analyticsCatalogAuthorizer(provider<CoSecCommandAuthorizer>(null)).assert()
+            .isInstanceOf(AnalyticsCatalogAuthorizer::class.java)
+        // With CoSec authorizing them, its policies decide alone: the roles have no objection.
+        configuration.analyticsCatalogAuthorizer(provider(mockk<CoSecCommandAuthorizer>())).assert()
+            .isSameAs(CommandAuthorizer.ALLOW_ALL)
         configuration.trustedWriters(
             AnalyticsCatalogProperties(trustedWriters = mutableMapOf("w" to mutableListOf("c")))
         )

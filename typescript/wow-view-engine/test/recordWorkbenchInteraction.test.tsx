@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { conditionsDrifted } from '../src/runtime/savedConditions.js';
 import type {
@@ -46,6 +46,7 @@ import {
 } from './fixtures.js';
 import { addConditions, editorToggle } from './fixtures/workbench.js';
 import { dataColumnHeaders, mine, setup } from './fixtures/ui.js';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -129,7 +130,9 @@ describe('DataWorkbench interaction', () => {
     // the result, so paging forward needs somewhere to go.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 50, list: [...ROWS] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 50, exact: true, list: [...ROWS] }),
+        ),
       }),
     );
 
@@ -138,8 +141,8 @@ describe('DataWorkbench interaction', () => {
       const calls = vi.mocked(source.paged).mock.calls;
       // The user's sort, then the row key the engine breaks ties on.
       expect(calls[calls.length - 1][0].sort).toEqual([
-        { field: 'amount', direction: 'ASC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.ASC },
+        { field: 'id', direction: SortDirection.ASC },
       ]);
     });
 
@@ -236,7 +239,7 @@ describe('DataWorkbench interaction', () => {
       });
       expect(calls[asked][0].sort?.[0]).toEqual({
         field: 'amount',
-        direction: 'ASC',
+        direction: SortDirection.ASC,
       });
     });
     await waitFor(() =>
@@ -284,7 +287,7 @@ describe('DataWorkbench interaction', () => {
    */
   async function openEmpty() {
     const source = testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+      paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
     });
     const harness = setup(source);
     render(
@@ -380,7 +383,9 @@ describe('DataWorkbench interaction', () => {
     // and there is somewhere for Next to go exactly once.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 40, list: [...ROWS] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 40, exact: true, list: [...ROWS] }),
+        ),
       }),
     );
 
@@ -437,7 +442,7 @@ describe('DataWorkbench interaction', () => {
   });
 
   it('keeps the filter editable while a query is still running', async () => {
-    const pending = deferred<PagedList<RecordData>>();
+    const pending = deferred<PagedResult<RecordData>>();
     const { engine } = setup(testSource({ paged: () => pending.promise }));
     render(
       <DataWorkbench
@@ -458,7 +463,7 @@ describe('DataWorkbench interaction', () => {
     fireEvent.change(value, { target: { value: 'CN' } });
     expect((value as HTMLInputElement).value).toBe('CN');
 
-    pending.resolve({ total: 2, list: [...ROWS] });
+    pending.resolve({ total: 2, exact: true, list: [...ROWS] });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
   });
 
@@ -505,7 +510,9 @@ describe('the record workbench layout', () => {
     config: recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     }),
   };
@@ -606,7 +613,9 @@ describe('the record workbench layout', () => {
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
       // Nothing left to narrow by: the query asks for everything.
-      expect(calls[calls.length - 1][0].filter).toEqual({ op: 'MATCH_ALL' });
+      expect(calls[calls.length - 1][0].filter).toEqual({
+        op: FilterOperator.MATCH_ALL,
+      });
     });
     await waitFor(() =>
       expect(
@@ -621,7 +630,7 @@ describe('the record workbench layout', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('gateway down'))
-          : Promise.resolve({ total: 2, list: [...ROWS] }),
+          : Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
       ),
     });
     workbench([mine], {}, source);
@@ -656,7 +665,7 @@ describe('the record workbench layout', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('gateway down'))
-          : Promise.resolve({ total: 2, list: [...ROWS] }),
+          : Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
       ),
     });
     workbench([filtered], {}, source);
@@ -837,10 +846,14 @@ describe('emptyWayOut', () => {
   });
   const pending: FilterNode = {
     field: 'status',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: 'PENDING',
   };
-  const cn: FilterNode = { field: 'warehouse', operator: 'EQ', value: 'CN' };
+  const cn: FilterNode = {
+    field: 'warehouse',
+    operator: FilterOperator.EQ,
+    value: 'CN',
+  };
   const record = (filter: FilterTree) =>
     ({ kind: 'record', filter }) as unknown as RecordViewConfig;
   const saved = (filter: FilterTree) =>

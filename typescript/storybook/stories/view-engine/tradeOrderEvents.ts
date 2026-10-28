@@ -17,6 +17,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  FilterOperator,
+  SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -150,10 +154,12 @@ const COLUMNS = [
 function carrying(...types: string[]): FilterNode {
   return {
     field: 'body',
-    operator: 'ELEMENT_MATCH',
+    operator: FilterOperator.ELEMENT_MATCH,
     value: {
       op: 'and',
-      children: [{ field: 'body.bodyType', operator: 'IN', value: types }],
+      children: [
+        { field: 'body.bodyType', operator: FilterOperator.IN, value: types },
+      ],
     },
   };
 }
@@ -167,7 +173,7 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'createTime', direction: 'DESC' }],
+    sort: [{ field: 'createTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
     summaries: [],
@@ -189,8 +195,10 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT', label: '事件数' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: '事件数' },
+    ],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -208,9 +216,9 @@ function analysisView(
 /** How many orders the events of a bucket belong to. */
 const ORDERS = {
   alias: 'orders',
-  type: 'DISTINCT_COUNT',
+  type: AggregationMetricType.DISTINCT_COUNT,
   label: '涉及订单',
-  expression: { type: 'FIELD', field: 'aggregateId' },
+  expression: { type: AggregationExpressionType.FIELD, field: 'aggregateId' },
 } as const;
 
 /**
@@ -303,7 +311,7 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
       name: 'body',
       label: '事件',
       kind: 'elementMatch',
-      operators: ['ELEMENT_MATCH'],
+      operators: [FilterOperator.ELEMENT_MATCH],
       // A stream is read by what happened in it: each event by its type,
       // in the type's own words; the page asks for the types alone.
       elementTitle: 'bodyType',
@@ -370,11 +378,11 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
       id: 'history',
       title: '订单历史',
       config: recordView(
-        [{ field: 'aggregateId', operator: 'EQ', value: '' }],
+        [{ field: 'aggregateId', operator: FilterOperator.EQ, value: '' }],
         {
           sort: [
-            { field: 'aggregateId', direction: 'ASC' },
-            { field: 'version', direction: 'ASC' },
+            { field: 'aggregateId', direction: SortDirection.ASC },
+            { field: 'version', direction: SortDirection.ASC },
           ],
         },
       ),
@@ -401,7 +409,7 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
         elements: [{ path: 'body' }],
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'body.bodyType',
             alias: 'type',
             label: '事件类型',
@@ -418,15 +426,22 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'createTime',
             alias: 'day',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
             label: '日期',
           },
         ],
-        metrics: [{ alias: 'count', type: 'COUNT', label: '事件流数' }, ORDERS],
-        sort: [{ alias: 'day', direction: 'DESC' }],
+        metrics: [
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '事件流数',
+          },
+          ORDERS,
+        ],
+        sort: [{ alias: 'day', direction: SortDirection.DESC }],
         limit: 30,
       }),
     },
@@ -438,19 +453,26 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'aggregateId',
             alias: 'order',
             label: '订单号',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '变动次数' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '变动次数',
+          },
           {
             alias: 'latest',
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             function: MAX,
-            expression: { type: 'FIELD', field: 'createTime' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'createTime',
+            },
             label: '最近一次',
           },
         ],

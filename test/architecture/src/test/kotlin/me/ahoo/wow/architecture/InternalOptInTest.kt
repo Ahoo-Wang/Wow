@@ -110,7 +110,6 @@ class InternalOptInTest {
          * reader), each with its reason; every other opt-in of an application stays forbidden (review R2.5-7).
          */
         val HOST_SETTING_READERS: Map<String, String> = mapOf(
-            "$CATALOG#warehouseCatalog" to "wow.clickhouse.database: no public type of wow-clickhouse gives it",
             "$CATALOG#datasetReferenceActions" to "wow.peers.<context>.contract: no public type gives the described peers",
             "$CATALOG#manifestPeers" to "wow.peers.<context>.contract: no public type gives the described peers",
         )

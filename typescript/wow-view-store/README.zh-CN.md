@@ -18,8 +18,8 @@ peer，由宿主一并安装：`@ahoo-wang/fetcher-eventstream`（wow-client 的
 `react`、`react-dom`、`react-router` 与 `mingo`。Node `>=22.12.0` 或当前的浏览器；TypeScript 6 或更高。
 
 `WowViewStore` 接收一个 fetcher，以及可选的、决定按钮的权限。它不接收租户、用户或应用：服务从主体
-（principal）取得它们，fetcher 的拦截器像宿主的其他 Wow 请求一样带上它们。`viewSourceOf` 把一个定义放到
-查询路由上，`datasetCatalogOf` 放上服务的数据集，`WowDatasetWordings` 保存租户对它们的措辞。
+（principal）取得它们，fetcher 的拦截器像宿主的其他 Wow 请求一样带上它们。定义的数据源就是查询路由的
+客户端本身，`datasetCatalogOf` 列出服务的数据集，`WowDatasetWordings` 保存租户对它们的措辞。
 
 <!-- typecheck-context
 import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
@@ -35,7 +35,6 @@ import {
   WowDatasetWordings,
   WowViewStore,
   datasetCatalogOf,
-  viewSourceOf,
 } from '@ahoo-wang/wow-view-store';
 
 // fetcher 的拦截器带上授权与 `CoSec-App-Id`；路径里不出现租户与 owner。
@@ -46,12 +45,10 @@ const engine = new ViewEngine({
   resources: [
     {
       definition: orders,
-      // 任何查询路由都可以：生成的 `…SnapshotQueryClient` 同样适用。
-      source: viewSourceOf(
-        new SnapshotQueryClient(
-          { context: 'sales', name: 'order' },
-          { fetcher },
-        ),
+      // 任何查询路由的客户端都是数据源：生成的 `…SnapshotQueryClient` 同样如此。
+      source: new SnapshotQueryClient(
+        { context: 'sales', name: 'order' },
+        { fetcher },
       ),
     },
   ],
@@ -59,8 +56,10 @@ const engine = new ViewEngine({
 
 // 服务的数据集（`GET /wow/dataset`），按租户的措辞注册。
 const datasets = new DatasetResources(engine, {
-  ...datasetCatalogOf(new DatasetClient({ fetcher })),
-  wordings: new WowDatasetWordings({ fetcher }),
+  catalogs: {
+    ...datasetCatalogOf(new DatasetClient({ fetcher })),
+    wordings: new WowDatasetWordings({ fetcher }),
+  },
 });
 await datasets.refresh();
 ```

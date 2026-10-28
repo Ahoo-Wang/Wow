@@ -53,8 +53,8 @@ import { panel, pending } from './fixtures/dashboard.js';
  */
 const rounded: FieldKind = {
   id: 'rounded',
-  operators: ['EQ'],
-  defaultOperator: 'EQ',
+  operators: [FilterOperator.EQ],
+  defaultOperator: FilterOperator.EQ,
   emptyValue: () => null,
   validate: ({ value, field, path }) =>
     field.name === 'mass' &&
@@ -143,7 +143,9 @@ describe('what a board says about itself (boardFindings)', () => {
       runtime.edit({
         fixed: {
           op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+          children: [
+            { field: 'weight', operator: FilterOperator.EQ, value: 2.5 },
+          ],
         },
       }),
     );

@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.JsonNodeFactory
 
@@ -42,7 +43,7 @@ class QuerySchemaVersionTest {
     @Test
     fun `every model-wide fact moves the version`() {
         listOf(
-            boundSchemaFixture(root, model = QueryModel("CUSTOM")),
+            boundSchemaFixture(root, model = QueryModel("custom")),
             boundSchemaFixture(root, capabilities = setOf(QueryCapability.FULL_TEXT_TERMS)),
             with(schema) {
                 QueryModelSchema(model, capabilities, definition, bindings, fullProjectionAvailable = false)

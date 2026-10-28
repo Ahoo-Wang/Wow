@@ -579,6 +579,10 @@ V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.servi
 
 A target pinned to an earlier V10 pre-release renamed two things that are not 9.x keys: an aggregate type routed through its context's command topic is `wow.aggregates.[<context>.<aggregate>].routing: topic` (it was `kafka`), and the subscriptions that write the published streams are named `transport-sink.<aggregate>` (they were `kafka-sink.<aggregate>`). A subscription's name is its checkpoint key, so a service upgraded in place from such a pre-release writes every published stream again from the beginning; its consumers see each commit again and must deduplicate it by its aggregate and version.
 
+A target pinned to an earlier V10 pre-release that read `WowProperties.mongo` or `WowProperties.postgres` in its own code reads its store's options instead: those classes are gone, and the keys (`wow.mongo.*`, `wow.postgres.*`) are unchanged. A store's `wow.stores.<name>.options.*` now takes only the options its store type declares: any other key fails the start, naming the declared ones.
+
+A target pinned to an earlier V10 pre-release changes in how its authorizers compose: an application's own `CommandAuthorizer` no longer switches CoSec's off; both must allow. Every `CommandAuthorizer` bean is asked in its order (`@Order`), and the first denial is the answer, so an authorizer allows (has no objection to) every command outside its own concern. `CallAuthorizer` is gone: a rule for the service identities' calls is a `CommandAuthorizer` that checks `caller.service`. `CoSecAuthorizers` is gone: an authorizer of the application's own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and allows every command when there is one. Every `Observer` bean is told, so OpenTelemetry's observer runs beside the application's; and two beans of a single seam (`CallerResolver`, `GlobalIdGenerator`, `MaskStrategyResolver`, `DatasetVisibility`, `CommandCaller`, `QueryCountCache`) fail the start unless one is `@Primary`.
+
 ## REST clients
 
 | 9.x | V10 |
@@ -624,6 +628,21 @@ A target pinned to an earlier V10 pre-release also changed two request rules:
 
 - `If-Match` takes entity tags only (RFC 9110). A bare `3` is 400 `wow.request.malformed`; send `"3"`, or the `ETag` a state read answered (`"3-<digest>"`), which is taken by its version. Tags naming two different versions are 400, since a command takes one expected version. A weak tag or a tag that names no version is 412, and so is `*` on a command that always creates its aggregate. On any other command `*` adds no condition.
 - An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead. In TypeScript only a refused result can name no id: `RefusedResult`, whose `ref` is a `CommandRef` (`id: string | null`), is the type of `WowProblemError.result` and of what `send`, `wait` and a generated command method answer under `resolveRejected: true`. A `CommandResult` still names its id.
+
+The query protocol is lower-kebab too, in requests, in the descriptor (`GET` of a query route) and in the problems. Readers accept nothing else, so a client, a saved view and a dataset document that spell the old values must change:
+
+| What | Before | After |
+|---|---|---|
+| A filter's `op` | `"EQ"`, `"NOT_IN"`, `"AND"`, `"ELEMENT_MATCH"`, `"MATCH_ALL"` | `"eq"`, `"not-in"`, `"and"`, `"element-match"`, `"match-all"` |
+| A sort's `direction`, a page's `total` | `"ASC"`, `"EXACT"` | `"asc"`, `"exact"` |
+| A deletion filter's `state` | `"ACTIVE"`, `"ALL"` | `"active"`, `"all"` |
+| An aggregation's `type` | `"TERMS"`, `"DATE_HISTOGRAM"`, `"DISTINCT_COUNT"`, `"METRIC_REF"` | `"terms"`, `"date-histogram"`, `"distinct-count"`, `"metric-ref"` |
+| Its `function`, `unit`, `part` | `"SUM"`, `"DAY"`, `"DAY_OF_WEEK"` | `"sum"`, `"day"`, `"day-of-week"` |
+| A violation `code` | `"UNKNOWN_FIELD"` | `"unknown-field"` |
+| The descriptor's `model`, a field's `types`, `kind` and `semantic.type` | `"SNAPSHOT"`, `"STRING"`, `"SCALAR"`, `"TEMPORAL_EPOCH"` | `"snapshot"`, `"string"`, `"scalar"`, `"temporal-epoch"` |
+| A dataset document's `types` and `sensitive.level` | `"DECIMAL"`, `"CONFIDENTIAL"` | `"decimal"`, `"confidential"` |
+
+A custom query model or value type is spelled the same way, lower-kebab like the built-ins (`[a-z][a-z0-9]*(-[a-z0-9]+)*`): a dataset or schema configuration that names `CUSTOM_MODEL` or `"types": ["STRING"]` is refused when it is read, with the spelling it takes (`custom-model`, `["string"]`). A domain's own values are unchanged: a filter's `value`, an enum field's values in the descriptor, and a JDK `timeUnit` are written as before. In TypeScript the wow-client DSL members keep their names (`FilterOperator.NOT_IN`) and only their values change; code that compared a DSL value with a literal compares it with the member instead.
 
 ## Tests
 

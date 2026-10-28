@@ -154,7 +154,7 @@ class ScopeQueryPolicyTest {
         runTest {
             val schema = boundSchemaFixture(
                 objectFixture("tenantId" to scalarFixture()),
-                model = QueryModel("CUSTOM"),
+                model = QueryModel("custom"),
             )
             ScopeQueryPolicy().evaluate(QueryCaller(Caller(tenantId = "t1")), context(schema = schema))
                 .assert().isEqualTo(TenantIdFilter("t1"))

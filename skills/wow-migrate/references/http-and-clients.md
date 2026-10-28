@@ -73,6 +73,29 @@ An application written against a V10 pre-release of the view engine renames thes
 | `SortDirection` (the engine's type) | `SortDirectionName`; wow-client's `SortDirection` enum is unchanged |
 | `PagingMode` (the engine's `'paged' \| 'cursor'`) | `RecordPagingMode`; wow-client's `PagingMode` enum is unchanged |
 
+### The view engine's ports (V10 pre-release)
+
+A host written against a V10 pre-release of the view engine, wow-view-store or wow-client moves to these shapes; stored views and configs are unchanged.
+
+| Before | After |
+| --- | --- |
+| `viewSourceOf(client)` (wow-view-store) | the client itself: a generated `…SnapshotQueryClient`, an `…EventQueryClient` or `DatasetClient.dataset(…)` is a `ViewSource` as it is |
+| `ViewSource.paged(query, attributes?, abortController?)` → `PagedList`, and `cursor` / `aggregate` / `describe` the same | `paged(query, { signal })` → wow-client's `PagedResult` (`total: number \| null`, `exact`); `cursor(query, options?)`, `aggregate(query, options?)`, `describe?(version?, options?)` → `DescriptorResult`; rows are `object` |
+| `QueryDescriptorResult` (wow-view-engine) | `DescriptorResult` from `@ahoo-wang/wow-client/dsl` |
+| `import { PagedQuery, PagedResult, TotalMode, DescriptorResult } from '@ahoo-wang/wow-client'` | import from `'@ahoo-wang/wow-client/dsl'`: the query language's types live in the DSL entry only, never in both |
+| `ViewStore.list(definitionId, signal?)` → `ViewInstanceSummary[]` | `list(definitionId, { cursor?, signal? })` → `ViewListPage { items, nextCursor }`, a page at a time |
+| `ViewStore.get(id, signal?)`, `getPreferences(id, signal?)` | `get(id, { signal? })`, `getPreferences(id, { signal? })` (`ReadOptions`) |
+| `WriteContext` | `WriteOptions` (`{ requestId, signal? }`) |
+| `ViewStore.listLimit`, `MemoryViewStoreOptions.listLimit` | gone: the engine pages to `RuntimeLimits.listedViews` (1000); `MemoryViewStoreOptions.pageSize` sets the memory store's page |
+| `ViewEngine.list(id)`, `preferences(id)`, `open(id, options)` | `list(id, { signal })`, `preferences(id, { signal })`, `open(id, { …, signal })` |
+| `new DatasetResources(engine, catalogs, onError?, onWordingError?, options?)`, `DatasetResourcesOptions` | `new DatasetResources(engine, { catalogs, onError?, onWordingError?, onDuplicate?, onCatalogError? })` (`DatasetResourcesInit`); `refresh({ signal })` |
+| `DatasetCatalog.list()`, `DatasetWordingStore.list(signal?)` | `list({ signal })` (`ReadOptions`) |
+| `DatasetDirectoryEntry { contextName, name, title: string \| null, version: string \| null }` | `{ context, dataset, title?, version? }`; a directory lists only what it serves, so no `null` version |
+| `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
+| the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
+| `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |
+| a `reference` field with `remote` sorted by `defineView` wherever the descriptor sorts | not sortable unless the spec says `sortable: true`, which sorts by the stored id and is marked "by id"; a saved sort on one that is not sortable is refused (`record.sort.reference-label`), and one in a definition's search fields is refused (`definition.search.reference-label`): denormalize the name into the read model (e.g. `customerName`) and sort or search that field |
+
 ## Behaviour that changes without a type error
 
 - **Error codes:** every code changed: framework codes are `wow.*` (`wow.aggregate.not-found`, `wow.command.busy`, …), a domain rejection is `<context>.<aggregate>.<code>`. Grep the application for every 9.x code string and map each.

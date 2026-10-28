@@ -173,6 +173,10 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 把一个视图发布为系统视图会复制一份；源视图保持原样。系统视图从不改变受众。
 
+### 很长的列表 {#long-lists}
+
+引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.listedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或看板打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { listedViews: 5000 } })`）。
+
 ### 写入与重试 {#writes-and-retries}
 
 - 每次写入都把端口的请求 ID 作为 `Wow-Request-Id`、把 revision 作为 `If-Match` 发送，并等待快照。服务对请求 ID 去重（包括创建），所以重试得到的是第一次尝试的结果。
@@ -200,6 +204,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 - 实现 `list`、`get`、`create`、`save`、`rename`、`delete`、`getPreferences` 和 `setPreferences`。`changeAudience` 和 `permissions` 是可选的。
 - 守住两条规则：过期的 revision 抛出带当前实例的 `CONFLICT`；重复的请求 ID 返回第一次的结果。
+- `list` 一页一页地答：`{ items, nextCursor }`，第一页不带 `cursor`，之后每页带上一页的 `nextCursor`，最后一页之后为 `null`。顺序跨页不变（系统、共享、个人，各按最早创建的在前）。每个读都收 `{ signal }`，每个写都收 `{ requestId, signal }`；把 signal 交给请求。
 - 绝不签发以 `system:` 开头的 id。
 - 把后端的失败映射到引擎认识的错误码：
 

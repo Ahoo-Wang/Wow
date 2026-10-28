@@ -32,10 +32,12 @@ import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.runtime.wait.reachedResult
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.wait.WaitContext
+import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
@@ -100,7 +102,7 @@ class PartitionedRouter(
     private val options: ClusterOptions = ClusterOptions(),
     /** Sees the forwards that did not get the owner's settlement. */
     private val observer: Observer = Observer.NONE,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
 ) : CommandRouter {
     private val groups: Map<String, PartitionOwnership> = groups.associateBy { it.group.context }
     private val inFlight = ConcurrentHashMap<String, AtomicInteger>()
@@ -140,7 +142,7 @@ class PartitionedRouter(
         if (permits.incrementAndGet() > options.maxInFlightPerPeer) {
             permits.decrementAndGet()
             logger.debug { "${peer.node} has ${options.maxInFlightPerPeer} forwards in flight; ${command.id} runs here." }
-            observer.forwardFailed(command.ref.type, FORWARD_BUSY)
+            observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.BUSY))
             return null
         }
         try {
@@ -151,9 +153,9 @@ class PartitionedRouter(
             } catch (failure: Exception) {
                 return unsent(ownership, command, peer, failure.toString())
             } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
-            if (request.deadline <= clock()) {
+            if (request.deadline <= clock.millis()) {
                 // Nothing left to send it in: it was not sent, so its outcome is not unknown.
-                return if (wait != null && wait.deadline <= clock()) {
+                return if (wait != null && wait.deadline <= clock.millis()) {
                     expired(model, command)
                 } else {
                     unsent(ownership, command, peer, "no time left to send it")
@@ -179,13 +181,16 @@ class PartitionedRouter(
         command: Command<*>,
         wait: WaitContext?,
     ): ForwardCommand? {
-        val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
+        val waitLeft = wait?.let { (it.deadline - clock.millis()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
         withTimeoutOrNull(waitLeft) { channel.connect(peer.address) } ?: return null
         val trace = currentCoroutineContext().trace
         return ForwardCommand(
             command = ClusterCodec.wire(model, command),
             transport = if (wait == null && trace.isEmpty()) null else Transport(wait = wait, trace = trace),
-            deadline = minOf(clock() + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE),
+            deadline = minOf(
+                clock.millis() + options.forwardTimeout.inWholeMilliseconds,
+                wait?.deadline ?: Long.MAX_VALUE
+            ),
         )
     }
 
@@ -199,7 +204,7 @@ class PartitionedRouter(
         request: ForwardCommand,
     ): Settlement? {
         val reply = try {
-            withTimeoutOrNull((request.deadline - clock()).coerceAtLeast(0).milliseconds) {
+            withTimeoutOrNull((request.deadline - clock.millis()).coerceAtLeast(0).milliseconds) {
                 channel.forward(peer.address, request)
             }
         } catch (cancelled: CancellationException) {
@@ -224,7 +229,7 @@ class PartitionedRouter(
     /** The forward surely did not reach [peer], or [peer] refused it: the command runs here. */
     private fun unsent(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
         logger.debug { "Forwarding ${command.id} to ${peer.node} at ${peer.address} failed ($why); it runs here." }
-        observer.forwardFailed(command.ref.type, FORWARD_LOCAL)
+        observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.LOCAL))
         ownership.refreshSoon()
         return null
     }
@@ -240,7 +245,7 @@ class PartitionedRouter(
             command,
             commandFunction(model, command),
             Hop.committed(command.ref.type.context),
-            clock(),
+            clock.millis(),
         )
         return Settlement(
             committed.failed(
@@ -266,13 +271,13 @@ class PartitionedRouter(
         logger.info {
             "Forwarding ${command.id} to ${peer.node} at ${peer.address} got no reply ($why); its outcome is unknown."
         }
-        observer.forwardFailed(command.ref.type, FORWARD_UNKNOWN)
+        observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.UNKNOWN))
         ownership.refreshSoon()
         val committed = reachedResult(
             command,
             commandFunction(model, command),
             Hop.committed(command.ref.type.context),
-            clock()
+            clock.millis()
         )
         return Settlement(
             committed.failed(
@@ -286,11 +291,6 @@ class PartitionedRouter(
 
     private companion object {
         val logger = KotlinLogging.logger {}
-
-        /** The outcomes of [Observer.forwardFailed]. */
-        const val FORWARD_BUSY = "busy"
-        const val FORWARD_LOCAL = "local"
-        const val FORWARD_UNKNOWN = "unknown"
     }
 }
 
@@ -311,7 +311,7 @@ class ForwardEndpoint(
     private val coordinator: WaitCoordinator,
     models: Collection<AggregateModel<*>>,
     groups: Collection<PartitionOwnership>,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
     private val observer: Observer = Observer.NONE,
 ) : ClusterChannelHandler {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
@@ -323,7 +323,7 @@ class ForwardEndpoint(
     }
 
     private suspend fun forwarded(request: ForwardCommand): ForwardReply {
-        if (clock() > request.deadline) {
+        if (clock.millis() > request.deadline) {
             return ForwardReply.refused(Refusal.EXPIRED)
         }
         val model = models[request.command.ref.type] ?: return ForwardReply.refused(Refusal.UNKNOWN_TYPE)

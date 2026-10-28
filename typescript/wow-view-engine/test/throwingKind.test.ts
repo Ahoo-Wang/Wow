@@ -40,8 +40,8 @@ import {
 /** A host kind whose own rules throw on every value they are asked about. */
 const brittle: FieldKind = {
   id: 'brittle',
-  operators: ['EQ'],
-  defaultOperator: 'EQ',
+  operators: [FilterOperator.EQ],
+  defaultOperator: FilterOperator.EQ,
   emptyValue: () => null,
   validate: () => {
     throw new Error('brittle is broken');
@@ -90,7 +90,9 @@ async function openBoard(config: DashboardViewConfig) {
         recordConfig({
           filter: {
             op: 'and',
-            children: [{ field: 'grade', operator: 'EQ', value: 'A' }],
+            children: [
+              { field: 'grade', operator: FilterOperator.EQ, value: 'A' },
+            ],
           },
         }),
       ),

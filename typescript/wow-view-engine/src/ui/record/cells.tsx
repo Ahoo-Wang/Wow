@@ -118,6 +118,9 @@ export function cellValue(
   const badges = badgeEntries(value, field, display.say);
   if (badges) return <Badges entries={badges} surface={surface} />;
 
+  const reference = referenceValue(value, field, display);
+  if (reference) return reference;
+
   const cell = field.cell ?? field.kind;
   // A record's detail reads a long value whole: the message a column cut to
   // one line, the stack trace no column holds. What makes it long is what it
@@ -238,6 +241,35 @@ export function cellValue(
   // Structure was read above, so what is left — a function, a symbol — is
   // nothing a record holds and nothing a reader could use.
   return null;
+}
+
+/**
+ * A reference id as its name, on every surface alike. While the name
+ * is asked, or when the source has none, the id shows and the span says
+ * which (`data-label`: `pending`, `unresolved`); a resolved name says
+ * nothing more.
+ */
+function referenceValue(
+  value: unknown,
+  field: CellField,
+  display: DisplayContext,
+): React.ReactNode {
+  const labels = display.labels;
+  if (
+    field.remote === undefined ||
+    !labels ||
+    (typeof value !== 'string' && typeof value !== 'number')
+  )
+    return undefined;
+  const { status } = labels.label(field.remote, value);
+  return (
+    <span
+      data-slot="cell-reference"
+      data-label={status === 'resolved' ? undefined : status}
+    >
+      {labels.text(field.remote, value)}
+    </span>
+  );
 }
 
 /**

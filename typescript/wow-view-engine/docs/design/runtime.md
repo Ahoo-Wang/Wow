@@ -224,6 +224,22 @@ export class ViewWriteError extends Error {
 - **数据重读或作用域换了就全忘**：`refresh()` 是把数据再读一遍，留着之前的答案就会列出行里已经没有的值、报着已经不对的条数；宿主把视图收窄到另一个租户，问的就是另一批记录。`refresh`、`setScopeFilter` 与 `dispose` 都清空答案，换之前发出去、之后才回来的那一份也不记；此外每问一次都先读此刻的作用域，与上一次答案所问的作用域不同（按值比）就先全忘——所以谁挪了作用域都不必记得去说一声（仪表盘上板子的固定范围、宿主持有的值就是这样挪的）；
 - **取消用 `AbortSignal`**，跟 `fetchRecord` 一样由 `abortWith`（`runtime/abort.ts`，内部，不导出）转成源收的 controller；被取消的请求以信号的原因拒绝、什么也不记；源抛的错原样往上交，界面用 `sourceReason` 说成源自己的话。（见 test/valueCandidates.test.ts「a view runtime offers value candidates」）
 
+## 引用 id 读作名称
+
+`reference` 字段的值是 id，屏上要的是名称（D354）。名称由宿主为每个引用目标（`FieldDefinition.remote`）注册的那一个 `OptionSource` 答，**按页批量，不按单元格**：
+
+- **一页一个请求**：结果到达后（`DataViewRuntime.onSuccess`，以及看板的分栏、「加载更多」加进来的行），`labelIds`（`runtime/labelIds.ts`）收集各列、卡片字段与分析分组里带 `remote` 的值，按 remote 分组去重，每组调一次 `resolve(ids, { signal })`；结果照常先画，名称到了再替换 id；
+- **条件里只有 id 的也一起问**：一个 `reference` 条件存着选中时的名称，编辑器里选的已经是名称；从链接、宿主的 `scopeFilter`、看板的缺省值来的只有 id（`label` 就是 `String(id)`），页上未必出现。`askLabels` 把这次查询所用配置（`result.config`，已合上作用域）里这样的条件的 id 放进同一个请求（`filterIds`）；看板在每次 `sync` 里另问它的筛选值与固定范围里的这种 id（`FilterValues.askLabels`）——没接任何面板、或接的面板不在当前标签页的筛选也读得出名称，接了面板的那些面板再问时已在途、并入同一个请求；
+- **一份缓存，整个引擎共用**：`ReferenceLabels`（`runtime/referenceLabels.ts`）按「remote + id」记下答案，表格、卡片、详情、分析的分组与图例、导出、筛选标签都读它（`ViewRuntime.labels`，只读的 `ReferenceLabelReader`）；已知的、正在问的 id 不再问——同时发出的请求合并到在途的那一次，翻页只问新出现的 id；
+- **分块、限流**：一次至多 `RuntimeLimits.referenceBatch`（200）个，导出与分组多的结果按块问；整个引擎同时在途的请求至多 `RuntimeLimits.referenceConcurrency`（4）个，不分 remote，其余按先来后到排队，有请求落地再发；排队中的请求同样可以并入，所有等它的调用方都取消了就直接丢掉、从不发出。**两条道**：视图自己的（页、分组、条件里的 id、读全的一条记录）排在导出前面，导出只在没有视图的请求在等时才占槽位，所以写文件从不拖慢屏上的名称；视图并入导出排着的请求，就把它带进自己这条道。导出把每个 remote 的全部 id 一次交给缓存（`lane: 'export'`），分块与限流都由缓存做；
+- **没回来就显示 id**：等待中、答里没有、读失败都显示 id 本身，不挡渲染；答里没有的记作「未解析」不再问，**失败不缓存**，下次再问，并经 `onError` 报（`kind: 'query'`、`operation: 'labels'`、`remote`）；
+- **取消与超时**：一个请求只在**所有**等它的调用方都取消后才取消，取消时**当即**让出槽位——源不理会 signal、永远不答也占不住它，迟到的答复丢掉；每个请求至多 `RuntimeLimits.referenceTimeout`（10 秒），超时按失败处理：不缓存、显示 id、经 `onError` 报（`ReferenceLabelTimeoutError`）。下一份结果问过之后，上一份的请求才放开，视图释放时一并取消；
+- **失效**：`ViewEngine.invalidateLabels(remote?, ids?)` 忘掉读过的名称，屏上的视图重画时再问；
+- **按名称排序与搜索不在这里**：服务端只能按存着的 id 排、按存着的文本搜，名称要排、要搜就冗余进读模型（例如 `customerName`）再按它排、按它搜（D354 ⑤）。规则只有一个 `sortable`，不另加字段：
+  - **缺省不排**：`defineView` 给带 `remote` 的 `reference` 缺省 `sortable` 关，描述符能排也一样，规格写 `sortable: true` 才开；手写的 `FieldDefinition` 本来就要写 `true`；
+  - **排就按 id，并且自己说**：`sortable: true` 按存着的 id 排；列视图带派生的 `sortsById`（不可配置），表头在可排序时始终带一个淡淡的「按 ID」（`data-sorts-by="id"`，悬停与可访问描述说「按存储的 ID 排序，不是显示的名称」，`label.sort.by-id`／`label.sort.by-id-hint`），排序编辑器列作「客户（按 ID）」（`label.sort.by-id-field`）；
+  - **准入拒绝并说怎么改**：保存的配置按不可排序的这种字段排是 `record.sort.reference-label`（代替泛泛的 `record.sort.not-sortable`），定义的搜索字段点名它是 `definition.search.reference-label`（error：服务端搜的是 id，搜索框却许诺按名称），两句都指向冗余进读模型的名称字段。（见 test/referenceLabelSort.test.ts、test/referenceLabelSortUi.test.tsx）
+
 ## 导出
 
 `RecordViewRuntime.exportRows(options)` 按**已应用**口径（`applied` 合并作用域之后的那一份，也就是产生屏幕上这些行的那份配置）在后台把结果分页拉完，交还行本身；序列化与下载在别处（[kernels.md](kernels.md) 的 `serializeCsv`、[ui/record.md#导出](ui/record.md#导出)）。
@@ -232,7 +248,7 @@ export class ViewWriteError extends Error {
 - **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个。所以缺省的 `maxPageSize` 是 100：Wow 服务端的 HTTP 查询守卫拒绝超过 100 行的一页（`HttpQueryGuard.maxPageSize`），缺省 200 时对一台保持缺省配置的服务端每次导出都失败（连真服务端的端到端守着它：Wow 仓 `typescript/integration-test` 的 `view-engine/recordView.test.ts`，用例「exports under the engine’s default limits, which a Wow server admits」）。`maxPageSize`、`maxPageWindow`、`maxAnalysisRows` 三个源预算的缺省都是缺省守卫收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)，[model.md](model.md#runtimelimits-的源预算)）；
 - **`ctx.now` 只读一次**：二十页之间"今天"不能翻篇，否则同一个文件的首尾答的是两个问题；
 - **停在 `options.max ?? limits.exportMax`，分页源再停在窗口里的最后一整页**（`pageWindow`：运行时的 `maxPageWindow`，定义声明了更小的 `RecordCapability.maxWindow` 时取它；游标源没有窗口。`exportPlan`：每页条数不超过窗口，上限取 ⌊窗口 / 每页⌋ × 每页），并在结果里以 `capped` 说明文件是截断的——越过窗口的那一页源直接拒绝，接着要下去就是拉完前面所有行之后整次失败；导出窗口事先说的上限也是这个数；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
-- **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它（`ViewSource` 收的是 controller，组件握的是 signal），取消时 Promise 以 `ExportCancelledError` 拒绝，由 `isExportCancelledError` 认出来——它是用户的答复，不是要报出来的失败；
+- **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它，把它的 signal 交给那一页的读法（`{ signal }`），取消时 Promise 以 `ExportCancelledError` 拒绝，由 `isExportCancelledError` 认出来——它是用户的答复，不是要报出来的失败；
 - **进度是 `(fetched, total?)`**：分页源有总数就报，游标源没有总数，那就不报一个没人算得出的数。（见 test/exportRows.test.ts）
 
 ## Dashboard
@@ -245,7 +261,7 @@ export class ViewWriteError extends Error {
 - **板子说自己的，只有一种读法**（R3：Q-01／A-07）：`boardFindings(state)`（`runtime/dashboard/panels.ts`）是草稿上**没有哪块面板带着**的发现——板子自己的（「面板太多」在 `['panels']` 上，不属于任何一块）与草稿提出、还没有面板带上的面板发现（整板条件映射到面板字段后发出的 warning，应用之前只在草稿里，保存会把它看不见地写进去）；面板自己的留在面板上说。控制器的 `issues` 就是它，工作台、可编辑档嵌入与自己画板子的宿主读同一份——从前是三种分法，控制器那份漏掉「面板太多」，可编辑档嵌入丢掉草稿里的面板 warning。（见 test/boardFindings.test.tsx「what a board says about itself (boardFindings)」）
 - **只有这种整板的 error 挡住整板**（`blocksBoard`，`runtime/dashboard/panels.ts`）：`apply()`、`revert()` 之后的重新应用、整板的刷新计时器都只看它。面板自己的 error——引用用不了、绑定不成立、链接的协议被拒——只让这一块不跑、在面板上说明，全局筛选照样应用到其余面板，拖拽照样落地，计时器照样刷新其余面板。从前 `apply` 见任何 error 就拒绝：一块坏面板让拖拽弹回、全局筛选点了没反应（R1）。`RuntimeStore` 为此多了一个可选的 `blocking` 钩子，数据视图不给、仍是「任何 error」。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime a panel in error」）
 - **一个面板配错，只坏它自己**（todo A）：什么挡整板、什么只挡一块，看发现记在哪——`['panels', i]` 之下的是那块面板的（它的 id、位置、标签页、视图从哪来、能不能上板、绑定、展示、点击、它跑的筛选、它自带的分析、内容面板的文字／图片／链接），其余是整板的（网格、三张列表的形状、共享的配置成员、固定范围、筛选及其默认值、时间粒度、标签页、面板数超限的 `['panels']`）；划分写在 `validateDashboard` 的注释里。准入由 `admitBoard`（`runtime/dashboard/owned.ts`）做：内核的之后，**板子自带的每个分析过一遍分析内核**（`ownedRefusals`，对照面板所判的那份定义）——看板内核不能引用分析内核，从前自带分析只在定义准入时整份判，板子打开时只判它跑的筛选；内核已判过的（定义不认识、合并后的筛选）同 code 同 params 的不再说一遍。宿主注册的 kind 判面板跑的筛选时抛异常同样只是那块面板的（`filter.kind.failed`，路径在 `['panels', i, 'filter']` 之下）：打开时不让 `open` 拒绝，编辑加上面板时也不变成未处理的 rejection（test/throwingKind.test.ts「a host kind whose validate throws」）。定义准入同理：系统仪表盘里某块面板的 error 不再让整个定义用不了（`isUsableDefinition` 不数 `['views', n, 'config', 'panels', m]` 之下的），它在板子打开时落到那块面板上；从前控制台总览四张结局卡的自有分析把枚举字段写成 `EQ`，整块板只剩「overview 定义有 23 个问题，无法打开」，其余十五块好面板也不画。（见 test/dashboardRuntime.test.ts「puts out an owned analysis its kernel refuses, and runs the rest」、test/definition.test.ts「a board that owns an analysis」、test/dashboard.test.ts「validateDashboard, what is the board's and what a panel's」）
-- 子 runtime 拒绝注入的作用域时，该子 runtime 被释放而不是继续跑旧口径，拒绝理由以 `['panels', index, ...]` 为路径记在该面板的 `issues` 里，其余面板不受影响。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime child refusal」）
+- 子 runtime 拒绝注入的作用域时，该子 runtime 被释放而不是继续跑旧口径，拒绝理由以 `['panels', index, ...]` 为路径记在该面板的 `issues` 里，其余面板不受影响。（见 test/dashboardChildRefusal.test.ts「DashboardViewRuntime child refusal」）
 - 子 runtime 接受作用域后，它对自身已存配置的 warning **与 note** 同样重定址到该路径记入面板的 `issues`，面板照常运行——note 是那张画不了这个结果、退回表格的图（`chart.as-table`），从前只收 warning，面板里的图一声不吭就成了表格，工作台与嵌入视图却都会说（批 B2，见 test/dashboardBuilding.test.tsx「says why a chart shows as its table, in the words of the picker」）；**子 runtime 上一次结果自身的 warning**（`resultIssues`：汇总退回本页 `runtime.summary.page-only`、分析还有更多组 `analysis.result.more-groups` 或探不成时的 `analysis.result.at-limit`）也并入，同样重定址——两个工作台与 `EmbeddedView` 都会说这两条，同一张被截断的饼图放进仪表盘不能就不说了；子 runtime 一通知（结果落地就是一次）面板的 `issues` 就重建，不等下一次 Dashboard 同步（见 test/dashboardRuntime.test.ts「carries a child result warning on the panel」）——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
 - `validateDashboard` 对映射后筛选的复验与子 runtime 对同一棵合并树的准入会让一个 kind 的 warning 出现两次，同 code 同 params 的只记面板校验的那一条。
 - 宿主经 `panelRuntime` 驱动子 runtime（`edit`／`apply`）改变其 issues 时，面板的 `issues` 随子 runtime 的通知重建，不等下一次 Dashboard 同步。
@@ -286,7 +302,8 @@ export interface ViewEngine {
   readonly environment: RuntimeEnvironment; // 时钟、计时器、可见性；由创建方注入
   definitions: ReadonlyMap<string, ViewDefinition>;
   resolveSource(key: string): ViewSource; // 数据来源：宿主在 `resources` 里与定义配对、按定义的 source 键登记的 QueryApi 的 paged / cursor / aggregate 三个方法，见「环境」
-  resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源；运行时以 `optionSource(remote)` 转交给筛选编辑器（宿主没接就是 null，编辑器退回打字）
+  resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源；运行时以 `optionSource(remote)` 转交给筛选编辑器（宿主没接就是 null，编辑器退回打字），也是引用 id 读作名称的来源（D354，见下「引用 id 读作名称」）
+  invalidateLabels(remote?: string, ids?: Iterable<ReferenceId>): void; // 忘掉读过的名称：宿主改了一个客户的名字就调它，屏上的视图重画时再问
 
   open(
     instanceId: string,
@@ -371,34 +388,39 @@ export interface ViewEngine {
 ## 环境
 
 ```ts
-/** 一个定义的数据从哪里来：QueryApi 的三个方法，Wow 的快照客户端原样就是一个 ViewSource。 */
+/** 一个定义的数据从哪里来：一个 Wow 查询路由的读法，用 wow-client 自己的形状；任意 QueryModelClient 原样就是一个 ViewSource。 */
 export interface ViewSource {
   paged(
-    query: FilterPagedQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<PagedList<RecordData>>;
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<object>>; // total 可为 null，带 exact
   cursor(
     query: CursorQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<CursorPage<RecordData>>;
+    options?: SourceOptions,
+  ): Promise<CursorPage<object>>;
   aggregate(
     query: AggregationQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<RecordData[]>;
+    options?: SourceOptions,
+  ): Promise<object[]>;
+  describe?(
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
+}
+export interface SourceOptions {
+  readonly signal?: AbortSignal; // 新请求顶替它、视图释放时由引擎中止；手写的源把它交给请求
 }
 
-/** reference 字段的远程候选：搜索分页与按 id 回填，供内置 reference 编辑器使用。 */
+/** reference 字段的远程候选：搜索分页，与按 id 读名称——编辑器回填，页上的 id 也由它读作名称（D354）。 */
 export interface OptionSource {
   search(
     input: { query: string; cursor?: string },
-    signal?: AbortSignal,
+    options?: SourceOptions,
   ): Promise<{ items: FieldOption[]; nextCursor: string | null }>;
+  // 按 value 对上 id；答里没有的 id 显示为它自己。一次至多 RuntimeLimits.referenceBatch 个
   resolve(
     ids: (string | number)[],
-    signal?: AbortSignal,
+    options?: SourceOptions,
   ): Promise<FieldOption[]>;
 }
 
@@ -424,6 +446,4 @@ export interface ViewErrorEvent {
 
 **失败交给宿主的钩子是环境的一员（[D40](decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）。** 界面照旧把每次失败说在它发生的地方；`onError` 是宿主的那一份，**每次失败恰好一次**：存储失败在引擎的存储门口（`runtime/failure/failures.ts` 的 `reportingStore`，包在 `readingStore` 之外）报，不管是列表、写入账本（每次重试各一次，`requestId` 相同）、面板引用还是标签页记忆遇到的；视图自己的查询在落定处报（被顶掉的不报）；汇总、合计、拆分补查、读一条整条与条件取值各在吞下失败的那一处报（`KernelContext.queryFailed`）。`query` 类失败都**等源的响应体读完再报**（`queryFailureReporter`），仍是一次，`context.violation` 带着 Wow 说的规则与位置；报不必同步，恰好一次才是约定；导出拉行在 `exportRows` 报，交文件在调用它的钩子或部件报；渲染与图表在渲染边界报（[ui/README.md#渲染边界](ui/README.md#渲染边界)）；声明式操作的命令在执行器里逐条报（`action`，`operation` 是动作 id、`recordKey` 是那条记录；动作自己的拒绝不报，[host-integration.md](host-integration.md) 5.1）。叫停的不算失败：`AbortError`、自己的 signal 已中止、取消的导出。钩子是宿主的代码跑在引擎自己的路径上，`reportError` 吞掉它抛的错与它返回的 promise 的拒绝，也从不写 console。`ViewEngineOptions.onIssue` 只剩没有抛出物的发现（定义准入、被丢掉的保留 id、抛错的变化监听者）。（见 test/hostErrors.test.tsx）
 
-**`ViewSource` 是写出来的，不是从 `QueryApi` `Pick` 出来的**，理由有三条，都指向同一件事——它是每一个数据来源都要实现的那个口子，所以它得**恰好**说出本包要的东西：`QueryApi.paged` 收的是 `PagedQueryRequest`，即 `FilterPagedQuery | PagedQuery`，而 `PagedQuery` 是弃用 API——`Pick` 等于把架构测试在别处一概禁掉的东西写进这个口子；`QueryApi.aggregate` 答的是 `DynamicDocument`（`Record<string, any>`），从 `any` 里读出来的行没有任何人检查，这里答 `RecordData`，每个值都是 `unknown`、都要经字段的 kind 读一遍；`Pick` 还会把 `QueryApi` 的两个类型参数与各方法自带的泛型摊给每一个实现（包括测试里的桩），而这三个方法只在一种实例化下被用。
-
-`Pick` 本来能买到的那件事——上游改了签名这边就编译不过——改由一条编译期可赋值断言买：`test/architecture.test.ts` 的「Wow protocol」里把一个 `QueryApi<RecordData>` 赋给 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。
+**`ViewSource` 是写出来的，形状取自 wow-client**（D353 V15）：查询、`PagedResult`、`CursorPage`、`DescriptorResult` 都是 wow-client 的 DSL 入口里的类型，取消是 `{ signal }`，与别的端口一样。行是 `object` 而不是 `RecordData`：客户端的记录类型是接口，`Record<string, unknown>` 会拒绝它，而引擎本来就经字段的路径与 kind 读每个值；`resources` 在登记处把一个 `ViewSource` 当作内部的 `RecordSource` 读，这一处转换就是全部。`test/architecture.test.ts` 的「Wow protocol」断言生成的快照查询客户端与 `DatasetClient.dataset(…)` 的客户端都不经适配就是 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。

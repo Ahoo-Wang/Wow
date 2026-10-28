@@ -53,6 +53,13 @@ import {
 import { recordTableController } from './fixtures/ui.js';
 import { openTray } from './fixtures/workbench.js';
 import { pagedPaging } from '../src/record/index.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Axe over the three default workbenches.
@@ -83,10 +90,10 @@ const sortedOrders: ViewInstance = {
   revision: '1',
   config: recordConfig({
     sort: [
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ],
-    summaries: [{ field: 'amount', fn: 'SUM' }],
+    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
   }),
 };
 
@@ -104,7 +111,13 @@ const amountsIn: ViewInstance = {
   config: recordConfig({
     filter: {
       op: 'and',
-      children: [{ field: 'amount', operator: 'IN', value: [100, 200, 300] }],
+      children: [
+        {
+          field: 'amount',
+          operator: FilterOperator.IN,
+          value: [100, 200, 300],
+        },
+      ],
     },
   }),
 };
@@ -126,7 +139,7 @@ const createdBetween: ViewInstance = {
       children: [
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           // Wide enough to keep the rows on screen: this case is about the
           // control's names, and an empty result draws no table to wait for.
           value: { type: 'absolute', from: '2020-01-01', to: '2030-12-31' },
@@ -548,7 +561,8 @@ describe('the default workbenches pass axe', () => {
         ],
         () =>
           testSource({
-            paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+            paged: () =>
+              Promise.resolve({ total: 42, exact: true, list: [...ROWS] }),
           }),
       ),
       store: new MemoryViewStore({ instances: [sortedOrders] }),
@@ -988,12 +1002,15 @@ describe('the analysis view’s open states pass axe', () => {
           layout: 'table',
           table: { columns: [], totals: true },
           metrics: [
-            { alias: 'orders', type: 'COUNT' },
+            { alias: 'orders', type: AggregationMetricType.COUNT },
             {
               alias: 'amount',
-              type: 'NUMERIC',
-              function: 'SUM',
-              expression: { type: 'FIELD', field: 'amount' },
+              type: AggregationMetricType.NUMERIC,
+              function: AggregationFunction.SUM,
+              expression: {
+                type: AggregationExpressionType.FIELD,
+                field: 'amount',
+              },
             },
           ] as AnalysisViewConfig['metrics'],
         }),

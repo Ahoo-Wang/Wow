@@ -31,11 +31,32 @@ import { pathToFileURL } from 'node:url';
 // rule; "Coverage not affected" is a success. A run of another app with the
 // same name is ignored. The status is a pull request's, so ci.yml waits for it
 // only there.
+//
+// The one state that never resolves is an incomplete carry-forward. A commit
+// whose run skips the JVM jobs (a TypeScript-only change) takes the JVM flags'
+// sessions from its parent, and Codecov fixes them when it creates the
+// commit's report. A main commit pushed while its parent's JVM shards were
+// still uploading carries forward only those already in, say 2 of
+// `integration`'s 4, and every commit built on it inherits the 2. A flag below
+// its after_n_builds never lets Codecov judge the statuses that read it, patch
+// among them, so the wait would run to its deadline (#5093, 2026-10-28). The
+// gate reads the head's sessions from Codecov's public API instead, and when a
+// flag has fewer distinct carried-forward sessions than `AFTER_N_BUILDS` and no
+// upload of its own, it fails at once, naming the newest main commit whose
+// flags are complete and the first-parent merge that inherits from it (a
+// plain update from main keeps the head as the first parent and the gap with
+// it). This is a diagnosis only: when Codecov's API cannot be read, the gate
+// waits as before.
 
 export const CHECK = 'codecov/patch';
 export const APP = 'codecov';
 /** ci.yml's gate job, still running while it reads the run's jobs. */
 export const GATE_JOB = 'ci-gate';
+/**
+ * The flags whose statuses wait for a number of sessions: codecov.yml's
+ * `after_n_builds` (the test holds the two to each other).
+ */
+export const AFTER_N_BUILDS = { 'jvm-unit': 4, integration: 4 };
 /** ci.yml's codecov/codecov-action steps (the test holds every one to it). */
 export const UPLOAD_STEP = /^Upload\b.*\bcoverage$/;
 
@@ -96,6 +117,103 @@ export function patchVerdict(runs, uploadsDone) {
       };
 }
 
+/** A session's name without Codecov's carry-forward prefix (`CF[2] - `). */
+function sessionName(upload) {
+  return (upload.name ?? '').replace(/^CF\[\d+\] - /, '');
+}
+
+/**
+ * The distinct sessions of each counted flag in a commit's uploads (Codecov's
+ * API: `flags`, `upload_type`, `name`), uploaded and carried forward apart.
+ */
+export function flagSessions(uploads, builds = AFTER_N_BUILDS) {
+  const sessions = Object.fromEntries(
+    Object.keys(builds).map(flag => [
+      flag,
+      { uploaded: new Set(), carried: new Set() },
+    ]),
+  );
+  for (const upload of uploads)
+    for (const flag of upload.flags ?? []) {
+      const of = sessions[flag];
+      if (!of) continue;
+      const kind =
+        upload.upload_type === 'carriedforward' ? 'carried' : 'uploaded';
+      of[kind].add(sessionName(upload));
+    }
+  return sessions;
+}
+
+/**
+ * The counted flags a commit carried forward too few sessions of and uploads
+ * nothing of: Codecov will never judge a status that reads one.
+ */
+export function incompleteFlags(uploads, builds = AFTER_N_BUILDS) {
+  return Object.entries(flagSessions(uploads, builds))
+    .filter(
+      ([flag, { uploaded, carried }]) =>
+        uploaded.size === 0 && carried.size > 0 && carried.size < builds[flag],
+    )
+    .map(([flag, { carried }]) => ({
+      flag,
+      have: carried.size,
+      need: builds[flag],
+    }));
+}
+
+/** Whether every counted flag of a commit has its sessions. */
+export function flagsComplete(uploads, builds = AFTER_N_BUILDS) {
+  return Object.entries(flagSessions(uploads, builds)).every(
+    ([flag, { uploaded, carried }]) =>
+      new Set([...uploaded, ...carried]).size >= builds[flag],
+  );
+}
+
+/**
+ * The verdict when the head carried forward an incomplete flag, or null.
+ * `uploadsOf(sha)` reads a commit's uploads from Codecov, `mainCommits()` the
+ * newest commits of main, newest first. Any error is a diagnosis that could
+ * not be made: null, and the gate waits as it always has.
+ */
+export async function carryForwardGap({
+  head,
+  branch,
+  uploadsOf,
+  mainCommits,
+  log = () => {},
+}) {
+  let missing;
+  try {
+    missing = incompleteFlags(await uploadsOf(head));
+  } catch (error) {
+    log(
+      `Codecov's uploads of ${head} could not be read (${error.message}); waiting as before`,
+    );
+    return null;
+  }
+  if (!missing.length) return null;
+  const gaps = missing
+    .map(({ flag, have, need }) => `${flag} (${have} of ${need})`)
+    .join(', ');
+  let base;
+  try {
+    for (const sha of await mainCommits())
+      if (flagsComplete(await uploadsOf(sha))) {
+        base = sha;
+        break;
+      }
+  } catch (error) {
+    log(`main's commits could not be read from Codecov (${error.message})`);
+  }
+  const merge = base
+    ? ` Merge it into a commit whose first parent is ${base}, the newest main commit with every flag complete: git fetch origin && git checkout -B codecov-sync ${base} && git merge ${head} && git push origin codecov-sync:${branch} (a fast-forward; a plain update from main keeps ${head} as the first parent and the gap with it).`
+    : ' Merge it into a commit whose first parent is a main commit with every flag complete (Codecov: its uploads); a plain update from main keeps the head as the first parent and the gap with it.';
+  return {
+    state: 'failed',
+    message: `Codecov carried forward too few sessions to ${head}: ${gaps}. It will never judge ${CHECK} on this head.${merge}`,
+  };
+}
+
 /** Polls `fetchRuns` until the verdict is final or `timeoutMs` has passed. */
 export async function waitForPatch({
   fetchRuns,
@@ -105,11 +223,14 @@ export async function waitForPatch({
   intervalMs = 20_000,
   timeoutMs = 15 * 60_000,
   log = () => {},
+  diagnose = async () => null,
 }) {
   const deadline = now() + timeoutMs;
   for (;;) {
     const verdict = patchVerdict(await fetchRuns(), uploadsDone);
     if (verdict.state !== 'pending') return verdict;
+    const stuck = await diagnose();
+    if (stuck) return stuck;
     if (now() + intervalMs > deadline)
       return {
         state: 'failed',
@@ -124,7 +245,7 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const { HEAD_SHA, GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_TOKEN } =
+  const { HEAD_SHA, HEAD_REF, GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_TOKEN } =
     process.env;
   if (
     !/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '') ||
@@ -159,11 +280,40 @@ if (
     throw new Error(`run ${GITHUB_RUN_ID} has no completed coverage upload`);
   console.log(`This run's coverage uploads were done at ${uploadsDone}`);
   const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=${encodeURIComponent(CHECK)}&filter=all&per_page=100`;
+  const [owner, repo] = GITHUB_REPOSITORY.split('/');
+  const uploadsOf = async sha => {
+    const uploads = [];
+    let next = `https://api.codecov.io/api/v2/github/${owner}/repos/${repo}/commits/${sha}/uploads/?page_size=100`;
+    while (next) {
+      const response = await fetch(next, {
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error(`${next}: ${response.status}`);
+      const page = await response.json();
+      uploads.push(...page.results);
+      next = page.next;
+    }
+    return uploads;
+  };
+  const mainCommits = async () =>
+    (
+      await api(
+        `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?sha=main&per_page=20`,
+      )
+    ).map(commit => commit.sha);
   const verdict = await waitForPatch({
     fetchRuns: async () => (await api(url)).check_runs,
     uploadsDone,
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     log: message => console.log(message),
+    diagnose: () =>
+      carryForwardGap({
+        head: HEAD_SHA,
+        branch: HEAD_REF ?? '<branch>',
+        uploadsOf,
+        mainCommits,
+        log: message => console.log(message),
+      }),
   });
   if (verdict.state !== 'passed') {
     console.error(`::error::${verdict.message}`);

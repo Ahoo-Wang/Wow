@@ -50,8 +50,9 @@ export type ViewErrorKind =
 export interface ViewErrorContext {
   /**
    * What was being done: for `query` one of `query` (the view's own),
-   * `summaries`, `totals`, `split`, `record` (one row read whole) or
-   * `candidates` (a condition's values); for `store` the port's method
+   * `summaries`, `totals`, `split`, `record` (one row read whole),
+   * `candidates` (a condition's values) or `labels` (reference ids read as
+   * names); for `store` the port's method
    * (`list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences`,
    * `setPreferences`); for `export` `fetch`, `deliver` or `image`; for
    * `render` `render`; for `chart` `load` or `draw`; for `action` the
@@ -59,6 +60,8 @@ export interface ViewErrorContext {
    * title).
    */
   operation: string;
+  /** For `query` `labels`: the remote whose labels could not be read. */
+  remote?: string;
   /** For `action`: the record the command failed on. */
   recordKey?: RecordKey;
   definitionId?: string;

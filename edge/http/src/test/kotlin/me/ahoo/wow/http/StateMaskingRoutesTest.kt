@@ -72,7 +72,7 @@ class StateMaskingRoutesTest {
     @Test
     fun `a state by id, version and time is masked as the snapshot query masks it, for every caller`() {
         val node = opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(hideFromBob)))
-        val queried = node.query("""{"kind":"single","filter":{"op":"ID","value":"c-1"}}""").body!!
+        val queried = node.query("""{"kind":"single","filter":{"op":"id","value":"c-1"}}""").body!!
         queried["state"]["note"].asString().assert().isEqualTo(DISPLAYED)
         listOf("alice", "admin").forEach { user ->
             listOf(
@@ -108,7 +108,7 @@ class StateMaskingRoutesTest {
     fun `the events model masks each event body by its schema`() {
         val node = opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(hideFromBob)))
         val streams = node.query(
-            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"c-1"}}""",
+            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"c-1"}}""",
             "alice",
             QueryRoutes.EVENTS,
             tenantLevel,
@@ -180,12 +180,12 @@ class StateMaskingRoutesTest {
                         "type" to "object",
                         "properties" to mapOf(
                             "items" to mapOf("type" to "integer"),
-                            "note" to sensitive("DISPLAY", 2),
+                            "note" to sensitive("display", 2),
                         ),
                     ),
                     "CartOpened" to mapOf(
                         "type" to "object",
-                        "properties" to mapOf("note" to sensitive("CONFIDENTIAL", 0)),
+                        "properties" to mapOf("note" to sensitive("confidential", 0)),
                     ),
                     "ItemAdded" to mapOf(
                         "type" to "object",

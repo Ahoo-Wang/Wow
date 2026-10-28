@@ -64,6 +64,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import java.nio.file.Path
 
 /**
@@ -100,6 +101,7 @@ class QueryAutoConfiguration {
     class NodeQueries {
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy = properties.entryPolicy()
 
         @Bean
@@ -144,7 +146,7 @@ class QueryAutoConfiguration {
          * `wow.aggregates.[<context>.<aggregate>].query.events.store` names (an Elasticsearch store its event search
          * Sink writes, say), else the store its log is on. The application's own [EventQueryBackend] bean when it
          * has one, else the one of the query provider of the store's type: PostgreSQL's or MongoDB's over
-         * the log in place (`wow.mongo.query-read-preference`), Elasticsearch's over the Sink's events index, and a
+         * the log in place (the store's `query-read-preference`), Elasticsearch's over the Sink's events index, and a
          * log in memory scanned in memory unless `wow.query.memory.enabled` is false, as its snapshots are queried
          * then.
          * Any other log, in memory without it, on a store whose type has no query provider, or the
@@ -200,6 +202,7 @@ class QueryAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryDatasets(properties: QueryProperties, beanFactory: ConfigurableListableBeanFactory): QueryDatasets =
             HostDatasets.load(
                 Path.of(properties.dataset.configDirectory),
@@ -233,7 +236,7 @@ class QueryAutoConfiguration {
             .contexts(node.contexts.keys)
             .snapshots(backend.bindings, backend::serves)
             .events(events.bindings)
-            .datasets(datasets, beans.datasetBackends.ifAvailable)
+            .datasets(datasets, beans.datasetBindings.bindings)
             .datasetVisibility(beans.datasetVisibility.ifAvailable)
             .schemaSources(beans.sources.orderedStream().toList())
             .maskStrategies(beans.strategies.getIfAvailable { MaskStrategyResolver.NONE })
@@ -336,12 +339,30 @@ class QueryAutoConfiguration {
                 }
             }
 
+        /**
+         * The bindings of the datasets: the application's `QueryBindings<QueryDataset>` bean, else the one dataset
+         * backend on the class path that is available ([HostDatasets.provided]), else none.
+         */
+        @Bean
+        @InternalWowApi
+        fun wowDatasetBindings(
+            application: ObjectProvider<QueryBindings<QueryDataset>>,
+            beanFactory: ConfigurableListableBeanFactory,
+            environment: Environment,
+        ): HostDatasetBindings = application.ifAvailable?.let { HostDatasetBindings(it) } ?: HostDatasetBindings(
+            HostDatasets.provided(
+                HostDatasets.providers(beanFactory.beanClassLoader),
+                BeanStoreResources(beanFactory),
+            ) { type -> PortProviders.optionsOf(environment, type) },
+            provided = true,
+        )
+
         /** The application's beans the engine is built of, which it may give or not. */
         @Bean
         @InternalWowApi
         @Suppress("LongParameterList") // One parameter per kind of bean.
         fun wowQueryBeans(
-            datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
+            datasetBindings: HostDatasetBindings,
             datasetVisibility: ObjectProvider<DatasetVisibility>,
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
@@ -349,7 +370,7 @@ class QueryAutoConfiguration {
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
         ): QueryBeans = QueryBeans(
-            datasetBackends,
+            datasetBindings,
             datasetVisibility,
             strategies,
             sources,
@@ -371,9 +392,9 @@ class QueryAutoConfiguration {
         fun wowDatasetQueryGateways(
             engine: QueryEngine,
             datasets: QueryDatasets,
-            datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
+            datasetBindings: HostDatasetBindings,
         ): DatasetQueryGateways = engine.datasets.also {
-            datasetBackends.ifAvailable?.let { HostDatasets.forgetOnRemoval(datasets, it) }
+            datasetBindings.bindings?.let { HostDatasets.forgetOnRemoval(datasets, it) }
         }
 
         /**
@@ -384,6 +405,7 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @ConditionalOnProperty(prefix = QueryProperties.PREFIX, name = ["count-cache.enabled"], matchIfMissing = true)
+        @InternalWowApi
         fun wowQueryCountCache(node: ServiceNode, properties: QueryProperties): QueryCountCache = QueryCountCache(
             { type -> node.contexts[type.context]?.snapshotCheckpoint(type) },
             properties.countCache.options(),
@@ -487,7 +509,7 @@ class QueryAutoConfiguration {
 /** The application's beans a [QueryEngine] is built of: each it may give, or not. */
 @InternalWowApi
 class QueryBeans internal constructor(
-    internal val datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
+    internal val datasetBindings: HostDatasetBindings,
     internal val datasetVisibility: ObjectProvider<DatasetVisibility>,
     internal val strategies: ObjectProvider<MaskStrategyResolver>,
     internal val sources: ObjectProvider<QuerySchemaSource>,

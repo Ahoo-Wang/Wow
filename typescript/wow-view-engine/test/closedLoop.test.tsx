@@ -38,6 +38,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -55,7 +56,7 @@ function setup() {
   const source: ViewSource = {
     paged: vi.fn((query: FilterPagedQuery) => {
       queries.push(query);
-      return Promise.resolve({ total: rows.length, list: rows });
+      return Promise.resolve({ total: rows.length, exact: true, list: rows });
     }),
     cursor: vi.fn(() => Promise.resolve({ nextCursor: null, list: rows })),
     aggregate: vi.fn(() => Promise.resolve([])),
@@ -135,8 +136,8 @@ describe('closed loop one', () => {
     // The row key ends the query's sort, so tied amounts page stably.
     await waitFor(() =>
       expect(last().sort).toEqual([
-        { field: 'amount', direction: 'ASC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.ASC },
+        { field: 'id', direction: SortDirection.ASC },
       ]),
     );
     fireEvent.click(
@@ -159,7 +160,7 @@ describe('closed loop one', () => {
     );
     await waitFor(() => expect(text('dirty')).toBe('clean'));
 
-    const [summary] = (await store.list('orders')).filter(
+    const [summary] = (await store.list('orders')).items.filter(
       item => item.scope === 'personal',
     );
     expect(summary).toMatchObject({
@@ -168,7 +169,9 @@ describe('closed loop one', () => {
     });
     const saved = await store.get(summary.id);
     const config = saved.config as RecordViewConfig;
-    expect(config.sort).toEqual([{ field: 'amount', direction: 'ASC' }]);
+    expect(config.sort).toEqual([
+      { field: 'amount', direction: SortDirection.ASC },
+    ]);
     // The column that was switched off is still in the list, switched off:
     // its entry is its place in the order, so reopening the view and
     // switching it on again puts it back where it was (D17-8).
@@ -189,8 +192,8 @@ describe('closed loop one', () => {
     await waitFor(() => expect(value('status value')).toBe('PENDING'));
     await waitFor(() => expect(cells()).toHaveLength(3));
     expect(last().sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
     expect(text('selection')).toBe('');
     expect(text('paging')).toBe('page 1 of 3');

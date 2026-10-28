@@ -27,6 +27,11 @@ import {
   recordConfig,
   testSource,
 } from '../fixtures.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** Every member a definition, a view or a board writes words in. */
 const LABELS = new Set(['label', 'title', 'description', 'content', 'alt']);
@@ -137,12 +142,19 @@ export function keyedOrders(): DataViewDefinition {
         title: 'By warehouse',
         config: analysisConfig({
           metrics: [
-            { alias: 'orders', type: 'COUNT', label: 'Order count' },
+            {
+              alias: 'orders',
+              type: AggregationMetricType.COUNT,
+              label: 'Order count',
+            },
             {
               alias: 'amount_sum',
-              type: 'NUMERIC',
-              function: 'SUM',
-              expression: { type: 'FIELD', field: 'amount' },
+              type: AggregationMetricType.NUMERIC,
+              function: AggregationFunction.SUM,
+              expression: {
+                type: AggregationExpressionType.FIELD,
+                field: 'amount',
+              },
             },
           ],
           layout: 'table',
@@ -152,7 +164,13 @@ export function keyedOrders(): DataViewDefinition {
         id: 'chart',
         title: 'Orders chart',
         config: analysisConfig({
-          metrics: [{ alias: 'orders', type: 'COUNT', label: 'Order count' }],
+          metrics: [
+            {
+              alias: 'orders',
+              type: AggregationMetricType.COUNT,
+              label: 'Order count',
+            },
+          ],
           layout: 'chart',
           chart: {
             type: 'bar',
@@ -172,7 +190,13 @@ export function keyedOrders(): DataViewDefinition {
         id: 'line',
         title: 'Orders line',
         config: analysisConfig({
-          metrics: [{ alias: 'orders', type: 'COUNT', label: 'Order count' }],
+          metrics: [
+            {
+              alias: 'orders',
+              type: AggregationMetricType.COUNT,
+              label: 'Order count',
+            },
+          ],
           layout: 'chart',
           chart: {
             type: 'line',
@@ -188,7 +212,13 @@ export function keyedOrders(): DataViewDefinition {
         id: 'pie',
         title: 'Orders pie',
         config: analysisConfig({
-          metrics: [{ alias: 'orders', type: 'COUNT', label: 'Order count' }],
+          metrics: [
+            {
+              alias: 'orders',
+              type: AggregationMetricType.COUNT,
+              label: 'Order count',
+            },
+          ],
           layout: 'chart',
           chart: {
             type: 'pie',
@@ -202,13 +232,20 @@ export function keyedOrders(): DataViewDefinition {
         config: analysisConfig({
           groups: [],
           metrics: [
-            { alias: 'orders', type: 'COUNT', label: 'Order count' },
+            {
+              alias: 'orders',
+              type: AggregationMetricType.COUNT,
+              label: 'Order count',
+            },
             {
               alias: 'amount_sum',
-              type: 'NUMERIC',
-              function: 'SUM',
+              type: AggregationMetricType.NUMERIC,
+              function: AggregationFunction.SUM,
               label: 'Amount total',
-              expression: { type: 'FIELD', field: 'amount' },
+              expression: {
+                type: AggregationExpressionType.FIELD,
+                field: 'amount',
+              },
             },
           ],
           layout: 'chart',

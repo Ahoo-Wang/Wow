@@ -36,6 +36,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
@@ -136,7 +137,7 @@ class PostgresHandoffTest {
             // Read well within the gap wait (1 s): no append of this node could still hand the missing one over.
             withTimeout(800) { tail.join() }
 
-            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
             tail.cancelAndJoin()
         }
 
@@ -155,10 +156,13 @@ class PostgresHandoffTest {
     }
 
     private class Reads : Observer {
-        val reasons = CopyOnWriteArrayList<String>()
+        val reasons = CopyOnWriteArrayList<ObservedEvent.TailRead.Reason>()
 
-        override fun tailRead(context: String, partition: Int, reason: String) {
-            reasons += reason
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.TailRead -> reasons += event.reason
+                else -> Unit
+            }
         }
     }
 

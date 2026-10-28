@@ -14,7 +14,12 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WowProblemError } from '@ahoo-wang/wow-client';
-import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
+import {
+  QueryErrorCodes,
+  FilterOperator,
+  QueryConstraintTypes,
+  AggregationFunction,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -87,14 +92,19 @@ function withItems(): DataViewDefinition {
 const FILTER: FilterTree = {
   op: 'and',
   children: [
-    { field: 'warehouse', operator: 'EQ', value: 'CN' },
-    { op: 'or', children: [{ field: 'status', operator: 'EQ', value: 'x' }] },
+    { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+    {
+      op: 'or',
+      children: [{ field: 'status', operator: FilterOperator.EQ, value: 'x' }],
+    },
     {
       field: 'items',
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperator.ELEMENT_MATCH,
       value: {
         op: 'and',
-        children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+        children: [
+          { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
+        ],
       },
     },
   ],
@@ -114,7 +124,11 @@ async function issueFor(
 
 describe('sourceFailure', () => {
   it('reads the violation of a rejected query off the body, once', async () => {
-    const error = rejected('UNKNOWN_FIELD', 'state.missing', 'Unknown.');
+    const error = rejected(
+      QueryErrorCodes.UNKNOWN_FIELD,
+      'state.missing',
+      'Unknown.',
+    );
     const [first, second] = await Promise.all([
       sourceFailure(error),
       sourceFailure(error),
@@ -123,7 +137,7 @@ describe('sourceFailure', () => {
     expect(first).toEqual({
       reason: 'Unknown.',
       violation: {
-        code: 'UNKNOWN_FIELD',
+        code: QueryErrorCodes.UNKNOWN_FIELD,
         path: 'state.missing',
         message: 'Unknown.',
       },
@@ -145,7 +159,7 @@ describe('sourceFailure', () => {
         {
           path: 'filter',
           message: 'Unknown type [NOPE] at [filter].',
-          code: 'UNKNOWN_TYPE',
+          code: QueryErrorCodes.UNKNOWN_TYPE,
         },
       ],
     });
@@ -153,7 +167,7 @@ describe('sourceFailure', () => {
     await expect(sourceFailure(error)).resolves.toEqual({
       reason: 'Unknown type [NOPE] at [filter].',
       violation: {
-        code: 'UNKNOWN_TYPE',
+        code: QueryErrorCodes.UNKNOWN_TYPE,
         path: 'filter',
         message: 'Unknown type [NOPE] at [filter].',
       },
@@ -199,13 +213,15 @@ describe('sourceFailure', () => {
         Promise.resolve({
           code: 'wow.query.invalid',
           detail: 'Model search is unsupported.',
-          violations: [{ code: 'MODEL_SEARCH_UNSUPPORTED', message: ' ' }],
+          violations: [
+            { code: QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED, message: ' ' },
+          ],
         }),
     });
 
     await expect(sourceFailure(error)).resolves.toMatchObject({
       violation: {
-        code: 'MODEL_SEARCH_UNSUPPORTED',
+        code: QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED,
         path: '',
         message: 'Model search is unsupported.',
       },
@@ -215,15 +231,15 @@ describe('sourceFailure', () => {
 
 describe('queryFailureIssue', () => {
   it('names the rule, the field by its label, and the condition on it', async () => {
-    const found = await issueFor('UNKNOWN_FIELD', 'status');
+    const found = await issueFor(QueryErrorCodes.UNKNOWN_FIELD, 'status');
 
     expect(found).toEqual({
-      code: 'runtime.query.failed.unknown_field',
+      code: 'runtime.query.failed.unknown-field',
       severity: 'error',
       path: ['children', 1, 'children', 0],
       params: {
         reason: 'Rule broken at [status].',
-        code: 'UNKNOWN_FIELD',
+        code: QueryErrorCodes.UNKNOWN_FIELD,
         path: 'status',
         field: 'Status',
         name: 'status',
@@ -238,7 +254,10 @@ describe('queryFailureIssue', () => {
   });
 
   it('points an element field at the element-match on its array', async () => {
-    const found = await issueFor('ELEMENT_SCOPE_REQUIRED', 'items.sku');
+    const found = await issueFor(
+      QueryErrorCodes.ELEMENT_SCOPE_REQUIRED,
+      'items.sku',
+    );
 
     expect(found.path).toEqual(['children', 2]);
     expect(found.params).toMatchObject({
@@ -253,7 +272,7 @@ describe('queryFailureIssue', () => {
   it('names a field no condition holds, and marks no row', async () => {
     // A column or a group on it: the strip says it, no pill carries it.
     const found = await issueFor(
-      'UNSUPPORTED_CAPABILITY',
+      QueryErrorCodes.UNSUPPORTED_CAPABILITY,
       'amount',
       'Field [amount] does not support [SORT].',
     );
@@ -265,7 +284,10 @@ describe('queryFailureIssue', () => {
   });
 
   it('keeps the path when the definition declares no field there', async () => {
-    const found = await issueFor('PROTECTED_AGGREGATION', 'state.secret');
+    const found = await issueFor(
+      QueryErrorCodes.PROTECTED_AGGREGATION,
+      'state.secret',
+    );
 
     expect(found.path).toEqual([]);
     expect(found.params).not.toHaveProperty('name');
@@ -275,7 +297,10 @@ describe('queryFailureIssue', () => {
   });
 
   it('words a comparison on a protected field in both languages', async () => {
-    const found = await issueFor('PROTECTED_COMPARISON', 'state.secret');
+    const found = await issueFor(
+      QueryErrorCodes.PROTECTED_COMPARISON,
+      'state.secret',
+    );
 
     expect(formatIssue(en, found)).toBe(
       'state.secret is protected and cannot be used to filter, sort or search.',
@@ -286,7 +311,10 @@ describe('queryFailureIssue', () => {
   });
 
   it('words a sort by two independent lists in both languages', async () => {
-    const found = await issueFor('PARALLEL_ARRAY_SORT', 'state.tags');
+    const found = await issueFor(
+      QueryConstraintTypes.PARALLEL_ARRAY_SORT,
+      'state.tags',
+    );
 
     expect(formatIssue(en, found)).toBe(
       'state.tags and another list field in the sort cannot be sorted by together; keep one of them.',
@@ -297,7 +325,10 @@ describe('queryFailureIssue', () => {
   });
 
   it('words an equality against a whole list in both languages', async () => {
-    const found = await issueFor('ARRAY_EQUALITY', 'state.tags');
+    const found = await issueFor(
+      QueryConstraintTypes.ARRAY_EQUALITY,
+      'state.tags',
+    );
 
     expect(formatIssue(en, found)).toBe(
       'state.tags cannot be compared with a whole list here; match its items instead.',
@@ -309,7 +340,7 @@ describe('queryFailureIssue', () => {
 
   it('words the FIRST and LAST rejections in both languages', async () => {
     const single = await issueFor(
-      'FIRST_LAST_REQUIRES_SINGLE_VALUE',
+      QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE,
       'state.tags',
     );
     expect(formatIssue(en, single)).toBe(
@@ -318,7 +349,10 @@ describe('queryFailureIssue', () => {
     expect(formatIssue(zhCN, single)).toBe(
       '「首个值」「最后一个值」只能用于单值字段，「state.tags」可能有多个值。',
     );
-    const orderBy = await issueFor('FIRST_LAST_REQUIRES_ORDER_BY', 'price');
+    const orderBy = await issueFor(
+      QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY,
+      'price',
+    );
     expect(formatIssue(en, orderBy)).toBe(
       '“First value” and “Last value” of price need a field to order by here: this data has no event time in that place.',
     );
@@ -329,7 +363,7 @@ describe('queryFailureIssue', () => {
 
   it('words the budget and gate codes with the service’s words', async () => {
     const found = await issueFor(
-      'SIZE_OUT_OF_RANGE',
+      QueryErrorCodes.SIZE_OUT_OF_RANGE,
       'limit',
       'HTTP list query limit[2000] must be between 1 and 1000.',
     );
@@ -341,7 +375,7 @@ describe('queryFailureIssue', () => {
       '服务端限制了一次能读多少行：HTTP list query limit[2000] must be between 1 and 1000.',
     );
     const counting = await issueFor(
-      'COUNT_REQUIRES_FILTER',
+      QueryConstraintTypes.COUNT_REQUIRES_FILTER,
       'filter',
       'HTTP counting query must not match all documents.',
     );
@@ -352,7 +386,7 @@ describe('queryFailureIssue', () => {
 
   it('words a date group on a field that keeps no instant', async () => {
     const found = await issueFor(
-      'TEMPORAL_AGGREGATION_UNSUPPORTED',
+      QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED,
       'state.placedOn',
     );
     expect(formatIssue(en, found)).toBe(
@@ -427,7 +461,7 @@ describe('queryFailureIssue', () => {
   });
 
   it('words a model-level rule without a field', async () => {
-    const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
+    const found = await issueFor(QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED, '');
 
     expect(found.path).toEqual([]);
     expect(formatIssue(en, found)).toBe('This data does not support search.');
@@ -436,7 +470,7 @@ describe('queryFailureIssue', () => {
 
   it('words a decoding rule with the service’s words, and marks no row', async () => {
     const found = await issueFor(
-      'UNKNOWN_TYPE',
+      QueryErrorCodes.UNKNOWN_TYPE,
       'filter',
       'Unknown type [NOPE] at [filter].',
     );
@@ -448,9 +482,9 @@ describe('queryFailureIssue', () => {
   });
 
   it('falls back to the service’s words for a code it has no wording for', async () => {
-    const found = await issueFor('SOME_FUTURE_RULE', 'status', 'New rule.');
+    const found = await issueFor('some-future-rule', 'status', 'New rule.');
 
-    expect(found.code).toBe('runtime.query.failed.some_future_rule');
+    expect(found.code).toBe('runtime.query.failed.some-future-rule');
     expect(formatIssue(en, found)).toBe('Could not load the data: New rule.');
     expect(formatIssue(zhCN, found)).toBe('没能加载数据：New rule.');
   });
@@ -468,7 +502,7 @@ describe('queryFailureIssue', () => {
 
   it('words every code wow-client knows, in both languages', () => {
     for (const code of Object.values(QueryErrorCodes)) {
-      const key = `runtime.query.failed.${code.toLowerCase()}`;
+      const key = `runtime.query.failed.${code}`;
       expect(en, key).toHaveProperty([key]);
       expect(zhCN, key).toHaveProperty([key]);
     }
@@ -498,7 +532,7 @@ describe('a rejected query in the view', () => {
 
   it('tells the host once, after the body is read, with the violation', async () => {
     const error = rejected(
-      'VALUE_MISMATCH',
+      QueryErrorCodes.VALUE_MISMATCH,
       'status',
       'Filter value does not match [status].',
     );
@@ -522,7 +556,7 @@ describe('a rejected query in the view', () => {
           runtimeId: runtime.id,
           errorCode: 'wow.query.invalid',
           violation: {
-            code: 'VALUE_MISMATCH',
+            code: QueryErrorCodes.VALUE_MISMATCH,
             path: 'status',
             message: 'Filter value does not match [status].',
           },
@@ -531,13 +565,17 @@ describe('a rejected query in the view', () => {
     ]);
     expect(error.exchange.extractResult).toHaveBeenCalledOnce();
     expect(runtime.getSnapshot().query.error).toMatchObject({
-      code: 'runtime.query.failed.value_mismatch',
+      code: 'runtime.query.failed.value-mismatch',
       path: ['children', 1, 'children', 0],
     });
   });
 
   it('carries the violation of a summary query it fell back from', async () => {
-    const error = rejected('PROTECTED_AGGREGATION', 'amount', 'Protected.');
+    const error = rejected(
+      QueryErrorCodes.PROTECTED_AGGREGATION,
+      'amount',
+      'Protected.',
+    );
     const events: ViewErrorEvent[] = [];
     const engine = new ViewEngine({
       resources: resourcesOf([withItems()], () =>
@@ -548,7 +586,7 @@ describe('a rejected query in the view', () => {
           {
             ...mine,
             config: recordConfig({
-              summaries: [{ field: 'amount', fn: 'SUM' }],
+              summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
             }),
           },
         ],
@@ -567,12 +605,19 @@ describe('a rejected query in the view', () => {
     expect(events).toHaveLength(1);
     expect(events[0].context).toMatchObject({
       operation: 'summaries',
-      violation: { code: 'PROTECTED_AGGREGATION', path: 'amount' },
+      violation: {
+        code: QueryErrorCodes.PROTECTED_AGGREGATION,
+        path: 'amount',
+      },
     });
   });
 
   it('marks the refused condition in the editor, and blocks nothing', async () => {
-    const error = rejected('UNSUPPORTED_CAPABILITY', 'warehouse', 'No.');
+    const error = rejected(
+      QueryErrorCodes.UNSUPPORTED_CAPABILITY,
+      'warehouse',
+      'No.',
+    );
     const { engine } = watched(
       testSource({ paged: vi.fn(() => Promise.reject(error)) }),
     );
@@ -601,7 +646,11 @@ describe('a rejected query in the view', () => {
   });
 
   it('lets go of the row once the draft no longer holds that condition there', async () => {
-    const error = rejected('UNSUPPORTED_CAPABILITY', 'warehouse', 'No.');
+    const error = rejected(
+      QueryErrorCodes.UNSUPPORTED_CAPABILITY,
+      'warehouse',
+      'No.',
+    );
     const { engine } = watched(
       testSource({ paged: vi.fn(() => Promise.reject(error)) }),
     );
@@ -619,7 +668,7 @@ describe('a rejected query in the view', () => {
     runtime.edit({
       filter: {
         op: 'and',
-        children: [{ field: 'id', operator: 'EQ', value: '1' }],
+        children: [{ field: 'id', operator: FilterOperator.EQ, value: '1' }],
       },
     });
 

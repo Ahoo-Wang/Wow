@@ -10,4 +10,4 @@ PASS only if the answer does all of these:
 1. Declares events as an element field titled by name, with the event names (sales.order.OrderPaid and the others) labelled in business words and body.paidAmount among its element fields
 2. Writes the condition as ELEMENT_MATCH on events whose predicate holds both events.name IN the OrderPaid name and events.body.paidAmount GT 1000
 3. Never writes a root-level condition on events.body.paidAmount or a separate root events.name condition, and uses the same element predicate in the metric's filter
-4. Keys the rows by a field unique per commit (commandId or requestId) with paged paging, or by aggregateId only with the cursor, since the descriptor's CURSOR_UNIQUE_SORT appends aggregateId
+4. Keys the rows by a field unique per commit (commandId or requestId) with paged paging, or by aggregateId only with the cursor, since the descriptor's `cursor-unique-sort` constraint appends aggregateId

@@ -33,11 +33,13 @@ import {
 } from '../src/index.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   nextTask,
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
 } from './fixtures.js';
 
@@ -83,9 +85,13 @@ describe('the row key breaks ties', () => {
       { field: 'id', direction: SortDirection.ASC },
     ]);
     expect(
-      sortOf(ordersDefinition(), [{ field: 'amount', direction: 'DESC' }], {
-        index: 3,
-      }),
+      sortOf(
+        ordersDefinition(),
+        [{ field: 'amount', direction: SortDirection.DESC }],
+        {
+          index: 3,
+        },
+      ),
     ).toEqual([
       { field: 'amount', direction: SortDirection.DESC },
       { field: 'id', direction: SortDirection.ASC },
@@ -96,7 +102,7 @@ describe('the row key breaks ties', () => {
     expect(
       sortOf(
         cursorDefinition(),
-        [{ field: 'amount', direction: 'DESC' }],
+        [{ field: 'amount', direction: SortDirection.DESC }],
         FIRST_PAGE.cursor,
       ),
     ).toEqual([
@@ -106,13 +112,13 @@ describe('the row key breaks ties', () => {
   });
 
   it('adds nothing when the sort names the row key already, either way round', () => {
-    for (const direction of ['ASC', 'DESC'] as const) {
+    for (const direction of [SortDirection.ASC, SortDirection.DESC] as const) {
       const sort: RecordSort[] = [
         { field: 'id', direction },
-        { field: 'amount', direction: 'DESC' },
+        { field: 'amount', direction: SortDirection.DESC },
       ];
       const expected = [
-        { field: 'id', direction: SortDirection[direction] },
+        { field: 'id', direction },
         { field: 'amount', direction: SortDirection.DESC },
       ];
       expect(sortOf(ordersDefinition(), sort, FIRST_PAGE.paged)).toEqual(
@@ -128,12 +134,17 @@ describe('the row key breaks ties', () => {
     const definition = ordersDefinition({
       fields: [
         ...ordersDefinition().fields,
-        { name: 'state.id', label: 'ID', kind: 'string', sortable: true },
+        {
+          name: 'state.id',
+          label: FilterOperator.ID,
+          kind: 'string',
+          sortable: true,
+        },
       ],
       record: { rowKey: 'state.id', paging: 'paged', layouts: ['table'] },
     });
     expect(
-      sortOf(definition, [{ field: 'amount', direction: 'DESC' }], {
+      sortOf(definition, [{ field: 'amount', direction: SortDirection.DESC }], {
         index: 1,
       }),
     ).toEqual([
@@ -144,7 +155,7 @@ describe('the row key breaks ties', () => {
 
   it('leaves the config it compiled from as the user wrote it', () => {
     const applied = recordConfig({
-      sort: [{ field: 'amount', direction: 'DESC' }],
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
     });
     compileRecord(
       ordersDefinition(),
@@ -153,7 +164,9 @@ describe('the row key breaks ties', () => {
       context,
       FIRST_PAGE.paged,
     );
-    expect(applied.sort).toEqual([{ field: 'amount', direction: 'DESC' }]);
+    expect(applied.sort).toEqual([
+      { field: 'amount', direction: SortDirection.DESC },
+    ]);
   });
 });
 
@@ -195,6 +208,7 @@ function unstableSource(): ViewSource {
       const start = (index - 1) * size;
       return Promise.resolve({
         total: ROWS.length,
+        exact: true,
         list: sorted.slice(start, start + size),
       });
     }),
@@ -207,15 +221,16 @@ function open(source: ViewSource): RecordViewRuntime<'paged'> {
     definition: ordersDefinition(),
     config: recordConfig({
       pageSize: PAGE_SIZE,
-      sort: [{ field: 'amount', direction: 'DESC' }],
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
     }),
     title: 'Mine',
     scope: 'personal',
     kinds: builtinFieldKinds,
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: PAGE_SIZE },
     environment: testEnvironment().environment,
-    source,
+    source: recordSource(source),
     runner: new RequestRunner(),
+    labels: testLabels(),
   }) as unknown as RecordViewRuntime<'paged'>;
 }
 
@@ -234,7 +249,7 @@ describe('a sort that ties, paged by index', () => {
    * engine used to ask, it hands one row out twice and another not at all.
    */
   it('repeats and skips rows when the query stops at the tied key', async () => {
-    const source = unstableSource();
+    const source = recordSource(unstableSource());
     const seen: unknown[] = [];
     for (let index = 1; index <= PAGES; index += 1) {
       const page = await source.paged({

@@ -17,11 +17,11 @@ import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
 import { Dialog } from '@base-ui/react/dialog';
 import { EChartsCoreOption } from 'echarts/core';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { InboxIcon } from 'lucide-react';
 import { InfoIcon } from 'lucide-react';
@@ -29,9 +29,9 @@ import { init as init_2 } from 'echarts/core';
 import { JSX } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { MouseEventHandler } from 'react';
-import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { Popover } from '@base-ui/react/popover';
-import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import * as React_2 from 'react';
 import { ReactElement } from 'react';
@@ -197,6 +197,7 @@ interface AnalysisColumnView {
     ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     // (undocumented)
     role: 'group' | 'metric';
     sortable?: false;
@@ -594,8 +595,9 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
 
 // @public
 interface BulkRun {
-    // (undocumented)
-    each(key: RecordKey): Promise<unknown>;
+    each(key: RecordKey, options: {
+        signal: AbortSignal;
+    }): Promise<unknown>;
     operation?: string;
     timeout?: number;
     title: string;
@@ -1484,13 +1486,13 @@ export function datasetBindings(served: readonly DatasetResource[], input: Datas
 // @public
 interface DatasetDirectoryEntry {
     // (undocumented)
-    contextName: string;
+    context: string;
     // (undocumented)
-    name: string;
+    dataset: string;
     // (undocumented)
-    title: string | null;
+    title?: string;
     // (undocumented)
-    version: string | null;
+    version?: string;
 }
 
 // @public
@@ -1498,7 +1500,6 @@ type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' |
 
 // @public
 interface DatasetResource {
-    // @beta
     catalog: number;
     // (undocumented)
     entry: DatasetDirectoryEntry;
@@ -1515,7 +1516,7 @@ interface DatasetWordingEditor {
         label: string;
     }[];
     readonly revision: string;
-    save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+    save(wording: DatasetOverrides, context: WriteOptions): Promise<void>;
     readonly wording: DatasetOverrides;
 }
 
@@ -1722,6 +1723,7 @@ export interface DisplayContext {
     clock?: {
         now(): Date;
     };
+    labels?: ReferenceLabelReader;
     locale?: string;
     say?: (value: string) => string;
     timeZone?: string;
@@ -1741,6 +1743,7 @@ export interface DisplayField {
     numeric?: FieldNumeric;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     timePrecision?: 'minute' | 'second';
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
@@ -1750,7 +1753,7 @@ export interface DisplayField {
 export function displayValue(value: unknown, field: DisplayField, context: DisplayContext): string | undefined;
 
 // @public
-const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
+const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
@@ -2007,7 +2010,7 @@ export const en: {
     readonly 'label.workbench.editor-modes': "Editor options";
     readonly 'capability.field.unknown': "The source does not list {field}: it is shown, but no condition, sort or summary uses it.";
     readonly 'capability.field.unfilterable': "The source admits no condition on {field}.";
-    readonly 'capability.field.operators-narrowed': "The source does not admit {operators} on {field}.";
+    readonly 'capability.field.operators-narrowed': "The source does not admit these conditions on {field}: {operators}.";
     readonly 'capability.field.unsortable': "The source does not sort by {field}.";
     readonly 'capability.field.alias': "The definition names {path} by its alias {field}: it is read as {path}.";
     readonly 'capability.field.protected': "{field} is protected: shown, never filtered, sorted or searched by.";
@@ -2032,9 +2035,14 @@ export const en: {
     readonly 'capability.analysis.element-unavailable': "The source cannot aggregate over the elements of {path}.";
     readonly 'capability.analysis.field-unavailable': "The source cannot aggregate {field}.";
     readonly 'capability.analysis.field-narrowed': "The source does not offer {dropped} on {field}.";
+    readonly 'label.capability.missing-key': "a group of missing values";
+    readonly 'label.capability.in-metric-filter': "conditions on a summary";
+    readonly 'label.capability.expression-input': "summaries of a computed value";
+    readonly 'label.capability.first-last': "opening and closing values";
     readonly 'capability.descriptor.disagrees': "{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.";
     readonly 'capability.descriptor.unavailable': "The capability descriptor of {source} could not be read; its views run on the definition alone.";
     readonly 'definition.field.search-fields-unknown': "{field} searches {missing}, which the definition does not declare.";
+    readonly 'definition.search.reference-label': "{field} searches {references}, which hold ids read as names: the server matches the stored id, not the name shown. Denormalize the name into the read model (customerName, say) and search that field.";
     readonly 'definition.field.element-search-fields-required': "{field} searches inside an entry, so it has to name the entry fields it looks in.";
     readonly 'definition.field.search-mode-invalid': "{field} declares an unknown search mode: {value}.";
     readonly 'definition.analysis.date-part-not-temporal': "{field} offers grouping by weekday or hour, but holds no date or time.";
@@ -2086,7 +2094,7 @@ export const en: {
     readonly 'definition.field.deprecated': "{field} is deprecated by its source ({message}); say why it is kept.";
     readonly 'definition.field.not-elements': "{field} is not an array whose entries the source lists.";
     readonly 'definition.field.sort-wider': "{field} does not sort at its source.";
-    readonly 'definition.field.operator-wider': "{field} does not take {operator} at its source.";
+    readonly 'definition.field.operator-wider': "{field} does not take “{operator}” at its source.";
     readonly 'definition.field.summary-wider': "{field} cannot be summarised by {fn} at its source.";
     readonly 'definition.field.analysis-wider': "{field} does not offer {what} to analyses at its source.";
     readonly 'definition.option.undescribed': "{value} is not one of the values the source lists for {field}.";
@@ -2685,31 +2693,31 @@ export const en: {
     readonly 'label.analysis.element-condition': "Conditions on the entries";
     readonly 'label.analysis.conditions-mode': "Conditions: {mode}";
     readonly 'label.analysis.granularity': "Granularity";
-    readonly "label.date-unit.YEAR": "By year";
-    readonly "label.date-unit.QUARTER": "By quarter";
-    readonly "label.date-unit.MONTH": "By month";
-    readonly "label.date-unit.WEEK": "By week";
-    readonly "label.date-unit.DAY": "By day";
-    readonly "label.date-unit.HOUR": "By hour";
-    readonly "label.date-unit.MINUTE": "By minute";
-    readonly "label.date-unit.SECOND": "By second";
+    readonly "label.date-unit.year": "By year";
+    readonly "label.date-unit.quarter": "By quarter";
+    readonly "label.date-unit.month": "By month";
+    readonly "label.date-unit.week": "By week";
+    readonly "label.date-unit.day": "By day";
+    readonly "label.date-unit.hour": "By hour";
+    readonly "label.date-unit.minute": "By minute";
+    readonly "label.date-unit.second": "By second";
     readonly 'label.analysis.date-part': "Cycle";
-    readonly "label.date-part.DAY_OF_WEEK": "By weekday";
-    readonly "label.date-part.HOUR_OF_DAY": "By hour of day";
-    readonly "label.date-part.DAY_OF_MONTH": "By day of month";
-    readonly "label.date-part.MONTH_OF_YEAR": "By month of year";
-    readonly "label.analysis.part.DAY_OF_WEEK": "{field} (weekday)";
-    readonly "label.analysis.part.HOUR_OF_DAY": "{field} (hour of day)";
-    readonly "label.analysis.part.DAY_OF_MONTH": "{field} (day of month)";
-    readonly "label.analysis.part.MONTH_OF_YEAR": "{field} (month of year)";
-    readonly "label.analysis.dated.YEAR": "{field} (by year)";
-    readonly "label.analysis.dated.QUARTER": "{field} (by quarter)";
-    readonly "label.analysis.dated.MONTH": "{field} (by month)";
-    readonly "label.analysis.dated.WEEK": "{field} (by week)";
-    readonly "label.analysis.dated.DAY": "{field} (by day)";
-    readonly "label.analysis.dated.HOUR": "{field} (by hour)";
-    readonly "label.analysis.dated.MINUTE": "{field} (by minute)";
-    readonly "label.analysis.dated.SECOND": "{field} (by second)";
+    readonly "label.date-part.day-of-week": "By weekday";
+    readonly "label.date-part.hour-of-day": "By hour of day";
+    readonly "label.date-part.day-of-month": "By day of month";
+    readonly "label.date-part.month-of-year": "By month of year";
+    readonly "label.analysis.part.day-of-week": "{field} (weekday)";
+    readonly "label.analysis.part.hour-of-day": "{field} (hour of day)";
+    readonly "label.analysis.part.day-of-month": "{field} (day of month)";
+    readonly "label.analysis.part.month-of-year": "{field} (month of year)";
+    readonly "label.analysis.dated.year": "{field} (by year)";
+    readonly "label.analysis.dated.quarter": "{field} (by quarter)";
+    readonly "label.analysis.dated.month": "{field} (by month)";
+    readonly "label.analysis.dated.week": "{field} (by week)";
+    readonly "label.analysis.dated.day": "{field} (by day)";
+    readonly "label.analysis.dated.hour": "{field} (by hour)";
+    readonly "label.analysis.dated.minute": "{field} (by minute)";
+    readonly "label.analysis.dated.second": "{field} (by second)";
     readonly 'label.analysis.band': "{from}–{to}";
     readonly 'label.analysis.interval': "Band width";
     readonly 'label.analysis.percentile': "Percentile";
@@ -2730,10 +2738,10 @@ export const en: {
     readonly 'label.analysis.duration-from': "From which time, for {name}";
     readonly 'label.analysis.duration-to': "To which time, for {name}";
     readonly 'label.analysis.duration-unit': "Unit of {name}";
-    readonly "label.date-diff-unit.SECOND": "Seconds";
-    readonly "label.date-diff-unit.MINUTE": "Minutes";
-    readonly "label.date-diff-unit.HOUR": "Hours";
-    readonly "label.date-diff-unit.DAY": "Days";
+    readonly "label.date-diff-unit.second": "Seconds";
+    readonly "label.date-diff-unit.minute": "Minutes";
+    readonly "label.date-diff-unit.hour": "Hours";
+    readonly "label.date-diff-unit.day": "Days";
     readonly 'label.analysis.group-by-duration': "Group by this duration";
     readonly 'label.analysis.derived.style-of': "How {name} reads";
     readonly 'label.analysis.derived.style.number': "Number";
@@ -2769,18 +2777,18 @@ export const en: {
     readonly 'label.analysis.top-by': "by";
     readonly 'label.analysis.top-metric': "Metric to rank by";
     readonly 'label.analysis.top-direction': "Ranking order";
-    readonly "label.analysis.top-direction.DESC": "highest first";
-    readonly "label.analysis.top-direction.ASC": "lowest first";
+    readonly "label.analysis.top-direction.desc": "highest first";
+    readonly "label.analysis.top-direction.asc": "lowest first";
     readonly 'label.analysis.top-invalid': "A whole number from 1 to {max}.";
     readonly 'label.analysis.remove-top': "Keep every group in each";
     readonly 'label.analysis.top-note': "Tied groups share a place, so a tie may keep more.";
     readonly 'label.analysis.reading-top': "{reading} · Top {count} in each {within} by {metric} ({order})";
-    readonly "label.having.op.GT": "more than";
-    readonly "label.having.op.GTE": "at least";
-    readonly "label.having.op.LT": "less than";
-    readonly "label.having.op.LTE": "at most";
-    readonly "label.having.op.EQ": "equal to";
-    readonly "label.having.op.NE": "not equal to";
+    readonly "label.having.op.gt": "more than";
+    readonly "label.having.op.gte": "at least";
+    readonly "label.having.op.lt": "less than";
+    readonly "label.having.op.lte": "at most";
+    readonly "label.having.op.eq": "equal to";
+    readonly "label.having.op.ne": "not equal to";
     readonly 'label.analysis.totals': "Totals row";
     readonly 'label.analysis.totals-whole': "With no dimension the one row is every record in the range, so there is no totals row.";
     readonly 'label.analysis.row-limit': "Top N groups";
@@ -3072,10 +3080,10 @@ export const en: {
     readonly 'label.chart.type.themeRiver': "theme river";
     readonly 'label.chart.type.map': "map";
     readonly 'label.analysis.as-table': "The {type} chart cannot draw this result ({reason}); it shows as a table.";
-    readonly "label.group.type.TERMS": "By value";
-    readonly "label.group.type.HISTOGRAM": "By number range";
-    readonly "label.group.type.DATE_HISTOGRAM": "By time unit";
-    readonly "label.group.type.DATE_PART": "By cycle (weekday, hour…)";
+    readonly "label.group.type.terms": "By value";
+    readonly "label.group.type.histogram": "By number range";
+    readonly "label.group.type.date-histogram": "By time unit";
+    readonly "label.group.type.date-part": "By cycle (weekday, hour…)";
     readonly 'label.chart.other': "Other";
     readonly 'label.chart.series.of-field': "{field}: {value}";
     readonly 'label.chart.share-basis': "Shares of the groups shown";
@@ -3099,14 +3107,14 @@ export const en: {
     readonly 'label.chart.gauge.above': "The value is past the end of the scale";
     readonly 'label.chart.gauge.below': "The value is below the start of the scale";
     readonly 'label.chart.gauge.reached': "{share} of the target";
-    readonly "label.chart.filled.YEAR": "{value} (no records this year)";
-    readonly "label.chart.filled.QUARTER": "{value} (no records this quarter)";
-    readonly "label.chart.filled.MONTH": "{value} (no records this month)";
-    readonly "label.chart.filled.WEEK": "{value} (no records this week)";
-    readonly "label.chart.filled.DAY": "{value} (no records this day)";
-    readonly "label.chart.filled.HOUR": "{value} (no records this hour)";
-    readonly "label.chart.filled.MINUTE": "{value} (no records this minute)";
-    readonly "label.chart.filled.SECOND": "{value} (no records this second)";
+    readonly "label.chart.filled.year": "{value} (no records this year)";
+    readonly "label.chart.filled.quarter": "{value} (no records this quarter)";
+    readonly "label.chart.filled.month": "{value} (no records this month)";
+    readonly "label.chart.filled.week": "{value} (no records this week)";
+    readonly "label.chart.filled.day": "{value} (no records this day)";
+    readonly "label.chart.filled.hour": "{value} (no records this hour)";
+    readonly "label.chart.filled.minute": "{value} (no records this minute)";
+    readonly "label.chart.filled.second": "{value} (no records this second)";
     readonly 'label.chart.filled.group': "{value} (no records in this group)";
     readonly 'label.chart.legend.more': "{count} more";
     readonly 'label.chart.legend.less': "Show less";
@@ -3183,14 +3191,14 @@ export const en: {
     readonly 'label.chart.period.whole': "All in range";
     readonly 'label.chart.period.skipped': "{period} is not over yet and is not counted";
     readonly 'label.chart.change.against': "vs previous period";
-    readonly "label.chart.change.against.YEAR": "vs the year before";
-    readonly "label.chart.change.against.QUARTER": "vs the quarter before";
-    readonly "label.chart.change.against.MONTH": "vs the month before";
-    readonly "label.chart.change.against.WEEK": "vs the week before";
-    readonly "label.chart.change.against.DAY": "vs the day before";
-    readonly "label.chart.change.against.HOUR": "vs the hour before";
-    readonly "label.chart.change.against.MINUTE": "vs the minute before";
-    readonly "label.chart.change.against.SECOND": "vs the second before";
+    readonly "label.chart.change.against.year": "vs the year before";
+    readonly "label.chart.change.against.quarter": "vs the quarter before";
+    readonly "label.chart.change.against.month": "vs the month before";
+    readonly "label.chart.change.against.week": "vs the week before";
+    readonly "label.chart.change.against.day": "vs the day before";
+    readonly "label.chart.change.against.hour": "vs the hour before";
+    readonly "label.chart.change.against.minute": "vs the minute before";
+    readonly "label.chart.change.against.second": "vs the second before";
     readonly 'label.chart.change.against.previous-year': "vs the same period last year";
     readonly 'label.chart.compare.against': "vs {metric}";
     readonly 'label.chart.compare.unmatched': "The span of {metric} does not match the dates picked; not compared";
@@ -3395,7 +3403,7 @@ export const en: {
     readonly 'label.kind.dashboard': "Dashboard";
     readonly 'label.view.list': "Views";
     readonly 'label.view.list-failed': "The list could not be loaded.";
-    readonly 'label.view.list-cut': "Only the first {limit} views of each group are listed; a link to another still opens it.";
+    readonly 'label.view.list-cut': "Only the first {limit} views are listed; a link to another still opens it.";
     readonly 'label.view.none-hint': "Make one to start looking at the data.";
     readonly 'label.view.new': "New view";
     readonly 'label.view.new-title': "Untitled view";
@@ -3434,55 +3442,55 @@ export const en: {
     readonly 'runtime.query.failed': "Could not load the data: {reason}";
     readonly 'runtime.query.unreachable': "Could not load the data: the server could not be reached.";
     readonly 'runtime.query.forbidden': "You do not have permission to view this data. Ask an administrator for access.";
-    readonly 'runtime.query.failed.invalid_json': "The service could not read the query this view sent: {reason}";
-    readonly 'runtime.query.failed.body_not_object': "The service could not read the query this view sent: {reason}";
-    readonly 'runtime.query.failed.empty_body': "The service received an empty query: {reason}";
-    readonly 'runtime.query.failed.unknown_property': "The service does not understand part of this query; it may be older than this view engine: {reason}";
-    readonly 'runtime.query.failed.unknown_type': "The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}";
-    readonly 'runtime.query.failed.unknown_value': "The service does not know a value this view sent: {reason}";
-    readonly 'runtime.query.failed.invalid_value': "A value in this query is missing or of the wrong kind: {reason}";
-    readonly 'runtime.query.failed.invalid_request': "The service refused the query: {reason}";
-    readonly 'runtime.query.failed.unknown_field': "The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it.";
-    readonly 'runtime.query.failed.unsupported_capability': "{field} cannot be used this way on this data: {reason}";
-    readonly 'runtime.query.failed.element_scope_required': "{field} can only be filtered inside its list, with a condition on the list's elements.";
-    readonly 'runtime.query.failed.value_mismatch': "A value is not one {field} can hold.";
-    readonly 'runtime.query.failed.not_collection': "{field} is not a list, so it cannot be checked for being empty.";
-    readonly 'runtime.query.failed.not_single_string': "{field} is not a single text value, so it cannot be checked for being empty.";
-    readonly 'runtime.query.failed.model_search_unsupported': "This data does not support search.";
-    readonly 'runtime.query.failed.cursor_not_allowed': "{field} cannot be used to page through this data.";
-    readonly 'runtime.query.failed.protected_aggregation': "{field} is protected and cannot be summarised.";
-    readonly 'runtime.query.failed.protected_comparison': "{field} is protected and cannot be used to filter, sort or search.";
-    readonly 'runtime.query.failed.missing_key_requires_string': "Only a single text field can group its missing values; {field} is not one.";
-    readonly 'runtime.query.failed.any_requires_single_value': "“Any value” needs a field that holds a single value.";
-    readonly 'runtime.query.failed.incomplete_projection': "The service cannot return whole records here; choose the columns to show.";
-    readonly 'runtime.query.failed.metric_filter_search': "A metric's own condition cannot use search.";
-    readonly 'runtime.query.failed.metric_filter_element_match': "A metric's own condition cannot match list elements.";
-    readonly 'runtime.query.failed.metric_filter_array_field': "A metric's own condition cannot use the list field {field}.";
-    readonly 'runtime.query.failed.cursor_sort_duplicate': "The sort names {field} twice; keep it once.";
-    readonly 'runtime.query.failed.cursor_sort_too_many': "The sort has too many fields to page through this data; remove some.";
-    readonly 'runtime.query.failed.not_projectable': "{field} cannot be shown as a column of this data.";
-    readonly 'runtime.query.failed.event_projection_type_required': "An event's payload cannot be shown without its type; keep the event type column.";
-    readonly 'runtime.query.failed.temporal_representation_required': "{field} is not stored as a known date or time, so a relative time cannot be asked of it.";
-    readonly 'runtime.query.failed.temporal_configuration_conflict': "The relative time on {field} does not agree with how the field keeps its time: {reason}";
-    readonly 'runtime.query.failed.parallel_array_sort': "{field} and another list field in the sort cannot be sorted by together; keep one of them.";
-    readonly 'runtime.query.failed.array_equality': "{field} cannot be compared with a whole list here; match its items instead.";
-    readonly 'runtime.query.failed.first_last_requires_single_value': "“First value” and “Last value” need a field that holds a single value; {field} may hold several.";
-    readonly 'runtime.query.failed.first_last_requires_order_by': "“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.";
-    readonly 'runtime.query.failed.invalid_cursor': "This page can no longer be continued; start again from the first page.";
-    readonly 'runtime.query.failed.size_out_of_range': "The service limits how many rows one request may read: {reason}";
-    readonly 'runtime.query.failed.filter_too_large': "The conditions are more than the service accepts in one query: {reason}";
-    readonly 'runtime.query.failed.expensive_operator_disabled': "The service does not allow this costly query here: {reason}";
-    readonly 'runtime.query.failed.count_requires_filter': "Add a condition first: the service will not count every record.";
-    readonly 'runtime.query.failed.residual_groups_exceeded': "This summary has too many groups for the service to filter or sort by a metric; narrow the data first.";
-    readonly 'runtime.query.failed.too_many_groups': "This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.";
-    readonly 'runtime.query.failed.explicit_entry_required': "The query named no entry to run against: {reason}";
-    readonly 'runtime.query.failed.replay_too_long': "That state is too many changes away to rebuild: {reason}";
-    readonly 'runtime.query.failed.temporal_aggregation_unsupported': "{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.";
-    readonly 'runtime.query.failed.sort_too_many': "The sort has too many fields; remove some.";
-    readonly 'runtime.query.failed.sort_field_duplicate': "{field} is sorted by twice; keep it once.";
-    readonly 'runtime.query.failed.identity_undefined': "This data defines no record identity, so it cannot be paged through or picked by id.";
-    readonly 'runtime.query.failed.storage_unsupported': "The service's storage cannot run this: {reason}";
-    readonly 'runtime.query.failed.previous_unshiftable': "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.";
+    readonly "runtime.query.failed.invalid-json": "The service could not read the query this view sent: {reason}";
+    readonly "runtime.query.failed.body-not-object": "The service could not read the query this view sent: {reason}";
+    readonly "runtime.query.failed.empty-body": "The service received an empty query: {reason}";
+    readonly "runtime.query.failed.unknown-property": "The service does not understand part of this query; it may be older than this view engine: {reason}";
+    readonly "runtime.query.failed.unknown-type": "The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}";
+    readonly "runtime.query.failed.unknown-value": "The service does not know a value this view sent: {reason}";
+    readonly "runtime.query.failed.invalid-value": "A value in this query is missing or of the wrong kind: {reason}";
+    readonly "runtime.query.failed.invalid-request": "The service refused the query: {reason}";
+    readonly "runtime.query.failed.unknown-field": "The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it.";
+    readonly "runtime.query.failed.unsupported-capability": "{field} cannot be used this way on this data: {reason}";
+    readonly "runtime.query.failed.element-scope-required": "{field} can only be filtered inside its list, with a condition on the list's elements.";
+    readonly "runtime.query.failed.value-mismatch": "A value is not one {field} can hold.";
+    readonly "runtime.query.failed.not-collection": "{field} is not a list, so it cannot be checked for being empty.";
+    readonly "runtime.query.failed.not-single-string": "{field} is not a single text value, so it cannot be checked for being empty.";
+    readonly "runtime.query.failed.model-search-unsupported": "This data does not support search.";
+    readonly "runtime.query.failed.cursor-not-allowed": "{field} cannot be used to page through this data.";
+    readonly "runtime.query.failed.protected-aggregation": "{field} is protected and cannot be summarised.";
+    readonly "runtime.query.failed.protected-comparison": "{field} is protected and cannot be used to filter, sort or search.";
+    readonly "runtime.query.failed.missing-key-requires-string": "Only a single text field can group its missing values; {field} is not one.";
+    readonly "runtime.query.failed.any-requires-single-value": "“Any value” needs a field that holds a single value.";
+    readonly "runtime.query.failed.incomplete-projection": "The service cannot return whole records here; choose the columns to show.";
+    readonly "runtime.query.failed.metric-filter-search": "A metric's own condition cannot use search.";
+    readonly "runtime.query.failed.metric-filter-element-match": "A metric's own condition cannot match list elements.";
+    readonly "runtime.query.failed.metric-filter-array-field": "A metric's own condition cannot use the list field {field}.";
+    readonly "runtime.query.failed.cursor-sort-duplicate": "The sort names {field} twice; keep it once.";
+    readonly "runtime.query.failed.cursor-sort-too-many": "The sort has too many fields to page through this data; remove some.";
+    readonly "runtime.query.failed.not-projectable": "{field} cannot be shown as a column of this data.";
+    readonly "runtime.query.failed.event-projection-type-required": "An event's payload cannot be shown without its type; keep the event type column.";
+    readonly "runtime.query.failed.temporal-representation-required": "{field} is not stored as a known date or time, so a relative time cannot be asked of it.";
+    readonly "runtime.query.failed.temporal-configuration-conflict": "The relative time on {field} does not agree with how the field keeps its time: {reason}";
+    readonly "runtime.query.failed.parallel-array-sort": "{field} and another list field in the sort cannot be sorted by together; keep one of them.";
+    readonly "runtime.query.failed.array-equality": "{field} cannot be compared with a whole list here; match its items instead.";
+    readonly "runtime.query.failed.first-last-requires-single-value": "“First value” and “Last value” need a field that holds a single value; {field} may hold several.";
+    readonly "runtime.query.failed.first-last-requires-order-by": "“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.";
+    readonly "runtime.query.failed.invalid-cursor": "This page can no longer be continued; start again from the first page.";
+    readonly "runtime.query.failed.size-out-of-range": "The service limits how many rows one request may read: {reason}";
+    readonly "runtime.query.failed.filter-too-large": "The conditions are more than the service accepts in one query: {reason}";
+    readonly "runtime.query.failed.expensive-operator-disabled": "The service does not allow this costly query here: {reason}";
+    readonly "runtime.query.failed.count-requires-filter": "Add a condition first: the service will not count every record.";
+    readonly "runtime.query.failed.residual-groups-exceeded": "This summary has too many groups for the service to filter or sort by a metric; narrow the data first.";
+    readonly "runtime.query.failed.too-many-groups": "This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.";
+    readonly "runtime.query.failed.explicit-entry-required": "The query named no entry to run against: {reason}";
+    readonly "runtime.query.failed.replay-too-long": "That state is too many changes away to rebuild: {reason}";
+    readonly "runtime.query.failed.temporal-aggregation-unsupported": "{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.";
+    readonly "runtime.query.failed.sort-too-many": "The sort has too many fields; remove some.";
+    readonly "runtime.query.failed.sort-field-duplicate": "{field} is sorted by twice; keep it once.";
+    readonly "runtime.query.failed.identity-undefined": "This data defines no record identity, so it cannot be paged through or picked by id.";
+    readonly "runtime.query.failed.storage-unsupported": "The service's storage cannot run this: {reason}";
+    readonly "runtime.query.failed.previous-unshiftable": "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.";
     readonly 'record.detail.failed': "The whole record could not be read: {reason}";
     readonly 'runtime.query.queue-full': "Too many queries at once; try again in a moment.";
     readonly 'runtime.query.too-many-nodes': "These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions.";
@@ -3746,59 +3754,59 @@ export const en: {
     readonly 'label.relative.preset.lastQuarterToDate': "same days last quarter";
     readonly 'label.relative.preset.yearToDate': "this year so far";
     readonly 'label.relative.preset.lastYearToDate': "same days last year";
-    readonly "label.operator.MATCH_ALL": "matches every record";
-    readonly "label.operator.MATCH_NONE": "matches no record";
-    readonly "label.operator.ID": "is";
-    readonly "label.operator.IDS": "is any of";
-    readonly "label.operator.AGGREGATE_ID": "is";
-    readonly "label.operator.AGGREGATE_IDS": "is any of";
-    readonly "label.operator.TENANT_ID": "is";
-    readonly "label.operator.OWNER_ID": "is";
-    readonly "label.operator.SPACE_ID": "is";
-    readonly "label.operator.AND": "and";
-    readonly "label.operator.OR": "or";
-    readonly "label.operator.NOR": "nor";
-    readonly "label.operator.EQ": "is";
-    readonly "label.operator.NE": "is not";
-    readonly "label.operator.GT": "more than";
-    readonly "label.operator.GTE": "at least";
-    readonly "label.operator.LT": "less than";
-    readonly "label.operator.LTE": "at most";
-    readonly "label.operator.CONTAINS": "contains";
-    readonly "label.operator.STARTS_WITH": "starts with";
-    readonly "label.operator.ENDS_WITH": "ends with";
-    readonly "label.operator.IN": "is any of";
-    readonly "label.operator.NOT_IN": "is none of";
-    readonly "label.operator.BETWEEN": "between";
-    readonly "label.operator.CONTAINS_ALL": "has all of";
-    readonly "label.operator.IS_EMPTY": "has no entries";
-    readonly "label.operator.IS_EMPTY_STRING": "is blank";
-    readonly "label.operator.IS_NOT_EMPTY_STRING": "is not blank";
-    readonly "label.operator.IS_NULL": "is empty";
-    readonly "label.operator.IS_NOT_NULL": "is not empty";
-    readonly "label.operator.EXISTS": "exists";
-    readonly "label.operator.NOT_EXISTS": "does not exist";
-    readonly "label.operator.DELETION": "is";
-    readonly "label.operator.ELEMENT_MATCH": "has an entry where";
-    readonly "label.operator.SEARCH": "contains";
-    readonly "label.operator.TODAY": "today";
-    readonly "label.operator.BEFORE_TODAY": "before today";
-    readonly "label.operator.TOMORROW": "tomorrow";
-    readonly "label.operator.THIS_WEEK": "this week";
-    readonly "label.operator.NEXT_WEEK": "next week";
-    readonly "label.operator.LAST_WEEK": "last week";
-    readonly "label.operator.THIS_MONTH": "this month";
-    readonly "label.operator.LAST_MONTH": "last month";
-    readonly "label.operator.YESTERDAY": "yesterday";
-    readonly "label.operator.NEXT_MONTH": "next month";
-    readonly "label.operator.LAST_YEAR": "last year";
-    readonly "label.operator.THIS_YEAR": "this year";
-    readonly "label.operator.NEXT_YEAR": "next year";
-    readonly "label.operator.RECENT_DAYS": "recent days";
-    readonly "label.operator.EARLIER_DAYS": "earlier days";
-    readonly "label.operator.BEFORE_NOW": "before now";
-    readonly "label.operator.AFTER_NOW": "after now";
-    readonly "label.operator.EXPRESSION": "time since";
+    readonly "label.operator.match-all": "matches every record";
+    readonly "label.operator.match-none": "matches no record";
+    readonly "label.operator.id": "is";
+    readonly "label.operator.ids": "is any of";
+    readonly "label.operator.aggregate-id": "is";
+    readonly "label.operator.aggregate-ids": "is any of";
+    readonly "label.operator.tenant-id": "is";
+    readonly "label.operator.owner-id": "is";
+    readonly "label.operator.space-id": "is";
+    readonly "label.operator.and": "and";
+    readonly "label.operator.or": "or";
+    readonly "label.operator.nor": "nor";
+    readonly "label.operator.eq": "is";
+    readonly "label.operator.ne": "is not";
+    readonly "label.operator.gt": "more than";
+    readonly "label.operator.gte": "at least";
+    readonly "label.operator.lt": "less than";
+    readonly "label.operator.lte": "at most";
+    readonly "label.operator.contains": "contains";
+    readonly "label.operator.starts-with": "starts with";
+    readonly "label.operator.ends-with": "ends with";
+    readonly "label.operator.in": "is any of";
+    readonly "label.operator.not-in": "is none of";
+    readonly "label.operator.between": "between";
+    readonly "label.operator.contains-all": "has all of";
+    readonly "label.operator.is-empty": "has no entries";
+    readonly "label.operator.is-empty-string": "is blank";
+    readonly "label.operator.is-not-empty-string": "is not blank";
+    readonly "label.operator.is-null": "is empty";
+    readonly "label.operator.is-not-null": "is not empty";
+    readonly "label.operator.exists": "exists";
+    readonly "label.operator.not-exists": "does not exist";
+    readonly "label.operator.deletion": "is";
+    readonly "label.operator.element-match": "has an entry where";
+    readonly "label.operator.search": "contains";
+    readonly "label.operator.today": "today";
+    readonly "label.operator.before-today": "before today";
+    readonly "label.operator.tomorrow": "tomorrow";
+    readonly "label.operator.this-week": "this week";
+    readonly "label.operator.next-week": "next week";
+    readonly "label.operator.last-week": "last week";
+    readonly "label.operator.this-month": "this month";
+    readonly "label.operator.last-month": "last month";
+    readonly "label.operator.yesterday": "yesterday";
+    readonly "label.operator.next-month": "next month";
+    readonly "label.operator.last-year": "last year";
+    readonly "label.operator.this-year": "this year";
+    readonly "label.operator.next-year": "next year";
+    readonly "label.operator.recent-days": "recent days";
+    readonly "label.operator.earlier-days": "earlier days";
+    readonly "label.operator.before-now": "before now";
+    readonly "label.operator.after-now": "after now";
+    readonly "label.operator.expression": "time since";
     readonly 'filter.value.expected-duration': "A time since needs an earlier time, a comparison, an amount and a unit.";
     readonly 'filter.value.duration-same-time': "A time cannot be measured since itself.";
     readonly 'filter.value.duration-from-unknown': "The earlier time {field} is not a field here.";
@@ -3812,7 +3820,7 @@ export const en: {
     readonly 'filter.kind.unknown-editor': "The {kind} type asks for a {input} editor, which this engine does not have.";
     readonly 'filter.kind.failed': "The condition on \"{label}\" couldn't be checked; ask whoever maintains this view.";
     readonly 'filter.node.invalid': "This condition could not be read.";
-    readonly 'filter.operator.unsupported': "{field} does not support {operator}.";
+    readonly 'filter.operator.unsupported': "{field} does not support “{operator}”.";
     readonly 'filter.presence.empty-is-missing': "On this source, an empty value of {field} counts as no value.";
     readonly 'filter.tree.too-deep': "The conditions nest deeper than {max} levels.";
     readonly 'filter.tree.too-many-nodes': "The conditions exceed {max} entries.";
@@ -3927,6 +3935,7 @@ export const en: {
     readonly 'label.pagination.nav': "Pagination";
     readonly 'label.pagination.total': "{count} records in all";
     readonly 'label.pagination.total-one': "1 record in all";
+    readonly 'label.pagination.total-at-least': "At least {count} records";
     readonly 'label.pagination.on-page': "{count} on this page";
     readonly 'label.pagination.page-size': "Per page";
     readonly 'label.pagination.page-size-option': "{size} per page";
@@ -3981,25 +3990,28 @@ export const en: {
     readonly 'label.sort.waiting.none': "unsorted waits for Apply";
     readonly 'label.sort.at': "sort {position} of {count}";
     readonly 'label.sort.additive': "Hold Shift to add to the sort";
+    readonly 'label.sort.by-id': "by id";
+    readonly 'label.sort.by-id-hint': "Sorts by the stored id, not the name shown.";
+    readonly 'label.sort.by-id-field': "{field} (by id)";
     readonly 'label.summary.total': "Total";
     readonly 'label.summary.scope.page': "This page";
     readonly 'label.summary.scope.total': "All rows";
     readonly 'label.summary.fn.none': "No summary";
-    readonly "label.summary.fn.SUM": "Sum";
-    readonly "label.summary.fn.AVG": "Average";
-    readonly "label.summary.fn.MIN": "Min";
-    readonly "label.summary.fn.MAX": "Max";
-    readonly "label.summary.fn.COUNT": "Count";
-    readonly "label.summary.fn.date.MIN": "Earliest";
-    readonly "label.summary.fn.date.MAX": "Latest";
-    readonly "label.summary.fn.STDDEV": "Standard deviation";
-    readonly "label.summary.fn.VARIANCE": "Variance";
-    readonly "label.summary.fn.DISTINCT_COUNT": "Distinct count";
-    readonly "label.summary.fn.PERCENTILE": "Percentile";
-    readonly "label.summary.fn.FIRST": "Opening value";
-    readonly "label.summary.fn.LAST": "Closing value";
-    readonly "label.summary.fn.ANY": "Any value";
-    readonly "label.summary.fn.ANY.item": "Any value (not stable)";
+    readonly "label.summary.fn.sum": "Sum";
+    readonly "label.summary.fn.avg": "Average";
+    readonly "label.summary.fn.min": "Min";
+    readonly "label.summary.fn.max": "Max";
+    readonly "label.summary.fn.count": "Count";
+    readonly "label.summary.fn.date.min": "Earliest";
+    readonly "label.summary.fn.date.max": "Latest";
+    readonly "label.summary.fn.stddev": "Standard deviation";
+    readonly "label.summary.fn.variance": "Variance";
+    readonly "label.summary.fn.distinct-count": "Distinct count";
+    readonly "label.summary.fn.percentile": "Percentile";
+    readonly "label.summary.fn.first": "Opening value";
+    readonly "label.summary.fn.last": "Closing value";
+    readonly "label.summary.fn.any": "Any value";
+    readonly "label.summary.fn.any.item": "Any value (not stable)";
     readonly 'label.summary.unavailable': "—";
     readonly 'label.summary.offscreen.more': "({count} in all)";
     readonly 'label.summary.offscreen.go': ", out of view. Scroll to {field}";
@@ -4071,6 +4083,7 @@ export const en: {
     readonly 'record.sort.parallel-arrays': "The source cannot sort by {fields} together: keep one of them.";
     readonly 'record.sort.invalid': "The sort settings could not be read.";
     readonly 'record.sort.not-sortable': "{field} cannot be sorted on.";
+    readonly 'record.sort.reference-label': "{field} shows names but holds ids, so the server can only sort it by id. Denormalize the name into the read model (customerName, say) and sort by that field.";
     readonly 'record.sort.too-many': "A cursor view sorts on at most {max} fields.";
     readonly 'record.summaries.invalid': "The summary settings could not be read.";
     readonly 'record.summary.duplicate': "The {fn} summary of {field} is listed twice.";
@@ -4307,7 +4320,6 @@ interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -5417,6 +5429,7 @@ interface OpenOptions {
     filters?: DashboardFilters | null;
     held?: HeldFilters | null;
     scopeFilter?: FilterTree | null;
+    signal?: AbortSignal;
     tab?: string | null;
 }
 
@@ -5434,13 +5447,12 @@ interface OpenViewState {
 
 // @public
 interface OptionSource {
-    // (undocumented)
-    resolve(ids: (string | number)[], signal?: AbortSignal): Promise<FieldOption[]>;
+    resolve(ids: (string | number)[], options?: SourceOptions): Promise<FieldOption[]>;
     // (undocumented)
     search(input: {
         query: string;
         cursor?: string;
-    }, signal?: AbortSignal): Promise<{
+    }, options?: SourceOptions): Promise<{
         items: FieldOption[];
         nextCursor: string | null;
     }>;
@@ -5459,6 +5471,7 @@ interface OwnedView {
 
 // @public
 interface PagedPaging {
+    exact?: boolean;
     hasNext: boolean;
     index: number;
     // (undocumented)
@@ -5729,16 +5742,6 @@ interface ProjectedRecord extends ProjectedBase {
 // @public
 type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
-// @public
-type QueryDescriptorResult = {
-    notModified: false;
-    descriptor: QueryModelDescriptor;
-    version: string;
-} | {
-    notModified: true;
-    version: string;
-};
-
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -5771,6 +5774,12 @@ interface RadarSpec {
 }
 
 // @public
+interface ReadOptions {
+    // (undocumented)
+    readonly signal?: AbortSignal;
+}
+
+// @public
 interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
@@ -5783,7 +5792,9 @@ interface RecordAction {
     readonly moves?: string;
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
-    run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    run(row: RecordRow, input: ActionInput, options: {
+        signal: AbortSignal;
+    }): Promise<unknown>;
     readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
@@ -5846,6 +5857,7 @@ interface RecordCardField {
     numberFormat?: NumberFormat;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     timeUnit?: EpochTimeUnit;
 }
 
@@ -5924,8 +5936,10 @@ interface RecordColumnView {
     options?: readonly FieldOption[];
     pinned?: ColumnEdge;
     primary?: true;
+    remote?: string;
     // (undocumented)
     sortable: boolean;
+    sortsById?: true;
     timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -6330,6 +6344,27 @@ interface ReferenceBand {
 }
 
 // @public
+type ReferenceId = string | number;
+
+// @public
+type ReferenceLabel = {
+    readonly status: 'resolved';
+    readonly option: FieldOption;
+} | {
+    readonly status: 'pending';
+} | {
+    readonly status: 'unresolved';
+};
+
+// @public
+interface ReferenceLabelReader {
+    label(remote: string, id: ReferenceId): ReferenceLabel;
+    subscribe(listener: () => void): () => void;
+    text(remote: string, id: ReferenceId): string;
+    readonly version: number;
+}
+
+// @public
 interface ReferenceLine {
     // (undocumented)
     axis: 'left' | 'right';
@@ -6541,6 +6576,7 @@ interface RuntimeLimits {
     defaultPageSize: number;
     exportMax: number;
     exportNeutralizeFormulas: boolean;
+    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
@@ -6554,6 +6590,9 @@ interface RuntimeLimits {
     maxRefreshInterval: number;
     minRefreshInterval: number;
     pageSizes: readonly number[];
+    referenceBatch: number;
+    referenceConcurrency: number;
+    referenceTimeout: number;
     refreshIntervals: readonly number[];
 }
 
@@ -6773,6 +6812,11 @@ export interface SortSettingsProps {
     // (undocumented)
     table: SortOwner;
     trigger?: ReactElement<Record<string, unknown>>;
+}
+
+// @public
+interface SourceOptions {
+    readonly signal?: AbortSignal;
 }
 
 // @public
@@ -8403,18 +8447,19 @@ class ViewEngine extends EngineResources {
     dispose(): void;
     // (undocumented)
     readonly environment: RuntimeEnvironment;
+    invalidateLabels(remote?: string, ids?: Iterable<string | number>): void;
     // (undocumented)
     readonly kinds: FieldKindRegistry;
     // (undocumented)
     readonly limits: RuntimeLimits;
-    list(definitionId: string): Promise<ViewListing>;
+    list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
     // (undocumented)
-    preferences(definitionId: string): Promise<ViewPreferences>;
+    preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
     register(resource: Parameters<EngineResources['register']>[0]): void;
     // (undocumented)
@@ -8468,6 +8513,7 @@ interface ViewErrorContext {
     operation: string;
     panelId?: string;
     recordKey?: RecordKey;
+    remote?: string;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -8607,6 +8653,18 @@ interface ViewListing {
     failed: Issue | null;
     // (undocumented)
     items: ViewInstanceSummary[];
+}
+
+// @public
+interface ViewListOptions extends ReadOptions {
+    readonly cursor?: string | null;
+}
+
+// @public
+interface ViewListPage {
+    // (undocumented)
+    items: ViewInstanceSummary[];
+    nextCursor: string | null;
 }
 
 // @public (undocumented)
@@ -8859,6 +8917,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     // (undocumented)
     readonly kind: C['kind'];
     readonly kinds: FieldKindRegistry;
+    readonly labels: ReferenceLabelReader;
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
@@ -8909,32 +8968,31 @@ type ViewScope = 'system' | 'shared' | 'personal';
 // @public
 interface ViewSource {
     // (undocumented)
-    aggregate(query: AggregationQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<RecordData[]>;
+    aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
     // (undocumented)
-    cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
-    describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
+    cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
+    describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
     // (undocumented)
-    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedList<RecordData>>;
+    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
 }
 
 // @public
 interface ViewStore {
-    changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
+    changeAudience?(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+    create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    delete(id: string, revision: string, context: WriteContext): Promise<void>;
+    delete(id: string, revision: string, options: WriteOptions): Promise<void>;
     // (undocumented)
-    get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+    get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     // (undocumented)
-    getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-    list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-    readonly listLimit?: number;
+    getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
+    list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     permissions?(definitionId: string): ViewPermissions;
-    rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
+    rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
+    save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+    setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
 // @public (undocumented)
@@ -8949,6 +9007,7 @@ export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
     engine?: {
         startingWord(key: string): string | undefined;
     };
+    labels?: ReferenceLabelReader | null;
     locale?: string;
     messages?: ViewMessages;
     preset?: ViewPreset;
@@ -9136,17 +9195,15 @@ export interface WorkbenchShellProps {
 type WriteAction = WritePayload['action'];
 
 // @public
-interface WriteContext {
-    // (undocumented)
-    requestId: string;
-    // (undocumented)
-    signal?: AbortSignal;
-}
-
-// @public
 interface WriteHandle {
     // (undocumented)
     readonly id: string;
+}
+
+// @public
+interface WriteOptions extends ReadOptions {
+    // (undocumented)
+    readonly requestId: string;
 }
 
 // @public

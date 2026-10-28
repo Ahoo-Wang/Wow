@@ -21,6 +21,7 @@ import {
   recordConfig,
   savedDashboard,
 } from './fixtures.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The boards the embedded-dashboard scenes show (D22, the embedding half):
@@ -48,7 +49,9 @@ export const customerViews: ViewInstance[] = [
     title: '订单',
     scope: 'shared',
     revision: '1',
-    config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+    config: recordConfig({
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
+    }),
   },
   {
     id: 'customer-by-warehouse',

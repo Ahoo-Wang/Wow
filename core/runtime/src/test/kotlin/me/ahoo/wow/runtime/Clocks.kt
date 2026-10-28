@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.clickhouse
+package me.ahoo.wow.runtime
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 
-class ClickHouseModuleTest {
-    @Test
-    fun `should be named by its artifact`() {
-        ClickHouseModule.toString().assert().isEqualTo("wow-clickhouse")
-    }
+/** A clock that reads [millis] each time it is asked: a fixed or moving wall time for a test. */
+internal fun clockOf(millis: () -> Long): Clock = object : Clock() {
+    override fun millis(): Long = millis()
+
+    override fun instant(): Instant = Instant.ofEpochMilli(millis())
+
+    override fun getZone(): ZoneId = ZoneOffset.UTC
+
+    override fun withZone(zone: ZoneId): Clock = this
 }

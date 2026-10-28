@@ -64,7 +64,8 @@ export function useDatasets(
   useEffect(() => {
     if (asked === null) return;
     let live = true;
-    resources.refresh().then(
+    const reading = new AbortController();
+    resources.refresh({ signal: reading.signal }).then(
       datasets => {
         if (live)
           setRead({
@@ -80,6 +81,7 @@ export function useDatasets(
     );
     return () => {
       live = false;
+      reading.abort();
     };
   }, [resources, asked]);
   const refresh = useCallback(() => setRound(value => value + 1), []);

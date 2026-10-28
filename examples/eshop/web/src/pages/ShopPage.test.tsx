@@ -62,8 +62,8 @@ describe("the shop", () => {
     expect(query?.headers["wow-roles"]).toBeUndefined();
     expect(query?.body).toMatchObject({
       kind: "paged",
-      filter: { op: "EQ", field: "state.status", value: "PUBLISHED" },
-      sort: [{ field: "state.name", direction: "ASC" }],
+      filter: { op: "eq", field: "state.status", value: "PUBLISHED" },
+      sort: [{ field: "state.name", direction: "asc" }],
       pagination: { index: 1, size: 12 },
     });
   });
@@ -79,19 +79,19 @@ describe("the shop", () => {
     await waitFor(() =>
       expect(received.at(-1)?.body).toMatchObject({
         filter: {
-          op: "AND",
+          op: "and",
           operands: [
-            { op: "EQ", field: "state.status", value: "PUBLISHED" },
-            { op: "EQ", field: "state.categoryId", value: "mugs" },
+            { op: "eq", field: "state.status", value: "PUBLISHED" },
+            { op: "eq", field: "state.categoryId", value: "mugs" },
             {
-              op: "CONTAINS",
+              op: "contains",
               field: "state.name",
               value: "mug",
-              stringComparison: "CASE_INSENSITIVE",
+              stringComparison: "case-insensitive",
             },
           ],
         },
-        sort: [{ field: "state.price", direction: "DESC" }],
+        sort: [{ field: "state.price", direction: "desc" }],
       }),
     );
   });
@@ -118,7 +118,7 @@ describe("the shop", () => {
     expect(screen.queryByRole("button", { name: /Add .* to the basket/ })).toBeNull();
     const query = received.find((r) => r.path.startsWith("/eshop-catalog/product"));
     expect(query?.headers["wow-roles"]).toBe("employee");
-    expect(query?.body).toMatchObject({ filter: { op: "MATCH_ALL" } });
+    expect(query?.body).toMatchObject({ filter: { op: "match-all" } });
   });
 
   it("shows the problem a query answers", async () => {
@@ -139,9 +139,9 @@ describe("the shop", () => {
   });
 
   it("builds its filter from the search", () => {
-    expect(productFilter("", "", false)).toEqual({ op: "MATCH_ALL" });
+    expect(productFilter("", "", false)).toEqual({ op: "match-all" });
     expect(productFilter(" mug ", "", false)).toMatchObject({
-      op: "CONTAINS",
+      op: "contains",
       value: "mug",
     });
   });

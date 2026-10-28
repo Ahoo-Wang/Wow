@@ -34,6 +34,7 @@ import {
   type MetricFunction,
 } from '../../analysis/index.js';
 import { recordValue } from '../../record/index.js';
+import type { ReferenceLabelReader } from '../../runtime/referenceLabels.js';
 import { datePartValue } from './datePart.js';
 import { formatNumber } from './numbers.js';
 import type { MessageKey } from './messages.js';
@@ -62,6 +63,13 @@ export interface DisplayContext {
    * the same every day; the runtime's own when left out.
    */
   clock?: { now(): Date };
+  /**
+   * What reference ids read as (`ViewRuntime.labels`): a value of a
+   * field with a `remote` reads as its name once resolved, as its id until
+   * then. A surface's own context carries its runtime's; left out, an id
+   * reads as itself.
+   */
+  labels?: ReferenceLabelReader;
 }
 
 /** What a column knows about the field behind it. */
@@ -70,6 +78,11 @@ export interface DisplayField {
   /** Renderer key; the kind's when the field names none. */
   cell?: string;
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are named by
+   * (`DisplayContext.labels`).
+   */
+  remote?: string;
   /** How a number of this field is written, when the field says. */
   numberFormat?: NumberFormat;
   /**
@@ -151,6 +164,8 @@ export function displayValue(
     const label = optionLabel(value, field.options, context.say);
     if (label !== undefined) return label;
   }
+  const named = referenceText(value, field, context);
+  if (named !== undefined) return named;
   if (field.datePart !== undefined)
     return datePartValue(value, field.datePart, context.locale);
   if (field.dateUnit !== undefined) {
@@ -192,6 +207,23 @@ export function displayValue(
     default:
       return undefined;
   }
+}
+
+/**
+ * A reference id as its name, or the id while the name is pending or
+ * missing; `undefined` for a field that names no remote, a value that is
+ * no id, or a context without `labels`.
+ */
+export function referenceText(
+  value: unknown,
+  field: Pick<DisplayField, 'remote'>,
+  context: Pick<DisplayContext, 'labels'>,
+): string | undefined {
+  return field.remote !== undefined &&
+    context.labels &&
+    (typeof value === 'string' || typeof value === 'number')
+    ? context.labels.text(field.remote, value)
+    : undefined;
 }
 
 /**
@@ -701,6 +733,9 @@ export function csvCellText(
   messages: MessageFormatters,
   context: DisplayContext,
 ): string {
+  // A reference id is a name in the file as on screen, a number id too.
+  const named = referenceText(value, field, context);
+  if (named !== undefined) return named;
   // Written raw unless the author's own format decides how it reads.
   if (typeof value === 'number' && !(field.numberFormat && !field.numeric))
     return Number.isFinite(value) ? String(value) : '';

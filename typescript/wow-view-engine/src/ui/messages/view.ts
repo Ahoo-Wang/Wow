@@ -11,6 +11,9 @@
  * limitations under the License.
  */
 
+import { QueryErrorCodes } from '../../model/index.js';
+import { wireKey } from './wireKey.js';
+
 /** A view itself: which kind it is, the list it sits in, and the commands. */
 export const viewMessages = {
   // Which kind of view a row names: one data definition holds record and
@@ -20,9 +23,9 @@ export const viewMessages = {
   'label.kind.dashboard': 'Dashboard',
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
-  // The store lists only so many of one audience (`ViewStore.listLimit`).
+  // The engine reads at most so many (`RuntimeLimits.listedViews`).
   'label.view.list-cut':
-    'Only the first {limit} views of each group are listed; a link to another still opens it.',
+    'Only the first {limit} views are listed; a link to another still opens it.',
   'label.view.none-hint': 'Make one to start looking at the data.',
   // The command and the name it opens under: one is a verb on a button, the
   // other a title in a heading, and the two catalogues word them apart. The
@@ -113,102 +116,128 @@ export const viewMessages = {
   // (`runtime.query.failed.<code>`, D40): each worded for the reader, the
   // service's own words where they say what the rule alone cannot. A rule
   // a newer service adds falls back along the dots to the line above.
-  'runtime.query.failed.invalid_json':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_JSON)]:
     'The service could not read the query this view sent: {reason}',
-  'runtime.query.failed.body_not_object':
+  [wireKey('runtime.query.failed', QueryErrorCodes.BODY_NOT_OBJECT)]:
     'The service could not read the query this view sent: {reason}',
-  'runtime.query.failed.empty_body':
+  [wireKey('runtime.query.failed', QueryErrorCodes.EMPTY_BODY)]:
     'The service received an empty query: {reason}',
-  'runtime.query.failed.unknown_property':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_PROPERTY)]:
     'The service does not understand part of this query; it may be older than this view engine: {reason}',
-  'runtime.query.failed.unknown_type':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_TYPE)]:
     'The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}',
-  'runtime.query.failed.unknown_value':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_VALUE)]:
     'The service does not know a value this view sent: {reason}',
-  'runtime.query.failed.invalid_value':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_VALUE)]:
     'A value in this query is missing or of the wrong kind: {reason}',
-  'runtime.query.failed.invalid_request':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_REQUEST)]:
     'The service refused the query: {reason}',
-  'runtime.query.failed.unknown_field':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_FIELD)]:
     'The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it.',
-  'runtime.query.failed.unsupported_capability':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNSUPPORTED_CAPABILITY)]:
     '{field} cannot be used this way on this data: {reason}',
-  'runtime.query.failed.element_scope_required':
+  [wireKey('runtime.query.failed', QueryErrorCodes.ELEMENT_SCOPE_REQUIRED)]:
     "{field} can only be filtered inside its list, with a condition on the list's elements.",
-  'runtime.query.failed.value_mismatch': 'A value is not one {field} can hold.',
-  'runtime.query.failed.not_collection':
+  [wireKey('runtime.query.failed', QueryErrorCodes.VALUE_MISMATCH)]:
+    'A value is not one {field} can hold.',
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_COLLECTION)]:
     '{field} is not a list, so it cannot be checked for being empty.',
-  'runtime.query.failed.not_single_string':
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_SINGLE_STRING)]:
     '{field} is not a single text value, so it cannot be checked for being empty.',
-  'runtime.query.failed.model_search_unsupported':
+  [wireKey('runtime.query.failed', QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED)]:
     'This data does not support search.',
-  'runtime.query.failed.cursor_not_allowed':
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_NOT_ALLOWED)]:
     '{field} cannot be used to page through this data.',
-  'runtime.query.failed.protected_aggregation':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PROTECTED_AGGREGATION)]:
     '{field} is protected and cannot be summarised.',
-  'runtime.query.failed.protected_comparison':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PROTECTED_COMPARISON)]:
     '{field} is protected and cannot be used to filter, sort or search.',
-  'runtime.query.failed.missing_key_requires_string':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.MISSING_KEY_REQUIRES_STRING,
+  )]:
     'Only a single text field can group its missing values; {field} is not one.',
-  'runtime.query.failed.any_requires_single_value':
+  [wireKey('runtime.query.failed', QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE)]:
     '“Any value” needs a field that holds a single value.',
-  'runtime.query.failed.incomplete_projection':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INCOMPLETE_PROJECTION)]:
     'The service cannot return whole records here; choose the columns to show.',
-  'runtime.query.failed.metric_filter_search':
+  [wireKey('runtime.query.failed', QueryErrorCodes.METRIC_FILTER_SEARCH)]:
     "A metric's own condition cannot use search.",
-  'runtime.query.failed.metric_filter_element_match':
-    "A metric's own condition cannot match list elements.",
-  'runtime.query.failed.metric_filter_array_field':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH,
+  )]: "A metric's own condition cannot match list elements.",
+  [wireKey('runtime.query.failed', QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD)]:
     "A metric's own condition cannot use the list field {field}.",
-  'runtime.query.failed.cursor_sort_duplicate':
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_SORT_DUPLICATE)]:
     'The sort names {field} twice; keep it once.',
-  'runtime.query.failed.cursor_sort_too_many':
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_SORT_TOO_MANY)]:
     'The sort has too many fields to page through this data; remove some.',
-  'runtime.query.failed.not_projectable':
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_PROJECTABLE)]:
     '{field} cannot be shown as a column of this data.',
-  'runtime.query.failed.event_projection_type_required':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED,
+  )]:
     "An event's payload cannot be shown without its type; keep the event type column.",
-  'runtime.query.failed.temporal_representation_required':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
+  )]:
     '{field} is not stored as a known date or time, so a relative time cannot be asked of it.',
-  'runtime.query.failed.temporal_configuration_conflict':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
+  )]:
     'The relative time on {field} does not agree with how the field keeps its time: {reason}',
-  'runtime.query.failed.parallel_array_sort':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PARALLEL_ARRAY_SORT)]:
     '{field} and another list field in the sort cannot be sorted by together; keep one of them.',
-  'runtime.query.failed.array_equality':
+  [wireKey('runtime.query.failed', QueryErrorCodes.ARRAY_EQUALITY)]:
     '{field} cannot be compared with a whole list here; match its items instead.',
-  'runtime.query.failed.first_last_requires_single_value':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE,
+  )]:
     '“First value” and “Last value” need a field that holds a single value; {field} may hold several.',
-  'runtime.query.failed.first_last_requires_order_by':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY,
+  )]:
     '“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.',
-  'runtime.query.failed.invalid_cursor':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_CURSOR)]:
     'This page can no longer be continued; start again from the first page.',
-  'runtime.query.failed.size_out_of_range':
+  [wireKey('runtime.query.failed', QueryErrorCodes.SIZE_OUT_OF_RANGE)]:
     'The service limits how many rows one request may read: {reason}',
-  'runtime.query.failed.filter_too_large':
+  [wireKey('runtime.query.failed', QueryErrorCodes.FILTER_TOO_LARGE)]:
     'The conditions are more than the service accepts in one query: {reason}',
-  'runtime.query.failed.expensive_operator_disabled':
-    'The service does not allow this costly query here: {reason}',
-  'runtime.query.failed.count_requires_filter':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED,
+  )]: 'The service does not allow this costly query here: {reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.COUNT_REQUIRES_FILTER)]:
     'Add a condition first: the service will not count every record.',
-  'runtime.query.failed.residual_groups_exceeded':
+  [wireKey('runtime.query.failed', QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED)]:
     'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
-  'runtime.query.failed.too_many_groups':
+  [wireKey('runtime.query.failed', QueryErrorCodes.TOO_MANY_GROUPS)]:
     'This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.',
-  'runtime.query.failed.explicit_entry_required':
+  [wireKey('runtime.query.failed', QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)]:
     'The query named no entry to run against: {reason}',
-  'runtime.query.failed.replay_too_long':
+  [wireKey('runtime.query.failed', QueryErrorCodes.REPLAY_TOO_LONG)]:
     'That state is too many changes away to rebuild: {reason}',
-  'runtime.query.failed.temporal_aggregation_unsupported':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED,
+  )]:
     '{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.',
-  'runtime.query.failed.sort_too_many':
+  [wireKey('runtime.query.failed', QueryErrorCodes.SORT_TOO_MANY)]:
     'The sort has too many fields; remove some.',
-  'runtime.query.failed.sort_field_duplicate':
+  [wireKey('runtime.query.failed', QueryErrorCodes.SORT_FIELD_DUPLICATE)]:
     '{field} is sorted by twice; keep it once.',
-  'runtime.query.failed.identity_undefined':
+  [wireKey('runtime.query.failed', QueryErrorCodes.IDENTITY_UNDEFINED)]:
     'This data defines no record identity, so it cannot be paged through or picked by id.',
-  'runtime.query.failed.storage_unsupported':
+  [wireKey('runtime.query.failed', QueryErrorCodes.STORAGE_UNSUPPORTED)]:
     "The service's storage cannot run this: {reason}",
-  'runtime.query.failed.previous_unshiftable':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PREVIOUS_UNSHIFTABLE)]:
     "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.",
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':

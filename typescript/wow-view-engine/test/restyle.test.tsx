@@ -25,6 +25,7 @@ import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
 import { recordConfig, testSource } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -68,7 +69,7 @@ describe('restyledOnly', () => {
     expect(
       restyledOnly(ran, {
         ...ran,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
     ).toBe('summaries');
   });
@@ -87,7 +88,10 @@ describe('restyledOnly', () => {
       }),
     ).toBeNull();
     expect(
-      restyledOnly(ran, { ...ran, sort: [{ field: 'id', direction: 'ASC' }] }),
+      restyledOnly(ran, {
+        ...ran,
+        sort: [{ field: 'id', direction: SortDirection.ASC }],
+      }),
     ).toBeNull();
     expect(restyledOnly(ran, { ...ran, pageSize: 50 })).toBeNull();
   });
@@ -120,6 +124,7 @@ describe('a presentation edit on a record view', () => {
       paged: vi.fn(() =>
         Promise.resolve({
           total: 200,
+          exact: true,
           list: [
             { id: 'o-1', amount: 10 },
             { id: 'o-2', amount: 20 },
@@ -146,7 +151,9 @@ describe('a presentation edit on a record view', () => {
     const pages = vi.mocked(source.paged).mock.calls.length;
     const aggregates = vi.mocked(source.aggregate).mock.calls.length;
 
-    act(() => result.current.table.setSummary('amount', 'SUM'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
+    );
     await waitFor(() => expect(result.current.table.status).toBe('success'));
     await waitFor(() =>
       expect(result.current.table.summaries?.cells).toHaveLength(1),
@@ -163,6 +170,7 @@ describe('a presentation edit on a record view', () => {
       paged: vi.fn(() =>
         Promise.resolve({
           total: 200,
+          exact: true,
           list: [
             { id: 'o-1', amount: 10 },
             { id: 'o-2', amount: 20 },
@@ -206,7 +214,9 @@ describe('a presentation edit on a record view', () => {
       () => new Promise(resolve => (answer = resolve)),
     );
 
-    act(() => result.current.table.setSummary('amount', 'SUM'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
+    );
 
     expect(result.current.table.status).toBe('success');
     expect(result.current.runtime?.getSnapshot().query.status).toBe('success');
@@ -223,7 +233,9 @@ describe('a presentation edit on a record view', () => {
     vi.mocked(source.aggregate).mockImplementationOnce(
       () => new Promise(resolve => (answer = resolve)),
     );
-    act(() => result.current.table.setSummary('amount', 'SUM'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
+    );
     const asked = vi.mocked(source.paged).mock.calls.length;
 
     act(() => result.current.table.setColumnWidth('amount', 180));
