@@ -190,7 +190,12 @@ export function useCatalogue(engine: ViewEngine, boards = false): Listing {
     const data = [...engine.definitions.values()].filter(definition =>
       boards ? definition.kind === 'dashboard' : definition.kind === 'data',
     );
-    void Promise.all(data.map(definition => engine.list(definition.id))).then(
+    const reading = new AbortController();
+    void Promise.all(
+      data.map(definition =>
+        engine.list(definition.id, { signal: reading.signal }),
+      ),
+    ).then(
       listings => {
         if (!live) return;
         setListing({
@@ -204,6 +209,7 @@ export function useCatalogue(engine: ViewEngine, boards = false): Listing {
     );
     return () => {
       live = false;
+      reading.abort();
     };
   }, [engine, boards]);
   return listing;

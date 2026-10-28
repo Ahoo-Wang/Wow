@@ -22,7 +22,7 @@
  */
 
 import type { ViewInstanceSummary, ViewPreferences } from '../model/index.js';
-import type { ViewStore } from '../store/ViewStore.js';
+import type { ReadOptions, ViewStore } from '../store/ViewStore.js';
 
 export class PreferenceCache {
   private readonly store: ViewStore;
@@ -45,9 +45,12 @@ export class PreferenceCache {
    * read started before that write, so it answers the cached ones instead,
    * and the next reorder does not start from a revision already gone.
    */
-  async read(definitionId: string): Promise<ViewPreferences> {
+  async read(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewPreferences> {
     const before = this.notes.get(definitionId) ?? 0;
-    const preferences = await this.store.getPreferences(definitionId);
+    const preferences = await this.store.getPreferences(definitionId, options);
     const newer = this.cache.get(definitionId);
     if (newer && (this.notes.get(definitionId) ?? 0) !== before) return newer;
     this.cache.set(definitionId, preferences);

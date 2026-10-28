@@ -336,8 +336,11 @@ export class ViewEngine extends EngineResources {
     return this.changes.subscribe(listener);
   }
 
-  async preferences(definitionId: string): Promise<ViewPreferences> {
-    return this.preferenceCache.read(definitionId);
+  async preferences(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewPreferences> {
+    return this.preferenceCache.read(definitionId, options);
   }
 
   /** Opens a saved view, or a code-declared one without touching the store. */
@@ -345,13 +348,15 @@ export class ViewEngine extends EngineResources {
     instanceId: string,
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
+    const { signal } = options;
     const instance = this.registry.ofDefinition(
-      await this.readInstance(instanceId),
+      await this.readInstance(instanceId, signal),
       options.definitionId,
     );
     // What its sources admit is read before the first query, so that query
     // already goes out narrowed.
     await this.capabilities.prepareFor(instance);
+    signal?.throwIfAborted();
     // A dashboard opens on its tab rather than on its first and then there:
     // only the tab on screen runs, so where it starts is what is asked.
     const tab = await this.tabs.opensOn(instance, options.tab);
@@ -370,16 +375,25 @@ export class ViewEngine extends EngineResources {
         this.runtimes.forget(runtime);
         throw error;
       }
+    // Asked for no more while it opened: nobody holds it, so nobody would
+    // close it.
+    if (signal?.aborted) {
+      this.runtimes.forget(runtime);
+      signal.throwIfAborted();
+    }
     runtime.apply();
     return runtime as AnyViewRuntime;
   }
 
   /** One instance, from the definition's code or from the store. */
-  private async readInstance(instanceId: string): Promise<ViewInstance> {
+  private async readInstance(
+    instanceId: string,
+    signal?: AbortSignal,
+  ): Promise<ViewInstance> {
     const declared = parseSystemInstanceId(instanceId);
     return declared
       ? this.registry.systemInstance(declared.definitionId, declared.viewId)
-      : this.store.get(instanceId);
+      : this.store.get(instanceId, signal === undefined ? {} : { signal });
   }
 
   /**

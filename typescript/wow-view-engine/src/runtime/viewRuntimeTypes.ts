@@ -477,6 +477,12 @@ export interface CreateInput<C extends ViewConfig> {
 /** How `ViewEngine.open` opens a view, beyond which one. */
 export interface OpenOptions {
   /**
+   * Cancels the opening: the reads it waits on are aborted, and a view
+   * opened by then is disposed rather than handed back. A hook aborts it
+   * when the component that asked unmounts.
+   */
+  signal?: AbortSignal;
+  /**
    * An outer condition in force from the first query, in the view's own field
    * names. It is admitted with the config rather than after it, so a host that
    * scopes a view — an order page showing one customer's shipments — never

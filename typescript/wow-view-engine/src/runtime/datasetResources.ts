@@ -65,7 +65,7 @@ export interface StoredDatasetWording {
 export interface DatasetWordingStore {
   /** Every dataset's stored wording, by definition id (`{context}.{dataset}`). */
   list(
-    signal?: AbortSignal,
+    options?: ReadOptions,
   ): Promise<ReadonlyMap<string, StoredDatasetWording>>;
   /** Writes one whole at the expected revision; answers the new revision. */
   set(
@@ -251,11 +251,12 @@ export class DatasetResources {
     return this.found;
   }
 
-  async refresh(): Promise<readonly DatasetResource[]> {
-    await this.readWordings();
+  async refresh(options: ReadOptions = {}): Promise<readonly DatasetResource[]> {
+    await this.readWordings(options);
     const lists = await Promise.allSettled(
-      this.catalogs.map(catalog => catalog.list()),
+      this.catalogs.map(catalog => catalog.list(options)),
     );
+    options.signal?.throwIfAborted();
     if (lists.every(list => list.status === 'rejected')) throw lists[0].reason;
     const servable = new Map<string, Listed>();
     const duplicates: DatasetDuplicate[] = [];
@@ -291,7 +292,7 @@ export class DatasetResources {
         this.derived.delete(id);
       }
     await Promise.all(
-      [...servable].map(([id, listed]) => this.serve(id, listed)),
+      [...servable].map(([id, listed]) => this.serve(id, listed, options)),
     );
     const order = [...servable.keys()];
     return this.resources
@@ -303,14 +304,14 @@ export class DatasetResources {
    * Reads the stored wording before a refresh registers; one that cannot be
    * read leaves what was read last, and is told for no dataset in particular.
    */
-  private async readWordings(): Promise<void> {
+  private async readWordings(options: ReadOptions): Promise<void> {
     const read = new Map(this.stored);
     await Promise.all(
       this.catalogs.map(async (catalog, index) => {
         const store = catalog.wordings;
         if (!store) return;
         try {
-          read.set(index, await store.list());
+          read.set(index, await store.list(options));
         } catch (error) {
           this.onWordingError(error);
         }
@@ -329,7 +330,11 @@ export class DatasetResources {
     );
   }
 
-  private async serve(id: string, listed: Listed): Promise<void> {
+  private async serve(
+    id: string,
+    listed: Listed,
+    options: ReadOptions,
+  ): Promise<void> {
     const { entry, catalog } = listed;
     const held = this.held.get(id);
     const { wording } = this.wordingOf(id, listed);
@@ -343,7 +348,7 @@ export class DatasetResources {
     if (!held && this.engine.definitions.has(id)) return;
     try {
       const source = this.catalogs[catalog].source(entry);
-      const described = await source.describe?.();
+      const described = await source.describe?.(undefined, options);
       if (!described || described.notModified)
         throw new Error(`Dataset [${id}] does not describe itself.`);
       this.derived.set(id, {

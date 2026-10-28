@@ -266,7 +266,8 @@ export function useRecordActions({
           ...(value === null ? {} : { values: { value } }),
           operation: action.id,
           ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
-          each: key => runOne(action, rowOf(key), input, Date.now()),
+          each: (key, options) =>
+            runOne(action, rowOf(key), input, Date.now(), options),
         },
       );
     },

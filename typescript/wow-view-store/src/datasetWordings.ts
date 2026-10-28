@@ -18,6 +18,7 @@ import type {
   DatasetOverrides,
   DatasetWordingStore,
   StoredDatasetWording,
+  ReadOptions,
   WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { revisionOf } from './views.js';
@@ -68,7 +69,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
    * what the next write expects.
    */
   list(
-    signal?: AbortSignal,
+    { signal }: ReadOptions = {},
   ): Promise<ReadonlyMap<string, StoredDatasetWording>> {
     return guard(async () => {
       const snapshots = await request(() =>

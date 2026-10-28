@@ -162,8 +162,16 @@ export interface RecordAction {
    * idempotency key the service deduplicates by: a `run` that times out or
    * loses the network after sending has an outcome nobody knows, and the
    * reader, told to check, may press again.
+   *
+   * `options.signal` aborts when the engine stops waiting — past `timeout`,
+   * or when the reader stops the run — so a command not yet sent can be
+   * cancelled; one already sent has the outcome the server gives it.
    */
-  run(row: RecordRow, input: ActionInput): Promise<unknown>;
+  run(
+    row: RecordRow,
+    input: ActionInput,
+    options: { signal: AbortSignal },
+  ): Promise<unknown>;
   /**
    * How long one record's `run` is waited for, in milliseconds. Past it the
    * engine stops waiting and reports the record's outcome as unknown — it
@@ -478,10 +486,11 @@ export async function runOne(
   row: RecordRow | undefined,
   input: ActionInput,
   now: number,
+  options: { signal: AbortSignal },
 ): Promise<unknown> {
   if (!row) throw new ActionRefusedError(UNSEEN);
   const state = actionState(action, row, { now, input });
   if (!state.available)
     throw new ActionRefusedError(state.reason ?? UNAVAILABLE);
-  return action.run(row, input);
+  return action.run(row, input, options);
 }
