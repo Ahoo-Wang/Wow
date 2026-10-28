@@ -51,7 +51,7 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
 | `FunctionKind` | type | The kind of function that produced a result. | — |
 | `FunctionManifest` | interface | The handler function of a subscription. | — |
-| `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is`HANDLED`. | — |
+| `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is`handled`. | — |
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
 | `JobManifest` | interface | The scheduled job a subscription runs. | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |

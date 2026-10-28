@@ -381,12 +381,12 @@ A hop that completes sends a signal straight to the internal port of the node th
       "subscription": "snapshot"
     },
     "function": {
-      "kind": "SNAPSHOT",
+      "kind": "snapshot",
       "context": "bank",
       "processor": "snapshot",
       "name": "snapshot"
     },
-    "status": "SUCCEEDED",
+    "status": "succeeded",
     "version": 2,
     "duplicate": false,
     "error": null,

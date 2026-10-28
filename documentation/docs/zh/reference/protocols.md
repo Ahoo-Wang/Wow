@@ -381,12 +381,12 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "subscription": "snapshot"
     },
     "function": {
-      "kind": "SNAPSHOT",
+      "kind": "snapshot",
       "context": "bank",
       "processor": "snapshot",
       "name": "snapshot"
     },
-    "status": "SUCCEEDED",
+    "status": "succeeded",
     "version": 2,
     "duplicate": false,
     "error": null,

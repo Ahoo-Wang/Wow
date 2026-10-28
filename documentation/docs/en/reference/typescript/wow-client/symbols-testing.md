@@ -17,7 +17,7 @@ Every name `@ahoo-wang/wow-client/testing` exports — 8 — with its kind and t
 |---|---|---|---|
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
 | `DevelopmentCallerHeaders` | const | The identity headers a development run of a Wow service reads the caller from (the host's development callers, in a profile of `wow.dev-profiles`, when CoSec is off): any client can set them, so a deployment never reads them. | — |
-| `commandResultOf` | function | A command's result as a service answers it, for a test's fake: the command`ref` names, committed (`SUCCEEDED` at `COMMITTED`, version 1) unless`overrides` says otherwise. | — |
+| `commandResultOf` | function | A command's result as a service answers it, for a test's fake: the command`ref` names, committed (`succeeded` at `committed`, version 1) unless`overrides` says otherwise. | — |
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `problemOf` | function | An RFC 9457 problem as a service answers it, of `status` and the Wow `code` (`urn:wow:error:<code>`; `about:blank` without one), for a test's fake or an expected error. | — |
