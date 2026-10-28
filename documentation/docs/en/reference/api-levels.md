@@ -141,6 +141,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicTransportOptions` | object | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |

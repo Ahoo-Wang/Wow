@@ -24,17 +24,12 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.boot.autoconfigure.AutoConfigurations
-import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 /**
- * The ClickHouse client of [ClickHouseAutoConfiguration] (decision D145), and its dataset backend, found by
- * `ServiceLoader` and opened over it ([HostDatasets.provided]).
+ * The ClickHouse dataset backend, found by `ServiceLoader` and opened over the application's client, or over one of its
+ * own that the node's bindings close ([HostDatasets.provided]).
  */
 class HostClickHouseDatasetsTest {
-    private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(ClickHouseAutoConfiguration::class.java))
-
     private val client: Client = Client.Builder().addEndpoint("http://127.0.0.1:1").setUsername("default").build()
 
     private val providers = HostDatasets.providers(javaClass.classLoader)
@@ -45,11 +40,13 @@ class HostClickHouseDatasetsTest {
     ) = HostDatasets.provided(providers, resources) { mapOf(*settings) }
 
     @Test
-    fun `with an endpoint the client should be the application's`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
-            context.getBeansOfType(Client::class.java).assert().hasSize(1)
-        }
-        runner.run { context -> context.getBeansOfType(Client::class.java).assert().isEmpty() }
+    fun `without the application's client the endpoint should give the backend its own, which the node closes`() {
+        val own = provided(StoreResources.NONE, "endpoint" to "http://127.0.0.1:1", "sink.batch-size" to "5")
+        own.assert().isInstanceOf(AutoCloseable::class.java)
+        HostDatasetBindings(own, provided = true).close()
+        val application = provided()
+        application.assert().isInstanceOf(ClickHouseDatasetBindings::class.java)
+        application.assert().isNotInstanceOf(AutoCloseable::class.java)
     }
 
     @Test

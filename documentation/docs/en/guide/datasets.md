@@ -51,7 +51,7 @@ A file in the working directory, `<wow.query.dataset.config-directory>/wow/datas
 
 ## Where the rows come from
 
-Datasets are served when a dataset backend is wired; in 10.0, ClickHouse's: `wow-clickhouse` on the class path and `wow.clickhouse.endpoint` set. The ClickHouse sink writes each published aggregate's commits to tables a dataset reads, such as `<context>_<aggregate>_state_flat`, the current states with the state's scalar fields as columns ([ClickHouse](../operate/clickhouse)).
+Datasets are served when a dataset backend is wired; in 10.0, ClickHouse's: `wow-clickhouse` on the class path, with `wow.clickhouse.endpoint` set or a ClickHouse `Client` bean. The ClickHouse sink, switched on by `wow.clickhouse.sink.enabled: true`, writes each published aggregate's commits to tables a dataset reads, such as `<context>_<aggregate>_state_flat`, the current states with the state's scalar fields as columns ([ClickHouse](../operate/clickhouse)).
 
 ## Query it
 

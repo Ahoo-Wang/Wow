@@ -30,13 +30,14 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.dataset.QueryDatasets
-import me.ahoo.wow.spring.boot.ClickHouseProperties
 import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.health.contributor.Status
+import org.springframework.core.env.MapPropertySource
+import org.springframework.core.env.StandardEnvironment
 import java.time.Duration
 
 @OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
@@ -50,14 +51,34 @@ class AnalyticsCatalogConfigurationTest {
         every { it.getObject() } answers { checkNotNull(value) }
     }
 
+    private fun environment(vararg properties: Pair<String, Any>) = StandardEnvironment().apply {
+        propertySources.addFirst(MapPropertySource("test", mapOf(*properties)))
+    }
+
+    @Test
+    fun `the service's ClickHouse client should be one of the endpoint and credentials of wow clickhouse`() {
+        val environment = environment(
+            "wow.clickhouse.endpoint" to "http://127.0.0.1:1",
+            "wow.clickhouse.username" to "catalog",
+        )
+        configuration.analyticsCatalogClickHouseClient(environment).use { client ->
+            client.assert().isNotNull()
+        }
+        assertThrows<IllegalArgumentException> { configuration.analyticsCatalogClickHouseClient(environment()) }
+            .message.assert().contains("wow.clickhouse.endpoint")
+    }
+
     @Test
     fun `the catalog should be ClickHouse's over the configured databases, or none without a client`() {
-        val clickhouse = provider(ClickHouseProperties().apply { database = "wow" })
+        val clickhouse = environment("wow.clickhouse.database" to "wow")
         configuration.warehouseCatalog(provider<Client>(null), AnalyticsCatalogProperties(), clickhouse)
             .assert().isSameAs(WarehouseCatalog.NONE)
         val client = mockk<Client>()
         val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), clickhouse)
         defaulted.databases.assert().containsExactly("wow")
+        // Without wow.clickhouse.database, ClickHouse's own default database.
+        configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), environment())
+            .databases.assert().containsExactly("default")
         defaulted.engine.assert().isEqualTo("clickhouse")
         val listed = configuration.warehouseCatalog(
             provider(client),

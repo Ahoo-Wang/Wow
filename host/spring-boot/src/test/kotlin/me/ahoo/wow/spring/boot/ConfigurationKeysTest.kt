@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -66,6 +67,26 @@ class ConfigurationKeysTest {
         // provider alone.
         ConfigurationKeys.of(javaClass.classLoader).unknown(environment("wow.acme.region" to "eu-1"))
             .assert().containsExactly("wow.acme.region")
+    }
+
+    @Test
+    fun `any sub-key of a declared map option is known, and nothing beside it`() {
+        val labels = ProviderOption.map("labels", "the labels of every acme resource.")
+        val declared = ProviderOptionKeys.of(listOf("acme" to listOf(labels)))
+        val keys = ConfigurationKeys.of(javaClass.classLoader, declared = declared)
+        keys.unknown(
+            environment("wow.acme.labels.team" to "a", "wow.acme.labels.cost.center" to "b")
+        ).assert().isEmpty()
+        keys.unknown(environment("wow.acme.labelz.team" to "a", "wow.acme.colour" to "red"))
+            .assert().containsExactlyInAnyOrder("wow.acme.labelz.team", "wow.acme.colour")
+        // Wow's own transports and Sinks declare theirs in the metadata: Kafka's client properties pass as they are.
+        val passed = environment(
+            "wow.kafka.properties.linger.ms" to "5",
+            "wow.clickhouse.query.settings.max_threads" to "2",
+        )
+        keys.unknown(passed).assert().isEmpty()
+        keys.unknown(environment("wow.kafka.propertiez.linger.ms" to "5", "wow.kafka.linger" to "5"))
+            .assert().containsExactlyInAnyOrder("wow.kafka.propertiez.linger.ms", "wow.kafka.linger")
     }
 
     @Test

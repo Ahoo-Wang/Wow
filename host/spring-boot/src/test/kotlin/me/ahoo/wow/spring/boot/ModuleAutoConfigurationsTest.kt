@@ -25,7 +25,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 class ModuleAutoConfigurationsTest {
     private val configurations = mapOf(
         QueryAutoConfiguration::class.java to QUERY_MODULE,
-        ClickHouseAutoConfiguration::class.java to CLICKHOUSE_MODULE,
     )
 
     @Test

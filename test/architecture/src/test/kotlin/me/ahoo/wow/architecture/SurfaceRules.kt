@@ -156,10 +156,7 @@ object SurfaceRules {
      * third party cannot use without opting in to Wow's internals. A fix removes its entry: an entry no dump still
      * names this way is stale and fails the rule.
      */
-    val ABI_CLOSURE_ALLOWED: Map<String, String> = mapOf(
-        "me/ahoo/wow/spring/boot/ClickHouseProperties" to "D350 P6 (E10)",
-        "me/ahoo/wow/spring/boot/KafkaProperties" to "D350 P6 (E10)",
-    )
+    val ABI_CLOSURE_ALLOWED: Map<String, String> = emptyMap()
 
     private val ABI_REFERENCE = Regex("""me/ahoo/wow/[\w/$]+""")
 
@@ -172,14 +169,17 @@ object SurfaceRules {
 
     /**
      * The public signatures of the ABI dumps of [MODULES] that name a `me/ahoo/wow` type no dump declares, outside
-     * [ABI_CLOSURE_ALLOWED], as `dump: class: type`, and each allowed type no dump names that way any more (a stale
-     * entry): the public API is closed when every type it names is public too.
+     * [allowed] ([ABI_CLOSURE_ALLOWED]), as `dump: class: type`, and each allowed type no dump names that way any more
+     * (a stale entry): the public API is closed when every type it names is public too.
      *
      * Two kinds of line are read apart. A synthetic default-arguments bridge is skipped: it mirrors a declaration the
      * dump lists too, or an internal constructor no other module can call, so it promises nothing of its own. A
      * protected class counts as declared, as a spec's protected companion is: a subclass reaches it.
      */
-    fun abiClosureViolations(repositoryRoot: File): List<String> {
+    fun abiClosureViolations(
+        repositoryRoot: File,
+        allowed: Map<String, String> = ABI_CLOSURE_ALLOWED,
+    ): List<String> {
         val dumps = MODULES.map { "${it.dir}/api/${it.name}.api" to File(repositoryRoot, "${it.dir}/api/${it.name}.api") }
             .filter { (_, dump) -> dump.isFile }
             .map { (path, dump) -> path to dump.readLines() }
@@ -194,10 +194,10 @@ object SurfaceRules {
                 if (ABI_SYNTHETIC.containsMatchIn(line)) return@flatMap emptyList()
                 ABI_REFERENCE.findAll(line).map { it.value }.filter { it !in declared }.map { owner to it }.toList()
             }.distinct().onEach { (_, type) -> leaked += type }
-                .filter { (_, type) -> type !in ABI_CLOSURE_ALLOWED }
+                .filter { (_, type) -> type !in allowed }
                 .map { (owner, type) -> "$path: $owner: $type" }
         }
-        return violations + (ABI_CLOSURE_ALLOWED.keys - leaked).map { "stale entry: $it" }
+        return violations + (allowed.keys - leaked).map { "stale entry: $it" }
     }
 
     private val ANY_OPT_IN = Regex("""\b(?:OptIn|optIn)\b""")

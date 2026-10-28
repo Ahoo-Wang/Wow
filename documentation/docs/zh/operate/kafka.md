@@ -112,3 +112,5 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 ## 客户端设置 {#client-settings}
 
 `wow.kafka.properties.*` 把设置原样传给每个生产者和消费者，例如 `security.protocol` 和 SASL 设置、`client.id` 或 `linger.ms`。少数设置归 Wow 所有、不能覆盖，因为传输的保证建立在它们之上：`acks=all` 的幂等生产者、不使用消费组、不提交任何东西也不自行重置偏移量的消费者，以及读取时不创建主题。
+
+`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topic-prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。

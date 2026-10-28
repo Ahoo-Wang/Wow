@@ -10,7 +10,7 @@ ClickHouse is Wow's warehouse. A sink copies each published aggregate's commits 
 
 ## Connect a service
 
-Put `wow-clickhouse` on the class path and set `wow.clickhouse.endpoint`, the server's HTTP endpoint; ClickHouse is wired only when it is set. The eShop's ordering service does so in its `clickhouse` profile:
+Put `wow-clickhouse` on the class path, set `wow.clickhouse.endpoint`, the server's HTTP endpoint, and switch the sink on with `wow.clickhouse.sink.enabled: true`. Writing every event to a warehouse is a cost a service chooses, so the sink is off until that setting says otherwise; neither an endpoint nor a client switches it on. The eShop's ordering service does both in its `clickhouse` profile:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
 
@@ -24,9 +24,27 @@ wow:
     # The order stream is written to ClickHouse by the Sink (eshop_ordering_order_state_flat, ...), and the sales
     # dataset, META-INF/wow/dataset/eshop-ordering.sales.json, is queried there: /wow/dataset/eshop-ordering/sales/query.
     endpoint: http://localhost:8123
+    sink:
+      enabled: true
 ```
 
-`wow.clickhouse.username` (`default`) and `password` sign in, and `wow.clickhouse.database` (`default`) holds the tables. The sink writes every aggregate the Manifest publishes; `wow.clickhouse.sink.enabled: false` turns it off.
+`wow.clickhouse.username` (`default`) and `password` sign in, and `wow.clickhouse.database` (`default`) holds the tables. The sink writes every aggregate the Manifest publishes. The datasets are served whenever there is a client, unless `wow.clickhouse.query.enabled: false`.
+
+The sink and the datasets find their client by one rule: the application's ClickHouse `Client` bean when it has one, which Wow never closes; otherwise one of these settings, which each opens and closes with the node. A sink switched on with neither fails the start, naming both ways. An application that wants one shared client, or uses ClickHouse itself, declares the client as a bean: it binds `wow.clickhouse` with Spring's `Binder`, builds the client with `ClickHouseClients.of`, and closes it with its context. The analytics catalog does so, to read the warehouse; its client starts no sink:
+
+<!-- sample: platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/AnalyticsCatalogConfiguration.kt#shared-client -->
+
+```kotlin
+@Bean(destroyMethod = "close")
+@ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
+fun analyticsCatalogClickHouseClient(environment: Environment): Client {
+    val settings = Binder.get(environment)
+        .bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
+        .orElse(emptyMap())
+        .orEmpty()
+    return ClickHouseClients.of(settings)
+}
+```
 
 ## The tables
 
@@ -39,7 +57,7 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 | `<ctx>_<agg>_events` | One row per event, filled by a materialized view |
 | `<ctx>_<agg>_state_flat` | A view of the current state with each top-level scalar of the state as a typed column, for analytics tools |
 
-`wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
+`wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
 
 ## Delivered once, read once
 

@@ -61,8 +61,8 @@ internal object HostDatasets {
             .sortedBy { it.type }
 
     /**
-     * The bindings of the one of [providers] that is available over [resources] and its settings ([settings],
-     * `wow.<type>.*`); null when none is. Several available ones refuse the start, naming them: an application with
+     * The bindings of the one of [providers] that is available over [resources] and the settings it declares of
+     * [settings] (`wow.<type>.*`); null when none is. Several available ones refuse the start, naming them: an application with
      * more than one dataset backend gives the node its own `QueryBindings<QueryDataset>` bean.
      */
     fun provided(
@@ -70,7 +70,8 @@ internal object HostDatasets {
         resources: StoreResources,
         settings: (type: String) -> Map<String, String>,
     ): QueryBindings<QueryDataset>? {
-        val available = providers.map { it to QueryDatasetConfig(it.type, settings(it.type), resources) }
+        val available = providers
+            .map { it to QueryDatasetConfig(it.type, PortProviders.declared(settings(it.type), it.options), resources) }
             .filter { (provider, config) -> provider.available(config) }
         configCheck(
             available.size <= 1,
@@ -97,6 +98,17 @@ internal object HostDatasets {
     }
 }
 
-/** The node's dataset bindings: the application's, or a dataset backend's; null when no backend serves datasets. */
+/**
+ * The node's dataset bindings: the application's, or a dataset backend's ([provided]); null when no backend serves
+ * datasets. Closed with the context, they close a dataset backend's bindings that hold resources of their own (a
+ * client it opened), never the application's.
+ */
 @InternalWowApi
-class HostDatasetBindings internal constructor(val bindings: QueryBindings<QueryDataset>?)
+class HostDatasetBindings internal constructor(
+    val bindings: QueryBindings<QueryDataset>?,
+    private val provided: Boolean = false,
+) : AutoCloseable {
+    override fun close() {
+        if (provided) (bindings as? AutoCloseable)?.close()
+    }
+}
