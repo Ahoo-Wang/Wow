@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.clickhouse.query.ClickHouseStreamException
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
@@ -33,7 +34,8 @@ import java.net.UnknownHostException
  *
  * Unavailable are a connection the client could not open, which it reports as a [ConnectionInitiationException]
  * (refused, timed out, no answer, an unknown host), a socket timeout, an HTTP 502 or 503 (which it turns into a
- * [ConnectException]), and the server's codes for overload and lost replicas ([UNAVAILABLE_CODES]). A statement
+ * [ConnectException]), and the server's codes for overload and lost replicas ([UNAVAILABLE_CODES]); of those, a
+ * server at its capacity ([BUSY_CODES]) is a [StorageBusyException]. A statement
  * that ran past its own `max_execution_time` is that statement's timeout, not the store's.
  */
 internal object ClickHouseFailures {
@@ -49,6 +51,9 @@ internal object ClickHouseFailures {
         285, // TOO_FEW_LIVE_REPLICAS
         999, // KEEPER_EXCEPTION
     )
+
+    /** The server codes of a ClickHouse at its capacity: too many queries at once, no connection free. */
+    val BUSY_CODES: Set<Int> = setOf(202, 203)
 
     private const val MAX_CAUSES = 8
 
@@ -70,13 +75,15 @@ internal object ClickHouseFailures {
             it is SocketTimeoutException
     } || codeOf(failure) in UNAVAILABLE_CODES
 
-    /** [failure] as a [StorageUnavailableException] when it [isUnavailable], else as it is. */
-    fun translate(failure: Exception): Exception =
-        if (isUnavailable(failure)) {
-            StorageUnavailableException("ClickHouse is unavailable; retry later.", failure)
-        } else {
-            failure
-        }
+    /**
+     * [failure] as a [StorageBusyException] when ClickHouse is at its capacity ([BUSY_CODES]), a
+     * [StorageUnavailableException] when it [isUnavailable], else as it is.
+     */
+    fun translate(failure: Exception): Exception = when {
+        codeOf(failure) in BUSY_CODES -> StorageBusyException("ClickHouse is at its capacity; retry later.", failure)
+        isUnavailable(failure) -> StorageUnavailableException("ClickHouse is unavailable; retry later.", failure)
+        else -> failure
+    }
 
     private fun causes(failure: Throwable): Sequence<Throwable> =
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES)

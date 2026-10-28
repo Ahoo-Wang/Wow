@@ -14,11 +14,14 @@
 package me.ahoo.wow.spi
 
 /**
- * A store is up but already runs as much as it takes, and did not admit this call: a query store's bulkhead, say.
- * The same call may pass once the load drops, so it is retried with backoff, never right away: a subscription throttles
- * its partition and retries the entry within its backpressure budget, without pausing the partition.
+ * A store is up but already runs as much as it takes, and did not admit this call: a query store's bulkhead, a
+ * server out of connections or rejecting work (PostgreSQL's `53300`, Elasticsearch's `429`, ClickHouse's
+ * `TOO_MANY_SIMULTANEOUS_QUERIES`). The same call may pass once the load drops, so it is retried with backoff, never
+ * right away: a subscription throttles its partition and retries the entry within its backpressure budget, without
+ * pausing the partition.
  *
- * Whatever bounds the store's load throws it, as the cause of the error it answers the caller with
- * (`wow.query.busy`, say).
+ * It is a [StorageUnavailableException] for every other caller: the store cannot take the call now, so a command or a
+ * route answers `wow.storage.unavailable` with `Retry-After`. A backend throws it with the driver's exception as
+ * [cause]; a bound on the store's load throws it as the cause of the error it answers with (`wow.query.busy`, say).
  */
-class StorageBusyException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+class StorageBusyException(message: String, cause: Throwable? = null) : StorageUnavailableException(message, cause)

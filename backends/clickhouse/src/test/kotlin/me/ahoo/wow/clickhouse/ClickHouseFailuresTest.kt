@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.clickhouse.query.ClickHouseExecutor
 import me.ahoo.wow.clickhouse.sink.ClientStatements
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
@@ -52,6 +53,11 @@ class ClickHouseFailuresTest {
         ClickHouseFailures.UNAVAILABLE_CODES.forEach {
             ClickHouseFailures.translate(server(it)).assert().isInstanceOf(StorageUnavailableException::class.java)
         }
+        // At its capacity, too many queries or no connection free, it is busy; a lost replica is not.
+        ClickHouseFailures.BUSY_CODES.forEach {
+            ClickHouseFailures.translate(server(it)).assert().isInstanceOf(StorageBusyException::class.java)
+        }
+        ClickHouseFailures.translate(server(285)).assert().isNotInstanceOf(StorageBusyException::class.java)
         val notFound = server(ServerException.TABLE_NOT_FOUND)
         ClickHouseFailures.translate(notFound).assert().isSameAs(notFound)
         val broken = IllegalStateException("broken")

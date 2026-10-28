@@ -30,6 +30,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.query.ElasticsearchQueryProvider
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.store.StoreConfig
@@ -125,6 +126,12 @@ class ElasticsearchStoreProviderTest {
         ElasticsearchFailures.isTransient(mockk<TransportException>()).assert().isTrue()
         ElasticsearchFailures.itemFailure(503, "the snapshot [s]", "no master").assert()
             .isInstanceOf(StorageUnavailableException::class.java)
+            .isNotInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.itemFailure(429, "the snapshot [s]", "es_rejected_execution_exception").assert()
+            .isInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.translate(elasticsearchException(429)).assert()
+            .isInstanceOf(StorageBusyException::class.java)
+        ElasticsearchFailures.translate(unavailable).assert().isNotInstanceOf(StorageBusyException::class.java)
         ElasticsearchFailures.itemFailure(400, "the snapshot [s]", "mapper_parsing_exception").assert()
             .isInstanceOf(StorageRefusedException::class.java)
             .hasMessage("Elasticsearch answered 400 for the snapshot [s]: mapper_parsing_exception")

@@ -91,7 +91,8 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
  *   [SQLNonTransientConnectionException], SQL state class `08`).
  * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded: a store that did not admit the call
- *   ([StorageBusyException], a query store's bulkhead), a node that refused a command as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
+ *   ([StorageBusyException], a query store's bulkhead or a server at its capacity; checked before the
+ *   [StorageUnavailableException] it is a kind of), a node that refused a command as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
  *   `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]).
  *
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],

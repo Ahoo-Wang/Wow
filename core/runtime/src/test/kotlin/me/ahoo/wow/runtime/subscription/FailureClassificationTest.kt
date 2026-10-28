@@ -67,6 +67,17 @@ class FailureClassificationTest {
     }
 
     @Test
+    fun `a store at its capacity is backpressure, though it is unavailable to every other caller`() {
+        val busy = StorageBusyException("PostgreSQL has no connection to spare; retry later.")
+        (busy is StorageUnavailableException).assert().isTrue()
+        classification.classify(busy, null).assert().isEqualTo(FailureClass.BACKPRESSURE)
+        classification.classify(IllegalStateException("The saga failed.", busy), null).assert()
+            .isEqualTo(FailureClass.BACKPRESSURE)
+        classification.classify(StorageUnavailableException("PostgreSQL is unavailable; retry later."), null).assert()
+            .isEqualTo(FailureClass.SYSTEMIC)
+    }
+
+    @Test
     fun `a value a store or a transport refused for good is unrecoverable, wherever it was wrapped`() {
         val refused = StorageRefusedException("PostgreSQL refuses the value (SQLSTATE 22P05).")
         classification.classify(refused, null).assert().isEqualTo(FailureClass.UNRECOVERABLE)

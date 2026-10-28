@@ -18,6 +18,7 @@ import co.elastic.clients.transport.TransportException
 import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import java.io.IOException
@@ -33,13 +34,17 @@ import kotlin.time.TimeSource
  *
  * Transient are a request that never got an answer (a connection refused, reset or timed out: a [TransportException]
  * or an [IOException]) and an answer that says the cluster cannot take it now: `429` (rejected, a queue is full),
- * `502`, `503` (no master, shards not ready) and `504`.
+ * `502`, `503` (no master, shards not ready) and `504`; a `429` is a cluster at its capacity, a
+ * [StorageBusyException].
  */
 internal object ElasticsearchFailures {
-    private val TRANSIENT_STATUSES = setOf(429, 502, 503, 504)
+    private val TRANSIENT_STATUSES = setOf(TOO_MANY_REQUESTS, 502, 503, 504)
 
     /** The status Elasticsearch answers a write whose sequence number guard failed with. */
     const val CONFLICT = 409
+
+    /** The status of a request the cluster rejected at its capacity (a full queue). */
+    const val TOO_MANY_REQUESTS = 429
 
     /** The status of a missing index or document. */
     const val NOT_FOUND = 404
@@ -57,13 +62,16 @@ internal object ElasticsearchFailures {
         else -> false
     }
 
-    /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
-    fun translate(failure: Throwable): Throwable =
-        if (isTransient(failure)) {
-            StorageUnavailableException("Elasticsearch is unavailable; retry later.", failure)
-        } else {
-            failure
-        }
+    /**
+     * [failure] as a [StorageBusyException] when it is a `429`, as a [StorageUnavailableException] when it
+     * [isTransient], else as it is.
+     */
+    fun translate(failure: Throwable): Throwable = when {
+        hasStatus(failure, TOO_MANY_REQUESTS) ->
+            StorageBusyException("Elasticsearch is at its capacity; retry later.", failure)
+        isTransient(failure) -> StorageUnavailableException("Elasticsearch is unavailable; retry later.", failure)
+        else -> failure
+    }
 
     /**
      * The failure of one item of a `_bulk` request, [what] it wrote, answered [status] with [reason]: a
@@ -74,6 +82,7 @@ internal object ElasticsearchFailures {
     fun itemFailure(status: Int, what: String, reason: String?): RuntimeException {
         val message = "Elasticsearch answered $status for $what: $reason"
         return when {
+            status == TOO_MANY_REQUESTS -> StorageBusyException(message)
             isTransient(status) -> StorageUnavailableException(message)
             status == BAD_REQUEST -> StorageRefusedException(message)
             else -> IllegalStateException(message)
