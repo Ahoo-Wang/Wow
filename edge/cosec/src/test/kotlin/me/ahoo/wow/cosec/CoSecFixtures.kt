@@ -15,15 +15,24 @@ package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.permission.AppRolePermission
+import me.ahoo.cosec.api.policy.Policy
 import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.authorization.AppRolePermissionRepository
+import me.ahoo.cosec.authorization.PolicyRepository
 import me.ahoo.cosec.authorization.RoleVerifyContext
 import me.ahoo.cosec.authorization.RootVerifyContext
+import me.ahoo.cosec.authorization.SimpleAuthorization
 import me.ahoo.cosec.authorization.VerifyContext
 import me.ahoo.cosec.authorization.VerifyContext.Companion.setVerifyContext
 import me.ahoo.cosec.context.RequestSecurityContexts.setRequest
 import me.ahoo.cosec.context.SimpleSecurityContext
+import me.ahoo.cosec.permission.AppPermissionData
+import me.ahoo.cosec.permission.AppRolePermissionData
 import me.ahoo.cosec.permission.PermissionData
+import me.ahoo.cosec.permission.PermissionGroupData
+import me.ahoo.cosec.permission.RolePermissionData
 import me.ahoo.cosec.policy.action.AllActionMatcher
 import me.ahoo.cosec.principal.SimplePrincipal
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
@@ -32,6 +41,8 @@ import me.ahoo.cosec.webflux.ReactiveRemoteIpResolver
 import me.ahoo.cosec.webflux.ReactiveRequestParser
 import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
@@ -63,6 +74,7 @@ import me.ahoo.wow.spi.wait.Origin
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
+import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
@@ -139,6 +151,49 @@ val appRolePermission: RoleVerifyContext = RoleVerifyContext(
     roleId = "editor",
     permission = PermissionData(id = "app.all", name = "all", action = AllActionMatcher.INSTANCE),
     result = VerifyResult.ALLOW,
+)
+
+/**
+ * CoSec's own authorization with no policies and one application, [app], whose role `editor` holds
+ * [appRolePermission]: it allows only by that app role permission, as CoSec does for the request the WebFilter sees.
+ * [asked] records the application and space of every app role permission lookup.
+ */
+class AppRoleAuthorization(private val app: String = "console") {
+    val asked = mutableListOf<Pair<String, String>>()
+    private val permission = AppRolePermissionData(
+        appPermission = AppPermissionData(
+            id = app,
+            groups = listOf(PermissionGroupData(name = "all", permissions = listOf(appRolePermission.permission))),
+        ),
+        rolePermissions = listOf(RolePermissionData(appRolePermission.roleId, setOf(appRolePermission.permission.id))),
+    )
+    private val policies = object : PolicyRepository {
+        override fun getGlobalPolicy(): Mono<List<Policy>> = Mono.just(emptyList())
+        override fun getPolicies(policyIds: Set<String>): Mono<List<Policy>> = Mono.just(emptyList())
+        override fun setPolicy(policy: Policy): Mono<Void> = Mono.empty()
+    }
+    private val permissions = object : AppRolePermissionRepository {
+        override fun getAppRolePermission(
+            appId: String,
+            spaceId: String,
+            roleIds: Set<String>,
+        ): Mono<AppRolePermission> {
+            asked += appId to spaceId
+            return if (appId == app) Mono.just(permission) else Mono.empty()
+        }
+    }
+    val authorization: SimpleAuthorization = SimpleAuthorization(policies, permissions)
+}
+
+/** The caller `alice` of tenant `acme` in space `s1`, as an editor calling from [app] (none when null). */
+fun editor(app: String? = "console"): Caller = Caller(
+    tenantId = "acme",
+    scope = Scope("alice", "s1"),
+    subject = "alice",
+    attributes = buildMap {
+        put(CoSecCallerResolver.ROLES, listOf(appRolePermission.roleId))
+        app?.let { put(Caller.APP, listOf(it)) }
+    },
 )
 
 /** [this] as CoSec's authorization leaves it: the [request] it authorized, allowed by [verified]. */

@@ -13,9 +13,26 @@
 
 package me.ahoo.wow.spring.boot
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.api.authorization.AuthorizeResult
+import me.ahoo.cosec.api.permission.AppRolePermission
+import me.ahoo.cosec.api.policy.Policy
+import me.ahoo.cosec.authorization.AppRolePermissionRepository
+import me.ahoo.cosec.authorization.PolicyRepository
+import me.ahoo.cosec.authorization.SimpleAuthorization
+import me.ahoo.cosec.permission.AppPermissionData
+import me.ahoo.cosec.permission.AppRolePermissionData
+import me.ahoo.cosec.permission.PermissionData
+import me.ahoo.cosec.permission.PermissionGroupData
+import me.ahoo.cosec.permission.RolePermissionData
+import me.ahoo.cosec.policy.action.AllActionMatcher
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -24,7 +41,15 @@ import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.admission.Authorization
+import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -37,6 +62,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import reactor.core.publisher.Mono
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
+import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
@@ -181,6 +207,91 @@ class CoSecAutoConfigurationTest {
         ApplicationContextRunner().withUserConfiguration(Imported::class.java)
             .withClassLoader(FilteredClassLoader(ServerWebExchanges::class.java))
             .run { context -> context.getBeansOfType(CallerResolver::class.java).assert().isEmpty() }
+    }
+
+    /**
+     * CoSec as a view store deploys it: no policies, and the application `console` whose role `editor` may do every
+     * action. The Manifest's `CreateView` creates a view.
+     */
+    @Configuration(proxyBeanMethods = false)
+    class AppRoleCoSec {
+        private val all = PermissionData(id = "console.all", name = "all", action = AllActionMatcher.INSTANCE)
+        private val permission = AppRolePermissionData(
+            AppPermissionData("console", groups = listOf(PermissionGroupData("all", permissions = listOf(all)))),
+            listOf(RolePermissionData("editor", setOf(all.id))),
+        )
+
+        @Bean
+        fun authorization(): CoSecAuthorization = SimpleAuthorization(
+            object : PolicyRepository {
+                override fun getGlobalPolicy(): Mono<List<Policy>> = Mono.just(emptyList())
+                override fun getPolicies(policyIds: Set<String>): Mono<List<Policy>> = Mono.just(emptyList())
+                override fun setPolicy(policy: Policy): Mono<Void> = Mono.empty()
+            },
+            object : AppRolePermissionRepository {
+                override fun getAppRolePermission(
+                    appId: String,
+                    spaceId: String,
+                    roleIds: Set<String>,
+                ): Mono<AppRolePermission> = if (appId == "console") Mono.just(permission) else Mono.empty()
+            },
+        )
+
+        @Bean
+        fun manifest(): Manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "view-store",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            name = "view",
+                            state = StateManifest(Manifest.schemaRef("View")),
+                            commands = listOf(
+                                CommandManifest(
+                                    name = "CreateView",
+                                    schema = Manifest.schemaRef("CreateView"),
+                                    creation = ManifestCreation.REQUIRED,
+                                    routes = CommandRoutes.of(
+                                        "view-store",
+                                        "view",
+                                        "CreateView",
+                                        ManifestCreation.REQUIRED,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `with the switch on, CoSec allows a command by the app role permission of the caller's application`() {
+        runner.withUserConfiguration(AppRoleCoSec::class.java)
+            .withPropertyValues("wow.cosec.authorizer.enabled=true")
+            .run { context ->
+                val authorizer = context.getBean(CoSecCommandAuthorizer::class.java)
+                val action = CommandAction(
+                    CommandType("view-store.view.CreateView", Any::class.java),
+                    AggregateRef(AggregateType("view-store", "view"), "acme", "v-1"),
+                    Scope("alice", "s1"),
+                    Creation.REQUIRED,
+                )
+                fun caller(app: String?) = Caller(
+                    tenantId = "acme",
+                    scope = Scope("alice", "s1"),
+                    subject = "alice",
+                    attributes = buildMap {
+                        put(CoSecCallerResolver.ROLES, listOf("editor"))
+                        app?.let { put(Caller.APP, listOf(it)) }
+                    },
+                )
+                runBlocking {
+                    authorizer.authorize(caller("console"), action).assert().isEqualTo(Authorization.Allowed)
+                    authorizer.authorize(caller(null), action).assert().isInstanceOf(Authorization.Denied::class.java)
+                }
+            }
     }
 
     @Configuration(proxyBeanMethods = false)

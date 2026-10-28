@@ -38,7 +38,7 @@ class CoSecServiceRouteAuthorizer(
             action.scope.ownerId?.let { put(CoSecCommandAuthorizer.OWNER, it) }
             action.scope.spaceId?.let { put(CoSecCommandAuthorizer.SPACE, it) }
         }
-        val request = ActionRequest(action.method, action.path, attributes)
+        val request = ActionRequest(action.method, action.path, attributes, caller.app, caller.scope.spaceId)
         val result = authorization.authorize(request, coSecContextOf(caller, defaultTenant)).awaitFirstOrNull()
         val route = "${action.context}.${action.name}"
         return when {

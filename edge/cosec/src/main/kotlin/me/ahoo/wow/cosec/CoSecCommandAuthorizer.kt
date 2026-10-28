@@ -15,7 +15,9 @@ package me.ahoo.wow.cosec
 
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.context.request.SpaceIdCapable
 import me.ahoo.cosec.api.principal.CoSecPrincipal
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.cosec.context.SimpleSecurityContext
@@ -63,7 +65,7 @@ class CoSecCommandAuthorizer(
     private val routes = ActionRoutes(manifest)
 
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
-        val result = authorization.authorize(requestOf(action), securityContextOf(caller)).awaitFirstOrNull()
+        val result = authorization.authorize(requestOf(action, caller), securityContextOf(caller)).awaitFirstOrNull()
         return when {
             result == null -> Authorization.Denied("CoSec gave no decision on ${action.type.name}.")
             result.authorized -> Authorization.Allowed
@@ -74,8 +76,11 @@ class CoSecCommandAuthorizer(
     /** The security context of [caller], as CoSec would have resolved it for an HTTP request. */
     fun securityContextOf(caller: Caller): SecurityContext = coSecContextOf(caller, defaultTenant)
 
-    /** The request of [action]'s command route in the Manifest, or of the routeless shape when it has none. */
-    fun requestOf(action: CommandAction): Request {
+    /**
+     * The request of [action]'s command route in the Manifest, or of the routeless shape when it has none, as
+     * [caller] sends it: from its application and in its space, which CoSec finds the app-role permissions by.
+     */
+    fun requestOf(action: CommandAction, caller: Caller): Request {
         val type = action.ref.type
         val name = action.type.name
         val attributes = buildMap {
@@ -88,9 +93,21 @@ class CoSecCommandAuthorizer(
         }
         val route = routes.routeOf(action)
         return if (route == null) {
-            ActionRequest(CommandRoutes.POST, "/${type.context}/${type.name}/${action.ref.id}/$name", attributes)
+            ActionRequest(
+                CommandRoutes.POST,
+                "/${type.context}/${type.name}/${action.ref.id}/$name",
+                attributes,
+                caller.app,
+                caller.scope.spaceId,
+            )
         } else {
-            ActionRequest(route.method, CommandRoutes.pathOf(route, action.ref.id), attributes)
+            ActionRequest(
+                route.method,
+                CommandRoutes.pathOf(route, action.ref.id),
+                attributes,
+                caller.app,
+                caller.scope.spaceId,
+            )
         }
     }
 
@@ -165,10 +182,17 @@ internal fun coSecContextOf(caller: Caller, defaultTenant: String): SecurityCont
     return SimpleSecurityContext(SimpleTenantPrincipal(principal, tenant), tenant)
 }
 
+/**
+ * The request an authorizer evaluates in place of an HTTP one: its [method], [path] and [attributes], and the caller's
+ * [app] (`CoSec-App-Id`) and [space] (`CoSec-Space-Id`), from which CoSec finds the caller's app-role permissions as
+ * it does for the request the WebFilter sees. Every other header, query parameter and cookie is empty.
+ */
 internal data class ActionRequest(
     override val method: String,
     override val path: String,
     override val attributes: Map<String, String>,
+    val app: String? = null,
+    val space: String? = null,
 ) : Request {
     override val remoteIp: String
         get() = ""
@@ -177,7 +201,11 @@ internal data class ActionRequest(
     override val referer: URI
         get() = NO_URI
 
-    override fun getHeader(key: String): String = ""
+    override fun getHeader(key: String): String = when (key) {
+        AppIdCapable.APP_ID_KEY -> app.orEmpty()
+        SpaceIdCapable.SPACE_ID_KEY -> space.orEmpty()
+        else -> ""
+    }
 
     override fun getQuery(key: String): String = ""
 
