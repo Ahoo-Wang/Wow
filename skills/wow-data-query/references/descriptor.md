@@ -48,13 +48,13 @@ A property a kind does not have is refused (`UNKNOWN_PROPERTY`): send only its o
 
 ```json
 {"kind": "aggregate",
- "filter": {"op": "AND", "operands": [
-   {"op": "EQ", "field": "state.status", "value": "PAID"},
-   {"op": "RECENT_DAYS", "field": "state.paidAt", "days": 7, "zoneId": "Asia/Shanghai"}]},
- "groupBy": [{"type": "DATE_HISTOGRAM", "field": "state.paidAt", "alias": "day", "unit": "DAY", "timeZone": "Asia/Shanghai"}],
- "metrics": [{"type": "COUNT", "alias": "orders"},
-             {"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "state.amount"}, "alias": "revenue"}],
- "sort": [{"field": "day", "direction": "ASC"}],
+ "filter": {"op": "and", "operands": [
+   {"op": "eq", "field": "state.status", "value": "PAID"},
+   {"op": "recent-days", "field": "state.paidAt", "days": 7, "zoneId": "Asia/Shanghai"}]},
+ "groupBy": [{"type": "date-histogram", "field": "state.paidAt", "alias": "day", "unit": "day", "timeZone": "Asia/Shanghai"}],
+ "metrics": [{"type": "count", "alias": "orders"},
+             {"type": "numeric", "function": "sum", "expression": {"type": "field", "field": "state.amount"}, "alias": "revenue"}],
+ "sort": [{"field": "day", "direction": "asc"}],
  "limit": 31}
 ```
 
@@ -64,11 +64,11 @@ A property a kind does not have is refused (`UNKNOWN_PROPERTY`): send only its o
 
 ```json
 {"kind": "count",
- "filter": {"op": "AND", "operands": [
-   {"op": "AGGREGATE_ID", "value": "order-42"},
-   {"op": "ELEMENT_MATCH", "field": "events", "predicate": {"op": "AND", "operands": [
-     {"op": "EQ", "field": "name", "value": "sales.order.OrderPaid"},
-     {"op": "GT", "field": "body.amount", "value": 1000}]}}]}}
+ "filter": {"op": "and", "operands": [
+   {"op": "aggregate-id", "value": "order-42"},
+   {"op": "element-match", "field": "events", "predicate": {"op": "and", "operands": [
+     {"op": "eq", "field": "name", "value": "sales.order.OrderPaid"},
+     {"op": "gt", "field": "body.amount", "value": 1000}]}}]}}
 ```
 
 A `count` of the events model counts commits; counting events needs an aggregation that expands `"elements": [{"path": "events"}]`, where the descriptor's `analysis` and the field's `aggregate` allow it. Without the aggregate named, an `events` query may be refused (`AGGREGATE_REQUIRED`, or `STORAGE_UNSUPPORTED` on `aggregateId`).

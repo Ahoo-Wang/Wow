@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.QueryValueKind
+
 /** Generation-owned data. Runtime masking neither resolves schema paths nor builds plans. */
 internal class QueryMaskDefinition private constructor(
     val root: MaskNode,

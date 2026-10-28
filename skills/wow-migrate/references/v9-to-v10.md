@@ -627,6 +627,21 @@ A target pinned to an earlier V10 pre-release also changed two request rules:
 - `If-Match` takes entity tags only (RFC 9110). A bare `3` is 400 `wow.request.malformed`; send `"3"`, or the `ETag` a state read answered (`"3-<digest>"`), which is taken by its version. Tags naming two different versions are 400, since a command takes one expected version. A weak tag or a tag that names no version is 412, and so is `*` on a command that always creates its aggregate. On any other command `*` adds no condition.
 - An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead. In TypeScript only a refused result can name no id: `RefusedResult`, whose `ref` is a `CommandRef` (`id: string | null`), is the type of `WowProblemError.result` and of what `send`, `wait` and a generated command method answer under `resolveRejected: true`. A `CommandResult` still names its id.
 
+The query protocol is lower-kebab too, in requests, in the descriptor (`GET` of a query route) and in the problems. Readers accept nothing else, so a client, a saved view and a dataset document that spell the old values must change:
+
+| What | Before | After |
+|---|---|---|
+| A filter's `op` | `"EQ"`, `"NOT_IN"`, `"AND"`, `"ELEMENT_MATCH"`, `"MATCH_ALL"` | `"eq"`, `"not-in"`, `"and"`, `"element-match"`, `"match-all"` |
+| A sort's `direction`, a page's `total` | `"ASC"`, `"EXACT"` | `"asc"`, `"exact"` |
+| A deletion filter's `state` | `"ACTIVE"`, `"ALL"` | `"active"`, `"all"` |
+| An aggregation's `type` | `"TERMS"`, `"DATE_HISTOGRAM"`, `"DISTINCT_COUNT"`, `"METRIC_REF"` | `"terms"`, `"date-histogram"`, `"distinct-count"`, `"metric-ref"` |
+| Its `function`, `unit`, `part` | `"SUM"`, `"DAY"`, `"DAY_OF_WEEK"` | `"sum"`, `"day"`, `"day-of-week"` |
+| A violation `code` | `"UNKNOWN_FIELD"` | `"unknown-field"` |
+| The descriptor's `model`, a field's `types`, `kind` and `semantic.type` | `"SNAPSHOT"`, `"STRING"`, `"SCALAR"`, `"TEMPORAL_EPOCH"` | `"snapshot"`, `"string"`, `"scalar"`, `"temporal-epoch"` |
+| A dataset document's `types` and `sensitive.level` | `"DECIMAL"`, `"CONFIDENTIAL"` | `"decimal"`, `"confidential"` |
+
+A custom query model or value type is spelled the same way, lower-kebab like the built-ins (`[a-z][a-z0-9]*(-[a-z0-9]+)*`): a dataset or schema configuration that names `CUSTOM_MODEL` or `"types": ["STRING"]` is refused when it is read, with the spelling it takes (`custom-model`, `["string"]`). A domain's own values are unchanged: a filter's `value`, an enum field's values in the descriptor, and a JDK `timeUnit` are written as before. In TypeScript the wow-client DSL members keep their names (`FilterOperator.NOT_IN`) and only their values change; code that compared a DSL value with a literal compares it with the member instead.
+
 ## Tests
 
 Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, request-fact `headers` (9.x `whenCommand(command, header, ownerId)`) and `operator`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(services…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.

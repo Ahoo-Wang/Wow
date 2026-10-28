@@ -34,36 +34,36 @@ import {
  * metric aggregates over, which name fields, not metrics.
  */
 export interface DerivedExpressionDsl {
-  /** The value of another metric of the row. `{ type: 'METRIC_REF', metric }`. */
+  /** The value of another metric of the row. `{ type: 'metric-ref', metric }`. */
   ref(metric: string): DerivedExpression;
   /**
-   * A number. `{ type: 'CONSTANT', value }`.
+   * A number. `{ type: 'constant', value }`.
    *
    * @throws TypeError when `value` is not finite.
    */
   constant(value: number): DerivedExpression;
-  /** `left + right`. `{ type: 'BINARY', operator: 'ADD', left, right }`. */
+  /** `left + right`. `{ type: 'binary', operator: 'add', left, right }`. */
   add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
-  /** `left - right`. `{ type: 'BINARY', operator: 'SUBTRACT', left, right }`. */
+  /** `left - right`. `{ type: 'binary', operator: 'subtract', left, right }`. */
   subtract(
     left: DerivedExpression,
     right: DerivedExpression,
   ): DerivedExpression;
-  /** `left * right`. `{ type: 'BINARY', operator: 'MULTIPLY', left, right }`. */
+  /** `left * right`. `{ type: 'binary', operator: 'multiply', left, right }`. */
   multiply(
     left: DerivedExpression,
     right: DerivedExpression,
   ): DerivedExpression;
-  /** `left / right`. `{ type: 'BINARY', operator: 'DIVIDE', left, right }`. */
+  /** `left / right`. `{ type: 'binary', operator: 'divide', left, right }`. */
   divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
   /**
    * `metric` summed over the groups sharing this group's `within` keys.
-   * `{ type: 'TOTAL', metric, within }`.
+   * `{ type: 'total', metric, within }`.
    */
   total(metric: string, ...within: string[]): DerivedExpression;
   /**
    * `metric` accumulated along `order` within the groups sharing this group's
-   * `within` keys; with `frame` and `function: 'AVG'`, a moving average.
+   * `within` keys; with `frame` and `function: 'avg'`, a moving average.
    */
   running(
     metric: string,

@@ -57,9 +57,9 @@ class PostgresResumableStreamTest {
         }
     }
 
-    private val byOwner = """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":""" +
+    private val byOwner = """{"kind":"list","filter":{"op":"in","field":"aggregateId","values":""" +
         accounts.joinToString(",", "[", "]") { "\"$it\"" } +
-        """},"sort":[{"field":"state.owner","direction":"ASC"}]}"""
+        """},"sort":[{"field":"state.owner","direction":"asc"}]}"""
 
     // One host at a time: hosts in one JVM share Reactor Netty's global resources, which a host that closes disposes.
     @AfterAll
@@ -134,7 +134,7 @@ class PostgresResumableStreamTest {
 
     @Test
     fun `the events model resumes from a position of its own`() = start().use { host ->
-        val body = """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":""" +
+        val body = """{"kind":"list","filter":{"op":"in","field":"aggregateId","values":""" +
             accounts.joinToString(",", "[", "]") { "\"$it\"" } + """}}"""
         val client = WebClient.create("http://127.0.0.1:${host.publicPort}")
         fun events(lastEventId: String? = null) = client.post().uri("/bank/account/events/query")

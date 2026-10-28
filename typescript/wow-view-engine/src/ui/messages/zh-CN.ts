@@ -20,6 +20,7 @@ import {
   ComparisonOperators,
   DateDiffUnits,
   FilterOperators,
+  QueryErrorCodes,
   SortDirections,
 } from '../../model/index.js';
 import { wireKey } from './wireKey.js';
@@ -732,95 +733,122 @@ export const zhCN: Readonly<Record<string, string>> = {
   'runtime.query.failed': '没能加载数据：{reason}',
   'runtime.query.unreachable': '没能加载数据：无法连接服务端。',
   'runtime.query.forbidden': '无权限查看这些数据，请联系管理员开通。',
-  'runtime.query.failed.invalid_json':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_JSON)]:
     '服务端读不懂这个视图发出的查询：{reason}',
-  'runtime.query.failed.body_not_object':
+  [wireKey('runtime.query.failed', QueryErrorCodes.BODY_NOT_OBJECT)]:
     '服务端读不懂这个视图发出的查询：{reason}',
-  'runtime.query.failed.empty_body': '服务端收到的是空查询：{reason}',
-  'runtime.query.failed.unknown_property':
+  [wireKey('runtime.query.failed', QueryErrorCodes.EMPTY_BODY)]:
+    '服务端收到的是空查询：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_PROPERTY)]:
     '服务端不认识这条查询的一部分，可能版本比视图引擎旧：{reason}',
-  'runtime.query.failed.unknown_type':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_TYPE)]:
     '服务端不认识这个视图用到的运算或指标，可能版本比视图引擎旧：{reason}',
-  'runtime.query.failed.unknown_value':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_VALUE)]:
     '服务端不认识这个视图发出的某个取值：{reason}',
-  'runtime.query.failed.invalid_value': '查询里有个值缺了或类型不对：{reason}',
-  'runtime.query.failed.invalid_request': '服务端拒绝了这条查询：{reason}',
-  'runtime.query.failed.unknown_field':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_VALUE)]:
+    '查询里有个值缺了或类型不对：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_REQUEST)]:
+    '服务端拒绝了这条查询：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_FIELD)]:
     '服务端不认识字段「{field}」。视图可能比数据新；去掉用到它的条件、列或维度。',
-  'runtime.query.failed.unsupported_capability':
+  [wireKey('runtime.query.failed', QueryErrorCodes.UNSUPPORTED_CAPABILITY)]:
     '「{field}」在这份数据上不能这样用：{reason}',
-  'runtime.query.failed.element_scope_required':
+  [wireKey('runtime.query.failed', QueryErrorCodes.ELEMENT_SCOPE_REQUIRED)]:
     '「{field}」只能在它所属的列表里，按列表元素的条件筛选。',
-  'runtime.query.failed.value_mismatch': '有个值不是「{field}」能取的值。',
-  'runtime.query.failed.not_collection':
+  [wireKey('runtime.query.failed', QueryErrorCodes.VALUE_MISMATCH)]:
+    '有个值不是「{field}」能取的值。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_COLLECTION)]:
     '「{field}」不是列表，不能判断是否为空。',
-  'runtime.query.failed.not_single_string':
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_SINGLE_STRING)]:
     '「{field}」不是单个文本，不能判断是否为空。',
-  'runtime.query.failed.model_search_unsupported': '这份数据不支持搜索。',
-  'runtime.query.failed.cursor_not_allowed': '「{field}」不能用来翻页。',
-  'runtime.query.failed.protected_aggregation':
+  [wireKey('runtime.query.failed', QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED)]:
+    '这份数据不支持搜索。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_NOT_ALLOWED)]:
+    '「{field}」不能用来翻页。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.PROTECTED_AGGREGATION)]:
     '「{field}」受保护，不能用来汇总。',
-  'runtime.query.failed.protected_comparison':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PROTECTED_COMPARISON)]:
     '「{field}」受保护，不能用来筛选、排序或搜索。',
-  'runtime.query.failed.missing_key_requires_string':
-    '只有单个文本字段才能把缺值归为一组，「{field}」不是。',
-  'runtime.query.failed.any_requires_single_value':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.MISSING_KEY_REQUIRES_STRING,
+  )]: '只有单个文本字段才能把缺值归为一组，「{field}」不是。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE)]:
     '「任一值」只能用于单值字段。',
-  'runtime.query.failed.incomplete_projection':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INCOMPLETE_PROJECTION)]:
     '服务端这里给不出完整记录，请选择要显示的列。',
-  'runtime.query.failed.metric_filter_search': '指标自己的条件不能用搜索。',
-  'runtime.query.failed.metric_filter_element_match':
-    '指标自己的条件不能按列表元素匹配。',
-  'runtime.query.failed.metric_filter_array_field':
+  [wireKey('runtime.query.failed', QueryErrorCodes.METRIC_FILTER_SEARCH)]:
+    '指标自己的条件不能用搜索。',
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH,
+  )]: '指标自己的条件不能按列表元素匹配。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD)]:
     '指标自己的条件不能用列表字段「{field}」。',
-  'runtime.query.failed.cursor_sort_duplicate':
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_SORT_DUPLICATE)]:
     '排序里「{field}」出现了两次，保留一次即可。',
-  'runtime.query.failed.cursor_sort_too_many':
+  [wireKey('runtime.query.failed', QueryErrorCodes.CURSOR_SORT_TOO_MANY)]:
     '排序字段太多，没法在这份数据上翻页；去掉几个。',
-  'runtime.query.failed.not_projectable':
+  [wireKey('runtime.query.failed', QueryErrorCodes.NOT_PROJECTABLE)]:
     '「{field}」不能作为这份数据的列显示。',
-  'runtime.query.failed.event_projection_type_required':
-    '事件内容不能脱离它的类型显示；保留事件类型这一列。',
-  'runtime.query.failed.temporal_representation_required':
-    '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
-  'runtime.query.failed.temporal_configuration_conflict':
-    '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
-  'runtime.query.failed.parallel_array_sort':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED,
+  )]: '事件内容不能脱离它的类型显示；保留事件类型这一列。',
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
+  )]: '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
+  )]: '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.PARALLEL_ARRAY_SORT)]:
     '「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
-  'runtime.query.failed.array_equality':
+  [wireKey('runtime.query.failed', QueryErrorCodes.ARRAY_EQUALITY)]:
     '这里不能拿「{field}」和整个列表比较，请改为匹配其中的元素。',
-  'runtime.query.failed.first_last_requires_single_value':
-    '「首个值」「最后一个值」只能用于单值字段，「{field}」可能有多个值。',
-  'runtime.query.failed.first_last_requires_order_by':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE,
+  )]: '「首个值」「最后一个值」只能用于单值字段，「{field}」可能有多个值。',
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY,
+  )]:
     '「{field}」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
-  'runtime.query.failed.invalid_cursor':
+  [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_CURSOR)]:
     '这一页没法接着往下翻了，请从第一页重新开始。',
-  'runtime.query.failed.size_out_of_range':
+  [wireKey('runtime.query.failed', QueryErrorCodes.SIZE_OUT_OF_RANGE)]:
     '服务端限制了一次能读多少行：{reason}',
-  'runtime.query.failed.filter_too_large':
+  [wireKey('runtime.query.failed', QueryErrorCodes.FILTER_TOO_LARGE)]:
     '条件超出了服务端一次查询能接受的数量：{reason}',
-  'runtime.query.failed.expensive_operator_disabled':
-    '服务端在这里不允许这种高代价的查询：{reason}',
-  'runtime.query.failed.count_requires_filter':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED,
+  )]: '服务端在这里不允许这种高代价的查询：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.COUNT_REQUIRES_FILTER)]:
     '先添加一个条件：服务端不会统计全部记录。',
-  'runtime.query.failed.residual_groups_exceeded':
+  [wireKey('runtime.query.failed', QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED)]:
     '这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。',
-  'runtime.query.failed.too_many_groups':
+  [wireKey('runtime.query.failed', QueryErrorCodes.TOO_MANY_GROUPS)]:
     '这份汇总的分组超出了能显示的数量，又没有排序来决定显示哪些；请设置排序，或调大显示数量。',
-  'runtime.query.failed.explicit_entry_required':
+  [wireKey('runtime.query.failed', QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)]:
     '查询没有指明要在哪个入口上运行：{reason}',
-  'runtime.query.failed.replay_too_long':
+  [wireKey('runtime.query.failed', QueryErrorCodes.REPLAY_TOO_LONG)]:
     '要看的状态离现在的变更太多，无法重建：{reason}',
-  'runtime.query.failed.temporal_aggregation_unsupported':
-    '「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。',
-  'runtime.query.failed.sort_too_many': '排序字段太多，去掉几个。',
-  'runtime.query.failed.sort_field_duplicate':
+  [wireKey(
+    'runtime.query.failed',
+    QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED,
+  )]: '「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.SORT_TOO_MANY)]:
+    '排序字段太多，去掉几个。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.SORT_FIELD_DUPLICATE)]:
     '「{field}」排了两次，保留一次即可。',
-  'runtime.query.failed.identity_undefined':
+  [wireKey('runtime.query.failed', QueryErrorCodes.IDENTITY_UNDEFINED)]:
     '这份数据没有定义记录标识，不能逐页翻阅或按标识选取。',
-  'runtime.query.failed.storage_unsupported':
+  [wireKey('runtime.query.failed', QueryErrorCodes.STORAGE_UNSUPPORTED)]:
     '服务端的存储运行不了这条查询：{reason}',
-  'runtime.query.failed.previous_unshiftable':
+  [wireKey('runtime.query.failed', QueryErrorCodes.PREVIOUS_UNSHIFTABLE)]:
     '与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
@@ -2408,7 +2436,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '{field} 已被数据源弃用（{message}），保留它请写明理由。',
   'definition.field.not-elements': '{field} 不是数据源列出条目的数组。',
   'definition.field.sort-wider': '{field} 在数据源上不能排序。',
-  'definition.field.operator-wider': '{field} 在数据源上不收 {operator}。',
+  'definition.field.operator-wider': '{field} 在数据源上不收「{operator}」。',
   'definition.field.summary-wider': '{field} 在数据源上不能按 {fn} 汇总。',
   'definition.field.analysis-wider':
     '{field} 在数据源上不能用于分析的 {what}。',
@@ -2433,7 +2461,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源没有列出 {field}：照常显示，但条件、排序与汇总都不再用它。',
   'capability.field.unfilterable': '数据源不接受 {field} 上的任何条件。',
   'capability.field.operators-narrowed':
-    '数据源不接受 {field} 上的 {operators}。',
+    '数据源不接受 {field} 上的这些条件：{operators}。',
   'capability.field.unsortable': '数据源不能按 {field} 排序。',
   'capability.field.alias': '定义用别名 {field} 称呼 {path}：按 {path} 读取。',
   'capability.field.protected':
@@ -2466,6 +2494,10 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源不能在 {path} 的元素上聚合。',
   'capability.analysis.field-unavailable': '数据源不能聚合 {field}。',
   'capability.analysis.field-narrowed': '数据源不提供 {field} 上的 {dropped}。',
+  'label.capability.missing-key': '缺失值分组',
+  'label.capability.in-metric-filter': '按汇总值设条件',
+  'label.capability.expression-input': '对计算值汇总',
+  'label.capability.first-last': '期初值与期末值',
   'capability.descriptor.disagrees':
     '{source} 拒绝了一条它的能力描述 {version} 允许的查询（{code}）：服务与它的描述不一致。',
   'capability.descriptor.unavailable':

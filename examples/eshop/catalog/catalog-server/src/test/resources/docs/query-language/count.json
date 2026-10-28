@@ -1,5 +1,5 @@
 {
   "kind": "count",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
   "limit": 1000
 }

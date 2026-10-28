@@ -23,6 +23,7 @@ function source(path: string): ts.SourceFile {
     file.pathname,
     readFileSync(file, 'utf8'),
     ts.ScriptTarget.Latest,
+    true,
   );
 }
 
@@ -69,6 +70,61 @@ describe('the wire spelling of the types', () => {
     ]);
     expect(values).toHaveLength(3 + 7 + 3 + 2);
     expect(values.filter(value => !KEBAB.test(value))).toEqual([]);
+  });
+
+  it('should be lower-kebab for every value of the query DSL and its codes', () => {
+    // Each enum and frozen constant table of the DSL is protocol vocabulary,
+    // but for TimeUnit: a JDK enum Wow writes as the JDK names it.
+    const external = new Set(['TimeUnit']);
+    const dsl = [
+      'deletionState.ts',
+      'descriptor.ts',
+      'sort.ts',
+      'queryErrorCodes.ts',
+      'aggregation/types.ts',
+      'filter/operator.ts',
+    ].map(path => source(`../src/dsl/${path}`));
+    const values = dsl.flatMap(file =>
+      file.statements.flatMap(statement => {
+        if (ts.isEnumDeclaration(statement)) {
+          return external.has(statement.name.text)
+            ? []
+            : statement.members.flatMap(member =>
+                member.initializer ? literals(member.initializer) : [],
+              );
+        }
+        if (ts.isVariableStatement(statement)) {
+          return statement.declarationList.declarations
+            .filter(
+              d =>
+                d.initializer !== undefined &&
+                ts.isCallExpression(d.initializer) &&
+                d.initializer.expression.getText(file) === 'Object.freeze',
+            )
+            .flatMap(d => literals(d.initializer!));
+        }
+        return [];
+      }),
+    );
+    expect(values.length).toBeGreaterThan(200);
+    expect(values.filter(value => !KEBAB.test(value))).toEqual([]);
+  });
+
+  it("should leave what is not the protocol's own as written", () => {
+    // A respelling stops at Wow's vocabulary: a domain value, a time zone, an
+    // ISO duration and a JDK time unit travel as they are.
+    const golden = readFileSync(
+      new URL('./golden/dsl-wire.json', import.meta.url),
+      'utf8',
+    );
+    for (const value of [
+      'PAID',
+      'UTC',
+      'Asia/Shanghai',
+      'PT0S',
+      'MILLISECONDS',
+    ])
+      expect(golden).toContain(`"${value}"`);
   });
 
   it('should be lower-kebab for every enumeration of the Manifest types', () => {

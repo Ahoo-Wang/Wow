@@ -1,6 +1,6 @@
 {
   "kind": "list",
-  "filter": { "op": "MATCH_ALL" },
+  "filter": { "op": "match-all" },
   "projection": { "include": ["aggregateId", "state.name", "state.price"] },
   "limit": 50
 }

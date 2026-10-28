@@ -154,7 +154,7 @@ abstract class EventQueryBackendSpec {
                 "properties" to mapOf(
                     "customerId" to mapOf(
                         "type" to "string",
-                        "x-wow-sensitive" to mapOf("level" to "DISPLAY"),
+                        "x-wow-sensitive" to mapOf("level" to "display"),
                         "x-wow-mask" to mapOf("keepPrefix" to 1),
                     ),
                     "amount" to mapOf("type" to "integer"),

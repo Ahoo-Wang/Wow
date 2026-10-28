@@ -133,7 +133,9 @@ describe('presence operators', () => {
         FilterOperator.NOT_EXISTS,
       ])
         expect(kind.operators, id).not.toContain(operator);
-      expect(kind.relations?.IS_NOT_NULL, id).toBe('has-entries');
+      expect(kind.relations?.[FilterOperator.IS_NOT_NULL], id).toBe(
+        'has-entries',
+      );
     }
   });
 
@@ -261,14 +263,14 @@ describe('string kind', () => {
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value IN A, B');
+    ).toBe('Value in A, B');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.EQ, 'A'),
         field: field(),
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value EQ A');
+    ).toBe('Value eq A');
   });
 });
 
@@ -346,14 +348,14 @@ describe('number kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value IN 1, 2');
+    ).toBe('Value in 1, 2');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.GT, 1),
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value GT 1');
+    ).toBe('Value gt 1');
   });
 });
 
@@ -384,7 +386,7 @@ describe('boolean kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value EQ true');
+    ).toBe('Value eq true');
   });
 });
 
@@ -436,7 +438,7 @@ describe('enum kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value IN Alpha, Two, Z');
+    ).toBe('Value in Alpha, Two, Z');
   });
 });
 
@@ -479,7 +481,7 @@ describe('reference kind', () => {
         field: def,
         kinds: builtinFieldKinds,
       }).text,
-    ).toBe('Value IN ACME');
+    ).toBe('Value in ACME');
   });
 });
 

@@ -30,7 +30,7 @@ export type ReferenceLabel =
   | { readonly status: 'unresolved' };
 
 /**
- * How a view reads reference ids as names (D354): what one id reads as now,
+ * How a view reads reference ids as names: what one id reads as now,
  * and a subscription that says when that may have changed. The engine
  * resolves what its views show; a host's own renderer only reads.
  */

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { constantName } from '../constantName.js';
 import {
   ComparisonOperator,
   HavingExpressionType,
@@ -28,7 +29,7 @@ import {
  */
 export interface HavingDsl {
   /**
-   * `metric = value`. `{ type: 'CONDITION', metric, operator: 'EQ', value }`.
+   * `metric = value`. `{ type: 'condition', metric, operator: 'eq', value }`.
    *
    * @param metric - The alias of a metric of the same query.
    * @throws TypeError when `value` is not finite.
@@ -38,10 +39,10 @@ export interface HavingDsl {
    * ```
    */
   eq(metric: string, value: number): HavingExpression;
-  /** `metric ≠ value`. `{ type: 'CONDITION', operator: 'NE', … }`. */
+  /** `metric ≠ value`. `{ type: 'condition', operator: 'ne', … }`. */
   ne(metric: string, value: number): HavingExpression;
   /**
-   * `metric > value`. `{ type: 'CONDITION', operator: 'GT', … }`.
+   * `metric > value`. `{ type: 'condition', operator: 'gt', … }`.
    *
    * @example
    * ```typescript
@@ -49,14 +50,14 @@ export interface HavingDsl {
    * ```
    */
   gt(metric: string, value: number): HavingExpression;
-  /** `metric ≥ value`. `{ type: 'CONDITION', operator: 'GTE', … }`. */
+  /** `metric ≥ value`. `{ type: 'condition', operator: 'gte', … }`. */
   gte(metric: string, value: number): HavingExpression;
-  /** `metric < value`. `{ type: 'CONDITION', operator: 'LT', … }`. */
+  /** `metric < value`. `{ type: 'condition', operator: 'lt', … }`. */
   lt(metric: string, value: number): HavingExpression;
-  /** `metric ≤ value`. `{ type: 'CONDITION', operator: 'LTE', … }`. */
+  /** `metric ≤ value`. `{ type: 'condition', operator: 'lte', … }`. */
   lte(metric: string, value: number): HavingExpression;
   /**
-   * `lower ≤ metric ≤ upper`. `{ type: 'BETWEEN', metric, lower, upper }`.
+   * `lower ≤ metric ≤ upper`. `{ type: 'between', metric, lower, upper }`.
    *
    * @throws TypeError when a bound is not finite, or `lower` exceeds `upper`.
    * @example
@@ -66,7 +67,7 @@ export interface HavingDsl {
    */
   between(metric: string, lower: number, upper: number): HavingExpression;
   /**
-   * `metric` is one of `values`. `{ type: 'IN', metric, values }` with a
+   * `metric` is one of `values`. `{ type: 'in', metric, values }` with a
    * copy of `values`.
    *
    * @throws TypeError when `values` is empty or holds a non-finite number.
@@ -77,7 +78,7 @@ export interface HavingDsl {
    */
   isIn(metric: string, values: readonly number[]): HavingExpression;
   /**
-   * `metric` has no value in the row. `{ type: 'IS_NULL', metric }`.
+   * `metric` has no value in the row. `{ type: 'is-null', metric }`.
    *
    * @example
    * ```typescript
@@ -85,10 +86,10 @@ export interface HavingDsl {
    * ```
    */
   isNull(metric: string): HavingExpression;
-  /** `metric` has a value. `{ type: 'IS_NULL', metric, negated: true }`. */
+  /** `metric` has a value. `{ type: 'is-null', metric, negated: true }`. */
   isNotNull(metric: string): HavingExpression;
   /**
-   * All of `operands` hold. `{ type: 'AND', operands }` with a copy of
+   * All of `operands` hold. `{ type: 'and', operands }` with a copy of
    * `operands`.
    *
    * @throws TypeError when `operands` is empty.
@@ -102,7 +103,7 @@ export interface HavingDsl {
    */
   and(operands: readonly HavingExpression[]): HavingExpression;
   /**
-   * At least one of `operands` holds. `{ type: 'OR', operands }` with a copy
+   * At least one of `operands` holds. `{ type: 'or', operands }` with a copy
    * of `operands`.
    *
    * @throws TypeError when `operands` is empty.
@@ -127,7 +128,9 @@ function logical(
 ): HavingExpression {
   const [first, ...rest] = operands;
   if (first === undefined) {
-    throw new TypeError(`having ${type} operands must not be empty.`);
+    throw new TypeError(
+      `having ${constantName(type)} operands must not be empty.`,
+    );
   }
   return { type, operands: [first, ...rest] };
 }

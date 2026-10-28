@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.spec.GroupSpec
 import me.ahoo.wow.query.spec.MetricSpec
 import me.ahoo.wow.query.spec.OperatorCost

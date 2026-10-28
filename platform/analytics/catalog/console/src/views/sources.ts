@@ -119,8 +119,8 @@ export function sourcesView(
     filterMode: "simple",
     refresh: { interval: null },
     sort: [
-      { field: "state.database", direction: "ASC" },
-      { field: "state.table", direction: "ASC" },
+      { field: "state.database", direction: "asc" },
+      { field: "state.table", direction: "asc" },
     ],
     pageSize: 20,
     layout: "table",
@@ -136,7 +136,7 @@ export function sourcesView(
 
 const eq = (field: string, value: string | boolean): FilterNode => ({
   field,
-  operator: "EQ",
+  operator: "eq",
   value,
 });
 
@@ -184,8 +184,8 @@ export function sourceViews(): SystemView[] {
             alias: "status",
           },
         ],
-        metrics: [{ alias: "count", type: "COUNT" }],
-        sort: [{ alias: "count", direction: "DESC" }],
+        metrics: [{ alias: "count", type: "count" }],
+        sort: [{ alias: "count", direction: "desc" }],
         limit: 20,
         layout: "table",
         table: { columns: [] },

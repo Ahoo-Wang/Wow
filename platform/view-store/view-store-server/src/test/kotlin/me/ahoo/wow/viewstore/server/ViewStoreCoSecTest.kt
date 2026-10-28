@@ -80,7 +80,7 @@ abstract class ViewStoreCoSecContract {
 
     protected fun list(who: Who, definition: String): Answer = store.post(
         VIEW_QUERY,
-        """{"kind":"list","filter":{"op":"EQ","field":"state.definitionId","value":"$definition"}}""",
+        """{"kind":"list","filter":{"op":"eq","field":"state.definitionId","value":"$definition"}}""",
         who,
     )
 
@@ -89,7 +89,7 @@ abstract class ViewStoreCoSecContract {
         val definition = definition()
         val alice = signedIn("alice", USER_ROLE)
         val id = create(alice, definition).assertOk().id
-        val view = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"ID","value":"$id"}}""", alice)
+        val view = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"id","value":"$id"}}""", alice)
             .assertOk().json
         view["state"]["appId"].asString().assert().isEqualTo(APP)
         view["ownerId"].asString().assert().isEqualTo("alice")
@@ -149,7 +149,7 @@ class ViewStoreCoSecGatewayTest : ViewStoreCoSecContract() {
             val alice = Who(signedIn("alice", USER_ROLE).headers)
             untrusting.post(VIEWS, """{"definitionId":"d","title":"Orders","config":$RECORD}""", alice)
                 .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
-            untrusting.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", alice)
+            untrusting.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", alice)
                 .assertProblem(BAD_REQUEST, "wow.query.malformed")
         }
     }

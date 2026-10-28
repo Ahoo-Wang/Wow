@@ -67,6 +67,7 @@ import {
   metricFallbackName,
   metricReference,
 } from './editing.js';
+import { wireKey } from '../messages/wireKey.js';
 
 /**
  * One metric: the field and how it is summarised, in the one list Wow's
@@ -171,7 +172,9 @@ export function MetricCard({
   // record column's summary is named by (`summaryFunctionKey`).
   const word = (entry: SummaryChoice) =>
     entry === AggregationMetricTypes.ANY
-      ? messages.label('label.summary.fn.ANY.item')
+      ? messages.label(
+          `${wireKey('label.summary.fn', AggregationMetricTypes.ANY)}.item` as const,
+        )
       : messages.label(
           summaryFunctionKey(entry, field?.cell),
           undefined,

@@ -260,7 +260,7 @@ class QueryGatewayTest {
                 assertThrows<QueryScopeRequiredException> {
                     gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope))
                 }.apply {
-                    message.assert().isEqualTo("Query on [SNAPSHOT] requires an authenticated [tenantId] scope.")
+                    message.assert().isEqualTo("Query on [snapshot] requires an authenticated [tenantId] scope.")
                     errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
                     errorMsg.assert().isEqualTo(message)
                     model.assert().isEqualTo(QueryModel.SNAPSHOT)
@@ -533,10 +533,10 @@ class QueryGatewayTest {
     fun `cursor rejects an unknown model instead of guessing its identity`() {
         runTest {
             val backend = GatewayBackend()
-            val provider = FixedQueryModelSchemaProvider(gatewaySchema(QueryModel("CUSTOM")))
+            val provider = FixedQueryModelSchemaProvider(gatewaySchema(QueryModel("custom")))
             assertThrows<QuerySchemaValidationException> {
                 gateway(backend, provider).cursor(CursorQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
-            }.violation.assert().isEqualTo(QueryViolation.IdentityUndefined(QueryModel("CUSTOM")))
+            }.violation.assert().isEqualTo(QueryViolation.IdentityUndefined(QueryModel("custom")))
             backend.admitted.assert().isEmpty()
         }
     }

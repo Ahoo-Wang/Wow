@@ -92,10 +92,10 @@ class SnapshotRebuildRoutesTest {
     fun `a snapshot query answers Wow-Rebuilding while its snapshots are being rebuilt`() {
         var rebuilding = true
         val node = QueryNode(snapshotStatus = SnapshotStatus { rebuilding })
-        val list = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+        val list = """{"kind":"list","filter":{"op":"match-all"}}"""
         val path = "/shop/cart/snapshot/query"
         node.http.post(path, list).headers.getFirst(WowHeaders.REBUILDING).assert().isEqualTo("true")
-        node.http.post(path, """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        node.http.post(path, """{"kind":"count","filter":{"op":"match-all"}}""")
             .headers.getFirst(WowHeaders.REBUILDING).assert().isEqualTo("true")
         node.http.get(path).headers.getFirst(WowHeaders.REBUILDING).assert().isEqualTo("true")
         node.http.post("/shop/cart/events/query", list).headers.getFirst(WowHeaders.REBUILDING).assert().isNull()

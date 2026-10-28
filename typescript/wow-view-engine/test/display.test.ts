@@ -41,7 +41,6 @@ import {
   AggregationMetricType,
   ComparisonOperator,
   FilterOperator,
-  QueryValueKind,
 } from '@ahoo-wang/wow-client/dsl';
 
 /**
@@ -264,10 +263,10 @@ describe('displayValue', () => {
       '失败, 已成功',
     );
     // A code the definition does not name is left to the caller, as is.
-    expect(displayValue(QueryValueKind.UNKNOWN, field, {})).toBeUndefined();
-    expect(displayValue([QueryValueKind.UNKNOWN], field, {})).toBeUndefined();
-    expect(displayValue(['FAILED', QueryValueKind.UNKNOWN], field, {})).toBe(
-      '失败, UNKNOWN',
+    expect(displayValue('RETIRED', field, {})).toBeUndefined();
+    expect(displayValue(['RETIRED'], field, {})).toBeUndefined();
+    expect(displayValue(['FAILED', 'RETIRED'], field, {})).toBe(
+      '失败, RETIRED',
     );
   });
 

@@ -54,6 +54,7 @@ import {
 
 export {
   QueryConstraintTypes,
+  QueryErrorCodes,
   QuerySemanticTypes,
   QueryValueTypes,
 } from '@ahoo-wang/wow-client/dsl';

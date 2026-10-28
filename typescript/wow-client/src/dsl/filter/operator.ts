@@ -16,73 +16,73 @@
  * values match the server-side `FilterOperator` enum.
  */
 export enum FilterOperator {
-  MATCH_ALL = 'MATCH_ALL',
-  MATCH_NONE = 'MATCH_NONE',
-  ID = 'ID',
-  IDS = 'IDS',
-  AGGREGATE_ID = 'AGGREGATE_ID',
-  AGGREGATE_IDS = 'AGGREGATE_IDS',
-  TENANT_ID = 'TENANT_ID',
-  OWNER_ID = 'OWNER_ID',
-  SPACE_ID = 'SPACE_ID',
-  AND = 'AND',
-  OR = 'OR',
-  NOR = 'NOR',
-  EQ = 'EQ',
-  NE = 'NE',
-  GT = 'GT',
-  GTE = 'GTE',
-  LT = 'LT',
-  LTE = 'LTE',
-  CONTAINS = 'CONTAINS',
-  STARTS_WITH = 'STARTS_WITH',
-  ENDS_WITH = 'ENDS_WITH',
-  IN = 'IN',
-  NOT_IN = 'NOT_IN',
-  BETWEEN = 'BETWEEN',
-  CONTAINS_ALL = 'CONTAINS_ALL',
-  IS_EMPTY = 'IS_EMPTY',
-  IS_EMPTY_STRING = 'IS_EMPTY_STRING',
-  IS_NOT_EMPTY_STRING = 'IS_NOT_EMPTY_STRING',
-  IS_NULL = 'IS_NULL',
-  IS_NOT_NULL = 'IS_NOT_NULL',
-  EXISTS = 'EXISTS',
-  NOT_EXISTS = 'NOT_EXISTS',
-  DELETION = 'DELETION',
-  ELEMENT_MATCH = 'ELEMENT_MATCH',
-  SEARCH = 'SEARCH',
-  TODAY = 'TODAY',
-  BEFORE_TODAY = 'BEFORE_TODAY',
-  TOMORROW = 'TOMORROW',
-  THIS_WEEK = 'THIS_WEEK',
-  NEXT_WEEK = 'NEXT_WEEK',
-  LAST_WEEK = 'LAST_WEEK',
-  THIS_MONTH = 'THIS_MONTH',
-  LAST_MONTH = 'LAST_MONTH',
-  YESTERDAY = 'YESTERDAY',
-  NEXT_MONTH = 'NEXT_MONTH',
-  LAST_YEAR = 'LAST_YEAR',
-  THIS_YEAR = 'THIS_YEAR',
-  NEXT_YEAR = 'NEXT_YEAR',
-  RECENT_DAYS = 'RECENT_DAYS',
-  EARLIER_DAYS = 'EARLIER_DAYS',
+  MATCH_ALL = 'match-all',
+  MATCH_NONE = 'match-none',
+  ID = 'id',
+  IDS = 'ids',
+  AGGREGATE_ID = 'aggregate-id',
+  AGGREGATE_IDS = 'aggregate-ids',
+  TENANT_ID = 'tenant-id',
+  OWNER_ID = 'owner-id',
+  SPACE_ID = 'space-id',
+  AND = 'and',
+  OR = 'or',
+  NOR = 'nor',
+  EQ = 'eq',
+  NE = 'ne',
+  GT = 'gt',
+  GTE = 'gte',
+  LT = 'lt',
+  LTE = 'lte',
+  CONTAINS = 'contains',
+  STARTS_WITH = 'starts-with',
+  ENDS_WITH = 'ends-with',
+  IN = 'in',
+  NOT_IN = 'not-in',
+  BETWEEN = 'between',
+  CONTAINS_ALL = 'contains-all',
+  IS_EMPTY = 'is-empty',
+  IS_EMPTY_STRING = 'is-empty-string',
+  IS_NOT_EMPTY_STRING = 'is-not-empty-string',
+  IS_NULL = 'is-null',
+  IS_NOT_NULL = 'is-not-null',
+  EXISTS = 'exists',
+  NOT_EXISTS = 'not-exists',
+  DELETION = 'deletion',
+  ELEMENT_MATCH = 'element-match',
+  SEARCH = 'search',
+  TODAY = 'today',
+  BEFORE_TODAY = 'before-today',
+  TOMORROW = 'tomorrow',
+  THIS_WEEK = 'this-week',
+  NEXT_WEEK = 'next-week',
+  LAST_WEEK = 'last-week',
+  THIS_MONTH = 'this-month',
+  LAST_MONTH = 'last-month',
+  YESTERDAY = 'yesterday',
+  NEXT_MONTH = 'next-month',
+  LAST_YEAR = 'last-year',
+  THIS_YEAR = 'this-year',
+  NEXT_YEAR = 'next-year',
+  RECENT_DAYS = 'recent-days',
+  EARLIER_DAYS = 'earlier-days',
   /**
    * The field is strictly before the server's `now + offset`. Needs a Wow
    * server of 9.2.0 or later.
    */
-  BEFORE_NOW = 'BEFORE_NOW',
+  BEFORE_NOW = 'before-now',
   /**
    * The field is strictly after the server's `now + offset`. Needs a Wow
    * server of 9.2.0 or later.
    */
-  AFTER_NOW = 'AFTER_NOW',
+  AFTER_NOW = 'after-now',
   /**
    * A computed expression, such as the hours between two time fields,
    * compared with a number. Evaluated per record, so expensive; a record
    * whose expression has no value never matches. Needs a Wow server of
    * 9.2.0 or later.
    */
-  EXPRESSION = 'EXPRESSION',
+  EXPRESSION = 'expression',
 }
 
 /**
@@ -92,11 +92,11 @@ export enum StringComparison {
   /**
    * Characters must match exactly. The default.
    */
-  CASE_SENSITIVE = 'CASE_SENSITIVE',
+  CASE_SENSITIVE = 'case-sensitive',
   /**
    * Ignores case. Backends may execute this more expensively.
    */
-  CASE_INSENSITIVE = 'CASE_INSENSITIVE',
+  CASE_INSENSITIVE = 'case-insensitive',
 }
 
 /**
@@ -107,11 +107,11 @@ export enum SearchMode {
    * Analyzed terms match independently; they need not appear together. The
    * default.
    */
-  TERMS = 'TERMS',
+  TERMS = 'terms',
   /**
    * Analyzed terms must appear in order and at adjacent positions.
    */
-  PHRASE = 'PHRASE',
+  PHRASE = 'phrase',
 }
 
 /**

@@ -107,7 +107,7 @@ class PostgresClusterTest {
         behind.body!!["code"].asString().assert().isEqualTo("wow.query.min-version-not-reached")
         behind.body!!["version"].asInt().assert().isEqualTo(version)
         // A paged total is counted with its page on every node (Q-12): it agrees with the rows.
-        val filter = """{"op":"EQ","field":"state.owner","value":"rita"}"""
+        val filter = """{"op":"eq","field":"state.owner","value":"rita"}"""
         hosts.forEach { host ->
             val paged = host.post(
                 "/bank/account/snapshot/query",

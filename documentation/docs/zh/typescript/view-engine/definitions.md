@@ -93,12 +93,12 @@ export const salesOrders = defineView(salesOrderDescriptor, {
     // A total of the amounts means something; an average per page does not.
     'state.totalAmount': {
       label: text('orders.total'),
-      summary: ['SUM'],
+      summary: ['sum'],
       more: { numberFormat: { style: 'currency', currency: 'CNY' } },
     },
     'state.paidAmount': {
       label: text('orders.paidAmount'),
-      summary: ['SUM'],
+      summary: ['sum'],
       more: { numberFormat: { style: 'currency', currency: 'CNY' } },
     },
     // Readers follow trends by day and by month: wow-client's enum, not strings.
@@ -299,9 +299,9 @@ function queue(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: 'desc' }],
     pageSize: 20,
-    summaries: [{ field: 'state.totalAmount', fn: 'SUM' }],
+    summaries: [{ field: 'state.totalAmount', fn: 'sum' }],
     layout: 'table',
     table: { columns: COLUMNS.map(field => ({ field })) },
     card: {
@@ -320,7 +320,7 @@ const cityTotals: AnalysisViewConfig = {
     children: [
       {
         field: 'firstEventTime',
-        operator: 'BETWEEN',
+        operator: 'between',
         value: { type: 'relative', amount: 30, unit: 'day' },
       },
     ],
@@ -329,36 +329,36 @@ const cityTotals: AnalysisViewConfig = {
   refresh: { interval: null },
   groups: [
     {
-      type: 'TERMS',
+      type: 'terms',
       field: 'state.address.city',
       alias: 'city',
       label: text('orders.city'),
     },
   ],
   metrics: [
-    { type: 'COUNT', alias: 'orders', label: text('orders.count') },
+    { type: 'count', alias: 'orders', label: text('orders.count') },
     {
-      type: 'NUMERIC',
+      type: 'numeric',
       alias: 'total',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'state.totalAmount' },
+      function: 'sum',
+      expression: { type: 'field', field: 'state.totalAmount' },
       label: text('orders.total'),
     },
     {
       // A ratio is a metric over metrics, not a field.
-      type: 'DERIVED',
+      type: 'derived',
       alias: 'perOrder',
       label: text('orders.perOrder'),
       expression: {
-        type: 'BINARY',
-        operator: 'DIVIDE',
-        left: { type: 'METRIC_REF', metric: 'total' },
-        right: { type: 'METRIC_REF', metric: 'orders' },
+        type: 'binary',
+        operator: 'divide',
+        left: { type: 'metric-ref', metric: 'total' },
+        right: { type: 'metric-ref', metric: 'orders' },
       },
       format: { style: 'currency', currency: 'CNY' },
     },
   ],
-  sort: [{ alias: 'total', direction: 'DESC' }],
+  sort: [{ alias: 'total', direction: 'desc' }],
   limit: 20,
   layout: 'chart',
   table: { columns: [] },
@@ -377,8 +377,8 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
     timeField: null,
     // The earliest paid ships first.
     config: queue(
-      [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
-      { sort: [{ field: 'firstEventTime', direction: 'ASC' }] },
+      [{ field: 'state.status', operator: 'in', value: ['PAID'] }],
+      { sort: [{ field: 'firstEventTime', direction: 'asc' }] },
     ),
   },
   { id: 'all', title: text('orders.all'), config: queue([]) },
@@ -428,10 +428,10 @@ function card(
 }
 
 const total = {
-  type: 'NUMERIC',
+  type: 'numeric',
   alias: 'total',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'state.totalAmount' },
+  function: 'sum',
+  expression: { type: 'field', field: 'state.totalAmount' },
   label: text('orders.total'),
 } as const;
 
@@ -439,14 +439,14 @@ const dailyTotal: AnalysisViewConfig = {
   ...card(total),
   groups: [
     {
-      type: 'DATE_HISTOGRAM',
+      type: 'date-histogram',
       field: 'firstEventTime',
       alias: 'day',
-      unit: 'DAY',
+      unit: 'day',
       label: text('orders.day'),
     },
   ],
-  sort: [{ alias: 'day', direction: 'ASC' }],
+  sort: [{ alias: 'day', direction: 'asc' }],
   // A row a day: room for the longest window a reader picks.
   limit: 92,
   chart: { type: 'line', cartesian: { x: 'day', series: [{ metric: 'total' }] } },
@@ -502,8 +502,8 @@ export const overview: DashboardDefinition = {
               owned: {
                 definitionId: SALES_ORDERS,
                 config: card(
-                  { type: 'COUNT', alias: 'orders', label: text('orders.count') },
-                  [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
+                  { type: 'count', alias: 'orders', label: text('orders.count') },
+                  [{ field: 'state.status', operator: 'in', value: ['PAID'] }],
                 ),
               },
               // "Open in workbench" opens the queue itself, not a count.

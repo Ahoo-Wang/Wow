@@ -49,12 +49,12 @@ class AggregationQueryJsonTest {
         val sort = Sort(QueryField("state.createdAt"), Sort.Direction.DESC)
 
         mapper.writeValueAsString(projection).assert().isEqualTo("{\"include\":[\"state.name\"]}")
-        mapper.writeValueAsString(sort).assert().isEqualTo("{\"field\":\"state.createdAt\",\"direction\":\"DESC\"}")
+        mapper.writeValueAsString(sort).assert().isEqualTo("{\"field\":\"state.createdAt\",\"direction\":\"desc\"}")
     }
 
     @Test
     fun `omitted query properties should take the constructor defaults`() {
-        val query = read("""{"metrics":[{"type":"COUNT","alias":"count"}]}""")
+        val query = read("""{"metrics":[{"type":"count","alias":"count"}]}""")
 
         query.filter.assert().isEqualTo(MatchAllFilter)
         query.elements.assert().isEmpty()
@@ -69,13 +69,13 @@ class AggregationQueryJsonTest {
         val query = read(
             """
                 {
-                  "groupBy": [{"type": "DATE_HISTOGRAM", "field": "createdAt", "alias": "day", "unit": "DAY"}],
+                  "groupBy": [{"type": "date-histogram", "field": "createdAt", "alias": "day", "unit": "day"}],
                   "metrics": [
-                    {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "gmv"},
-                    {"type": "DERIVED", "alias": "previous", "expression": {"type": "PREVIOUS", "metric": "gmv", "along": "day"}},
-                    {"type": "DERIVED", "alias": "running",
-                     "expression": {"type": "RUNNING", "metric": "gmv", "order": {"field": "day", "direction": "ASC"}}},
-                    {"type": "DERIVED", "alias": "rank", "expression": {"type": "RANK", "metric": "gmv"}}
+                    {"type": "numeric", "function": "sum", "expression": {"field": "amount"}, "alias": "gmv"},
+                    {"type": "derived", "alias": "previous", "expression": {"type": "previous", "metric": "gmv", "along": "day"}},
+                    {"type": "derived", "alias": "running",
+                     "expression": {"type": "running", "metric": "gmv", "order": {"field": "day", "direction": "asc"}}},
+                    {"type": "derived", "alias": "rank", "expression": {"type": "rank", "metric": "gmv"}}
                   ]
                 }
             """.trimIndent(),
@@ -99,10 +99,10 @@ class AggregationQueryJsonTest {
     @Test
     fun `explicit null should be rejected`() {
         listOf(
-            """{"filter": null, "metrics": [{"type": "COUNT", "alias": "count"}]}""",
-            """{"limit": null, "metrics": [{"type": "COUNT", "alias": "count"}]}""",
+            """{"filter": null, "metrics": [{"type": "count", "alias": "count"}]}""",
+            """{"limit": null, "metrics": [{"type": "count", "alias": "count"}]}""",
             """{"metrics": null}""",
-            """{"metrics": [{"type": "COUNT", "alias": "count", "filter": null}]}""",
+            """{"metrics": [{"type": "count", "alias": "count", "filter": null}]}""",
         ).forEach { json ->
             assertThrows<JacksonException> { read(json) }
         }
@@ -119,8 +119,8 @@ class AggregationQueryJsonTest {
             """
                 {
                   "metrics": [{
-                    "type": "NUMERIC",
-                    "function": "SUM",
+                    "type": "numeric",
+                    "function": "sum",
                     "expression": {"field": "amount"},
                     "alias": "total"
                   }]
@@ -138,7 +138,7 @@ class AggregationQueryJsonTest {
     fun `a missing type of the other hierarchies should fail`() {
         listOf(
             """{"metrics": [{"alias": "count"}]}""",
-            """{"groupBy": [{"field": "status", "alias": "status"}], "metrics": [{"type": "COUNT", "alias": "count"}]}""",
+            """{"groupBy": [{"field": "status", "alias": "status"}], "metrics": [{"type": "count", "alias": "count"}]}""",
         ).forEach { json ->
             assertThrows<InvalidTypeIdException> { read(json) }
         }
@@ -149,9 +149,9 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [{
-                "type": "NUMERIC",
-                "function": "SUM",
-                "expression": {"type": "UNKNOWN", "field": "amount"},
+                "type": "numeric",
+                "function": "sum",
+                "expression": {"type": "unknown", "field": "amount"},
                 "alias": "total"
               }]
             }
@@ -165,18 +165,18 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [{
-                "type": "NUMERIC",
-                "function": "SUM",
+                "type": "numeric",
+                "function": "sum",
                 "expression": {
-                  "type": "BINARY",
-                  "operator": "SUBTRACT",
+                  "type": "binary",
+                  "operator": "subtract",
                   "left": {
-                    "type": "BINARY",
-                    "operator": "MULTIPLY",
+                    "type": "binary",
+                    "operator": "multiply",
                     "left": {"field": "price"},
                     "right": {"field": "quantity"}
                   },
-                  "right": {"type": "CONSTANT", "value": 10.0}
+                  "right": {"type": "constant", "value": 10.0}
                 },
                 "alias": "total"
               }]
@@ -198,23 +198,23 @@ class AggregationQueryJsonTest {
             ),
         )
         mapper.writeValueAsString(query).assert().isEqualTo(
-            """{"filter":{"op":"MATCH_ALL"},"metrics":[{"type":"NUMERIC","function":"SUM","expression":""" +
-                """{"type":"BINARY","operator":"SUBTRACT","left":{"type":"BINARY","operator":"MULTIPLY",""" +
-                """"left":{"type":"FIELD","field":"price"},"right":{"type":"FIELD","field":"quantity"}},""" +
-                """"right":{"type":"CONSTANT","value":10.0}},"alias":"total"}],"limit":100}""",
+            """{"filter":{"op":"match-all"},"metrics":[{"type":"numeric","function":"sum","expression":""" +
+                """{"type":"binary","operator":"subtract","left":{"type":"binary","operator":"multiply",""" +
+                """"left":{"type":"field","field":"price"},"right":{"type":"field","field":"quantity"}},""" +
+                """"right":{"type":"constant","value":10.0}},"alias":"total"}],"limit":100}""",
         )
     }
 
     @Test
     fun `any metric should round trip through JSON`() {
-        val json = """{"metrics": [{"type": "ANY", "field": "state.productName", "alias": "productName"}]}"""
+        val json = """{"metrics": [{"type": "any", "field": "state.productName", "alias": "productName"}]}"""
 
         val query = read(json)
 
         query.metrics.assert().containsExactly(AggregationMetric.Any(QueryField("state.productName"), "productName"))
         mapper.writeValueAsString(
             query
-        ).assert().contains("""{"type":"ANY","field":"state.productName","alias":"productName"}""")
+        ).assert().contains("""{"type":"any","field":"state.productName","alias":"productName"}""")
     }
 
     @Test
@@ -222,10 +222,10 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [
-                {"type": "DISTINCT_COUNT", "expression": {"field": "state.customerId"}, "alias": "customers"},
-                {"type": "PERCENTILE", "expression": {"field": "state.amount"}, "percentile": 95.0, "alias": "p95"},
-                {"type": "NUMERIC", "function": "STDDEV", "expression": {"field": "state.amount"}, "alias": "stddev"},
-                {"type": "NUMERIC", "function": "VARIANCE", "expression": {"field": "state.amount"}, "alias": "variance"}
+                {"type": "distinct-count", "expression": {"field": "state.customerId"}, "alias": "customers"},
+                {"type": "percentile", "expression": {"field": "state.amount"}, "percentile": 95.0, "alias": "p95"},
+                {"type": "numeric", "function": "stddev", "expression": {"field": "state.amount"}, "alias": "stddev"},
+                {"type": "numeric", "function": "variance", "expression": {"field": "state.amount"}, "alias": "variance"}
               ]
             }
         """.trimIndent()
@@ -247,8 +247,8 @@ class AggregationQueryJsonTest {
             ),
         )
         mapper.writeValueAsString(query).assert()
-            .contains("\"type\":\"DISTINCT_COUNT\"")
-            .contains("\"type\":\"PERCENTILE\"")
+            .contains("\"type\":\"distinct-count\"")
+            .contains("\"type\":\"percentile\"")
         read(mapper.writeValueAsString(query)).assert().isEqualTo(query)
     }
 
@@ -264,10 +264,10 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [
-                {"type": "COUNT", "alias": "total"},
-                {"type": "COUNT", "filter": {"op": "EQ", "field": "status", "value": "PAID"}, "alias": "paid"},
-                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"},
-                 "filter": {"op": "EQ", "field": "status", "value": "PAID"}, "alias": "paidAmount"}
+                {"type": "count", "alias": "total"},
+                {"type": "count", "filter": {"op": "eq", "field": "status", "value": "PAID"}, "alias": "paid"},
+                {"type": "numeric", "function": "sum", "expression": {"field": "amount"},
+                 "filter": {"op": "eq", "field": "status", "value": "PAID"}, "alias": "paidAmount"}
               ]
             }
         """.trimIndent()
@@ -278,10 +278,10 @@ class AggregationQueryJsonTest {
         query.metrics[2].filter.assert().isEqualTo(EqualFilter(QueryField("status"), "PAID"))
         query.metrics[0].filter.assert().isEqualTo(MatchAllFilter)
         mapper.writeValueAsString(query).assert().isEqualTo(
-            """{"filter":{"op":"MATCH_ALL"},"metrics":[{"type":"COUNT","alias":"total"},""" +
-                """{"type":"COUNT","alias":"paid","filter":{"field":"status","value":"PAID","op":"EQ"}},""" +
-                """{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"amount"},""" +
-                """"alias":"paidAmount","filter":{"field":"status","value":"PAID","op":"EQ"}}],"limit":100}""",
+            """{"filter":{"op":"match-all"},"metrics":[{"type":"count","alias":"total"},""" +
+                """{"type":"count","alias":"paid","filter":{"field":"status","value":"PAID","op":"eq"}},""" +
+                """{"type":"numeric","function":"sum","expression":{"type":"field","field":"amount"},""" +
+                """"alias":"paidAmount","filter":{"field":"status","value":"PAID","op":"eq"}}],"limit":100}""",
         )
     }
 
@@ -290,9 +290,9 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [
-                {"type": "COUNT", "alias": "total", "filter": {"op": "MATCH_ALL"}},
-                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "sumAmount",
-                 "filter": {"op": "MATCH_ALL"}}
+                {"type": "count", "alias": "total", "filter": {"op": "match-all"}},
+                {"type": "numeric", "function": "sum", "expression": {"field": "amount"}, "alias": "sumAmount",
+                 "filter": {"op": "match-all"}}
               ]
             }
         """.trimIndent()
@@ -321,12 +321,12 @@ class AggregationQueryJsonTest {
         val json = """
             {
               "metrics": [
-                {"type": "COUNT", "alias": "paid"},
-                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "x"},
-                {"type": "DERIVED", "alias": "aov", "filter": {"op": "MATCH_NONE"},
-                 "expression": {"type": "BINARY", "operator": "DIVIDE",
-                   "left": {"type": "METRIC_REF", "metric": "paid"},
-                   "right": {"type": "CONSTANT", "value": 2.0}}}
+                {"type": "count", "alias": "paid"},
+                {"type": "numeric", "function": "sum", "expression": {"field": "amount"}, "alias": "x"},
+                {"type": "derived", "alias": "aov", "filter": {"op": "match-none"},
+                 "expression": {"type": "binary", "operator": "divide",
+                   "left": {"type": "metric-ref", "metric": "paid"},
+                   "right": {"type": "constant", "value": 2.0}}}
               ]
             }
         """.trimIndent()
@@ -344,21 +344,21 @@ class AggregationQueryJsonTest {
         derived.filter.assert().isEqualTo(MatchAllFilter)
         val wire = mapper.writeValueAsString(query)
         wire.assert().contains(
-            """{"type":"DERIVED","alias":"aov","expression":{"type":"BINARY","operator":"DIVIDE",""" +
-                """"left":{"type":"METRIC_REF","metric":"paid"},"right":{"type":"CONSTANT","value":2.0}}}""",
+            """{"type":"derived","alias":"aov","expression":{"type":"binary","operator":"divide",""" +
+                """"left":{"type":"metric-ref","metric":"paid"},"right":{"type":"constant","value":2.0}}}""",
         )
-        wire.substring(wire.indexOf("DERIVED")).assert().doesNotContain("\"filter\"")
+        wire.substring(wire.indexOf("\"derived\"")).assert().doesNotContain("\"filter\"")
     }
 
     @Test
     fun `having should round trip and omit when absent`() {
         val json = """
             {
-              "groupBy": [{"type": "TERMS", "field": "status", "alias": "status"}],
-              "metrics": [{"type": "COUNT", "alias": "paid"}],
-              "having": {"type": "AND", "operands": [
-                {"type": "CONDITION", "metric": "paid", "operator": "GT", "value": 10.0},
-                {"type": "IS_NULL", "metric": "paid", "negated": true}
+              "groupBy": [{"type": "terms", "field": "status", "alias": "status"}],
+              "metrics": [{"type": "count", "alias": "paid"}],
+              "having": {"type": "and", "operands": [
+                {"type": "condition", "metric": "paid", "operator": "gt", "value": 10.0},
+                {"type": "is-null", "metric": "paid", "negated": true}
               ]}
             }
         """.trimIndent()
@@ -371,11 +371,11 @@ class AggregationQueryJsonTest {
             HavingExpression.IsNull("paid", negated = true),
         )
         mapper.writeValueAsString(query).assert().contains(
-            """"having":{"type":"AND","operands":[{"type":"CONDITION","metric":"paid","operator":"GT","value":10.0},""" +
-                """{"type":"IS_NULL","metric":"paid","negated":true}]}""",
+            """"having":{"type":"and","operands":[{"type":"condition","metric":"paid","operator":"gt","value":10.0},""" +
+                """{"type":"is-null","metric":"paid","negated":true}]}""",
         )
         read(
-            """{"groupBy":[{"type":"TERMS","field":"status","alias":"status"}],"metrics":[{"type":"COUNT","alias":"paid"}],"having":{"type":"IS_NULL","metric":"paid"}}"""
+            """{"groupBy":[{"type":"terms","field":"status","alias":"status"}],"metrics":[{"type":"count","alias":"paid"}],"having":{"type":"is-null","metric":"paid"}}"""
         )
             .having.assert().isEqualTo(HavingExpression.IsNull("paid"))
 
@@ -400,7 +400,7 @@ class AggregationQueryJsonTest {
         val json = mapper.writeValueAsString(
             AggregationQuery(groupBy = listOf(root, element), metrics = listOf(AggregationMetric.Count("n"))),
         )
-        json.assert().contains("\"scope\":\"ROOT\"")
+        json.assert().contains("\"scope\":\"root\"")
         json.split("\"scope\"").size.assert().isEqualTo(2)
         read(json).groupBy.map { it.scope }.assert().containsExactly(AggregationGroupScope.ROOT, null)
     }
@@ -408,19 +408,19 @@ class AggregationQueryJsonTest {
     @Test
     fun `bucket options should keep wire shapes additive`() {
         mapper.writeValueAsString(AggregationGroup.Terms(QueryField("productId"), "product"))
-            .assert().isEqualTo("""{"type":"TERMS","field":"productId","alias":"product"}""")
+            .assert().isEqualTo("""{"type":"terms","field":"productId","alias":"product"}""")
         mapper.writeValueAsString(
             AggregationGroup.Terms(QueryField("productId"), "product", missingKey = "__missing__"),
-        ).assert().isEqualTo("""{"type":"TERMS","field":"productId","alias":"product","missingKey":"__missing__"}""")
+        ).assert().isEqualTo("""{"type":"terms","field":"productId","alias":"product","missingKey":"__missing__"}""")
         mapper.writeValueAsString(
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY),
         ).assert().isEqualTo(
-            """{"type":"DATE_HISTOGRAM","field":"createdAt","alias":"day","unit":"DAY","timeZone":"UTC"}""",
+            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day","timeZone":"UTC"}""",
         )
         mapper.writeValueAsString(
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, dense = true),
         ).assert().isEqualTo(
-            """{"type":"DATE_HISTOGRAM","field":"createdAt","alias":"day","unit":"DAY","timeZone":"UTC","dense":true}""",
+            """{"type":"date-histogram","field":"createdAt","alias":"day","unit":"day","timeZone":"UTC","dense":true}""",
         )
     }
 
@@ -429,18 +429,18 @@ class AggregationQueryJsonTest {
         val termsJson = """
             {
               "groupBy": [
-                {"type": "TERMS", "field": "productName", "alias": "name", "missingKey": "UNKNOWN"}
+                {"type": "terms", "field": "productName", "alias": "name", "missingKey": "UNKNOWN"}
               ],
-              "metrics": [{"type": "COUNT", "alias": "count"}]
+              "metrics": [{"type": "count", "alias": "count"}]
             }
         """.trimIndent()
         val denseJson = """
             {
               "groupBy": [
-                {"type": "DATE_HISTOGRAM", "field": "createdAt", "alias": "day", "unit": "MONTH",
+                {"type": "date-histogram", "field": "createdAt", "alias": "day", "unit": "month",
                  "timeZone": "Asia/Shanghai", "dense": true}
               ],
-              "metrics": [{"type": "COUNT", "alias": "count"}]
+              "metrics": [{"type": "count", "alias": "count"}]
             }
         """.trimIndent()
         (read(termsJson).groupBy[0] as AggregationGroup.Terms).missingKey.assert().isEqualTo("UNKNOWN")

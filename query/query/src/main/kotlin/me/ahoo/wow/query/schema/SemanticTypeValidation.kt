@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.QueryValueKind
+
 /**
  * Checks every declared semantic type of a model when its schema is built, so a wrong declaration is a schema
  * conflict instead of silently wrong formatting:

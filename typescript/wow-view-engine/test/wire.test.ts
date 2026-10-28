@@ -48,10 +48,10 @@ describe('the literal views of the wire values', () => {
 
   // wire spelling (D352b): the subject is that a config written as plain JSON strings type-checks
   it('are typed by their values, so a config stays plain JSON', () => {
-    expectTypeOf(AggregationGroupTypes.TERMS).toEqualTypeOf<'TERMS'>();
+    expectTypeOf(AggregationGroupTypes.TERMS).toEqualTypeOf<'terms'>();
     // A config is written as strings and still type-checks.
     const terms: AnalysisGroup = {
-      type: 'TERMS',
+      type: 'terms',
       field: 'city',
       alias: 'c',
     };

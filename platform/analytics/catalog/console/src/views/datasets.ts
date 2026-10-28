@@ -104,7 +104,7 @@ export function datasetsView(
     filter: { op: "and", children: filter },
     filterMode: "simple",
     refresh: { interval: null },
-    sort: [{ field: "aggregateId", direction: "ASC" }],
+    sort: [{ field: "aggregateId", direction: "asc" }],
     pageSize: 20,
     layout: "table",
     summaries: [],
@@ -118,7 +118,7 @@ export function datasetsView(
 }
 
 export function status(...values: DatasetStatus[]): FilterNode {
-  return { field: "state.status", operator: "IN", value: values };
+  return { field: "state.status", operator: "in", value: values };
 }
 
 /** The system views: the datasets a data owner works through. */
@@ -160,8 +160,8 @@ export function datasetViews(): SystemView[] {
             alias: "status",
           },
         ],
-        metrics: [{ alias: "count", type: "COUNT" }],
-        sort: [{ alias: "count", direction: "DESC" }],
+        metrics: [{ alias: "count", type: "count" }],
+        sort: [{ alias: "count", direction: "desc" }],
         limit: 20,
         layout: "table",
         table: { columns: [] },

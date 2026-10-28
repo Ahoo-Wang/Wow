@@ -19,7 +19,7 @@ describe('cursorQuery', () => {
     const query = cursorQuery({ filter: filter.matchAll() });
 
     expect(query).toEqual({
-      filter: { op: 'MATCH_ALL' },
+      filter: { op: 'match-all' },
       projection: {},
       sort: [],
       size: 10,
@@ -46,9 +46,9 @@ describe('cursorQuery', () => {
     });
 
     expect(query).toEqual({
-      filter: { op: 'EQ', field: 'state.status', value: 'PAID' },
+      filter: { op: 'eq', field: 'state.status', value: 'PAID' },
       projection: { include: ['state.status'] },
-      sort: [{ field: 'state.createdAt', direction: 'ASC' }],
+      sort: [{ field: 'state.createdAt', direction: 'asc' }],
       size: 20,
       cursor: 'opaque-next-cursor',
     });

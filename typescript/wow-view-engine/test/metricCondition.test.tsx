@@ -704,7 +704,7 @@ describe('a metric’s own conditions', () => {
 
     const derived = await waitFor(() => {
       const found = document.querySelector<HTMLElement>(
-        '[data-slot="metric-card"][data-metric="DERIVED"]',
+        `[data-slot="metric-card"][data-metric="${AggregationMetricType.DERIVED}"]`,
       );
       expect(found).not.toBeNull();
       return found!;

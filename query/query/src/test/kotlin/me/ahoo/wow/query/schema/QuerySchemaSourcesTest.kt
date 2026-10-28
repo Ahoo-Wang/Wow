@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
@@ -33,7 +34,7 @@ class QuerySchemaSourcesTest {
                 listOf(
                     QuerySchemaRegistration(ORDER_CONTEXT, orderDeclaration),
                     QuerySchemaRegistration(CART_CONTEXT, cartDeclaration),
-                    QuerySchemaRegistration(ORDER_CONTEXT.copy(model = QueryModel("CUSTOM")), otherModelDeclaration),
+                    QuerySchemaRegistration(ORDER_CONTEXT.copy(model = QueryModel("custom")), otherModelDeclaration),
                 ),
             )
 

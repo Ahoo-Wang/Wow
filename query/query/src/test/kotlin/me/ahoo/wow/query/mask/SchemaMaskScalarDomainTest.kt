@@ -14,10 +14,10 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.boundSchemaFixture
@@ -47,7 +47,7 @@ class SchemaMaskScalarDomainTest {
             Triple(setOf(QueryValueType.DECIMAL), listOf("42", "-7", "1.0", "1.25", "1e3"), listOf("true")),
             Triple(setOf(QueryValueType.BOOLEAN), listOf("true", "false"), listOf("42", "1.25")),
             Triple(setOf(QueryValueType.INTEGER, QueryValueType.BOOLEAN), listOf("42", "true"), listOf("1.0")),
-            Triple(setOf(QueryValueType("CUSTOM")), emptyList(), listOf("42", "1.25", "true")),
+            Triple(setOf(QueryValueType("custom")), emptyList(), listOf("42", "1.25", "true")),
         )
         cases.forEach { (types, accepted, rejected) ->
             listOf(false, true).forEach { nullable ->

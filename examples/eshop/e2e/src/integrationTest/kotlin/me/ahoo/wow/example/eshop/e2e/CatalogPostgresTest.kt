@@ -81,13 +81,13 @@ class CatalogPostgresTest {
         }.toSortedMap(compareBy { it.toBigDecimal() }).values.toList()
         // A draft of the category stays off the storefront.
         create("/eshop-catalog/product/create-product", """{"name":"Draft","price":1,"categoryId":"$category"}""")
-        val published = """{"op":"AND","operands":[
-            {"op":"EQ","field":"state.categoryId","value":"$category"},
-            {"op":"EQ","field":"state.status","value":"PUBLISHED"}]}"""
+        val published = """{"op":"and","operands":[
+            {"op":"eq","field":"state.categoryId","value":"$category"},
+            {"op":"eq","field":"state.status","value":"PUBLISHED"}]}"""
         val pages = (1..3).map { index ->
             post(
                 PRODUCTS,
-                """{"kind":"paged","filter":$published,"sort":[{"field":"state.price","direction":"ASC"}],
+                """{"kind":"paged","filter":$published,"sort":[{"field":"state.price","direction":"asc"}],
                     "pagination":{"index":$index,"size":2}}""",
                 BUYER,
             ).assertOk().body!!

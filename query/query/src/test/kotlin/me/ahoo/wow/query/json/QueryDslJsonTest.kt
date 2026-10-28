@@ -66,13 +66,13 @@ class QueryDslJsonTest {
             limit(10)
         }
         val json = """
-            {"filter":{"op":"AND","operands":[
-              {"op":"IN","field":"state.status","values":["PAID","NEW"]},
-              {"op":"BETWEEN","field":"state.amount","lowerBound":10,"upperBound":40},
-              {"op":"NOR","operands":[
-                {"op":"STARTS_WITH","field":"state.name","value":"gam","stringComparison":"CASE_INSENSITIVE"}]}]},
+            {"filter":{"op":"and","operands":[
+              {"op":"in","field":"state.status","values":["PAID","NEW"]},
+              {"op":"between","field":"state.amount","lowerBound":10,"upperBound":40},
+              {"op":"nor","operands":[
+                {"op":"starts-with","field":"state.name","value":"gam","stringComparison":"case-insensitive"}]}]},
              "projection":{"include":["aggregateId","state.amount"]},
-             "sort":[{"field":"state.amount","direction":"DESC"}],
+             "sort":[{"field":"state.amount","direction":"desc"}],
              "limit":10}
         """
         val decoded = decode<ListQuery>(json)
@@ -99,12 +99,12 @@ class QueryDslJsonTest {
             total(TotalMode.EXACT)
         }
         val json = """
-            {"filter":{"op":"OR","operands":[
-              {"op":"EQ","field":"state.status","value":"NEW"},
-              {"op":"EQ","field":"operator.id","value":"user-1"}]},
-             "sort":[{"field":"version","direction":"ASC"}],
+            {"filter":{"op":"or","operands":[
+              {"op":"eq","field":"state.status","value":"NEW"},
+              {"op":"eq","field":"operator.id","value":"user-1"}]},
+             "sort":[{"field":"version","direction":"asc"}],
              "pagination":{"index":1,"size":2},
-             "total":"EXACT"}
+             "total":"exact"}
         """
         val decoded = decode<PagedQuery>(json)
         dsl.assert().isEqualTo(decoded)
@@ -130,9 +130,9 @@ class QueryDslJsonTest {
             size(1)
         }
         val json = """
-            {"filter":{"op":"ELEMENT_MATCH","field":"state.lines","predicate":{"op":"AND","operands":[
-              {"op":"EQ","field":"sku","value":"B"},{"op":"GTE","field":"quantity","value":2}]}},
-             "sort":[{"field":"state.name","direction":"ASC"}],
+            {"filter":{"op":"element-match","field":"state.lines","predicate":{"op":"and","operands":[
+              {"op":"eq","field":"sku","value":"B"},{"op":"gte","field":"quantity","value":2}]}},
+             "sort":[{"field":"state.name","direction":"asc"}],
              "size":1}
         """
         val decoded = decode<CursorQuery>(json)
@@ -159,8 +159,8 @@ class QueryDslJsonTest {
             sort { "state.amount".desc() }
         }
         val json = """
-            {"filter":{"op":"EQ","field":"state.status","value":"PAID"},
-             "sort":[{"field":"state.amount","direction":"DESC"}]}
+            {"filter":{"op":"eq","field":"state.status","value":"PAID"},
+             "sort":[{"field":"state.amount","direction":"desc"}]}
         """
         val decoded = decode<SingleQuery>(json)
         dsl.withFilter(decoded.filter).assert().isEqualTo(decoded)
@@ -177,7 +177,7 @@ class QueryDslJsonTest {
             filter { "state.amount" gt 15 }
             limit(1)
         }
-        val decoded = decode<CountQuery>("""{"filter":{"op":"GT","field":"state.amount","value":15},"limit":1}""")
+        val decoded = decode<CountQuery>("""{"filter":{"op":"gt","field":"state.amount","value":15},"limit":1}""")
         dsl.assert().isEqualTo(decoded)
         roundTrip(dsl)
         runBlocking {
@@ -197,11 +197,11 @@ class QueryDslJsonTest {
             sort { "count".desc() }
         }
         val json = """
-            {"filter":{"op":"NE","field":"state.status","value":"CANCELLED"},
-             "groupBy":[{"type":"TERMS","field":"state.status","alias":"status"}],
-             "metrics":[{"type":"COUNT","alias":"count"},
-                        {"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"state.amount"},"alias":"amount"}],
-             "sort":[{"field":"count","direction":"DESC"}]}
+            {"filter":{"op":"ne","field":"state.status","value":"CANCELLED"},
+             "groupBy":[{"type":"terms","field":"state.status","alias":"status"}],
+             "metrics":[{"type":"count","alias":"count"},
+                        {"type":"numeric","function":"sum","expression":{"type":"field","field":"state.amount"},"alias":"amount"}],
+             "sort":[{"field":"count","direction":"desc"}]}
         """
         val decoded = decode<AggregationQuery>(json)
         dsl.assert().isEqualTo(decoded)

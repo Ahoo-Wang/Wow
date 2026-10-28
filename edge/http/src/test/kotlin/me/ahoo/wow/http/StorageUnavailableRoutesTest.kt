@@ -80,7 +80,7 @@ class StorageUnavailableRoutesTest {
         node.http.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").status.assert().isEqualTo(200)
         node.http.unavailable = true
         val answer = node.query(
-            """{"kind":"list","filter":{"op":"AGGREGATE_ID","value":"c-1"}}""",
+            """{"kind":"list","filter":{"op":"aggregate-id","value":"c-1"}}""",
             model = QueryRoutes.EVENTS
         )
         answer.assertUnavailable()
@@ -97,6 +97,6 @@ class StorageUnavailableRoutesTest {
                 }
             },
         )
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""").assertUnavailable()
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""").assertUnavailable()
     }
 }

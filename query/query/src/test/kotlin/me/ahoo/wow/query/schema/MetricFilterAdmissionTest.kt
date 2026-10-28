@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.query.admission.QueryAdmission
 import org.junit.jupiter.api.Test

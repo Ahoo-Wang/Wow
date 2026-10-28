@@ -29,7 +29,7 @@ import type {
 } from '../src/model/index.js';
 
 /**
- * Wow's metadata filters name no field: `{ op: 'OWNER_ID', value }` carries
+ * Wow's metadata filters name no field: `{ op: 'owner-id', value }` carries
  * the operator and the value and nothing else. These kinds are how a config
  * reaches them, and what they answer is the ordinary business question of who
  * is looking — a user's own documents, a workspace, a tenant for an operator.

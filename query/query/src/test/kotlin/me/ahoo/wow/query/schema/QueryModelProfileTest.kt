@@ -30,7 +30,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 
 class QueryModelProfileTest {
-    private val custom = QueryModel("CUSTOM")
+    private val custom = QueryModel("custom")
 
     @Test
     fun `built-in models resolve their profiles and custom models have none`() {

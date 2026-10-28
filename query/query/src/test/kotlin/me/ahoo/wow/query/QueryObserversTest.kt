@@ -174,7 +174,7 @@ class QueryObserversTest {
             QueryLogObserver().onError(
                 aggregate,
                 QueryType.STATE,
-                InvalidStateReadException("'version' is a whole number from 1: '0'.", "INVALID_VALUE", "version"),
+                InvalidStateReadException("'version' is a whole number from 1: '0'.", "invalid-value", "version"),
             )
             QueryLogObserver().onError(
                 aggregate,

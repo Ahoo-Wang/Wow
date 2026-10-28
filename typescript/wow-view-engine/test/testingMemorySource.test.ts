@@ -1096,10 +1096,10 @@ describe('memorySource', () => {
         } as unknown as FilterExpression,
       });
       await expect(source.aggregate(refused)).rejects.toThrow(
-        /does not evaluate TENANT_ID/,
+        /does not evaluate tenant-id/,
       );
       await expect(source.aggregate(refused)).rejects.toThrow(
-        /does not evaluate TENANT_ID/,
+        /does not evaluate tenant-id/,
       );
     });
 

@@ -83,7 +83,7 @@ class UnpinnedEventsPolicy : QueryPolicy {
          * The descriptor's constraint of a model whose queries must name their aggregates: its `fields` are the one
          * field to name them by, `aggregateId`.
          */
-        const val AGGREGATE_REQUIRED: String = "AGGREGATE_REQUIRED"
+        const val AGGREGATE_REQUIRED: String = "aggregate-required"
 
         /**
          * The constraint the descriptor of an events model lists under [UnpinnedEvents.REFUSE], or while a pinned

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
@@ -21,17 +22,28 @@ import java.util.concurrent.TimeUnit
 class QuerySchemaTypesTest {
     @Test
     fun `schema identifiers must be safe single segments`() {
-        QueryModel("SNAPSHOT").assert().isEqualTo(QueryModel.SNAPSHOT)
-        QueryModel.from("DATASET").assert().isEqualTo(QueryModel.DATASET)
-        QueryModel.SNAPSHOT.toString().assert().isEqualTo("SNAPSHOT")
-        QueryValueType("STRING").assert().isEqualTo(QueryValueType.STRING)
-        QueryValueType.from("DECIMAL").assert().isEqualTo(QueryValueType.DECIMAL)
-        QueryValueType.BOOLEAN.toString().assert().isEqualTo("BOOLEAN")
+        QueryModel("snapshot").assert().isEqualTo(QueryModel.SNAPSHOT)
+        QueryModel.from("dataset").assert().isEqualTo(QueryModel.DATASET)
+        QueryModel.SNAPSHOT.toString().assert().isEqualTo("snapshot")
+        QueryValueType("string").assert().isEqualTo(QueryValueType.STRING)
+        QueryValueType.from("decimal").assert().isEqualTo(QueryValueType.DECIMAL)
+        QueryValueType.BOOLEAN.toString().assert().isEqualTo("boolean")
+        QueryModel("event-store").value.assert().isEqualTo("event-store")
 
         assertThrows<IllegalArgumentException> { QueryModel("../snapshot") }
         assertThrows<IllegalArgumentException> { QueryModel("") }
         assertThrows<IllegalArgumentException> { QueryValueType("/string") }
         assertThrows<IllegalArgumentException> { QueryValueType("1st") }
+        assertThrows<IllegalArgumentException> { QueryModel("SNAPSHOT") }
+        assertThrows<IllegalArgumentException> { QueryValueType("big_int") }
+    }
+
+    @Test
+    fun `a custom model or value type in another spelling is refused with the spelling it takes`() {
+        assertThrows<IllegalArgumentException> { QueryModel("CUSTOM_MODEL") }.message.assert()
+            .isEqualTo("A query model is lower-kebab like the built-ins: [CUSTOM_MODEL] is not; write [custom-model].")
+        assertThrows<IllegalArgumentException> { QueryValueType("BigInt") }.message.assert()
+            .isEqualTo("A query value type is lower-kebab like the built-ins: [BigInt] is not; write [big-int].")
     }
 
     @Test

@@ -1,4 +1,4 @@
 {
   "kind": "list",
-  "filter": { "op": "CONTAINS", "field": "state.name", "value": "mug", "stringComparison": "CASE_INSENSITIVE" }
+  "filter": { "op": "contains", "field": "state.name", "value": "mug", "stringComparison": "case-insensitive" }
 }

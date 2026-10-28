@@ -135,7 +135,7 @@ class MixedStoresTest {
         listOf("vault" to "v-q", "ledger" to "l-q").forEach { (type, id) ->
             val listed = first.post(
                 "/treasury/$type/snapshot/query",
-                """{"kind":"list","filter":{"op":"ID","value":"$id"}}""",
+                """{"kind":"list","filter":{"op":"id","value":"$id"}}""",
             )
             listed.status.assert().isEqualTo(200)
             listed.body!!.values().map { it["aggregateId"].asString() }.assert().containsExactly(id)

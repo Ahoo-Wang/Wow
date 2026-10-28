@@ -46,7 +46,7 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         SHIPPED: { label: text('orders.shipped'), tone: 'success' },
       },
     },
-    'state.amount': { label: text('orders.amount'), summary: ['SUM', 'AVG'] },
+    'state.amount': { label: text('orders.amount'), summary: ['sum', 'avg'] },
     firstEventTime: text('orders.placedAt'),
   },
   // Fields an action reads are fetched even where the view hides them; see rowFields below.

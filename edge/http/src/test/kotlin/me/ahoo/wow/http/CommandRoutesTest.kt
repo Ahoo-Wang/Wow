@@ -386,7 +386,7 @@ class CommandRoutesTest {
         answer.status.assert().isEqualTo(413)
         answer.contentType.assert().isEqualTo("application/problem+json")
         answer.body!!["status"].asInt().assert().isEqualTo(413)
-        val query = QueryNode().query("""{"kind":"list","filter":{"op":"EQ","field":"state.note","value":"$large"}}""")
+        val query = QueryNode().query("""{"kind":"list","filter":{"op":"eq","field":"state.note","value":"$large"}}""")
         query.status.assert().isEqualTo(413)
         query.contentType.assert().isEqualTo("application/problem+json")
     }

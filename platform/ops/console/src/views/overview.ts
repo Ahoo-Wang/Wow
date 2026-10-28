@@ -100,7 +100,7 @@ function countCard(filter: FilterNode[]): AnalysisViewConfig {
 function byStatus(): AnalysisViewConfig {
   return analysisView(
     {
-      groups: [{ type: "TERMS", field: "state.status", alias: "status" }],
+      groups: [{ type: "terms", field: "state.status", alias: "status" }],
       limit: 4,
       layout: "chart",
       chart: {

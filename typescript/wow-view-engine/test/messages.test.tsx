@@ -374,7 +374,42 @@ describe('formatting', () => {
         path: [],
         params: { field: 'Amount', fn: AggregationFunction.AVG },
       }),
-    ).toBe('Amount does not offer the AVG summary.');
+    ).toBe('Amount does not offer the Average summary.');
+  });
+
+  it('words a param that carries a Wow value, in the catalogue in force', () => {
+    const narrowed = {
+      code: 'capability.analysis.field-narrowed',
+      severity: 'warning' as const,
+      path: [],
+      params: {
+        field: 'warehouse',
+        dropped: listParam([
+          `label.group.type.${AggregationGroupType.HISTOGRAM}`,
+          'label.capability.missing-key',
+        ]),
+      },
+    };
+    expect(formatIssue(defaultMessages, narrowed)).toBe(
+      'The source does not offer By number range and a group of missing values on warehouse.',
+    );
+    expect(formatIssue(zhCN, narrowed)).toContain('缺失值分组');
+    const operator = {
+      code: 'filter.operator.unsupported',
+      severity: 'error' as const,
+      path: [],
+      params: { field: 'Status', operator: FilterOperator.NOT_IN },
+    };
+    expect(formatIssue(defaultMessages, operator)).not.toContain(
+      FilterOperator.NOT_IN,
+    );
+    // A value the catalogue does not word stays as it came.
+    expect(
+      formatIssue(defaultMessages, {
+        ...operator,
+        params: { field: 'Status', operator: 'some-future-operator' },
+      }),
+    ).toBe('Status does not support “some-future-operator”.');
   });
 
   /**

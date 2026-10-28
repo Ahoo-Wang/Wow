@@ -37,11 +37,11 @@ class QueryBodiesTest {
 
     @Test
     fun `a body should read as the query its kind names`() {
-        QueryBodies.read("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":3}""".toByteArray()).let {
+        QueryBodies.read("""{"kind":"list","filter":{"op":"match-all"},"limit":3}""".toByteArray()).let {
             it.kind.assert().isEqualTo(QueryKind.LIST)
             (it.query as ListQuery).limit.assert().isEqualTo(3)
         }
-        QueryBodies.read("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":5}""".toByteArray())
+        QueryBodies.read("""{"kind":"count","filter":{"op":"match-all"},"limit":5}""".toByteArray())
             .query.assert().isEqualTo(CountQuery(me.ahoo.wow.api.query.MatchAllFilter, 5))
         QueryKind.of("nope").assert().isNull()
     }
@@ -50,26 +50,26 @@ class QueryBodiesTest {
     fun `a body that cannot be read should name where and why`() {
         assertRefused("  \n ", QueryErrorCodes.EMPTY_BODY)
         assertRefused(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":"many"}""",
+            """{"kind":"list","filter":{"op":"match-all"},"limit":"many"}""",
             QueryErrorCodes.INVALID_VALUE,
             "limit"
         )
         assertRefused(
-            """{"kind":"list","filter":{"op":"AND","operands":[{"op":"MATCH_ALL"},{"op":"NOPE"}]}}""",
+            """{"kind":"list","filter":{"op":"and","operands":[{"op":"match-all"},{"op":"NOPE"}]}}""",
             QueryErrorCodes.UNKNOWN_TYPE,
             "filter.operands[1]",
         )
         assertRefused(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"version","direction":"UP"}]}""",
+            """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"version","direction":"UP"}]}""",
             QueryErrorCodes.UNKNOWN_VALUE,
             "sort[0].direction",
         )
-        assertRefused("""{"kind":"cursor","filter":{"op":"MATCH_ALL"},"size":0}""", QueryErrorCodes.INVALID_REQUEST)
+        assertRefused("""{"kind":"cursor","filter":{"op":"match-all"},"size":0}""", QueryErrorCodes.INVALID_REQUEST)
         assertRefused("""{"kind":"list","filter":"MATCH_ALL"}""", QueryErrorCodes.INVALID_VALUE, "filter")
         refused("{\"kind\":").message.assert().contains("line 1")
         // A number the limit cannot hold, and a filter that names no operator.
         assertRefused(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":99999999999}""",
+            """{"kind":"list","filter":{"op":"match-all"},"limit":99999999999}""",
             QueryErrorCodes.INVALID_REQUEST,
             "limit",
         )

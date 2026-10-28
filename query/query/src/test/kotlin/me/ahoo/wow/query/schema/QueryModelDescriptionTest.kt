@@ -18,13 +18,14 @@ import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.PagingMode
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.query.descriptor.EnumValueDescriptor
 import me.ahoo.wow.query.descriptor.FieldDescriptor
-import me.ahoo.wow.query.descriptor.PagingMode
 import me.ahoo.wow.query.descriptor.SearchDescriptor
 import me.ahoo.wow.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.query.json.QueryJson
@@ -67,18 +68,18 @@ class QueryModelDescriptionTest {
         name.filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.IN, FilterOperator.STARTS_WITH)
             .doesNotContain(FilterOperator.CONTAINS_ALL, FilterOperator.TODAY, FilterOperator.BEFORE_NOW)
         name.sort.paged.assert().isTrue()
-        name.aggregate!!.groups.assert().contains("TERMS")
+        name.aggregate!!.groups.assert().contains("terms")
         name.aggregate!!.missingKey.assert().isTrue()
 
         fields.getValue("state.createdAt").filter.operators.assert()
             .contains(FilterOperator.TODAY, FilterOperator.BEFORE_NOW)
-        fields.getValue("state.createdAt").aggregate!!.groups.assert().contains("DATE_HISTOGRAM", "DATE_PART")
+        fields.getValue("state.createdAt").aggregate!!.groups.assert().contains("date-histogram", "date-part")
         fields.getValue("state.tags").filter.operators.assert()
             .contains(FilterOperator.CONTAINS_ALL, FilterOperator.IS_EMPTY)
         fields.getValue("state.tags").aggregate!!.inMetricFilter.assert().isFalse()
         fields.getValue("state.items.sku").scope.assert().isEqualTo("state.items")
-        fields.getValue("tenantId").role.assert().isEqualTo("TENANT_ID")
-        fields.getValue("aggregateId").role.assert().isEqualTo("AGGREGATE_ID")
+        fields.getValue("tenantId").role.assert().isEqualTo("tenant-id")
+        fields.getValue("aggregateId").role.assert().isEqualTo("aggregate-id")
         fields.getValue("lastEventTime").role.assert().isEqualTo(FieldDescriptor.EVENT_TIME)
         fields.getValue("state.name").role.assert().isNull()
         descriptor.analysis.firstLastOrderBy.assert().isEqualTo("lastEventTime")
@@ -107,7 +108,7 @@ class QueryModelDescriptionTest {
             approximateMetrics = setOf("PERCENTILE"),
         )
         val analysis = estimated.describe(null, null).analysis
-        analysis.approximate.assert().containsExactly("PERCENTILE")
+        analysis.approximate.assert().containsExactly("percentile")
         analysis.dateUnits.assert().isEqualTo(AggregationDateUnit.entries)
         analysis.dateParts.assert().isEqualTo(AggregationDatePart.entries)
         assertThrows<IllegalArgumentException> {
@@ -289,13 +290,13 @@ class QueryModelDescriptionTest {
         strict.analysis.expressions.assert().isFalse()
         strict.analysis.sort.metrics.assert().isFalse()
         strict.analysis.dense.assert().isFalse()
-        strict.analysis.metrics.assert().doesNotContain("FIRST", "LAST")
+        strict.analysis.metrics.assert().doesNotContain("first", "last")
         strict.analysis.firstLastOrderBy.assert().isNull()
         strict.analysis.dateDiffUnits.assert().isEmpty()
         strict.analysis.windows.assert().isEmpty()
         strict.analysis.rootGroups.assert().isFalse()
         strict.fields.mapNotNull { it.aggregate }.forEach { aggregate ->
-            aggregate.groups.assert().doesNotContain("DATE_PART")
+            aggregate.groups.assert().doesNotContain("date-part")
             aggregate.firstLast.assert().isFalse()
         }
         strict.elements.single { it.path == "state.items" }.aggregate.assert().isFalse()

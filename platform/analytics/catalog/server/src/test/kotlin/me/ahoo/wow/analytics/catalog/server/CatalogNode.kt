@@ -78,7 +78,7 @@ class CatalogNode(val server: WowServer) : AutoCloseable {
 
     /** The sources' snapshots, as [who] lists them. */
     fun sources(who: Who = Who.VIEWER): Answer =
-        post(QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", who)
+        post(QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", who)
 
     /** The state of source [id]. */
     fun state(id: String, who: Who = Who.VIEWER): JsonNode =

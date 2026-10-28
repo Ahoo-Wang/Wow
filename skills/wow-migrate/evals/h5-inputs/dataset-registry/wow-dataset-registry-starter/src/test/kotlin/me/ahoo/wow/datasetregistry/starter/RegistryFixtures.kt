@@ -58,9 +58,9 @@ internal object RegistryFixtures {
           "scope": { "tenant": "tenant_id" },
           "storage": { "table": "bi.orders" },
           "fields": {
-            "id": { "types": ["STRING"], "nullable": false },
-            "tenant_id": { "types": ["STRING"], "nullable": false },
-            "$field": { "types": ["STRING"], "nullable": false }
+            "id": { "types": ["string"], "nullable": false },
+            "tenant_id": { "types": ["string"], "nullable": false },
+            "$field": { "types": ["string"], "nullable": false }
           }
         }
     """.trimIndent().toObjectNode()

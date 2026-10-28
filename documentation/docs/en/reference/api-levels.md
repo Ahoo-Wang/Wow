@@ -78,7 +78,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryValueType` | class | `wow-query` |
-| `me.ahoo.wow.query.schema.QueryValueKind` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings` | class | `wow-clickhouse` |

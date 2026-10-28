@@ -16,13 +16,13 @@ Group with `TERMS` on a field, and compute metrics per group:
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "NE", "field": "state.status", "value": "DRAFT" },
-  "groupBy": [{ "type": "TERMS", "field": "state.status", "alias": "status" }],
+  "filter": { "op": "ne", "field": "state.status", "value": "DRAFT" },
+  "groupBy": [{ "type": "terms", "field": "state.status", "alias": "status" }],
   "metrics": [
-    { "type": "COUNT", "alias": "count" },
-    { "type": "NUMERIC", "function": "AVG", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "averagePrice" }
+    { "type": "count", "alias": "count" },
+    { "type": "numeric", "function": "avg", "expression": { "type": "field", "field": "state.price" }, "alias": "averagePrice" }
   ],
-  "sort": [{ "field": "count", "direction": "DESC" }]
+  "sort": [{ "field": "count", "direction": "desc" }]
 }
 ```
 
@@ -33,7 +33,7 @@ The answer is one row per group, holding the group aliases and the metric aliase
 ```json
 {
   "kind": "count",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
   "limit": 1000
 }
 ```
@@ -47,11 +47,11 @@ The answer is one row per group, holding the group aliases and the metric aliase
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-  "groupBy": [{ "type": "TERMS", "field": "state.brandId", "missingKey": "none", "alias": "brand" }],
-  "metrics": [{ "type": "COUNT", "alias": "products" }],
-  "having": { "type": "CONDITION", "metric": "products", "operator": "GTE", "value": 2 },
-  "sort": [{ "field": "products", "direction": "DESC" }],
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+  "groupBy": [{ "type": "terms", "field": "state.brandId", "missingKey": "none", "alias": "brand" }],
+  "metrics": [{ "type": "count", "alias": "products" }],
+  "having": { "type": "condition", "metric": "products", "operator": "gte", "value": 2 },
+  "sort": [{ "field": "products", "direction": "desc" }],
   "limit": 10
 }
 ```
@@ -65,13 +65,13 @@ The answer is one row per group, holding the group aliases and the metric aliase
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "RECENT_DAYS", "field": "firstEventTime", "days": 365 },
-  "groupBy": [{ "type": "DATE_HISTOGRAM", "field": "firstEventTime", "unit": "MONTH", "timeZone": "UTC", "alias": "month" }],
+  "filter": { "op": "recent-days", "field": "firstEventTime", "days": 365 },
+  "groupBy": [{ "type": "date-histogram", "field": "firstEventTime", "unit": "month", "timeZone": "UTC", "alias": "month" }],
   "metrics": [
-    { "type": "COUNT", "alias": "listed" },
-    { "type": "DERIVED", "expression": { "type": "RUNNING", "metric": "listed", "order": { "field": "month", "direction": "ASC" } }, "alias": "listedSoFar" }
+    { "type": "count", "alias": "listed" },
+    { "type": "derived", "expression": { "type": "running", "metric": "listed", "order": { "field": "month", "direction": "asc" } }, "alias": "listedSoFar" }
   ],
-  "sort": [{ "field": "month", "direction": "ASC" }]
+  "sort": [{ "field": "month", "direction": "asc" }]
 }
 ```
 
@@ -82,13 +82,13 @@ The answer is one row per group, holding the group aliases and the metric aliase
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-  "groupBy": [{ "type": "HISTOGRAM", "field": "state.price", "interval": 10, "alias": "band" }],
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+  "groupBy": [{ "type": "histogram", "field": "state.price", "interval": 10, "alias": "band" }],
   "metrics": [
-    { "type": "COUNT", "alias": "products" },
-    { "type": "NUMERIC", "function": "MIN", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "cheapest" }
+    { "type": "count", "alias": "products" },
+    { "type": "numeric", "function": "min", "expression": { "type": "field", "field": "state.price" }, "alias": "cheapest" }
   ],
-  "sort": [{ "field": "band", "direction": "ASC" }]
+  "sort": [{ "field": "band", "direction": "asc" }]
 }
 ```
 
@@ -103,7 +103,7 @@ A filter on time is relative to the service's clock, read once per query, never 
 ```json
 {
   "kind": "list",
-  "filter": { "op": "RECENT_DAYS", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
 }
 ```
 

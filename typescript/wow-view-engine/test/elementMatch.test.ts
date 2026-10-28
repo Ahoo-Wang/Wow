@@ -382,7 +382,7 @@ describe('the elementMatch kind', () => {
         outer(FilterOperator.ELEMENT_MATCH, either as never),
         builtinFieldKinds,
       ).map(item => item.text),
-    ).toEqual(['Items has an entry where SKU EQ A or Qty GT 2']);
+    ).toEqual(['Items has an entry where SKU eq A or Qty gt 2']);
   });
 
   it('names the field alone for a value that is not a condition', () => {
@@ -438,7 +438,7 @@ describe('the elementMatch kind', () => {
         operator: FilterOperator.EQ,
         value: 'A',
       }),
-      'Items has an entry where SKU EQ A',
+      'Items has an entry where SKU eq A',
     ],
     [FilterOperator.IS_EMPTY, null, 'Items has no entries'],
     [FilterOperator.IS_NOT_NULL, null, 'Items has entries'],

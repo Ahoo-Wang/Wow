@@ -234,7 +234,7 @@ describe('queryFailureIssue', () => {
     const found = await issueFor(QueryErrorCodes.UNKNOWN_FIELD, 'status');
 
     expect(found).toEqual({
-      code: 'runtime.query.failed.unknown_field',
+      code: 'runtime.query.failed.unknown-field',
       severity: 'error',
       path: ['children', 1, 'children', 0],
       params: {
@@ -482,9 +482,9 @@ describe('queryFailureIssue', () => {
   });
 
   it('falls back to the service’s words for a code it has no wording for', async () => {
-    const found = await issueFor('SOME_FUTURE_RULE', 'status', 'New rule.');
+    const found = await issueFor('some-future-rule', 'status', 'New rule.');
 
-    expect(found.code).toBe('runtime.query.failed.some_future_rule');
+    expect(found.code).toBe('runtime.query.failed.some-future-rule');
     expect(formatIssue(en, found)).toBe('Could not load the data: New rule.');
     expect(formatIssue(zhCN, found)).toBe('没能加载数据：New rule.');
   });
@@ -502,7 +502,7 @@ describe('queryFailureIssue', () => {
 
   it('words every code wow-client knows, in both languages', () => {
     for (const code of Object.values(QueryErrorCodes)) {
-      const key = `runtime.query.failed.${code.toLowerCase()}`;
+      const key = `runtime.query.failed.${code}`;
       expect(en, key).toHaveProperty([key]);
       expect(zhCN, key).toHaveProperty([key]);
     }
@@ -565,7 +565,7 @@ describe('a rejected query in the view', () => {
     ]);
     expect(error.exchange.extractResult).toHaveBeenCalledOnce();
     expect(runtime.getSnapshot().query.error).toMatchObject({
-      code: 'runtime.query.failed.value_mismatch',
+      code: 'runtime.query.failed.value-mismatch',
       path: ['children', 1, 'children', 0],
     });
   });

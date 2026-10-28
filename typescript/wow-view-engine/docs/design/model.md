@@ -45,9 +45,9 @@ export interface FieldDefinition {
   remote?: string; // reference 的远程候选源键，由 resolveOptions 解析；页上的 id 也经它读作名称（D354，runtime.md「引用 id 读作名称」）
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
-  stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
+  stringComparison?: 'case-sensitive' | 'case-insensitive'; // contains／starts-with／ends-with 的比较方式，缺省不区分大小写
   searchFields?: string[]; // search 字段查哪些文档字段：根上的 search 只收根字段（D39），缺省交给后端索引；声明在数组 elements 里的 search 只收这个元素自己的字段（相对元素写）、且必须写（N4，准入报 definition.field.element-search-fields-required）
-  searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
+  searchMode?: 'terms' | 'phrase'; // 按词还是按短语，缺省 terms
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
   temporal?: FieldTemporal; // date／datetime 字段的时间怎样存，决定条件的边怎样发出；缺省纪元毫秒，见下文
@@ -224,7 +224,7 @@ export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 export interface RecordViewConfig extends DataViewConfigBase {
   kind: 'record';
-  sort: { field: string; direction: 'ASC' | 'DESC' }[];
+  sort: { field: string; direction: 'asc' | 'desc' }[];
   pageSize: number;
   summaries?: { field: string; fn: SummaryFunction }[];
   layout: 'table' | 'card' | 'kanban'; // 当前布局；表格与卡片之间切换只改此字段，切进切出看板视图要跑查询（D83）
@@ -278,9 +278,9 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     within: string;
     metric: string;
     count: number;
-    direction?: 'ASC' | 'DESC';
+    direction?: 'asc' | 'desc';
   };
-  sort: { alias: string; direction: 'ASC' | 'DESC' }[];
+  sort: { alias: string; direction: 'asc' | 'desc' }[];
   limit: number;
   layout: 'table' | 'chart'; // 当前呈现；切换只改此字段
   table: AnalysisTableSpec; // 与 chart 成对保存
@@ -315,18 +315,18 @@ export type AnalysisGroup = AnalysisNamed &
   // DEFAULT_MISSING_KEY（'(empty)'，analysis/defaults.ts）；Wow 只允许单值
   // 字符串字段带它，其余报 analysis.group.missing-key-unsupported。
   (
-    | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
-    | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    | { type: 'terms'; field: string; alias: string; missingKey?: string }
+    | { type: 'histogram'; field: string; alias: string; interval: number }
     // 一个逐条算出的数按区间分组（N3，「付款到发货 0–4 小时、4–8 小时…」）：没有 field，
     // 读它的 expression；读的字段是 expressionFieldsOf(expression)（groupFieldsOf）。
     | {
-        type: 'HISTOGRAM';
+        type: 'histogram';
         expression: AnalysisExpression;
         alias: string;
         interval: number;
       }
     | {
-        type: 'DATE_HISTOGRAM';
+        type: 'date-histogram';
         field: string;
         alias: string;
         unit: `${AggregationDateUnit}`;
@@ -337,7 +337,7 @@ export type AnalysisGroup = AnalysisNamed &
         // 按日期部件分组（N2）：星期几（ISO，1 是周一）、几点（0～23，挂钟）、
         // 几号、几月——不同周、不同天的记录落进同一组，答「哪天几点单最多」。
         // 键是部件的整数（DATE_PART_DOMAINS），界面读成「周一」「20时」。
-        type: 'DATE_PART';
+        type: 'date-part';
         field: string;
         alias: string;
         part: `${AggregationDatePart}`; // ANALYSIS_DATE_PARTS 的次序：星期、时段、几号、月份
@@ -347,10 +347,10 @@ export type AnalysisGroup = AnalysisNamed &
   );
 
 export type AnalysisExpression =
-  | { type: 'FIELD'; field: string }
-  | { type: 'CONSTANT'; value: number }
+  | { type: 'field'; field: string }
+  | { type: 'constant'; value: number }
   | {
-      type: 'BINARY';
+      type: 'binary';
       operator: `${AggregationExpressionOperator}`;
       left: AnalysisExpression;
       right: AnalysisExpression;
@@ -358,45 +358,45 @@ export type AnalysisExpression =
   // 两个时刻之差（N3）：to − from，以 unit 计（一天正好 24 小时）；任一端缺值即这条记录没有值。
   // 两端都得是计数单位里能按日期分桶（DATE_HISTOGRAM）、能进算术（expressionInput）的时刻；
   // 算出的数按单位读（「12.5 小时」，formulaFormat）。
-  | { type: 'DATE_DIFF'; from: string; to: string; unit: `${DateDiffUnit}` };
+  | { type: 'date-diff'; from: string; to: string; unit: `${DateDiffUnit}` };
 
 export type AnalysisMetric = AnalysisNamed &
   (
-    | { type: 'COUNT'; alias: string; filter?: FilterTree }
+    | { type: 'count'; alias: string; filter?: FilterTree }
     | {
-        type: 'NUMERIC';
+        type: 'numeric';
         alias: string;
         function: `${AggregationFunction}`;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
-    | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
+    | { type: 'any'; alias: string; field: string; filter?: FilterTree }
     // 期初值／期末值（N1）：这一组里按 orderBy 最早／最晚那条记录的值；根上不写
     // orderBy 即按模型的事件时间（描述的 analysis.firstLastOrderBy，写进
     // AnalysisCapability.firstLastOrderBy），展开的明细项没有事件时间，必须写。
     // 与 ANY 同是「一条记录的值」（VALUE_METRIC_TYPES）：派生指标与「只保留」都读不了它。
     | {
-        type: 'FIRST' | 'LAST';
+        type: 'first' | 'last';
         alias: string;
         field: string;
         orderBy?: string;
         filter?: FilterTree;
       }
     | {
-        type: 'DISTINCT_COUNT';
+        type: 'distinct-count';
         alias: string;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
     | {
-        type: 'PERCENTILE';
+        type: 'percentile';
         alias: string;
         expression: AnalysisExpression;
         percentile: number;
         filter?: FilterTree;
       }
     | {
-        type: 'DERIVED';
+        type: 'derived';
         alias: string;
         expression: AnalysisDerivedExpression;
         format?: DerivedFormat;

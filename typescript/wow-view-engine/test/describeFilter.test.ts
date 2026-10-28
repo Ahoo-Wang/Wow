@@ -81,7 +81,7 @@ describe('describeFilter', () => {
       builtinFieldKinds,
     );
     expect(items.map(item => item.text)).toEqual([
-      'Status IN Pending',
+      'Status in Pending',
       'Amount 1 ~ 9',
     ]);
     expect(items[0].path).toEqual(['children', 0]);
@@ -155,8 +155,8 @@ describe('describeFilter', () => {
 
     // Side by side reads as "all of"; the group keeps its own logic inside.
     expect(items.map(item => item.text)).toEqual([
-      'Order EQ o-1',
-      'Status IN Pending or Amount 1 ~ 9 or (not Paid EQ true)',
+      'Order eq o-1',
+      'Status in Pending or Amount 1 ~ 9 or (not Paid eq true)',
     ]);
     expect(items[1]).toMatchObject({ group: 'or', path: ['children', 1] });
   });
@@ -175,7 +175,7 @@ describe('describeFilter', () => {
     );
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ group: 'or', path: [] });
-    expect(items[0].text).toBe('Order EQ o-1 or Amount GT 9');
+    expect(items[0].text).toBe('Order eq o-1 or Amount gt 9');
   });
 
   it('keeps the negation of a "none of" root even over one condition', () => {
@@ -197,7 +197,7 @@ describe('describeFilter', () => {
     );
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ group: 'nor', path: [] });
-    expect(items[0].text).toBe('not Paid EQ true');
+    expect(items[0].text).toBe('not Paid eq true');
   });
 
   it('marks a condition whose field disappeared instead of hiding it', () => {
@@ -716,7 +716,7 @@ describe('describeFilter parts', () => {
         operator: FilterOperator.IN,
         value: ['PENDING', 'RETIRED'],
       }).text,
-    ).toBe('Status IN Pending, RETIRED');
+    ).toBe('Status in Pending, RETIRED');
   });
 
   it('says a value the kind cannot read is blank, not a reading of it', () => {
@@ -792,9 +792,9 @@ describe('describeFilter parts', () => {
       value: { kind: 'none' },
       group: 'or',
     });
-    expect(item.items?.map(inner => inner.text)).toEqual(['SKU EQ A']);
+    expect(item.items?.map(inner => inner.text)).toEqual(['SKU eq A']);
     // And the English line is what it always was.
-    expect(item.text).toBe('Items has an entry where SKU EQ A');
+    expect(item.text).toBe('Items has an entry where SKU eq A');
   });
 
   /**
@@ -911,7 +911,7 @@ describe('describeFilter parts', () => {
 
     const noneOf = predicate('nor', 'A');
     expect(noneOf.group).toBe('nor');
-    expect(noneOf.items?.map(inner => inner.text)).toEqual(['SKU EQ A']);
+    expect(noneOf.items?.map(inner => inner.text)).toEqual(['SKU eq A']);
 
     // A group somebody actually wrote inside the predicate still nests.
     const nested = describeFilter(

@@ -15,13 +15,13 @@ package me.ahoo.wow.postgres.query
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.querySchema

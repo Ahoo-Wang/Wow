@@ -74,6 +74,7 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.wire.WireNames
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.DeserializationContext
@@ -152,8 +153,9 @@ internal fun FilterOperator.filterType(): Class<out FilterExpression> = when (th
     FilterOperator.EXPRESSION -> ExpressionFilter::class.java
 }
 
-/** Every filter class under its operator name, the `op` the wire carries. */
-internal fun filterSubtypes(): List<NamedType> = FilterOperator.entries.map { NamedType(it.filterType(), it.name) }
+/** Every filter class under its operator's wire name ([WireNames]), the `op` the wire carries: `NOT_IN` is `not-in`. */
+internal fun filterSubtypes(): List<NamedType> =
+    FilterOperator.entries.map { NamedType(it.filterType(), WireNames.of(it)) }
 
 /** A bare JSON string: the path. */
 internal abstract class QueryFieldMixin
@@ -235,13 +237,14 @@ private class FilterExpressionTypeDeserializer(
 
 private fun JsonNode.requireCanonicalFilterPayload(nested: Boolean) {
     require(has(OP)) { if (nested) "Nested filter expression must use op." else "Filter expression must use op." }
-    when (get(OP).asString()) {
-        FilterOperator.AND.name,
-        FilterOperator.OR.name,
-        FilterOperator.NOR.name,
+    when (WireNames.entryOf<FilterOperator>(get(OP).asString())) {
+        FilterOperator.AND,
+        FilterOperator.OR,
+        FilterOperator.NOR,
         -> get(OPERANDS)?.forEach { it.requireCanonicalFilterPayload(nested = true) }
 
-        FilterOperator.ELEMENT_MATCH.name -> get(PREDICATE)?.requireCanonicalFilterPayload(nested = true)
+        FilterOperator.ELEMENT_MATCH -> get(PREDICATE)?.requireCanonicalFilterPayload(nested = true)
+        else -> Unit
     }
 }
 

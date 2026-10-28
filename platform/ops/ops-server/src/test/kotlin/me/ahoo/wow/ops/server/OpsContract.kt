@@ -87,7 +87,7 @@ abstract class OpsContract {
     }
 
     private fun query(filter: String, who: Who = Who.OPERATOR): Answer =
-        ops.post(QUERY, """{"kind":"list","filter":$filter,"sort":[{"field":"aggregateId","direction":"ASC"}]}""", who)
+        ops.post(QUERY, """{"kind":"list","filter":$filter,"sort":[{"field":"aggregateId","direction":"asc"}]}""", who)
 
     private fun recorded(context: String, vararg ids: String) {
         val wanted = ids.toSet()
@@ -110,7 +110,7 @@ abstract class OpsContract {
         query(byStatus).assertOk().ids.assert().containsExactlyInAnyOrder(exhausted, other)
         query(and(eq("state.context", context), eq("state.subscription", SAGA))).assertOk().ids.assert()
             .containsExactlyInAnyOrder(exhausted, scheduled)
-        val since = """{"op":"GTE","field":"state.failedAt","value":${FAILED_AT + HOUR}}"""
+        val since = """{"op":"gte","field":"state.failedAt","value":${FAILED_AT + HOUR}}"""
         query(and(eq("state.context", context), since)).assertOk().ids.assert()
             .containsExactlyInAnyOrder(scheduled, other)
 
@@ -241,9 +241,9 @@ abstract class OpsContract {
         val clusters = ops.post(
             QUERY,
             """{"kind":"aggregate","filter":${eq("state.context", context)},"groupBy":[""" +
-                """{"type":"TERMS","field":"state.errorType","alias":"errorType"},""" +
-                """{"type":"TERMS","field":"state.subscription","alias":"subscription"}],""" +
-                """"metrics":[{"type":"COUNT","alias":"count"}],"sort":[{"field":"count","direction":"DESC"}]}""",
+                """{"type":"terms","field":"state.errorType","alias":"errorType"},""" +
+                """{"type":"terms","field":"state.subscription","alias":"subscription"}],""" +
+                """"metrics":[{"type":"count","alias":"count"}],"sort":[{"field":"count","direction":"desc"}]}""",
             Who.OPERATOR,
         ).assertOk().json.values().map {
             Triple(it["errorType"].asString(), it["subscription"].asString(), it["count"].asLong())
@@ -287,9 +287,9 @@ abstract class OpsContract {
         ops.get("/wow/ops/parked", Who.OPERATOR).assertOk().json["entries"].isArray.assert().isTrue()
     }
 
-    private fun eq(field: String, value: String): String = """{"op":"EQ","field":"$field","value":"$value"}"""
+    private fun eq(field: String, value: String): String = """{"op":"eq","field":"$field","value":"$value"}"""
 
-    private fun and(vararg filters: String): String = """{"op":"AND","operands":[${filters.joinToString(",")}]}"""
+    private fun and(vararg filters: String): String = """{"op":"and","operands":[${filters.joinToString(",")}]}"""
 
     companion object {
         const val QUERY = "/ops/parked/snapshot/query"

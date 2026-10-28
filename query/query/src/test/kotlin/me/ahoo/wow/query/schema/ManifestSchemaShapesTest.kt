@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.ManifestFixtures.schemaOf
 import me.ahoo.wow.query.schema.ManifestFixtures.stateManifest
@@ -30,7 +31,7 @@ class ManifestSchemaShapesTest {
 
     private fun QueryModelSchema.value(path: String): QueryValueSchema = checkNotNull(field(QueryField(path))).value
 
-    private val display = mapOf("level" to "DISPLAY")
+    private val display = mapOf("level" to "display")
 
     @Test
     fun `semantic keywords reach every non-null leaf of arrays and unions`() {

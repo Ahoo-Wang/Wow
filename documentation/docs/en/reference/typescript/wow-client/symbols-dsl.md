@@ -118,7 +118,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 165 — with its kind and the
 | `NumericMoney` | type | A number field meant as an amount of money, in exactly one of a fixed ISO 4217 `currency` or the currency held by the sibling string field`currencyField` (a property of the same object or element). | — |
 | `PagedList` | interface | One page of a `paged` query: its rows, and how many match in total. | — |
 | `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
-| `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for `TotalMode.NONE`. | — |
+| `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for total `none`. | — |
 | `Pagination` | interface | Interface for pagination information. | — |
 | `PagingMode` | enum | The ways a model can be read page by page, listed in `record.paging`. | — |
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |

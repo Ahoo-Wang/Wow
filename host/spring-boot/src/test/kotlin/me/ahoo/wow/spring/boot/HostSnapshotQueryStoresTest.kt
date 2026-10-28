@@ -41,7 +41,7 @@ class HostSnapshotQueryStoresTest {
             host.context.getBean(HostBackends::class.java).snapshotStoreOf(account)!!.name.assert().isEqualTo("main")
             val id = host.post("/bank/account/open-account", """{"owner":"search"}""").body!!["ref"]["id"].asString()
             host.get("/bank/account/$id/state").status.assert().isEqualTo(200)
-            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+            host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
                 .status.assert().isEqualTo(200)
         }
     }

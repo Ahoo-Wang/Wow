@@ -131,7 +131,7 @@ function ScopeForm({
   );
 }
 
-const LEVELS = ["", "DISPLAY", "CONFIDENTIAL"] as const;
+const LEVELS = ["", "display", "confidential"] as const;
 
 /** Each value's protection, as an analyst reviews it. */
 function SensitivityForm({
@@ -205,7 +205,7 @@ function SensitivityForm({
                             event.target.value === ""
                               ? null
                               : (event.target.value as
-                                  "DISPLAY" | "CONFIDENTIAL"),
+                                  "display" | "confidential"),
                         })
                       }
                     >
@@ -223,7 +223,7 @@ function SensitivityForm({
                         min={0}
                         aria-label={`${t(key)} ${row.key}`}
                         className={`${CONTROL} w-16`}
-                        disabled={field.level !== "DISPLAY"}
+                        disabled={field.level !== "display"}
                         value={field[key] ?? 0}
                         onChange={(event) =>
                           edit(row, { [key]: count(event.target.value) })
