@@ -51,11 +51,13 @@ function source(
 function labelsOver(
   options: OptionSource | null,
   batch = 200,
+  concurrency = 4,
 ): { labels: ReferenceLabels; failed: ReturnType<typeof vi.fn> } {
   const failed = vi.fn();
   const labels = new ReferenceLabels({
     resolveOptions: options ? () => options : undefined,
     batch,
+    concurrency,
     failed,
   });
   return { labels, failed };
@@ -262,6 +264,132 @@ describe('ReferenceLabels called off', () => {
   });
 });
 
+/**
+ * A source each of whose requests waits until the test lets it land, and
+ * that counts how many are out at once.
+ */
+function held() {
+  const answers: (() => void)[] = [];
+  let open = 0;
+  let most = 0;
+  const customers = source(
+    ids =>
+      new Promise<FieldOption[]>(resolve => {
+        open += 1;
+        most = Math.max(most, open);
+        answers.push(() => {
+          open -= 1;
+          resolve(ids.map(named));
+        });
+      }),
+  );
+  return {
+    ...customers,
+    /** Lets the oldest request still out land. */
+    land: async () => {
+      answers.shift()?.();
+      await nextTask();
+    },
+    get open() {
+      return open;
+    },
+    get most() {
+      return most;
+    },
+  };
+}
+
+describe('ReferenceLabels caps the requests out at once', () => {
+  it('never has more than `concurrency` out, and asks every chunk', async () => {
+    const customers = held();
+    const { labels } = labelsOver(customers.options, 1, 4);
+    const ids = Array.from({ length: 10 }, (_, n) => `c${n}`);
+
+    const settled = labels.want('customers', ids);
+    expect(customers.asked).toHaveLength(4);
+    // A queued id reads as pending, as one in flight does.
+    expect(labels.label('customers', 'c9')).toEqual({ status: 'pending' });
+    while (customers.open > 0) await customers.land();
+    await settled;
+
+    expect(customers.most).toBe(4);
+    expect(customers.asked).toEqual(ids.map(id => [id]));
+    expect(labels.text('customers', 'c9')).toBe('Customer c9');
+  });
+
+  it('runs strictly in the order asked with a cap of one, across remotes', async () => {
+    const customers = held();
+    const { labels } = labelsOver(customers.options, 2, 1);
+
+    const first = labels.want('customers', ['a', 'b', 'c']);
+    const second = labels.want('suppliers', ['x']);
+    expect(customers.asked).toEqual([['a', 'b']]);
+    await customers.land();
+    expect(customers.asked).toEqual([['a', 'b'], ['c']]);
+    await customers.land();
+    await customers.land();
+    await Promise.all([first, second]);
+
+    expect(customers.most).toBe(1);
+    expect(customers.asked).toEqual([['a', 'b'], ['c'], ['x']]);
+  });
+
+  it('drops a queued request every caller called off, never asking it', async () => {
+    const customers = held();
+    const { labels } = labelsOver(customers.options, 200, 1);
+    const controller = new AbortController();
+
+    const first = labels.want('customers', ['a']);
+    const queued = labels.want('customers', ['b'], {
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(queued).rejects.toMatchObject({ name: 'AbortError' });
+    // Its id is let go: it reads as nobody's, and a later caller asks it.
+    expect(labels.label('customers', 'b')).toEqual({ status: 'unresolved' });
+    await customers.land();
+    await first;
+
+    expect(customers.asked).toEqual([['a']]);
+    const later = labels.want('customers', ['b']);
+    await customers.land();
+    await later;
+    expect(customers.asked).toEqual([['a'], ['b']]);
+  });
+
+  it('lets a later caller join a queued request only while it is queued', async () => {
+    const customers = held();
+    const { labels } = labelsOver(customers.options, 200, 1);
+    const controller = new AbortController();
+
+    const first = labels.want('customers', ['a']);
+    const queued = labels.want('customers', ['b'], {
+      signal: controller.signal,
+    });
+    // Joined while queued: calling the first caller off keeps it for this one.
+    const joined = labels.want('customers', ['b']);
+    controller.abort();
+    await expect(queued).rejects.toMatchObject({ name: 'AbortError' });
+    await customers.land();
+    await customers.land();
+    await Promise.all([first, joined]);
+    expect(customers.asked).toEqual([['a'], ['b']]);
+
+    // Dropped, then asked again: the second caller does not join it.
+    const other = new AbortController();
+    const busy = labels.want('customers', ['e']);
+    const dropped = labels.want('customers', ['c', 'd'], {
+      signal: other.signal,
+    });
+    other.abort();
+    await expect(dropped).rejects.toMatchObject({ name: 'AbortError' });
+    const afresh = labels.want('customers', ['c']);
+    while (customers.open > 0) await customers.land();
+    await Promise.all([busy, afresh]);
+    expect(customers.asked).toEqual([['a'], ['b'], ['e'], ['c']]);
+  });
+});
+
 describe('ReferenceLabels invalidated', () => {
   async function known() {
     const customers = source();
@@ -359,7 +487,12 @@ describe('ReferenceLabels without a source', () => {
       throw new Error('no such remote');
     });
     const failed = vi.fn();
-    const labels = new ReferenceLabels({ resolveOptions, batch: 200, failed });
+    const labels = new ReferenceLabels({
+      resolveOptions,
+      batch: 200,
+      concurrency: 4,
+      failed,
+    });
 
     await labels.want('nowhere', ['x']);
     await labels.want('nowhere', ['y']);

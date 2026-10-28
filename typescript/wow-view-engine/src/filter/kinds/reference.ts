@@ -23,21 +23,31 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
-import { FilterOperators } from '../../model/index.js';
+import { FilterOperators, type FilterOperatorName } from '../../model/index.js';
 
 /**
  * Points at rows of another dataset. The value keeps each label next to its
  * id, so reopening a saved view shows what was chosen without asking the
  * remote source again; only editing needs `resolveOptions`.
+ *
+ * `IS_EMPTY` — 「没有条目」 — asks a list of ids for none; the descriptor
+ * admits it only on an array, so a single id never offers it. "One of
+ * these, or none" is two conditions on one field, written as a nested `OR`
+ * group: a group names a field once (`filter.field.duplicate-in-group`).
  */
 export const referenceFieldKind: FieldKind = {
   id: 'reference',
   operators: [
     FilterOperators.IN,
     FilterOperators.NOT_IN,
+    FilterOperators.IS_EMPTY,
     ...PRESENCE_OPERATORS,
   ],
   defaultOperator: FilterOperators.IN,
+  compiledOperators: operator =>
+    operator === FilterOperators.IS_EMPTY
+      ? [FilterOperators.IS_EMPTY, FilterOperators.IS_NULL]
+      : [operator],
 
   emptyValue() {
     return { items: [] } satisfies ReferenceFilterValue;
@@ -49,7 +59,7 @@ export const referenceFieldKind: FieldKind = {
   },
 
   validate({ value, operator, field, path }) {
-    if (isPresenceOperator(operator)) return [];
+    if (asksNoValue(operator)) return [];
     if (!isReferenceFilterValue(value))
       return [issue('filter.value.expected-reference-list', path)];
     if (value.items.length === 0) return [issue('filter.value.required', path)];
@@ -65,6 +75,10 @@ export const referenceFieldKind: FieldKind = {
   compile({ leaf, field }): FilterExpression {
     const presence = compilePresence(field.name, leaf.operator);
     if (presence) return presence;
+    // As the array kind reads it: an empty list, or none at all, which a
+    // store's empty-list test alone misses.
+    if (leaf.operator === FilterOperators.IS_EMPTY)
+      return filter.or([filter.isEmpty(field.name), filter.isNull(field.name)]);
     const ids = readValue<ReferenceFilterValue>(leaf.value).items.map(
       item => item.id,
     );
@@ -74,7 +88,7 @@ export const referenceFieldKind: FieldKind = {
   },
 
   editor(operator, field) {
-    return isPresenceOperator(operator)
+    return asksNoValue(operator)
       ? { input: 'none' }
       : { input: 'remote', multiple: true, remote: field.remote };
   },
@@ -82,6 +96,12 @@ export const referenceFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresenceParts(leaf.operator, field);
     if (presence) return presence;
+    if (leaf.operator === FilterOperators.IS_EMPTY)
+      return {
+        text: `${field.label} has no entries`,
+        relation: 'has-no-entries',
+        value: { kind: 'none' },
+      };
     if (!isReferenceFilterValue(leaf.value))
       return { text: field.label, value: { kind: 'blank' } };
     const items = readValue<ReferenceFilterValue>(leaf.value).items;
@@ -92,3 +112,8 @@ export const referenceFieldKind: FieldKind = {
     };
   },
 };
+
+/** An operator that is the whole condition, so the leaf holds no ids. */
+function asksNoValue(operator: FilterOperatorName): boolean {
+  return isPresenceOperator(operator) || operator === FilterOperators.IS_EMPTY;
+}

@@ -2116,7 +2116,6 @@ export interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -4065,6 +4064,7 @@ export interface RecordColumnView {
     remote?: string;
     // (undocumented)
     sortable: boolean;
+    sortsById?: true;
     timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -4239,6 +4239,15 @@ export interface ReferenceLabelReader {
     subscribe(listener: () => void): () => void;
     text(remote: string, id: ReferenceId): string;
     readonly version: number;
+}
+
+// @public
+export class ReferenceLabelTimeoutError extends Error {
+    constructor(remote: string,
+    timeout: number);
+    // (undocumented)
+    readonly remote: string;
+    readonly timeout: number;
 }
 
 // @public
@@ -4437,6 +4446,8 @@ export interface RuntimeLimits {
     minRefreshInterval: number;
     pageSizes: readonly number[];
     referenceBatch: number;
+    referenceConcurrency: number;
+    referenceTimeout: number;
     refreshIntervals: readonly number[];
 }
 

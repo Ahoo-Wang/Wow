@@ -133,7 +133,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 ## 一个分组内每个字段只出现一次
 
-区间用一个 `BETWEEN`，多选用一个 `IN`，同一分组的直接叶子里同一字段出现第二次不是第二个问题而是笔误，`validateFilter` 在第二次出现处报 `filter.field.duplicate-in-group`；AND、OR、NOR 一律如此，要对同一字段叠加不同条件请建子分组。**唯一的例外**是「全部满足」下同一字段的一个下界与一个上界（`GT`／`GTE` 配 `LT`／`LTE`，一对，不多）：`BETWEEN` 两端都含，半开的一段 `[a, b)` 没有哪一个叶子说得出，而追问里按下数值区间的一段，开出去的正是 `GTE` 它的键、`LT` 下一段的键；第三个界、或在「满足任一」下的一对，仍是笔误。`ELEMENT_MATCH` 的谓词是独立的树，单独计。编辑器的字段选择器据此只列出本分组尚未使用的字段（`fieldsFor(parent)`）。（见 test/filter.test.ts「validateFilter」）
+区间用一个 `BETWEEN`，多选用一个 `IN`，同一分组的直接叶子里同一字段出现第二次不是第二个问题而是笔误，`validateFilter` 在第二次出现处报 `filter.field.duplicate-in-group`；AND、OR、NOR 一律如此，要对同一字段叠加不同条件请建子分组——引用字段的「属于 x 或没有条目」（`IN` 与 `IS_EMPTY`，后者只在描述符允许的数组上出现）就是一个「满足任一」子分组。**唯一的例外**是「全部满足」下同一字段的一个下界与一个上界（`GT`／`GTE` 配 `LT`／`LTE`，一对，不多）：`BETWEEN` 两端都含，半开的一段 `[a, b)` 没有哪一个叶子说得出，而追问里按下数值区间的一段，开出去的正是 `GTE` 它的键、`LT` 下一段的键；第三个界、或在「满足任一」下的一对，仍是笔误。`ELEMENT_MATCH` 的谓词是独立的树，单独计。编辑器的字段选择器据此只列出本分组尚未使用的字段（`fieldsFor(parent)`）。（见 test/filter.test.ts「validateFilter」）
 
 ## 未填写的条件不是错误
 

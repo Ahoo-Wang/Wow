@@ -270,6 +270,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.sort.waiting.none': '取消排序待应用',
   'label.sort.at': '第 {position} 个排序条件，共 {count} 个',
   'label.sort.additive': '按住 Shift 追加排序',
+  'label.sort.by-id': '按 ID',
+  'label.sort.by-id-hint': '按存储的 ID 排序，不是显示的名称。',
+  'label.sort.by-id-field': '{field}（按 ID）',
   'label.summary.total': '合计',
   'label.summary.scope.page': '本页',
   'label.summary.scope.total': '全部',
@@ -372,6 +375,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源不能同时按 {fields} 排序：只留其中一个。',
   'record.sort.invalid': '排序设置无法读取。',
   'record.sort.not-sortable': '「{field}」不能用来排序。',
+  'record.sort.reference-label':
+    '「{field}」显示名称、存的是 id，服务端只能按 id 排序。把名称冗余进读模型（例如 customerName），按那个字段排序。',
   'record.sort.too-many': '游标视图最多按 {max} 个字段排序。',
   'record.summaries.invalid': '汇总设置无法读取。',
   'record.summary.duplicate': '「{field}」的{fn}汇总列了两次。',
@@ -2358,6 +2363,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   // 定义准入。
   'definition.field.search-fields-unknown':
     '{field} 搜索 {missing}，定义没有声明它。',
+  'definition.search.reference-label':
+    '{field} 搜索 {references}，它们存的是 id、显示为名称：服务端匹配存储的 id，不匹配显示的名称。把名称冗余进读模型（例如 customerName），搜索那个字段。',
   'definition.field.element-search-fields-required':
     '{field} 在条目里搜索，要写明它搜条目的哪些字段。',
   'definition.field.search-mode-invalid':

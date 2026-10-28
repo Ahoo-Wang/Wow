@@ -12,6 +12,7 @@
  */
 
 import type {
+  DynamicFieldDescriptor,
   EnumValueDescriptor,
   FieldAggregateDescriptor,
   FieldDescriptor,
@@ -110,9 +111,7 @@ export function describedField(
     };
   if (scope !== undefined) return variantField(descriptor, path, scope);
 
-  const matched = descriptor.dynamic.filter(entry =>
-    matchesPattern(entry.pattern, path, entry.excludedKeys ?? []),
-  );
+  const matched = dynamicFieldsOf(descriptor, path);
   if (matched.length === 0) return null;
   return {
     operators: new Set(matched.flatMap(entry => entry.filter.operators)),
@@ -162,6 +161,19 @@ function variantField(
     ...(first.enum ? { enum: first.enum } : {}),
     variants: found.map(entry => entry.value),
   };
+}
+
+/**
+ * The dynamic patterns a root path falls under; a key a pattern excludes
+ * is a field of its own, so it matches none.
+ */
+export function dynamicFieldsOf(
+  descriptor: QueryModelDescriptor,
+  path: string,
+): DynamicFieldDescriptor[] {
+  return descriptor.dynamic.filter(entry =>
+    matchesPattern(entry.pattern, path, entry.excludedKeys ?? []),
+  );
 }
 
 function matchesPattern(

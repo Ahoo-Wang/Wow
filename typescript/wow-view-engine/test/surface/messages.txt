@@ -1,4 +1,4 @@
-# Message keys — 2203.
+# Message keys — 2208.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -340,6 +340,7 @@ definition.record.row-field-not-a-path
 definition.record.row-field-unknown
 definition.record.row-key-unknown
 definition.record.row-key-unsortable
+definition.search.reference-label
 definition.source.unregistered
 definition.text.fallback
 definition.text.unknown
@@ -1901,6 +1902,9 @@ label.sort.asc
 label.sort.ascending
 label.sort.at
 label.sort.button
+label.sort.by-id
+label.sort.by-id-field
+label.sort.by-id-hint
 label.sort.cancelled
 label.sort.desc
 label.sort.descending
@@ -2074,6 +2078,7 @@ record.sort.duplicate
 record.sort.invalid
 record.sort.not-sortable
 record.sort.parallel-arrays
+record.sort.reference-label
 record.sort.too-many
 record.summaries.invalid
 record.summary.duplicate

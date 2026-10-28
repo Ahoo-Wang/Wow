@@ -397,6 +397,7 @@ export type IssuePath = (string | number)[];
 | `definition.record.row-field-unknown` | 行字段 {field} 不是已声明的字段。 |
 | `definition.record.row-key-unknown` | 行键 {field} 不是已声明的字段。 |
 | `definition.record.row-key-unsortable` | 行键 {field} 必须可排序：每一页最后都按它排，同一行才不会出现在两页上。 |
+| `definition.search.reference-label` | {field} 搜索 {references}，它们存的是 id、显示为名称：服务端匹配存储的 id，不匹配显示的名称。把名称冗余进读模型（例如 customerName），搜索那个字段。 |
 | `definition.source.unregistered` | 没有为 {source} 登记数据源：注册这份定义时带上它的数据源。 |
 | `definition.text.fallback` | 当下的措辞没有给出键 {key}，改用引擎起始的措辞说出。 |
 | `definition.text.unknown` | 键 {key} 没有给出措辞。 |
@@ -488,6 +489,7 @@ export type IssuePath = (string | number)[];
 | `record.sort.invalid` | 排序设置无法读取。 |
 | `record.sort.not-sortable` | 「{field}」不能用来排序。 |
 | `record.sort.parallel-arrays` | 数据源不能同时按 {fields} 排序：只留其中一个。 |
+| `record.sort.reference-label` | 「{field}」显示名称、存的是 id，服务端只能按 id 排序。把名称冗余进读模型（例如 customerName），按那个字段排序。 |
 | `record.sort.too-many` | 游标视图最多按 {max} 个字段排序。 |
 | `record.summaries.invalid` | 汇总设置无法读取。 |
 | `record.summary.duplicate` | 「{field}」的{fn}汇总列了两次。 |

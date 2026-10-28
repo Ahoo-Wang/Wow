@@ -397,6 +397,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `definition.record.row-field-unknown` | The row field {field} is not a declared field. |
 | `definition.record.row-key-unknown` | The row key {field} is not a declared field. |
 | `definition.record.row-key-unsortable` | The row key {field} must be sortable: every page is ordered by it last, so a row never shows on two pages. |
+| `definition.search.reference-label` | {field} searches {references}, which hold ids read as names: the server matches the stored id, not the name shown. Denormalize the name into the read model (customerName, say) and search that field. |
 | `definition.source.unregistered` | No source is registered for {source}: register this definition with its source. |
 | `definition.text.fallback` | The words in force give none for the key {key}; the engine’s starting words say it instead. |
 | `definition.text.unknown` | No words are given for the key {key}. |
@@ -488,6 +489,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `record.sort.invalid` | The sort settings could not be read. |
 | `record.sort.not-sortable` | {field} cannot be sorted on. |
 | `record.sort.parallel-arrays` | The source cannot sort by {fields} together: keep one of them. |
+| `record.sort.reference-label` | {field} shows names but holds ids, so the server can only sort it by id. Denormalize the name into the read model (customerName, say) and sort by that field. |
 | `record.sort.too-many` | A cursor view sorts on at most {max} fields. |
 | `record.summaries.invalid` | The summary settings could not be read. |
 | `record.summary.duplicate` | The {fn} summary of {field} is listed twice. |

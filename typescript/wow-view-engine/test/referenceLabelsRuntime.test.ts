@@ -19,7 +19,10 @@
  */
 
 import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -31,6 +34,7 @@ import {
   type DashboardPanel,
   type DataViewDefinition,
   type FieldOption,
+  type FilterTree,
   type OptionSource,
   type RecordData,
   type RuntimeLimits,
@@ -379,6 +383,88 @@ describe('rows read beside a page ask their ids too', () => {
   });
 });
 
+/** An "all of" with one condition on `field` holding `items`. */
+const holding = (
+  field: string,
+  ...items: { id: string; label: string }[]
+): FilterTree => ({
+  op: 'and',
+  children: [{ field, operator: FilterOperator.IN, value: { items } }],
+});
+
+describe('a view reads its conditions’ bare ids with its page’s', () => {
+  const filtered = (filter: FilterTree, scopeFilter?: FilterTree) => {
+    const customers = remote();
+    const { engine } = engineWith({ customers: customers.source });
+    engine.create('orders', {
+      title: 'Scratch',
+      scope: 'personal',
+      config: { ...config(), filter },
+      ...(scopeFilter ? { scopeFilter } : {}),
+    });
+    return customers;
+  };
+
+  it('asks an id its condition holds alone in the page’s one request', async () => {
+    const customers = filtered(holding('customer', { id: 'c9', label: 'c9' }));
+    await nextTask();
+
+    expect(customers.asked).toEqual([['c1', 'c2', 'c9']]);
+  });
+
+  it('asks nothing for a condition that holds its name already', async () => {
+    const customers = filtered(holding('customer', { id: 'c9', label: 'Ann' }));
+    await nextTask();
+
+    expect(customers.asked).toEqual([['c1', 'c2']]);
+  });
+
+  it('asks the ids of the host’s scope too', async () => {
+    const customers = filtered(
+      { op: 'and', children: [] },
+      holding('customer', { id: 'c8', label: 'c8' }),
+    );
+    await nextTask();
+
+    expect(customers.asked).toEqual([['c1', 'c2', 'c8']]);
+  });
+});
+
+describe('a board reads its filters’ bare ids', () => {
+  it('asks the ids its filter’s default and its fixed scope hold', async () => {
+    const customers = remote();
+    const { engine, store } = engineWith({ customers: customers.source });
+    const board = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Overview',
+        scope: 'personal',
+        config: dashboardConfig({
+          fixed: holding('buyer', { id: 'c8', label: 'c8' }),
+          fields: [
+            {
+              name: 'buyer',
+              label: 'Buyer',
+              kind: 'reference',
+              remote: 'customers',
+              default: { items: [{ id: 'c7', label: 'c7' }] },
+            },
+          ],
+        }),
+      },
+      { requestId: 'r' },
+    );
+    const runtime = await engine.open(board.id);
+    await nextTask();
+    if (!(runtime instanceof DashboardViewRuntime))
+      throw new Error('expected a dashboard');
+
+    // No panel shows them; the board asks them itself, in one request.
+    expect(customers.asked).toEqual([['c8', 'c7']]);
+    expect(runtime.labels.text('customers', 'c7')).toBe('Name c7');
+  });
+});
+
 describe('an export reads its file’s ids as names first', () => {
   /** Five orders, each of its own customer, all on the export's one page. */
   const five = (page: number, size: number): RecordData[] =>
@@ -386,7 +472,7 @@ describe('an export reads its file’s ids as names first', () => {
       ? [1, 2, 3, 4, 5].map(n => ({ id: `o-${n}`, customer: `c${n}` }))
       : [];
 
-  it('asks in requests of `referenceBatch`, one after another, before it hands the rows over', async () => {
+  it('asks in requests of `referenceBatch`, `referenceConcurrency` at a time, before it hands the rows over', async () => {
     let open = 0;
     let most = 0;
     const customers = remote(async ids => {
@@ -400,7 +486,7 @@ describe('an export reads its file’s ids as names first', () => {
     const { engine } = engineWith({
       customers: customers.source,
       people: people.source,
-      limits: { referenceBatch: 2 },
+      limits: { referenceBatch: 2, referenceConcurrency: 2 },
       rows: five,
     });
     const runtime = engine.create('orders', {
@@ -412,8 +498,9 @@ describe('an export reads its file’s ids as names first', () => {
     const exported = await runtime.exportRows();
 
     expect(exported.rows).toHaveLength(5);
+    // Each id once, in the order the file holds them, two requests at most.
     expect(customers.asked).toEqual([['c1', 'c2'], ['c3', 'c4'], ['c5']]);
-    expect(most).toBe(1);
+    expect(most).toBe(2);
     // The file's columns are the table's: no column shows the seller.
     expect(people.asked).toEqual([]);
     expect(runtime.labels.text('customers', 'c5')).toBe('Name c5');

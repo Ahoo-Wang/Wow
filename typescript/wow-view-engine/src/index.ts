@@ -1043,10 +1043,11 @@ export type {
   SourceOptions,
   ViewSource,
 } from './runtime/source.js';
-export type {
-  ReferenceId,
-  ReferenceLabel,
-  ReferenceLabelReader,
+export {
+  ReferenceLabelTimeoutError,
+  type ReferenceId,
+  type ReferenceLabel,
+  type ReferenceLabelReader,
 } from './runtime/referenceLabels.js';
 // store — the `ViewStore` port, the in-memory one and its local snapshot.
 export {
