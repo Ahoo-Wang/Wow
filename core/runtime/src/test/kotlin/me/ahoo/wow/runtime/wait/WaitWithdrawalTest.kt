@@ -141,7 +141,7 @@ class WaitWithdrawalTest {
         gate.complete(Unit)
         withTimeout(5.seconds) { first.await() }.version.assert().isEqualTo(1)
         withTimeout(5.seconds) { coordinator.join() }
-        log.findByRequestId("t", "r-2").assert().isNull()
+        log.findByRequestId(model.type, "t", "r-2").assert().isNull()
         // Review A5-11: the timeout and the withdrawal are both observed, whichever noticed the deadline first.
         observed.assert().containsExactlyInAnyOrder("timed out at ACCEPTED", "refused ${ResultCodes.WAIT_TIMEOUT}")
         val retry = coordinator.execute(model, command("c-3", Add("queued"), "r-2", WaitPlan.COMMITTED))

@@ -232,7 +232,7 @@ class SinkSubscriptionTest {
     }
 
     private companion object {
-        const val NAME = "kafka-sink.order"
+        const val NAME = "transport-sink.order"
         const val DISCOUNTED = "shop.order.Discounted"
     }
 }

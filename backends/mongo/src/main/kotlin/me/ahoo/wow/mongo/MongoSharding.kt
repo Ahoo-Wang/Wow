@@ -38,7 +38,7 @@ enum class MongoSharding {
 
     /** Whether a store over [client] with [ddl] shards its collections: asks the server only when it may. */
     fun shards(client: MongoClient, ddl: Ddl): Boolean =
-        this == AUTO && ddl == Ddl.AUTO && MongoShards.isMongos(client)
+        this == AUTO && ddl.creates && MongoShards.isMongos(client)
 
     @InternalWowApi
     companion object {

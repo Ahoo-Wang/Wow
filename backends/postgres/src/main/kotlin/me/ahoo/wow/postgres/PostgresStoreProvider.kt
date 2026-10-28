@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.postgres
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.query.threadsAwaitingConnection
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
@@ -22,8 +24,10 @@ import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -31,6 +35,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 import kotlin.time.Duration
 
@@ -100,19 +105,35 @@ internal class PostgresStore(
     /** HikariCP's threads awaiting a connection of the appends' pool; null for another pool. */
     override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 
-    override fun openCheckpoints(): CheckpointStore =
-        PostgresCheckpointStore(timed, ddl = ddl).also { schema(it::createSchema) }
+    override fun openCheckpoints(): Opened<CheckpointStore> =
+        PostgresCheckpointStore(timed, ddl = ddl).let { Opened.of(it, it::createSchema) }
 
-    override fun openLeases(): LeaseStore =
-        PostgresLeaseStore(timed, clock = config.clock, ddl = ddl).also { schema(it::createSchema) }
+    override fun openLeases(): Opened<LeaseStore> =
+        PostgresLeaseStore(timed, clock = config.clock, ddl = ddl).let { Opened.of(it, it::createSchema) }
 
-    override fun openLedger(): FailureLedger =
-        PostgresFailureLedger(timed, service = config.service, ddl = ddl).also { schema(it::createSchema) }
+    override fun openLedger(): Opened<FailureLedger> =
+        PostgresFailureLedger(timed, service = config.service, ddl = ddl).let { Opened.of(it, it::createSchema) }
 
-    override fun openReservations(): ReservationStore =
-        PostgresReservationStore(timed, clock = config.clock, ddl = ddl).also { schema(it::createSchema) }
+    override fun openReservations(): Opened<ReservationStore> =
+        PostgresReservationStore(timed, clock = config.clock, ddl = ddl).let { Opened.of(it, it::createSchema) }
 
-    override fun openLog(context: String, partitions: Int): EventLog =
+    private val logs = ConcurrentHashMap<String, PostgresEventLog>()
+    private val snapshotStores = ConcurrentHashMap<String, PostgresSnapshotStore>()
+
+    /** A pooled connection that is valid within a second: the store answers. */
+    override suspend fun probe() {
+        val valid = withContext(Dispatchers.IO) { dataSource.connection.use { it.isValid(PROBE_TIMEOUT_SECONDS) } }
+        check(valid) { "$this answered no valid connection." }
+    }
+
+    /** One statement over this store's log and snapshots of [context], which share its database. */
+    override fun openSnapshotTails(context: String): SnapshotTailReader? {
+        val log = logs[context] ?: return null
+        val snapshots = snapshotStores[context] ?: return null
+        return log.snapshotTailsWith(snapshots)
+    }
+
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> =
         PostgresEventLog(
             timed,
             context,
@@ -120,11 +141,17 @@ internal class PostgresStore(
             pollInterval = config.polling.interval,
             maxPollInterval = config.polling.maxInterval,
             ddl = ddl,
-        ).also { schema(it::createSchema) }
+        ).also { logs[context] = it }.let { Opened.of(it, it::createSchema) }
 
-    override fun openSnapshots(context: String): SnapshotStore =
-        PostgresSnapshotStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
+    override fun openSnapshots(context: String): Opened<SnapshotStore> =
+        PostgresSnapshotStore(timed, context, ddl = ddl).also { snapshotStores[context] = it }
+            .let { Opened.of(it, it::createSchema) }
 
-    override fun openTimers(context: String, partitions: Int): TimerStore =
-        PostgresTimerStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
+    override fun openTimers(context: String, partitions: Int): Opened<TimerStore> =
+        PostgresTimerStore(timed, context, ddl = ddl).let { Opened.of(it, it::createSchema) }
+
+    private companion object {
+        /** How long a probe's connection has to prove valid, in seconds. */
+        const val PROBE_TIMEOUT_SECONDS = 1
+    }
 }

@@ -196,7 +196,7 @@ class SagaReceiptsTest {
             rejected.causation.correlationId.assert().isEqualTo(all.first().commandId)
             decided.assert().containsExactly(rejectedId("o-1"))
             // The compensation is committed, caused by the rejected command; the order is not parked.
-            val compensated = log.findByRequestId(TENANT, compensationId("o-1"))!!
+            val compensated = log.findByRequestId(CART, TENANT, compensationId("o-1"))!!
             compensated.ref.assert().isEqualTo(cart)
             compensated.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-1")))
             ledger.isParked(SAGA, ORDER.ref(TENANT, "o-1")).assert().isFalse()
@@ -220,7 +220,7 @@ class SagaReceiptsTest {
             committed.executionId.assert().isEqualTo(ExecutionId(SAGA, ORDER.ref(TENANT, "o-c"), 1))
             // What the handler derives is committed, caused by the committed command, but the wait does not follow it.
             val thanks = compensationId("o-c", "CartSaga.onRemoved")
-            val derived = log.findByRequestId(TENANT, thanks)!!
+            val derived = log.findByRequestId(CART, TENANT, thanks)!!
             derived.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-c")))
             all.flatMap { it.derived }.assert().doesNotContain(thanks)
             rejections.assert().isEmpty()
@@ -264,10 +264,10 @@ class SagaReceiptsTest {
         node.fill()
         node.place("o-r", FORBIDDEN_ITEM).last().status.assert().isEqualTo(CommandResult.Status.REJECTED)
         rejections.single().ref.assert().isEqualTo(cart)
-        log.findByRequestId(TENANT, compensationId("o-r"))!!.ref.assert().isEqualTo(cart)
+        log.findByRequestId(CART, TENANT, compensationId("o-r"))!!.ref.assert().isEqualTo(cart)
         node.place("o-c", "apple").last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         commits.single().ref.assert().isEqualTo(cart)
-        log.findByRequestId(TENANT, compensationId("o-c", "CartSaga.onRemoved"))!!.ref.assert().isEqualTo(cart)
+        log.findByRequestId(CART, TENANT, compensationId("o-c", "CartSaga.onRemoved"))!!.ref.assert().isEqualTo(cart)
     }
 
     @Test
@@ -322,7 +322,7 @@ class SagaReceiptsTest {
             // A technical failure retries the handling: the saga derives the same command, rejected again.
             rejections.map { it.commandId }.assert().containsExactly(rejectedId("o-3"), rejectedId("o-3"))
             ledger.isParked(SAGA, ORDER.ref(TENANT, "o-3")).assert().isFalse()
-            log.findByRequestId(TENANT, compensationId("o-3")).assert().isNotNull()
+            log.findByRequestId(CART, TENANT, compensationId("o-3")).assert().isNotNull()
 
             // A compensation that is rejected in turn is not handed to a handler again: the order parks.
             compensation = RemoveItems(listOf(FORBIDDEN_ITEM))

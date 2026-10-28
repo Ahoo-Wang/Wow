@@ -37,8 +37,6 @@ class OptionalCapabilitiesTest {
 
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) = null
 
-        override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? = null
-
         override fun tail(partition: Int, after: Long?): Flow<LogEntry> = emptyFlow()
 
         override suspend fun head(partition: Int): Long? = null
@@ -49,8 +47,7 @@ class OptionalCapabilitiesTest {
     }
 
     @Test
-    fun `a log reads a snapshot apart from its tail, and a snapshot store cannot rebuild, unless they say otherwise`() {
-        Required.snapshotTails.assert().isNull()
+    fun `a snapshot store cannot rebuild unless it says otherwise`() {
         Required.rebuilds.assert().isNull()
     }
 }

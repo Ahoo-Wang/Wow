@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.id
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.id.Ids
 import java.util.UUID
 import java.util.concurrent.ThreadLocalRandom
@@ -24,6 +25,7 @@ import java.util.random.RandomGenerator
  * Generates the message-level ids of a node: command ids, the request id of a request that names
  * none, wait ids, and [Ids.next] of domain code. UUIDv7 by default; wow-cosid adapts CosId.
  */
+@WowSpi
 fun interface GlobalIdGenerator {
     fun next(): String
 
@@ -40,6 +42,7 @@ fun interface GlobalIdGenerator {
  * One generator may serve every type or one type; a host selects one per type
  * ([AggregateIdGenerator.of]).
  */
+@WowSpi
 fun interface AggregateIdGenerator {
     fun next(type: AggregateType): String
 
@@ -68,6 +71,7 @@ fun interface AggregateIdGenerator {
  * Generators a host finds by a name no generator bean has, such as CosId's by its provider's names:
  * `wow.aggregates.[<context>.<aggregate>].id-generator` names one of these when it names no [AggregateIdGenerator].
  */
+@WowSpi
 fun interface AggregateIdGeneratorSource {
     /** The generator named [name], or null when there is none. */
     fun find(name: String): AggregateIdGenerator?

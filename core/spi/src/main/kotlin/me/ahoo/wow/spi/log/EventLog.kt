@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The log of one bounded context: the only place a fact is written (axiom A1).
  *
  * What a backend must implement are the abstract members; the members with a default are optional optimizations
- * whose default is correct ([appendAll], [readTail], [lineage]), and [snapshotTails] is an optional capability.
+ * whose default is correct ([appendAll], [readTail], [lineage]).
  * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
  *   tenant. Each aggregate type is stored apart, so a request id reused by two aggregate types of
@@ -114,12 +114,6 @@ interface EventLog {
     }
 
     /**
-     * The log's one-round-trip read of an aggregate's snapshot with its tail: an optional capability,
-     * null by default, when the kernel reads them apart ([readSnapshotTailApart]).
-     */
-    val snapshotTails: SnapshotTailReader? get() = null
-
-    /**
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and
      * transport: the read of recovery. A subscription that handles a parked aggregate again reads its streams by
      * version, and the `reservation` subscription needs the keys their transport carries.
@@ -148,14 +142,6 @@ interface EventLog {
      * aggregate; a caller that knows the aggregate calls the overload taking its [AggregateRef].
      */
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
-
-    /**
-     * The stream committed for [requestId] within [tenantId], in any aggregate type of the context, if any: facts
-     * only. When two aggregate types hold it, the earliest committed. It searches every aggregate type the log knows,
-     * so its cost grows with their number: for diagnostics and tests that do not know the type, not for the command
-     * path, which knows it and calls the overload taking the [AggregateType].
-     */
-    suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
 
     /**
      * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its

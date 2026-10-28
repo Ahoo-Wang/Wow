@@ -197,7 +197,7 @@ enum class UnknownContexts {
  * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
  * on here, and the later hops are signalled here.
  *
- * The commands of the types [topicRouter] routes take the `Kafka` router instead: the
+ * The commands of the types [topicRouter] routes take the topic router instead: the
  * command is written to its context's command topic, with the wait context, and the wait reaches ACCEPTED once the
  * broker acknowledged it, durable from then on; the owner of its log partition executes it from the topic
  * ([me.ahoo.wow.runtime.command.CommandIntake]) and signals its COMMITTED result and the later hops here, as for a
@@ -221,7 +221,7 @@ class WaitCoordinator(
     private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
-    /** The `Kafka` router of the context's types configured for it; none by default. */
+    /** The topic router of the context's types configured for it; none by default. */
     private val topicRouter: TopicRouter? = null,
     /** Sees the commands refused before the kernel and the waits that time out. */
     private val observer: Observer = Observer.NONE,
@@ -300,7 +300,7 @@ class WaitCoordinator(
     /**
      * Sends [command], admitted here for an aggregate of another service's context (a peer's), to
      * its context's command topic through [relay], and emits a result for each hop of its wait plan as it is reached,
-     * as the `Kafka` router's commands do: ACCEPTED once the broker acknowledged it, durable from then
+     * as the topic router's commands do: ACCEPTED once the broker acknowledged it, durable from then
      * on; the target's intake executes it and signals its COMMITTED result here. [function] names the command in the
      * results this node makes. The command's plan has only ACCEPTED and COMMITTED hops of its context: admission
      * refuses any other.
@@ -343,7 +343,7 @@ class WaitCoordinator(
     }
 
     /**
-     * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the `Kafka` router's
+     * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the topic router's
      * command topic, or a peer's), else executed on [model]'s aggregate, routed by [router].
      */
     @Suppress("LongMethod") // One wait from admission to its end, the command topic's branch included.
@@ -484,7 +484,7 @@ class WaitCoordinator(
     }
 
     /**
-     * Writes [command] to [relay]'s command topic with [wait] (the Kafka router, or a peer's topic);
+     * Writes [command] to [relay]'s command topic with [wait] (the topic router, or a peer's topic);
      * null once the broker acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the
      * send failed, the command perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a
      * retry with the same request id is safe.
@@ -896,7 +896,7 @@ class WaitCoordinator(
 }
 
 /**
- * Writes the commands admitted on a node to a command topic instead of executing them there: the `Kafka` router's
+ * Writes the commands admitted on a node to a command topic instead of executing them there: the topic router's
  * or a peer context's. The target's intake executes them.
  */
 @InternalWowApi

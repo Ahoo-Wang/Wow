@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.tck
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
@@ -140,6 +142,14 @@ abstract class StoreTck {
         store.type.assert().isEqualTo(config().type)
     }
 
+    @Test
+    fun `the store should answer its probe, and close once however often it is closed`(): Unit = runBlocking {
+        store.probe()
+        val closing = openStore()
+        closing.close()
+        closing.close()
+    }
+
     @Nested
     inner class Log : EventLogSpec() {
         @BeforeEach
@@ -148,12 +158,17 @@ abstract class StoreTck {
         override fun createLog(context: String, partitions: Int): EventLog =
             logPort { it.log(context, partitions) }
 
+        /** The context of the last snapshots [createSnapshots] opened, whose reads with the log's tails the store offers. */
+        private var snapshotsContext: String? = null
+
         override fun createSnapshots(context: String): SnapshotStore? =
             store.takeIf { it.holdsLogs && it.holdsSnapshots }?.let {
-                it.snapshots(
-                    context
-                ).also { _ -> it.createSchemas() }
+                snapshotsContext = context
+                it.snapshots(context).also { _ -> it.createSchemas() }
             }
+
+        override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader? =
+            snapshotsContext?.let { context -> store.openedLog(context)?.let { store.snapshotTails(context) } }
 
         override fun refused(stream: EventStreamRecord): EventStreamRecord? = this@StoreTck.refused(stream)
     }

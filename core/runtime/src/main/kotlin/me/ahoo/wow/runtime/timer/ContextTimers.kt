@@ -129,7 +129,7 @@ internal class ContextTimerFirer(
         }
         val sender = checkNotNull(sender) {
             "The timer ${wire.id} sends to ${wire.ref}, of the context $context: a command across contexts goes through " +
-                "the command topic, and this node has no Kafka transport."
+                "the command topic, and this node has no command transport."
         }
         sender.send(wire)
         return TimerOutcomes.SENT

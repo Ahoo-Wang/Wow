@@ -498,8 +498,10 @@ public final class me/ahoo/wow/runtime/node/ContextBackends {
 	public final fun getLog ()Lme/ahoo/wow/spi/log/EventLog;
 	public final fun getPrimarySnapshots ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
+	public final fun getSnapshotTails ()Lme/ahoo/wow/runtime/node/SnapshotTailReaders;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 	public final fun getStore ()Ljava/lang/String;
+	public final fun getStores ()Lme/ahoo/wow/runtime/node/PlacedStores;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/subscription/CheckpointStore;Lme/ahoo/wow/spi/subscription/LeaseStore;Lme/ahoo/wow/spi/ledger/FailureLedger;)Lme/ahoo/wow/runtime/node/ContextBackends;
@@ -526,6 +528,16 @@ public final class me/ahoo/wow/runtime/node/LogGroupBackends {
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public final fun getTypes ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/node/PlacedStores {
+	public static final field NONE Lme/ahoo/wow/runtime/node/PlacedStores;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAll ()Ljava/util/Set;
+	public final fun getOthers ()Ljava/util/Set;
+	public final fun getWritePath ()Ljava/util/Set;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -593,7 +605,6 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
 	public final fun getExecutor ()Lme/ahoo/wow/runtime/ExecutorOptions;
 	public final fun getHandoff ()Lme/ahoo/wow/runtime/log/HandoffOptions;
-	public final fun getKafkaRouted ()Ljava/util/Set;
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
@@ -602,8 +613,15 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getStateViews ()Lme/ahoo/wow/runtime/state/StateViewOptions;
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun getTimers ()Lme/ahoo/wow/runtime/timer/TimerOptions;
+	public final fun getTopicRouted ()Ljava/util/Set;
 	public final fun getWait ()Lme/ahoo/wow/runtime/wait/WaitOptions;
 	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/node/SnapshotTailReaders {
+	public static final field NONE Lme/ahoo/wow/runtime/node/SnapshotTailReaders;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -657,7 +675,7 @@ public final class me/ahoo/wow/runtime/schedule/JobOptions {
 
 public final class me/ahoo/wow/runtime/sink/PublishedSinks {
 	public static final field Companion Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;
-	public static final field KAFKA_SINK Ljava/lang/String;
+	public static final field TRANSPORT_SINK Ljava/lang/String;
 	public fun <init> (Ljava/util/Map;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
 	public final fun nameOf (Lme/ahoo/wow/manifest/PublishedManifest;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;

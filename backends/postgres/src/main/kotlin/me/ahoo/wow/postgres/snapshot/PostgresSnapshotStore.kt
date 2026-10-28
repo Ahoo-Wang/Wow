@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
@@ -30,6 +29,7 @@ import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -67,7 +67,7 @@ class PostgresSnapshotStore(
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
     override val rebuilds: SnapshotRebuildStore get() = this
 
-    private val created = EnsuredTables<PostgresSnapshotTables>()
+    private val created = EnsuredOnce<String, PostgresSnapshotTables>()
 
     /**
      * Nothing to create up front: each aggregate type's table is created on its first use ([createTable]), since the
@@ -85,7 +85,7 @@ class PostgresSnapshotStore(
 
     /**
      * The tables of [aggregateName], created when this store has not yet made sure they are: once, however many first
-     * uses ask at once ([EnsuredTables]).
+     * uses ask at once ([EnsuredOnce]).
      */
     private fun tables(aggregateName: String): PostgresSnapshotTables = created.get(aggregateName) {
         PostgresSnapshotTables(context, aggregateName).also { tables ->

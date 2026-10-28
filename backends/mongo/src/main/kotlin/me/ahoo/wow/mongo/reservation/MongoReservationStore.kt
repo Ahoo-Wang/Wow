@@ -25,7 +25,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -40,6 +39,7 @@ import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.Clock
@@ -88,7 +88,7 @@ class MongoReservationStore(
     private val sharded by lazy { sharding.shards(client, ddl) }
 
     /** The collections whose format and indexes this store has made sure of, by aggregate type, each once. */
-    private val ensured = EnsuredCollections<MongoCollection<Document>>()
+    private val ensured = EnsuredOnce<String, MongoCollection<Document>>()
 
     /**
      * Nothing to create up front: each aggregate type's collection is created on its first use, since the store does

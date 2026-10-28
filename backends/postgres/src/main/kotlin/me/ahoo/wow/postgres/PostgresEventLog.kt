@@ -41,6 +41,7 @@ import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.postgresql.util.PSQLException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
@@ -83,8 +84,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
  * two aggregate types commits twice (the reuse is the caller's error). The kernel's pre-check, the
- * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
- * aggregate table this log knows.
+ * [findByRequestId] taking the aggregate type, reads that type's table alone.
  *
  * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
@@ -116,7 +116,7 @@ class PostgresEventLog(
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
-    private val ensured = EnsuredTables<AggregateLogTable>()
+    private val ensured = EnsuredOnce<String, AggregateLogTable>()
 
     /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -134,7 +134,7 @@ class PostgresEventLog(
             PostgresFormat.schema(connection, ddl, structures) {
                 PostgresSchema.execute(connection, tables.ddl())
             }
-            if (ddl == Ddl.AUTO) {
+            if (ddl.creates) {
                 // A counter table created before the lineage columns gets them before its counters are written.
                 PostgresFormat.addColumns(
                     connection,
@@ -221,7 +221,7 @@ class PostgresEventLog(
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
         }
-        if (ddl == Ddl.AUTO) {
+        if (ddl.creates) {
             addColumns(connection, table)
         }
     }
@@ -626,17 +626,21 @@ class PostgresEventLog(
     }
 
     /**
-     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database: the
-     * snapshot, the tail from its version and the request keys before it, as one snapshot of the database sees them.
-     * Null when they are kept elsewhere; a failure of the statement is thrown, for the kernel to read apart, warn and
-     * count it.
+     * The read of [store]'s snapshots with this log's tails in one statement, [store] keeping this context's snapshots
+     * in this log's database: the snapshot, the tail from its version and the request keys before it, as one snapshot
+     * of the database sees them; a failure of the statement is thrown, for the kernel to read apart, warn and count it.
      */
-    override val snapshotTails: SnapshotTailReader = SnapshotTailReader { ref, snapshots, earlier ->
-        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore ?: return@SnapshotTailReader null
-        dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
+    internal fun snapshotTailsWith(store: PostgresSnapshotStore): SnapshotTailReader {
+        val shared = { type: String ->
+            checkNotNull(store.sharedTable(dataSource, context, type)) {
+                "The snapshots of $context are not in the database of its log."
+            }
+        }
+        return SnapshotTailReader { ref, earlier ->
+            require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+            dispatcher.jdbc {
+                dataSource.autoCommitted { connection ->
+                    val snapshot = shared(ref.type.name)
                     withTable(connection, ref.type) { table ->
                         connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
                             streamOf(table.aggregate, it)
@@ -686,28 +690,6 @@ class PostgresEventLog(
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
                 withTable(connection, type) { findByRequestIdIn(connection, it, tenantId, requestId) }
-            }
-        }
-
-    /**
-     * The stream committed for [requestId] within [tenantId] in any aggregate table of the context this log knows
-     * (the registry as last read, and the tables it touched since), the earliest committed when two aggregate types
-     * hold it: one statement over every table.
-     */
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
-                if (known.isEmpty()) return@autoCommitted null
-                connection.prepareStatement(tables.byRequest(known)).use { query ->
-                    known.indices.forEach { index ->
-                        query.setString(index * 2 + 1, tenantId)
-                        query.setString(index * 2 + 2, requestId)
-                    }
-                    query.executeQuery().use { rows ->
-                        if (rows.next()) streamOf(known[rows.getInt("branch")].aggregate, rows) else null
-                    }
-                }
             }
         }
 

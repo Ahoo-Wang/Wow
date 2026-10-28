@@ -16,8 +16,10 @@ package me.ahoo.wow.kernel
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
@@ -51,26 +53,22 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
 }
 
 /**
- * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the
- * log's [EventLog.snapshotTails] when it has that capability, else apart ([readSnapshotTailApart]). When the reader
- * cannot serve the aggregate's snapshot store, or fails, the read is done apart: the first time logged (a failure as a
- * warning), every time counted with [Observer.storeFellBack].
+ * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the reader
+ * [readers] gives its type, the one of a store holding both ([me.ahoo.wow.spi.store.Store.snapshotTails]), else apart
+ * ([readSnapshotTailApart]). When the reader fails, the read is done apart: the first time logged as a warning,
+ * every time counted with [Observer.storeFellBack].
  */
-internal class SnapshotTailReads(private val log: EventLog, private val observer: Observer) {
-    private val unavailableLogged = AtomicBoolean()
+internal class SnapshotTailReads(
+    private val log: EventLog,
+    private val readers: (AggregateType) -> SnapshotTailReader?,
+    private val observer: Observer,
+) {
     private val failedLogged = AtomicBoolean()
 
     suspend fun read(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
-        val reader = log.snapshotTails ?: return log.readSnapshotTailApart(ref, snapshots, earlier)
+        val reader = readers(ref.type) ?: return log.readSnapshotTailApart(ref, snapshots, earlier)
         try {
-            reader.readWithSnapshot(ref, snapshots, earlier)?.let { return it }
-            fellBack(ref, StoreFallbacks.UNAVAILABLE)
-            if (unavailableLogged.compareAndSet(false, true)) {
-                logger.info {
-                    "The log of ${ref.type.context} cannot read the snapshots of ${ref.type} with their tails in one " +
-                        "round trip, as they are in another database: it reads them apart."
-                }
-            }
+            return reader.readWithSnapshot(ref, earlier)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (

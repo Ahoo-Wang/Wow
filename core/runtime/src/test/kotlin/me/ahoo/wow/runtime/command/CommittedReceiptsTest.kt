@@ -171,7 +171,7 @@ class CommittedReceiptsTest {
             commits.single().assert().isEqualTo(committed)
             rejections.assert().isEmpty()
             // A copy of the receipt is dropped by its command id.
-            topics.send(RECEIPTS, receipt.let { TopicMessage(it.key!!, it.value, it.headers) })
+            topics.send(RECEIPTS, receipt.let { TopicMessage.of(it.key!!, it.value, it.headers) })
             val group = sales.topicSubscriptions.getValue(RECEIPTS).group.name
             eventually {
                 (0 until 2).sumOf {

@@ -191,7 +191,7 @@ class SubscriptionBindingsTest {
             last.ref.assert().isEqualTo(CART.ref(TENANT, "alice"))
             last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
             decided.assert().containsExactly(derived)
-            val cart = backends.opened.getValue(SHOP).log.findByRequestId(TENANT, derived)!!
+            val cart = backends.opened.getValue(SHOP).log.findByRequestId(CART, TENANT, derived)!!
             cart.causation!!.causationId.assert().isEqualTo("shop.order/t/o-2@1")
             cart.causation!!.correlationId.assert().isEqualTo(all.first().commandId)
         }
@@ -359,11 +359,11 @@ class SubscriptionBindingsTest {
     }
 
     @Test
-    fun `a command derived for another context should fail the saga without a Kafka transport`(): Unit = runBlocking {
+    fun `a command derived for another context should fail the saga without a command transport`(): Unit = runBlocking {
         val derived = DerivedCommands(listOf(orderModel()), node.context(SHOP).coordinator)
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
-            .contains("no Kafka transport")
+            .contains("no command transport")
         val unknown = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType(SHOP, "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(unknown), null) }.exceptionOrNull()!!.message.assert()
             .contains("an aggregate type its context does not have")

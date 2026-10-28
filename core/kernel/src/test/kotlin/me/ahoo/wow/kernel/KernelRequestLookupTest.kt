@@ -41,16 +41,10 @@ class KernelRequestLookupTest {
     /** Records the request-id lookups the kernel asks of the log. */
     private class CountingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         val perType = mutableListOf<AggregateType>()
-        var contextWide = 0
 
         override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
             perType += ref.type
             return delegate.findByRequestId(ref, requestId)
-        }
-
-        override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? {
-            contextWide++
-            return delegate.findByRequestId(tenantId, requestId)
         }
     }
 
@@ -67,7 +61,6 @@ class KernelRequestLookupTest {
             command(AddItem("apple", 1))
         ).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         log.perType.assert().containsExactly(cartModel.type, cartModel.type)
-        log.contextWide.assert().isEqualTo(0)
     }
 
     @Test
@@ -82,7 +75,6 @@ class KernelRequestLookupTest {
         kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "same"))
             .assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
         log.perType.assert().containsExactly(cartModel.type, cartModel.type, cartModel.type)
-        log.contextWide.assert().isEqualTo(0)
     }
 
     @Test

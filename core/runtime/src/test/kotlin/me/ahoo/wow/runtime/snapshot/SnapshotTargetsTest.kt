@@ -107,8 +107,6 @@ class SnapshotTargetsTest {
         a.table(order).assert().isNull()
         router.save(snapshot(cart, "c")).assert().isTrue()
         a.load(cart.ref("tenant", "c")).assert().isNotNull()
-        router.storeOf(order).assert().isSameAs(b)
-        router.storeOf(cart).assert().isSameAs(a)
     }
 
     @Test

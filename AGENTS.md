@@ -66,6 +66,8 @@ Domain tests use the test DSL (`:test-dsl`, artifact `wow-test`); the eShop's do
 
 CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 2 retries and 20 max failures. Domain modules enforce Jacoco coverage, commonly 80% minimum.
 
+Coverage measures tested behaviour; it never decides a code shape. Do not change a declaration to move a coverage number: not `inline` versus non-inline, not merging, removing or reordering branches, not restructuring for JaCoCo. Decide each shape on its design (an `inline` function, for one, runs its lambdas in the caller's context, suspending or blocking, and allocates none). A test that executes a line without asserting behaviour does not count. When a coverage gate fails only because the tool cannot see code (an `inline` or `reified` body, which JaCoCo attributes to no line, or a branch only container tests reach), cover the behaviour with real tests, and if the tool still cannot credit them, exclude exactly that file in `codecov.yml` with a comment naming the limit and the test that covers it; the coordinator decides each exclusion.
+
 ## Project Structure
 
 ```text
@@ -125,6 +127,7 @@ examples/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Post
 - ID generation uses CosId and existing Wow ID helpers.
 - Logging uses kotlin-logging, SLF4J, and Logback.
 - Detekt uses `config/detekt/detekt.yml`; line-length and several style rules are intentionally relaxed.
+- `inline` (and `reified`) is a design choice, made where the function needs the caller's context for its lambdas (a helper called from suspending and blocking code alike), needs a reified type, or must not allocate its lambdas on a hot path; never to satisfy, or to avoid, a coverage tool (see Testing).
 
 Typical Kotlin API style, a port of `:spi`:
 

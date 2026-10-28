@@ -257,7 +257,7 @@ class WaitCoordinatorTest {
         refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
         refused.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
         refused.hop.assert().isEqualTo(Hop.accepted("shop"))
-        log.findByRequestId("t", second.requestId).assert().isNull()
+        log.findByRequestId(second.ref, second.requestId).assert().isNull()
         // A COMMITTED wait is registered too, and the stream refuses it alike.
         capped.stream(order, place(wait = WaitPlan.COMMITTED)).toList().single().error!!.code
             .assert().isEqualTo(ResultCodes.BUSY)
@@ -300,7 +300,7 @@ class WaitCoordinatorTest {
                 result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
                 result.error!!.message.assert().contains("shop.order has no snapshot subscription")
                 result.hop.assert().isEqualTo(Hop.accepted("shop"))
-                log.findByRequestId("t", command.requestId).assert().isNull()
+                log.findByRequestId(command.ref, command.requestId).assert().isNull()
             }
             registry.size.assert().isEqualTo(0)
         }
@@ -315,7 +315,7 @@ class WaitCoordinatorTest {
         val coordinator = coordinator(WaitOptions(), ordersUnsnapshotted)
         val explicit = place(wait = WaitPlan.SNAPSHOT.within(5.seconds))
         coordinator.execute(order, explicit).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
-        log.findByRequestId("t", explicit.requestId).assert().isNull()
+        log.findByRequestId(explicit.ref, explicit.requestId).assert().isNull()
         val byDefault = coordinator.execute(order, place(wait = WaitPlan.DEFAULT.within(5.seconds)))
         byDefault.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         byDefault.hop.assert().isEqualTo(Hop.committed("shop"))
@@ -484,7 +484,7 @@ class WaitCoordinatorTest {
 
     /** A retry of [command], with its request id: the kernel answers it from the commit, if there is one. */
     private suspend fun retried(coordinator: WaitCoordinator, command: Command<*>): CommandResult {
-        eventually { log.findByRequestId("t", command.requestId) != null }
+        eventually { log.findByRequestId(command.ref, command.requestId) != null }
         return coordinator.execute(order, command.copyWith(id = "${command.id}-retry", wait = WaitPlan.COMMITTED))
     }
 
@@ -501,7 +501,7 @@ class WaitCoordinatorTest {
         decideGate.complete(Unit)
         withTimeout(5.seconds) { joining.await() }
         coordinator.executing.assert().isEqualTo(0)
-        log.findByRequestId("t", command.requestId)!!.version.assert().isEqualTo(1)
+        log.findByRequestId(command.ref, command.requestId)!!.version.assert().isEqualTo(1)
         coordinator.join()
     }
 
@@ -513,7 +513,7 @@ class WaitCoordinatorTest {
         coordinator.close()
         eventually { coordinator.executing == 0 }
         decideGate.complete(Unit)
-        log.findByRequestId("t", command.requestId).assert().isNull()
+        log.findByRequestId(command.ref, command.requestId).assert().isNull()
     }
 
     @Test
@@ -536,7 +536,7 @@ class WaitCoordinatorTest {
         timedOut.hop.assert().isEqualTo(Hop.accepted("shop"))
         timedOut.version.assert().isNull()
         registry.size.assert().isEqualTo(0)
-        log.findByRequestId("t", command.requestId).assert().isNull()
+        log.findByRequestId(command.ref, command.requestId).assert().isNull()
 
         decideGate.complete(Unit)
         val retry = retried(coordinator, command)
@@ -691,7 +691,7 @@ class WaitCoordinatorTest {
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
         result.hop.assert().isEqualTo(Hop.accepted("shop"))
-        log.findByRequestId("t", command.requestId).assert().isNull()
+        log.findByRequestId(command.ref, command.requestId).assert().isNull()
     }
 
     @Test
@@ -732,7 +732,7 @@ class WaitCoordinatorTest {
         started()
         val first = place(wait = WaitPlan.of(Hop.handled("order.failing")))
         coordinator.execute(order, first).status.assert().isEqualTo(CommandResult.Status.FAILED)
-        eventually { runtime.hasHandled("order.failing", log.findByRequestId("t", first.requestId)!!).not() }
+        eventually { runtime.hasHandled("order.failing", log.findByRequestId(first.ref, first.requestId)!!).not() }
         val result = coordinator.execute(order, first.copyWith(id = "c-retry"))
         result.duplicate.assert().isTrue()
         result.hop.assert().isEqualTo(Hop.committed("shop"))

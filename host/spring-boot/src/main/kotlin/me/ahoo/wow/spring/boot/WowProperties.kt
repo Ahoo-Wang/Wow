@@ -199,7 +199,7 @@ class WowProperties {
      * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
      * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no
-     * stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true).
+     * stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true).
      * `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type,
      * names the transport.
      */
@@ -1510,11 +1510,11 @@ class WowProperties {
         CLUSTER,
 
         /**
-         * The `Kafka` router: written to the context's command topic `wow.<context>.commands`, and
-         * executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
+         * The topic router: written to the context's command topic `wow.<context>.commands` on the command transport,
+         * and executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
          * waits only for it is answered 202 once the broker acknowledged the command.
          */
-        KAFKA,
+        TOPIC,
     }
 
     @InternalWowApi

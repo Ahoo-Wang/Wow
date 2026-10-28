@@ -14,7 +14,6 @@
 package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -68,13 +67,6 @@ interface SnapshotStore {
 
     /** The snapshot of [ref], or null when there is none. */
     suspend fun load(ref: AggregateRef): SnapshotRecord?
-
-    /**
-     * The store that holds [type]'s snapshots behind any routing: this store by default, the one a
-     * router sends [type] to otherwise. A log backend asks it to tell whether it can read a snapshot together with the
-     * tail ([me.ahoo.wow.spi.log.SnapshotTailReader]).
-     */
-    fun storeOf(type: AggregateType): SnapshotStore = this
 
     /**
      * The store's snapshot rebuild control plane: an optional capability, null by default, for a store

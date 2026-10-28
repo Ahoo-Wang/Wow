@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.timer.TimedBackends
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.timer.orderModel
 import me.ahoo.wow.runtime.timer.shopManifest
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -184,9 +185,11 @@ class ScheduleJobsNodeTest {
 
     @Test
     fun `a configured job no handler runs, or two jobs of one name, fail the node`() {
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<WowConfigurationException> {
             node("node-1", TimedBackends(), listOf(NIGHTLY), mapOf("other" to JobOptions()))
-        }.hasMessageContaining("wow.schedules.other")
+        }.hasMessageContaining("the job other").isInstanceOfSatisfying(WowConfigurationException::class.java) {
+            it.key.assert().isEqualTo("wow.schedules.other")
+        }
         assertThrownBy<IllegalArgumentException> {
             ScheduleJobRuntime.configured(mapOf(SHOP to listOf(NIGHTLY, NIGHTLY.copyWith(sharded = true))), emptyMap())
         }.hasMessageContaining("two jobs named nightly")

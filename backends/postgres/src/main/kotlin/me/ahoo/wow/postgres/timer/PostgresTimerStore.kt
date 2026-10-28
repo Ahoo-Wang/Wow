@@ -21,7 +21,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -29,6 +28,7 @@ import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -65,7 +65,7 @@ class PostgresTimerStore(
     private val ownerContext = context
 
     /** The timer tables whose creation and registration this store has made sure of. */
-    private val ensured = EnsuredTables<AggregateTimerTable>()
+    private val ensured = EnsuredOnce<String, AggregateTimerTable>()
 
     /** The timer tables of the context, as of the last read of the registry. */
     @Volatile

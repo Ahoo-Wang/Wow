@@ -24,6 +24,7 @@ public abstract class me/ahoo/wow/tck/StoreTck {
 	public static synthetic fun openStore$default (Lme/ahoo/wow/tck/StoreTck;Ljava/time/Clock;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/Store;
 	protected fun provider (Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreProvider;
 	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun the store should answer its probe, and close once however often it is closed ()V
 	public final fun the store should name its provider's type ()V
 }
 
@@ -142,6 +143,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
 	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
+	protected fun snapshotTailsOf (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/snapshot/SnapshotStore;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun tail never skips a committed entry, however appends interleave ()V

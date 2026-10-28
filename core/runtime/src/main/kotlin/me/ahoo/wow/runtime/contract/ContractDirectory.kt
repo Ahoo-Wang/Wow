@@ -29,6 +29,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.json.JsonMapper
 
@@ -368,11 +369,15 @@ class ContractDirectory(
             contracts.forEach { contract ->
                 val declared = contract.manifest.service?.name ?: return@forEach
                 val contexts = contract.manifest.contexts.map { it.name }.filter { it in served }
-                check(contexts.isEmpty() || declared == service) {
+                configCheck(
+                    contexts.isEmpty() || declared == service,
+                    "wow.service",
+                    service,
+                    "Name the service $declared, or declare $service in the api module's domain module " +
+                        "(wow { contract { service } }).",
+                ) {
                     "The contract of $contexts (${contract.source}) says the service $declared hosts them, but this " +
-                        "service is $service: peers find it by the name its api module declares. Name the service " +
-                        "$declared (with Spring Boot, wow.service or spring.application.name), or declare $service in the api " +
-                        "module's domain module (wow { contract { service } })."
+                        "service is $service: peers find it by the name its api module declares."
                 }
             }
         }

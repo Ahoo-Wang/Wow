@@ -224,11 +224,8 @@ export function uncalledScripts(files, read) {
  */
 const RETIRED_EXAMPLE = /(?:(?<![\w./\\-])|(?<=main\/)|(?<=\|))example\//;
 
-/** Trees that keep the retired `example` paths on purpose: decision records and 9.x inputs. */
-const RETIRED_EXAMPLE_EXEMPT = [
-  'documentation/designs/',
-  'skills/wow-migrate/evals/h5-inputs/',
-];
+/** Trees that keep the retired `example` paths on purpose: the 9.x inputs. */
+const RETIRED_EXAMPLE_EXEMPT = ['skills/wow-migrate/evals/h5-inputs/'];
 
 const BINARY = /\.(?:png|jpe?g|gif|ico|webp|woff2?|ttf|jar|pdf|zip|gz)$/i;
 

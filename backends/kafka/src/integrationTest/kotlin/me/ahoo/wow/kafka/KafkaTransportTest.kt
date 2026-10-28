@@ -36,7 +36,7 @@ class KafkaTransportTest : TopicTransportSpec() {
             mapOf("max.block.ms" to "500", "request.timeout.ms" to "500", "delivery.timeout.ms" to "1000"),
         )
         KafkaTopicProducer.create(options).use { unreachable ->
-            runCatching { unreachable.send("wow.it.unreachable", TopicMessage("k", byteArrayOf(1))) }
+            runCatching { unreachable.send("wow.it.unreachable", TopicMessage.of("k", byteArrayOf(1))) }
                 .isFailure.assert().isTrue()
         }
     }
