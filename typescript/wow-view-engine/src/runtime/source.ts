@@ -107,16 +107,22 @@ export function recordSource(source: ViewSource): RecordSource {
 
 /**
  * Remote candidates of a `reference` field: a paged search, and a lookup by id
- * for the values a saved config already holds.
+ * that says the values rows and saved configs hold as their labels.
  */
 export interface OptionSource {
   search(
     input: { query: string; cursor?: string },
-    signal?: AbortSignal,
+    options?: SourceOptions,
   ): Promise<{ items: FieldOption[]; nextCursor: string | null }>;
+  /**
+   * The options of `ids`, matched to them by `value`. The engine asks once
+   * per page for the ids it does not know yet, at most
+   * `RuntimeLimits.referenceBatch` at a time; an id the answer leaves out is
+   * shown as itself.
+   */
   resolve(
     ids: (string | number)[],
-    signal?: AbortSignal,
+    options?: SourceOptions,
   ): Promise<FieldOption[]>;
 }
 

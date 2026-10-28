@@ -17,6 +17,7 @@
  * class behind it.
  */
 
+import type { ReferenceLabels } from '../referenceLabels.js';
 import type { EditHistoryState } from './history.js';
 import type {
   AggregationDateUnitName,
@@ -294,8 +295,8 @@ export interface DashboardRuntimeOptions {
    */
   definitions(definitionId: string): PanelDefinition | null;
   createPanelRuntime: PanelRuntimeFactory;
-  /** See `ViewRuntime.optionSource`. */
-  resolveOptions?(key: string): OptionSource;
+  /** See `ViewRuntime.optionSource` and `ViewRuntime.labels`. */
+  labels: ReferenceLabels;
   /**
    * The values a definition's fields hold, counted, asked under `scope`
    * (`ValueCandidateSources`) — what a text filter offers from the fields it

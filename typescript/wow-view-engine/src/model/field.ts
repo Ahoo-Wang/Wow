@@ -405,6 +405,16 @@ export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
 };
 
 /** How this field keeps its time: its declaration, or the default. */
+/**
+ * The remote a field's values are read as names from (D354): a `reference`
+ * field's `remote`, as a projection part; nothing for any other field.
+ */
+export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
+  return field.kind === 'reference' && field.remote
+    ? { remote: field.remote }
+    : {};
+}
+
 export function temporalOf(field: FieldDefinition): FieldTemporal {
   return field.temporal ?? DEFAULT_TEMPORAL;
 }
@@ -586,7 +596,11 @@ export interface FieldDefinition {
    * answers, valued `'true'` and `'false'`.
    */
   options?: FieldOption[];
-  /** Remote candidate source key for `reference`, resolved by the engine. */
+  /**
+   * Remote candidate source key for `reference`, resolved by the engine:
+   * the host's `resolveOptions(remote)` both offers a condition's candidates
+   * and reads the ids a row holds as names (D354).
+   */
   remote?: string;
   sortable?: boolean;
   /**

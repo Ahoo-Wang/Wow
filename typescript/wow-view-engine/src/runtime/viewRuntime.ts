@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { labelIds } from './labelIds.js';
+import type { ReferenceLabels } from './referenceLabels.js';
 import { dequal } from 'dequal';
 import {
   type DataViewConfig,
@@ -107,7 +109,10 @@ export class DataViewRuntime<
   protected readonly store: RuntimeStore<ViewRuntimeState<C>>;
   protected readonly context: KernelContext;
   private readonly runner: RequestRunner;
-  private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
+  /** See `ViewRuntime.labels`; the engine's one cache. */
+  readonly labels: ReferenceLabels;
+  /** Called off when the next result asks, or the view is let go. */
+  private labelReads: AbortController | null = null;
   private readonly autoRefresh: boolean;
   /** What the source admits, followed while open; see `renarrow`. */
   private readonly capabilities: RuntimeCapabilities | undefined;
@@ -137,7 +142,7 @@ export class DataViewRuntime<
     this.id = options.id;
     this.kind = options.config.kind;
     this.kinds = options.kinds;
-    this.resolveOptions = options.resolveOptions;
+    this.labels = options.labels;
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
@@ -285,7 +290,7 @@ export class DataViewRuntime<
   }
 
   optionSource(remote: string): OptionSource | null {
-    return this.resolveOptions ? this.resolveOptions(remote) : null;
+    return this.labels.sourceOf(remote);
   }
 
   valueCandidates(field: string): ValueCandidateSource | null {
@@ -462,6 +467,7 @@ export class DataViewRuntime<
   }
 
   dispose(): void {
+    this.labelReads?.abort();
     this.stopFollowing();
     this.autoTimer.stop();
     this.candidates.reset();
@@ -658,6 +664,24 @@ export class DataViewRuntime<
       result,
       ...settled,
     });
+    this.askLabels(data);
+  }
+
+  /**
+   * Asks the names of the ids this result shows (D354), one request per
+   * remote, beside the result rather than before it: the rows draw at once
+   * and a name replaces its id as it arrives. The result before is let go
+   * after this one has asked, so the ids both show stay in flight.
+   */
+  private askLabels(data: ProjectedView): void {
+    const previous = this.labelReads;
+    const controller = new AbortController();
+    this.labelReads = controller;
+    for (const [remote, ids] of labelIds(data))
+      this.labels
+        .want(remote, ids, { signal: controller.signal })
+        .catch(() => undefined);
+    previous?.abort();
   }
 
   private onFailure(

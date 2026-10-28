@@ -61,7 +61,7 @@ export function useCandidates(
       inFlight.current?.abort();
       inFlight.current = controller;
       setState(current => ({ ...current, status: 'loading' }));
-      source.search({ query }, controller.signal).then(
+      source.search({ query }, { signal: controller.signal }).then(
         page => {
           if (controller.signal.aborted) return;
           setState({
@@ -94,7 +94,7 @@ export function useCandidates(
     inFlight.current?.abort();
     inFlight.current = controller;
     setState(current => ({ ...current, loadingMore: true }));
-    source.search({ query, cursor }, controller.signal).then(
+    source.search({ query, cursor }, { signal: controller.signal }).then(
       page => {
         if (controller.signal.aborted) return;
         setState(current => ({

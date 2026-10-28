@@ -12,6 +12,7 @@
  */
 
 import {
+  labelRemoteOf,
   approximateMetrics,
   epochUnitOf,
   isDateCell,
@@ -117,6 +118,11 @@ export interface AnalysisColumnView {
   kind?: string;
   cell?: string;
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are read as names from
+   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   */
+  remote?: string;
   /** A field kept in epoch seconds; milliseconds when unsaid. */
   timeUnit?: EpochTimeUnit;
   /** For a date histogram group: the width of the buckets its keys start. */
@@ -337,12 +343,16 @@ function resultSchema(config: AnalysisViewConfig): string[] {
 /** How the values of a field show, for a column that holds them. */
 function valueOf(
   field: FieldDefinition,
-): Pick<AnalysisColumnView, 'kind' | 'cell' | 'options' | 'timeUnit'> {
+): Pick<
+  AnalysisColumnView,
+  'kind' | 'cell' | 'options' | 'remote' | 'timeUnit'
+> {
   const timeUnit = epochUnitOf(field);
   return {
     kind: field.kind,
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
+    ...labelRemoteOf(field),
     ...(timeUnit ? { timeUnit } : {}),
   };
 }

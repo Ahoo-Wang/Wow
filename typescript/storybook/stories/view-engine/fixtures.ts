@@ -680,9 +680,9 @@ export const CUSTOMERS: FieldOption[] = [
 export function customerSource(delayMs = 300): OptionSource {
   const PAGE = 8;
   return {
-    async search({ query, cursor }, signal) {
+    async search({ query, cursor }, { signal } = {}) {
       await delay(delayMs);
-      if (signal?.aborted) throw new Error('aborted');
+      signal?.throwIfAborted();
       const needle = query.trim().toLowerCase();
       const matched = CUSTOMERS.filter(
         option =>
