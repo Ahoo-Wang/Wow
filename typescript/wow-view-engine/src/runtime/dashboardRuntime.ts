@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReferenceLabelReader } from './referenceLabels.js';
 import { dequal } from 'dequal';
 import {
   overlaid,
@@ -315,8 +316,12 @@ export class DashboardViewRuntime
   }
 
   optionSource(remote: string): OptionSource | null {
-    const resolve = this.options.resolveOptions;
-    return resolve ? resolve(remote) : null;
+    return this.options.labels.sourceOf(remote);
+  }
+
+  /** See `ViewRuntime.labels`: the panels and the board read the one cache. */
+  get labels(): ReferenceLabelReader {
+    return this.options.labels;
   }
 
   /** What a text filter offers to pick from; see `FilterValues.candidatesOf`. */

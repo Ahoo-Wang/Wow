@@ -310,6 +310,7 @@ src/
     commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     kanban.ts                 — A kanban's execution (D83): every lane's first page and the lane aggregation in one slot (`executeKanban`), and one lane's next page put after it (`executeLanePage`, `loadLane`)
+    labelIds.ts               — `labelIds`: the reference ids a result shows, by remote (D354) — a page's columns and card fields, an analysis's group keys; `idsOf`, `fieldHolders` for an export's columns and a record read whole
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     navigation.ts             — `ViewNavigation`: where a way off a board or an embed goes, for the host's route; `HandOver`, the two parts a view takes off a board (what the page holds as its scope, the reader's values as its own conditions) and the board to go back to (`BoardOrigin`); `GroupNaming`; `withHandedFilter`
@@ -320,6 +321,7 @@ src/
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only" — bar a stored one where the host grants `editSystem` (D81) — which the manager's buttons ask as well; `mayCreate`, the create permission of a scope (`system` asks `editSystem`)
     preferences.ts            — The preference cache, the list order and the default view
     publish.ts                — `publishCopy`: 「发布为系统视图」 (D81), a saved view copied as a stored system view, `editSystem` asked first, a system view refused; `requireSystemPanels`, which the write ledger asks of every create into the system scope: a board whose panels reference a non-system view is refused, naming them (internal, not exported)
+    referenceLabels.ts        — `ReferenceLabels`, the engine's one cache of reference ids read as names (D354): a page's ids asked in one `resolve` per remote, ids in flight joined, chunks of `referenceBatch`, failures not kept, a request called off when every caller has; `ReferenceLabelReader`, what a view reads
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestId.ts              — `newRequestId`: a write's request id, a v4 UUID — `crypto.randomUUID` where the page is a secure context, random bytes otherwise (plain HTTP)
@@ -410,6 +412,8 @@ src/
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useRecordActions.ts       — `useRecordActions`: the declared actions of one record surface — what a record and the selection are offered, the clock their `changesAt` moves, the press that asks first or runs, the question or form pending (able, refused by reason, what is missing), only-the-able, and the runner
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear; whether the source searches it by words (`byWords`)
+    useReferenceLabels.ts     — `useReferenceLabels`: the version of what reference ids read as (`ViewRuntime.labels`, D354), followed so a reader draws again as names arrive
+    referenceNames.ts         — A filter's reference items stored as their bare id, named from the engine's cache before a pill describes them (`namedReferences`, `useReferenceNamer`)
     useUnavailable.ts         — What the open view uses that its source no longer admits, and 「移除不可用的条件」 (`UnavailableController`)
     useDatasets.ts            — `useDatasets` (D93): the datasets a `DatasetResources` serves, read again when the host's key (the caller) changes and on `refresh`, with the duplicates left out, `loading` and `error`
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)

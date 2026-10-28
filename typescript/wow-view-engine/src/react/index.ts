@@ -80,6 +80,7 @@ export {
   useRecordActions,
 } from './useRecordActions.js';
 export { type SearchBoxController, useSearchBox } from './useSearchBox.js';
+export { useReferenceLabels } from './useReferenceLabels.js';
 export {
   type UnavailableController,
   useUnavailable,

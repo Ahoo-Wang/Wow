@@ -42,7 +42,7 @@ export interface FieldDefinition {
   //                  | 'deletion' | 自定义
   operators?: FilterOperator[]; // 缺省取 FieldKind 的默认集
   options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone；boolean 上只给 'true'／'false' 各起名字
-  remote?: string; // reference 的远程候选源键，由 resolveOptions 解析
+  remote?: string; // reference 的远程候选源键，由 resolveOptions 解析；页上的 id 也经它读作名称（D354，runtime.md「引用 id 读作名称」）
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
   stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写

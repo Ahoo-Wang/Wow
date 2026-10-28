@@ -17,6 +17,7 @@ import { readPath } from './path.js';
 import {
   columnHidden,
   epochUnitOf,
+  labelRemoteOf,
   columnPinned,
   isDateCell,
   currencyPathOf,
@@ -104,6 +105,11 @@ export interface RecordColumnView {
   currencyPath?: string;
   /** An enum's choices, so a cell can show a value by its label. */
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are read as names from
+   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   */
+  remote?: string;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
   /** A time kept in epoch seconds; milliseconds when unsaid. */
@@ -181,6 +187,11 @@ export interface RecordCardField {
   kind?: string;
   cell?: string;
   options?: readonly FieldOption[];
+  /**
+   * For a `reference` field: the remote its ids are read as names from
+   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   */
+  remote?: string;
   numberFormat?: NumberFormat;
   /**
    * For money whose currency each record holds: where the row holds it
@@ -274,6 +285,7 @@ export function cardField(field: FieldDefinition): RecordCardField {
     kind: field.kind,
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
+    ...labelRemoteOf(field),
     ...numberFormatPart(field),
     ...elementTitleOf(field),
     ...elementsOf(field),
@@ -335,6 +347,7 @@ function columnView(
       ? { numeric: field.numeric }
       : {}),
     ...(field.options ? { options: field.options } : {}),
+    ...labelRemoteOf(field),
     ...elementTitleOf(field),
     ...timeUnitOf(field),
     // The default is the minute, and only a table cell is ever short, so

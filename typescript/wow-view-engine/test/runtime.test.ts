@@ -42,6 +42,7 @@ import {
   NOW,
   ROWS,
   testEnvironment,
+  testLabels,
   testSource,
   type TestEnvironment,
 } from './fixtures.js';
@@ -79,6 +80,7 @@ function harness(
     environment: clock.environment,
     source: recordSource(source),
     runner: options.runner ?? new RequestRunner(),
+    labels: testLabels(),
     scopeFilter: options.scopeFilter,
   }) as RecordDataViewRuntime;
   return { runtime, source, clock };

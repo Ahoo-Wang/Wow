@@ -42,6 +42,7 @@ import {
   nextTask,
   ordersDefinition,
   testEnvironment,
+  testLabels,
   testSource,
 } from './fixtures.js';
 
@@ -313,6 +314,7 @@ describe('the runtime asks for the whole only when a split needs it', () => {
       },
       source: recordSource(testSource({ aggregate })),
       runner: new RequestRunner(),
+      labels: testLabels(),
     });
     return { runtime, aggregate, failures };
   }

@@ -93,6 +93,7 @@ export function EmbedFrame({
       locale={locale}
       timeZone={engine.environment.timeZone}
       clock={engine.environment}
+      labels={runtime?.labels}
       className={className}
       data-embed-size={size}
       data-kind={runtime?.kind ?? kind}

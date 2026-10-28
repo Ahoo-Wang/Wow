@@ -233,6 +233,7 @@ function FilterValueControl({
           multiple={editor.multiple === true}
           options={options}
           source={source}
+          remote={editor.remote}
           onChange={onChange}
         />
       );

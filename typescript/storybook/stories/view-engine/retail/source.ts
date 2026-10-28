@@ -141,6 +141,25 @@ function memberOption(member: RetailDataset['members'][number]): FieldOption {
   };
 }
 
+/** 按 id 读名字要等的毫秒数。 */
+const RESOLVE_MS = 250;
+
+/** 等 `ms`；信号中止时带着它的理由提前结束。 */
+function waited(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
 /**
  * 买家的远程搜索：按昵称、会员号或城市找，一页 20 个。7000 个会员，客服搜
  * 「林」能翻到的就是这些人。
@@ -164,7 +183,9 @@ export function memberOptions(): OptionSource {
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
-    async resolve(ids) {
+    // 慢一点，表里的会员号换成名字看得见（D354）；读者离开了这一页就作罢。
+    async resolve(ids, { signal } = {}) {
+      await waited(RESOLVE_MS, signal);
       const wanted = new Set(ids.map(String));
       return retailData()
         .members.filter(({ state }) => wanted.has(state.id))

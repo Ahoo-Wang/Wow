@@ -39,6 +39,7 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
 } from './fixtures.js';
 
@@ -229,6 +230,7 @@ function open(source: ViewSource): RecordViewRuntime<'paged'> {
     environment: testEnvironment().environment,
     source: recordSource(source),
     runner: new RequestRunner(),
+    labels: testLabels(),
   }) as unknown as RecordViewRuntime<'paged'>;
 }
 

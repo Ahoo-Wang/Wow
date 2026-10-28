@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   type CurrencyReading,
   type RecordData,
@@ -129,8 +129,14 @@ export function useExportOffer({
   onExported?(file: ExportedFile): void;
 }): ExportWindowProps {
   const messages = useViewMessages();
-  // The language and zone a value reads in, as the cells read it.
-  const display = useSurfaceDisplay();
+  // The language and zone a value reads in, as the cells read it, and the
+  // runtime's reference names where the surface carries none (D354): the
+  // export waits for them before it hands the rows over.
+  const surface = useSurfaceDisplay();
+  const display = useMemo(
+    () => (surface.labels ? surface : { ...surface, labels: runtime.labels }),
+    [surface, runtime.labels],
+  );
   // The clock a file's day is read from: the engine's.
   const now = runtime.environment.now;
   const columns = table.columns;
