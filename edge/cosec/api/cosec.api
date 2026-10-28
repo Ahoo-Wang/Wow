@@ -1,7 +1,3 @@
-public final class me/ahoo/wow/cosec/CoSecAuthorizers {
-	public final fun authorizer ()Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
-}
-
 public final class me/ahoo/wow/cosec/CoSecCallerOptions {
 	public static final field ABAC_PREFIX Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/cosec/CoSecCallerOptions$Companion;

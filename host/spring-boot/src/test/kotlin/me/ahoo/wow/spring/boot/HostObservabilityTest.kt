@@ -124,7 +124,7 @@ class HostObservabilityTest {
     }
 
     @Test
-    fun `a tracing producer of the application's should not be wrapped again, nor its own observer replaced`() {
+    fun `a tracing producer of the application's should not be wrapped again, its observer told beside Otel's`() {
         val tracing = TracingTopicProducer(RecordingProducer(), OpenTelemetry.noop())
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
@@ -132,7 +132,11 @@ class HostObservabilityTest {
             .withBean("observer", Observer::class.java, { Observer.NONE })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isSameAs(tracing)
-                context.getBean(Observer::class.java).assert().isSameAs(Observer.NONE)
+                // Observers compose: the application's stays, and OpenTelemetry's watches beside it.
+                context.getBeansOfType(
+                    Observer::class.java
+                ).keys.assert().containsExactlyInAnyOrder("observer", "wowObserver")
+                context.getBean("observer").assert().isSameAs(Observer.NONE)
             }
         // An in-memory transport is its source and its admin too: a wrapper would hide them.
         ApplicationContextRunner()

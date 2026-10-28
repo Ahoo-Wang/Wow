@@ -7,6 +7,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Sees state.remark grants only presence operators, is not sortable, and the descriptor has no record.search
+1. Sees state.remark grants no condition and no sort (it is stored but not indexed), and the descriptor has no record.search
 2. Does not declare CONTAINS, a search field or a sort on the remark, and does not raise a limit above the descriptor's aggregation.maxLimit of 1000
 3. Explains that the definition only narrows what the store grants and that the capability needs a server or storage change (for example a text index or Elasticsearch), and lets admit confirm it

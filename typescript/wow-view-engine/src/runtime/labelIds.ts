@@ -91,8 +91,8 @@ export function fieldHolders(fields: readonly FieldDefinition[]): Holder[] {
 }
 
 /**
- * The ids of the reference conditions in `leaves` that read as themselves
- *, added to `byRemote` by their field's remote. A condition keeps
+ * The ids of the reference conditions in `leaves` that read as
+ * themselves, added to `byRemote` by their field's remote. A condition keeps
  * the label it was chosen with, so one picked in the editor reads as a name
  * already; one that came from a link, a host's scope or a board's default
  * holds only its id, and shows an id the page may never show.

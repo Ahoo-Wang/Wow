@@ -14,8 +14,6 @@
 package me.ahoo.wow.ops.server
 
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
@@ -26,49 +24,37 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
- * Who sends what to the ops context through its command gateway:
- *
- * - An operator's action on an entry, `ops.parked.Resume`, `Skip`, `MarkRecoverable` and `ApplyRetrySpec`, is
- *   authorized by [operators] as the ledger's system command of the same name ([Ledger.RESUME], ...) on the entry, so
- *   one policy guards the action here and on the operator's routes of the owning service (`/wow/ops/parked`). Here is
- *   where it is authorized: the owning service takes the command the saga sends it because it comes from this
- *   context's saga, not by the operator's roles, which do not travel with it.
- * - The framework's own system commands (`wow.*`: this node's ledger, its snapshot rebuild) are [operators]' too.
- * - The records, `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`, are refused: the owning
- *   services' ledgers publish the first two through `wow.ops.commands`, whose intake no authorizer guards, and the
- *   saga derives the last from an owning service's refusal; no caller of the gateway may forge one.
+ * The commands no caller of the ops context's gateway may send, whoever it is: the records,
+ * `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`. The owning services' ledgers publish the
+ * first two through `wow.ops.commands`, whose intake no authorizer guards, and the saga derives the last from an owning
+ * service's refusal: none may be forged. Every other command it has no objection to, as one of the node's authorizers
+ * (each must allow a command): an operator's action on an entry (`ops.parked.Resume`, `Skip`, `MarkRecoverable`,
+ * `ApplyRetrySpec`) and the framework's own system commands (`wow.*`) are decided by who the operators are, CoSec's
+ * policies of their own routes when CoSec authorizes the commands, else [OperatorRole].
  */
-class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) : CommandAuthorizer {
+class OpsAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         val name = action.type.name
-        if (name.startsWith(SYSTEM_PREFIX)) {
-            return operators.authorize(caller, action)
-        }
-        val ledger = ACTIONS[name] ?: return Authorization.Denied.of(
-            "$name is published by the owning service's ledger through ${OpsContext.NAME}'s command topic alone.",
-        )
-        return operators.authorize(
-            caller,
-            CommandAction.of(
-                CommandType.of(ledger, Ledger.COMMANDS.getValue(ledger)),
-                action.ref,
-                action.scope,
-                action.creation
+        return if (name.startsWith(SYSTEM_PREFIX) || name in ACTIONS) {
+            Authorization.Allowed
+        } else {
+            Authorization.Denied.of(
+                "$name is published by the owning service's ledger through ${OpsContext.NAME}'s command topic alone.",
             )
-        )
+        }
     }
 
     companion object {
         /** The namespace of the framework's system commands. */
         const val SYSTEM_PREFIX: String = "wow."
 
-        /** The ledger's system command each of an operator's actions is authorized as. */
+        /** An operator's actions on an entry, by their command's name. */
         @JvmField
-        val ACTIONS: Map<String, String> = mapOf(
-            commandOf(Resume::class.java) to Ledger.RESUME,
-            commandOf(Skip::class.java) to Ledger.SKIP,
-            commandOf(MarkRecoverable::class.java) to Ledger.MARK_RECOVERABLE,
-            commandOf(ApplyRetrySpec::class.java) to Ledger.APPLY_RETRY_SPEC,
+        val ACTIONS: Set<String> = setOf(
+            commandOf(Resume::class.java),
+            commandOf(Skip::class.java),
+            commandOf(MarkRecoverable::class.java),
+            commandOf(ApplyRetrySpec::class.java),
         )
 
         /** The name of the command [type] of the `parked` aggregate. */
@@ -77,7 +63,8 @@ class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) :
 }
 
 /**
- * The stand-in for CoSec's command authorizer: a caller with the role [OpsRoles.OPERATOR] may send the ledger's
+ * Who the operators are: it steps aside when CoSec decides (its policies of the actions' own routes); otherwise the
+ * operator role decides: a caller with the role [OpsRoles.OPERATOR] may act on an entry and send the framework's
  * system commands, and no other caller may.
  */
 class OperatorRole : CommandAuthorizer {

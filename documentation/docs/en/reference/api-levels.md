@@ -86,7 +86,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
-| `me.ahoo.wow.cosec.CoSecAuthorizers` | class | `wow-cosec` |
 
 ## SPI declarations
 
