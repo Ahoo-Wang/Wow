@@ -37,7 +37,6 @@ import {
   AggregationGroupTypes,
   AggregationMetricTypes,
   DateDiffUnits,
-  DerivedExpressionTypes,
 } from './wire.js';
 
 /**
