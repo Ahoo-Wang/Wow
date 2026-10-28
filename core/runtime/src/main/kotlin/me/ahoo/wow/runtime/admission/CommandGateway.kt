@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.tenant.TenantConflictException
@@ -293,7 +294,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /** [refused], told to the observer by its code. */
     private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
-        result.error?.let { observer.refused(result.ref.type, it.code) }
+        result.error?.let { observer.observed(ObservedEvent.Refused(result.ref.type, it.code)) }
     }
 
     /** Runs [block] in the admission's [trace], switching context only when there is one. */

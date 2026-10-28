@@ -105,7 +105,7 @@ class KernelCancellationTest {
     fun `a commit is answered to a caller cancelled meanwhile when the execution is observed`(): Unit = runBlocking {
         val log = InMemoryEventLog()
         val observer = object : Observer {
-            override fun executing(command: Command<*>): Observation = object : Observation {
+            override fun executing(command: Command<*>, commandType: String): Observation = object : Observation {
                 override val context: CoroutineContext = Trace()
             }
         }
@@ -127,7 +127,7 @@ class KernelCancellationTest {
     @Test
     fun `a caller cancelled before anything commits still sees its cancellation when observed`(): Unit = runBlocking {
         val observer = object : Observer {
-            override fun executing(command: Command<*>): Observation = object : Observation {
+            override fun executing(command: Command<*>, commandType: String): Observation = object : Observation {
                 override val context: CoroutineContext = Trace()
             }
         }

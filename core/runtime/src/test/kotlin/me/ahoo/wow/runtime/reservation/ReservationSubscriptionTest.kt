@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
@@ -152,8 +153,11 @@ class ReservationSubscriptionTest {
     )
     private val lost = CopyOnWriteArrayList<String>()
     private val observer = object : Observer {
-        override fun reservationLost(context: String) {
-            lost += context
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.ReservationLost -> lost += event.context
+                else -> Unit
+            }
         }
     }
     private val confirming = ReservationSubscription("shop", store, observer)

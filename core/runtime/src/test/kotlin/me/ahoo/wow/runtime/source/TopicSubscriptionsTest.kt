@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
@@ -59,8 +60,11 @@ class TopicSubscriptionsTest {
     /** The undecodable messages the observer heard of: offset and whether it was parked. */
     private val undecodable = CopyOnWriteArrayList<Pair<Long, Boolean>>()
     private val observer = object : Observer {
-        override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
-            undecodable += offset to parked
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.Undecodable -> undecodable += event.offset to event.parked
+                else -> Unit
+            }
         }
     }
 

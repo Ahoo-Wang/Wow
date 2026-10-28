@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
@@ -332,7 +333,7 @@ class WaitCoordinator(
     /** [emit], counting a timeout the wait ends with. */
     private suspend fun observed(command: Command<*>, result: CommandResult, emit: suspend (CommandResult) -> Unit) {
         if (result.error?.code == ResultCodes.WAIT_TIMEOUT) {
-            observer.waitTimedOut(command.ref.type, result.hop.stage)
+            observer.observed(ObservedEvent.WaitTimedOut(command.ref.type, result.hop.stage))
         }
         emit(result)
     }
@@ -372,7 +373,7 @@ class WaitCoordinator(
         val waiting = registry.register(waitId, chain.hops, command.id, options.maxRegistered)
         if (waiting == null) {
             // Over the node's waits: refused before it runs, as a busy node refuses it.
-            observer.refused(command.ref.type, ResultCodes.BUSY)
+            observer.observed(ObservedEvent.Refused(command.ref.type, ResultCodes.BUSY))
             emit(
                 reachedResult(command, function, Hop.accepted(context), clock.millis()).failed(
                     ResultCodes.BUSY,
@@ -707,7 +708,7 @@ class WaitCoordinator(
         message: String,
         cause: Throwable? = null,
     ): Settlement {
-        observer.refused(command.ref.type, code)
+        observer.observed(ObservedEvent.Refused(command.ref.type, code))
         return Settlement(reachedResult(command, function, hop, clock.millis()).failed(code, message), cause = cause)
     }
 
@@ -781,7 +782,7 @@ class WaitCoordinator(
                 ResultCodes.WAIT_TIMEOUT,
                 "The call timed out after $timeout, before the command's outcome was known. Retry it with the same " +
                     "request id.",
-            ).also { observer.waitTimedOut(command.ref.type, Stage.ACCEPTED) }
+            ).also { observer.observed(ObservedEvent.WaitTimedOut(command.ref.type, Stage.ACCEPTED)) }
         } catch (cancelled: CancellationException) {
             taken.set(true)
             throw cancelled

@@ -40,6 +40,7 @@ import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.Checkpoint
@@ -481,7 +482,7 @@ internal class SubscriptionWorker(
                 // Never the partition's pause: this entry backs off, the partition slows down.
                 pushedBack++
                 throttle.backpressure(ref)
-                observer.backpressured(group, subscription.name, partition, codeOf(failure))
+                observer.observed(ObservedEvent.Backpressured(group, subscription.name, partition, codeOf(failure)))
                 if (pushedBack >= options.backpressure.maxAttempts) {
                     return Result.failure(failure)
                 }

@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
@@ -321,12 +322,12 @@ class SubscriptionPauseTest {
     private class RecordingPauses : Observer {
         val events = CopyOnWriteArrayList<String>()
 
-        override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) {
-            events += "paused $subscription@$partition"
-        }
-
-        override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) {
-            events += "resumed $subscription@$partition"
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.PartitionPaused -> events += "paused ${event.subscription}@${event.partition}"
+                is ObservedEvent.PartitionResumed -> events += "resumed ${event.subscription}@${event.partition}"
+                else -> Unit
+            }
         }
     }
 

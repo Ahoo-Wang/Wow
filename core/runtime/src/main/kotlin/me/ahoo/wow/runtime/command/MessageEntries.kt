@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.Envelope
 import me.ahoo.wow.spi.transport.EnvelopeCodec
@@ -129,7 +130,7 @@ internal class MessageEntries private constructor(
             envelope to decode(envelope)
         } catch (failure: Exception) {
             val ref = UndecodableMessage.refOf(message.key)
-            observer.undecodable(topic, partition, message.offset, parked = ref != null)
+            observer.observed(ObservedEvent.Undecodable(topic, partition, message.offset, parked = ref != null))
             val at = "offset ${message.offset} of partition $partition of $topic"
             if (ref == null) {
                 logger.error(failure) { "Passing over $at: it holds no $kind this version reads, nor a key." }

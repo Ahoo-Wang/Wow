@@ -110,6 +110,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
+| `me.ahoo.wow.spi.observation.ObservedEvent` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observation` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.TraceContext` | class | `wow-spi` |

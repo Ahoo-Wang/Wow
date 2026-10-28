@@ -480,6 +480,22 @@ class CommandIntakeTest {
     }
 
     @Test
+    fun `a message that names no aggregate and holds no command should be passed over, parking nothing`(): Unit =
+        runBlocking {
+            val node = stockNode().also { it.start() }
+            val ref = ITEM.ref(TENANT, "i-after-keyless")
+            val partition = Partitioner.partitionOf(ref, PARTITIONS)
+            topics.send(
+                COMMANDS,
+                TopicMessage.of("no aggregate", "not an envelope".toByteArray(), partition = partition)
+            )
+            val after = reserve("c-after-keyless", 1, item = "i-after-keyless")
+            eventually { after.id in stock.decided }
+            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, ref).assert().isFalse()
+            node.context(STOCK).intake.assert().isNotNull()
+        }
+
+    @Test
     fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
         runBlocking {
             // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.

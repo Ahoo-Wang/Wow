@@ -110,6 +110,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
+| `me.ahoo.wow.spi.observation.ObservedEvent` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observation` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.observation.TraceContext` | class | `wow-spi` |
