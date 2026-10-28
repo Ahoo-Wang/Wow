@@ -12,35 +12,27 @@
  */
 
 /**
- * What makes a query hook run again: the controlled `query` compared by
- * content, `requestOptions`, `url`, `fetcher` and `autoExecute` — the request
+ * What makes a query hook run again: the controlled `query` and
+ * `requestOptions`, both compared by content, and `autoExecute` — the request
  * identity of `docs/design/architecture.md` §4. Written as a characterization
- * of fetcher-react 5.1.3 before the refactor of
- * `docs/design/refactor-2026-09.md`; it now pins the package's own state
- * machine.
+ * of fetcher-react 5.1.3 before the 2026-09 refactor; it now pins the
+ * package's own state machine.
  *
- * Batch B3 (#3371) made `url` and `fetcher` part of what identifies a request
- * (F7); the cells it changed carry a `B3 changed this` comment naming the
- * value before.
+ * D353 (V3) made `requestOptions` part of what identifies a request: the
+ * scope, the space and the headers can change the answer. The cells it
+ * changed carry a `D353 changed this` comment naming the value before.
  */
 
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { Fetcher } from '@ahoo-wang/fetcher';
 import { QueryModelClient } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
   type FilterListQuery,
 } from '@ahoo-wang/wow-client/dsl';
+import { useListQuery, useStreamQuery } from '../src';
 import {
-  useFetcherListQuery,
-  useFetcherStreamQuery,
-  useListQuery,
-  useStreamQuery,
-} from '../src';
-import {
-  BASE_URL,
   fakeServer,
   json,
   sse,
@@ -50,8 +42,6 @@ import {
 interface Props {
   query: FilterListQuery | undefined;
   requestOptions?: { headers: Record<string, string> };
-  url?: string;
-  fetcher?: Fetcher;
   autoExecute?: boolean;
 }
 
@@ -65,9 +55,6 @@ interface Hook {
   getQuery(): FilterListQuery | undefined;
   setQuery(query: FilterListQuery): void;
 }
-
-const LIST_URL = '/shop/order/snapshot/query';
-const OTHER_URL = '/shop/cart/snapshot/query';
 
 const paidQuery = listQuery({
   filter: filter.eq('state.status', 'PAID'),
@@ -105,8 +92,6 @@ function shown(hook: Hook): unknown {
 
 interface Family {
   name: string;
-  /** Whether the hook takes `url` and `fetcher` options. */
-  url: boolean;
   render(
     server: FakeServer,
     initialProps: Props,
@@ -119,7 +104,6 @@ interface Family {
 const families: Family[] = [
   {
     name: 'useListQuery (query client as execute)',
-    url: false,
     render(server, initialProps) {
       const client = new QueryModelClient<unknown>(
         '/shop/order/snapshot/query',
@@ -138,25 +122,7 @@ const families: Family[] = [
     },
   },
   {
-    name: 'useFetcherListQuery (url)',
-    url: true,
-    render(server, initialProps) {
-      return renderHook(
-        ({ query, requestOptions, autoExecute, url, fetcher }: Props) =>
-          useFetcherListQuery<unknown>({
-            query,
-            requestOptions,
-            autoExecute,
-            url: url ?? LIST_URL,
-            fetcher: fetcher ?? server.fetcher,
-          }),
-        { initialProps },
-      );
-    },
-  },
-  {
     name: 'useStreamQuery (query client as execute)',
-    url: false,
     render(server, initialProps) {
       const client = new QueryModelClient<unknown>(
         '/shop/order/snapshot/query',
@@ -168,24 +134,7 @@ const families: Family[] = [
             query,
             requestOptions,
             autoExecute,
-            execute: (q, options) => client.stream(q, options),
-          }),
-        { initialProps },
-      );
-    },
-  },
-  {
-    name: 'useFetcherStreamQuery (url)',
-    url: true,
-    render(server, initialProps) {
-      return renderHook(
-        ({ query, requestOptions, autoExecute, url, fetcher }: Props) =>
-          useFetcherStreamQuery<unknown>({
-            query,
-            requestOptions,
-            autoExecute,
-            url: url ?? LIST_URL,
-            fetcher: fetcher ?? server.fetcher,
+            execute: (q, options) => client.streamRows(q, options),
           }),
         { initialProps },
       );
@@ -316,8 +265,12 @@ describe.each(families)('what runs $name again', family => {
     });
   });
 
-  describe('requestOptions', () => {
-    it('a change does not run it again; the next execute() sends the new ones', async () => {
+  describe('requestOptions, compared by content', () => {
+    function tenants(server: FakeServer) {
+      return server.requests.map(request => request.headers.get('X-Tenant'));
+    }
+
+    it('other content runs it again with the new ones', async () => {
       const server = listServer();
       const hook = family.render(server, {
         query: paidQuery,
@@ -328,12 +281,43 @@ describe.each(families)('what runs $name again', family => {
         query: paidQuery,
         requestOptions: { headers: { 'X-Tenant': 't2' } },
       });
+      // D353 changed this (V3): was 1 request until the next execute().
+      await waitFor(() => expect(server.requests).toHaveLength(2));
+      expect(tenants(server)).toEqual(['t1', 't2']);
+      await settle();
+      expect(server.requests).toHaveLength(2);
+    });
+
+    it('a new object with the same content does not run it again', async () => {
+      const server = listServer();
+      const hook = family.render(server, {
+        query: paidQuery,
+        requestOptions: { headers: { 'X-Tenant': 't1' } },
+      });
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+      hook.rerender({
+        query: paidQuery,
+        requestOptions: { headers: { 'X-Tenant': 't1' } },
+      });
       await settle();
       expect(server.requests).toHaveLength(1);
-      await act(() => hook.result.current.execute());
-      expect(
-        server.requests.map(request => request.headers.get('X-Tenant')),
-      ).toEqual(['t1', 't2']);
+    });
+
+    it('a change while a request is in flight aborts it', async () => {
+      const server = fakeServer(() => new Promise<Response>(() => {}));
+      const hook = family.render(server, {
+        query: paidQuery,
+        requestOptions: { headers: { 'X-Tenant': 't1' } },
+      });
+      await waitFor(() => expect(server.requests).toHaveLength(1));
+      hook.rerender({
+        query: paidQuery,
+        requestOptions: { headers: { 'X-Tenant': 't2' } },
+      });
+      await waitFor(() => expect(server.requests).toHaveLength(2));
+      expect(server.requests[0].signal?.aborted).toBe(true);
+      expect(tenants(server)).toEqual(['t1', 't2']);
+      expect(hook.result.current.status).toBe('loading');
     });
   });
 
@@ -354,65 +338,3 @@ describe.each(families)('what runs $name again', family => {
     });
   });
 });
-
-describe.each(families.filter(family => family.url))(
-  'what runs $name again: url',
-  family => {
-    it('a url change runs it again against the new url', async () => {
-      const server = listServer();
-      const { rerender, result } = family.render(server, { query: paidQuery });
-      await waitFor(() => expect(result.current.status).toBe('success'));
-      rerender({ query: paidQuery, url: OTHER_URL });
-      // B3 changed this (F7): was 1 request until the next execute().
-      await waitFor(() => expect(server.requests).toHaveLength(2));
-      expect(server.requests[1].url).toBe(`${BASE_URL}${OTHER_URL.slice(1)}`);
-      await settle();
-      expect(server.requests).toHaveLength(2);
-    });
-  },
-);
-
-describe.each(families.filter(family => family.url))(
-  'what runs $name again: fetcher',
-  family => {
-    // The Fetcher is compared by its name, or by its baseURL when it has
-    // none, so a `new Fetcher()` written inline in render keeps one identity.
-    it('a fetcher change runs it again through the new Fetcher', async () => {
-      const server = listServer();
-      const hook = family.render(server, { query: paidQuery });
-      await waitFor(() => expect(hook.result.current.status).toBe('success'));
-      hook.rerender({
-        query: paidQuery,
-        fetcher: new Fetcher({ baseURL: 'https://other.example.test/' }),
-      });
-      // B3 changed this (F7): was 1 request until the next execute().
-      await waitFor(() => expect(server.requests).toHaveLength(2));
-      expect(server.requests[1].url).toBe(
-        `https://other.example.test${LIST_URL}`,
-      );
-      await settle();
-      expect(server.requests).toHaveLength(2);
-    });
-
-    it('a Fetcher created inline in render sends one request, not one per render', async () => {
-      const server = listServer();
-      const hook = family.render(server, {
-        query: paidQuery,
-        fetcher: new Fetcher({ baseURL: BASE_URL }),
-      });
-      await waitFor(() => expect(hook.result.current.status).toBe('success'));
-      // Every render hands the hook a new Fetcher, as inline code would.
-      hook.rerender({
-        query: paidQuery,
-        fetcher: new Fetcher({ baseURL: BASE_URL }),
-      });
-      hook.rerender({
-        query: paidQuery,
-        fetcher: new Fetcher({ baseURL: BASE_URL }),
-      });
-      await settle();
-      await settle();
-      expect(server.requests).toHaveLength(1);
-    });
-  },
-);

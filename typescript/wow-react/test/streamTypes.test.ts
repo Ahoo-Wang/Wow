@@ -14,48 +14,44 @@
 // Type-checked by `pnpm test:type`.
 
 import { expectTypeOf, it } from 'vitest';
-import type { QueryModelClient } from '@ahoo-wang/wow-client';
-import { useStreamQuery } from '../src';
 import type {
-  UseFetcherStreamQueryOptions,
-  UseFetcherStreamQueryReturn,
-  UseStreamQueryOptions,
-  UseStreamQueryReturn,
-} from '../src';
+  QueryModelClient,
+  StreamResumeOptions,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
+import { useStreamQuery } from '../src';
+import type { UseStreamQueryOptions, UseStreamQueryReturn } from '../src';
 
 type Fields = 'id' | 'status';
 type Item = { id: string; status: string };
 
-it('returns the rows of a stream as items, never the stream itself', () => {
+it('returns the records of a stream as items, never the stream itself', () => {
   type StreamReturn = UseStreamQueryReturn<Item, Fields>;
-  type FetcherStreamReturn = UseFetcherStreamQueryReturn<Item, Fields>;
 
   expectTypeOf<StreamReturn['items']>().toEqualTypeOf<Item[]>();
+  expectTypeOf<StreamReturn['position']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<StreamReturn['done']>().toEqualTypeOf<boolean>();
   expectTypeOf<StreamReturn>().not.toHaveProperty('result');
-  // A failed request and an error event are both a WowProblemError, an
-  // Error, the default.
+  // A failed request and an error event are both a WowProblemError.
   expectTypeOf<StreamReturn['error']>().toEqualTypeOf<Error | undefined>();
-  expectTypeOf<FetcherStreamReturn['items']>().toEqualTypeOf<Item[]>();
-  expectTypeOf<FetcherStreamReturn>().not.toHaveProperty('result');
+  expectTypeOf<StreamReturn['problem']>().toEqualTypeOf<
+    WowProblemError | undefined
+  >();
   expectTypeOf<NonNullable<UseStreamQueryOptions<Item, Fields>['onSuccess']>>()
     .parameter(0)
     .toEqualTypeOf<Item[]>();
 });
 
-it('sets its own result extractor and Accept header on the endpoint hook', () => {
-  expectTypeOf<UseFetcherStreamQueryOptions<Item, Fields>>().not.toHaveProperty(
-    'resultExtractor',
-  );
-  expectTypeOf<UseFetcherStreamQueryOptions<Item, Fields>>().not.toHaveProperty(
-    'execute',
-  );
+it('takes the stream options, resume included', () => {
+  expectTypeOf<
+    NonNullable<UseStreamQueryOptions<Item, Fields>['requestOptions']>['resume']
+  >().toEqualTypeOf<StreamResumeOptions | false | undefined>();
 });
 
-it('takes a query client stream method as execute', () => {
+it('takes a query client streamRows method as execute', () => {
   const useRead = (client: QueryModelClient<Item, Fields>) =>
     useStreamQuery<Item, Fields>({
-      execute: (query, options) => client.stream(query, options),
+      execute: (query, options) => client.streamRows(query, options),
     }).items;
   expectTypeOf(useRead).returns.toEqualTypeOf<Item[]>();
 });

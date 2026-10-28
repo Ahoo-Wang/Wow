@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-react exports, generated from its TSDoc.
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-react test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-react` exports — 35 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-react` exports — 26 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -19,36 +19,27 @@ Every name `@ahoo-wang/wow-react` exports — 35 — with its kind and the first
 | `QueryHookOptions` | interface | The options every query hook takes. | — |
 | `QueryHookReturn` | interface | What every query hook returns. | — |
 | `QueryStatus` | type | Where a query hook stands: | — |
-| `StreamExecutor` | type | Opens the event stream of one query: a query client's `stream`, or any function that resolves to a stream of rows. | — |
+| `StreamExecutor` | type | Opens the event stream of one query: a query client's `streamRows`, which answers each record with its position, so the hook can say where the stream stopped. | — |
+| `UseAggregateQueryOptions` | interface | Options of `useAggregateQuery`: an aggregation and an `execute` that resolves to its rows, as a query client's `aggregate` does. | — |
+| `UseAggregateQueryReturn` | interface | What `useAggregateQuery` returns: the rows as `result`. | — |
 | `UseCountQueryOptions` | interface | Options of `useCountQuery`: a filter and an `execute` that resolves to how many rows it matches. | — |
 | `UseCountQueryReturn` | interface | What `useCountQuery` returns: the count as `result`. | — |
-| `UseFetcherCountQueryOptions` | interface | Options of `useFetcherCountQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherCountQueryReturn` | interface | What `useFetcherCountQuery` returns: the count as `result`. | — |
-| `UseFetcherListQueryOptions` | interface | Options of `useFetcherListQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherListQueryReturn` | interface | What `useFetcherListQuery` returns: the rows as `result`. | — |
-| `UseFetcherPagedQueryOptions` | interface | Options of `useFetcherPagedQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherPagedQueryReturn` | interface | What `useFetcherPagedQuery` returns: the page (`total` and `list`) as `result`. | — |
-| `UseFetcherSingleQueryOptions` | interface | Options of `useFetcherSingleQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherSingleQueryReturn` | interface | What `useFetcherSingleQuery` returns: the item as `result`, `undefined` when nothing matched (a `success` status) as before the first run. | — |
-| `UseFetcherStreamQueryOptions` | interface | Options of `useFetcherStreamQuery`: those of `useStreamQuery`, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherStreamQueryReturn` | interface | What `useFetcherStreamQuery` returns; see`UseStreamQueryReturn`. | — |
+| `UseCursorQueryOptions` | interface | Options of `useCursorQuery`: a cursor query without its `cursor`, which the hook owns, and an `execute` that reads one page, as a query client's `cursor` does. | — |
+| `UseCursorQueryReturn` | interface | What `useCursorQuery` returns: the rows of every page read so far, and how to read the next one. | — |
 | `UseListQueryOptions` | interface | Options of `useListQuery`: a list query and an `execute` that resolves to its rows. | — |
 | `UseListQueryReturn` | interface | What `useListQuery` returns: the rows as `result`. | — |
 | `UsePagedQueryOptions` | interface | Options of `usePagedQuery`: a paged query and an `execute` that resolves to one page. | — |
 | `UsePagedQueryReturn` | interface | What `usePagedQuery` returns: the page (`total` and `list`) as`result`. | — |
 | `UseSingleQueryOptions` | interface | Options of `useSingleQuery`: a single query and an `execute` that resolves to one item, or `undefined` when nothing matches, as a query client's `single` does. | — |
 | `UseSingleQueryReturn` | interface | What `useSingleQuery` returns: the item as `result`, `undefined` before the first run and when nothing matched (tell them apart by`status`). | — |
-| `UseStreamQueryOptions` | interface | Options of `useStreamQuery`: those of every query hook, with an`execute` that opens the stream. | — |
-| `UseStreamQueryReturn` | interface | What `useStreamQuery` and `useFetcherStreamQuery` return: the rows as they arrive, and whether the stream has ended. | — |
+| `UseStreamQueryOptions` | interface | Options of `useStreamQuery`: those of every query hook, with an`execute` that opens the stream and `requestOptions` that take the stream's `resume`. | — |
+| `UseStreamQueryReturn` | interface | What `useStreamQuery` returns: the records as they arrive, whether the stream has ended, and where it stopped. | — |
+| `useAggregateQuery` | function | Runs an aggregation through your own `execute` function and keeps its rows as state: typically a query client's `aggregate`, one row per group. | — |
 | `useCountQuery` | function | Counts what a filter matches through your own `execute` function and keeps the count as state: typically a query client's `count`. | — |
-| `useFetcherCountQuery` | function | POSTs a count to a Wow query route through a Fetcher and keeps the count as state. | — |
-| `useFetcherListQuery` | function | POSTs a list query to a Wow query route through a Fetcher and keeps the rows as state. | — |
-| `useFetcherPagedQuery` | function | POSTs a paged query to a Wow query route through a Fetcher and keeps the page as state. | — |
-| `useFetcherSingleQuery` | function | POSTs a single query to a Wow query route through a Fetcher and keeps the result as state. | — |
-| `useFetcherStreamQuery` | function | Streams the rows of a list query from a Wow query route and keeps them as state; see `useStreamQuery` for the state it returns. | — |
+| `useCursorQuery` | function | Reads a forward-only cursor query page by page and keeps the rows as state: typically a query client's `cursor`, for a list that grows as the reader scrolls. | — |
 | `useListQuery` | function | Runs a list query through your own `execute` function and keeps the rows as state: typically a query client's `list` or `listState`. | — |
 | `usePagedQuery` | function | Runs a paged query through your own `execute` function and keeps the page as state: typically a query client's `paged` or `pagedState`. | — |
 | `useSingleQuery` | function | Runs a single query through your own `execute` function and keeps the result as state: typically a query client's `single` or `singleState`. | — |
-| `useStreamQuery` | function | Streams the rows of a list query as server-sent events and keeps them as state. | — |
+| `useStreamQuery` | function | Streams the records of a list query as server-sent events and keeps them as state. | — |
 
 :::

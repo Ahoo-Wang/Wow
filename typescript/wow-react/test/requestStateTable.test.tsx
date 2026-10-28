@@ -13,11 +13,10 @@
 
 /**
  * The request hooks' table of event × state (`docs/design/architecture.md`
- * §3), run against both implementations — a query client as `execute`
- * (`useCountQuery`) and a URL (`useFetcherCountQuery`). Written as a
- * characterization of fetcher-react 5.1.3, so that the refactor of
- * `docs/design/refactor-2026-09.md` could claim "unchanged" cell by cell; it
- * now pins the package's own state machine.
+ * §3), run against `useCountQuery` with a query client as `execute`. Written
+ * as a characterization of fetcher-react 5.1.3, so that the 2026-09 refactor
+ * could claim "unchanged" cell by cell; it now pins the package's own state
+ * machine.
  *
  * Batch B3 (#3371) moved the hooks onto the package's own state machine and
  * changed the cells of section 3.3 of the plan on purpose; each carries a
@@ -32,7 +31,7 @@ import {
   WowProblemError,
 } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
-import { useCountQuery, useFetcherCountQuery } from '../src';
+import { useCountQuery } from '../src';
 import {
   deferred,
   fakeServer,
@@ -95,18 +94,6 @@ const families: {
         useCountQuery({
           initialQuery: paidFilter,
           execute: (query, options) => client.count(query, options),
-        }),
-      );
-    },
-  },
-  {
-    name: 'useFetcherCountQuery (url)',
-    render(server) {
-      return renderHook(() =>
-        useFetcherCountQuery({
-          fetcher: server.fetcher,
-          url: '/shop/order/snapshot/query',
-          initialQuery: paidFilter,
         }),
       );
     },
