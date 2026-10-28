@@ -160,9 +160,8 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.peer.dns",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$PeerDns",
-    "description" : "The DNS SRV lookup of the `dns` discovery.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer"
+    "type" : "me.ahoo.wow.spring.boot.DnsPeerDiscovery",
+    "description" : "The settings of the dns peer discovery."
   }, {
     "name" : "wow.peer.retry",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
@@ -874,14 +873,14 @@
   }, {
     "name" : "wow.peer.discovery",
     "type" : "java.lang.String",
-    "description" : "How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery, configured under `wow.peer.<type>`. A peer's `url` wins over any discovery.",
+    "description" : "How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
     "defaultValue" : "dns"
   }, {
     "name" : "wow.peer.dns.name-template",
     "type" : "java.lang.String",
-    "description" : "The SRV name of a peer service's internal port, `{service}` its name (`spring.application.name`): by default the headless Service `<service>-cluster` and its port named `internal`, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's `/etc/resolv.conf`, as a resolver does; the records' targets are the nodes and their ports.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PeerDns",
+    "description" : "The SRV name of a peer service's internal port, {service} its name (spring.application.name): by default the headless Service <service>-cluster and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports.",
+    "sourceType" : "me.ahoo.wow.spring.boot.DnsPeerDiscovery",
     "defaultValue" : "_internal._tcp.{service}-cluster"
   }, {
     "name" : "wow.peer.forwarded-headers",

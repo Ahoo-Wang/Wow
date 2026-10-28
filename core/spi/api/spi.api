@@ -851,6 +851,7 @@ public final class me/ahoo/wow/spi/observation/TraceContext$Key : kotlin/corouti
 }
 
 public abstract interface class me/ahoo/wow/spi/peer/PeerDiscovery {
+	public fun getOptions ()Ljava/util/List;
 	public abstract fun getType ()Ljava/lang/String;
 	public abstract fun open (Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;)Lme/ahoo/wow/spi/peer/PeerTargets;
 }
@@ -865,6 +866,9 @@ public final class me/ahoo/wow/spi/peer/PeerDiscoveryConfig {
 	public static final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
 	public static final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
+	public final fun options (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
 }
 

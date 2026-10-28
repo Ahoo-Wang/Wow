@@ -342,18 +342,18 @@ How the node calls its peers, the services of the other contexts it calls over H
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.peer.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
-| `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery, configured under `wow.peer.<type>`. A peer's `url` wins over any discovery. |
+| `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery. |
 | `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
 | `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
 
 ## `wow.peer.dns`
 
-The DNS SRV lookup of the `dns` discovery.
+The settings of the dns peer discovery.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.peer.dns.name-template` | `String` | `_internal._tcp.{service}-cluster` | The SRV name of a peer service's internal port, `{service}` its name (`spring.application.name`): by default the headless Service `<service>-cluster` and its port named `internal`, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's `/etc/resolv.conf`, as a resolver does; the records' targets are the nodes and their ports. |
+| `wow.peer.dns.name-template` | `String` | `_internal._tcp.{service}-cluster` | The SRV name of a peer service's internal port, {service} its name (spring.application.name): by default the headless Service &lt;service&gt;-cluster and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports. |
 
 ## `wow.peer.retry`
 

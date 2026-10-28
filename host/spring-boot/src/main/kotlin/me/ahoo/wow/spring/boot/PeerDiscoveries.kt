@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.peer.PeerDiscovery
@@ -44,6 +45,10 @@ import kotlin.time.TimeSource
  * (`ServiceLoader`) and among the application's beans, a bean taking the place of a provider of its type.
  */
 internal class PeerDiscoveries(val discoveries: Map<String, PeerDiscovery>) {
+    /** The `wow.<prefix>.<key>` of each option the discoveries declare, for the host to know them at startup. */
+    val declared: List<Pair<String, List<ProviderOption<*>>>>
+        get() = discoveries.values.map { "$PREFIX.${it.type}" to it.options }
+
     /** The discovery of [type]; refused, naming the types there are, when none is. */
     fun of(type: String): PeerDiscovery = configNotNull(
         discoveries[type.trim().lowercase()],
@@ -52,6 +57,9 @@ internal class PeerDiscoveries(val discoveries: Map<String, PeerDiscovery>) {
     ) { "wow.peer.discovery is $type, which no peer discovery provides." }
 
     companion object {
+        /** The key under `wow` a discovery's settings are under, `wow.peer.<type>`. */
+        const val PREFIX: String = "peer"
+
         /** Wow's discoveries, the classpath's and [beans], by type. */
         fun load(classLoader: ClassLoader?, beans: List<PeerDiscovery> = emptyList()): PeerDiscoveries {
             val loader = classLoader ?: PeerDiscoveries::class.java.classLoader
@@ -81,14 +89,25 @@ internal object StaticPeerDiscovery : PeerDiscovery {
 class DnsPeerDiscovery(private val lookup: SrvLookup = JndiSrvLookup()) : PeerDiscovery {
     override val type: String = TYPE
 
-    override fun open(config: PeerDiscoveryConfig): PeerTargets =
-        DnsPeerTargets(config.option(NAME_TEMPLATE) ?: DEFAULT_NAME_TEMPLATE, lookup)
+    override val options: List<ProviderOption<*>> = listOf(NAME_TEMPLATE)
+
+    override fun open(config: PeerDiscoveryConfig): PeerTargets = DnsPeerTargets(config.option(NAME_TEMPLATE), lookup)
 
     @InternalWowApi
     companion object {
         const val TYPE: String = "dns"
         const val DEFAULT_NAME_TEMPLATE: String = "_internal._tcp.{service}-cluster"
-        const val NAME_TEMPLATE: String = "name-template"
+
+        /** The SRV name of a peer service's internal port. */
+        @JvmField
+        val NAME_TEMPLATE: ProviderOption.Defaulted<String> = ProviderOption.string(
+            "name-template",
+            "the SRV name of a peer service's internal port, {service} its name (spring.application.name): by " +
+                "default the headless Service <service>-cluster and its port named internal, the records Kubernetes " +
+                "publishes for them. A name without a trailing dot is tried as given, then under each search domain " +
+                "of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports.",
+            DEFAULT_NAME_TEMPLATE,
+        )
     }
 }
 
@@ -323,7 +342,7 @@ internal class PeerEndpoints(
                     }
                 }
             }
-            val config = PeerDiscoveryConfig.of(type, options(type))
+            val config = PeerDiscoveryConfig.of(type, PortProviders.declared(options(type), discovery.options))
             return PeerEndpoints(
                 properties.peers.mapNotNull { (context, target) -> target.publicUrl?.let { context to it } }.toMap(),
                 properties.peers.mapNotNull { (context, target) -> target.url?.let { context to it } }.toMap(),
