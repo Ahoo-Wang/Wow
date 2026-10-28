@@ -175,6 +175,26 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `rejections should be counted by their code, apart from refusals, with or without events`() {
+        observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = true))
+        observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = false))
+        observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.closed", withEvents = false))
+        val meters = telemetry.meters
+        meters.get(WowMetrics.COMMAND_REJECTIONS).tags(
+            WowMetrics.CONTEXT,
+            SALES,
+            WowMetrics.AGGREGATE,
+            "order",
+            WowMetrics.ERROR_TYPE,
+            "sales.order.out_of_stock",
+        ).counter().count().assert().isEqualTo(2.0)
+        meters.get(WowMetrics.COMMAND_REJECTIONS).tags(WowMetrics.ERROR_TYPE, "sales.order.closed")
+            .counter().count().assert().isEqualTo(1.0)
+        // A rejection is the business's answer, not a refusal before the kernel.
+        meters.find(WowMetrics.COMMAND_REFUSALS).counter().assert().isNull()
+    }
+
+    @Test
     fun `every stage and every observed event should record under the metric names a dashboard reads`(): Unit =
         runBlocking {
             observer.admitting(SALES, "order", "PlaceOrder", emptyMap()).observe { }
@@ -187,6 +207,7 @@ class OtelObserverTest {
             ).observe { }
             listOf(
                 ObservedEvent.Refused(ORDER, "wow.command.busy"),
+                ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = true),
                 ObservedEvent.WaitTimedOut(ORDER, Stage.COMMITTED),
                 ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
                 ObservedEvent.ForwardFailed(ORDER, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),
@@ -210,6 +231,7 @@ class OtelObserverTest {
                 "wow.command.duration",
                 "wow.command.forward.failures",
                 "wow.command.refusals",
+                "wow.command.rejections",
                 "wow.log.tail.reads",
                 "wow.reservation.losses",
                 "wow.state_cache.evictions",

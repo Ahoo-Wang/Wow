@@ -51,6 +51,21 @@ sealed class ObservedEvent {
         override fun fields() = listOf("type" to type, "code" to code)
     }
 
+    /**
+     * A command of [commandType] on [type] that the aggregate's decision rejected with [code], an outcome of the
+     * business rather than a failure. [withEvents] is whether the rejection carried events; a committed rejection's
+     * events are also observed as any commit's. [code] is text: rejection codes are the application's vocabulary.
+     */
+    class Rejected @InternalWowApi constructor(
+        val type: AggregateType,
+        val commandType: String,
+        val code: String,
+        val withEvents: Boolean,
+    ) : ObservedEvent() {
+        override fun fields() =
+            listOf("type" to type, "commandType" to commandType, "code" to code, "withEvents" to withEvents)
+    }
+
     /** A wait on a command of [type] that timed out (`wow.wait.timeout`), at the [stage] it had reached last. */
     class WaitTimedOut @InternalWowApi constructor(val type: AggregateType, val stage: Stage) : ObservedEvent() {
         override fun fields() = listOf("type" to type, "stage" to stage)

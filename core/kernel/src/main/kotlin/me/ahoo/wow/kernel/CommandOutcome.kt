@@ -88,19 +88,25 @@ sealed interface CommandOutcome {
      * The command was refused and nothing was written: [version] is the aggregate's version the decision saw, null
      * for a creation, whose aggregate does not exist, or a refusal before any decision. [duplicate]: a retry of a
      * command whose rejection was committed with its events, answered with that rejection and the version they
-     * reached.
+     * reached. [droppedEvents]: the events a creation's rejection carried, which were dropped, since its aggregate
+     * does not exist; 0 otherwise. The node warns about them, and the test DSL fails the command's specification.
      */
     @InternalWowApi
-    class Rejected(val rejection: Rejection, val version: Int? = null, val duplicate: Boolean = false) :
-        CommandOutcome {
+    class Rejected(
+        val rejection: Rejection,
+        val version: Int? = null,
+        val duplicate: Boolean = false,
+        val droppedEvents: Int = 0,
+    ) : CommandOutcome {
         override fun equals(other: Any?): Boolean =
             this === other || other is Rejected && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "Rejected(rejection=$rejection, version=$version, duplicate=$duplicate)"
+        override fun toString(): String =
+            "Rejected(rejection=$rejection, version=$version, duplicate=$duplicate, droppedEvents=$droppedEvents)"
 
-        private fun valueFields(): List<Any?> = listOf(rejection, version, duplicate)
+        private fun valueFields(): List<Any?> = listOf(rejection, version, duplicate, droppedEvents)
     }
 
     /** Concurrent writers kept winning the version slot for [attempts] attempts. */

@@ -111,9 +111,11 @@ class OtelObserver(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod") // One flat branch per event type, without an else, so each is counted.
     override fun observed(event: ObservedEvent) {
         when (event) {
             is ObservedEvent.Refused -> refused(event.type, event.code)
+            is ObservedEvent.Rejected -> rejected(event.type, event.code)
             is ObservedEvent.WaitTimedOut -> waitTimedOut(event.type, event.stage)
             is ObservedEvent.SignalDropped -> signalDropped(event.reason.value)
             is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome.value)
@@ -178,6 +180,18 @@ class OtelObserver(
     private fun refused(type: AggregateType, code: String) {
         cached.counter(
             WowMetrics.COMMAND_REFUSALS,
+            WowMetrics.CONTEXT,
+            type.context,
+            WowMetrics.AGGREGATE,
+            type.name,
+            WowMetrics.ERROR_TYPE,
+            code,
+        ).increment()
+    }
+
+    private fun rejected(type: AggregateType, code: String) {
+        cached.counter(
+            WowMetrics.COMMAND_REJECTIONS,
             WowMetrics.CONTEXT,
             type.context,
             WowMetrics.AGGREGATE,

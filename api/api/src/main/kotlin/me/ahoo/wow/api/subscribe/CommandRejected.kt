@@ -27,7 +27,9 @@ import me.ahoo.wow.api.result.ErrorInfo
  * execution that derived it, so the compensation it derives in turn is deterministic too. [operator] is the rejected
  * command's, the root command's, which the compensation keeps; so is [scope], its owner and space,
  * and so are [headers], the request facts the command inherited from the commit the saga handled
- * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]), such as the calling application.
+ * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]), such as the calling application. [version] is the version of
+ * [ref] the rejection answered: the version its events reached when it was committed with events, else the one the
+ * decision saw; null when the command was refused before any decision, a creation's.
  *
  * The command's body is not here: a rejection from another context comes back as a receipt, which
  * carries the outcome only. [C] says which commands' rejections a handler takes; `CommandRejected<*>` takes them all.
@@ -47,6 +49,7 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
     val operator: Operator? = null,
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
+    val version: Int? = null,
 ) {
     init {
         require(commandId.isNotBlank()) { "A rejection names its command." }
@@ -71,6 +74,7 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
         operator: Operator? = this.operator,
         scope: Scope = this.scope,
         headers: Map<String, String> = this.headers,
+        version: Int? = this.version,
     ): CommandRejected<C> = CommandRejected(
         commandId,
         commandType,
@@ -81,6 +85,7 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
         operator,
         scope,
         headers,
+        version,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -91,7 +96,7 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
     override fun toString(): String =
         "CommandRejected(commandId=$commandId, commandType=$commandType, ref=$ref, error=$error, " +
             "causation=$causation, executionId=$executionId, operator=$operator, scope=$scope, " +
-            "headers=$headers)"
+            "headers=$headers, version=$version)"
 
     private fun valueFields(): List<Any?> = listOf(
         commandId,
@@ -103,5 +108,6 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
         operator,
         scope,
         headers,
+        version,
     )
 }

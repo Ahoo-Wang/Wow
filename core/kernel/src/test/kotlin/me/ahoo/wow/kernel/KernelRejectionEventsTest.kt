@@ -22,6 +22,8 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -130,6 +132,8 @@ class KernelRejectionEventsTest {
         val outcome = Kernel(log).execute(model, command(OpenSafe(" "))) as CommandOutcome.Rejected
         outcome.rejection.code.assert().isEqualTo("vault.safe.no-owner")
         outcome.version.assert().isNull()
+        // The outcome says what was dropped: the node warns, the test DSL fails the specification.
+        outcome.droppedEvents.assert().isEqualTo(1)
         log.read(ref).toList().assert().isEmpty()
     }
 
@@ -151,6 +155,28 @@ class KernelRejectionEventsTest {
             .message.assert().contains("cannot evolve")
         log.read(ref).toList().size.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `each rejection should be observed once with its code and whether it carried events, a retry not again`() =
+        runTest {
+            val observed = mutableListOf<ObservedEvent>()
+            val observer = object : Observer {
+                override fun observed(event: ObservedEvent) {
+                    observed += event
+                }
+            }
+            val kernel = Kernel(InMemoryEventLog(), observer = observer)
+            kernel.execute(model, command(OpenSafe(" ")))
+            kernel.execute(model, command(OpenSafe("ahoo")))
+            kernel.execute(model, command(Unlock("0000"), requestId = "retried"))
+            kernel.execute(model, command(Unlock("0000"), requestId = "retried"))
+            kernel.execute(model, command(Touch("x")))
+            observed.filterIsInstance<ObservedEvent.Rejected>().assert().containsExactly(
+                ObservedEvent.Rejected(model.type, "vault.safe.OpenSafe", "vault.safe.no-owner", withEvents = false),
+                ObservedEvent.Rejected(model.type, "vault.safe.Unlock", "vault.safe.wrong-code", withEvents = true),
+                ObservedEvent.Rejected(model.type, "vault.safe.Touch", "vault.safe.locked", withEvents = false),
+            )
+        }
 
     private companion object {
         const val SECRET = "4242"

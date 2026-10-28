@@ -78,6 +78,8 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
             result = result,
             extensions = error.extensions,
             retryAfter = retryAfter(error.code),
+            // The version a rejection answered: its events', else the one the decision saw, the next If-Match.
+            version = result.version.takeIf { result.status == CommandResult.Status.REJECTED },
         )
     }
 

@@ -19,18 +19,32 @@ import me.ahoo.wow.kernel.EventCodec
 
 /**
  * [outcome] as a failing check names it, with the events decoded as the model's classes: `committed
- * [ItemAdded(…)] at v3`, `unchanged at v2`, `rejected <code>: <message>`.
+ * [ItemAdded(…)] at v3`, `unchanged at v2`, `rejected <code>: <message>`, and a rejection with events `rejected
+ * <code>: <message>, committing [AttemptFailed(…)] at v3`.
  */
 internal fun describe(outcome: CommandOutcome, model: AggregateModel<*>, codec: EventCodec): String = when (outcome) {
     is CommandOutcome.Committed -> {
         val events = codec.decodeEvents(model, outcome.stream.events)
         val deleted = if (outcome.deleted) ", deleting the aggregate" else ""
-        "committed $events at v${outcome.stream.version}$deleted"
+        val rejection = outcome.rejection
+        if (rejection == null) {
+            "committed $events at v${outcome.stream.version}$deleted"
+        } else {
+            "rejected ${rejection.code}: ${rejection.message.removeSuffix(".")}, committing $events at " +
+                "v${outcome.stream.version}$deleted"
+        }
     }
     is CommandOutcome.AlreadyCommitted -> "a retry of the request committed at v${outcome.stream.version}"
     is CommandOutcome.Unchanged -> "unchanged at v${outcome.version}"
     // The sentence the outcome ends goes on, so the message ends without its full stop.
-    is CommandOutcome.Rejected -> "rejected ${outcome.rejection.code}: ${outcome.rejection.message.removeSuffix(".")}"
+    is CommandOutcome.Rejected -> {
+        val dropped = when (outcome.droppedEvents) {
+            0 -> ""
+            1 -> ", dropping the event it carried"
+            else -> ", dropping the ${outcome.droppedEvents} events it carried"
+        }
+        "rejected ${outcome.rejection.code}: ${outcome.rejection.message.removeSuffix(".")}$dropped"
+    }
     is CommandOutcome.Contended -> "contended after ${outcome.attempts} attempts"
     is CommandOutcome.Unknown -> "an unknown outcome: ${outcome.cause}"
 }

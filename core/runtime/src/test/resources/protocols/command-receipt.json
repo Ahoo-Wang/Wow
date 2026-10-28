@@ -45,7 +45,8 @@
       "ownerId": "u-42",
       "spaceId": null
     },
-    "headers": {}
+    "headers": {},
+    "version": 4
   },
   "transport": null
 }

@@ -13,7 +13,7 @@ V10 改了 9.x 的每个指标和 Span 的名字，并且不保留别名。基�
 
 | 9.x 指标 | 9.x 标签 | V10 |
 | --- | --- | --- |
-| `wow.operation`，`component=command_handler`，`operation=handle` | `context`、`aggregate`、`outcome`、`exception` | `wow.command.duration`（`wow.context`、`wow.aggregate`、`wow.outcome`）；在内核接手前被拒绝的命令：`wow.command.refusals`（`error.type`） |
+| `wow.operation`，`component=command_handler`，`operation=handle` | `context`、`aggregate`、`outcome`、`exception` | `wow.command.duration`（`wow.context`、`wow.aggregate`、`wow.outcome`）；在内核接手前被拒绝的命令：`wow.command.refusals`（`error.type`）；被聚合拒绝的命令：`wow.command.rejections`（`error.type`，拒绝的错误码） |
 | `wow.operation`，`component=event_store`，`operation=append` | `context`、`aggregate`、`outcome` | 包含在 `wow.command.duration` 中；等待中的追加：`wow.log.append_queue.depth` |
 | `wow.operation`，`component=event_store`，`operation=last` 或 `single` | `context`、`aggregate` | `wow.state_cache.lookups`（`wow.outcome=miss` 时读取存储）、`wow.log.tail.reads` |
 | `wow.operation`，`component=snapshot_store`，`operation=save` 或 `load` | `context`、`aggregate` | 保存：`snapshot` 订阅的 `wow.subscription.lag` 和 `wow.subscription.backlog`；加载：`wow.state_cache.lookups` |
@@ -23,7 +23,7 @@ V10 改了 9.x 的每个指标和 Span 的名字，并且不保留别名。基�
 | `wow.operation`，`operation=receive`（总线） | `component`、`subscriber` | `wow.subscription.lag`、`wow.subscription.backlog`、`wow.subscription.position` |
 | `wow.operation.items` | 同 `wow.operation` | 没有对应；排队的追加：`wow.log.append_queue.depth` |
 | `wow.stream.active`、`wow.stream.messages`、`wow.stream.terminations` | `component`、`subscriber` | 没有对应：订阅的进度是 `wow.subscription.position`、`wow.subscription.backlog`、`wow.subscription.progress`；暂停是 `wow.subscription.paused.partitions` |
-| `wow.processing.outcomes` | `component`、`outcome`、`exception` | `wow.subscription.parked.notices`、`wow.command.refusals` |
+| `wow.processing.outcomes` | `component`、`outcome`、`exception` | `wow.subscription.parked.notices`、`wow.command.refusals`、`wow.command.rejections` |
 | `wow.batch.write`、`wow.batch.write.items`、`wow.batch.queue.wait` | `coordinator`、`lane`、`window` | 没有对应：追加队列属于内部实现；看 `wow.log.append_queue.depth` 和 `wow.command.duration` |
 | `wow.batch.admission.rejected` | `coordinator`、`reason` | `error.type=wow.command.busy` 的 `wow.command.refusals` |
 | `wow.batch.close`、`wow.batch.coordinator.failed` | `coordinator` | 没有对应：看节点的健康，`/actuator/health/wow` |

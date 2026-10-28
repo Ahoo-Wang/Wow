@@ -26,6 +26,8 @@ class ProblemValueTest {
         )
         problem.copyWith(retryAfter = 5).assert().isNotEqualTo(problem)
         problem.copyWith(retryAfter = 5).retryAfter.assert().isEqualTo(5)
+        problem.copyWith(version = 2).assert().isNotEqualTo(problem)
+        problem.copyWith(version = 2).toString().assert().endsWith("version=2)")
         problem.toString().assert().startsWith("Problem(")
     }
 }

@@ -71,6 +71,28 @@ class ProblemTest {
     }
 
     @Test
+    fun `a rejection's problem should carry the version it answered, and no other problem one`() {
+        val statuses = ErrorStatuses(cartManifest())
+        // With events, the version they reached; without, the one the decision saw: either way the result's.
+        val rejected = result(ErrorInfo(CART_EMPTY, "The cart is empty.")).copyWith(version = 3)
+        val problem = statuses.problemOf(rejected)
+        problem.version.assert().isEqualTo(3)
+        problem.members()["version"].assert().isEqualTo(3)
+        (problem.members()["result"] as CommandResult).version.assert().isEqualTo(3)
+        // A creation's rejection wrote nothing: no version.
+        statuses.problemOf(result(ErrorInfo(CART_EMPTY, "The cart is empty."))).members().keys.assert()
+            .doesNotContain("version")
+        // A failure's version is not a rejection's answer.
+        val failed = rejected.copyWith(status = CommandResult.Status.FAILED)
+        statuses.problemOf(failed).version.assert().isNull()
+        // `version` means the aggregate's version alone: an extension never takes the name, even without one.
+        val named = rejected.copyWith(error = ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))
+        statuses.problemOf(named).members()["version"].assert().isEqualTo(3)
+        statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))).members()
+            .keys.assert().doesNotContain("version")
+    }
+
+    @Test
     fun `the exception's message is the detail, else the title`() {
         ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND)).message.assert().isEqualTo("Not Found")
         ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND, "No route.")).message.assert().isEqualTo("No route.")

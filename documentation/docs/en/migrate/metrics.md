@@ -13,7 +13,7 @@ V10 renames every metric and span of 9.x, and keeps no alias. A dashboard or an 
 
 | 9.x metric | 9.x tags | V10 |
 | --- | --- | --- |
-| `wow.operation`, `component=command_handler`, `operation=handle` | `context`, `aggregate`, `outcome`, `exception` | `wow.command.duration` (`wow.context`, `wow.aggregate`, `wow.outcome`); a command refused before the kernel: `wow.command.refusals` (`error.type`) |
+| `wow.operation`, `component=command_handler`, `operation=handle` | `context`, `aggregate`, `outcome`, `exception` | `wow.command.duration` (`wow.context`, `wow.aggregate`, `wow.outcome`); a command refused before the kernel: `wow.command.refusals` (`error.type`); a command its aggregate rejected: `wow.command.rejections` (`error.type`, the rejection's code) |
 | `wow.operation`, `component=event_store`, `operation=append` | `context`, `aggregate`, `outcome` | Inside `wow.command.duration`; the appends waiting: `wow.log.append_queue.depth` |
 | `wow.operation`, `component=event_store`, `operation=last` or `single` | `context`, `aggregate` | `wow.state_cache.lookups` (`wow.outcome=miss` reads the store), `wow.log.tail.reads` |
 | `wow.operation`, `component=snapshot_store`, `operation=save` or `load` | `context`, `aggregate` | Saving: the `snapshot` subscription's `wow.subscription.lag` and `wow.subscription.backlog`; loading: `wow.state_cache.lookups` |
@@ -23,7 +23,7 @@ V10 renames every metric and span of 9.x, and keeps no alias. A dashboard or an 
 | `wow.operation`, `operation=receive` (the buses) | `component`, `subscriber` | `wow.subscription.lag`, `wow.subscription.backlog`, `wow.subscription.position` |
 | `wow.operation.items` | as `wow.operation` | No equivalent; the queued appends: `wow.log.append_queue.depth` |
 | `wow.stream.active`, `wow.stream.messages`, `wow.stream.terminations` | `component`, `subscriber` | No equivalent: a subscription's progress is `wow.subscription.position`, `wow.subscription.backlog`, `wow.subscription.progress`; its pauses `wow.subscription.paused.partitions` |
-| `wow.processing.outcomes` | `component`, `outcome`, `exception` | `wow.subscription.parked.notices`, `wow.command.refusals` |
+| `wow.processing.outcomes` | `component`, `outcome`, `exception` | `wow.subscription.parked.notices`, `wow.command.refusals`, `wow.command.rejections` |
 | `wow.batch.write`, `wow.batch.write.items`, `wow.batch.queue.wait` | `coordinator`, `lane`, `window` | No equivalent: the append queue is internal; `wow.log.append_queue.depth` and `wow.command.duration` |
 | `wow.batch.admission.rejected` | `coordinator`, `reason` | `wow.command.refusals` with `error.type=wow.command.busy` |
 | `wow.batch.close`, `wow.batch.coordinator.failed` | `coordinator` | No equivalent: the node's health, `/actuator/health/wow` |

@@ -111,6 +111,7 @@ object CommandMessages {
                     rejected.operator,
                     rejected.scope,
                     rejected.headers,
+                    rejected.version,
                 ),
             ),
             transport = transportOf(wait, trace),
@@ -179,6 +180,7 @@ object CommandMessages {
             wire.operator,
             wire.scope,
             wire.headers,
+            wire.version,
         )
     }
 
@@ -212,6 +214,7 @@ object CommandMessages {
         val operator: Operator? = null,
         val scope: Scope = Scope.NONE,
         val headers: Map<String, String> = emptyMap(),
+        val version: Int? = null,
     )
 
     private data class CommittedWire(

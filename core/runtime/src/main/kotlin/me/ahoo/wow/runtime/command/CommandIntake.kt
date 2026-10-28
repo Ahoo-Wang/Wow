@@ -159,7 +159,7 @@ class CommandIntake internal constructor(
         // A receipt carries the rest of the command's chain on, past its commit.
         val next = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         settlement.rejection?.let { rejection ->
-            reply(wire.copyWith(ref = command.ref), rejection.toError(), next)
+            reply(wire.copyWith(ref = command.ref), rejection.toError(), next, settlement.committed.version)
             return
         }
         // A busy node is backpressure: the subscription retries without spending its budget.
@@ -248,7 +248,7 @@ class CommandIntake internal constructor(
     }
 
     /** Sends the receipt of [wire]'s rejection with [error] to where it says, and waits for the broker. */
-    private suspend fun reply(wire: CommandWire, error: ErrorInfo, wait: WaitContext?) {
+    private suspend fun reply(wire: CommandWire, error: ErrorInfo, wait: WaitContext?, version: Int? = null) {
         val replyTo = wire.replyTo
         if (replyTo == null) {
             // A business rejection is an outcome, not an incident: no INFO line per command.
@@ -265,6 +265,7 @@ class CommandIntake internal constructor(
             operator = wire.operator,
             scope = wire.scope,
             headers = RequestFacts.propagatedOf(wire.headers),
+            version = version,
         )
         // The receipt goes on in the trace the command was executed in.
         val trace = currentCoroutineContext().trace

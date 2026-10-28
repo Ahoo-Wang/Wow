@@ -32,6 +32,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -549,6 +550,7 @@ class Kernel(
             } else {
                 // The refused decision's reservations are released, as for a rejection that writes nothing.
                 attempt.compensate()
+                rejected(stream.ref.type, commandType.name, rejection, attempt.command, withEvents = true)
             }
             CommandOutcome.Committed(
                 stream,
@@ -604,7 +606,7 @@ class Kernel(
         val decision = observer.deciding(command).observe {
             withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
         }
-        rejectedUnwritten(decision, model, commandType, version)?.let { return it }
+        rejectedUnwritten(decision, model, commandType, version, command)?.let { return it }
         // A rejection's events are committed as any are, the rejection recorded on their stream.
         val rejection = (decision as? Decision.Rejected)?.let {
             RejectionCodes.qualified(it.rejection, model.type, commandType)
@@ -1070,11 +1072,36 @@ class Kernel(
         model: AggregateModel<*>,
         commandType: String,
         version: Int,
+        command: Command<*>,
     ): Prepared.Done? {
         if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
-        if (decision.events.isNotEmpty()) creationRejectedWithEvents(commandType)
         val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
-        return Prepared.Done(CommandOutcome.Rejected(rejection, version.takeIf { it > 0 }))
+        rejected(model.type, commandType, rejection, command, withEvents = false)
+        val outcome = CommandOutcome.Rejected(
+            rejection,
+            version.takeIf { it > 0 },
+            droppedEvents = decision.events.size
+        )
+        if (outcome.droppedEvents > 0) creationRejectedWithEvents(commandType)
+        return Prepared.Done(outcome)
+    }
+
+    /**
+     * Observes and logs that [command] of [commandType] on [type] was rejected: a business outcome, so at INFO.
+     * [withEvents] is whether its events were committed with it.
+     */
+    private fun rejected(
+        type: AggregateType,
+        commandType: String,
+        rejection: Rejection,
+        command: Command<*>,
+        withEvents: Boolean,
+    ) {
+        observer.observed(ObservedEvent.Rejected(type, commandType, rejection.code, withEvents))
+        logger.info {
+            "Rejected $commandType on ${command.ref} with ${rejection.code} (requestId=${command.requestId}, " +
+                "withEvents=$withEvents): ${rejection.message}"
+        }
     }
 
     /** The command types whose creation was rejected with events, warned about once each. */
@@ -1082,7 +1109,8 @@ class Kernel(
 
     /**
      * A creation of [commandType] rejected with events: its aggregate does not exist, so nothing is written and the
-     * events are dropped, which the test DSL refuses; warned about once per command type.
+     * events are dropped ([CommandOutcome.Rejected.droppedEvents]), which the test DSL refuses; warned about once per
+     * command type.
      */
     private fun creationRejectedWithEvents(commandType: String) {
         if (creationRejections.add(commandType)) {

@@ -105,6 +105,7 @@ class ProtocolSamplesTest {
             ExecutionId("TransferSaga.onRequested", AggregateType("bank", "transfer").ref("t1", "tr-9"), 1),
             operator,
             Scope("u-42"),
+            version = 4,
         )
         check("command-receipt", CommandMessages.receipt(rejected).value)
     }

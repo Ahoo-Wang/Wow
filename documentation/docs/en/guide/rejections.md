@@ -6,11 +6,11 @@ outline: deep
 
 # Rejections and Error Codes
 
-A command the aggregate refuses is a business outcome, not an error of the program. The aggregate returns a rejection with a stable code, nothing is written, and the caller is told why. This page declares the codes and shows what each kind of caller receives.
+A command the aggregate refuses is a business outcome, not an error of the program. The aggregate returns a rejection with a stable code, nothing is written unless the rejection carries events, and the caller is told why. This page declares the codes and shows what each kind of caller receives.
 
 ## Reject, or fail
 
-A decide function refuses a command in one of three ways, and each is answered the same: nothing is written, a compensation registered with `onAppendFailure` runs, the caller gets the code with its message, and sending the command again with the same request id is rejected again. A rejection is never retried and never parks anything, whatever sent the command. The message is shown to the caller, so write it for them.
+A decide function refuses a command in one of three ways, and each is answered the same: nothing is written (a rejection may carry events, [below](#reject-with-events)), a compensation registered with `onAppendFailure` runs, the caller gets the code with its message, and sending the command again with the same request id is rejected again. A rejection is never retried and never parks anything, whatever sent the command. The message is shown to the caller, so write it for them.
 
 | The decide function | The caller gets |
 | --- | --- |
@@ -76,11 +76,33 @@ fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when 
 
 The message may say anything that helps a person: amounts, ids, the state the aggregate is in. Callers decide on the code, never on the message.
 
-`Decision.reject(code, message, extensions)` adds structured data a client reads instead of parsing the message: a map of names to JSON values, such as the ids of what blocks the command. The command's result carries them in its error, and an HTTP answer writes each one as a member of its problem.
+`Decision.reject(code, message, extensions = …)` adds structured data a client reads instead of parsing the message: a map of names to JSON values, such as the ids of what blocks the command. The command's result carries them in its error, and an HTTP answer writes each one as a member of its problem.
+
+## Reject with events
+
+A rejection may record what the refusal changed: a failed attempt that counts towards a lockout, a bid below the reserve that is kept for the auction's history. Pass the events with the rejection, returned or thrown alike:
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onCommand(command: Unlock): Unlocked =
+    if (command.code == state.code) {
+        Unlocked(command.code)
+    } else {
+        reject(Rejections.WRONG_CODE, "Wrong code.", events = listOf(AttemptFailed(command.code)))
+    }
+```
+
+- **They are the aggregate's events.** The aggregate sources them with its sourcing functions, and they are committed with the rejection in one stream, at the next version, as any decision's events: projections, sagas and the state read them. An event the aggregate has no sourcing function for fails the command, and nothing is written. There is no list of a rejection's events to declare: they are among the aggregate's events.
+- **The caller still gets the rejection**, with its code and status. The result's `version` is the one the events reached. A rejection without events writes nothing, and its `version` is the one the decision saw.
+- **What the refused decision set up is undone.** Its schedules are not committed, and its reservations are released, with the other compensations registered by `onAppendFailure`, as for a rejection without events.
+- **A retry is answered with the same rejection.** Sending the command again with the same request id answers the rejection the stream recorded, as a duplicate, at the same version.
+- **A wait ends at the rejection.** A caller that waits for a snapshot or a saga is answered once the rejection is committed.
+- **A creation cannot carry events.** Its aggregate does not exist, so a creation rejected with events writes nothing and has no version; the node warns once per command type, and a test of it fails, naming the command. Reject a creation without events.
 
 ## What the caller receives
 
-**Over HTTP**, a rejection is answered with the code's status and an `application/problem+json` body whose `type` is `urn:wow:error:<code>` and whose `code` member is the full code. [Wire Protocols](../reference/protocols) describes the whole shape.
+**Over HTTP**, a rejection is answered with the code's status and an `application/problem+json` body whose `type` is `urn:wow:error:<code>` and whose `code` member is the full code. Its `version` member is the aggregate's version the rejection answered: the one its events reached, else the one the decision saw; a creation's rejection has none. [Wire Protocols](../reference/protocols) describes the whole shape.
 
 **In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code, for a rejection by the aggregate as for one at admission:
 
@@ -99,7 +121,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 **A saga** that sent the command gets the rejection in its `@OnRejected` handler and decides how to compensate: [Write a Saga](./sagas#handle-a-rejection).
 
-**A test** expects it with `expectRejected(code)`, by the local or the full name: [Test Domain Code](./testing#expect). `aggregateSpec` runs the kernel without admission, so a command's constraints are tested against the server: a request that breaks them answers 400 `wow.command.invalid` with the violation's path and constraint.
+**A test** expects it with `expectRejected(code)`, by the local or the full name, and checks a rejection's events and the state they left with the usual checks: [Test Domain Code](./testing#expect). `aggregateSpec` runs the kernel without admission, so a command's constraints are tested against the server: a request that breaks them answers 400 `wow.command.invalid` with the violation's path and constraint.
 
 ## Where a command's failure is recorded
 
@@ -111,6 +133,8 @@ A rejection is an answer, never a failure: it is not retried or parked, whicheve
 | The Kafka command intake | parks the target aggregate under the intake, at the command's offset |
 | A timer | parks the aggregate under `wow.timers` |
 | An HTTP request, or a synchronous call (`Wow-Call`) | goes back to the caller as the problem; metrics, logs and traces record it, the failure ledger does not |
+
+Rejections are counted apart from failures, by `wow.command.rejections` with their code, and logged at INFO with the aggregate, the command type, the code and the request id: [Observability](../operate/observability).
 
 ## Remote calls in a decide function
 

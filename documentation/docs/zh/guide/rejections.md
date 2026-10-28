@@ -6,11 +6,11 @@ outline: deep
 
 # 拒绝与错误码
 
-被聚合拒绝的命令是一种业务结果，而不是程序的错误。聚合返回一个带稳定错误码的拒绝，什么都不写，并告诉调用方原因。本页说明怎样声明错误码，以及每种调用方收到什么。
+被聚合拒绝的命令是一种业务结果，而不是程序的错误。聚合返回一个带稳定错误码的拒绝，除非拒绝带有事件，否则什么都不写，并告诉调用方原因。本页说明怎样声明错误码，以及每种调用方收到什么。
 
 ## 拒绝，还是失败 {#reject-or-fail}
 
-决定函数可以用三种方式拒绝命令，结果都一样：什么都不写，用 `onAppendFailure` 登记的补偿会执行，调用方拿到错误码和消息，用同一个请求 ID 再发一次仍会被拒绝。无论命令从哪里来，拒绝都不会重试，也不会停放任何东西。消息会展示给调用方，要写给他们看。
+决定函数可以用三种方式拒绝命令，结果都一样：什么都不写（拒绝可以带事件，见[下文](#reject-with-events)），用 `onAppendFailure` 登记的补偿会执行，调用方拿到错误码和消息，用同一个请求 ID 再发一次仍会被拒绝。无论命令从哪里来，拒绝都不会重试，也不会停放任何东西。消息会展示给调用方，要写给他们看。
 
 | 决定函数 | 调用方得到 |
 | --- | --- |
@@ -76,11 +76,33 @@ fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when 
 
 消息可以写任何对人有帮助的内容：金额、ID、聚合所处的状态。调用方依据错误码做判断，绝不依据消息。
 
-`Decision.reject(code, message, extensions)` 附加结构化数据，客户端读取它们而不必解析消息：一个从名字到 JSON 值的映射，例如阻碍命令的那些东西的 ID。命令的结果把它们放在错误里，HTTP 回答把每一项写成 problem 的一个成员。
+`Decision.reject(code, message, extensions = …)` 附加结构化数据，客户端读取它们而不必解析消息：一个从名字到 JSON 值的映射，例如阻碍命令的那些东西的 ID。命令的结果把它们放在错误里，HTTP 回答把每一项写成 problem 的一个成员。
+
+## 带事件的拒绝 {#reject-with-events}
+
+拒绝可以记录这次拒绝改变了什么：一次计入锁定的失败尝试，一次低于保留价、为拍卖历史而保留的出价。把事件随拒绝一起传入，返回或抛出都一样：
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onCommand(command: Unlock): Unlocked =
+    if (command.code == state.code) {
+        Unlocked(command.code)
+    } else {
+        reject(Rejections.WRONG_CODE, "Wrong code.", events = listOf(AttemptFailed(command.code)))
+    }
+```
+
+- **它们是聚合的事件。** 聚合用它的溯源函数溯源这些事件，它们与拒绝在同一个事件流中、以下一个版本提交，和任何决策的事件一样：投影、Saga 和状态都会读到。聚合没有溯源函数的事件会让命令失败，什么都不写。不必另外声明拒绝的事件清单：它们就在聚合的事件之中。
+- **调用方仍然收到拒绝**，带着错误码和状态。结果的 `version` 是事件到达的版本。不带事件的拒绝什么都不写，它的 `version` 是决策所见的版本。
+- **被拒绝的决策所安排的会被撤销。** 它的调度不会提交，它的预留会释放，`onAppendFailure` 登记的其他补偿也会执行，和不带事件的拒绝一样。
+- **重试得到同一个拒绝。** 用同一个请求 ID 再发一次命令，回答的是事件流记录的那个拒绝，标记为重复，版本相同。
+- **等待在拒绝处结束。** 等待快照或 Saga 的调用方，在拒绝提交后即得到回答。
+- **创建命令不能带事件。** 它的聚合还不存在，所以带事件被拒绝的创建命令什么都不写，也没有版本；节点对每种命令类型警告一次，它的测试会失败并指出该命令。拒绝创建命令时不要带事件。
 
 ## 调用方收到什么 {#what-the-caller-receives}
 
-**在 HTTP 上**，拒绝以错误码的状态回答，响应体是 `application/problem+json`，其 `type` 是 `urn:wow:error:<code>`，`code` 成员是完整的错误码。完整的形状见[线上协议](../reference/protocols)。
+**在 HTTP 上**，拒绝以错误码的状态回答，响应体是 `application/problem+json`，其 `type` 是 `urn:wow:error:<code>`，`code` 成员是完整的错误码。它的 `version` 成员是拒绝所回答的聚合版本：事件到达的版本，否则是决策所见的版本；创建命令的拒绝没有。完整的形状见[线上协议](../reference/protocols)。
 
 **在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，聚合的拒绝和准入时的拒绝都一样：
 
@@ -99,7 +121,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 **发出这条命令的 Saga** 在它的 `@OnRejected` 处理函数中收到拒绝，并决定怎样补偿：见[编写 Saga](./sagas#handle-a-rejection)。
 
-**测试**用 `expectRejected(code)` 期望它，本地名或完整名都可以：见[测试领域代码](./testing#expect)。`aggregateSpec` 运行内核而不经过准入，所以命令的约束在服务器上测试：违反约束的请求回答 400 `wow.command.invalid`，带违反项的路径和约束。
+**测试**用 `expectRejected(code)` 期望它，本地名或完整名都可以，并用通常的检查来检查拒绝的事件和它们留下的状态：见[测试领域代码](./testing#expect)。`aggregateSpec` 运行内核而不经过准入，所以命令的约束在服务器上测试：违反约束的请求回答 400 `wow.command.invalid`，带违反项的路径和约束。
 
 ## 命令的失败记录在哪里 {#where-a-commands-failure-is-recorded}
 
@@ -111,6 +133,8 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 | Kafka 命令摄入 | 在命令所在的偏移量处，把目标聚合停放在摄入之下 |
 | 定时器 | 把聚合停放在 `wow.timers` 之下 |
 | HTTP 请求或同步调用（`Wow-Call`） | 作为 problem 返回调用方；指标、日志和链路追踪会记录，失败台账不记录 |
+
+拒绝与失败分开计数，由 `wow.command.rejections` 按错误码计数，并以 INFO 级别记录日志，带聚合、命令类型、错误码和请求 ID：见[可观测性](../operate/observability)。
 
 ## 决定函数里的远程调用 {#remote-calls-in-a-decide-function}
 

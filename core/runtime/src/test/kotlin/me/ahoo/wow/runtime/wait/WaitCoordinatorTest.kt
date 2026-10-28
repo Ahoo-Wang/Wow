@@ -62,6 +62,8 @@ import kotlin.time.Duration.Companion.seconds
 class WaitCoordinatorTest {
     data class Place(val items: Int = 1, val reject: Boolean = false)
     data class Touch(val note: String = "")
+    data class Cancel(val withEvents: Boolean)
+    data class CancelAttempted(val order: String)
     data class PlaceSlowly(val items: Int = 1)
     data class Placed(val items: Int)
     data class Reserve(val order: String, val reject: Boolean = false)
@@ -92,12 +94,17 @@ class WaitCoordinatorTest {
             }
         }
         decide<Touch>(Creation.NONE) { _, _ -> Decision.NoOp }
+        decide<Cancel>(Creation.NONE) { state, body ->
+            val events = if (body.withEvents) listOf(CancelAttempted(state.id)) else emptyList()
+            Decision.reject("shop.order.locked", "Locked.", events = events)
+        }
         decideSuspending<PlaceSlowly>(Creation.ALLOWED) { _, body ->
             deciding.complete(Unit)
             decideGate.await()
             Decision.events(Placed(body.items))
         }
         evolve<Placed> { items = it.items }
+        evolve<CancelAttempted> { }
     }
     private val stock = aggregate<Stock>("shop", "stock") {
         initial { Stock(it.id) }
@@ -329,7 +336,34 @@ class WaitCoordinatorTest {
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.error!!.code.assert().isEqualTo("shop.order.refused")
         result.hop.assert().isEqualTo(Hop.committed("shop"))
+        // A creation's rejection writes nothing, so it has no version.
+        result.version.assert().isNull()
     }
+
+    @Test
+    fun `a rejection with events ends the wait at the rejection, at the version its events reached`(): Unit =
+        runBlocking {
+            started()
+            val placed = place()
+            coordinator.execute(order, placed).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // The snapshot never handles the rejection's events: the wait does not wait for it.
+            snapshotGate = CompletableDeferred()
+            val cancel = Command("c-${sequence.incrementAndGet()}", "r-cancel", placed.ref, Cancel(withEvents = true))
+            val rejected = withTimeout(2.seconds) { coordinator.execute(order, cancel) }
+            rejected.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            rejected.error!!.code.assert().isEqualTo("shop.order.locked")
+            rejected.hop.assert().isEqualTo(Hop.committed("shop"))
+            rejected.version.assert().isEqualTo(2)
+            rejected.results.assert().isEmpty()
+            // A retry is answered as the same rejection, at the same version.
+            val retried = withTimeout(2.seconds) { coordinator.execute(order, cancel) }
+            retried.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            retried.version.assert().isEqualTo(2)
+            retried.duplicate.assert().isTrue()
+            // Without events, the version is the one the decision saw.
+            val bare = Command("c-${sequence.incrementAndGet()}", "r-bare", placed.ref, Cancel(withEvents = false))
+            withTimeout(2.seconds) { coordinator.execute(order, bare) }.version.assert().isEqualTo(2)
+        }
 
     @Test
     fun `a saga chain completes only when every derived command has committed`(): Unit = runBlocking {

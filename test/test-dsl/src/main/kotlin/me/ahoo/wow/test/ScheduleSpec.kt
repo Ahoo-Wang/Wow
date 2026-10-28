@@ -216,12 +216,14 @@ class ScheduleSpec(
     }
 
     private fun check(result: Result<CommandOutcome>, action: String) {
-        when (val outcome = result.getOrThrow()) {
-            is CommandOutcome.Rejected -> throw AssertionError(
-                "The instance refused to $action: ${outcome.rejection.code} ${outcome.rejection.message}",
-            )
-
-            else -> Unit
+        val outcome = result.getOrThrow()
+        val rejection = when (outcome) {
+            is CommandOutcome.Rejected -> outcome.rejection
+            is CommandOutcome.Committed -> outcome.rejection
+            else -> null
+        }
+        if (rejection != null) {
+            throw AssertionError("The instance refused to $action: ${rejection.code} ${rejection.message}")
         }
     }
 

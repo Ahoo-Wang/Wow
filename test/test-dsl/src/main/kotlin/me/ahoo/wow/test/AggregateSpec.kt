@@ -487,7 +487,10 @@ class AggregateSpec<S : Any> private constructor(
             val where = "givenCommands(${body.javaClass.simpleName}) ($commandId)"
             val command = commandOf(commandId, "request-$sequence", body, null, scope, headers, operator, caller)
             val outcome = send(command).getOrElse { throw located(AssertionError("It threw $it.", it), where) }
-            if (outcome !is CommandOutcome.Committed && outcome !is CommandOutcome.Unchanged) {
+            // A rejection with events commits them, but the setup expected the command to be taken.
+            val taken = outcome is CommandOutcome.Committed && outcome.rejection == null ||
+                outcome is CommandOutcome.Unchanged
+            if (!taken) {
                 throw located(
                     AssertionError("Expected it to commit but it was ${describe(outcome, model, codec)}."),
                     where
@@ -528,6 +531,7 @@ class AggregateSpec<S : Any> private constructor(
             { name, model, block -> fork(name, null, model ?: this.model, block) }
         val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags, forker)
         try {
+            expectations.refuseDroppedEvents()
             expectations.expect()
             expectations.verify()
         } catch (failure: AssertionError) {

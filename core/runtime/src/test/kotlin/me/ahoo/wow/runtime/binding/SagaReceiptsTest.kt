@@ -199,6 +199,8 @@ class SagaReceiptsTest {
             val compensated = log.findByRequestId(CART, TENANT, compensationId("o-1"))!!
             compensated.ref.assert().isEqualTo(cart)
             compensated.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-1")))
+            // The receipt names the version the rejected decision saw, the one before the compensation.
+            rejected.version.assert().isEqualTo(compensated.version - 1)
             ledger.isParked(SAGA, ORDER.ref(TENANT, "o-1")).assert().isFalse()
         }
 
