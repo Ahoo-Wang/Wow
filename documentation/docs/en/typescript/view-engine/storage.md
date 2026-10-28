@@ -173,6 +173,10 @@ A definition's view list merges system views from three places:
 
 Publishing a view as a system view makes a copy; the source view stays as it was. A system view never changes audience.
 
+### Long lists
+
+The engine reads a definition's saved views page by page, up to `RuntimeLimits.listedViews` (1000 by default). A definition with more lists the first 1000, and the view list and Manage views say "Only the first 1000 views are listed; a link to another still opens it": a view past the cap still opens from its address or a board. A host whose definitions hold more raises the limit (`new ViewEngine({ limits: { listedViews: 5000 } })`).
+
 ### Writes and retries
 
 - Every write sends the port's request id as `Wow-Request-Id` and the revision as `If-Match`, and waits for the snapshot. The service deduplicates request ids, creations included, so a retry is answered with the first attempt's outcome.
@@ -200,6 +204,7 @@ Not for a Wow backend: `WowViewStore` already handles replays, audience moves, s
 
 - Implement `list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences` and `setPreferences`. `changeAudience` and `permissions` are optional.
 - Keep the two rules: a stale revision throws `CONFLICT` with the current instance; a repeated request id answers the first outcome.
+- Answer `list` a page at a time: `{ items, nextCursor }`, the first page without a `cursor` and each next one with the `nextCursor` before it, `null` after the last. Keep the order across pages (system, shared, personal, each oldest first). Every read takes `{ signal }` and every write `{ requestId, signal }`; hand the signal on to the request.
 - Never issue an id starting with `system:`.
 - Map the backend's failures onto the codes the engine knows:
 

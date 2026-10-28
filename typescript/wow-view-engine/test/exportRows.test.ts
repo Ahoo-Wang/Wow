@@ -34,6 +34,7 @@ import {
 } from '../src/runtime/recordRuntime.js';
 import { exportPlan } from '../src/runtime/exportRows.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   ordersDefinition,
@@ -59,7 +60,11 @@ function pagedSource(rows: RecordData[], total = rows.length): ViewSource {
     paged: vi.fn((query: FilterPagedQuery) => {
       const { index, size } = query.pagination ?? { index: 1, size: 20 };
       const start = (index - 1) * size;
-      return Promise.resolve({ total, list: rows.slice(start, start + size) });
+      return Promise.resolve({
+        total,
+        exact: true,
+        list: rows.slice(start, start + size),
+      });
     }),
   });
 }
@@ -82,7 +87,7 @@ function openRecord(options: {
     kinds: builtinFieldKinds,
     limits: options.limits ?? limits({ maxPageSize: 3 }),
     environment: testEnvironment().environment,
-    source: options.source,
+    source: recordSource(options.source),
     runner: new RequestRunner(),
   }) as unknown as RecordViewRuntime;
 }
@@ -286,7 +291,7 @@ describe('exporting every row the applied config matches', () => {
         // Cancelled while the second page is in flight, which is the moment
         // a user presses the button.
         if (asked.length === 2) controller.abort();
-        return Promise.resolve({ total: 99, list: orders(3) });
+        return Promise.resolve({ total: 99, exact: true, list: orders(3) });
       }),
     });
     const runtime = openRecord({ source });
@@ -333,6 +338,7 @@ describe('exporting every row the applied config matches', () => {
       paged: vi.fn((query: FilterPagedQuery) =>
         Promise.resolve({
           total: 3,
+          exact: true,
           list: query.pagination?.index === 1 ? orders(3) : [],
         }),
       ),
@@ -359,7 +365,7 @@ describe('exporting every row the applied config matches', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: testEnvironment().environment,
-      source: testSource(),
+      source: recordSource(testSource()),
       runner: new RequestRunner(),
     });
 

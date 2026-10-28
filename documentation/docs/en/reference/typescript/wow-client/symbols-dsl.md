@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client/dsl exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client/dsl` exports — 161 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client/dsl` exports — 165 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
 
 ::: v-pre
 
@@ -65,6 +65,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 161 — with its kind and the
 | `DerivedExpressionDsl` | interface | The builders of a derived metric's arithmetic, handed to the callback of`aggregation.derived(d => …, alias)`: references to other metrics of the same row, numbers, and the four operators. | — |
 | `DerivedExpressionType` | enum | The kind of a `DerivedExpression` node, sent as its `type`. | — |
 | `DerivedWindow` | type | A window over the groups of the aggregation. | — |
+| `DescriptorResult` | type | A query model's capability descriptor and its version, the `ETag` of`GET …/query`; `notModified` when the version given is still current. | — |
 | `DistinctCountAggregationMetric` | interface | The number of distinct values of an expression;`aggregation.distinctCount`. | — |
 | `DurationSemantic` | interface | A number field that is a length of time counted in `timeUnit`, such as a timeout in seconds: format it as a duration. | — |
 | `DynamicDocument` | type | A JSON object whose shape the types do not know; Wow's `DynamicDocument`. | — |
@@ -116,6 +117,8 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 161 — with its kind and the
 | `NumericDecimal` | interface | A number field meant as a fixed-point decimal with `scale` fraction digits: format and total it at that precision. | — |
 | `NumericMoney` | type | A number field meant as an amount of money, in exactly one of a fixed ISO 4217 `currency` or the currency held by the sibling string field`currencyField` (a property of the same object or element). | — |
 | `PagedList` | interface | One page of a `paged` query: its rows, and how many match in total. | — |
+| `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
+| `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for `TotalMode.NONE`. | — |
 | `Pagination` | interface | Interface for pagination information. | — |
 | `PagingMode` | enum | The ways a model can be read page by page, listed in `record.paging`. | — |
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |
@@ -162,6 +165,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 161 — with its kind and the
 | `TermsAggregationGroup` | type | One group per distinct value of a field, or of an expression;`aggregation.terms`. | — |
 | `TermsAggregationOptions` | interface | The options of `aggregation.terms`. | — |
 | `TimeUnit` | enum | Unit of a numeric epoch time field targeted by a relative time filter. | — |
+| `TotalMode` | type | How a paged query counts its total (`TotalMode`). | — |
 | `VariantDescriptor` | interface | One variant of an element: the value of its discriminator and the fields that variant has. | — |
 | `VariantsDescriptor` | interface | An element of every record whose fields differ by variant: an event stream record's `body` holds events whose payload fields depend on`bodyType`. | — |
 | `WindowFunction` | enum | The window functions of derived expressions, as a storage declares them in`analysis.windows` of its descriptor. | — |

@@ -92,8 +92,10 @@ export function memorySource(
         const matched = matchedIn(table, query.filter, query.sort);
         const { index, size } = query.pagination ?? DEFAULT_PAGINATION;
         const start = (index - 1) * size;
+        // The memory counts every match, so its total is always exact.
         return {
           total: matched.length,
+          exact: true,
           list: matched.slice(start, start + size).map(projected(query)),
         };
       }),

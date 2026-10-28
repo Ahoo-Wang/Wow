@@ -12,11 +12,16 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client';
+import {
+  DatasetClient,
+  EventQueryClient,
+  QueryModelClient,
+} from '@ahoo-wang/wow-client';
 import {
   DatasetResources,
   MemoryViewStore,
   ViewEngine,
+  type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
 import {
   PagingMode,
@@ -28,7 +33,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
-import { datasetCatalogOf, viewSourceOf } from '../src/index.js';
+import { datasetCatalogOf } from '../src/index.js';
 import type { FakeDataset } from './support/fakeViewStore.js';
 import { actingAs, installFake } from './support.js';
 
@@ -110,32 +115,27 @@ function orders(): FakeDataset {
 }
 
 describe('the V10 data sources', () => {
-  it('list the datasets as the engine’s directory reads them, each a source', async () => {
+  it('list the datasets as the engine’s directory reads them, each its query client as the source', async () => {
     const dataset = orders();
-    installFake({ datasets: [dataset] });
-    const catalog = datasetCatalogOf(
-      new DatasetClient({ fetcher: actingAs({}) }),
-    );
+    const fake = installFake({ datasets: [dataset] });
+    const datasets = new DatasetClient({ fetcher: actingAs({}) });
+    const catalog = datasetCatalogOf(datasets);
 
     const entries = await catalog.list();
     expect(entries).toEqual([
-      {
-        contextName: 'sales',
-        name: 'orders',
-        title: 'Orders',
-        version: 'listed',
-      },
+      { context: 'sales', dataset: 'orders', title: 'Orders' },
     ]);
     const source = catalog.source(entries[0]);
-    const abort = new AbortController();
+    // The dataset's own client, no adapter in between.
+    expect(source).toBeInstanceOf(QueryModelClient);
+    const { signal } = new AbortController();
 
     expect(
       await source.paged(
         { filter: { op: FilterOperator.MATCH_ALL } } as never,
-        undefined,
-        abort,
+        { signal },
       ),
-    ).toEqual({ total: 2, list: ROWS });
+    ).toEqual({ total: 2, exact: true, list: ROWS });
     expect(dataset.source.paged).toHaveBeenCalledWith({
       filter: { op: FilterOperator.MATCH_ALL },
     });
@@ -146,20 +146,30 @@ describe('the V10 data sources', () => {
     expect(await source.aggregate({ metrics: [] } as never)).toEqual([
       { total: 3 },
     ]);
-    expect(await source.describe!()).toEqual({
+    expect(await source.describe!()).toMatchObject({
       notModified: false,
       descriptor: DESCRIPTOR,
-      version: 'sha256:1',
     });
+    expect(
+      fake.requests.filter(({ path }) => path.endsWith('/orders/query')),
+    ).toHaveLength(4);
   });
 
-  it('serve an aggregate type’s events as a source (decision D235)', async () => {
+  it('hand the directory read its signal', async () => {
+    installFake({ datasets: [orders()] });
+    const catalog = datasetCatalogOf(
+      new DatasetClient({ fetcher: actingAs({}) }),
+    );
+    const abort = new AbortController();
+    abort.abort();
+    await expect(catalog.list({ signal: abort.signal })).rejects.toThrow();
+  });
+
+  it('serve an aggregate type’s events as a source, its client as it is (decision D235)', async () => {
     const fake = installFake();
-    const source = viewSourceOf(
-      new EventQueryClient(
-        { context: 'sales', name: 'order' },
-        { fetcher: actingAs({}) },
-      ),
+    const source: ViewSource = new EventQueryClient(
+      { context: 'sales', name: 'order' },
+      { fetcher: actingAs({}) },
     );
     const streams = [{ aggregateId: 'o1', version: 1, events: [] }];
     fake.failNext(
@@ -171,7 +181,7 @@ describe('the V10 data sources', () => {
     );
     expect(
       await source.paged({ filter: { op: FilterOperator.MATCH_ALL } } as never),
-    ).toEqual({ total: 1, list: streams });
+    ).toEqual({ total: 1, exact: true, list: streams });
     fake.failNext(
       /\/sales\/order\/events\/query$/,
       () =>
@@ -193,7 +203,7 @@ describe('the V10 data sources', () => {
     ).toEqual([{ event: 'sales.order.OrderPaid', n: 2 }]);
   });
 
-  it('read a page whose total the service did not count as its rows', async () => {
+  it('read a page whose total the service did not count as no total', async () => {
     const fake = installFake();
     fake.failNext(
       /query$/,
@@ -203,17 +213,21 @@ describe('the V10 data sources', () => {
           { headers: { 'Content-Type': 'application/json' } },
         ),
     );
-    const source = viewSourceOf(
-      new DatasetClient({ fetcher: actingAs({}) }).dataset('sales', 'orders'),
-    );
-    expect(await source.paged({} as never)).toEqual({ total: 2, list: ROWS });
+    const source: ViewSource = new DatasetClient({
+      fetcher: actingAs({}),
+    }).dataset('sales', 'orders');
+    expect(await source.paged({} as never)).toEqual({
+      total: null,
+      exact: false,
+      list: ROWS,
+    });
   });
 
-  it('answer a descriptor still current as not modified, and one without an entity tag by its own version', async () => {
+  it('answer a descriptor still current as not modified, and a changed one with its version', async () => {
     const fake = installFake();
-    const source = viewSourceOf(
-      new DatasetClient({ fetcher: actingAs({}) }).dataset('sales', 'orders'),
-    );
+    const source: ViewSource = new DatasetClient({
+      fetcher: actingAs({}),
+    }).dataset('sales', 'orders');
     fake.failNext(
       /query$/,
       () =>
@@ -227,20 +241,20 @@ describe('the V10 data sources', () => {
       /query$/,
       () =>
         new Response(JSON.stringify(DESCRIPTOR), {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ETag: '"sha256:2"' },
         }),
     );
-    expect(await source.describe!()).toMatchObject({
+    expect(await source.describe!('sha256:1')).toMatchObject({
       notModified: false,
-      version: 'sha256:1',
+      descriptor: DESCRIPTOR,
+      version: 'sha256:2',
     });
   });
 
-  it('serve every dataset a V10 directory lists in an engine, end to end, its version never null', async () => {
-    // The V10 directory names no version. Read as `null`, the engine took
-    // every dataset for one it cannot serve and registered none (7.2c-2's
-    // rows page); nothing here is stubbed between the store's catalog and the
-    // engine's registry.
+  it('serve every dataset a V10 directory lists in an engine, end to end', async () => {
+    // The V10 directory names no version; the engine registers every
+    // dataset it lists. Nothing here is stubbed between the store's catalog
+    // and the engine's registry.
     installFake({
       datasets: [
         {
@@ -260,15 +274,16 @@ describe('the V10 data sources', () => {
       new DatasetClient({ fetcher: actingAs({}) }),
     );
     for (const entry of await catalog.list())
-      expect(entry.version).not.toBeNull();
+      expect(entry).not.toHaveProperty('version');
     const engine = new ViewEngine({
       resources: [],
       store: new MemoryViewStore(),
     });
     const errors: unknown[] = [];
-    const served = await new DatasetResources(engine, catalog, (_, error) =>
-      errors.push(error),
-    ).refresh();
+    const served = await new DatasetResources(engine, {
+      catalogs: catalog,
+      onError: (_, error) => errors.push(error),
+    }).refresh();
     expect(errors).toEqual([]);
     expect(served.map(({ id }) => id)).toEqual(['sales.orders']);
     expect(engine.definitions.get('sales.orders')?.title).toBe('Orders');
@@ -279,6 +294,6 @@ describe('the V10 data sources', () => {
     const [entry] = await datasetCatalogOf(
       new DatasetClient({ fetcher: actingAs({}) }),
     ).list();
-    expect(entry.title).toBeNull();
+    expect(entry).toEqual({ context: 'sales', dataset: 'orders' });
   });
 });

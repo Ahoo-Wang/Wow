@@ -184,9 +184,9 @@ describe('SaveActions, the split button group', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
-      'Big ones',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.title),
+    ).toContain('Big ones');
   });
 
   it('has nothing to save until the view is edited', async () => {
@@ -760,9 +760,9 @@ describe('WriteOutcome', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
-      'Mine after all',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.title),
+    ).toContain('Mine after all');
   });
 
   /**
@@ -787,9 +787,9 @@ describe('WriteOutcome', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
-      'Mine after all',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.title),
+    ).toContain('Mine after all');
     await waitFor(() => expect(runtime.getSnapshot().write).toBeNull());
     expect(engine.pendingWrites().size).toBe(0);
     // And the line that offered the three ways out is gone with it.
@@ -1214,9 +1214,9 @@ describe('save actions', () => {
     );
 
     await landed(store);
-    expect((await store.list('orders')).map(item => item.title)).toContain(
-      'Pending only',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.title),
+    ).toContain('Pending only');
   });
 
   it('opens on a copy of the title it was asked from', async () => {
@@ -1242,7 +1242,8 @@ describe('save actions', () => {
 
     await landed(store);
     expect(
-      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      (await store.list('orders')).items.find(item => item.title === 'Ours')
+        ?.scope,
     ).toBe('shared');
   });
 
@@ -1296,7 +1297,8 @@ describe('save actions', () => {
 
     await landed(store);
     expect(
-      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      (await store.list('orders')).items.find(item => item.title === 'Ours')
+        ?.scope,
     ).toBe('shared');
   });
 

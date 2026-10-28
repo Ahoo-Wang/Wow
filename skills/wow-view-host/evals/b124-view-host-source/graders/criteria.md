@@ -8,6 +8,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Declines the hand-written 9.x routes: a V10 service answers one query route, /sales/order/snapshot/query, whose POST queries and whose GET returns the capability descriptor with its version as the ETag
-2. Makes the source with viewSourceOf from @ahoo-wang/wow-view-store over the generated OrderSnapshotQueryClient (or wow-client's SnapshotQueryClient for sales.order), so the engine narrows the definition through describe
+2. Makes the source the generated OrderSnapshotQueryClient itself (or wow-client's SnapshotQueryClient for sales.order), which is a ViewSource with no adapter, so the engine narrows the definition through describe; an answer that wraps it in an adapter (such as the removed viewSourceOf) fails this point
 3. Registers it once on the application's single ViewEngine as { definition: orders, source }, with the definition's source key matching, and gives the fetcher a timeout
 4. Names a check: admit over the registered resources and the committed descriptor

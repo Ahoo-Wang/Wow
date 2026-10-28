@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { StrictMode, useRef, useState } from 'react';
 import {
   cleanup,
@@ -717,7 +718,7 @@ describe('the keyboard', () => {
 
 describe('the states a view can be expanded in', () => {
   it('expands while the first rows are still on their way', async () => {
-    const pending = deferred<{ total: number; list: typeof ROWS }>();
+    const pending = deferred<PagedResult<object>>();
     const user = userEvent.setup();
     render(
       <DataWorkbench
@@ -732,7 +733,7 @@ describe('the states a view can be expanded in', () => {
     expect(isExpanded()).toBe(true);
     expect(held()).toEqual(LOCKED);
 
-    pending.resolve({ total: 2, list: [...ROWS] });
+    pending.resolve({ total: 2, exact: true, list: [...ROWS] });
     await screen.findByRole('table');
     // The result arriving underneath changes nothing about the surface.
     expect(isExpanded()).toBe(true);

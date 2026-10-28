@@ -117,7 +117,7 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   store: new MemoryViewStore(),
-  // A ViewSource; viewSourceOf of @ahoo-wang/wow-view-store puts a Wow query route here
+  // A ViewSource: a Wow query route's client (a generated …SnapshotQueryClient) as it is
   resources: [{ definition: orders, source: sources.orders }],
 });
 ```

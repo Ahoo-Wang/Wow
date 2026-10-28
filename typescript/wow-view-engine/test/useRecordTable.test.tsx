@@ -17,6 +17,7 @@
  * the page sizes a runtime's limits leave on offer.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -62,7 +63,9 @@ describe('useRecordTable', () => {
   /** More rows than one page holds, so there is a next page to move to. */
   function manyPages(): ViewSource {
     return testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 200, list: [...ROWS] })),
+      paged: vi.fn(() =>
+        Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
+      ),
     });
   }
 
@@ -342,7 +345,7 @@ describe('useRecordTable', () => {
    */
   it('stops at the source window, and a jump past it lands on its last page', async () => {
     const paged = vi.fn(() =>
-      Promise.resolve({ total: 624_100, list: [...ROWS] }),
+      Promise.resolve({ total: 624_100, exact: true, list: [...ROWS] }),
     );
     const { engine } = engineWith({
       source: testSource({ paged }),
@@ -376,8 +379,7 @@ describe('useRecordTable', () => {
     );
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 500, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
 
     // The last reachable page is the last page: Next asks nothing further.
@@ -397,10 +399,11 @@ describe('useRecordTable', () => {
     let answer: (() => void) | undefined;
     const paged = vi.fn((query: { pagination?: { size: number } }) =>
       query.pagination?.size === 50
-        ? new Promise<{ total: number; list: typeof ROWS }>(resolve => {
-            answer = () => resolve({ total: 200, list: [...ROWS] });
+        ? new Promise<PagedResult<object>>(resolve => {
+            answer = () =>
+              resolve({ total: 200, exact: true, list: [...ROWS] });
           })
-        : Promise.resolve({ total: 200, list: [...ROWS] }),
+        : Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
     );
     const result = await openTable(testSource({ paged }));
     expect(result.current.table.paging).toMatchObject({ size: 20, pages: 10 });
@@ -575,7 +578,7 @@ describe('useRecordTable', () => {
       testSource({
         paged: vi
           .fn()
-          .mockResolvedValueOnce({ total: 0, list: [] })
+          .mockResolvedValueOnce({ total: 0, exact: true, list: [] })
           .mockRejectedValue(new Error('gateway down')),
       }),
     );

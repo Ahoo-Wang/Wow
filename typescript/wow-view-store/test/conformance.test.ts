@@ -48,6 +48,8 @@ describeViewStoreConformance({
     idempotentCreate: true,
     systemViews: { definitionId: SYSTEM_DEFINITION },
     storedSystemViews: true,
+    // The views of an audience one list page reads (`LIST_PAGE`).
+    pageSize: 100,
   },
   connect:
     () =>

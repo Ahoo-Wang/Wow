@@ -21,7 +21,6 @@ import {
   type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
-import { viewSourceOf } from "@ahoo-wang/wow-view-store";
 import {
   DatasetSnapshotQueryClient,
   SourceSnapshotQueryClient,
@@ -33,15 +32,15 @@ import { sources } from "./sources.ts";
 /**
  * The catalog's sources and datasets as the engine's sources: the generated
  * snapshot query clients of `analytics-catalog.source` and
- * `analytics-catalog.dataset`, adapted by the view store's `viewSourceOf`.
+ * `analytics-catalog.dataset`, each a source as it is.
  */
 export function catalogSources(fetcher: Fetcher): {
   sources: ViewSource;
   datasets: ViewSource;
 } {
   return {
-    sources: viewSourceOf(new SourceSnapshotQueryClient({ fetcher })),
-    datasets: viewSourceOf(new DatasetSnapshotQueryClient({ fetcher })),
+    sources: new SourceSnapshotQueryClient({ fetcher }),
+    datasets: new DatasetSnapshotQueryClient({ fetcher }),
   };
 }
 

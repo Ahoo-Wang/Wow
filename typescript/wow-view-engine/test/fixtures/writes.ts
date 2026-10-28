@@ -99,15 +99,16 @@ export function landed(store: ViewStore, timeout = 4000): Promise<void> {
  */
 export function withoutAudience(store: ViewStore): ViewStore {
   return {
-    list: definitionId => store.list(definitionId),
-    get: id => store.get(id),
+    list: (definitionId, options) => store.list(definitionId, options),
+    get: (id, options) => store.get(id, options),
     create: (input, context) => store.create(input, context),
     save: (id, config, revision, context) =>
       store.save(id, config, revision, context),
     rename: (id, title, revision, context) =>
       store.rename(id, title, revision, context),
     delete: (id, revision, context) => store.delete(id, revision, context),
-    getPreferences: definitionId => store.getPreferences(definitionId),
+    getPreferences: (definitionId, options) =>
+      store.getPreferences(definitionId, options),
     setPreferences: (definitionId, preferences, context) =>
       store.setPreferences(definitionId, preferences, context),
   };

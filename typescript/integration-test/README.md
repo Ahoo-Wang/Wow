@@ -13,8 +13,8 @@ workspace path, so `tsconfig.json` sets `rootDir` to `..`); the service's own
 rules (`../wow-view-store/test/conformance/wowViewStoreService.ts`, which the
 store's fake service passes too): tenant and application isolation, the stored
 and configured system views, the service's writer roles, the tenant's dataset
-wording and its error codes; the errors only a network shows; `viewSourceOf`
-over a query route; and the engine end to end (saves, conflicts, an unknown
+wording and its error codes; the errors only a network shows; a snapshot query
+client as the view source; and the engine end to end (saves, conflicts, an unknown
 outcome retried, share and claim, preferences, a record view and an analysis
 through the query routes).
 

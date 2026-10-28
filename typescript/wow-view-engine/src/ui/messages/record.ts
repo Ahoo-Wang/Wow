@@ -92,6 +92,8 @@ export const recordMessages = {
   // many there are, and without one it says only what it can see.
   'label.pagination.total': '{count} records in all',
   'label.pagination.total-one': '1 record in all',
+  // A lower bound: the source counts only up to its budget (`BOUNDED`).
+  'label.pagination.total-at-least': 'At least {count} records',
   'label.pagination.on-page': '{count} on this page',
   // The words before the size control and the sizes it offers. The unit
   // rides with the number, which is what a Chinese measure word needs —

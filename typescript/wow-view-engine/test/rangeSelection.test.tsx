@@ -48,7 +48,9 @@ const FIVE = [1, 2, 3, 4, 5].map(n => ({
 
 async function open() {
   const source = testSource({
-    paged: vi.fn(() => Promise.resolve({ total: 50, list: [...FIVE] })),
+    paged: vi.fn(() =>
+      Promise.resolve({ total: 50, exact: true, list: [...FIVE] }),
+    ),
   });
   const harness = setup(source);
   render(

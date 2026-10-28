@@ -41,14 +41,14 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 interface ViewStore {
   list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, ctx: WriteContext): Promise<ViewInstance>;
-  rename(id: string, title: string, revision: string, ctx: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, ctx: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  rename(id: string, title: string, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
   // 可选：没有它，视图管理器就没有「设为共享」「设为个人」。
-  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteContext): Promise<ViewInstance>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteContext): Promise<ViewPreferences>;
+  setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteOptions): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
 }
 ```
@@ -56,7 +56,7 @@ interface ViewStore {
 | 规则 | 行为 |
 |---|---|
 | 乐观 revision | 写操作携带期望的 `revision`；不一致时抛出 code 为 `CONFLICT` 的 `ViewStoreError`，界面提供重新加载、覆盖或另存为 |
-| 幂等 `requestId` | 每次逻辑写入在 `WriteContext` 中有一个 `requestId`；超时后重试沿用同一个值，由服务端去重 |
+| 幂等 `requestId` | 每次逻辑写入在 `WriteOptions` 中有一个 `requestId`；超时后重试沿用同一个值，由服务端去重 |
 | 权限 | `permissions` 只决定按钮是否可用。授权、可见性过滤和去重都是服务端的职责 |
 | 改受众 | `changeAudience` 就地把保存的视图在个人与共享之间移动，id 不变，同样守上面两条规则。要改成视图已有的受众时原样答回；共享仪表盘显示着的视图不能改成个人（`INVALID`，`boards` 是那几块仪表盘的标题） |
 

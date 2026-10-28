@@ -22,7 +22,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -1030,7 +1030,7 @@ describe('every workbench offers the interval', () => {
       }),
     };
     // A source that never answers, so the panel's request stays in flight.
-    const outstanding = deferred<PagedList<RecordData>>();
+    const outstanding = deferred<PagedResult<RecordData>>();
     const engine = engineWith({
       instances: [orders, board],
       source: testSource({ paged: () => outstanding.promise }),
@@ -1052,7 +1052,7 @@ describe('every workbench offers the interval', () => {
 
     // And it comes back the moment the panel has its answer.
     await act(async () => {
-      outstanding.resolve({ total: 0, list: [] });
+      outstanding.resolve({ total: 0, exact: true, list: [] });
       await Promise.resolve();
     });
     await waitFor(() => expect(press.hasAttribute('disabled')).toBe(false));

@@ -25,6 +25,7 @@ import { AUTO_APPLY_DELAY_MS, autoApplyDue } from '../src/runtime/autoApply.js';
 import { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -53,7 +54,7 @@ function analysis(source: ViewSource = testSource()) {
     kinds: builtinFieldKinds,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source,
+    source: recordSource(source),
     runner: new RequestRunner(),
   });
   runtime.apply();
@@ -178,7 +179,7 @@ describe('改了就跑: the analysis runs again on its own', () => {
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
-      source,
+      source: recordSource(source),
       runner: new RequestRunner(),
     });
     runtime.apply();

@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 887 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -166,13 +166,13 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DataViewConfigBase` | interface | What a view that asks one question of its own — a record view, an analysis — stores besides: its conditions, and the editor mode they are shown in. | — |
 | `DataViewDefinition` | interface | — | — |
 | `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
-| `DatasetDirectoryEntry` | interface | One dataset of a service's directory: where it lives, how it is titled, and the version it was published at (`null` while it is not servable). | — |
+| `DatasetDirectoryEntry` | interface | One dataset of a service's directory, named as wow-client's `DatasetEntry` names it: the bounded context it lives in, its name there, and its title. | — |
 | `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves: left out, the earlier one's kept. | — |
 | `DatasetOverrides` | type | What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
-| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each`refresh` registers a dataset a directory newly lists, registers again one whose descriptor version changed, and removes one no directory lists any more or whose schema does not compile (`version` `null`). | — |
-| `DatasetResourcesOptions` | interface | What `DatasetResources` tells besides a dataset it cannot serve: each duplicate it leaves out, and a catalog whose directory cannot be read. | — |
+| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each`refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |
+| `DatasetResourcesInit` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
 | `DateDiffUnitName` | type | — | — |
@@ -376,7 +376,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ProjectedBase` | interface | What both kinds carry besides their view: what is wrong with *these numbers*, as opposed to what is wrong with the config. | — |
 | `ProjectedRecord` | interface | — | — |
 | `ProjectedView` | type | What one execution produced, already shaped by its kernel. | — |
-| `QueryDescriptorResult` | type | What a source's `describe` answers: the descriptor read in full, with its version to send next time, or word that the version sent is still current. | — |
 | `QueryStatus` | type | — | — |
 | `RECORD_PRESENTATION_MEMBERS` | const | The record members that only draw the result, on top of the base's (`PRESENTATION_MEMBERS` in `config.ts` joins the two). | — |
 | `REFERENCE_STATISTICS` | const | Where a statistic reference line stands: the mean, or the middle value. | — |
@@ -384,6 +383,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `RadarData` | interface | — | — |
 | `RadarSpec` | interface | A radar: several metrics per group as one closed shape, an axis per metric each on its own scale — the outline of each group against the others. | — |
 | `RangeEdge` | type | Which side of a range a bound stands on. | — |
+| `ReadOptions` | interface | What every read of a store takes: the signal that cancels it. | — |
 | `RecordAction` | interface | One declared command on a record. | [Host Wiring](./host#api-actions) |
 | `RecordActions` | type | A binding's declared actions, as `actions()` hands them back. | — |
 | `RecordCapability` | interface | — | [Definitions and Field Kinds](./definitions#api-RecordCapability) |
@@ -444,6 +444,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ShapeFacts` | interface | The facts of a result's shape a family's fit reads. | — |
 | `SizedPanel` | type | A dashboard panel whose layout gives only its size, for `inRows`. | — |
 | `SortDirectionName` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
+| `SourceOptions` | interface | What every read of a source takes: the signal that cancels it. | — |
 | `StoredDatasetWording` | interface | A dataset's wording as stored, and the revision a write expects. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
 | `StringFilterValue` | type | — | — |
@@ -500,6 +501,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ViewInstance` | interface | A saved config plus its identity. | — |
 | `ViewInstanceSummary` | interface | What a list returns: enough to render the sidebar, without the config. | — |
 | `ViewKind` | type | — | — |
+| `ViewListOptions` | interface | One page of `ViewStore.list` to read. | — |
+| `ViewListPage` | interface | One page of a definition's views, in the port's order. | — |
 | `ViewListing` | interface | What a definition's list is right now: every view that could be read, and the reason the rest could not. | [Engine and Resources](./engine#api-ViewListing) |
 | `ViewNavigation` | type | Where a way off the board goes, for the host's route. | — |
 | `ViewPermissions` | interface | What the current user may do with one definition's views. | [Persistence Port](./store#api-ViewPermissions) |
@@ -510,7 +513,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ViewRuntime` | interface | One open view. | — |
 | `ViewRuntimeState` | interface | — | — |
 | `ViewScope` | type | Who configured a view, who sees it and who may change it. | — |
-| `ViewSource` | interface | Where a definition's data comes from. | [Engine and Resources](./engine#api-ViewSource) |
+| `ViewSource` | interface | Where a definition's data comes from: the reads of one Wow query route, in wow-client's own shapes, so any `QueryModelClient` — a generated`…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)` — is a source as it is, with no adapter (`test/architecture.test.ts` holds both to it). | [Engine and Resources](./engine#api-ViewSource) |
 | `ViewStore` | interface | The only port a backend must satisfy. | [Persistence Port](./store#api-ViewStore) |
 | `ViewStoreError` | class | The single failure type of the persistence port. | [Persistence Port](./store#api-ViewStoreError) |
 | `ViewStoreErrorCode` | type | — | [Persistence Port](./store#api-ViewStoreError) |
@@ -521,8 +524,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `WaterfallStep` | interface | One step of a waterfall: its group, its change, and where it floats. | — |
 | `WindowFunctionName` | type | A window function of Wow's derived expressions. | — |
 | `WriteAction` | type | — | — |
-| `WriteContext` | interface | One logical write. | [Persistence Port](./store#api-ViewStore) |
 | `WriteHandle` | interface | Addresses a write that no open runtime owns, such as renaming a view from the list. | — |
+| `WriteOptions` | interface | One logical write. | [Persistence Port](./store#api-ViewStore) |
 | `WritePayload` | type | The body of a write, kept as it was sent. | — |
 | `WriteState` | type | An outcome that is not success. | — |
 | `WriteTarget` | type | What a write command is addressed to: an open view, or a handle. | — |

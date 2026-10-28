@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedQuery, PagedResult } from '@ahoo-wang/wow-client';
+import type { PagedQuery, PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 

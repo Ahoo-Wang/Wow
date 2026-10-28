@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -195,8 +196,8 @@ describe('the query queue makes room for a board (host-integration.md 4)', () =>
     const answers: Array<() => void> = [];
     const source: ViewSource = testSource({
       paged: vi.fn(() => {
-        const answer = deferred<{ total: number; list: never[] }>();
-        answers.push(() => answer.resolve({ total: 0, list: [] }));
+        const answer = deferred<PagedResult<object>>();
+        answers.push(() => answer.resolve({ total: 0, exact: true, list: [] }));
         return answer.promise;
       }),
     });

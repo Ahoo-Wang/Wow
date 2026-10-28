@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator, AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
@@ -29,6 +30,7 @@ import {
 } from '../src/index.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import { firstPageOf } from '../src/runtime/execute.js';
 import {
   analysisConfig,
@@ -75,7 +77,7 @@ function harness(
     kinds: builtinFieldKinds,
     limits: options.limits ?? DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source,
+    source: recordSource(source),
     runner: options.runner ?? new RequestRunner(),
     scopeFilter: options.scopeFilter,
   }) as RecordDataViewRuntime;
@@ -198,7 +200,7 @@ describe('DataViewRuntime execution', () => {
     runtime.apply();
     await nextTask();
     clock.advance(400);
-    answer({ total: 0, list: [] });
+    answer({ total: 0, exact: true, list: [] });
     await nextTask();
 
     expect(runtime.getSnapshot().result?.elapsedMs).toBe(400);
@@ -218,8 +220,7 @@ describe('DataViewRuntime execution', () => {
     expect(recordData(runtime).view.rows).toHaveLength(2);
     expect(source.paged).toHaveBeenCalledWith(
       expect.objectContaining({ pagination: { index: 1, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -234,8 +235,7 @@ describe('DataViewRuntime execution', () => {
 
     expect(source.cursor).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: null }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(recordData(runtime).view.paging).toEqual({
       mode: 'cursor',
@@ -405,16 +405,16 @@ describe('DataViewRuntime execution', () => {
   });
 
   it('drops the response of a request a newer one replaced', async () => {
-    const first = deferred<{ total: number; list: typeof ROWS }>();
+    const first = deferred<PagedResult<object>>();
     const paged = vi
       .fn()
       .mockReturnValueOnce(first.promise)
-      .mockResolvedValue({ total: 1, list: [ROWS[0]] });
+      .mockResolvedValue({ total: 1, exact: true, list: [ROWS[0]] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
     runtime.refresh();
-    first.resolve({ total: 2, list: [...ROWS] });
+    first.resolve({ total: 2, exact: true, list: [...ROWS] });
     await nextTask();
 
     expect(runtime.getSnapshot().query.status).toBe('success');
@@ -434,8 +434,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(source.paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(runtime.getSnapshot().selection).toEqual([]);
     expect(recordData(runtime).view.paging).toMatchObject({
@@ -469,7 +468,9 @@ describe('DataViewRuntime paging and selection', () => {
    * through page by page.
    */
   it('reads the page it is on again on refresh', async () => {
-    const paged = vi.fn().mockResolvedValue({ total: 45, list: [...ROWS] });
+    const paged = vi
+      .fn()
+      .mockResolvedValue({ total: 45, exact: true, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -481,19 +482,18 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
   it('steps back to the last page there is when the result shrank under it', async () => {
     const paged = vi
       .fn()
-      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
-      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 45, exact: true, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 45, exact: true, list: [...ROWS] })
       // The rows of page 3 left the result: 30 remain, two pages.
-      .mockResolvedValueOnce({ total: 30, list: [] })
-      .mockResolvedValueOnce({ total: 30, list: [...ROWS] });
+      .mockResolvedValueOnce({ total: 30, exact: true, list: [] })
+      .mockResolvedValueOnce({ total: 30, exact: true, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -505,8 +505,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 2, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     const { result, query } = runtime.getSnapshot();
     expect(query.status).toBe('success');
@@ -518,8 +517,8 @@ describe('DataViewRuntime paging and selection', () => {
   it('intersects the selection with the rows a refresh returned', async () => {
     const paged = vi
       .fn()
-      .mockResolvedValueOnce({ total: 2, list: [...ROWS] })
-      .mockResolvedValueOnce({ total: 1, list: [ROWS[1]] });
+      .mockResolvedValueOnce({ total: 2, exact: true, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 1, exact: true, list: [ROWS[1]] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -581,7 +580,7 @@ describe('DataViewRuntime scope filter', () => {
       paged: vi.fn(() =>
         fail
           ? Promise.reject(new Error('down'))
-          : Promise.resolve({ total: 0, list: [] }),
+          : Promise.resolve({ total: 0, exact: true, list: [] }),
       ),
     });
     const { runtime } = harness({ source });
@@ -1092,7 +1091,7 @@ describe('DataViewRuntime auto refresh', () => {
   });
 
   it('holds the timer while a request is still in flight', () => {
-    const gate = deferred<{ total: number; list: typeof ROWS }>();
+    const gate = deferred<PagedResult<object>>();
     const { runtime, clock } = harness({
       config: refreshing,
       source: testSource({ paged: vi.fn(() => gate.promise) }),
@@ -1181,7 +1180,7 @@ describe('DataViewRuntime auto refresh', () => {
    * only known once it lands.
    */
   it('has nothing due while the timer is held, and again once it is armed', async () => {
-    const gate = deferred<{ total: number; list: typeof ROWS }>();
+    const gate = deferred<PagedResult<object>>();
     const paged = vi.fn(() => gate.promise);
     const { runtime, clock } = harness({
       config: refreshing,
@@ -1191,7 +1190,7 @@ describe('DataViewRuntime auto refresh', () => {
     runtime.apply();
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
 
-    gate.resolve({ total: ROWS.length, list: ROWS });
+    gate.resolve({ total: ROWS.length, exact: true, list: ROWS });
     await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
 

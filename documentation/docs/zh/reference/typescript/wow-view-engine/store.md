@@ -16,7 +16,7 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 | 规则 | 行为 |
 |---|---|
 | 乐观修订号 | 每次写入带着它期望的 `revision`；不匹配就抛 `ViewStoreError`，代码 `CONFLICT`，并带上服务端持有的实例或偏好，界面提供重新加载、覆盖或另存为 |
-| 幂等的 `requestId` | 每次逻辑写入在 `WriteContext` 里有一个 `requestId`；超时后的重试复用它和同样的载荷，服务端据此去重 |
+| 幂等的 `requestId` | 每次逻辑写入在 `WriteOptions` 里有一个 `requestId`；超时后的重试复用它和同样的载荷，服务端据此去重 |
 | 固定的列表顺序 | `list` 按固定顺序答摘要：后端的系统视图在前（按它声明的顺序），然后共享视图，然后用户的个人视图，每个受众内最早创建的在前。没有偏好时列表第一项就是缺省打开的视图，所以每个存储答出同一个 |
 | 权限只管按钮 | `permissions` 只决定界面启用哪些按钮，是同步的，因为应用在建引擎前就取好了它。授权、可见性过滤与去重都是服务端的责任 |
 
@@ -28,19 +28,19 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 
 ```ts
 export interface ViewStore {
-  changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
   list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
   permissions?(definitionId: string): ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 
-export interface WriteContext {
+export interface WriteOptions {
   requestId: string;
   signal?: AbortSignal;
 }
@@ -141,16 +141,16 @@ export const permissions = (): ViewPermissions => ({
 ```ts
 export declare class MemoryViewStore implements ViewStore {
   constructor(options?: MemoryViewStoreOptions);
-  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
   get(id: string): Promise<ViewInstance>;
   getPreferences(definitionId: string): Promise<ViewPreferences>;
   list(definitionId: string): Promise<ViewInstanceSummary[]>;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
 }
 
 export interface MemoryViewStoreOptions {

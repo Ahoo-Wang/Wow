@@ -141,7 +141,7 @@ describe('a new view, from the work area to the list', () => {
     expect(
       await within(sidebar).findByRole('button', { name: /Big ones/ }),
     ).toBeDefined();
-    expect((await store.list('orders')).map(item => item.title)).toEqual([
+    expect((await store.list('orders')).items.map(item => item.title)).toEqual([
       'Big ones',
     ]);
   });

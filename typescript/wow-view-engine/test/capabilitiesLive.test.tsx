@@ -645,8 +645,7 @@ describe('a cursor-paged view (#3502)', () => {
     await nextTask();
     expect(cursor).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'next' }),
-      undefined,
-      expect.anything(),
+      { signal: expect.any(AbortSignal) },
     );
 
     runtime.edit({

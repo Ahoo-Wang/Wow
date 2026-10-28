@@ -27,6 +27,7 @@ import {
 import { MomentTimer } from '../src/runtime/refreshTimer.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import { ROLLOVER_GRACE_MS } from '../src/runtime/runtimeStore.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import {
@@ -131,7 +132,7 @@ function openCard(config: AnalysisViewConfig = card()) {
     kinds: builtinFieldKinds,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source: testSource({ aggregate }),
+    source: recordSource(testSource({ aggregate })),
     runner: new RequestRunner(),
   });
   return { runtime, clock, aggregate };

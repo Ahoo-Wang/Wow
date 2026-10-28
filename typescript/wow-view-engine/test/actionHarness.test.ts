@@ -242,7 +242,25 @@ describe('actionHarness', () => {
       reason: text('succeeded'),
     });
     await harness.run('prepare', 'EF-1');
-    expect(prepare.run).toHaveBeenCalledWith(ROWS[0], {});
+    expect(prepare.run).toHaveBeenCalledWith(
+      ROWS[0],
+      {},
+      {
+        signal: expect.any(AbortSignal),
+      },
+    );
+  });
+
+  it('hands the run the signal it was given, as the engine hands its own', async () => {
+    const controller = new AbortController();
+    await harness.run('prepare', 'EF-1', {}, { signal: controller.signal });
+    expect(prepare.run).toHaveBeenLastCalledWith(
+      ROWS[0],
+      {},
+      {
+        signal: controller.signal,
+      },
+    );
   });
 
   it('names what it cannot find', () => {
@@ -317,10 +335,11 @@ describe('a press, as the harness and the screen both start it', () => {
       title: text('remindLate'),
     });
     await harness.run('remind', 'EF-1', { note: 'call' });
-    expect(remind.run).toHaveBeenCalledWith(ROWS[0], {
-      minutes: 30,
-      note: 'call',
-    });
+    expect(remind.run).toHaveBeenCalledWith(
+      ROWS[0],
+      { minutes: 30, note: 'call' },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   it('asks by the action’s name where its question throws', () => {

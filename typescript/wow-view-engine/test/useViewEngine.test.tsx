@@ -28,6 +28,8 @@ import {
   issue,
   type FilterTree,
   type RecordViewRuntime,
+  type ViewInstance,
+  type ViewStore,
 } from '../src/index.js';
 import {
   browserRuntimeEnvironment,
@@ -39,6 +41,7 @@ import {
   useViewRuntime,
 } from '../src/react/index.js';
 import {
+  deferred,
   mine,
   ordersDefinition,
   recordConfig,
@@ -395,17 +398,28 @@ describe('useOpenView', () => {
     expect(retryableOpen(failed('view.open.wrong-kind'))).toBe(false);
   });
 
-  it('drops a view that arrives after it was unmounted', async () => {
-    const { engine } = engineWith();
+  it('calls off an open still reading when it is unmounted, and leaves no view behind', async () => {
+    const source = testSource();
+    const { engine, store } = engineWith({ source });
+    const held = deferred<ViewInstance>();
+    const get = vi
+      .spyOn<ViewStore, 'get'>(store, 'get')
+      .mockReturnValueOnce(held.promise);
     const open = vi.spyOn(engine, 'open');
     const { unmount } = renderHook(() => useOpenView(engine, 'orders-1'));
+    const signal = get.mock.calls[0]?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
 
     unmount();
-    const runtime = await open.mock.results[0].value;
+    expect(signal?.aborted).toBe(true);
+    held.resolve(mine);
 
-    // Disposed on arrival rather than left running behind a dead component.
-    runtime.edit({ pageSize: 12 });
-    expect(runtime.getSnapshot().draft.pageSize).toBe(20);
+    // The open hears the abort: nobody holds a runtime, so none is made.
+    await expect(open.mock.results[0].value).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(engine.openRuntimes()).toEqual([]);
+    expect(source.paged).not.toHaveBeenCalled();
   });
 });
 

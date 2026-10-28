@@ -231,17 +231,19 @@ export function useAddressedInstance(
         asked: named,
       }));
     };
-    void engine.list(definitionId).then(
+    const reading = new AbortController();
+    const { signal } = reading;
+    void engine.list(definitionId, { signal }).then(
       async listing => {
         if (listing.failed) return answer(null);
         const listed = new Set(listing.items.map(item => item.id));
         if (listed.has(named)) return answer(listed);
-        // A list holds what the store answers of it — a store may cut a
-        // long one (WowViewStore lists 1000 of each audience) — so a view not in
-        // it is asked for by id before it is judged another's: a link to
-        // the 1001st shared view is this workbench's all the same.
+        // A list holds what the engine reads of it — it stops at
+        // `RuntimeLimits.listedViews` — so a view not in it is asked for by
+        // id before it is judged another's: a link to the 1001st view is
+        // this workbench's all the same.
         try {
-          const found = await engine.store.get(named);
+          const found = await engine.store.get(named, { signal });
           if (found.definitionId === definitionId) listed.add(named);
           answer(listed);
         } catch (error) {
@@ -256,6 +258,7 @@ export function useAddressedInstance(
     );
     return () => {
       cancelled = true;
+      reading.abort();
     };
   }, [addressed, named, verdict, engine, definitionId]);
 

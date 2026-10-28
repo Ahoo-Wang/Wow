@@ -587,7 +587,7 @@ describe('ViewEngine list commands', () => {
     await engine.delete('orders-1');
 
     expect(engine.openRuntimes()).toEqual([]);
-    await expect(store.list('orders')).resolves.toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
     runtime.edit({ pageSize: 10 });
     expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(20);
   });
@@ -831,7 +831,7 @@ describe('ViewEngine write re-entrancy', () => {
 
     await Promise.allSettled([engine.save(runtime), engine.save(runtime)]);
 
-    expect(await store.list('orders')).toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
     expect(runtime.getSnapshot().saved).not.toBeNull();
   });
 
@@ -1067,7 +1067,7 @@ describe('ViewEngine write outcomes', () => {
     // The second confirmation goes against the revision the store now holds,
     // without another list.
     await expect(engine.delete('orders-1')).resolves.toBeUndefined();
-    await expect(store.list('orders')).resolves.toEqual([]);
+    expect((await store.list('orders')).items).toEqual([]);
   });
 
   it('overwrites by replaying the original intent at the reported revision', async () => {
@@ -1248,7 +1248,7 @@ describe('ViewEngine write outcomes', () => {
 
     await engine.retryWrite(runtime);
 
-    expect(await store.list('orders')).toHaveLength(1);
+    expect((await store.list('orders')).items).toHaveLength(1);
     expect(engine.pendingWrites().size).toBe(0);
     await expect(engine.save(runtime)).resolves.toBeDefined();
   });

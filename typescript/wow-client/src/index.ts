@@ -81,16 +81,12 @@ export {
   type CountQuery,
   type CountResult,
   DatasetClient,
-  type DescriptorResult,
   EventQueryClient,
   type StreamOptions,
   type Including,
-  type PagedQuery,
-  type PagedResult,
   QueryModelClient,
   queryPath,
   SnapshotQueryClient,
-  type TotalMode,
 } from './queries.js';
 export {
   StateClient,

@@ -194,6 +194,7 @@ describe('nothing is said on the way out (review of #3761, 9)', () => {
       paged: vi.fn(() =>
         Promise.resolve({
           total: 1,
+          exact: true,
           list: [{ id: text('orders.title'), warehouse: forged, amount: 1 }],
         }),
       ),
@@ -373,7 +374,7 @@ describe('a baseline is what the store keeps (second review of #3761, 2)', () =>
     expect(board.getSnapshot().dirty).toBe(false);
     expect(headingOf(board)).toMatchObject({ content: text('board.today') });
     // Saved as it was: the key went to the store.
-    const [stored] = await store.list('overview');
+    const [stored] = (await store.list('overview')).items;
     const kept = await store.get(stored.id);
     expect(JSON.stringify(kept.config)).toContain(
       JSON.stringify(text('board.today')).slice(1, -1),

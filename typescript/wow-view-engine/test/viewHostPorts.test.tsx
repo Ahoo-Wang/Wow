@@ -377,11 +377,17 @@ describe('the address: two workbenches on one page', () => {
 
   it('asks for a view its list did not hold before setting it aside', async () => {
     const engine = engineOf();
-    // A store that cut its list short (WowViewStore lists 1000 of an
+    // A store that cut its list short (an engine reads RuntimeLimits.listedViews of a
     // audience): the view the address names is past the cut.
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
-      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
+    vi.spyOn(engine.store, 'list').mockImplementation(
+      async (definitionId, options) => {
+        const page = await list(definitionId, options);
+        return {
+          ...page,
+          items: page.items.filter(item => item.id !== 'orders-2'),
+        };
+      },
     );
     const asked = vi.spyOn(engine.store, 'get');
     hosted(
@@ -403,7 +409,11 @@ describe('the address: two workbenches on one page', () => {
       [...document.querySelectorAll('[data-slot="view-title"]')].map(
         title => title.textContent,
       );
-    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-2'));
+    await waitFor(() =>
+      expect(asked).toHaveBeenCalledWith('orders-2', {
+        signal: expect.any(AbortSignal),
+      }),
+    );
     // Its answer, and the render it causes.
     await act(nextTask);
     await act(nextTask);
@@ -432,8 +442,14 @@ describe('the address: two workbenches on one page', () => {
   /** The list without `orders-2`, as a store that cut it short answers. */
   function cutShort(engine: ViewEngine) {
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
-      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
+    vi.spyOn(engine.store, 'list').mockImplementation(
+      async (definitionId, options) => {
+        const page = await list(definitionId, options);
+        return {
+          ...page,
+          items: page.items.filter(item => item.id !== 'orders-2'),
+        };
+      },
     );
   }
 
@@ -470,7 +486,11 @@ describe('the address: two workbenches on one page', () => {
     const engine = engineOf();
     const asked = vi.spyOn(engine.store, 'get');
     both('orders-gone', engine);
-    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-gone'));
+    await waitFor(() =>
+      expect(asked).toHaveBeenCalledWith('orders-gone', {
+        signal: expect.any(AbortSignal),
+      }),
+    );
     await waitFor(() => expect(openIn('Orders')).not.toBeNull());
     expect(screen.queryByText(/belongs to another page/)).toBeNull();
   });

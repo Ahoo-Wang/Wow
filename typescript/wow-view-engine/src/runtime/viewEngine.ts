@@ -32,6 +32,7 @@ import {
 } from '../filter/index.js';
 import type {
   InstancePermissions,
+  ReadOptions,
   ViewPermissions,
   ViewStore,
 } from '../store/ViewStore.js';
@@ -40,7 +41,8 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ViewSource } from './source.js';
+import type { ViewEngineOptions, ViewListing } from './viewEngineOptions.js';
+import { recordSource } from './source.js';
 import type {
   AnyViewRuntime,
   CreateInput,
@@ -77,74 +79,6 @@ import { EngineResources } from './resources.js';
 import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
-
-/**
- * One thing a host registers (host-integration.md 4): a definition, and
- * where its data comes from. A board's definition has no source — it
- * queries nothing of its own.
- */
-export interface ViewResource {
-  definition: ViewDefinition;
-  /** Where a data definition's rows come from; a board has none. */
-  source?: ViewSource;
-}
-
-export interface ViewEngineOptions {
-  /** What the host registers: each definition, with its data's source. */
-  resources: readonly ViewResource[];
-  store: ViewStore;
-  /** Remote candidates of `reference` fields, by the same key. */
-  resolveOptions?(key: string): OptionSource;
-  kinds?: FieldKindRegistry;
-  /**
-   * How the definitions' keys (`text(key)`) are said in the language the
-   * engine starts in, for a host with no Provider; a Provider says them in
-   * its own (`setText`). Keys stay in the definitions and in every
-   * runtime's state, and are read into words as the engine hands them out,
-   * so a change of language redraws what is open rather than rebuilding
-   * anything (host-integration.md 3.1, D2). Left out, a key reads as
-   * itself until a language is set.
-   */
-  text?(key: string): string | undefined;
-  /**
-   * The host's budgets over `DEFAULT_RUNTIME_LIMITS`: what is left out keeps
-   * its default. The source budgets (`maxPageSize`, `maxPageWindow`,
-   * `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) are said by a source's descriptor
-   * where it has one, and one given here only lowers it — so leave them out
-   * unless the engine should ask for less than the server admits
-   * (capabilities.md 4.5).
-   */
-  limits?: Partial<RuntimeLimits>;
-  environment?: RuntimeEnvironment;
-  /** Idempotency keys; overridden in tests to keep them readable. */
-  newId?(): string;
-  /**
-   * Findings with no caller to reject and nothing thrown behind them: a
-   * definition's admission, a list entry that was dropped, a change
-   * listener that threw. Failures — a query, a store call, an export, a
-   * render — go to `environment.onError` instead (D40).
-   *
-   * Left out, a development build (`NODE_ENV` of `development`) writes them
-   * to the console, grouped by resource, each with how to fix it; any other
-   * build drops them.
-   */
-  onIssue?(issue: Issue): void;
-}
-
-/**
- * What a definition's list is right now: every view that could be read, and
- * the reason the rest could not. The declared system views are always in
- * `items`; `failed` names the store's failure when the saved ones are not.
- */
-export interface ViewListing {
-  items: ViewInstanceSummary[];
-  failed: Issue | null;
-  /**
-   * Where the store cut the list (`ViewStore.listLimit`): an audience holds
-   * this many, and there may be more. Absent on a whole list (R2-26).
-   */
-  cut?: number;
-}
 
 /**
  * The registry and the command entry point: definitions in, runtimes and
@@ -222,7 +156,7 @@ export class ViewEngine extends EngineResources {
       kinds: this.kinds,
       limits: options.limits,
       environment: this.environment,
-      resolveSource: key => this.resolveSource(key),
+      resolveSource: key => recordSource(this.resolveSource(key)),
       declared: id => this.registry.definitions.get(id),
       report: found => this.report(found),
     });
@@ -265,7 +199,7 @@ export class ViewEngine extends EngineResources {
       limits: this.limits,
       environment: this.environment,
       runner: this.runner,
-      resolveSource: key => this.resolveSource(key),
+      resolveSource: key => recordSource(this.resolveSource(key)),
       // Left out rather than a thrower: a runtime asks whether a source
       // exists, and an editor with no source falls back to typed entry.
       ...(this.options.resolveOptions
@@ -291,7 +225,10 @@ export class ViewEngine extends EngineResources {
    * the reserved namespace is dropped and reported: only a definition may
    * declare one.
    */
-  async list(definitionId: string): Promise<ViewListing> {
+  async list(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewListing> {
     const definition = this.registry.require(definitionId);
     const declared = systemInstances(definition).map(toSummary);
     // The stored half may fail on its own: a store that is down takes the
@@ -308,6 +245,10 @@ export class ViewEngine extends EngineResources {
       definitionId,
       id =>
         this.report(issue('view.list.reserved-id', [], { id }), definitionId),
+      {
+        limit: this.limits.listedViews,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      },
     );
     const items = [...declared, ...stored];
     this.summaries.noteAll(items);
@@ -328,8 +269,11 @@ export class ViewEngine extends EngineResources {
     return this.changes.subscribe(listener);
   }
 
-  async preferences(definitionId: string): Promise<ViewPreferences> {
-    return this.preferenceCache.read(definitionId);
+  async preferences(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewPreferences> {
+    return this.preferenceCache.read(definitionId, options);
   }
 
   /** Opens a saved view, or a code-declared one without touching the store. */
@@ -337,13 +281,15 @@ export class ViewEngine extends EngineResources {
     instanceId: string,
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
+    const { signal } = options;
     const instance = this.registry.ofDefinition(
-      await this.readInstance(instanceId),
+      await this.readInstance(instanceId, signal),
       options.definitionId,
     );
     // What its sources admit is read before the first query, so that query
     // already goes out narrowed.
     await this.capabilities.prepareFor(instance);
+    signal?.throwIfAborted();
     // A dashboard opens on its tab rather than on its first and then there:
     // only the tab on screen runs, so where it starts is what is asked.
     const tab = await this.tabs.opensOn(instance, options.tab);
@@ -362,16 +308,25 @@ export class ViewEngine extends EngineResources {
         this.runtimes.forget(runtime);
         throw error;
       }
+    // Asked for no more while it opened: nobody holds it, so nobody would
+    // close it.
+    if (signal?.aborted) {
+      this.runtimes.forget(runtime);
+      signal.throwIfAborted();
+    }
     runtime.apply();
     return runtime as AnyViewRuntime;
   }
 
   /** One instance, from the definition's code or from the store. */
-  private async readInstance(instanceId: string): Promise<ViewInstance> {
+  private async readInstance(
+    instanceId: string,
+    signal?: AbortSignal,
+  ): Promise<ViewInstance> {
     const declared = parseSystemInstanceId(instanceId);
     return declared
       ? this.registry.systemInstance(declared.definitionId, declared.viewId)
-      : this.store.get(instanceId);
+      : this.store.get(instanceId, signal === undefined ? {} : { signal });
   }
 
   /**

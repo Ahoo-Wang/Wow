@@ -15,81 +15,94 @@ import type {
   AggregationQuery,
   CursorPage,
   CursorQuery,
-  FilterPagedQuery,
-  PagedList,
+  DescriptorResult,
+  PagedQuery,
+  PagedResult,
 } from '@ahoo-wang/wow-client/dsl';
-import type { QueryDescriptorResult } from '../capabilities/cache.js';
-
-export type { QueryDescriptorResult } from '../capabilities/cache.js';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisProjection } from '../analysis/index.js';
 import type { RecordProjection, SummaryRow } from '../record/index.js';
 
+/** What every read of a source takes: the signal that cancels it. */
+export interface SourceOptions {
+  /**
+   * Aborted when a newer read takes this one's place or the view that asked
+   * is disposed; hand it on to the request.
+   */
+  readonly signal?: AbortSignal;
+}
+
 /**
- * Where a definition's data comes from. Three of `QueryApi`'s methods, so a
- * Wow snapshot client satisfies it as it is; anything else can be written by
- * hand for a test or for a non-Wow backend.
+ * Where a definition's data comes from: the reads of one Wow query route,
+ * in wow-client's own shapes, so any `QueryModelClient` — a generated
+ * `…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)` — is a
+ * source as it is, with no adapter (`test/architecture.test.ts` holds both
+ * to it). A source written by hand, for a test or another backend, answers
+ * the same shapes and hands `options.signal` on.
  *
- * Cancellation is an `AbortController` rather than the `AbortSignal` every
- * other port takes (`OptionSource`, `ViewStore`) because that is what
- * `QueryApi` accepts, and this port exists so that a wow-client query client
- * plugs in unchanged. The controller is the engine's: it aborts it when a
- * newer request takes this one's place, or when it is disposed. A source
- * written by hand reads `abortController?.signal` and never aborts it. Should
- * wow-client move to a signal, this port follows in the same minor
- * (extension.md「宿主实现的接口怎样长」).
- *
- * Written out rather than `Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>`,
- * for three reasons that all point the same way — this is the one type every
- * source implements, and it must say exactly what this package needs:
- *
- * - `QueryApi.paged` takes `PagedQueryRequest`, which is
- *   `FilterPagedQuery | PagedQuery`, and `PagedQuery` is deprecated. Picking
- *   it would write the deprecated Wow API into the port that every source
- *   fills, which `test/architecture.test.ts` bans everywhere else;
- * - `QueryApi.aggregate` answers whatever row type its caller asserts
- *   (`Row extends object`), and an asserted row is a row nothing checks.
- *   Here it is `RecordData`, so every value arrives as `unknown` and is read
- *   through a field's kind;
- * - the pick would spread `QueryApi`'s two type parameters and its per-method
- *   generics over every implementation, a test's stub included, for no gain:
- *   all three methods are used at one instantiation only.
- *
- * What the pick would have bought — noticing upstream drift — is bought
- * instead by an assignability assertion the compiler checks
- * (`test/architecture.test.ts`, "Wow protocol"): a `QueryApi` must go on
- * being a `ViewSource` without an adapter.
+ * Rows are `object`: a client's record type is an interface, which a
+ * `Record<string, unknown>` would refuse, and the engine reads every value
+ * through a field's path and kind anyway. A page's `total` is `null` when
+ * the route counts none, and a lower bound unless `exact`: the record
+ * runtime keeps both and says so.
  */
 export interface ViewSource {
   paged(
-    query: FilterPagedQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<PagedList<RecordData>>;
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<object>>;
   cursor(
     query: CursorQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    options?: SourceOptions,
+  ): Promise<CursorPage<object>>;
+  aggregate(
+    query: AggregationQuery,
+    options?: SourceOptions,
+  ): Promise<object[]>;
+  /**
+   * The source's capability descriptor (capabilities.md 3): given the
+   * version already held, an unchanged one answers `notModified`. The
+   * engine reads it once per source before the first view over it runs,
+   * narrows each definition to what it admits and takes its limits, and
+   * checks it again on its own schedule. Left out, a view runs on the
+   * definition and the default limits alone.
+   */
+  describe?(
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
+}
+
+/**
+ * A source as the engine reads it: the same reads, their rows as records.
+ * Internal: `resources` takes each `ViewSource` once, at registration, and
+ * every read inside the engine goes through this.
+ */
+export interface RecordSource {
+  paged(
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<RecordData>>;
+  cursor(
+    query: CursorQuery,
+    options?: SourceOptions,
   ): Promise<CursorPage<RecordData>>;
   aggregate(
     query: AggregationQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    options?: SourceOptions,
   ): Promise<RecordData[]>;
-  /**
-   * The source's capability descriptor (capabilities.md 3): given the
-   * version already held, an unchanged one answers `notModified`.
-   * wow-view-store's `viewSourceOf` adapts wow-client's
-   * `QueryModelClient.describe` to it. The engine reads it once per source before the first view over it
-   * runs, narrows each definition to what it admits and takes its limits,
-   * and checks it again on its own schedule. Left out, a view runs on the
-   * definition and the default limits alone, as it did before descriptors.
-   */
   describe?(
-    previous?: string,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<QueryDescriptorResult>;
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
+}
+
+/**
+ * The engine's view of a source: its rows are read as records, through
+ * fields, so the one cast the port's `object` rows need is made here.
+ */
+export function recordSource(source: ViewSource): RecordSource {
+  return source as RecordSource;
 }
 
 /**

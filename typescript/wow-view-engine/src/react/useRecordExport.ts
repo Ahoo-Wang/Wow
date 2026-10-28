@@ -179,9 +179,14 @@ export function useRecordExport(
   }, [runtime]);
 
   const paging = table.paging;
+  // How many "all" is, where the source counted it: a lower bound is not.
+  const counted =
+    paging?.mode === 'paged' && paging.exact !== false
+      ? (paging.total ?? null)
+      : null;
   const scopes: RecordExportScopes = {
     ...(table.selection.length > 0 ? { selected: table.selection.length } : {}),
-    all: paging?.mode === 'paged' ? (paging.total ?? null) : null,
+    all: counted,
   };
 
   const settle = useCallback((next: ExportState): void => {
@@ -282,13 +287,9 @@ export function useRecordExport(
         );
         return;
       }
-      void fetchAll(
-        runtime,
-        paging?.mode === 'paged' ? (paging.total ?? null) : null,
-        fileName,
-      );
+      void fetchAll(runtime, counted, fileName);
     },
-    [fetchAll, hand, paging, runtime, settle, table.selectedRows],
+    [counted, fetchAll, hand, runtime, settle, table.selectedRows],
   );
 
   const cancel = useCallback(() => {

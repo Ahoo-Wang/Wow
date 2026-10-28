@@ -84,7 +84,11 @@ import type {
   ViewInstanceSummary,
   ViewPreferences,
 } from '../../src/model/index.js';
-import type { ViewStore, WriteContext } from '../../src/store/ViewStore.js';
+import type {
+  ViewListPage,
+  ViewStore,
+  WriteOptions,
+} from '../../src/store/ViewStore.js';
 
 /** Who a store acts as: the owner of the personal views it makes and reads. */
 export interface ConformanceContext {
@@ -134,11 +138,12 @@ export interface ConformanceCapabilities {
    */
   storedSystemViews?: boolean;
   /**
-   * The store answers at most this many of one audience (`listLimit`) and
-   * says so on itself: the case makes one more than this and asks the list
-   * (R2-26). Keep it small — every view is a write. Left out, skipped.
+   * The store answers its list a page of at most this many at a time, and
+   * the cursor of the next: the case makes two pages and one view over and
+   * reads them all (R2-26). Keep it small — every view is a write. Left out,
+   * skipped.
    */
-  listLimit?: number;
+  pageSize?: number;
 }
 
 export interface ViewStoreConformance {
@@ -221,7 +226,7 @@ function boardShowing(
   };
 }
 
-function write(): WriteContext {
+function write(): WriteOptions {
   return { requestId: `conformance-${crypto.randomUUID()}` };
 }
 
@@ -266,6 +271,27 @@ function ids(summaries: readonly ViewInstanceSummary[]): string[] {
 }
 
 /**
+ * A definition's whole list, as the engine reads it: page after page, each
+ * asked for with the cursor the one before answered, until it answers none.
+ */
+async function everyView(
+  store: ViewStore,
+  definitionId: string,
+): Promise<ViewInstanceSummary[]> {
+  const listed: ViewInstanceSummary[] = [];
+  let cursor: string | null = null;
+  do {
+    const page: ViewListPage = await store.list(
+      definitionId,
+      cursor === null ? {} : { cursor },
+    );
+    listed.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return listed;
+}
+
+/**
  * Registers the suite for one implementation. Call it at the top level of a
  * test file; it opens one `describe` named after the subject.
  */
@@ -305,7 +331,7 @@ export function describeViewStoreConformance(
           write(),
         );
 
-        const listed = await alice.list(definitionId);
+        const listed = await everyView(alice, definitionId);
 
         expect(ids(listed)).toContain(mine.id);
         expect(ids(listed)).not.toContain(other.id);
@@ -328,7 +354,7 @@ export function describeViewStoreConformance(
         const made = await create('Mine');
 
         expect(made.id.startsWith('system:')).toBe(false);
-        for (const summary of await alice.list(definitionId))
+        for (const summary of await everyView(alice, definitionId))
           expect(summary.id.startsWith('system:')).toBe(false);
       });
 
@@ -345,21 +371,24 @@ export function describeViewStoreConformance(
         await refusal(alice.get(`missing-${crypto.randomUUID()}`), 'NOT_FOUND');
       });
 
-      it.skipIf(capabilities.listLimit === undefined)(
-        'lists no more of an audience than its limit, oldest first, and says the limit',
+      it.skipIf(capabilities.pageSize === undefined)(
+        'pages its list by cursor, every view once and oldest first across pages',
         async () => {
-          const limit = capabilities.listLimit!;
+          const size = capabilities.pageSize!;
           const { alice, definitionId, create } = await setup();
-          expect(alice.listLimit).toBe(limit);
           const made: ViewInstance[] = [];
-          for (let at = 0; at <= limit; at += 1)
+          // Two pages and one view over: the last page is a short one.
+          for (let at = 0; at <= size * 2; at += 1)
             made.push(await create(`View ${at}`, own));
 
-          const listed = ids(await alice.list(definitionId)).filter(id =>
+          const first = await alice.list(definitionId);
+          expect(first.items.length).toBeLessThanOrEqual(size);
+          expect(first.nextCursor).not.toBeNull();
+          const listed = ids(await everyView(alice, definitionId)).filter(id =>
             made.some(view => view.id === id),
           );
 
-          expect(listed).toEqual(made.slice(0, limit).map(view => view.id));
+          expect(listed).toEqual(made.map(view => view.id));
         },
       );
 
@@ -378,7 +407,7 @@ export function describeViewStoreConformance(
             made.push(await create(title, scope));
           const [mine1, ours1, mine2, ours2] = made.map(view => view.id);
 
-          const listed = ids(await alice.list(definitionId)).filter(id =>
+          const listed = ids(await everyView(alice, definitionId)).filter(id =>
             made.some(view => view.id === id),
           );
 
@@ -402,7 +431,7 @@ export function describeViewStoreConformance(
             write(),
           );
           try {
-            const scopes = (await alice.list(definitionId)).map(
+            const scopes = (await everyView(alice, definitionId)).map(
               summary => summary.scope,
             );
             expect(scopes[0]).toBe('system');
@@ -424,7 +453,7 @@ export function describeViewStoreConformance(
           const mine = await create('Mine', 'personal');
 
           expect(mine.scope).toBe('personal');
-          expect(ids(await alice.list(definitionId))).toContain(mine.id);
+          expect(ids(await everyView(alice, definitionId))).toContain(mine.id);
         },
       );
 
@@ -436,7 +465,7 @@ export function describeViewStoreConformance(
           const ours = await create('Ours', 'shared');
           const bob = open(BOB);
 
-          const seen = ids(await bob.list(definitionId));
+          const seen = ids(await everyView(bob, definitionId));
 
           expect(seen).toContain(ours.id);
           expect(seen).not.toContain(mine.id);
@@ -470,12 +499,15 @@ export function describeViewStoreConformance(
         expect(renamed.config).toEqual(recordConfig(50));
         expect(renamed.revision).not.toBe(saved.revision);
         expect(
-          (await alice.list(definitionId)).find(item => item.id === made.id)
-            ?.title,
+          (await everyView(alice, definitionId)).find(
+            item => item.id === made.id,
+          )?.title,
         ).toBe('Renamed');
 
         await alice.delete(made.id, renamed.revision, write());
-        expect(ids(await alice.list(definitionId))).not.toContain(made.id);
+        expect(ids(await everyView(alice, definitionId))).not.toContain(
+          made.id,
+        );
         await refusal(alice.get(made.id), 'NOT_FOUND');
       });
 
@@ -509,8 +541,9 @@ export function describeViewStoreConformance(
         const made = await create('  Padded  ');
         expect(made.title).toBe('Padded');
         expect(
-          (await alice.list(definitionId)).find(item => item.id === made.id)
-            ?.title,
+          (await everyView(alice, definitionId)).find(
+            item => item.id === made.id,
+          )?.title,
         ).toBe('Padded');
 
         const longest = 'x'.repeat(MAX_VIEW_TITLE_LENGTH);
@@ -605,7 +638,7 @@ export function describeViewStoreConformance(
           const definitionId = capabilities.systemViews!.definitionId;
           // A configured one: a system view the store keeps is written by
           // whoever the host lets (D81), and is the case below.
-          const system = (await alice.list(definitionId)).find(
+          const system = (await everyView(alice, definitionId)).find(
             summary => summary.scope === 'system' && !summary.stored,
           );
           expect(system, 'the backend serves a system view').toBeDefined();
@@ -625,7 +658,7 @@ export function describeViewStoreConformance(
               alice.changeAudience(id, 'personal', revision, write()),
               'FORBIDDEN',
             );
-          const after = (await alice.list(definitionId)).find(
+          const after = (await everyView(alice, definitionId)).find(
             summary => summary.id === id,
           );
           expect(after).toEqual(system);
@@ -647,7 +680,7 @@ export function describeViewStoreConformance(
           );
           expect(made).toMatchObject({ scope: 'system', stored: true });
           expect(made.id.startsWith('system:')).toBe(false);
-          const listed = (await alice.list(definitionId)).find(
+          const listed = (await everyView(alice, definitionId)).find(
             summary => summary.id === made.id,
           );
           expect(listed).toMatchObject({ scope: 'system', stored: true });
@@ -704,7 +737,7 @@ export function describeViewStoreConformance(
 
           expect(again).toEqual(first);
           expect(
-            (await alice.list(definitionId)).filter(
+            (await everyView(alice, definitionId)).filter(
               item => item.title === 'Once',
             ),
           ).toHaveLength(1);
@@ -838,7 +871,7 @@ export function describeViewStoreConformance(
         id: string,
         audience: ViewAudience,
         revision: string,
-        context: WriteContext = write(),
+        context: WriteOptions = write(),
       ) => {
         expect(store.changeAudience).toBeTypeOf('function');
         return store.changeAudience!(id, audience, revision, context);
@@ -860,8 +893,9 @@ export function describeViewStoreConformance(
           expect(shared.revision).not.toBe(made.revision);
           expect(await alice.get(made.id)).toEqual(shared);
           expect(
-            (await alice.list(definitionId)).find(item => item.id === made.id)
-              ?.scope,
+            (await everyView(alice, definitionId)).find(
+              item => item.id === made.id,
+            )?.scope,
           ).toBe('shared');
 
           const back = await change(
@@ -883,11 +917,13 @@ export function describeViewStoreConformance(
           const made = await create('Mine', 'personal');
 
           const shared = await change(alice, made.id, 'shared', made.revision);
-          expect(ids(await bob.list(definitionId))).toContain(made.id);
+          expect(ids(await everyView(bob, definitionId))).toContain(made.id);
 
           await change(alice, made.id, 'personal', shared.revision);
-          expect(ids(await bob.list(definitionId))).not.toContain(made.id);
-          expect(ids(await alice.list(definitionId))).toContain(made.id);
+          expect(ids(await everyView(bob, definitionId))).not.toContain(
+            made.id,
+          );
+          expect(ids(await everyView(alice, definitionId))).toContain(made.id);
         },
       );
 

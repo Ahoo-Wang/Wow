@@ -12,16 +12,13 @@
  */
 
 import { expectTypeOf, it } from 'vitest';
-import type {
-  CountQuery,
-  PagedQuery,
-  QueryModelClient,
-} from '@ahoo-wang/wow-client';
+import type { CountQuery, QueryModelClient } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
   CursorQuery,
   FilterListQuery,
   FilterSingleQuery,
+  PagedQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import {

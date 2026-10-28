@@ -232,7 +232,7 @@ export class ViewWriteError extends Error {
 - **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个。所以缺省的 `maxPageSize` 是 100：Wow 服务端的 HTTP 查询守卫拒绝超过 100 行的一页（`HttpQueryGuard.maxPageSize`），缺省 200 时对一台保持缺省配置的服务端每次导出都失败（连真服务端的端到端守着它：Wow 仓 `typescript/integration-test` 的 `view-engine/recordView.test.ts`，用例「exports under the engine’s default limits, which a Wow server admits」）。`maxPageSize`、`maxPageWindow`、`maxAnalysisRows` 三个源预算的缺省都是缺省守卫收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)，[model.md](model.md#runtimelimits-的源预算)）；
 - **`ctx.now` 只读一次**：二十页之间"今天"不能翻篇，否则同一个文件的首尾答的是两个问题；
 - **停在 `options.max ?? limits.exportMax`，分页源再停在窗口里的最后一整页**（`pageWindow`：运行时的 `maxPageWindow`，定义声明了更小的 `RecordCapability.maxWindow` 时取它；游标源没有窗口。`exportPlan`：每页条数不超过窗口，上限取 ⌊窗口 / 每页⌋ × 每页），并在结果里以 `capped` 说明文件是截断的——越过窗口的那一页源直接拒绝，接着要下去就是拉完前面所有行之后整次失败；导出窗口事先说的上限也是这个数；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
-- **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它（`ViewSource` 收的是 controller，组件握的是 signal），取消时 Promise 以 `ExportCancelledError` 拒绝，由 `isExportCancelledError` 认出来——它是用户的答复，不是要报出来的失败；
+- **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它，把它的 signal 交给那一页的读法（`{ signal }`），取消时 Promise 以 `ExportCancelledError` 拒绝，由 `isExportCancelledError` 认出来——它是用户的答复，不是要报出来的失败；
 - **进度是 `(fetched, total?)`**：分页源有总数就报，游标源没有总数，那就不报一个没人算得出的数。（见 test/exportRows.test.ts）
 
 ## Dashboard
@@ -371,23 +371,27 @@ export interface ViewEngine {
 ## 环境
 
 ```ts
-/** 一个定义的数据从哪里来：QueryApi 的三个方法，Wow 的快照客户端原样就是一个 ViewSource。 */
+/** 一个定义的数据从哪里来：一个 Wow 查询路由的读法，用 wow-client 自己的形状；任意 QueryModelClient 原样就是一个 ViewSource。 */
 export interface ViewSource {
   paged(
-    query: FilterPagedQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<PagedList<RecordData>>;
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<object>>; // total 可为 null，带 exact
   cursor(
     query: CursorQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<CursorPage<RecordData>>;
+    options?: SourceOptions,
+  ): Promise<CursorPage<object>>;
   aggregate(
     query: AggregationQuery,
-    attributes?: Record<string, unknown>,
-    abortController?: AbortController,
-  ): Promise<RecordData[]>;
+    options?: SourceOptions,
+  ): Promise<object[]>;
+  describe?(
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
+}
+export interface SourceOptions {
+  readonly signal?: AbortSignal; // 新请求顶替它、视图释放时由引擎中止；手写的源把它交给请求
 }
 
 /** reference 字段的远程候选：搜索分页与按 id 回填，供内置 reference 编辑器使用。 */
@@ -424,6 +428,4 @@ export interface ViewErrorEvent {
 
 **失败交给宿主的钩子是环境的一员（[D40](decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）。** 界面照旧把每次失败说在它发生的地方；`onError` 是宿主的那一份，**每次失败恰好一次**：存储失败在引擎的存储门口（`runtime/failure/failures.ts` 的 `reportingStore`，包在 `readingStore` 之外）报，不管是列表、写入账本（每次重试各一次，`requestId` 相同）、面板引用还是标签页记忆遇到的；视图自己的查询在落定处报（被顶掉的不报）；汇总、合计、拆分补查、读一条整条与条件取值各在吞下失败的那一处报（`KernelContext.queryFailed`）。`query` 类失败都**等源的响应体读完再报**（`queryFailureReporter`），仍是一次，`context.violation` 带着 Wow 说的规则与位置；报不必同步，恰好一次才是约定；导出拉行在 `exportRows` 报，交文件在调用它的钩子或部件报；渲染与图表在渲染边界报（[ui/README.md#渲染边界](ui/README.md#渲染边界)）；声明式操作的命令在执行器里逐条报（`action`，`operation` 是动作 id、`recordKey` 是那条记录；动作自己的拒绝不报，[host-integration.md](host-integration.md) 5.1）。叫停的不算失败：`AbortError`、自己的 signal 已中止、取消的导出。钩子是宿主的代码跑在引擎自己的路径上，`reportError` 吞掉它抛的错与它返回的 promise 的拒绝，也从不写 console。`ViewEngineOptions.onIssue` 只剩没有抛出物的发现（定义准入、被丢掉的保留 id、抛错的变化监听者）。（见 test/hostErrors.test.tsx）
 
-**`ViewSource` 是写出来的，不是从 `QueryApi` `Pick` 出来的**，理由有三条，都指向同一件事——它是每一个数据来源都要实现的那个口子，所以它得**恰好**说出本包要的东西：`QueryApi.paged` 收的是 `PagedQueryRequest`，即 `FilterPagedQuery | PagedQuery`，而 `PagedQuery` 是弃用 API——`Pick` 等于把架构测试在别处一概禁掉的东西写进这个口子；`QueryApi.aggregate` 答的是 `DynamicDocument`（`Record<string, any>`），从 `any` 里读出来的行没有任何人检查，这里答 `RecordData`，每个值都是 `unknown`、都要经字段的 kind 读一遍；`Pick` 还会把 `QueryApi` 的两个类型参数与各方法自带的泛型摊给每一个实现（包括测试里的桩），而这三个方法只在一种实例化下被用。
-
-`Pick` 本来能买到的那件事——上游改了签名这边就编译不过——改由一条编译期可赋值断言买：`test/architecture.test.ts` 的「Wow protocol」里把一个 `QueryApi<RecordData>` 赋给 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。
+**`ViewSource` 是写出来的，形状取自 wow-client**（D353 V15）：查询、`PagedResult`、`CursorPage`、`DescriptorResult` 都是 wow-client 的 DSL 入口里的类型，取消是 `{ signal }`，与别的端口一样。行是 `object` 而不是 `RecordData`：客户端的记录类型是接口，`Record<string, unknown>` 会拒绝它，而引擎本来就经字段的路径与 kind 读每个值；`resources` 在登记处把一个 `ViewSource` 当作内部的 `RecordSource` 读，这一处转换就是全部。`test/architecture.test.ts` 的「Wow protocol」断言生成的快照查询客户端与 `DatasetClient.dataset(…)` 的客户端都不经适配就是 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。
