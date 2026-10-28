@@ -33,6 +33,7 @@ import me.ahoo.wow.query.schema.describe
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -57,6 +58,26 @@ class QueryModelDescriptorJsonTest {
             }
             actual.assert().isEqualTo(GOLDEN.readText())
         }
+    }
+
+    @Test
+    fun `the descriptor's vocabulary is lower-kebab, but for a JDK time unit`() {
+        val values = protocolValues(QueryJson.mapper.readTree(GOLDEN.readText()))
+        values.map { it.first }.distinct().assert().containsExactlyInAnyOrderElementsOf(PROTOCOL_KEYS)
+        values.filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
+    }
+
+    private fun protocolValues(node: JsonNode): List<Pair<String, String>> = when {
+        node.isObject -> node.properties().flatMap { (key, value) ->
+            if (key in PROTOCOL_KEYS) {
+                if (value.isString) listOf(key to value.asString()) else value.values().map { key to it.asString() }
+            } else {
+                protocolValues(value)
+            }
+        }
+
+        node.isArray -> node.values().flatMap(::protocolValues)
+        else -> emptyList()
     }
 
     @Test
@@ -128,6 +149,13 @@ class QueryModelDescriptorJsonTest {
 
     private companion object {
         const val DEFAULT_LIST_SIZE = 20
+        val KEBAB = Regex("[a-z][a-z0-9]*(-[a-z0-9]+)*")
+
+        /** The keys whose values are the protocol's own words; paths, patterns, currencies and zones are not. */
+        val PROTOCOL_KEYS = setOf(
+            "model", "role", "types", "kind", "operators", "rootOperators", "groups", "functions", "metrics", "windows",
+            "paging", "type", "dateUnits", "dateParts", "dateDiffUnits", "level", "defaultScope",
+        )
         val GOLDEN: Path = Path.of("src", "test", "resources", "descriptor", "order-snapshot.descriptor.json")
     }
 }
