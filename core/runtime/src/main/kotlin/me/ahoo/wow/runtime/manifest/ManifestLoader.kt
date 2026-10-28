@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.manifest
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ClassPathContracts
@@ -52,7 +53,9 @@ class ManifestLoader(
         if (problems.isNotEmpty()) {
             throw ManifestLoadException(problems)
         }
-        val contracts = ClassPathContracts.load(classLoader) { mapper.readValue(it, Map::class.java) }
+        val contracts = ClassPathContracts.load(classLoader, { manifestLogger.warn { it } }) {
+            mapper.readValue(it, Map::class.java)
+        }
         return ManifestAssembly.assemble(fragments, service, contracts.map { it.manifest })
     }
 
@@ -80,3 +83,5 @@ class ManifestLoader(
 /** Fragments of a service could not be read; [problems] lists each one. */
 internal class ManifestLoadException(val problems: List<String>) :
     IllegalStateException("The Manifest fragments could not be read:\n" + problems.joinToString("\n") { "- $it" })
+
+private val manifestLogger = KotlinLogging.logger {}

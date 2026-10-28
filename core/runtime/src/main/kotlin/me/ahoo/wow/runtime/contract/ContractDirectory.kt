@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.contract
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -353,7 +354,9 @@ class ContractDirectory(
             mapper: JsonMapper = JsonMapper.builder().build(),
             nullableStates: Set<String> = emptySet(),
         ): ContractDirectory {
-            val contracts = ClassPathContracts.load(classLoader) { bytes -> mapper.readValue(bytes, Map::class.java) }
+            val contracts = ClassPathContracts.load(classLoader, { contractLogger.warn { it } }) { bytes ->
+                mapper.readValue(bytes, Map::class.java)
+            }
             requireHosted(local, contracts)
             return ContractDirectory(local, contracts, nullableStates)
         }
@@ -383,3 +386,5 @@ class ContractDirectory(
         }
     }
 }
+
+private val contractLogger = KotlinLogging.logger {}

@@ -80,6 +80,8 @@ object ManifestMerger {
             contexts = contexts.map { it.second }.sortedBy { it.name },
             errors = FrameworkErrors.ALL,
             defs = defs,
+            // A reader must understand what any fragment requires.
+            requires = fragments.flatMap { it.manifest.requires }.distinct().sorted(),
         )
     }
 

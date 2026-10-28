@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -171,10 +172,10 @@ class HttpCommandCaller internal constructor(
 
         /** The contracts of the peers' api jars on the thread's context class loader. */
         @JvmStatic
-        fun classPathContracts(): List<Manifest> = ClassPathContracts.load(Thread.currentThread().contextClassLoader) {
-                bytes ->
-            WowJson.mapper.readValue(bytes, Map::class.java)
-        }.map { it.manifest }
+        fun classPathContracts(): List<Manifest> =
+            ClassPathContracts.load(Thread.currentThread().contextClassLoader, { callerLogger.warn { it } }) { bytes ->
+                WowJson.mapper.readValue(bytes, Map::class.java)
+            }.map { it.manifest }
 
         /** The default bound of one call: as long as a wait's default timeout. */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
@@ -209,3 +210,5 @@ class HttpCommandCaller internal constructor(
         }
     }
 }
+
+private val callerLogger = KotlinLogging.logger {}
