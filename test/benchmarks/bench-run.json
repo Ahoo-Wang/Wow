@@ -1,0 +1,1 @@
+{ "suites": ["e1-mongo-uniform", "e1-mongo-zipf", "e2-mongo", "e3-mongo", "mixed-mongo", "large-mongo"], "aa": true }
