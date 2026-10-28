@@ -57,8 +57,6 @@ export interface DescribedField {
   enum?: readonly EnumValueDescriptor[];
 }
 
-const NO_SORT: FieldSortDescriptor = { paged: false, cursor: false };
-
 /** The segment a dynamic pattern writes in place of a map's key. */
 const KEY_SEGMENT = '{key}';
 
@@ -67,10 +65,13 @@ const KEY_SEGMENT = '{key}';
  *
  * A root field (`scope` absent) is a field without a `scope` of the same
  * path, and failing that the dynamic patterns it falls under — a key the
- * pattern excludes (#3477) is a field of its own, so it never matches. The
- * service describes each pattern once (#3489), so a key matches at most one;
- * should two ever match, each admits its operators on its own, and the key
- * gets their union. A field
+ * pattern excludes (#3477) is a field of its own, so it never matches. A
+ * pattern says how a concrete key under it is filtered, sorted and
+ * aggregated, as a field does. The service describes each pattern once
+ * (#3489), so a key matches at most one; should two ever match, each admits
+ * its operators on its own, and the key gets their union, but a sort or an
+ * aggregation is one the server resolves for the key, so the key keeps only
+ * what every pattern grants (`commonSort`, `commonAggregate`). A field
  * inside an element (`scope`: the array's path) is the descriptor's field of
  * that path in that scope; dynamic patterns never describe one.
  */
@@ -113,13 +114,58 @@ export function describedField(
 
   const matched = dynamicFieldsOf(descriptor, path);
   if (matched.length === 0) return null;
+  const aggregate = commonAggregate(matched);
   return {
     operators: new Set(matched.flatMap(entry => entry.filter.operators)),
-    // A pattern says only how it is filtered: nothing under it sorts or
-    // aggregates.
-    sort: NO_SORT,
+    sort: commonSort(matched),
+    ...(aggregate ? { aggregate } : {}),
   };
 }
+
+/** The sorts every matched pattern grants. */
+function commonSort(
+  matched: readonly DynamicFieldDescriptor[],
+): FieldSortDescriptor {
+  return {
+    paged: matched.every(entry => entry.sort.paged),
+    cursor: matched.every(entry => entry.sort.cursor),
+  };
+}
+
+/**
+ * The aggregation every matched pattern grants: the groups and functions
+ * they all list, each flag where they all set it; absent when one of them
+ * cannot be aggregated at all.
+ */
+function commonAggregate(
+  matched: readonly DynamicFieldDescriptor[],
+): FieldAggregateDescriptor | undefined {
+  const [first, ...rest] = matched.map(entry => entry.aggregate);
+  if (!first || rest.some(each => !each)) return undefined;
+  const others = rest as FieldAggregateDescriptor[];
+  const flag = (key: AggregateFlag) =>
+    first[key] && others.every(each => each[key]);
+  return {
+    groups: first.groups.filter(group =>
+      others.every(each => each.groups.includes(group)),
+    ),
+    functions: first.functions.filter(fn =>
+      others.every(each => each.functions.includes(fn)),
+    ),
+    missingKey: flag('missingKey'),
+    distinctCount: flag('distinctCount'),
+    percentile: flag('percentile'),
+    any: flag('any'),
+    firstLast: flag('firstLast'),
+    expressionInput: flag('expressionInput'),
+    inMetricFilter: flag('inMetricFilter'),
+  };
+}
+
+type AggregateFlag = Exclude<
+  keyof FieldAggregateDescriptor,
+  'groups' | 'functions'
+>;
 
 /**
  * A field of an element whose fields differ by variant, found in the

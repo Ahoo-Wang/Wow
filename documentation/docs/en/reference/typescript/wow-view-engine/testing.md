@@ -129,6 +129,7 @@ export declare class ActionRefusedError extends Error {
 A `ViewSource` over documents held in memory that answers each query the way a Wow service over MongoDB does — filter, sort, page, projection and aggregation — so a host's test sees the engine's real queries answered by the semantics the engine is built on, not a canned answer.
 
 - The documents are the snapshots (or event streams) as the service returns them: `aggregateId`, `ownerId` and `deleted` on the envelope, the state under `state`, times as epoch milliseconds. A document with `deleted: true` is left out unless the filter carries a `DELETION` condition. A cursor is an offset, as opaque to the caller as Wow's.
+- A `TERMS` group on an array field groups by each of its values, as every Wow backend does: a record joins one group per distinct value and counts once in each, however often a value repeats in it; a record whose array is empty, missing or holds only nulls joins the null group (or the group's `missingKey`). With several groups a record joins every combination of their keys.
 - What it cannot answer — an operator or shape it has no reading of, such as `ID`, `TENANT_ID`, `SPACE_ID` or the calendar filters (`TODAY`, …) the engine never sends — is refused with an error, so a query a test starts to send fails rather than getting a plausible wrong answer. The documents are read, never written; a test may change them between queries.
 
 | Option | Role |

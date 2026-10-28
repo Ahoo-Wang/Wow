@@ -13,15 +13,15 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  isSmooth,
   isStacked,
+  lineOf,
   offersStacking,
   stacks,
   withMovedTo,
   optionTabs,
   withSlot,
   stageValues,
-  withSmooth,
+  withLine,
   withStacked,
   withStageOrder,
   withStagesFrom,
@@ -118,7 +118,7 @@ describe('chartOptions', () => {
     ).toBe(false);
   });
 
-  it('stacks and smooths every series as one choice, and reads it back', () => {
+  it('stacks every series as one choice, and reads it back', () => {
     expect(isStacked(cartesian)).toBe(false);
     const stacked = withStacked(cartesian, true);
     expect(stacked.series.map(series => series.stack)).toEqual(['all', 'all']);
@@ -136,14 +136,54 @@ describe('chartOptions', () => {
       }),
     ).toBe(false);
     expect(isStacked({ ...cartesian, series: [] })).toBe(false);
+  });
 
-    expect(isSmooth(cartesian)).toBe(false);
-    const smooth = withSmooth(cartesian, true);
-    expect(smooth.series.every(series => series.smooth === true)).toBe(true);
-    expect(isSmooth(smooth)).toBe(true);
+  it('joins every line one way, as one choice, and reads it back', () => {
+    expect(lineOf(cartesian, 'line')).toBeUndefined();
+    const smooth = withLine(cartesian, 'smooth', 'line');
+    expect(smooth.series.map(series => series.line)).toEqual([
+      'smooth',
+      'smooth',
+    ]);
+    expect(lineOf(smooth, 'line')).toBe('smooth');
+    // Step replaces smooth rather than sitting beside it: one member says
+    // how a line joins its points, so the two cannot both be written.
+    const step = withLine(smooth, 'step', 'area');
+    expect(step.series.map(series => series.line)).toEqual(['step', 'step']);
+    expect(lineOf(step, 'area')).toBe('step');
+    // Straight is the one left unwritten: no `line` stays behind.
     expect(
-      withSmooth(smooth, false).series.every(series => !('smooth' in series)),
+      withLine(step, undefined, 'line').series.every(
+        series => !('line' in series),
+      ),
     ).toBe(true);
+    // Half the lines stepped is not a stepped chart.
+    expect(
+      lineOf(
+        {
+          ...cartesian,
+          series: [{ metric: 'orders', line: 'step' }, { metric: 'amount' }],
+        },
+        'line',
+      ),
+    ).toBeUndefined();
+  });
+
+  it('asks only the lines of a combo how they join, and leaves its bars', () => {
+    const combo: CartesianSpec = {
+      x: 'month',
+      series: [
+        { metric: 'orders', type: 'bar' },
+        { metric: 'amount', type: 'line', axis: 'right' },
+      ],
+    };
+    const step = withLine(combo, 'step', 'combo');
+    expect(step.series).toEqual([
+      { metric: 'orders', type: 'bar' },
+      { metric: 'amount', type: 'line', axis: 'right', line: 'step' },
+    ]);
+    // The bar draws no line, so it does not make the chart's lines mixed.
+    expect(lineOf(step, 'combo')).toBe('step');
   });
 
   /**

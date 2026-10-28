@@ -493,7 +493,12 @@ export const analysisMessages = {
   'label.chart.percent-stack.hint':
     'Each stack reads as shares of its total; the tooltip keeps the values',
   'label.chart.horizontal': 'Horizontal',
-  'label.chart.smooth': 'Smooth lines',
+  'label.chart.line': 'Lines',
+  'label.chart.line.straight': 'Straight',
+  'label.chart.line.smooth': 'Smooth',
+  'label.chart.line.step': 'Step',
+  'label.chart.line.step.hint':
+    'Each value holds until the next point, as a balance does',
   'label.chart.missing': 'Missing values',
   'label.chart.missing.zero': 'Zero',
   'label.chart.missing.gap': 'Leave a gap',

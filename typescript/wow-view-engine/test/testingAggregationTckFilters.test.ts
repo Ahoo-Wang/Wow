@@ -55,6 +55,7 @@ import {
   ms,
   op,
   percentile,
+  pick,
   ref,
   snapshot,
   sum,
@@ -585,5 +586,96 @@ describe('the aggregation TCK (SnapshotQueryBackendSpec), part two', () => {
     };
     expect(await ask(groups, documents)).toHaveLength(100);
     expect(await ask({ ...groups, limit: 150 }, documents)).toHaveLength(150);
+  });
+});
+
+/**
+ * `QueryBackendSpec`'s terms over a string array, in `query/query-tck`: its
+ * orders (o1 to o5) and o6, whose keywords repeat — `a` on o1 and o6, `b` on
+ * o1 and o2, `c` (twice) on o6 only; o3's are empty, o4 and o5 have none.
+ */
+describe('the query TCK (QueryBackendSpec): terms over an array', () => {
+  const order = (id: string, amount: number, keywords?: string[]) => ({
+    aggregateId: id,
+    state: { amount, ...(keywords ? { keywords } : {}) },
+  });
+  const keywordOrders = [
+    order('o1', 10.5, ['a', 'b']),
+    order('o2', 20, ['b']),
+    order('o3', 30, []),
+    order('o4', 40),
+    order('o5', 50),
+    order('o6', 1, ['c', 'a', 'c']),
+  ];
+
+  it('aggregation groups a string array by each of its values', async () => {
+    const rows = await ask(
+      {
+        groupBy: [terms('state.keywords', 'keyword')],
+        metrics: [count('count'), sum('state.amount', 'total')],
+      },
+      keywordOrders,
+    );
+    // Null sorts first ascending; o6 counts once under `c`.
+    expect(rows).toEqual([
+      { keyword: null, count: 3, total: 120 },
+      { keyword: 'a', count: 2, total: 11.5 },
+      { keyword: 'b', count: 2, total: 30.5 },
+      { keyword: 'c', count: 1, total: 1 },
+    ]);
+  });
+
+  it('puts a record whose array holds nothing but nulls into missingKey', async () => {
+    const rows = await ask(
+      {
+        groupBy: [terms('state.keywords', 'keyword', '__none__')],
+        metrics: [count('count')],
+      },
+      [order('x', 1, [null, null] as never), order('y', 2, ['a'])],
+    );
+    expect(pick(rows, 'keyword', 'count')).toEqual([
+      ['__none__', 1],
+      ['a', 1],
+    ]);
+  });
+
+  it('keys a scalar field by its value, as before', async () => {
+    const rows = await ask(
+      {
+        groupBy: [terms('state.amount', 'amount')],
+        metrics: [count('count')],
+      },
+      [order('x', 1), order('y', 1), order('z', 2)],
+    );
+    expect(pick(rows, 'amount', 'count')).toEqual([
+      [1, 2],
+      [2, 1],
+    ]);
+  });
+
+  it('joins a record to every combination of two groups', async () => {
+    const rows = await ask(
+      {
+        groupBy: [
+          terms('state.keywords', 'keyword'),
+          terms('state.colors', 'color'),
+        ],
+        metrics: [count('count'), sum('state.amount', 'total')],
+      },
+      [
+        {
+          aggregateId: 'x',
+          state: { amount: 1, keywords: ['a', 'b'], colors: ['red', 'blue'] },
+        },
+        { aggregateId: 'y', state: { amount: 2, keywords: ['a'] } },
+      ],
+    );
+    expect(pick(rows, 'keyword', 'color', 'count', 'total')).toEqual([
+      ['a', null, 1, 2],
+      ['a', 'blue', 1, 1],
+      ['a', 'red', 1, 1],
+      ['b', 'blue', 1, 1],
+      ['b', 'red', 1, 1],
+    ]);
   });
 });

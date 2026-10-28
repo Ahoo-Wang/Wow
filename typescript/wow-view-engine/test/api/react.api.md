@@ -835,9 +835,8 @@ type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
 interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
+    line?: 'smooth' | 'step';
     metric: string;
-    // (undocumented)
-    smooth?: boolean;
     stack?: string;
     type?: 'bar' | 'line' | 'area';
 }

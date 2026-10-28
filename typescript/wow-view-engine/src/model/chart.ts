@@ -205,7 +205,14 @@ export interface CartesianSeries {
    * its own values whatever it says (`stacks`).
    */
   stack?: string;
-  smooth?: boolean;
+  /**
+   * How a line or an area joins its points; unwritten, straight from one
+   * to the next. `smooth` curves through them; `step` holds each value
+   * until the next point and moves there, which is how a balance or a
+   * price reads: it stays what it was until something changes it. A bar
+   * draws no line and reads neither.
+   */
+  line?: 'smooth' | 'step';
 }
 
 export interface CartesianSpec {

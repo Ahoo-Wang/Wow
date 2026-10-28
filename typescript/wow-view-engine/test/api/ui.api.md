@@ -718,9 +718,8 @@ type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
 interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
+    line?: 'smooth' | 'step';
     metric: string;
-    // (undocumented)
-    smooth?: boolean;
     stack?: string;
     type?: 'bar' | 'line' | 'area';
 }
@@ -2982,7 +2981,11 @@ export const en: {
     readonly 'label.chart.percent-stack': "Stacked to 100%";
     readonly 'label.chart.percent-stack.hint': "Each stack reads as shares of its total; the tooltip keeps the values";
     readonly 'label.chart.horizontal': "Horizontal";
-    readonly 'label.chart.smooth': "Smooth lines";
+    readonly 'label.chart.line': "Lines";
+    readonly 'label.chart.line.straight': "Straight";
+    readonly 'label.chart.line.smooth': "Smooth";
+    readonly 'label.chart.line.step': "Step";
+    readonly 'label.chart.line.step.hint': "Each value holds until the next point, as a balance does";
     readonly 'label.chart.missing': "Missing values";
     readonly 'label.chart.missing.zero': "Zero";
     readonly 'label.chart.missing.gap': "Leave a gap";

@@ -1308,7 +1308,11 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.chart.percent-stack.hint':
     '每一摞读作各部分占这一摞的比例；提示框仍写原值',
   'label.chart.horizontal': '横向',
-  'label.chart.smooth': '平滑',
+  'label.chart.line': '连线',
+  'label.chart.line.straight': '直线',
+  'label.chart.line.smooth': '平滑',
+  'label.chart.line.step': '阶梯',
+  'label.chart.line.step.hint': '每个值保持到下一个点才变，像余额那样',
   'label.chart.missing': '缺值',
   'label.chart.missing.zero': '补 0',
   'label.chart.missing.gap': '留空（断开）',
