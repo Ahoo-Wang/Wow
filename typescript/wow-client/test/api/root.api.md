@@ -348,8 +348,7 @@ export interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly results: R;
     readonly signalTime: number;
-    // (undocumented)
-    readonly status: CommandResultStatus;
+    readonly status: CommandResultStatus | (string & {});
     // (undocumented)
     readonly transformedFrom?: TransformedFrom | null;
     readonly version?: number | null;
@@ -1088,8 +1087,7 @@ export const FrameworkErrorCodes: {
 export interface FunctionInfo {
     // (undocumented)
     readonly context: string;
-    // (undocumented)
-    readonly kind: FunctionKind;
+    readonly kind: FunctionKind | (string & {});
     // (undocumented)
     readonly name: string;
     // (undocumented)
@@ -1153,8 +1151,7 @@ type HistogramAggregationGroup<FIELDS extends string = string> = {
 export interface Hop {
     // (undocumented)
     readonly context?: string | null;
-    // (undocumented)
-    readonly stage: Stage;
+    readonly stage: Stage | (string & {});
     // (undocumented)
     readonly subscription?: string | null;
 }
