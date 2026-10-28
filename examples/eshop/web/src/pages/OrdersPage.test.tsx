@@ -72,8 +72,8 @@ describe("the orders", () => {
     expect(screen.queryByRole("button", { name: /Ship/ })).toBeNull();
     expect(received[0].body).toMatchObject({
       kind: "list",
-      filter: { op: "MATCH_ALL" },
-      sort: [{ field: "firstEventTime", direction: "DESC" }],
+      filter: { op: "match-all" },
+      sort: [{ field: "firstEventTime", direction: "desc" }],
     });
   });
 

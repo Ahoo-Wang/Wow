@@ -27,7 +27,7 @@ describe('wordReferences', () => {
       'Cost',
     )}) ÷ ${metricReferenceText(AggregationMetricType.COUNT, 'orders')}`;
     expect(wordReferences(text, word)).toBe(
-      '([SUM:Amount] − [SUM:Cost]) ÷ [COUNT:orders]',
+      '([sum:Amount] − [sum:Cost]) ÷ [count:orders]',
     );
   });
 
@@ -42,6 +42,6 @@ describe('wordReferences', () => {
         `${metricReferenceText(AggregationFunction.AVG, 'Amount − Cost (net)')} × 2`,
         word,
       ),
-    ).toBe('[AVG:Amount − Cost (net)] × 2');
+    ).toBe('[avg:Amount − Cost (net)] × 2');
   });
 });

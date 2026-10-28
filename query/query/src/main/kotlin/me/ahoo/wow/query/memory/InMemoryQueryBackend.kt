@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
@@ -41,7 +42,6 @@ import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode

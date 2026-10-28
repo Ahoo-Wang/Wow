@@ -18,13 +18,13 @@ outline: deep
 {
   "kind": "paged",
   "filter": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-      { "op": "BETWEEN", "field": "state.price", "lowerBound": 5, "upperBound": 50 }
+      { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+      { "op": "between", "field": "state.price", "lowerBound": 5, "upperBound": 50 }
     ]
   },
-  "sort": [{ "field": "state.price", "direction": "ASC" }],
+  "sort": [{ "field": "state.price", "direction": "asc" }],
   "pagination": { "index": 1, "size": 20 }
 }
 ```
@@ -86,7 +86,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "IN", "field": "state.status", "values": ["PUBLISHED", "DELISTED"] },
+  "filter": { "op": "in", "field": "state.status", "values": ["PUBLISHED", "DELISTED"] },
   "limit": 50
 }
 ```
@@ -110,7 +110,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "CONTAINS", "field": "state.name", "value": "mug", "stringComparison": "CASE_INSENSITIVE" }
+  "filter": { "op": "contains", "field": "state.name", "value": "mug", "stringComparison": "case-insensitive" }
 }
 ```
 
@@ -158,7 +158,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "IS_NULL", "field": "state.brandId" }
+  "filter": { "op": "is-null", "field": "state.brandId" }
 }
 ```
 
@@ -182,7 +182,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "RECENT_DAYS", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
 }
 ```
 
@@ -209,10 +209,10 @@ outline: deep
 {
   "kind": "list",
   "filter": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "DELETION", "state": "ALL" },
-      { "op": "EQ", "field": "operator.id", "value": "erin" }
+      { "op": "deletion", "state": "all" },
+      { "op": "eq", "field": "operator.id", "value": "erin" }
     ]
   }
 }
@@ -255,7 +255,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "NOR", "operands": [{ "op": "EQ", "field": "state.status", "value": "DELISTED" }] }
+  "filter": { "op": "nor", "operands": [{ "op": "eq", "field": "state.status", "value": "DELISTED" }] }
 }
 ```
 
@@ -274,7 +274,7 @@ outline: deep
 ```json
 {
   "kind": "list",
-  "filter": { "op": "MATCH_ALL" },
+  "filter": { "op": "match-all" },
   "projection": { "include": ["aggregateId", "state.name", "state.price"] },
   "limit": 50
 }
@@ -320,8 +320,8 @@ outline: deep
 ```json
 {
   "kind": "cursor",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-  "sort": [{ "field": "lastEventTime", "direction": "DESC" }],
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+  "sort": [{ "field": "lastEventTime", "direction": "desc" }],
   "size": 20
 }
 ```
@@ -340,7 +340,7 @@ outline: deep
 ```json
 {
   "kind": "count",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
   "limit": 1000
 }
 ```
@@ -356,13 +356,13 @@ outline: deep
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "NE", "field": "state.status", "value": "DRAFT" },
-  "groupBy": [{ "type": "TERMS", "field": "state.status", "alias": "status" }],
+  "filter": { "op": "ne", "field": "state.status", "value": "DRAFT" },
+  "groupBy": [{ "type": "terms", "field": "state.status", "alias": "status" }],
   "metrics": [
-    { "type": "COUNT", "alias": "count" },
-    { "type": "NUMERIC", "function": "AVG", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "averagePrice" }
+    { "type": "count", "alias": "count" },
+    { "type": "numeric", "function": "avg", "expression": { "type": "field", "field": "state.price" }, "alias": "averagePrice" }
   ],
-  "sort": [{ "field": "count", "direction": "DESC" }]
+  "sort": [{ "field": "count", "direction": "desc" }]
 }
 ```
 

@@ -56,6 +56,27 @@ export type MessageOverrides = Partial<Record<MessageKey, string>>;
 const PLACEHOLDER = /\{(\w+)\}/g;
 
 /**
+ * The params that carry a Wow value or a word's key, and the catalogue
+ * prefix that words each: a finding raised in the model holds `fn: 'avg'`,
+ * and the reader sees the catalogue's 「Average」, never the wire value. An
+ * empty prefix means each item is itself a key (`dropped`). A value the
+ * catalogue does not word stays as it came.
+ */
+const WORDED: Readonly<Record<string, string>> = {
+  operator: 'label.operator',
+  operators: 'label.operator',
+  fn: 'label.summary.fn',
+  dropped: '',
+};
+
+/** One param item in the catalogue's words, where its name says how. */
+function worded(messages: ViewMessages, name: string, item: string): string {
+  const prefix = WORDED[name];
+  if (prefix === undefined) return item;
+  return messages[prefix ? `${prefix}.${item}` : item] ?? item;
+}
+
+/**
  * One entry with its params filled in.
  *
  * A param that is a number is a quantity — a count, a total, a page, a
@@ -84,9 +105,11 @@ export function formatMessage(
     // a list: the locale set, else the catalogue's own language.
     return value.includes(LIST_PARAM_SEPARATOR)
       ? listFormat(locale ?? messages['label.language']).format(
-          value.split(LIST_PARAM_SEPARATOR),
+          value
+            .split(LIST_PARAM_SEPARATOR)
+            .map(item => worded(messages, name, item)),
         )
-      : value;
+      : worded(messages, name, value);
   });
 }
 

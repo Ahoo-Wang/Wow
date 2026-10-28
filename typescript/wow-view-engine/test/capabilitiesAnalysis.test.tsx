@@ -132,7 +132,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
     expect(findings).toContainEqual(
       expect.objectContaining({
         code: 'capability.analysis.field-narrowed',
-        params: { field: 'warehouse', dropped: 'MISSING_KEY' },
+        params: { field: 'warehouse', dropped: 'label.capability.missing-key' },
       }),
     );
     // A fresh view's first dimension carries none, and a saved one that

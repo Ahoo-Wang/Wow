@@ -1,25 +1,25 @@
 {
-  "model": "SNAPSHOT",
+  "model": "snapshot",
   "version": "sha256:cd311bd7779e3597beb8f02f890f8cd39ef983f08e51336b6e9c5aeca1c68ffa",
   "timeZone": "America/Los_Angeles",
   "record": {
     "identity": "aggregateId",
     "paging": [
-      "LIST",
-      "PAGED",
-      "CURSOR"
+      "list",
+      "paged",
+      "cursor"
     ],
-    "defaultScope": "ACTIVE",
+    "defaultScope": "active",
     "rootOperators": [
-      "ID",
-      "IDS",
-      "AGGREGATE_ID",
-      "AGGREGATE_IDS",
-      "TENANT_ID",
-      "OWNER_ID",
-      "SPACE_ID",
-      "DELETION",
-      "EXPRESSION"
+      "id",
+      "ids",
+      "aggregate-id",
+      "aggregate-ids",
+      "tenant-id",
+      "owner-id",
+      "space-id",
+      "deletion",
+      "expression"
     ]
   },
   "limits": {
@@ -42,24 +42,24 @@
   },
   "analysis": {
     "metrics": [
-      "COUNT",
-      "NUMERIC",
-      "ANY",
-      "DISTINCT_COUNT",
-      "PERCENTILE",
-      "DERIVED",
-      "FIRST",
-      "LAST"
+      "count",
+      "numeric",
+      "any",
+      "distinct-count",
+      "percentile",
+      "derived",
+      "first",
+      "last"
     ],
     "approximate": [],
     "expressions": true,
     "having": {
       "metrics": [
-        "COUNT",
-        "NUMERIC",
-        "DISTINCT_COUNT",
-        "PERCENTILE",
-        "DERIVED"
+        "count",
+        "numeric",
+        "distinct-count",
+        "percentile",
+        "derived"
       ]
     },
     "sort": {
@@ -68,66 +68,66 @@
     },
     "dense": true,
     "dateUnits": [
-      "YEAR",
-      "QUARTER",
-      "MONTH",
-      "WEEK",
-      "DAY",
-      "HOUR",
-      "MINUTE",
-      "SECOND"
+      "year",
+      "quarter",
+      "month",
+      "week",
+      "day",
+      "hour",
+      "minute",
+      "second"
     ],
     "dateParts": [
-      "DAY_OF_WEEK",
-      "DAY_OF_MONTH",
-      "HOUR_OF_DAY",
-      "MONTH_OF_YEAR"
+      "day-of-week",
+      "day-of-month",
+      "hour-of-day",
+      "month-of-year"
     ],
     "dateDiffUnits": [
-      "SECOND",
-      "MINUTE",
-      "HOUR",
-      "DAY"
+      "second",
+      "minute",
+      "hour",
+      "day"
     ],
     "firstLastOrderBy": "lastEventTime",
     "windows": [
-      "TOTAL",
-      "RUNNING",
-      "PREVIOUS",
-      "RANK"
+      "total",
+      "running",
+      "previous",
+      "rank"
     ],
     "rootGroups": true
   },
   "fields": [
     {
       "path": "aggregateId",
-      "role": "AGGREGATE_ID",
+      "role": "aggregate-id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -136,7 +136,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -151,23 +151,23 @@
     },
     {
       "path": "deleted",
-      "role": "DELETED",
+      "role": "deleted",
       "types": [
-        "BOOLEAN"
+        "boolean"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "IN",
-          "NOT_IN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "in",
+          "not-in",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -176,7 +176,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": false,
         "functions": [],
@@ -191,49 +191,49 @@
     },
     {
       "path": "firstEventTime",
-      "role": "FIRST_EVENT_TIME",
+      "role": "first-event-time",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -242,19 +242,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -268,17 +268,17 @@
     {
       "path": "firstOperator",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -290,21 +290,21 @@
     {
       "path": "firstOperator.crossScope",
       "types": [
-        "BOOLEAN"
+        "boolean"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "IN",
-          "NOT_IN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "in",
+          "not-in",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -313,7 +313,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": false,
         "functions": [],
@@ -329,31 +329,31 @@
     {
       "path": "firstOperator.id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -362,7 +362,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -378,31 +378,31 @@
     {
       "path": "firstOperator.tenantId",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -411,7 +411,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -426,49 +426,49 @@
     },
     {
       "path": "lastEventTime",
-      "role": "EVENT_TIME",
+      "role": "event-time",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -477,19 +477,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -503,17 +503,17 @@
     {
       "path": "operator",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -525,21 +525,21 @@
     {
       "path": "operator.crossScope",
       "types": [
-        "BOOLEAN"
+        "boolean"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "IN",
-          "NOT_IN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "in",
+          "not-in",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -548,7 +548,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": false,
         "functions": [],
@@ -564,31 +564,31 @@
     {
       "path": "operator.id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -597,7 +597,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -613,31 +613,31 @@
     {
       "path": "operator.tenantId",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -646,7 +646,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -661,33 +661,33 @@
     },
     {
       "path": "ownerId",
-      "role": "OWNER_ID",
+      "role": "owner-id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -696,7 +696,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -712,17 +712,17 @@
     {
       "path": "schedules",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -733,33 +733,33 @@
     },
     {
       "path": "spaceId",
-      "role": "SPACE_ID",
+      "role": "space-id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -768,7 +768,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -784,17 +784,17 @@
     {
       "path": "state",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -806,17 +806,17 @@
     {
       "path": "state.aggregate",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -828,31 +828,31 @@
     {
       "path": "state.aggregate.context",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -861,7 +861,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -877,31 +877,31 @@
     {
       "path": "state.aggregate.id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -910,7 +910,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -926,31 +926,31 @@
     {
       "path": "state.aggregate.name",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -959,7 +959,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -975,31 +975,31 @@
     {
       "path": "state.aggregate.tenantId",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1008,7 +1008,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1024,31 +1024,31 @@
     {
       "path": "state.context",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1057,7 +1057,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1073,31 +1073,31 @@
     {
       "path": "state.errorType",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1106,7 +1106,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1122,47 +1122,47 @@
     {
       "path": "state.failedAt",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -1171,19 +1171,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1197,26 +1197,26 @@
     {
       "path": "state.fromPosition",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1225,17 +1225,17 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM"
+          "terms",
+          "histogram"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1249,26 +1249,26 @@
     {
       "path": "state.fromVersion",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1277,17 +1277,17 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM"
+          "terms",
+          "histogram"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1301,47 +1301,47 @@
     {
       "path": "state.nextRetryAt",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -1350,19 +1350,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1376,31 +1376,31 @@
     {
       "path": "state.outcome",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1409,7 +1409,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1425,31 +1425,31 @@
     {
       "path": "state.reason",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1458,7 +1458,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1474,47 +1474,47 @@
     {
       "path": "state.recordedAt",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -1523,19 +1523,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1549,31 +1549,31 @@
     {
       "path": "state.recoverable",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1582,7 +1582,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1598,31 +1598,31 @@
     {
       "path": "state.request",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1631,7 +1631,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1647,31 +1647,31 @@
     {
       "path": "state.requested",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1680,7 +1680,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -1696,47 +1696,47 @@
     {
       "path": "state.resolvedAt",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -1745,19 +1745,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1771,26 +1771,26 @@
     {
       "path": "state.retries",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1799,17 +1799,17 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM"
+          "terms",
+          "histogram"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1823,47 +1823,47 @@
     {
       "path": "state.retryAt",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": true,
       "semantic": {
-        "type": "TEMPORAL_EPOCH",
+        "type": "temporal-epoch",
         "timeUnit": "MILLISECONDS"
       },
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS",
-          "TODAY",
-          "BEFORE_TODAY",
-          "TOMORROW",
-          "THIS_WEEK",
-          "NEXT_WEEK",
-          "LAST_WEEK",
-          "THIS_MONTH",
-          "LAST_MONTH",
-          "RECENT_DAYS",
-          "EARLIER_DAYS",
-          "YESTERDAY",
-          "NEXT_MONTH",
-          "LAST_YEAR",
-          "THIS_YEAR",
-          "NEXT_YEAR",
-          "BEFORE_NOW",
-          "AFTER_NOW"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
       },
       "sort": {
@@ -1872,19 +1872,19 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM",
-          "DATE_HISTOGRAM",
-          "DATE_PART"
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -1898,17 +1898,17 @@
     {
       "path": "state.retrySpec",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1920,21 +1920,21 @@
     {
       "path": "state.retrySpec.applied",
       "types": [
-        "BOOLEAN"
+        "boolean"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "IN",
-          "NOT_IN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "in",
+          "not-in",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1943,7 +1943,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": false,
         "functions": [],
@@ -1959,31 +1959,31 @@
     {
       "path": "state.retrySpec.timeout",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -1992,7 +1992,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2008,31 +2008,31 @@
     {
       "path": "state.retrySpec.initialBackoff",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2041,7 +2041,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2057,26 +2057,26 @@
     {
       "path": "state.retrySpec.maxRetries",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2085,17 +2085,17 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM"
+          "terms",
+          "histogram"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -2109,31 +2109,31 @@
     {
       "path": "state.service",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2142,7 +2142,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2158,31 +2158,31 @@
     {
       "path": "state.status",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2191,7 +2191,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2207,31 +2207,31 @@
     {
       "path": "state.subscription",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2240,7 +2240,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2256,17 +2256,17 @@
     {
       "path": "tags",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2277,33 +2277,33 @@
     },
     {
       "path": "tenantId",
-      "role": "TENANT_ID",
+      "role": "tenant-id",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2312,7 +2312,7 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS"
+          "terms"
         ],
         "missingKey": true,
         "functions": [],
@@ -2328,26 +2328,26 @@
     {
       "path": "version",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "nullable": false,
       "project": true,
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       },
       "sort": {
@@ -2356,17 +2356,17 @@
       },
       "aggregate": {
         "groups": [
-          "TERMS",
-          "HISTOGRAM"
+          "terms",
+          "histogram"
         ],
         "missingKey": false,
         "functions": [
-          "SUM",
-          "AVG",
-          "MIN",
-          "MAX",
-          "STDDEV",
-          "VARIANCE"
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
         ],
         "distinctCount": true,
         "percentile": true,
@@ -2383,215 +2383,215 @@
     {
       "pattern": "schedules.{key}",
       "types": [
-        "OBJECT"
+        "object"
       ],
-      "kind": "OBJECT",
+      "kind": "object",
       "filter": {
         "operators": [
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.epochMillis",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.expression",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.millis",
       "types": [
-        "INTEGER"
+        "integer"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "in",
+          "not-in",
+          "between",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.misfire",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.type",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "schedules.{key}.zone",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "SCALAR",
+      "kind": "scalar",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "is-empty-string",
+          "is-not-empty-string",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     },
     {
       "pattern": "tags.{key}",
       "types": [
-        "STRING"
+        "string"
       ],
-      "kind": "ARRAY",
+      "kind": "array",
       "filter": {
         "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "CONTAINS_ALL",
-          "IS_EMPTY",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
+          "eq",
+          "ne",
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "contains",
+          "starts-with",
+          "ends-with",
+          "in",
+          "not-in",
+          "between",
+          "contains-all",
+          "is-empty",
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
         ]
       }
     }
   ],
   "constraints": [
     {
-      "type": "CURSOR_UNIQUE_SORT",
+      "type": "cursor-unique-sort",
       "appended": "aggregateId",
       "fields": [
         "tenantId",

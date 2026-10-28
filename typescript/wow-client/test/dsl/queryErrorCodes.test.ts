@@ -48,10 +48,10 @@ describe('QueryErrorCodes', () => {
     expect(Object.isFrozen(QueryErrorCodes)).toBe(true);
     expectTypeOf(
       QueryErrorCodes.UNKNOWN_FIELD,
-    ).toEqualTypeOf<'UNKNOWN_FIELD'>();
-    expectTypeOf<'UNKNOWN_FIELD'>().toMatchTypeOf<KnownQueryErrorCode>();
+    ).toEqualTypeOf<'unknown-field'>();
+    expectTypeOf<'unknown-field'>().toMatchTypeOf<KnownQueryErrorCode>();
     // A code a newer server added is still a QueryErrorCode.
-    expectTypeOf<'SOME_FUTURE_CODE'>().toMatchTypeOf<QueryErrorCode>();
+    expectTypeOf<'some-future-code'>().toMatchTypeOf<QueryErrorCode>();
   });
 
   it("reads a problem's violation as a QueryViolation", () => {

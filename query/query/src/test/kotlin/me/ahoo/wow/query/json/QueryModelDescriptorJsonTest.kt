@@ -31,6 +31,9 @@ import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.TimeSpan
 import me.ahoo.wow.query.schema.describe
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -55,6 +58,26 @@ class QueryModelDescriptorJsonTest {
             }
             actual.assert().isEqualTo(GOLDEN.readText())
         }
+    }
+
+    @Test
+    fun `the descriptor's vocabulary is lower-kebab, but for a JDK time unit`() {
+        val values = protocolValues(QueryJson.mapper.readTree(GOLDEN.readText()))
+        values.map { it.first }.distinct().assert().containsExactlyInAnyOrderElementsOf(PROTOCOL_KEYS)
+        values.filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
+    }
+
+    private fun protocolValues(node: JsonNode): List<Pair<String, String>> = when {
+        node.isObject -> node.properties().flatMap { (key, value) ->
+            if (key in PROTOCOL_KEYS) {
+                if (value.isString) listOf(key to value.asString()) else value.values().map { key to it.asString() }
+            } else {
+                protocolValues(value)
+            }
+        }
+
+        node.isArray -> node.values().flatMap(::protocolValues)
+        else -> emptyList()
     }
 
     @Test
@@ -98,7 +121,7 @@ class QueryModelDescriptorJsonTest {
     }
 
     @Test
-    fun `semantic types, models and value types read as 9x wrote them`() {
+    fun `semantic types, models and value types are written and read by their wire names`() {
         val semantics = listOf(
             Temporal.Date,
             Temporal.Epoch(TimeUnit.SECONDS),
@@ -113,17 +136,26 @@ class QueryModelDescriptorJsonTest {
             val json = QueryJson.mapper.writeValueAsString(semantic)
             QueryJson.mapper.readValue(json, QuerySemanticType::class.java).assert().isEqualTo(semantic)
         }
-        QueryJson.mapper.writeValueAsString(Temporal.Date).assert().isEqualTo("""{"type":"TEMPORAL_DATE"}""")
+        QueryJson.mapper.writeValueAsString(Temporal.Date).assert().isEqualTo("""{"type":"temporal-date"}""")
         QueryJson.mapper.writeValueAsString(NumericFormat.Money(currency = "CNY", scale = 2))
-            .assert().isEqualTo("""{"type":"MONEY","currency":"CNY","scale":2}""")
+            .assert().isEqualTo("""{"type":"money","currency":"CNY","scale":2}""")
         QueryJson.mapper.readValue("""{"type":"FUTURE","x":1}""", QuerySemanticType::class.java)
             .assert().isEqualTo(QuerySemanticType.Unknown)
-        QueryJson.mapper.writeValueAsString(QueryModel.SNAPSHOT).assert().isEqualTo("\"SNAPSHOT\"")
-        QueryJson.mapper.readValue("\"DECIMAL\"", QueryValueType::class.java).assert().isEqualTo(QueryValueType.DECIMAL)
+        QueryJson.mapper.writeValueAsString(QueryModel.SNAPSHOT).assert().isEqualTo("\"snapshot\"")
+        QueryJson.mapper.readValue("\"decimal\"", QueryValueType::class.java).assert().isEqualTo(QueryValueType.DECIMAL)
+        // An upper-case identifier is not a wire name: a model or a value type is spelled lower-kebab.
+        assertThrows<JacksonException> { QueryJson.mapper.readValue("\"SNAPSHOT\"", QueryModel::class.java) }
     }
 
     private companion object {
         const val DEFAULT_LIST_SIZE = 20
+        val KEBAB = Regex("[a-z][a-z0-9]*(-[a-z0-9]+)*")
+
+        /** The keys whose values are the protocol's own words; paths, patterns, currencies and zones are not. */
+        val PROTOCOL_KEYS = setOf(
+            "model", "role", "types", "kind", "operators", "rootOperators", "groups", "functions", "metrics", "windows",
+            "paging", "type", "dateUnits", "dateParts", "dateDiffUnits", "level", "defaultScope",
+        )
         val GOLDEN: Path = Path.of("src", "test", "resources", "descriptor", "order-snapshot.descriptor.json")
     }
 }

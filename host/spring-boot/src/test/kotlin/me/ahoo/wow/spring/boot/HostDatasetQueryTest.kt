@@ -51,9 +51,9 @@ private fun ledgerFile(table: String = "ledger", title: String = "Ledger"): Stri
       "scope": { "tenant": "tenant_id" },
       "storage": { "table": "$table" },
       "fields": {
-        "id": { "types": ["STRING"], "nullable": false },
-        "tenant_id": { "types": ["STRING"], "nullable": false },
-        "amount": { "types": ["INTEGER"], "nullable": false }
+        "id": { "types": ["string"], "nullable": false },
+        "tenant_id": { "types": ["string"], "nullable": false },
+        "amount": { "types": ["integer"], "nullable": false }
       }
     }
     """.trimIndent()
@@ -102,7 +102,7 @@ class HostDatasetQueryTest {
             // The anonymous caller is in the default tenant: the other tenant's row is not read.
             val sum = host.post(
                 "/wow/dataset/bank/ledger/query",
-                """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},"metrics":[{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"amount"},"alias":"total"}]}""",
+                """{"kind":"aggregate","filter":{"op":"match-all"},"metrics":[{"type":"numeric","function":"sum","expression":{"type":"field","field":"amount"},"alias":"total"}]}""",
             )
             sum.status.assert().isEqualTo(200)
             sum.body!![0]["total"].asLong().assert().isEqualTo(7)
@@ -112,7 +112,7 @@ class HostDatasetQueryTest {
 
             // A dataset that leaves is no longer served, and its binding is evicted.
             host.context.getBean(QueryDatasets::class.java).remove(LEDGER).assert().isTrue()
-            host.post("/wow/dataset/bank/ledger/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+            host.post("/wow/dataset/bank/ledger/query", """{"kind":"count","filter":{"op":"match-all"}}""")
                 .status.assert().isEqualTo(404)
         }
     }
@@ -140,7 +140,7 @@ class HostDatasetQueryTest {
             sources = listOf(HostTestApp::class.java, MemoryDatasets::class.java),
         ).use { host ->
             val bulkhead = checkNotNull(host.context.getBean(QueryStores::class.java).datasets)
-            val count = """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""
+            val count = """{"kind":"count","filter":{"op":"match-all"}}"""
             host.post("/wow/dataset/bank/ledger/query", count).status.assert().isEqualTo(200)
             // Its one permit taken: the next dataset query is refused at once.
             runBlocking { bulkhead.acquire() }

@@ -35,19 +35,19 @@ class AggregationWindowsJsonTest {
         val json = """
             {
               "groupBy": [
-                {"type": "TERMS", "field": "province", "alias": "province"},
-                {"type": "DATE_HISTOGRAM", "field": "createdAt", "alias": "month", "unit": "MONTH"}
+                {"type": "terms", "field": "province", "alias": "province"},
+                {"type": "date-histogram", "field": "createdAt", "alias": "month", "unit": "month"}
               ],
               "metrics": [
-                {"type": "NUMERIC", "function": "SUM", "expression": {"field": "amount"}, "alias": "gmv"},
-                {"type": "DERIVED", "alias": "share", "expression": {"type": "BINARY", "operator": "DIVIDE",
-                  "left": {"type": "METRIC_REF", "metric": "gmv"},
-                  "right": {"type": "TOTAL", "metric": "gmv", "within": ["province"]}}},
-                {"type": "DERIVED", "alias": "cumulative", "expression":
-                  {"type": "RUNNING", "metric": "gmv", "order": {"field": "month", "direction": "ASC"}}},
-                {"type": "DERIVED", "alias": "yoy", "expression":
-                  {"type": "PREVIOUS", "metric": "gmv", "along": "month", "period": "YEAR"}},
-                {"type": "DERIVED", "alias": "rank", "expression": {"type": "RANK", "metric": "gmv"}}
+                {"type": "numeric", "function": "sum", "expression": {"field": "amount"}, "alias": "gmv"},
+                {"type": "derived", "alias": "share", "expression": {"type": "binary", "operator": "divide",
+                  "left": {"type": "metric-ref", "metric": "gmv"},
+                  "right": {"type": "total", "metric": "gmv", "within": ["province"]}}},
+                {"type": "derived", "alias": "cumulative", "expression":
+                  {"type": "running", "metric": "gmv", "order": {"field": "month", "direction": "asc"}}},
+                {"type": "derived", "alias": "yoy", "expression":
+                  {"type": "previous", "metric": "gmv", "along": "month", "period": "year"}},
+                {"type": "derived", "alias": "rank", "expression": {"type": "rank", "metric": "gmv"}}
               ]
             }
         """.trimIndent()
@@ -64,12 +64,12 @@ class AggregationWindowsJsonTest {
             DerivedExpression.Rank("gmv"),
         )
         val wire = mapper.writeValueAsString(query)
-        wire.assert().contains("""{"type":"TOTAL","metric":"gmv","within":["province"]}""")
+        wire.assert().contains("""{"type":"total","metric":"gmv","within":["province"]}""")
         wire.assert().contains(
-            """{"type":"RUNNING","metric":"gmv","order":{"field":"month","direction":"ASC"},"function":"SUM"}""",
+            """{"type":"running","metric":"gmv","order":{"field":"month","direction":"asc"},"function":"sum"}""",
         )
-        wire.assert().contains("""{"type":"PREVIOUS","metric":"gmv","along":"month","shift":1,"period":"YEAR"}""")
-        wire.assert().contains("""{"type":"RANK","metric":"gmv","direction":"DESC"}""")
+        wire.assert().contains("""{"type":"previous","metric":"gmv","along":"month","shift":1,"period":"year"}""")
+        wire.assert().contains("""{"type":"rank","metric":"gmv","direction":"desc"}""")
         mapper.readValue(wire, AggregationQuery::class.java).assert().isEqualTo(query)
         expressions.filterIsInstance<DerivedExpression.Window>().map { it.windowFunction }.assert().containsExactly(
             WindowFunction.RUNNING,

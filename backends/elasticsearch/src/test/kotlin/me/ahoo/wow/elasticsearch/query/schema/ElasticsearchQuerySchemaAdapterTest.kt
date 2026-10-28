@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.compile
@@ -30,7 +31,6 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal

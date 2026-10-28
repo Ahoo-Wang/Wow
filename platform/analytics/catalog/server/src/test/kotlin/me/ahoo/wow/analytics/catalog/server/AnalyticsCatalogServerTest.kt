@@ -90,7 +90,7 @@ class AnalyticsCatalogServerTest {
         node.command(
             id,
             "review-source-sensitivity",
-            """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
+            """{"fields":[{"path":"tenant"},{"path":"phone","level":"display","keepPrefix":3}]}""",
         ).assertOk()
         node.command(id, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
         looked()
@@ -166,7 +166,7 @@ class AnalyticsCatalogServerTest {
         node.command(
             source,
             "review-source-sensitivity",
-            """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
+            """{"fields":[{"path":"tenant"},{"path":"phone","level":"display","keepPrefix":3}]}""",
         ).assertOk()
         node.command(source, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
         val id = AnalyticsCatalogContext.datasetIdOf("shop", "invoices")

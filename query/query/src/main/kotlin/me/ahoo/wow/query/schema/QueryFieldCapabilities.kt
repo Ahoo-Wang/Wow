@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.spec.GroupSpec
 import me.ahoo.wow.query.spec.MetricInput
 import me.ahoo.wow.query.spec.MetricSpec

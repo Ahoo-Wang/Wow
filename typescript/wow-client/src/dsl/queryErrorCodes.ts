@@ -34,170 +34,170 @@
  */
 export const QueryErrorCodes = Object.freeze({
   /** The body is not valid JSON. */
-  INVALID_JSON: 'INVALID_JSON',
+  INVALID_JSON: 'invalid-json',
   /** The body is JSON but not an object. */
-  BODY_NOT_OBJECT: 'BODY_NOT_OBJECT',
+  BODY_NOT_OBJECT: 'body-not-object',
   /** The body is empty. */
-  EMPTY_BODY: 'EMPTY_BODY',
+  EMPTY_BODY: 'empty-body',
   /** The body has a property the query type does not declare. */
-  UNKNOWN_PROPERTY: 'UNKNOWN_PROPERTY',
+  UNKNOWN_PROPERTY: 'unknown-property',
   /** An `op`, metric or other type discriminator names no known type. */
-  UNKNOWN_TYPE: 'UNKNOWN_TYPE',
+  UNKNOWN_TYPE: 'unknown-type',
   /** An enum value is not one the server knows. */
-  UNKNOWN_VALUE: 'UNKNOWN_VALUE',
+  UNKNOWN_VALUE: 'unknown-value',
   /** A value is missing or has the wrong JSON type. */
-  INVALID_VALUE: 'INVALID_VALUE',
+  INVALID_VALUE: 'invalid-value',
   /** Any other request rule; the message names it. */
-  INVALID_REQUEST: 'INVALID_REQUEST',
+  INVALID_REQUEST: 'invalid-request',
   /** A cursor sort names a field twice; `path` is the repeated field. */
-  CURSOR_SORT_DUPLICATE: 'CURSOR_SORT_DUPLICATE',
+  CURSOR_SORT_DUPLICATE: 'cursor-sort-duplicate',
   /** A cursor sort has too many fields once the identity tie-breaker is appended. */
-  CURSOR_SORT_TOO_MANY: 'CURSOR_SORT_TOO_MANY',
+  CURSOR_SORT_TOO_MANY: 'cursor-sort-too-many',
   /**
    * The cursor token was not issued for this model and effective sort, or
    * does not decode; `path` is `cursor`. Start again from the first page.
    */
-  INVALID_CURSOR: 'INVALID_CURSOR',
+  INVALID_CURSOR: 'invalid-cursor',
   /**
    * The entry's budget: a list or aggregation `limit`, a page's index, size,
    * window or offset, or a cursor page's `size` is out of range; `path` names
    * which (`limit`, `pagination.size`, `size`, …).
    */
-  SIZE_OUT_OF_RANGE: 'SIZE_OUT_OF_RANGE',
+  SIZE_OUT_OF_RANGE: 'size-out-of-range',
   /**
    * The entry's budget: the filter or `having` has too many nodes or values;
    * `path` is `filter` or `having`.
    */
-  FILTER_TOO_LARGE: 'FILTER_TOO_LARGE',
+  FILTER_TOO_LARGE: 'filter-too-large',
   /**
    * The entry does not allow expensive operators, and the query uses one: an
    * operator, an element expansion, a metric sort, an arithmetic or
    * expression group, a date part, a dense fill or FIRST / LAST; `path` names
    * the part (`filter`, `elements`, `sort`, `metrics`, `groupBy`).
    */
-  EXPENSIVE_OPERATOR_DISABLED: 'EXPENSIVE_OPERATOR_DISABLED',
+  EXPENSIVE_OPERATOR_DISABLED: 'expensive-operator-disabled',
   /**
    * A counting query (count, or a paged query's total) would match every
    * record, which the entry refuses; `path` is `filter`.
    */
-  COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER',
+  COUNT_REQUIRES_FILTER: 'count-requires-filter',
   /**
    * A `having` or metric sort the storage evaluates after grouping read more
    * groups than the server allows; `path` is `body`. It may end a stream
    * partway through.
    */
-  RESIDUAL_GROUPS_EXCEEDED: 'RESIDUAL_GROUPS_EXCEEDED',
+  RESIDUAL_GROUPS_EXCEEDED: 'residual-groups-exceeded',
   /**
    * An aggregation that names no sort found more groups than its `limit`;
    * `path` is `limit`. Add a sort for a top-N, or raise the limit.
    */
-  TOO_MANY_GROUPS: 'TOO_MANY_GROUPS',
+  TOO_MANY_GROUPS: 'too-many-groups',
   /**
    * An in-process query named no entry where one is required. Never
    * answered over HTTP; listed so the mirror stays complete.
    */
-  EXPLICIT_ENTRY_REQUIRED: 'EXPLICIT_ENTRY_REQUIRED',
+  EXPLICIT_ENTRY_REQUIRED: 'explicit-entry-required',
   /**
    * A state point read (`GET …/{id}/state?version=|at=`, `…/state/trace`): the
    * state asked for is more commits away from the snapshot, or from version 1,
    * than a state read replays. The path is the query parameter.
    */
-  REPLAY_TOO_LONG: 'REPLAY_TOO_LONG',
+  REPLAY_TOO_LONG: 'replay-too-long',
   /** The model has no such logical field. */
-  UNKNOWN_FIELD: 'UNKNOWN_FIELD',
+  UNKNOWN_FIELD: 'unknown-field',
   /** The field does not offer the capability the query uses (sort, range, …). */
-  UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
+  UNSUPPORTED_CAPABILITY: 'unsupported-capability',
   /** The field is an element field and must be queried inside its element scope. */
-  ELEMENT_SCOPE_REQUIRED: 'ELEMENT_SCOPE_REQUIRED',
+  ELEMENT_SCOPE_REQUIRED: 'element-scope-required',
   /** A filter value falls outside the field's declared domain. */
-  VALUE_MISMATCH: 'VALUE_MISMATCH',
+  VALUE_MISMATCH: 'value-mismatch',
   /** The field is not a known collection (for example under `isEmpty`). */
-  NOT_COLLECTION: 'NOT_COLLECTION',
+  NOT_COLLECTION: 'not-collection',
   /** The field is not a single string. */
-  NOT_SINGLE_STRING: 'NOT_SINGLE_STRING',
+  NOT_SINGLE_STRING: 'not-single-string',
   /** The model does not support search. */
-  MODEL_SEARCH_UNSUPPORTED: 'MODEL_SEARCH_UNSUPPORTED',
+  MODEL_SEARCH_UNSUPPORTED: 'model-search-unsupported',
   /** The field cannot be used for a cursor. */
-  CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
+  CURSOR_NOT_ALLOWED: 'cursor-not-allowed',
   /** The field is protected and cannot be aggregated. */
-  PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  PROTECTED_AGGREGATION: 'protected-aggregation',
   /**
    * The field is protected and cannot be filtered or sorted: its descriptor
    * says `sensitivity.comparable: false`. A search that names it is refused
    * the same way.
    */
-  PROTECTED_COMPARISON: 'PROTECTED_COMPARISON',
+  PROTECTED_COMPARISON: 'protected-comparison',
   /** A terms group's `missingKey` needs a single-valued string field. */
-  MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
+  MISSING_KEY_REQUIRES_STRING: 'missing-key-requires-string',
   /** `ANY` needs a single value. */
-  ANY_REQUIRES_SINGLE_VALUE: 'ANY_REQUIRES_SINGLE_VALUE',
+  ANY_REQUIRES_SINGLE_VALUE: 'any-requires-single-value',
   /** The storage cannot deliver a complete projection; select fields explicitly. */
-  INCOMPLETE_PROJECTION: 'INCOMPLETE_PROJECTION',
+  INCOMPLETE_PROJECTION: 'incomplete-projection',
   /** A metric filter uses a search filter. */
-  METRIC_FILTER_SEARCH: 'METRIC_FILTER_SEARCH',
+  METRIC_FILTER_SEARCH: 'metric-filter-search',
   /** A metric filter uses `ELEMENT_MATCH`. */
-  METRIC_FILTER_ELEMENT_MATCH: 'METRIC_FILTER_ELEMENT_MATCH',
+  METRIC_FILTER_ELEMENT_MATCH: 'metric-filter-element-match',
   /** A metric filter names an array field; it must be scalar. */
-  METRIC_FILTER_ARRAY_FIELD: 'METRIC_FILTER_ARRAY_FIELD',
+  METRIC_FILTER_ARRAY_FIELD: 'metric-filter-array-field',
   /** The field cannot be projected. */
-  NOT_PROJECTABLE: 'NOT_PROJECTABLE',
+  NOT_PROJECTABLE: 'not-projectable',
   /** An event projection that keeps payloads must keep their `bodyType`. */
-  EVENT_PROJECTION_TYPE_REQUIRED: 'EVENT_PROJECTION_TYPE_REQUIRED',
+  EVENT_PROJECTION_TYPE_REQUIRED: 'event-projection-type-required',
   /** A relative-time filter needs a field with a known temporal representation. */
-  TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
+  TEMPORAL_REPRESENTATION_REQUIRED: 'temporal-representation-required',
   /** A relative-time filter's zone, pattern or unit conflicts with the field's definition. */
-  TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
+  TEMPORAL_CONFIGURATION_CONFLICT: 'temporal-configuration-conflict',
   /**
    * A sort names two array fields on independent arrays, which the storage
    * cannot order by together; `path` is the second of them. The descriptor
    * lists such fields under a `PARALLEL_ARRAY_SORT` constraint.
    */
-  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
+  PARALLEL_ARRAY_SORT: 'parallel-array-sort',
   /**
    * An `EQ` or `NE` compares the field to an array, which the storage cannot
    * do: it takes only a scalar operand. The descriptor says so with an
    * `ARRAY_EQUALITY` constraint.
    */
-  ARRAY_EQUALITY: 'ARRAY_EQUALITY',
+  ARRAY_EQUALITY: 'array-equality',
   /**
    * A `FIRST` or `LAST` metric names a field that may hold several values;
    * it needs a single-valued one (`aggregate.firstLast` in the descriptor).
    */
-  FIRST_LAST_REQUIRES_SINGLE_VALUE: 'FIRST_LAST_REQUIRES_SINGLE_VALUE',
+  FIRST_LAST_REQUIRES_SINGLE_VALUE: 'first-last-requires-single-value',
   /**
    * A `FIRST` or `LAST` metric names no `orderBy` where there is no event
    * time to order by, such as inside an element or on a model whose
    * descriptor has no `analysis.firstLastOrderBy`; `path` is its field.
    */
-  FIRST_LAST_REQUIRES_ORDER_BY: 'FIRST_LAST_REQUIRES_ORDER_BY',
+  FIRST_LAST_REQUIRES_ORDER_BY: 'first-last-requires-order-by',
   /**
    * A date group or date difference names a field that stores neither a
    * date nor an epoch (a formatted string, say), so it cannot be aggregated
    * by time.
    */
-  TEMPORAL_AGGREGATION_UNSUPPORTED: 'TEMPORAL_AGGREGATION_UNSUPPORTED',
+  TEMPORAL_AGGREGATION_UNSUPPORTED: 'temporal-aggregation-unsupported',
   /** The sort has more fields than the protocol allows; `path` is `''`. */
-  SORT_TOO_MANY: 'SORT_TOO_MANY',
+  SORT_TOO_MANY: 'sort-too-many',
   /** Two sort fields name the same stored field; `path` is the second. */
-  SORT_FIELD_DUPLICATE: 'SORT_FIELD_DUPLICATE',
+  SORT_FIELD_DUPLICATE: 'sort-field-duplicate',
   /**
    * An identity filter or a cursor on a model that defines no record
    * identity; `path` is `''`.
    */
-  IDENTITY_UNDEFINED: 'IDENTITY_UNDEFINED',
+  IDENTITY_UNDEFINED: 'identity-undefined',
   /**
    * The storage does not support the feature the query uses, or its native
    * query language cannot express it (a MongoDB PHRASE search with a quote,
    * say); `path` is the field, or `''`.
    */
-  STORAGE_UNSUPPORTED: 'STORAGE_UNSUPPORTED',
+  STORAGE_UNSUPPORTED: 'storage-unsupported',
   /**
    * A `PREVIOUS` window steps along a date group whose field the filter
    * conditions where its range cannot be shifted to the earlier period:
    * outside the top-level `AND`, or with a value that is not an instant;
    * `path` is the field.
    */
-  PREVIOUS_UNSHIFTABLE: 'PREVIOUS_UNSHIFTABLE',
+  PREVIOUS_UNSHIFTABLE: 'previous-unshiftable',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

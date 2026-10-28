@@ -1,4 +1,4 @@
 {
   "kind": "list",
-  "filter": { "op": "NOR", "operands": [{ "op": "EQ", "field": "state.status", "value": "DELISTED" }] }
+  "filter": { "op": "nor", "operands": [{ "op": "eq", "field": "state.status", "value": "DELISTED" }] }
 }

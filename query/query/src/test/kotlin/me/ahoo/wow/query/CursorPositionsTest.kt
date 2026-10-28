@@ -87,7 +87,7 @@ class CursorPositionsTest {
         listOf(
             { CursorTokens.decode(token, AggregateType("context", "other"), schema, sort, codec) },
             { CursorTokens.decode(token, AggregateType("other", "aggregate"), schema, sort, codec) },
-            { CursorTokens.decode(token, aggregate, gatewaySchema(QueryModel("CUSTOM")), sort, codec) },
+            { CursorTokens.decode(token, aggregate, gatewaySchema(QueryModel("custom")), sort, codec) },
             {
                 CursorTokens.decode(
                     token,

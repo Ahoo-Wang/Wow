@@ -225,7 +225,7 @@ class PostgresQueryIsolationTest {
         val sent = System.nanoTime()
         val answers = (1..CLIENTS).map {
             clients.submit<Answer> {
-                host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":10}""")
+                host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"},"limit":10}""")
             }
         }
         try {

@@ -144,7 +144,7 @@ function described(path: string): FieldDescriptor {
   const semantic = SEMANTICS[path];
   return {
     path,
-    types: [semantic ? 'NUMBER' : QueryValueTypes.STRING] as never,
+    types: [semantic ? 'number' : QueryValueTypes.STRING] as never,
     kind: QueryValueKind.SCALAR,
     nullable: true,
     project: true,

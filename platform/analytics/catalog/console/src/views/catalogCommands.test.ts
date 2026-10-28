@@ -76,7 +76,7 @@ describe("the data owner's commands", () => {
       platform: false,
     });
     await commands().reviewSensitivity(id, [
-      { path: "buyer", level: "DISPLAY" },
+      { path: "buyer", level: "display" },
     ]);
     await commands().markReviewed(id);
     await commands().approveSource(id);
@@ -94,7 +94,7 @@ describe("the data owner's commands", () => {
     expect(sent[0].url).toContain(id);
     expect(sent[0].body).toEqual({ database: "shop", table: "orders" });
     expect(sent[2].body).toEqual({
-      fields: [{ path: "buyer", level: "DISPLAY" }],
+      fields: [{ path: "buyer", level: "display" }],
     });
     expect(sent[0].headers.get(WowHeaders.WAIT)).toContain("snapshot");
   });

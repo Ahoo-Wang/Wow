@@ -45,7 +45,7 @@ test("the service answers a request without a token 401, and trusts no identity 
   request,
 }) => {
   const query = "/analytics-catalog/source/snapshot/query";
-  const data = { kind: "list", filter: { op: "MATCH_ALL" } };
+  const data = { kind: "list", filter: { op: "match-all" } };
   expect((await request.post(query, { data })).status()).toBe(401);
   const headers = { [DevelopmentCallerHeaders.USER]: "eve", [DevelopmentCallerHeaders.ROLES]: "analytics.catalog.admin" };
   expect((await request.post(query, { data, headers })).status()).toBe(401);

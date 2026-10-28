@@ -15,7 +15,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type { ReferenceLabelReader } from '../runtime/referenceLabels.js';
 
 /**
- * The version of what reference ids read as (`ViewRuntime.labels`, D354),
+ * The version of what reference ids read as (`ViewRuntime.labels`),
  * followed: a component that calls it draws again when a name arrives, so
  * an id it showed turns into that name. `0`, and no subscription, without
  * a reader.

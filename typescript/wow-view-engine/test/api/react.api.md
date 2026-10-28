@@ -1624,7 +1624,7 @@ interface Dropped {
 }
 
 // @public
-const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
+const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';

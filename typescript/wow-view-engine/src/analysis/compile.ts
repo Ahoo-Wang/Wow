@@ -488,7 +488,10 @@ function compileMetric(
       // Without `orderBy` the source orders by the model's event time, which
       // is only there at the root; admission asks an element's to name one.
       return {
-        type: AggregationMetricType[metric.type],
+        type:
+          metric.type === AggregationMetricTypes.FIRST
+            ? AggregationMetricType.FIRST
+            : AggregationMetricType.LAST,
         field: relativeName(metric.field, prefix),
         ...(metric.orderBy === undefined
           ? {}

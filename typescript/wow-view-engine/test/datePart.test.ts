@@ -26,6 +26,7 @@ import {
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
+import { listParam } from '../src/model/issue.js';
 import {
   ANALYSIS_DATE_PARTS,
   builtinFieldKinds,
@@ -270,7 +271,11 @@ describe('narrowing by the descriptor', () => {
           code: 'capability.analysis.field-narrowed',
           params: {
             field: 'placedAt',
-            dropped: 'HOUR_OF_DAY, DAY_OF_MONTH, MONTH_OF_YEAR',
+            dropped: listParam([
+              `label.date-part.${AggregationDatePart.HOUR_OF_DAY}`,
+              `label.date-part.${AggregationDatePart.DAY_OF_MONTH}`,
+              `label.date-part.${AggregationDatePart.MONTH_OF_YEAR}`,
+            ]),
           },
         }),
       ]),

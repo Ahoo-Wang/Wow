@@ -276,7 +276,7 @@ export function CustomerPage({ id, name }: { id: string; name: string }) {
         instanceId={systemInstanceId('orders', 'to-ship')}
         scopeFilter={{
           op: 'and',
-          children: [{ field: 'state.customerId', operator: 'IN', value: [id] }],
+          children: [{ field: 'state.customerId', operator: 'in', value: [id] }],
         }}
         withTitle
       />

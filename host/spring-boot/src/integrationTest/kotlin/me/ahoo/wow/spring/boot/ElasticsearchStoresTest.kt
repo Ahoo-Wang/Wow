@@ -50,7 +50,7 @@ class ElasticsearchStoresTest {
             host.eventually {
                 host.post(
                     "/bank/account/snapshot/query",
-                    """{"kind":"list","filter":{"op":"EQ","field":"state.owner","value":"es-$log"}}""",
+                    """{"kind":"list","filter":{"op":"eq","field":"state.owner","value":"es-$log"}}""",
                 ).body?.values()?.map { it["aggregateId"].asString() } == listOf(id)
             }
             // 3. The events query is served from the index the Sink writes, once it has written both commits.
@@ -73,7 +73,7 @@ class ElasticsearchStoresTest {
     }
 
     private fun Host.eventVersions(id: String): List<Int>? =
-        post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+        post("/bank/account/events/query", """{"kind":"list","filter":{"op":"id","value":"$id"}}""")
             .takeIf { it.status == 200 }?.body?.values()?.map { it["version"].asInt() }?.sorted()
 
     private fun Host.eventually(condition: () -> Boolean) {

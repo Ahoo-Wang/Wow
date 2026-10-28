@@ -456,7 +456,7 @@ describe('narrowing by the descriptor', () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: 'capability.analysis.field-narrowed',
-          params: { field: 'price', dropped: 'FIRST_LAST' },
+          params: { field: 'price', dropped: 'label.capability.first-last' },
         }),
       ]),
     );

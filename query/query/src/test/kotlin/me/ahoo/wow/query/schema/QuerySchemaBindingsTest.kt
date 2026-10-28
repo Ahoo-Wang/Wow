@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryValueKind
 import org.junit.jupiter.api.Test
 
 class QuerySchemaBindingsTest {

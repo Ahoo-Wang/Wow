@@ -16,7 +16,9 @@ package me.ahoo.wow.query.dataset
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.query.dataset.QueryDatasetProperties.DESCRIPTION
 import me.ahoo.wow.query.dataset.QueryDatasetProperties.ENUM
 import me.ahoo.wow.query.dataset.QueryDatasetProperties.ENUM_DESCRIPTION
@@ -36,7 +38,6 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryMask
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySemanticType
-import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.requireQueryPathSegment
 import tools.jackson.core.JacksonException
@@ -181,9 +182,10 @@ private fun ObjectNode.toDatasetFieldDeclaration(field: String): QueryFieldDecla
     require(sensitive is ObjectNode) { "Dataset field [$path] must be an object." }
     sensitive.requireOnly(QueryDatasetProperties.SENSITIVE_PROPERTIES, "dataset sensitivity")
     val level = sensitive.get(QueryDatasetProperties.LEVEL)?.takeIf(JsonNode::isString)?.stringValue()
-        ?.let { name -> SensitivityLevel.entries.firstOrNull { it.name == name } }
+        ?.let { name -> WireNames.entryOf<SensitivityLevel>(name) }
     require(level != null) {
-        "Dataset field [$path.${QueryDatasetProperties.LEVEL}] must be one of ${SensitivityLevel.entries}."
+        "Dataset field [$path.${QueryDatasetProperties.LEVEL}] must be one of " +
+            "${WireNames.namesOf<SensitivityLevel>().joinToString()}."
     }
     fun keep(name: String): Int = sensitive.get(name)?.let {
         require(it.isInt && it.intValue() >= 0) { "Dataset field [$path.$name] must be a non-negative integer." }
@@ -225,8 +227,10 @@ private fun ObjectNode.toDeclaration(field: String): QueryFieldDeclaration {
 private fun ObjectNode.kind(field: String): DeclarationValue<QueryValueKind> {
     val value = get(KIND) ?: return DeclarationValue.Unset
     val kind = value.takeIf(JsonNode::isString)?.stringValue()
-        ?.let { name -> DECLARABLE_KINDS.firstOrNull { it.name == name } }
-    require(kind != null) { "Query schema [$field.$KIND] must be one of $DECLARABLE_KINDS." }
+        ?.let { name -> DECLARABLE_KINDS.firstOrNull { WireNames.of(it) == name } }
+    require(kind != null) {
+        "Query schema [$field.$KIND] must be one of ${DECLARABLE_KINDS.joinToString { WireNames.of(it) }}."
+    }
     return DeclarationValue.Set(kind)
 }
 

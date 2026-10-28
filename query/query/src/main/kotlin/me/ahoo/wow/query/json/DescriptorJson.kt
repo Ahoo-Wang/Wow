@@ -28,6 +28,7 @@ import me.ahoo.wow.query.schema.TimeSpan
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.jsontype.NamedType
 import tools.jackson.databind.module.SimpleModule
 
@@ -39,13 +40,13 @@ import tools.jackson.databind.module.SimpleModule
 
 /** The semantic types under their `type` names. */
 internal val semanticSubtypes: List<NamedType> = listOf(
-    NamedType(Temporal.Date::class.java, "TEMPORAL_DATE"),
-    NamedType(Temporal.Epoch::class.java, "TEMPORAL_EPOCH"),
-    NamedType(Temporal.Formatted::class.java, "TEMPORAL_FORMATTED"),
-    NamedType(NumericFormat.Decimal::class.java, "DECIMAL"),
-    NamedType(NumericFormat.Money::class.java, "MONEY"),
-    NamedType(TimeSpan::class.java, "DURATION"),
-    NamedType(Reference::class.java, "REFERENCE"),
+    NamedType(Temporal.Date::class.java, "temporal-date"),
+    NamedType(Temporal.Epoch::class.java, "temporal-epoch"),
+    NamedType(Temporal.Formatted::class.java, "temporal-formatted"),
+    NamedType(NumericFormat.Decimal::class.java, "decimal"),
+    NamedType(NumericFormat.Money::class.java, "money"),
+    NamedType(TimeSpan::class.java, "duration"),
+    NamedType(Reference::class.java, "reference"),
 )
 
 internal fun SimpleModule.registerDescriptorJson() {
@@ -68,7 +69,14 @@ internal interface StringValueMixin {
 
 private class StringValueDeserializer<T : Any>(type: Class<T>, private val create: (String) -> T) :
     StdDeserializer<T>(type) {
-    override fun deserialize(parser: JsonParser, context: DeserializationContext): T = create(parser.valueAsString)
+    override fun deserialize(parser: JsonParser, context: DeserializationContext): T {
+        val value = parser.valueAsString
+        return try {
+            create(value)
+        } catch (invalid: IllegalArgumentException) {
+            throw MismatchedInputException.from(parser, handledType(), invalid.message)
+        }
+    }
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = QuerySemanticType.Unknown::class)

@@ -60,16 +60,16 @@ class QueryRoutesTest {
         node.save("c-3", items = 1)
         node.save("c-4", deleted = true)
         val answer = node.query(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"DESC"}]}"""
+            """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"desc"}]}"""
         )
         answer.contentType.assert().isEqualTo("application/json")
         ids(answer).assert().containsExactly("c-1", "c-3")
         answer.body!![0]["state"]["items"].asInt().assert().isEqualTo(3)
         answer.body!![0]["ownerId"].asString().assert().isEqualTo("alice")
         // Bob sees only his.
-        ids(node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", user = "bob")).assert().containsExactly("c-2")
+        ids(node.query("""{"kind":"list","filter":{"op":"match-all"}}""", user = "bob")).assert().containsExactly("c-2")
         // A query of its own deletion state reads the deleted ones.
-        ids(node.query("""{"kind":"list","filter":{"op":"DELETION","state":"DELETED"}}""")).assert()
+        ids(node.query("""{"kind":"list","filter":{"op":"deletion","state":"deleted"}}""")).assert()
             .containsExactly("c-4")
     }
 
@@ -77,7 +77,7 @@ class QueryRoutesTest {
     fun `another tenant's records should not be visible`() {
         node.save("c-1")
         node.save("c-9", tenant = "other")
-        ids(node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")).assert().containsExactly("c-1")
+        ids(node.query("""{"kind":"list","filter":{"op":"match-all"}}""")).assert().containsExactly("c-1")
     }
 
     @Test
@@ -85,18 +85,18 @@ class QueryRoutesTest {
         node.save("c-1")
         node.save("c-2", owner = "bob")
         val scope = mapOf(WowHeaders.SCOPE to "owner=\"bob\"")
-        ids(node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", headers = scope + ("X-Admin" to "yes")))
+        ids(node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = scope + ("X-Admin" to "yes")))
             .assert().containsExactly("c-2")
-        node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", headers = scope)
+        node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = scope)
             .assertQueryProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
         // A tenant alone reads every owner of it.
         ids(
             node.query(
-                """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"aggregateId","direction":"ASC"}]}""",
+                """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"aggregateId","direction":"asc"}]}""",
                 headers = mapOf(WowHeaders.SCOPE to "tenant=\"acme\"", "X-Admin" to "yes"),
             ),
         ).assert().containsExactly("c-1", "c-2")
-        node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", headers = mapOf(WowHeaders.SCOPE to "owner"))
+        node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = mapOf(WowHeaders.SCOPE to "owner"))
             .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
     }
 
@@ -105,16 +105,16 @@ class QueryRoutesTest {
         val fixed = QueryNode(tenants = TenantPolicy.fixed(mapOf(cartType to "platform")))
         fixed.save("c-1", tenant = "platform")
         fixed.save("c-2")
-        ids(fixed.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")).assert().containsExactly("c-1")
+        ids(fixed.query("""{"kind":"list","filter":{"op":"match-all"}}""")).assert().containsExactly("c-1")
         fixed.query(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+            """{"kind":"list","filter":{"op":"match-all"}}""",
             headers = mapOf(WowHeaders.SCOPE to "tenant=\"acme\"", "X-Admin" to "yes"),
         ).assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
     }
 
     @Test
     fun `a cross-tenant query is off by default and only for a caller who may act across scopes`() {
-        val list = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"aggregateId","direction":"ASC"}]}"""
+        val list = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"aggregateId","direction":"asc"}]}"""
         node.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "yes"))
             .assertQueryProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
         val across = QueryNode(crossTenant = true)
@@ -140,12 +140,12 @@ class QueryRoutesTest {
         fixed.save("c-2")
         fixed.save("c-3", tenant = "t2")
         val admin = "X-Admin" to "yes"
-        val list = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+        val list = """{"kind":"list","filter":{"op":"match-all"}}"""
         ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin))).assert().containsExactly("c-1")
         ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 platform)", admin)))
             .assert().containsExactly("c-1")
         fixed.query(
-            """{"kind":"count","filter":{"op":"MATCH_ALL"}}""",
+            """{"kind":"count","filter":{"op":"match-all"}}""",
             headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin)
         )
             .body!!["count"].asLong().assert().isEqualTo(1L)
@@ -157,25 +157,25 @@ class QueryRoutesTest {
     fun `paged, single and count should answer their shapes, the count bounded`() {
         (1..5).forEach { node.save("c-$it", items = it) }
         val paged = node.query(
-            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"ASC"}],"pagination":{"index":2,"size":2}}""",
+            """{"kind":"paged","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"asc"}],"pagination":{"index":2,"size":2}}""",
         )
         paged.status.assert().isEqualTo(200)
         paged.body!!["total"].asLong().assert().isEqualTo(5)
         paged.body!!["exact"].asBoolean().assert().isTrue()
         paged.body!!["list"].values().map { it["aggregateId"].asString() }.assert().containsExactly("c-3", "c-4")
 
-        val single = node.query("""{"kind":"single","filter":{"op":"EQ","field":"state.items","value":4}}""")
+        val single = node.query("""{"kind":"single","filter":{"op":"eq","field":"state.items","value":4}}""")
         single.status.assert().isEqualTo(200)
         single.body!!["aggregateId"].asString().assert().isEqualTo("c-4")
         // A query result, not a statement that an aggregate does not exist (review R4-Q, Q-4).
-        node.query("""{"kind":"single","filter":{"op":"EQ","field":"state.items","value":40}}""")
+        node.query("""{"kind":"single","filter":{"op":"eq","field":"state.items","value":40}}""")
             .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
 
-        val bounded = node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":3}""")
+        val bounded = node.query("""{"kind":"count","filter":{"op":"match-all"},"limit":3}""")
         bounded.status.assert().isEqualTo(200)
         bounded.body!!["count"].asLong().assert().isEqualTo(3)
         bounded.body!!["exact"].asBoolean().assert().isFalse()
-        val exact = node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        val exact = node.query("""{"kind":"count","filter":{"op":"match-all"}}""")
         exact.body!!["count"].asLong().assert().isEqualTo(5)
         exact.body!!["exact"].asBoolean().assert().isTrue()
     }
@@ -188,14 +188,14 @@ class QueryRoutesTest {
         do {
             val after = cursor?.let { ""","cursor":"$it"""" }.orEmpty()
             val page = node.query(
-                """{"kind":"cursor","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"DESC"}],"size":2$after}""",
+                """{"kind":"cursor","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"desc"}],"size":2$after}""",
             )
             page.status.assert().isEqualTo(200)
             seen += page.body!!["list"].values().map { it["aggregateId"].asString() }
             cursor = page.body!!["nextCursor"].takeUnless { it.isNull }?.asString()
         } while (cursor != null)
         seen.assert().containsExactly("c-5", "c-4", "c-3", "c-2", "c-1")
-        node.query("""{"kind":"cursor","filter":{"op":"MATCH_ALL"},"cursor":"garbage"}""")
+        node.query("""{"kind":"cursor","filter":{"op":"match-all"},"cursor":"garbage"}""")
             .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
             .violations().assert().contains(QueryErrorCodes.INVALID_CURSOR)
     }
@@ -205,7 +205,7 @@ class QueryRoutesTest {
         node.save("c-1", items = 2)
         node.save("c-2", items = 3)
         val answer = node.query(
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},"metrics":[{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"state.items"},"alias":"items"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},"metrics":[{"type":"numeric","function":"sum","expression":{"type":"field","field":"state.items"},"alias":"items"}]}""",
         )
         answer.status.assert().isEqualTo(200)
         answer.body!![0]["items"].asLong().assert().isEqualTo(5)
@@ -215,14 +215,14 @@ class QueryRoutesTest {
     fun `an aggregation without a sort and more groups than its limit should be wow-query-too-many-groups`() {
         node.save("c-1", items = 2)
         node.save("c-2", items = 3)
-        val groups = """"groupBy":[{"type":"TERMS","field":"state.items","alias":"items"}],""" +
-            """"metrics":[{"type":"COUNT","alias":"carts"}],"limit":1"""
-        node.query("""{"kind":"aggregate","filter":{"op":"MATCH_ALL"},$groups}""")
+        val groups = """"groupBy":[{"type":"terms","field":"state.items","alias":"items"}],""" +
+            """"metrics":[{"type":"count","alias":"carts"}],"limit":1"""
+        node.query("""{"kind":"aggregate","filter":{"op":"match-all"},$groups}""")
             .assertQueryProblem(400, FrameworkErrors.QUERY_TOO_MANY_GROUPS)
         // A sort makes the cut a top-N the query asked for.
         val top = node.query(
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},$groups,""" +
-                """"sort":[{"field":"items","direction":"DESC"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},$groups,""" +
+                """"sort":[{"field":"items","direction":"desc"}]}""",
         )
         top.status.assert().isEqualTo(200)
         top.body!!.values().map { it["items"].asInt() }.assert().containsExactly(3)
@@ -232,9 +232,9 @@ class QueryRoutesTest {
     fun `a list naming no limit should run with the default list size`() {
         val small = QueryNode(defaultListSize = 2)
         (1..3).forEach { small.save("c-$it") }
-        ids(small.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")).assert().hasSize(2)
-        ids(small.query("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":3}""")).assert().hasSize(3)
-        node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":5000}""")
+        ids(small.query("""{"kind":"list","filter":{"op":"match-all"}}""")).assert().hasSize(2)
+        ids(small.query("""{"kind":"list","filter":{"op":"match-all"},"limit":3}""")).assert().hasSize(3)
+        node.query("""{"kind":"list","filter":{"op":"match-all"},"limit":5000}""")
             .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
             .violations().assert().contains(QueryErrorCodes.SIZE_OUT_OF_RANGE)
     }
@@ -243,7 +243,7 @@ class QueryRoutesTest {
     fun `a list should stream as server-sent events`() {
         (1..3).forEach { node.save("c-$it", items = it) }
         val streamed = node.stream(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.items","direction":"ASC"}]}""",
+            """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"asc"}]}""",
         )
         streamed.status.assert().isEqualTo(200)
         streamed.contentType.assert().startsWith("text/event-stream")
@@ -255,10 +255,10 @@ class QueryRoutesTest {
         streamed.end!!["resumable"].asBoolean().assert().isFalse()
         // No match: an empty stream, complete at once.
         node.stream(
-            """{"kind":"list","filter":{"op":"EQ","field":"state.items","value":9}}"""
+            """{"kind":"list","filter":{"op":"eq","field":"state.items","value":9}}"""
         ).events.map { it.event }.assert().containsExactly("end")
         // Admission fails before the stream starts: a problem.
-        node.stream("""{"kind":"list","filter":{"op":"EQ","field":"state.unknown","value":9}}""").let {
+        node.stream("""{"kind":"list","filter":{"op":"eq","field":"state.unknown","value":9}}""").let {
             it.status.assert().isEqualTo(400)
             it.contentType.assert().isEqualTo("application/problem+json")
             json.readTree(it.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
@@ -268,7 +268,7 @@ class QueryRoutesTest {
     @Test
     fun `a streamed list that fails after its first record should end with an error event`() {
         val failing = QueryNode(snapshots = { FailingList(it) })
-        val streamed = failing.stream("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+        val streamed = failing.stream("""{"kind":"list","filter":{"op":"match-all"}}""")
         streamed.status.assert().isEqualTo(200)
         streamed.events.map { it.event }.assert().containsExactly("row", "error")
         // A stream that cannot be resumed carries no positions.
@@ -276,7 +276,7 @@ class QueryRoutesTest {
         streamed.events.last().data["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_FAILED)
         // Not streamed, the same failure is a problem.
         failing.query(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+            """{"kind":"list","filter":{"op":"match-all"}}"""
         ).assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
     }
 
@@ -286,7 +286,7 @@ class QueryRoutesTest {
             .header("X-User", "alice")
             .header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
-            .bodyValue("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+            .bodyValue("""{"kind":"count","filter":{"op":"match-all"}}""")
             .answer().status.assert().isEqualTo(406)
     }
 
@@ -300,43 +300,43 @@ class QueryRoutesTest {
         malformed(null, QueryErrorCodes.EMPTY_BODY)
         malformed("{", QueryErrorCodes.INVALID_JSON)
         malformed("[1]", QueryErrorCodes.BODY_NOT_OBJECT)
-        malformed("""{"filter":{"op":"MATCH_ALL"}}""", QueryErrorCodes.INVALID_VALUE, "kind")
-        malformed("""{"kind":"lists","filter":{"op":"MATCH_ALL"}}""", QueryErrorCodes.UNKNOWN_VALUE, "kind")
-        malformed("""{"kind":1,"filter":{"op":"MATCH_ALL"}}""", QueryErrorCodes.UNKNOWN_VALUE, "kind")
+        malformed("""{"filter":{"op":"match-all"}}""", QueryErrorCodes.INVALID_VALUE, "kind")
+        malformed("""{"kind":"lists","filter":{"op":"match-all"}}""", QueryErrorCodes.UNKNOWN_VALUE, "kind")
+        malformed("""{"kind":1,"filter":{"op":"match-all"}}""", QueryErrorCodes.UNKNOWN_VALUE, "kind")
         malformed(
-            """{"kind":"list","filter":{"op":"MATCH_ALL"},"condition":{}}""",
+            """{"kind":"list","filter":{"op":"match-all"},"condition":{}}""",
             QueryErrorCodes.UNKNOWN_PROPERTY,
             "condition"
         )
         malformed("""{"kind":"list"}""", QueryErrorCodes.INVALID_VALUE, "filter")
         malformed("""{"kind":"list","filter":{"op":"NOPE"}}""", QueryErrorCodes.UNKNOWN_TYPE, "filter")
         malformed(
-            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"total":"MAYBE"}""",
+            """{"kind":"paged","filter":{"op":"match-all"},"total":"MAYBE"}""",
             QueryErrorCodes.UNKNOWN_VALUE,
             "total"
         )
-        malformed("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        malformed("""{"kind":"count","filter":{"op":"match-all"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
         // The protocol's bounds hold when the query is built: 400 with a query code, never a server error.
-        malformed("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        malformed("""{"kind":"list","filter":{"op":"match-all"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
         malformed(
-            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":0,"size":10}}""",
+            """{"kind":"paged","filter":{"op":"match-all"},"pagination":{"index":0,"size":10}}""",
             QueryErrorCodes.INVALID_REQUEST,
             "pagination",
         )
         malformed(
-            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":1,"size":0}}""",
+            """{"kind":"paged","filter":{"op":"match-all"},"pagination":{"index":1,"size":0}}""",
             QueryErrorCodes.INVALID_REQUEST,
             "pagination",
         )
-        val sorts = (0..Sort.MAX_FIELDS).joinToString(",") { """{"field":"state.f$it","direction":"ASC"}""" }
-        malformed("""{"kind":"single","filter":{"op":"MATCH_ALL"},"sort":[$sorts]}""", QueryErrorCodes.INVALID_REQUEST)
+        val sorts = (0..Sort.MAX_FIELDS).joinToString(",") { """{"field":"state.f$it","direction":"asc"}""" }
+        malformed("""{"kind":"single","filter":{"op":"match-all"},"sort":[$sorts]}""", QueryErrorCodes.INVALID_REQUEST)
         node.http.client.post().uri("/shop/cart/snapshot/query").header("X-User", "alice")
             .header("Content-Type", "text/plain").bodyValue("{}").answer().status.assert().isEqualTo(415)
     }
 
     @Test
     fun `a query the model refuses should be wow-query-invalid with each violation's code`() {
-        val problem = node.query("""{"kind":"list","filter":{"op":"EQ","field":"state.unknown","value":1}}""")
+        val problem = node.query("""{"kind":"list","filter":{"op":"eq","field":"state.unknown","value":1}}""")
             .assertQueryProblem(400, FrameworkErrors.QUERY_INVALID)
         problem.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.UNKNOWN_FIELD)
         problem.body!!["violations"][0]["path"].asString().assert().isEqualTo("state.unknown")
@@ -352,7 +352,7 @@ class QueryRoutesTest {
             ),
         )
         val timedOut = slow.query(
-            """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""
+            """{"kind":"count","filter":{"op":"match-all"}}"""
         ).assertQueryProblem(504, FrameworkErrors.QUERY_TIMEOUT)
         // Not worth running again as it is (decision D254 ③): no Retry-After.
         timedOut.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isNull()
@@ -361,17 +361,17 @@ class QueryRoutesTest {
     @Test
     fun `a backend failure should be wow-query-failed without its detail`() {
         val failing = QueryNode(snapshots = { FailingList(it) })
-        val problem = failing.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        val problem = failing.query("""{"kind":"count","filter":{"op":"match-all"}}""")
             .assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
         problem.body!!["detail"].asString().assert().isEqualTo("The query failed.")
-        failing.query("""{"kind":"paged","filter":{"op":"MATCH_ALL"}}""")
+        failing.query("""{"kind":"paged","filter":{"op":"match-all"}}""")
             .assertQueryProblem(500, FrameworkErrors.QUERY_FAILED)
             .body!!["detail"].asString().assert().isEqualTo("The backend is down.")
     }
 
     @Test
     fun `a request without credentials should be 401`() {
-        node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", user = null)
+        node.query("""{"kind":"list","filter":{"op":"match-all"}}""", user = null)
             .assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
         node.describe(user = null).assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
@@ -380,7 +380,7 @@ class QueryRoutesTest {
     fun `the descriptor should be answered with its version as ETag, and 304 when it is named`() {
         val described = node.describe()
         described.status.assert().isEqualTo(200)
-        described.body!!["model"].asString().assert().isEqualTo("SNAPSHOT")
+        described.body!!["model"].asString().assert().isEqualTo("snapshot")
         val version = described.body!!["version"].asString()
         version.assert().startsWith("sha256:")
         described.headers.eTag.assert().isEqualTo("\"$version\"")
@@ -401,7 +401,7 @@ class QueryRoutesTest {
     @Test
     fun `a model no backend serves should have no route`() {
         val none = QueryNode(snapshots = { null })
-        none.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""").status.assert().isEqualTo(404)
+        none.query("""{"kind":"list","filter":{"op":"match-all"}}""").status.assert().isEqualTo(404)
         none.describe().status.assert().isEqualTo(404)
         none.describe(model = "events").status.assert().isEqualTo(200)
     }

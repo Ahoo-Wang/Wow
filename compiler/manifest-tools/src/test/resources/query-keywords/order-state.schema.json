@@ -8,7 +8,7 @@
       "street" : {
         "type" : "string",
         "x-wow-sensitive" : {
-          "level" : "CONFIDENTIAL"
+          "level" : "confidential"
         },
         "x-wow-mask" : {
           "keepPrefix" : 0,
@@ -27,7 +27,7 @@
       "backupPhone" : {
         "type" : "string",
         "x-wow-sensitive" : {
-          "level" : "CONFIDENTIAL"
+          "level" : "confidential"
         },
         "x-wow-mask" : {
           "keepPrefix" : 0,
@@ -57,7 +57,7 @@
       "email" : {
         "type" : [ "string", "null" ],
         "x-wow-sensitive" : {
-          "level" : "DISPLAY"
+          "level" : "display"
         },
         "x-wow-mask" : {
           "strategy" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Redact"
@@ -97,7 +97,7 @@
       "password" : {
         "type" : "string",
         "x-wow-sensitive" : {
-          "level" : "CONFIDENTIAL"
+          "level" : "confidential"
         },
         "x-wow-mask" : {
           "keepPrefix" : 0,
@@ -107,7 +107,7 @@
       "phone" : {
         "type" : "string",
         "x-wow-sensitive" : {
-          "level" : "DISPLAY"
+          "level" : "display"
         },
         "x-wow-mask" : {
           "keepPrefix" : 3,
@@ -166,7 +166,7 @@
       "token" : {
         "type" : "string",
         "x-wow-sensitive" : {
-          "level" : "CONFIDENTIAL"
+          "level" : "confidential"
         },
         "x-wow-mask" : {
           "keepPrefix" : 0,

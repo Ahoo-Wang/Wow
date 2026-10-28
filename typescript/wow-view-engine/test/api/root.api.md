@@ -175,13 +175,13 @@ export const ALWAYS_VISIBLE: VisibilitySource;
 export const ANALYSIS_AUTO_RUN_MEMBERS: readonly ["elements", "groups", "metrics", "having", "top", "sort", "limit", "table"];
 
 // @public
-export const ANALYSIS_DATE_DIFF_UNITS: readonly ["HOUR", "DAY", "MINUTE", "SECOND"];
+export const ANALYSIS_DATE_DIFF_UNITS: readonly ["hour", "day", "minute", "second"];
 
 // @public
-export const ANALYSIS_DATE_PARTS: readonly ["DAY_OF_WEEK", "HOUR_OF_DAY", "DAY_OF_MONTH", "MONTH_OF_YEAR"];
+export const ANALYSIS_DATE_PARTS: readonly ["day-of-week", "hour-of-day", "day-of-month", "month-of-year"];
 
 // @public
-export const ANALYSIS_DATE_UNITS: readonly ["YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND"];
+export const ANALYSIS_DATE_UNITS: readonly ["year", "quarter", "month", "week", "day", "hour", "minute", "second"];
 
 // @public
 export const ANALYSIS_PRESENTATION_MEMBERS: readonly ["layout", "chart"];
@@ -1578,10 +1578,10 @@ export interface DataViewDefinition {
 
 // @public
 export const DATE_PART_DOMAINS: {
-    readonly DAY_OF_WEEK: readonly [1, 7];
-    readonly HOUR_OF_DAY: readonly [0, 23];
-    readonly DAY_OF_MONTH: readonly [1, 31];
-    readonly MONTH_OF_YEAR: readonly [1, 12];
+    readonly "day-of-week": readonly [1, 7];
+    readonly "hour-of-day": readonly [0, 23];
+    readonly "day-of-month": readonly [1, 31];
+    readonly "month-of-year": readonly [1, 12];
 };
 
 // @public
@@ -1872,7 +1872,7 @@ export function duplicatePanel(config: DashboardViewConfig, id: string, max?: nu
 } | null;
 
 // @public
-export const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
+export const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 export interface DurationFilterValue {
@@ -2055,7 +2055,7 @@ export function familyOf(type: ChartType): ChartFamilyTraits;
 export const FIELD_CELL_IDS: readonly FieldCellId[];
 
 // @public
-export const FIELD_METRIC_TYPES: readonly ["NUMERIC", "DISTINCT_COUNT", "PERCENTILE", "FIRST", "LAST", "ANY"];
+export const FIELD_METRIC_TYPES: readonly ["numeric", "distinct-count", "percentile", "first", "last", "any"];
 
 // @public (undocumented)
 export const FIELD_TONES: readonly FieldTone[];
@@ -2293,12 +2293,12 @@ export const FILTER_GROUP_OPERATORS: readonly FilterGroupOperator[];
 
 // @public
 export const FILTER_TYPE_OPERATOR: {
-    readonly date: "BETWEEN";
-    readonly text: "IN";
-    readonly id: "IN";
-    readonly number: "IN";
-    readonly boolean: "EQ";
-    readonly search: "SEARCH";
+    readonly date: "between";
+    readonly text: "in";
+    readonly id: "in";
+    readonly number: "in";
+    readonly boolean: "eq";
+    readonly search: "search";
 };
 
 // @public

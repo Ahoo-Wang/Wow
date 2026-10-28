@@ -27,7 +27,7 @@ class SystemQuerySchemaSourceTest {
     @Test
     fun `unsupported query model should be rejected`() {
         assertThrows<QuerySchemaValidationException> {
-            SystemQuerySchemaSource.declaration(QueryModel("OTHER"))
+            SystemQuerySchemaSource.declaration(QueryModel("other"))
         }.errorCode.assert().isEqualTo(QueryErrors.FAILED)
         assertThrows<QuerySchemaValidationException> {
             SystemQuerySchemaSource.declaration(QueryModel.DATASET)

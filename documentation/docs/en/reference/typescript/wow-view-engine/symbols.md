@@ -412,7 +412,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 890 — with its kind and th
 | `ReferenceId` | type | A reference id, as a row holds it and `OptionSource.resolve` is asked. | — |
 | `ReferenceItem` | interface | — | — |
 | `ReferenceLabel` | type | What a reference id reads as right now. | — |
-| `ReferenceLabelReader` | interface | How a view reads reference ids as names (D354): what one id reads as now, and a subscription that says when that may have changed. | — |
+| `ReferenceLabelReader` | interface | How a view reads reference ids as names: what one id reads as now, and a subscription that says when that may have changed. | — |
 | `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
 | `ReferenceStatistic` | type | — | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |

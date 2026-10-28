@@ -199,8 +199,8 @@ object CatalogFixtures {
     val MEMBER = AggregateType("crm", "member")
     val STORE = AggregateType("crm", "store")
 
-    private val SENSITIVE_DISPLAY = mapOf("level" to "DISPLAY")
-    private val SENSITIVE_CONFIDENTIAL = mapOf("level" to "CONFIDENTIAL")
+    private val SENSITIVE_DISPLAY = mapOf("level" to "display")
+    private val SENSITIVE_CONFIDENTIAL = mapOf("level" to "confidential")
 
     val MANIFEST = Manifest(
         service = ServiceInfo("crm-service"),

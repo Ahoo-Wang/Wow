@@ -22,7 +22,6 @@ import {
   AggregationMetricType,
   SearchMode,
   FilterOperator,
-  QueryValueKind,
   AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
@@ -211,7 +210,7 @@ export const executionFailedDefinition: DataViewDefinition = {
       options: [
         { value: 'RECOVERABLE', label: '可恢复' },
         { value: 'UNRECOVERABLE', label: '不可恢复' },
-        { value: QueryValueKind.UNKNOWN, label: '未知' },
+        { value: 'UNKNOWN', label: '未知' },
       ],
     },
     {
@@ -332,7 +331,7 @@ export const executionFailedDefinition: DataViewDefinition = {
         {
           field: 'state.recoverable',
           operator: FilterOperator.IN,
-          value: ['RECOVERABLE', QueryValueKind.UNKNOWN],
+          value: ['RECOVERABLE', 'UNKNOWN'],
         },
         { field: 'state.status', operator: FilterOperator.IN, value: ACTIVE },
         {
@@ -467,7 +466,7 @@ export function compensationFetcher(host: string): Fetcher {
 export const RecoverableType = {
   RECOVERABLE: 'RECOVERABLE',
   UNRECOVERABLE: 'UNRECOVERABLE',
-  [QueryValueKind.UNKNOWN]: QueryValueKind.UNKNOWN,
+  UNKNOWN: 'UNKNOWN',
 } as const;
 
 /** A {@link RecoverableType} value. */

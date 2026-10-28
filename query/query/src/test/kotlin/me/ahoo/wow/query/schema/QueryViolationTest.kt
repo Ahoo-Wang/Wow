@@ -118,9 +118,9 @@ class QueryViolationTest {
             QueryErrorCodes.SORT_FIELD_DUPLICATE,
             "Sort field [state.name] maps to the same physical field as an earlier sort field.",
         ),
-        QueryViolation.IdentityUndefined(QueryModel("CUSTOM")) to Row(
+        QueryViolation.IdentityUndefined(QueryModel("custom")) to Row(
             QueryErrorCodes.IDENTITY_UNDEFINED,
-            "Record identity is not defined for model [CUSTOM].",
+            "Record identity is not defined for model [custom].",
             "",
         ),
         QueryViolation.StorageUnsupported("HAVING") to

@@ -1,10 +1,10 @@
 {
   "kind": "aggregate",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-  "groupBy": [{ "type": "HISTOGRAM", "field": "state.price", "interval": 10, "alias": "band" }],
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+  "groupBy": [{ "type": "histogram", "field": "state.price", "interval": 10, "alias": "band" }],
   "metrics": [
-    { "type": "COUNT", "alias": "products" },
-    { "type": "NUMERIC", "function": "MIN", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "cheapest" }
+    { "type": "count", "alias": "products" },
+    { "type": "numeric", "function": "min", "expression": { "type": "field", "field": "state.price" }, "alias": "cheapest" }
   ],
-  "sort": [{ "field": "band", "direction": "ASC" }]
+  "sort": [{ "field": "band", "direction": "asc" }]
 }

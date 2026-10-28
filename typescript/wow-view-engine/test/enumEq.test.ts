@@ -105,7 +105,7 @@ describe('an EQ saved on a field since made an enum', () => {
     );
     expect(item).toMatchObject({
       operator: FilterOperator.IN,
-      text: 'Status IN Pending',
+      text: 'Status in Pending',
     });
   });
 

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.FilterOperator
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import tools.jackson.databind.JsonNode
 
 /**
  * Holds the codec to the golden wire file, `json/query-golden.tsv`: every value writes exactly its line, and its line
@@ -46,6 +47,27 @@ class QueryJsonGoldenTest {
         cases.map { it.first }.assert().containsExactlyElementsOf(FilterOperator.entries.map { it.name })
     }
 
+    @Test
+    fun `the protocol's vocabulary should be lower-kebab, and a domain's values as written`() {
+        val values = golden.values.flatMap { protocolValues(QueryProtocolJson.mapper.readTree(it)) }
+        values.map { it.first }.distinct().assert().containsAll(PROTOCOL_KEYS)
+        values.filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
+        // A filter's operand is the domain's: an enum value travels as the domain writes it. A time zone, an ISO
+        // duration and a JDK time unit are not the protocol's words either.
+        golden.getValue("EQ").assert().contains("\"PAID\"")
+        golden.values.joinToString().assert()
+            .contains("\"UTC\"", "\"Asia/Shanghai\"", "\"PT0S\"", "\"-PT30M\"", "\"MILLISECONDS\"")
+    }
+
+    private fun protocolValues(node: JsonNode): List<Pair<String, String>> = when {
+        node.isObject -> node.properties().flatMap { (key, value) ->
+            if (key in PROTOCOL_KEYS && value.isString) listOf(key to value.asString()) else protocolValues(value)
+        }
+
+        node.isArray -> node.values().flatMap(::protocolValues)
+        else -> emptyList()
+    }
+
     @TestFactory
     fun `every value should write its golden JSON`(): List<DynamicTest> = QueryJsonGoldenCases.all().map { (name, value) ->
         DynamicTest.dynamicTest(name) {
@@ -61,4 +83,14 @@ class QueryJsonGoldenTest {
                 QueryProtocolJson.mapper.readValue(golden.getValue(name), type).assert().isEqualTo(value)
             }
         }
+
+    private companion object {
+        val KEBAB = Regex("[a-z][a-z0-9]*(-[a-z0-9]+)*")
+
+        /** The keys whose values are the protocol's own words; a JDK `timeUnit` and a domain's operands are not. */
+        val PROTOCOL_KEYS = setOf(
+            "op", "type", "operator", "comparison", "direction", "function", "mode", "part", "period", "scope",
+            "state", "stringComparison", "total", "unit",
+        )
+    }
 }

@@ -18,13 +18,13 @@ A body is one JSON object: `kind` names the operation, the other properties are 
 {
   "kind": "paged",
   "filter": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-      { "op": "BETWEEN", "field": "state.price", "lowerBound": 5, "upperBound": 50 }
+      { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+      { "op": "between", "field": "state.price", "lowerBound": 5, "upperBound": 50 }
     ]
   },
-  "sort": [{ "field": "state.price", "direction": "ASC" }],
+  "sort": [{ "field": "state.price", "direction": "asc" }],
   "pagination": { "index": 1, "size": 20 }
 }
 ```
@@ -86,7 +86,7 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 ```json
 {
   "kind": "list",
-  "filter": { "op": "IN", "field": "state.status", "values": ["PUBLISHED", "DELISTED"] },
+  "filter": { "op": "in", "field": "state.status", "values": ["PUBLISHED", "DELISTED"] },
   "limit": 50
 }
 ```
@@ -110,7 +110,7 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 ```json
 {
   "kind": "list",
-  "filter": { "op": "CONTAINS", "field": "state.name", "value": "mug", "stringComparison": "CASE_INSENSITIVE" }
+  "filter": { "op": "contains", "field": "state.name", "value": "mug", "stringComparison": "case-insensitive" }
 }
 ```
 
@@ -158,7 +158,7 @@ The products without a brand:
 ```json
 {
   "kind": "list",
-  "filter": { "op": "IS_NULL", "field": "state.brandId" }
+  "filter": { "op": "is-null", "field": "state.brandId" }
 }
 ```
 
@@ -182,7 +182,7 @@ Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai
 ```json
 {
   "kind": "list",
-  "filter": { "op": "RECENT_DAYS", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
+  "filter": { "op": "recent-days", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
 }
 ```
 
@@ -209,10 +209,10 @@ A snapshot query sees only aggregates that are not deleted, unless its filter na
 {
   "kind": "list",
   "filter": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "DELETION", "state": "ALL" },
-      { "op": "EQ", "field": "operator.id", "value": "erin" }
+      { "op": "deletion", "state": "all" },
+      { "op": "eq", "field": "operator.id", "value": "erin" }
     ]
   }
 }
@@ -255,7 +255,7 @@ There is no `NOT`: a `NOR` of one operand negates it.
 ```json
 {
   "kind": "list",
-  "filter": { "op": "NOR", "operands": [{ "op": "EQ", "field": "state.status", "value": "DELISTED" }] }
+  "filter": { "op": "nor", "operands": [{ "op": "eq", "field": "state.status", "value": "DELISTED" }] }
 }
 ```
 
@@ -274,7 +274,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 ```json
 {
   "kind": "list",
-  "filter": { "op": "MATCH_ALL" },
+  "filter": { "op": "match-all" },
   "projection": { "include": ["aggregateId", "state.name", "state.price"] },
   "limit": 50
 }
@@ -320,8 +320,8 @@ A cursor page is the next `size` records (10 by default, at most `max-page-size`
 ```json
 {
   "kind": "cursor",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
-  "sort": [{ "field": "lastEventTime", "direction": "DESC" }],
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
+  "sort": [{ "field": "lastEventTime", "direction": "desc" }],
   "size": 20
 }
 ```
@@ -340,7 +340,7 @@ A cursor page is the next `size` records (10 by default, at most `max-page-size`
 ```json
 {
   "kind": "count",
-  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "filter": { "op": "eq", "field": "state.status", "value": "PUBLISHED" },
   "limit": 1000
 }
 ```
@@ -356,13 +356,13 @@ An aggregation groups the matches and computes metrics per group. `limit` is the
 ```json
 {
   "kind": "aggregate",
-  "filter": { "op": "NE", "field": "state.status", "value": "DRAFT" },
-  "groupBy": [{ "type": "TERMS", "field": "state.status", "alias": "status" }],
+  "filter": { "op": "ne", "field": "state.status", "value": "DRAFT" },
+  "groupBy": [{ "type": "terms", "field": "state.status", "alias": "status" }],
   "metrics": [
-    { "type": "COUNT", "alias": "count" },
-    { "type": "NUMERIC", "function": "AVG", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "averagePrice" }
+    { "type": "count", "alias": "count" },
+    { "type": "numeric", "function": "avg", "expression": { "type": "field", "field": "state.price" }, "alias": "averagePrice" }
   ],
-  "sort": [{ "field": "count", "direction": "DESC" }]
+  "sort": [{ "field": "count", "direction": "desc" }]
 }
 ```
 

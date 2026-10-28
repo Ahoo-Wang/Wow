@@ -581,7 +581,7 @@ describe('FilterPanel tree editing', () => {
 
     await waitFor(() =>
       expect(filter().applied.map(item => item.text)).toEqual([
-        'Amount IN 1, 7',
+        'Amount in 1, 7',
       ]),
     );
   });
@@ -601,7 +601,7 @@ describe('FilterPanel tree editing', () => {
     act(() => filter().submit());
     const entry = () => screen.getByLabelText('New Amount value');
     await waitFor(() =>
-      expect(filter().applied.map(item => item.text)).toEqual(['Amount IN 1']),
+      expect(filter().applied.map(item => item.text)).toEqual(['Amount in 1']),
     );
 
     await user.type(entry(), '2{Enter}');
@@ -627,7 +627,7 @@ describe('FilterPanel tree editing', () => {
     // Apply blurs the entry on its way, and that blur has nothing to add.
     await user.click(screen.getByRole('button', { name: /Apply/ }));
     await waitFor(() =>
-      expect(filter().applied.map(item => item.text)).toEqual(['Amount IN 1']),
+      expect(filter().applied.map(item => item.text)).toEqual(['Amount in 1']),
     );
   });
 
@@ -1332,9 +1332,9 @@ describe('FilterPanel tree editing', () => {
       const menu = await screen.findByRole('menu');
       // The operator code first, then the sentence it makes of the
       // conditions under it.
-      expect(menu.textContent).toContain(FilterOperator.AND);
+      expect(menu.textContent).toContain('AND');
       expect(menu.textContent).toContain('All conditions');
-      expect(menu.textContent).toContain(FilterOperator.NOR);
+      expect(menu.textContent).toContain('NOR');
 
       // Named in full: "OR" is also the tail of "NOR".
       fireEvent.click(

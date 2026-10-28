@@ -18,8 +18,8 @@ import { queryField } from './field.js';
  * ASC for ascending order, DESC for descending order.
  */
 export enum SortDirection {
-  ASC = 'ASC',
-  DESC = 'DESC',
+  ASC = 'asc',
+  DESC = 'desc',
 }
 
 /**

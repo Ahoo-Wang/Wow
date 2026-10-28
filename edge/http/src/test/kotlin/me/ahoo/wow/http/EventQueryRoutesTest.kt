@@ -61,7 +61,7 @@ class EventQueryRoutesTest {
     @Test
     fun `a list should answer the aggregate's streams in version order, each with its events`() {
         history()
-        val answer = events("""{"kind":"list","filter":{"op":"AGGREGATE_ID","value":"c-1"}}""")
+        val answer = events("""{"kind":"list","filter":{"op":"aggregate-id","value":"c-1"}}""")
         versions(answer).assert().containsExactly(1, 2, 3)
         val first = answer.body!![0]
         first["aggregateId"].asString().assert().isEqualTo("c-1")
@@ -75,8 +75,8 @@ class EventQueryRoutesTest {
         first["events"][0]["revision"].asInt().assert().isEqualTo(1)
         first["events"][0]["body"]["sku"].asString().assert().isEqualTo("apple")
         // The other spellings of the aggregate.
-        versions(events("""{"kind":"list","filter":{"op":"ID","value":"c-1"}}""")).assert().hasSize(3)
-        versions(events("""{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"c-1"}}"""))
+        versions(events("""{"kind":"list","filter":{"op":"id","value":"c-1"}}""")).assert().hasSize(3)
+        versions(events("""{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"c-1"}}"""))
             .assert().hasSize(3)
     }
 
@@ -84,31 +84,31 @@ class EventQueryRoutesTest {
     fun `a version or time range should select the streams within it`() {
         history()
         fun range(condition: String) = versions(
-            events("""{"kind":"list","filter":{"op":"AND","operands":[{"op":"ID","value":"c-1"},$condition]}}"""),
+            events("""{"kind":"list","filter":{"op":"and","operands":[{"op":"id","value":"c-1"},$condition]}}"""),
         )
-        range("""{"op":"GTE","field":"version","value":2}""").assert().containsExactly(2, 3)
-        range("""{"op":"GT","field":"version","value":2}""").assert().containsExactly(3)
-        range("""{"op":"LT","field":"version","value":2}""").assert().containsExactly(1)
-        range("""{"op":"LTE","field":"version","value":2}""").assert().containsExactly(1, 2)
-        range("""{"op":"EQ","field":"version","value":2}""").assert().containsExactly(2)
-        range("""{"op":"BETWEEN","field":"version","lowerBound":2,"upperBound":3}""").assert().containsExactly(2, 3)
-        range("""{"op":"GT","field":"version","value":5}""").assert().isEmpty()
-        range("""{"op":"GTE","field":"commitTime","value":1500}""").assert().containsExactly(2, 3)
-        range("""{"op":"LT","field":"commitTime","value":3000}""").assert().containsExactly(1, 2)
-        range("""{"op":"MATCH_NONE"}""").assert().isEmpty()
-        range("""{"op":"ID","value":"c-2"}""").assert().isEmpty()
-        range("""{"op":"TENANT_ID","value":"other"}""").assert().isEmpty()
-        range("""{"op":"TENANT_ID","value":"$TENANT"}""").assert().hasSize(3)
+        range("""{"op":"gte","field":"version","value":2}""").assert().containsExactly(2, 3)
+        range("""{"op":"gt","field":"version","value":2}""").assert().containsExactly(3)
+        range("""{"op":"lt","field":"version","value":2}""").assert().containsExactly(1)
+        range("""{"op":"lte","field":"version","value":2}""").assert().containsExactly(1, 2)
+        range("""{"op":"eq","field":"version","value":2}""").assert().containsExactly(2)
+        range("""{"op":"between","field":"version","lowerBound":2,"upperBound":3}""").assert().containsExactly(2, 3)
+        range("""{"op":"gt","field":"version","value":5}""").assert().isEmpty()
+        range("""{"op":"gte","field":"commitTime","value":1500}""").assert().containsExactly(2, 3)
+        range("""{"op":"lt","field":"commitTime","value":3000}""").assert().containsExactly(1, 2)
+        range("""{"op":"match-none"}""").assert().isEmpty()
+        range("""{"op":"id","value":"c-2"}""").assert().isEmpty()
+        range("""{"op":"tenant-id","value":"other"}""").assert().isEmpty()
+        range("""{"op":"tenant-id","value":"$TENANT"}""").assert().hasSize(3)
     }
 
     @Test
     fun `paged, cursor, single and count should page by version`() {
         history()
-        val id = """{"op":"ID","value":"c-1"}"""
+        val id = """{"op":"id","value":"c-1"}"""
         val paged = events("""{"kind":"paged","filter":$id,"pagination":{"index":2,"size":2}}""")
         versions(paged).assert().containsExactly(3)
         paged.body!!["total"].asLong().assert().isEqualTo(3)
-        events("""{"kind":"paged","filter":$id,"pagination":{"index":1,"size":2},"total":"NONE"}""")
+        events("""{"kind":"paged","filter":$id,"pagination":{"index":1,"size":2},"total":"none"}""")
             .body!!["total"].isNull.assert().isTrue()
 
         val first = events("""{"kind":"cursor","filter":$id,"size":2}""")
@@ -122,7 +122,7 @@ class EventQueryRoutesTest {
             .violations().assert().containsExactly(QueryErrorCodes.INVALID_CURSOR)
 
         events("""{"kind":"single","filter":$id}""").body!!["version"].asInt().assert().isEqualTo(1)
-        events("""{"kind":"single","filter":{"op":"ID","value":"c-9"}}""").status.assert().isEqualTo(404)
+        events("""{"kind":"single","filter":{"op":"id","value":"c-9"}}""").status.assert().isEqualTo(404)
 
         events("""{"kind":"count","filter":$id}""").body!!.let {
             it["count"].asLong().assert().isEqualTo(3)
@@ -138,7 +138,7 @@ class EventQueryRoutesTest {
     fun `a list should stream as server-sent events`() {
         history()
         val streamed = node.stream(
-            """{"kind":"list","filter":{"op":"ID","value":"c-1"},"limit":2}""",
+            """{"kind":"list","filter":{"op":"id","value":"c-1"},"limit":2}""",
             QueryRoutes.EVENTS
         )
         streamed.status.assert().isEqualTo(200)
@@ -148,10 +148,10 @@ class EventQueryRoutesTest {
     @Test
     fun `another owner's streams should not be visible`() {
         history()
-        versions(events("""{"kind":"list","filter":{"op":"ID","value":"c-1"}}""", user = "bob")).assert().isEmpty()
+        versions(events("""{"kind":"list","filter":{"op":"id","value":"c-1"}}""", user = "bob")).assert().isEmpty()
         versions(
             events(
-                """{"kind":"list","filter":{"op":"ID","value":"c-1"}}""",
+                """{"kind":"list","filter":{"op":"id","value":"c-1"}}""",
                 user = "bob",
                 headers = mapOf(WowHeaders.SCOPE to "owner=\"alice\"", "X-Admin" to "yes"),
             ),
@@ -163,16 +163,16 @@ class EventQueryRoutesTest {
         history()
         history("c-2", user = "alice")
         versions(
-            events("""{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"commitTime","direction":"DESC"}]}""")
+            events("""{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"commitTime","direction":"desc"}]}""")
         )
             .assert().containsExactly(3, 3, 2, 2, 1, 1)
-        val sku = """{"op":"ELEMENT_MATCH","field":"events","predicate":{"op":"EQ","field":"body.sku","value":"pear"}}"""
+        val sku = """{"op":"element-match","field":"events","predicate":{"op":"eq","field":"body.sku","value":"pear"}}"""
         val counted = events("""{"kind":"count","filter":$sku}""")
         counted.status.assert().describedAs("${counted.body}").isEqualTo(200)
         counted.body!!["count"].asLong().assert().isEqualTo(2)
         val rows = events(
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},"elements":[{"path":"events"}],""" +
-                """"groupBy":[{"type":"TERMS","field":"body.sku","alias":"sku"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},"elements":[{"path":"events"}],""" +
+                """"groupBy":[{"type":"terms","field":"body.sku","alias":"sku"}],"metrics":[{"type":"count","alias":"n"}]}""",
         )
         rows.status.assert().isEqualTo(200)
         rows.body!!.values().map { it["sku"].asString() to it["n"].asLong() }
@@ -184,26 +184,26 @@ class EventQueryRoutesTest {
         fun refused(filter: String, code: String, body: String = """{"kind":"list","filter":$filter}""") =
             events(body).assertQueryProblem(400, FrameworkErrors.QUERY_INVALID).violations().assert()
                 .containsExactly(code)
-        refused("""{"op":"EQ","field":"state.items","value":1}""", QueryErrorCodes.UNKNOWN_FIELD)
-        refused("""{"op":"EQ","field":"aggregateId","value":1}""", QueryErrorCodes.VALUE_MISMATCH)
-        refused("""{"op":"GT","field":"version","value":"x"}""", QueryErrorCodes.VALUE_MISMATCH)
-        refused("""{"op":"EQ","field":"events.name","value":"x"}""", QueryErrorCodes.ELEMENT_SCOPE_REQUIRED)
+        refused("""{"op":"eq","field":"state.items","value":1}""", QueryErrorCodes.UNKNOWN_FIELD)
+        refused("""{"op":"eq","field":"aggregateId","value":1}""", QueryErrorCodes.VALUE_MISMATCH)
+        refused("""{"op":"gt","field":"version","value":"x"}""", QueryErrorCodes.VALUE_MISMATCH)
+        refused("""{"op":"eq","field":"events.name","value":"x"}""", QueryErrorCodes.ELEMENT_SCOPE_REQUIRED)
         refused(
             "",
             QueryErrorCodes.STORAGE_UNSUPPORTED,
-            """{"kind":"list","filter":{"op":"ID","value":"c-1"},"projection":{"include":["events.body"]}}""",
+            """{"kind":"list","filter":{"op":"id","value":"c-1"},"projection":{"include":["events.body"]}}""",
         )
         refused(
             "",
             QueryErrorCodes.ELEMENT_SCOPE_REQUIRED,
-            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},""" +
-                """"metrics":[{"type":"COUNT","alias":"n"}],"groupBy":[{"type":"TERMS","field":"events.name","alias":"e"}]}""",
+            """{"kind":"aggregate","filter":{"op":"match-all"},""" +
+                """"metrics":[{"type":"count","alias":"n"}],"groupBy":[{"type":"terms","field":"events.name","alias":"e"}]}""",
         )
         // The budget still bounds the sizes.
         refused(
             "",
             QueryErrorCodes.SIZE_OUT_OF_RANGE,
-            """{"kind":"list","filter":{"op":"ID","value":"c-1"},"limit":5000}""",
+            """{"kind":"list","filter":{"op":"id","value":"c-1"},"limit":5000}""",
         )
     }
 
@@ -211,7 +211,7 @@ class EventQueryRoutesTest {
     fun `the descriptor should be answered with its version as ETag`() {
         val described = node.describe(QueryRoutes.EVENTS)
         described.status.assert().isEqualTo(200)
-        described.body!!["model"].asString().assert().isEqualTo("EVENTS")
+        described.body!!["model"].asString().assert().isEqualTo("events")
         described.body!!["record"]["identity"].asString().assert().isEqualTo("aggregateId")
         described.body!!["limits"]["maxListSize"].asInt().assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)
         val version = described.body!!["version"].asString()

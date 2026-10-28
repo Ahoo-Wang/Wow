@@ -797,7 +797,7 @@ describe('query clients', () => {
     );
     const query = { filter: filter.eq('state.name', 'n') };
     await products.list({ ...query, limit: 5 });
-    await products.paged({ ...query, total: 'EXACT' });
+    await products.paged({ ...query, total: 'exact' });
     await products.cursor({ ...query, size: 2 });
     await products.single(query);
     await products.count({ ...query, limit: 10 });
@@ -815,7 +815,7 @@ describe('query clients', () => {
     );
     expect(requests[0].body).toEqual({
       kind: 'list',
-      filter: { op: 'EQ', field: 'state.name', value: 'n' },
+      filter: { op: 'eq', field: 'state.name', value: 'n' },
       limit: 5,
     });
   });
@@ -847,7 +847,7 @@ describe('query clients', () => {
   it('queries the events model on the unified engine (decision D235)', async () => {
     const { requests } = stubFetch(request =>
       request.method === 'GET'
-        ? new Response(JSON.stringify({ model: 'EVENTS', version: 'v2' }), {
+        ? new Response(JSON.stringify({ model: 'events', version: 'v2' }), {
             status: 200,
             headers: { ETag: '"v2"', 'Content-Type': 'application/json' },
           })
@@ -876,10 +876,10 @@ describe('query clients', () => {
     expect(requests[0].body).toEqual({
       kind: 'count',
       filter: {
-        op: 'ELEMENT_MATCH',
+        op: 'element-match',
         field: 'events',
         predicate: {
-          op: 'EQ',
+          op: 'eq',
           field: 'name',
           value: 'eshop-catalog.product.ProductAdded',
         },

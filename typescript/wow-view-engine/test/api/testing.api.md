@@ -808,7 +808,7 @@ interface DerivedSeries {
 }
 
 // @public
-const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
+const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];

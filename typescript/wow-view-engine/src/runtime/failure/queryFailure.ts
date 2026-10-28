@@ -80,7 +80,7 @@ export function failedQuery(
  *
  * Without a violation it is `runtime.query.failed` with the source's reason.
  * With one — a Wow service naming the rule the query broke — the code is
- * `runtime.query.failed.<code>` (the violation's code in lower case), which
+ * `runtime.query.failed.<code>` (the violation's code, lower-kebab), which
  * the catalogue words per rule; a code it has no wording for falls back
  * along the dots to `runtime.query.failed` and the service's own words, so
  * a rule a newer service adds still reads. The params say:
@@ -123,11 +123,7 @@ export function queryFailureIssue(
   if (found) params.name = found.name;
   const at =
     found && filter ? conditionOf(filter, found.name, found.root) : null;
-  return issue(
-    `runtime.query.failed.${violation.code.toLowerCase()}`,
-    at ?? [],
-    params,
-  );
+  return issue(`runtime.query.failed.${violation.code}`, at ?? [], params);
 }
 
 interface FoundField {

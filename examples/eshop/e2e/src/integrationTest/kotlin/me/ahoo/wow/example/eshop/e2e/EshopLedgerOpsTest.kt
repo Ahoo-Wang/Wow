@@ -123,10 +123,10 @@ class EshopLedgerOpsTest {
         val id = Ledger.parkedId("eshop-payment-service", GATEWAY_SAGA, parked)
 
         // The ops service lists the entry the payment service parked and published, as an operator queries it.
-        val exhausted = """{"op":"AND","operands":[
-            {"op":"EQ","field":"state.context","value":"eshop-payment"},
-            {"op":"EQ","field":"state.status","value":"${ParkedStatus.EXHAUSTED}"},
-            {"op":"GTE","field":"state.failedAt","value":$startedAt}]}"""
+        val exhausted = """{"op":"and","operands":[
+            {"op":"eq","field":"state.context","value":"eshop-payment"},
+            {"op":"eq","field":"state.status","value":"${ParkedStatus.EXHAUSTED}"},
+            {"op":"gte","field":"state.failedAt","value":$startedAt}]}"""
         eventually("the parked payment listed by ops") { listed(exhausted) == listOf(id) }
         val entry = opsState(id)!!
         entry["service"].asString().assert().isEqualTo("eshop-payment-service")

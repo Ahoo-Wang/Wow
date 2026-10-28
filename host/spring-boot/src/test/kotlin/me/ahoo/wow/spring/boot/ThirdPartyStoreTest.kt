@@ -189,12 +189,12 @@ class ThirdPartyStoreTest {
                 backends.stores.getValue("main").openedLog(BANK)!!.read(ref).toList().assert().isEmpty()
             }
             eventually { acme.queries.records(account).isNotEmpty() }
-            val snapshots = host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            val snapshots = host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"match-all"}}""")
             snapshots.status.assert().isEqualTo(200)
             snapshots.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("acme")
             val events = host.post(
                 "/bank/account/events/query",
-                """{"kind":"list","filter":{"op":"ID","value":"$id"}}""",
+                """{"kind":"list","filter":{"op":"id","value":"$id"}}""",
             )
             events.status.assert().isEqualTo(200)
             events.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1)

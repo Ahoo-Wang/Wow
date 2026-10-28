@@ -13,7 +13,6 @@
 
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { installRecordedWowService } from './recordedWowService.js';
-import { QueryValueKind } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The recorded compensation service's event streams, which the
@@ -37,7 +36,7 @@ const API = 'me.ahoo.wow.compensation.api';
 export const RECORDED_EVENT_STREAMS: RecordData[] = [
   stream('EF-1', 1, 'ExecutionFailedCreated', 0, {
     error: { errorCode: 'BadRequest', errorMsg: 'Inventory refused.' },
-    recoverable: QueryValueKind.UNKNOWN,
+    recoverable: 'UNKNOWN',
   }),
   stream('EF-1', 2, 'CompensationPrepared', 3, { retryState: { retries: 1 } }),
   stream('EF-1', 3, 'ExecutionFailedApplied', 4, {
@@ -47,12 +46,12 @@ export const RECORDED_EVENT_STREAMS: RecordData[] = [
   stream('EF-1', 5, 'ExecutionSuccessApplied', 8, {}),
   stream('EF-2', 1, 'ExecutionFailedCreated', 1, {
     error: { errorCode: 'Timeout', errorMsg: 'Payment gateway timed out.' },
-    recoverable: QueryValueKind.UNKNOWN,
+    recoverable: 'UNKNOWN',
   }),
   stream('EF-2', 2, 'RecoverableMarked', 6, { recoverable: 'UNRECOVERABLE' }),
   stream('EF-3', 1, 'ExecutionFailedCreated', 5, {
     error: { errorCode: 'BadRequest', errorMsg: 'Address missing.' },
-    recoverable: QueryValueKind.UNKNOWN,
+    recoverable: 'UNKNOWN',
   }),
 ];
 

@@ -378,13 +378,13 @@ internal object WowSchemas {
             "projection" to objectSchema(mapOf("include" to array(STRING), "exclude" to array(STRING))),
             "sort" to array(
                 objectSchema(
-                    mapOf("field" to STRING, "direction" to obj("type" to "string", "enum" to listOf("ASC", "DESC"))),
+                    mapOf("field" to STRING, "direction" to obj("type" to "string", "enum" to listOf("asc", "desc"))),
                     listOf("field", "direction"),
                 ),
             ),
             "limit" to INTEGER,
             "pagination" to objectSchema(mapOf("index" to INTEGER, "size" to INTEGER)),
-            "total" to obj("type" to "string", "enum" to listOf("EXACT", "BOUNDED", "NONE")),
+            "total" to obj("type" to "string", "enum" to listOf("exact", "bounded", "none")),
             "size" to INTEGER,
             "cursor" to NULLABLE_STRING,
             "elements" to array(type("object")),
