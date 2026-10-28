@@ -125,4 +125,22 @@ class WowJsonTest {
             WowJson.mapper.writeValueAsString(value).assert().matches("\"[a-z]+(-[a-z]+)*\"")
         }
     }
+
+    data class Tally(val byStage: Map<Stage, Int>, val byColour: Map<Colour, Int>)
+
+    @Test
+    fun `a map keyed by Wow's enumeration is keyed by wire names, one keyed by a domain's as its Jackson writes it`() {
+        val tally = Tally(mapOf(Stage.COMMITTED to 1, Stage.HANDLED to 2), mapOf(Colour.DEEP_RED to 3))
+        val written = WowJson.mapper.writeValueAsString(tally)
+        written.assert()
+            .isEqualTo("""{"byStage":{"committed":1,"handled":2},"byColour":{"DEEP_RED":3}}""")
+        WowJson.mapper.readValue<Tally>(written).assert().isEqualTo(tally)
+        WowJson.mapper.writeValueAsString(java.util.EnumMap(mapOf(Misfire.CATCH_UP to true)))
+            .assert().isEqualTo("""{"catch-up":true}""")
+        // A key spelled otherwise is refused by a writer's reader, and UNKNOWN for an older one where there is one.
+        val screaming = """{"byStage":{"COMMITTED":1},"byColour":{}}"""
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Tally>(screaming) }
+        WowJson.readerBuilder().build().readValue<Tally>(screaming).byStage.assert()
+            .isEqualTo(mapOf(Stage.UNKNOWN to 1))
+    }
 }
