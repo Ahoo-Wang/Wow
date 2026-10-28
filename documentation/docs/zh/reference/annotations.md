@@ -77,13 +77,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
 
 - 目标: `CLASS`, `ANNOTATION_CLASS`
-- 参数: `aggregate: String`, `transformsTo: Array<String> = []`
+- 参数: `aggregate: String`, `transformsTo: Array<KClass<*>> = []`
 
 ## `@Name`
 
 [Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
 
-- 目标: `CLASS`, `VALUE_PARAMETER`
+- 目标: `CLASS`, `FUNCTION`, `VALUE_PARAMETER`
 - 参数: `value: String`
 
 ## `@OnCommand`
@@ -91,11 +91,11 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`
+- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `onDeleted: Boolean = false`
 
 ## `@OnCommitted`
 
-[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandCommitted` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
+[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandCommitted` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `ReceiptContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: 无。
@@ -105,18 +105,18 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
+- 参数: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 
-[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived: it takes a `me.ahoo.wow.api.subscribe.CommandRejected` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
+[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived: it takes a `me.ahoo.wow.api.subscribe.CommandRejected` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `ReceiptContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: 无。
 
 ## `@OnSchedule`
 
-[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
+[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `JobContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `sharded: Boolean = false`, `misfire: Misfire = Misfire.COALESCE`
@@ -147,7 +147,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
 
 - 目标: `CLASS`, `FUNCTION`
-- 参数: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
+- 参数: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `multiplier: Double = 0.0`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
 
 ## `@Revision`
 

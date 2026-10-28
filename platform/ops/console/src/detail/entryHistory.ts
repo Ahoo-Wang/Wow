@@ -77,7 +77,7 @@ export interface HistoryFacts {
   recoverable: string;
   outcome: string;
   initialBackoff: string;
-  executionTimeout: string;
+  timeout: string;
   /** The ledger's system command an owning service refused, and the code it refused it with. */
   refusedAction: string;
   refusalCode: string;
@@ -139,7 +139,7 @@ function step(
         facts: {
           maxRetries: event.body.maxRetries ?? undefined,
           initialBackoff: event.body.initialBackoff ?? undefined,
-          executionTimeout: event.body.executionTimeout ?? undefined,
+          timeout: event.body.timeout ?? undefined,
         },
       };
     case "ops.parked.ActionRefused":

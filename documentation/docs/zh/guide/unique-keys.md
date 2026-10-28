@@ -12,16 +12,15 @@ outline: deep
 
 `DecideScope.reserve(namespace, key)` 在 `namespace` 中为正在做决定的聚合预留 `key`，另一个聚合持有它时返回 `false`。品牌在取名时预留它的名字：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a name another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? =
-    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        null
-    } else {
-        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+/** Takes [name] for this brand, or rejects the command when another brand holds it. */
+private suspend fun take(name: String, scope: DecideScope) {
+    if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
+}
 ```
 
 - **命名空间**指明什么是唯一的：`eshop-catalog.brand-name`。
@@ -41,18 +40,17 @@ private suspend fun take(name: String, scope: DecideScope): Decision? =
 
 值改变时释放它旧的键。`DecideScope.release(namespace, key)` 在事件追加之后释放聚合持有的一个键：释放与事件一起提交，事件没有追加时什么都不释放。重命名在同一次决定中预留新键、释放旧键：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
 
 ```kotlin
-@OnCommand(produces = [BrandRenamed::class])
-suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
-    if (command.name.trim() == state.name) return Decision.NoOp
-    take(command.name, scope)?.let { return it }
+suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
+    if (command.name.trim() == state.name) return null
+    take(command.name, scope)
     // A new spelling of the same name keeps its key.
     if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
         scope.release(CatalogNames.BRAND_NAMES, CatalogNames.key(state.name))
     }
-    return Decision.events(BrandRenamed(command.name.trim()))
+    return BrandRenamed(command.name.trim())
 }
 ```
 

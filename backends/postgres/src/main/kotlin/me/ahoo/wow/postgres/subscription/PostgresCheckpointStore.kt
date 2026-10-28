@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.sql.Connection
+import java.util.concurrent.atomic.AtomicReferenceArray
 import javax.sql.DataSource
 
 /**
@@ -61,6 +62,19 @@ class PostgresCheckpointStore(
         }
     }
 
+    override suspend fun list(group: String): List<Checkpoint> = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            connection.prepareStatement(LIST).use { query ->
+                query.setString(1, group)
+                query.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) add(Checkpoint.of(rows.getString(1), rows.getInt(2), rows.getLong(3)))
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
@@ -76,10 +90,13 @@ class PostgresCheckpointStore(
     }
 
     /**
-     * The upserts [save] makes one by one, as one JDBC batch in one transaction: one round trip and one commit, one WAL
-     * flush (in autocommit each upsert of a batch was a transaction of its own). They go in key
-     * order, so two batches touching the same rows lock them in the same order. A failed batch commits none of them,
-     * and the caller saves them again, as it saves any batch that failed: each upsert only moves a position forward.
+     * The upserts [save] makes one by one, as one multi-row upsert in one transaction: one statement, whose round trip
+     * also carries the transaction's bound, and one commit, one WAL flush (in autocommit each upsert of a batch was a
+     * transaction of its own). A key saved twice keeps its furthest position, as one statement may touch a row once.
+     * The rows go in key order, so two batches touching the same rows lock them in the same order and never wait on
+     * each other in a cycle; past [MAX_ROWS] they are split into several statements of the one transaction. A failed
+     * batch commits none of them, and the caller saves them again, as it saves any batch that failed: each upsert only
+     * moves a position forward.
      */
     override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
         if (checkpoints.isEmpty()) {
@@ -87,21 +104,26 @@ class PostgresCheckpointStore(
         }
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                inTransaction(connection) { saveBatch(connection, group, checkpoints) }
+                inTransaction(connection) { bound -> saveBatch(bound, group, checkpoints) }
             }
         }
     }
 
     private fun saveBatch(connection: Connection, group: String, checkpoints: List<Checkpoint>) {
-        connection.prepareStatement(SAVE).use { save ->
-            checkpoints.sortedWith(compareBy({ it.subscription }, { it.partition })).forEach {
-                save.setString(1, group)
-                save.setString(2, it.subscription)
-                save.setInt(3, it.partition)
-                save.setLong(4, it.position)
-                save.addBatch()
+        val rows = checkpoints.groupBy { it.subscription to it.partition }.values
+            .map { same -> same.maxBy { it.position } }
+            .sortedWith(compareBy({ it.subscription }, { it.partition }))
+        rows.chunked(MAX_ROWS).forEach { chunk ->
+            connection.prepareStatement(saveRows(chunk.size)).use { save ->
+                chunk.forEachIndexed { at, checkpoint ->
+                    val first = at * COLUMNS
+                    save.setString(first + 1, group)
+                    save.setString(first + 2, checkpoint.subscription)
+                    save.setInt(first + 3, checkpoint.partition)
+                    save.setLong(first + 4, checkpoint.position)
+                }
+                save.executeUpdate()
             }
-            save.executeBatch()
         }
     }
 
@@ -123,8 +145,26 @@ class PostgresCheckpointStore(
 
         const val LOAD = "SELECT position FROM $TABLE WHERE subscription_group = ? AND subscription = ? AND partition = ?"
 
-        val SAVE = """
-            INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position) VALUES (?, ?, ?, ?)
+        const val LIST = "SELECT subscription, partition, position FROM $TABLE WHERE subscription_group = ?"
+
+        val SAVE = rowsSql(1)
+
+        /** The parameters of one row of [saveRows]. */
+        private const val COLUMNS = 4
+
+        /** The most rows one statement of [saveBatch] upserts: well under PostgreSQL's 32,767 parameters. */
+        const val MAX_ROWS = 1_000
+
+        /** [saveRows] of each row count up to [MAX_ROWS], built once: a batch saves without building its SQL. */
+        private val saves = AtomicReferenceArray<String>(MAX_ROWS + 1)
+
+        /** Upserts [rows] checkpoints in the order given, each moving its position only forward. */
+        fun saveRows(rows: Int): String =
+            saves.get(rows) ?: rowsSql(rows).also { if (rows <= MAX_ROWS) saves.set(rows, it) }
+
+        private fun rowsSql(rows: Int): String = """
+            INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position)
+            VALUES ${List(rows) { "(?, ?, ?, ?)" }.joinToString(", ")}
             ON CONFLICT (subscription_group, subscription, partition) DO UPDATE SET position = excluded.position
             WHERE c.position < excluded.position
         """.trimIndent()

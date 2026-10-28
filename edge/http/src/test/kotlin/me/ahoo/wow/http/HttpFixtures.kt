@@ -50,6 +50,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
@@ -140,15 +141,20 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
 }
 
 /**
- * The Manifest of [cartModel] as the compiler writes it, with the lifecycle commands [lifecycle] lists, and [ImportCart]
- * mounted when [mounted].
+ * The Manifest of [cartModel] as the compiler writes it, with the lifecycle commands [lifecycle] lists, the snapshot
+ * rebuild, [ImportCart] mounted when [mounted], and the commands [unaddressed] lists `@Unaddressed`: routed without an
+ * id too, which a transformer finds the aggregate of.
  */
-fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(), mounted: Boolean = false): Manifest {
+fun cartManifest(
+    lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(),
+    mounted: Boolean = false,
+    unaddressed: Set<String> = emptySet(),
+): Manifest {
     fun command(name: String, creation: ManifestCreation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
         creation = creation,
-        routes = CommandRoutes.of(CONTEXT, "cart", name, creation),
+        routes = CommandRoutes.of(CONTEXT, "cart", name, creation, name in unaddressed),
     )
     return Manifest(
         service = ServiceInfo("shop-service"),
@@ -171,8 +177,8 @@ fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(), mou
                                 mounted = true,
                                 transformsTo = listOf("$CONTEXT.cart.OpenCart"),
                             ).takeIf { mounted },
-                        ),
-                        lifecycle = lifecycle,
+                        ) + lifecycle.map { SystemCommands.lifecycle(CONTEXT, "cart", it) } +
+                            SystemCommands.rebuild(CONTEXT, "cart"),
                     ),
                 ),
                 errors = listOf(ErrorManifest(CART_EMPTY, 409, "The cart has no item.")),
@@ -334,7 +340,7 @@ class HttpNode(
 
 val json: JsonMapper = JsonMapper.builder().build()
 
-/** This Manifest with a saga subscription of each of [jobs] in its first context (decision D198). */
+/** This Manifest with a saga subscription of each of [jobs] in its first context, and its job commands (D198). */
 private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
     if (jobs.isEmpty()) {
         return this
@@ -350,7 +356,12 @@ private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
         )
     }
     return copyWith(
-        contexts = listOf(context.copyWith(subscriptions = context.subscriptions + subscriptions)) + contexts.drop(1)
+        contexts = listOf(
+            context.copyWith(
+                subscriptions = context.subscriptions + subscriptions,
+                commands = SystemCommands.jobs(context.name),
+            ),
+        ) + contexts.drop(1)
     )
 }
 

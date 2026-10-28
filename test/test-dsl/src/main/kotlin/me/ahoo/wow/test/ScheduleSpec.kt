@@ -41,7 +41,7 @@ import kotlin.time.Duration
  * log has [partitions] partitions (for a sharded job's instances).
  *
  * ```kotlin
- * scheduleSpec(billingSagaHandlers(Dependencies.NONE), start = Instant.parse("2026-01-31T12:00:00Z")) {
+ * scheduleSpec(billingSagaHandlers(), start = Instant.parse("2026-01-31T12:00:00Z")) {
  *     enable("monthly-invoice", tenantId = "acme", rule = JobRule(zone = "Asia/Shanghai"))
  *     advanceTime(1.days) {
  *         expectCommands(IssueInvoices("acme"))
@@ -97,7 +97,7 @@ class ScheduleSpec(
      */
     fun enable(
         job: String,
-        tenantId: String = Caller.DEFAULT_TENANT,
+        tenantId: String = DEFAULT_TENANT,
         rule: JobRule? = null,
         partition: Int? = null,
     ) {
@@ -108,7 +108,7 @@ class ScheduleSpec(
     /** Overrides the rule of [job]'s instance in [tenantId] with [rule], null to follow the default again. */
     fun reschedule(
         job: String,
-        tenantId: String = Caller.DEFAULT_TENANT,
+        tenantId: String = DEFAULT_TENANT,
         rule: JobRule? = null,
         partition: Int? = null
     ) {
@@ -116,12 +116,12 @@ class ScheduleSpec(
     }
 
     /** Disables [job]'s instance in [tenantId]. */
-    fun disable(job: String, tenantId: String = Caller.DEFAULT_TENANT, partition: Int? = null) {
+    fun disable(job: String, tenantId: String = DEFAULT_TENANT, partition: Int? = null) {
         check(instance(job, tenantId, partition).sendCommand(DisableJob, OPERATOR), "disable $job")
     }
 
     /** The state of [job]'s instance in [tenantId], or null when it was never enabled. */
-    fun instanceOf(job: String, tenantId: String = Caller.DEFAULT_TENANT, partition: Int? = null): JobState? =
+    fun instanceOf(job: String, tenantId: String = DEFAULT_TENANT, partition: Int? = null): JobState? =
         instances[refOf(job, tenantId, partition)]?.stateOf()
 
     /**

@@ -19,28 +19,38 @@ const decimal = { type: 'number', format: 'decimal' };
 
 const manifest: ManifestDocument = {
   format: 1,
+  errors: [],
   contexts: [
     {
       name: 'shop',
+      subscriptions: [],
+      published: [],
+      errors: [],
       aggregates: [
         {
           name: 'cart',
           state: { schema: '#/$defs/Cart' },
+          snapshot: { enabled: true },
+          queries: [],
           commands: [
             {
               name: 'Pay',
+              aliases: [],
               schema: '#/$defs/Pay',
+              creation: 'NONE',
               routes: [{ method: 'POST', path: '/shop/cart/{id}/pay' }],
             },
             {
               name: 'Note',
+              aliases: [],
               schema: '#/$defs/Note',
+              creation: 'NONE',
               routes: [{ method: 'POST', path: '/shop/cart/{id}/note' }],
             },
           ],
           events: [
-            { name: 'Paid', schema: '#/$defs/Pay' },
-            { name: 'Noted', schema: '#/$defs/Note' },
+            { name: 'Paid', aliases: [], revision: 1, schema: '#/$defs/Pay' },
+            { name: 'Noted', aliases: [], revision: 1, schema: '#/$defs/Note' },
           ],
         },
       ],

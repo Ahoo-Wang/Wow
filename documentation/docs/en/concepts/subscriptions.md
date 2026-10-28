@@ -39,8 +39,8 @@ The only ordering guarantee is per aggregate. A projection that combines several
 
 A subscription delivers each entry at least once. During a hand-over, the old and the new owner of a partition may briefly handle the same entries. Wow does not fence them off; it makes repeating safe instead:
 
-- Each handler call has a deterministic **execution id**: subscription, aggregate and version. Use it as the idempotency key of an external call.
-- A command a saga sends has a request id derived from that execution id, so sending it twice commits it once.
+- Each handler call has a deterministic **execution id**: subscription, aggregate and version. An external call takes the context's `invocationKey` as its idempotency key: the execution id, and the event's index for a handler of each event.
+- A command a saga sends has a request id derived from that execution id, its target and its command type, so sending it twice commits it once, whatever order the saga derives its commands in.
 - A projection writes guarded by the version it has applied.
 - A checkpoint only moves forward, and recording a failure is idempotent.
 
@@ -67,7 +67,7 @@ Not every failure is the aggregate's fault, so failures fall into three classes:
 
 **Backpressure is not an outage.** A command a saga sends that is refused as busy, a wait that times out, a query refused by a bulkhead: these mean the system is loaded, not broken. The subscription retries that entry with exponential backoff and jitter and slows down the partition, so the system settles under load. If the retries run out, the aggregate is parked as usual; the partition is not paused.
 
-**A rejection is not a failure.** When a command a saga sent is rejected, that is a business outcome. It is not retried and does not park anything. The saga handles it if it declares a handler for rejections; only a saga that declares none parks the aggregate.
+**A rejection is not a failure.** When a command a saga sent is rejected, that is a business outcome. It is not retried and does not park anything. Each derived command is settled on its own, so a rejection stops none of the others. The saga handles it if it declares a handler for rejections; only a saga that declares none parks the aggregate.
 
 ## Replay and backfill
 

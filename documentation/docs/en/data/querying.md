@@ -11,7 +11,7 @@ An analysis is a query of kind `aggregate`: it filters the records, groups them,
 
 Group with `TERMS` on a field, and compute metrics per group:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
 ```json
 {
@@ -28,7 +28,7 @@ Group with `TERMS` on a field, and compute metrics per group:
 
 The answer is one row per group, holding the group aliases and the metric aliases: `[{ "status": "PUBLISHED", "count": 3, "averagePrice": 7.5 }, …]`. `limit` caps the groups, 100 by default. A `count` query counts the records without grouping them:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
 
 ```json
 {
@@ -42,7 +42,7 @@ The answer is one row per group, holding the group aliases and the metric aliase
 
 `having` filters the groups by their metrics, after they are computed. Brands with at least two published products, the products of no brand grouped as `none`:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/having.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/having.json -->
 
 ```json
 {
@@ -60,7 +60,7 @@ The answer is one row per group, holding the group aliases and the metric aliase
 
 `DATE_HISTOGRAM` groups a time field by a calendar unit, in a time zone; `HISTOGRAM` groups a number by intervals. Products listed per month over the last year, with a running total:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/monthly.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/monthly.json -->
 
 ```json
 {
@@ -77,7 +77,7 @@ The answer is one row per group, holding the group aliases and the metric aliase
 
 `RUNNING` accumulates a metric along an order of the groups. The other windows over groups are `TOTAL` (a share of the whole), `PREVIOUS` (the same metric one bucket or one period earlier, for growth against last month or last year) and `RANK`; a `DERIVED` metric can also combine metrics arithmetically, such as a conversion rate. Published products by price band of 10, with the cheapest in each:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/price-bands.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/price-bands.json -->
 
 ```json
 {
@@ -98,7 +98,7 @@ The answer is one row per group, holding the group aliases and the metric aliase
 
 A filter on time is relative to the service's clock, read once per query, never the browser's, so a saved query means the same thing tomorrow:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
 ```json
 {

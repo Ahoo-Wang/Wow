@@ -41,7 +41,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.Deposit
@@ -131,7 +131,7 @@ class ServiceNodeTest {
         id: String? = null,
         amount: Int = 1,
         wait: WaitPlan? = WaitPlan.COMMITTED,
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = context,
         aggregate = "account",
         command = "Deposit",
@@ -204,8 +204,16 @@ class ServiceNodeTest {
         bank.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         ledger.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         ledger.ref.type.assert().isEqualTo(AggregateType(LEDGER, "account"))
-        backends.opened.getValue(BANK).log.findByRequestId(TENANT, ledger.requestId).assert().isNull()
-        backends.opened.getValue(LEDGER).log.findByRequestId(TENANT, ledger.requestId)!!.version.assert().isEqualTo(1)
+        backends.opened.getValue(
+            BANK
+        ).log.findByRequestId(AggregateType(BANK, "account"), TENANT, ledger.requestId).assert().isNull()
+        backends.opened.getValue(
+            LEDGER
+        ).log.findByRequestId(
+            AggregateType(LEDGER, "account"),
+            TENANT,
+            ledger.requestId
+        )!!.version.assert().isEqualTo(1)
         backends.opened.getValue(BANK).leases.owners("$NODE_SERVICE/$BANK").size.assert().isEqualTo(8)
         backends.opened.getValue(LEDGER).leases.owners("$NODE_SERVICE/$LEDGER").size.assert().isEqualTo(8)
 

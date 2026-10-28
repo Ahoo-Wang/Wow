@@ -84,6 +84,13 @@ export default defineConfig({
                 '../wow-client/src/dsl.ts',
               ),
             },
+            {
+              find: /^@ahoo-wang\/wow-client\/testing$/,
+              replacement: path.join(
+                currentDirectory,
+                '../wow-client/src/testing.ts',
+              ),
+            },
             // The retail views are opened by a headless engine
             // (`retail/views.test.ts`): no React, no DOM.
             {

@@ -147,6 +147,9 @@ class SubscriptionRuntime internal constructor(
         var started = false
         try {
             val parked = subscriptions.values.associate { it.name to parkedByPartition(it) }
+            // Who read the stream before this start: a subscription that starts where it joins reads it from the
+            // beginning only when none did, whichever partition or subscription starts first.
+            run.joined = joinedSubscriptions()
             partitions.forEach { open(run, it, parked) }
             started = true
         } finally {
@@ -216,7 +219,7 @@ class SubscriptionRuntime internal constructor(
     private suspend fun open(run: Running, partition: Int, parked: Map<String, Map<Int, Map<AggregateRef, Long>>>) {
         val part = PartitionRun(partition, run)
         run.partitions[partition] = part
-        val workers = subscriptions.values.map { worker(run, part, it, parked.getValue(it.name)) }
+        val workers = subscriptions.values.map { worker(run, part, it, parked.getValue(it.name), run.joined) }
         part.runner.start(workers)
     }
 
@@ -228,8 +231,9 @@ class SubscriptionRuntime internal constructor(
         register(subscription)
         val run = running ?: return@withLock
         val parked = parkedByPartition(subscription)
+        val joined = joinedSubscriptions()
         for (part in run.partitions.values) {
-            part.runner.attach(worker(run, part, subscription, parked))
+            part.runner.attach(worker(run, part, subscription, parked, joined))
         }
     }
 
@@ -342,9 +346,17 @@ class SubscriptionRuntime internal constructor(
         return total
     }
 
-    /** Where [subscription] starts without a checkpoint: as the host overrides it, else as it says. */
-    private fun startOf(subscription: Subscription): SubscriptionStart =
-        options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
+    /**
+     * Where [subscription] starts without a checkpoint: as the host overrides it, else as it says, where it joins the
+     * stream ending after it when a subscription of [joined] other than it read the stream before.
+     */
+    private fun startOf(subscription: Subscription, joined: Set<String>): SubscriptionStart =
+        options.starts[subscription.name]
+            ?: SubscriptionStart.of(subscription.startFrom, joined = joined.any { it != subscription.name })
+
+    /** The subscriptions of the group with a checkpoint: those that have read its stream. */
+    private suspend fun joinedSubscriptions(): Set<String> =
+        checkpoints.list(group).mapTo(HashSet()) { it.subscription }
 
     /**
      * Where each subscription stands in each partition this runtime runs on this node: its watermark,
@@ -377,10 +389,11 @@ class SubscriptionRuntime internal constructor(
         part: PartitionRun,
         subscription: Subscription,
         parked: Map<Int, Map<AggregateRef, Long>>,
+        joined: Set<String>,
     ): SubscriptionWorker {
         val partition = part.partition
         val checkpoint = checkpoints.load(group, subscription.name, partition) ?: source
-            .checkpointOf(startOf(subscription), partition).also {
+            .checkpointOf(startOf(subscription, joined), partition).also {
                 // Saved at once, 0 included, so a restart before the first save does not move the start to a later end.
                 checkpoints.save(group, subscription.name, partition, it)
             }
@@ -448,6 +461,9 @@ class SubscriptionRuntime internal constructor(
     private class Running(val root: Job, val scope: CoroutineScope) {
         val partitions = ConcurrentHashMap<Int, PartitionRun>()
         val workers = ConcurrentHashMap<Pair<String, Int>, SubscriptionWorker>()
+
+        /** The subscriptions that had read the stream when the runtime started ([joinedSubscriptions]). */
+        var joined: Set<String> = emptySet()
     }
 
     /** One partition being read: its shared tail and catch-up reads, and its subscriptions' lanes, stopped together. */

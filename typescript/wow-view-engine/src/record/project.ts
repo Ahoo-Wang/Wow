@@ -218,7 +218,7 @@ export interface RecordCardView {
 }
 
 /**
- * One lane of a kanban result (D83): one option of the lane field, or the
+ * One lane of a kanban result: one option of the lane field, or the
  * 「其他」lane of every record whose value is none of them.
  */
 export interface RecordLaneView {

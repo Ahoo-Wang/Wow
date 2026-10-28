@@ -17,7 +17,7 @@ import { TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
- * The line under the title bar of a view opened from another (D20): the way
+ * The line under the title bar of a view opened from another: the way
  * back, which names where this one came from — once. It used to say the
  * origin's name twice (「返回 X · 来自 X」) and the conditions the follow-up
  * added a third time beside the applied bar and the editor (2026-09-23

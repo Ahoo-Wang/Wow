@@ -50,21 +50,21 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
-import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.backend.cursor
-import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
+import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageTimeoutException
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -185,8 +185,8 @@ class MongoSnapshotQueryStorageTest {
         val byAmount = listOf(Sort(AMOUNT, Sort.Direction.DESC))
         suspend fun times(block: suspend () -> Unit) {
             val error = runCatching { block() }.exceptionOrNull()
-            (error is QueryTimeoutException).assert().describedAs("$error").isTrue()
-            (error as QueryTimeoutException).timeout.assert().isEqualTo(timeout)
+            (error is StorageTimeoutException).assert().describedAs("$error").isTrue()
+            (error as StorageTimeoutException).timeout.assert().isEqualTo(timeout)
         }
         times { backend.count(QueryAdmission.Trusted.count(CountQuery(slow), schema).withTimeout(timeout)) }
         times { backend.stream(QueryAdmission.Trusted.list(ListQuery(slow, sort = byAmount), schema).withTimeout(timeout)).toList() }

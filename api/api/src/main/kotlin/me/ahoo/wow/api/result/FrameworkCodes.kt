@@ -39,6 +39,7 @@ object FrameworkCodes {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val COMMAND_REFUSED: String = "wow.command.refused"
+    const val COMMAND_UNDECLARED_EVENT: String = "wow.command.undeclared-event"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -56,6 +57,7 @@ object FrameworkCodes {
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
+    const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The prefix every framework code starts with, which a domain's own codes do not. */
@@ -81,6 +83,7 @@ object FrameworkCodes {
         COMMAND_UNKNOWN,
         COMMAND_FAILED,
         COMMAND_REFUSED,
+        COMMAND_UNDECLARED_EVENT,
         NODE_CLOSING,
         NODE_STANDBY,
         STORAGE_UNAVAILABLE,
@@ -98,6 +101,7 @@ object FrameworkCodes {
         QUERY_DATASET_UNAVAILABLE,
         QUERY_NOT_FOUND,
         QUERY_DATASET_NOT_FOUND,
+        QUERY_TOO_MANY_GROUPS,
         CALL_COMMAND_FORBIDDEN,
     )
 }

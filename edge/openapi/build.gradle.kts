@@ -4,7 +4,6 @@ dependencies {
     // The guard of the hand-written equals (finding R5.B-13).
     testImplementation(project(":tck"))
     api(project(":manifest"))
-    testImplementation(testFixtures(project(":manifest")))
     // The tests write the document as JSON, and check its schemas against the JSON Schema 2020-12 meta-schema.
     testImplementation("tools.jackson.module:jackson-module-kotlin")
     testImplementation(libs.json.schema.validator)

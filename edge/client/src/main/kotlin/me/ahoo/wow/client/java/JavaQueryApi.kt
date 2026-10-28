@@ -19,14 +19,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventStream
@@ -96,37 +96,37 @@ class JavaTrustedQueries internal constructor(private val delegate: TrustedQueri
 @JvmSuppressWildcards
 open class JavaRowQueries<R : Any> internal constructor(private val delegate: RowQueries<R>) {
     /** The first row [query] matches, or null. */
-    fun single(query: ISingleQuery): R? = JavaFlows.blocking { delegate.single(query) }
+    fun single(query: SingleQuery): R? = JavaFlows.blocking { delegate.single(query) }
 
-    fun singleAsync(query: ISingleQuery): CompletableFuture<R?> = JavaFlows.async { delegate.single(query) }
+    fun singleAsync(query: SingleQuery): CompletableFuture<R?> = JavaFlows.async { delegate.single(query) }
 
     /** The rows [query] matches, read whole ([RowQueries.list]). */
-    fun list(query: IListQuery): List<R> = JavaFlows.blocking { delegate.list(query).toList() }
+    fun list(query: ListQuery): List<R> = JavaFlows.blocking { delegate.list(query).toList() }
 
-    fun listAsync(query: IListQuery): CompletableFuture<List<R>> = JavaFlows.async { delegate.list(query).toList() }
+    fun listAsync(query: ListQuery): CompletableFuture<List<R>> = JavaFlows.async { delegate.list(query).toList() }
 
     /**
      * The rows [query] matches as a resumable stream ([RowQueries.stream]), from after the position [after] when
      * given; close it (try-with-resources) to stop reading early.
      */
     @JvmOverloads
-    fun stream(query: IListQuery, after: String? = null): Stream<Positioned<R>> =
+    fun stream(query: ListQuery, after: String? = null): Stream<Positioned<R>> =
         JavaFlows.stream(delegate.stream(query, after))
 
     /** One page of the rows [query] matches ([RowQueries.paged]). */
-    fun paged(query: IPagedQuery): PagedList<R> = JavaFlows.blocking { delegate.paged(query) }
+    fun paged(query: PagedQuery): PagedList<R> = JavaFlows.blocking { delegate.paged(query) }
 
-    fun pagedAsync(query: IPagedQuery): CompletableFuture<PagedList<R>> = JavaFlows.async { delegate.paged(query) }
+    fun pagedAsync(query: PagedQuery): CompletableFuture<PagedList<R>> = JavaFlows.async { delegate.paged(query) }
 
     /** One keyset page of the rows [query] matches ([RowQueries.cursor]). */
-    fun cursor(query: ICursorQuery): CursorPage<R> = JavaFlows.blocking { delegate.cursor(query) }
+    fun cursor(query: CursorQuery): CursorPage<R> = JavaFlows.blocking { delegate.cursor(query) }
 
-    fun cursorAsync(query: ICursorQuery): CompletableFuture<CursorPage<R>> = JavaFlows.async { delegate.cursor(query) }
+    fun cursorAsync(query: CursorQuery): CompletableFuture<CursorPage<R>> = JavaFlows.async { delegate.cursor(query) }
 
     /** How many rows [query] matches ([RowQueries.count]). */
-    fun count(query: ICountQuery): CountResult = JavaFlows.blocking { delegate.count(query) }
+    fun count(query: CountQuery): CountResult = JavaFlows.blocking { delegate.count(query) }
 
-    fun countAsync(query: ICountQuery): CompletableFuture<CountResult> = JavaFlows.async { delegate.count(query) }
+    fun countAsync(query: CountQuery): CompletableFuture<CountResult> = JavaFlows.async { delegate.count(query) }
 
     /** The groups of [query], each as [groupType] ([RowQueries.aggregate]). */
     fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): List<G> =

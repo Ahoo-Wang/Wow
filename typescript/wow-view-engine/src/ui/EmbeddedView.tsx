@@ -120,7 +120,7 @@ const DATA_KINDS: readonly ViewKind[] = ['record', 'analysis'];
 
 /**
  * One saved record or analysis view inside a business page: the result, and
- * what the host switched on around it (D22).
+ * what the host switched on around it.
  *
  * The workbench exists to let a user *change* how they observe; this exists
  * to let a page *show* what someone already decided. So there is no view

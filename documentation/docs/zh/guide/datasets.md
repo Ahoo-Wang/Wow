@@ -12,7 +12,7 @@ outline: deep
 
 数据集是一个名为 `<context>.<dataset>.json` 的 JSON 文件，位于类路径的 `META-INF/wow/dataset/` 下。eShop 的 ordering 服务基于它订单的 ClickHouse 视图声明它的销售数据：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/META-INF/wow/dataset/eshop-ordering.sales.json -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/META-INF/wow/dataset/eshop-ordering.sales.json -->
 
 ```json
 {

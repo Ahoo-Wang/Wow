@@ -24,7 +24,7 @@ outline: deep
 
 命令函数用 `DecideScope` 定时。订单的最后一个商品确认后，它为自己定时：支付宽限期过后取消自己：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -32,9 +32,10 @@ outline: deep
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -58,11 +59,11 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 - `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.ScheduleSet`；只定时的决定就只提交这一个事件。
 - `scope.cancelSchedule(key)` 取消它。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
-- 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的完整类型名。编译器读不到函数体里的调用，而 Manifest 要列出它们。
+- 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 
-Saga 把定时作为一条发往目标的命令返回：`context.schedule(key, rule, target, command)` 要求 `target` 为自己定时 `command`，`context.cancel(key, target)` 取消它。目标必须存在；否则它拒绝这个请求，拒绝交给 Saga 的 `@OnRejected` 处理函数。处理函数在 `@OnEvent(schedules = [...])` 里声明被定时的命令。
+Saga 把定时记录到上下文中：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancel(key, target)` 取消它；运行时在处理函数返回的命令之后发送两者。目标必须存在；否则它拒绝这个请求，拒绝交给 Saga 的 `@OnRejected` 处理函数。处理函数在 `@OnEvent(schedules = [...])` 里声明被定时的命令。
 
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 
@@ -75,18 +76,19 @@ Saga 把定时作为一条发往目标的命令返回：`context.schedule(key, r
 
 ## 运行周期性任务 {#run-a-recurring-job}
 
-不针对某一个聚合的任务，例如每晚的一次导入，是 Saga 的一个 `@OnSchedule` 处理函数。它接收一个 `ScheduleTick` 和 `SagaContext`，返回它派生的命令。每天早上，库存把供应商前一天的到货入库：
+不针对某一个聚合的任务，例如每晚的一次导入，是 Saga 的一个 `@OnSchedule` 处理函数。它接收一个 `ScheduleTick` 和 `JobContext`，返回它派生的命令。每天早上，库存把供应商前一天的到货入库：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: SagaContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-        context.command(STOCK.ref(tick.tenantId, delivery.productId), ReceiveStock(delivery.quantity))
+        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
+        CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
     }
 }
 ```
@@ -114,7 +116,7 @@ fun onSchedule(tick: ScheduleTick, context: SagaContext): List<Command<ReceiveSt
 
 测试一个会定时的决定，就随聚合的事件一起期望这个定时（[测试领域代码](./testing#scheduled-commands)）。任务用 `scheduleSpec` 针对真实的任务聚合测试：启用实例，拨动时钟，检查它的处理函数派生的命令：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
 
 ```kotlin
 @Test

@@ -26,6 +26,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import java.util.concurrent.CopyOnWriteArrayList
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
@@ -90,9 +91,8 @@ private fun aggregateManifest(name: String, commands: List<Pair<String, Manifest
         state = StateManifest(Manifest.schemaRef("${name}State")),
         commands = commands.map { (command, creation) ->
             CommandManifest(command, schema = Manifest.schemaRef(command), creation = creation)
-        },
+        } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(SHOP, name, it) },
         events = events.map { EventManifest(it, schema = Manifest.schemaRef(it)) },
-        lifecycle = Lifecycle.COMMANDS.keys.toList(),
     )
 
 /** The Manifest of [orderModel] and [cartModel]. */

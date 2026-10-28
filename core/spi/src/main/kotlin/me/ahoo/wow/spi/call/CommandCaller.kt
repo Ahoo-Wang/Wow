@@ -15,16 +15,16 @@ package me.ahoo.wow.spi.call
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * One synchronous call to another context's command gateway: [command], of the full type name [type]
  * (`context.aggregate.Command`), with the [wait] context a wait that follows the calling saga goes on with, or null.
- * The command carries the root command's scope, operator and causation, which the client asserts with the service's
- * credential.
+ * The command carries the root command's scope, operator and causation, which the client asserts on the target's
+ * internal port, naming its service.
  */
 @WowSpi
 class OutgoingCall @InternalWowApi constructor(
@@ -60,8 +60,8 @@ class OutgoingCall @InternalWowApi constructor(
  * The client of the other contexts' HTTP command gateways, which the host gives a node, a port the
  * runtime consumes and `wow-client`'s `HttpCommandCaller` implements: it sends a
  * call to the gateway of its command's context, at the address the host configures for it, and returns the result
- * the target answers, at COMMITTED: SUCCEEDED, REJECTED or FAILED. It throws a [CallFailedException] when it reaches
- * no result (the target down, unreachable or late, a credential it refuses, no address for the context).
+ * the target answers, at COMMITTED: SUCCEEDED, REJECTED or FAILED. It throws a [WowProblemException] when it reaches
+ * no result (the target down, unreachable or late, no address for the context), retryable with the same request id.
  */
 @WowSpi
 fun interface CommandCaller {

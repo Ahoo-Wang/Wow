@@ -17,13 +17,14 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 /**
- * The view store as it is deployed: outside development, without Kafka (decision D322). Every aggregate of it is
- * published by default (D156), which needs no topic transport, so it starts and publishes none of its streams.
+ * The view store as it is deployed: outside development, behind the CoSec gateway (the `cosec` profile), without Kafka
+ * (decision D322). Every aggregate of it is published by default (D156), which needs no topic transport, so it starts
+ * and publishes none of its streams.
  */
 class ViewStoreDeployedTest {
     @Test
     fun `the view store should start outside development without a topic transport`() {
-        startViewStore(*DEPLOYED).use { node ->
+        startViewStore(*DEPLOYED, profiles = listOf("cosec")).use { node ->
             node.context.isActive.assert().isTrue()
         }
     }
@@ -33,7 +34,6 @@ class ViewStoreDeployedTest {
         val DEPLOYED = arrayOf<Pair<String, Any>>(
             "wow.internal.host" to "0.0.0.0",
             "wow.backend" to "memory",
-            ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false,
         )
     }
 }

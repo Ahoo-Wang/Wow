@@ -50,21 +50,20 @@ features:
 
 A command function of the quickstart's bank account decides a withdrawal against the current state:
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
 
 ```kotlin
-@OnCommand(produces = [Withdrawn::class])
-fun onCommand(command: Withdraw): Decision =
+fun onCommand(command: Withdraw): Withdrawn {
     if (command.amount > state.balance) {
-        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-    } else {
-        Decision.events(Withdrawn(command.amount))
+        reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
     }
+    return Withdrawn(command.amount)
+}
 ```
 
 Its test says it in the same terms, given events, when a command, expect events and state, with no server:
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
 ```kotlin
 @Test

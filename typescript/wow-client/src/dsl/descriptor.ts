@@ -89,7 +89,7 @@ export enum QueryValueKind {
 
 /** The ways a model can be read page by page, listed in `record.paging`. */
 export enum PagingMode {
-  /** `list` and `listStream`: the first `limit` rows. */
+  /** `list` and `stream`: the first `limit` rows. */
   LIST = 'LIST',
   /** `paged`: numbered pages with a total. */
   PAGED = 'PAGED',

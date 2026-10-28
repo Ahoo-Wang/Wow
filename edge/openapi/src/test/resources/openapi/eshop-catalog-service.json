@@ -16,9 +16,6 @@
     "name" : "eshop-catalog.product",
     "description" : "A product of the catalog"
   }, {
-    "name" : "eshop-catalog.snapshot",
-    "description" : "The rebuild of the context's snapshots."
-  }, {
     "name" : "wow",
     "description" : "The framework's own endpoints."
   } ],
@@ -893,6 +890,86 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-catalog/brand/wow.snapshot.rebuild" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.brand" ],
+        "summary" : "Rebuild",
+        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-catalog.brand.wow.snapshot.Rebuild",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -2027,6 +2104,86 @@
         }
       }
     },
+    "/eshop-catalog/category/wow.snapshot.rebuild" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.category" ],
+        "summary" : "Rebuild",
+        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-catalog.category.wow.snapshot.Rebuild",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
     "/eshop-catalog/category/{id}/state" : {
       "get" : {
         "tags" : [ "eshop-catalog.category" ],
@@ -2889,6 +3046,101 @@
         }
       }
     },
+    "/eshop-catalog/product/{id}/discontinue-product" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.product" ],
+        "summary" : "DiscontinueProduct",
+        "description" : "Discontinue a product. Sends `eshop-catalog.product.DiscontinueProduct`. Acts on an aggregate that exists. Produces `ProductDiscontinued`, `wow.lifecycle.AggregateDeleted`.",
+        "operationId" : "eshop-catalog.product.DiscontinueProduct",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-catalog.product.DiscontinueProduct",
+          "creation" : "NONE",
+          "produces" : [ "ProductDiscontinued", "wow.lifecycle.AggregateDeleted" ]
+        }
+      }
+    },
     "/eshop-catalog/product/{id}/publish-product" : {
       "post" : {
         "tags" : [ "eshop-catalog.product" ],
@@ -3427,6 +3679,86 @@
         }
       }
     },
+    "/eshop-catalog/product/wow.snapshot.rebuild" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.product" ],
+        "summary" : "Rebuild",
+        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the caller's tenant.",
+        "operationId" : "eshop-catalog.product.wow.snapshot.Rebuild",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
     "/eshop-catalog/product/{id}/state" : {
       "get" : {
         "tags" : [ "eshop-catalog.product" ],
@@ -3915,93 +4247,6 @@
           }
         }
       }
-    },
-    "/eshop-catalog/snapshot/{id}/wow.snapshot.rebuild" : {
-      "post" : {
-        "tags" : [ "eshop-catalog.snapshot" ],
-        "summary" : "Rebuild",
-        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregate type the path's id names, in the caller's tenant: `brand`, `category`, `product`.",
-        "operationId" : "eshop-catalog.snapshot.wow.snapshot.Rebuild",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
-        }
-      }
     }
   },
   "components" : {
@@ -4384,8 +4629,504 @@
         "required" : [ "name", "context", "dataset", "path" ]
       },
       "wow.Manifest" : {
+        "title" : "Wow Manifest",
+        "description" : "A service's Manifest, or a module's fragment (without service), format 1.",
         "type" : "object",
-        "description" : "The service's Manifest."
+        "required" : [ "format", "contexts", "errors", "$defs" ],
+        "properties" : {
+          "format" : {
+            "const" : 1,
+            "description" : "The format of the Manifest."
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The markers a reader must understand to read the Manifest."
+          },
+          "service" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Service"
+          },
+          "contexts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Context"
+            }
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Error"
+            },
+            "description" : "The framework's error codes and their HTTP statuses."
+          },
+          "$defs" : {
+            "type" : "object",
+            "description" : "The JSON Schema 2020-12 of every payload, by key.",
+            "additionalProperties" : {
+              "type" : "object"
+            }
+          }
+        }
+      },
+      "wow.Manifest.Service" : {
+        "type" : "object",
+        "description" : "The service a merged Manifest describes; a fragment has none.",
+        "required" : [ "name" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Context" : {
+        "type" : "object",
+        "description" : "A bounded context: its aggregates, subscriptions, published streams, error codes and job commands.",
+        "required" : [ "name", "aggregates", "subscriptions", "published", "errors" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "The bounded context's name: lower case words joined by hyphens."
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "aggregates" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Aggregate"
+            }
+          },
+          "subscriptions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Subscription"
+            }
+          },
+          "published" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Published"
+            }
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Error"
+            },
+            "description" : "The context's own error codes."
+          },
+          "commands" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Command"
+            },
+            "description" : "The context's own system commands: its job commands."
+          }
+        }
+      },
+      "wow.Manifest.Aggregate" : {
+        "type" : "object",
+        "description" : "An aggregate type: its state, snapshots, commands, events and query models.",
+        "required" : [ "name", "state", "snapshot", "commands", "events", "queries" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/wow.Manifest.State"
+          },
+          "snapshot" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Snapshot"
+          },
+          "commands" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Command"
+            }
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Event"
+            }
+          },
+          "queries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Query"
+            }
+          },
+          "schedules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The commands the aggregate schedules."
+          },
+          "ownership" : {
+            "type" : "string",
+            "enum" : [ "OWNER", "TENANT" ],
+            "description" : "Who owns an aggregate; OWNER when absent."
+          },
+          "retired" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The events the aggregate no longer produces."
+          }
+        }
+      },
+      "wow.Manifest.State" : {
+        "type" : "object",
+        "description" : "An aggregate's state: its schema and the fingerprint of its shape.",
+        "required" : [ "schema" ],
+        "properties" : {
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "fingerprint" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Snapshot" : {
+        "type" : "object",
+        "description" : "Whether an aggregate keeps snapshots, and the revision of their state.",
+        "required" : [ "enabled" ],
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "stateRevision" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "wow.Manifest.Query" : {
+        "type" : "object",
+        "description" : "A query model of an aggregate (snapshot, events) and its routes.",
+        "required" : [ "model", "routes" ],
+        "properties" : {
+          "model" : {
+            "type" : "string"
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Route"
+            }
+          }
+        }
+      },
+      "wow.Manifest.Command" : {
+        "type" : "object",
+        "description" : "A command of an aggregate or a context, and the routes that send it.",
+        "required" : [ "name", "aliases", "schema", "creation", "routes" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "aliases" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The command's former names."
+          },
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "creation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+            "description" : "Whether the command creates its aggregate."
+          },
+          "produces" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The events the command produces, when the module says."
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Route"
+            }
+          },
+          "mounted" : {
+            "type" : "boolean"
+          },
+          "system" : {
+            "type" : "boolean",
+            "description" : "A system command (wow.*): a lifecycle command, a rebuild or a job command."
+          },
+          "transformsTo" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Event" : {
+        "type" : "object",
+        "description" : "An event of an aggregate and its revision.",
+        "required" : [ "name", "aliases", "revision", "schema" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "aliases" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The event's former names."
+          },
+          "revision" : {
+            "type" : "integer"
+          },
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Route" : {
+        "type" : "object",
+        "description" : "A route of the edge: a method and a path, {id} the aggregate id.",
+        "required" : [ "method", "path" ],
+        "properties" : {
+          "method" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Error" : {
+        "type" : "object",
+        "description" : "An error code and the HTTP status it is answered with.",
+        "required" : [ "code", "status" ],
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Published" : {
+        "type" : "object",
+        "description" : "A stream a context publishes of an aggregate's events, and its topic.",
+        "required" : [ "aggregate", "topic", "includeState" ],
+        "properties" : {
+          "aggregate" : {
+            "type" : "string"
+          },
+          "topic" : {
+            "type" : "string"
+          },
+          "includeState" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.Subscription" : {
+        "type" : "object",
+        "description" : "A subscription of a bounded context: what it reads and what its handler derives.",
+        "required" : [ "name", "kind", "source", "function" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "processor.function"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Source"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Function"
+          },
+          "derives" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "rejected" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "committed" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "calls" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "start" : {
+            "type" : "string",
+            "enum" : [ "BEGINNING", "END" ]
+          },
+          "schedules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "retry" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Retry"
+          },
+          "job" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Job"
+          }
+        }
+      },
+      "wow.Manifest.Source" : {
+        "type" : "object",
+        "description" : "What a subscription reads: a context, aggregate types and events.",
+        "required" : [ "aggregates", "events" ],
+        "properties" : {
+          "context" : {
+            "type" : "string"
+          },
+          "aggregates" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "eventSchemas" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "nullableState" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.Function" : {
+        "type" : "object",
+        "description" : "The handler function of a subscription.",
+        "required" : [ "kind", "context", "processor", "name" ],
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+          },
+          "context" : {
+            "type" : "string"
+          },
+          "processor" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Retry" : {
+        "type" : "object",
+        "description" : "A subscription's retry budget.",
+        "properties" : {
+          "maxAttempts" : {
+            "type" : "integer"
+          },
+          "initialBackoff" : {
+            "type" : "string"
+          },
+          "maxBackoff" : {
+            "type" : "string"
+          },
+          "timeout" : {
+            "type" : "string"
+          },
+          "recoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "unrecoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "multiplier" : {
+            "type" : "number"
+          }
+        }
+      },
+      "wow.Manifest.Job" : {
+        "type" : "object",
+        "description" : "The scheduled job a subscription runs.",
+        "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "cron" : {
+            "type" : "string"
+          },
+          "zone" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "sharded" : {
+            "type" : "boolean"
+          },
+          "misfire" : {
+            "type" : "string"
+          }
+        }
       },
       "wow.SnapshotRecord" : {
         "type" : "object",
@@ -4701,7 +5442,7 @@
       },
       "wow.snapshot.Rebuild" : {
         "type" : "object",
-        "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, in the caller's tenant.",
+        "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the caller's tenant.",
         "properties" : {
           "ids" : {
             "type" : "array",
@@ -4837,6 +5578,16 @@
         },
         "description" : "Delist a product"
       },
+      "me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ],
+        "description" : "Discontinue a product"
+      },
       "me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated" : {
         "type" : "object",
         "properties" : {
@@ -4869,6 +5620,16 @@
         },
         "required" : [ "reason" ],
         "description" : "A product was taken off the storefront"
+      },
+      "me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ],
+        "description" : "A product was discontinued for good"
       },
       "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
         "type" : "object",
@@ -5089,7 +5850,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5097,7 +5858,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.dataset-query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -5411,7 +6172,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "eshop-catalog.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5419,7 +6180,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "eshop-catalog.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
@@ -5557,7 +6318,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "wow.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5565,7 +6326,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
@@ -5687,7 +6448,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5695,7 +6456,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

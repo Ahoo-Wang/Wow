@@ -6,15 +6,14 @@ The job: put a business rule where it holds. An aggregate decides each command f
 
 The quickstart's account: a state evolved by `onSourcing`, a root whose `onCommand` functions decide, and the rejection codes it answers with. A deposit's positive amount is no rejection: it is `@field:Positive` on the `Deposit` class, checked at admission.
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 
 class AccountState {
     var owner: String = ""
@@ -41,13 +40,12 @@ class Account(private val state: AccountState) {
 
     fun onCommand(command: Deposit): Deposited = Deposited(command.amount)
 
-    @OnCommand(produces = [Withdrawn::class])
-    fun onCommand(command: Withdraw): Decision =
+    fun onCommand(command: Withdraw): Withdrawn {
         if (command.amount > state.balance) {
-            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-        } else {
-            Decision.events(Withdrawn(command.amount))
+            reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
         }
+        return Withdrawn(command.amount)
+    }
 
     /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.insufficient-balance`. */
     object Rejections {
@@ -66,7 +64,8 @@ class Account(private val state: AccountState) {
 
 - `@AggregateRoot class Root(private val state: State)` (or a root that is its own state). Attributes: `lifecycle` (default all five lifecycle commands), `published`, `publishState`, `topic`, `retiredEvents`.
 - Command functions: non-private, `@OnCommand` or named `onCommand`. First parameter the body `X` or `Command<X>` (`ref`, `scope`, `headers`, `causation`); then services (factory parameters bound once from beans; `@Name` qualifies by bean name) and `DecideScope`.
-- Return `Decision.events(...)`, `Decision.NoOp`, `Decision.reject(code, message)`, an event, a list of events, or nothing. `@OnCommand(produces = [...])` is required for a `Decision` return, so the Manifest knows the events, and forbidden when the return type names them.
+- Return the event type, in this order of preference: the event (`Withdrawn`), `E?` when the command may change nothing (null is a no-op), a sealed type of the events, or a list of one event type; reject by throwing (`reject(code, message)`). Return `Decision` only when the type cannot name the events (two kinds without a common sealed type, a domain event and a lifecycle event), with `@OnCommand(produces = [...])` listing them; `produces` is forbidden when the return type names them. A comment on such a function says why it is a `Decision`.
+- The kernel holds each function to the events its return type or `produces` names: another event fails the command, `wow.command.undeclared-event` (500), a bug in the model.
 - Creation: `@CreateAggregate` on the command (the aggregate must not exist, else `wow.aggregate.exists`), `@AllowCreate` (either), neither (it must exist, else `wow.aggregate.not-found`).
 - `@Unaddressed`: a command whose request may name no aggregate because a `CommandTransformer` of the service finds it (a derived id).
 - **No identity in command bodies**: the id comes from the route or the saga's ref, tenant, owner and space from the caller, the expected version from `If-Match`.
@@ -77,7 +76,7 @@ class Account(private val state: AccountState) {
 
 ## Rejections and error codes
 
-- A rejection is a decision, not an exception: `Decision.reject(code, message)`. An exception thrown by decide is a failure (`wow.command.failed`), answered as 500.
+- Reject with `reject(code, message)` (`me.ahoo.wow.api.decide`; it throws a `RejectedException`, which the kernel answers as the rejection), or `Decision.reject(code, message)` from a function returning `Decision`; Java throws `RejectedException(Rejection.of(code, message))`. `require` answers `wow.command.invalid`, `check` `wow.command.refused`. Any other exception thrown by decide is a failure (`wow.command.failed`), answered as 500.
 - Codes: `@ErrorCode(description, status = 422)` on a `const val String` in an `object` nested in the `@AggregateRoot` class, by local name (`const val EMPTY = "empty"`); the compiler and the kernel name it `<context>.<aggregate>.empty`. A code with a dot is full (`<context>.<code>` for a context-wide one). Never the `wow.` prefix; each code once per module. Peers compare with the api's generated `<Context>Contract.<Aggregate>.Errors.<NAME>`.
 - A code is for a rule that needs the state or the caller (not the owner, not found, empty, insufficient); a rule about the command alone is a constraint on its class, with no code.
 - Choose the status for the caller: 422 (the default) for a rule the request breaks, 409 for a conflict with the current state. The framework's own codes are in `FrameworkCodes` (`me.ahoo.wow.api.result`); a domain does not reject with them.
@@ -87,7 +86,7 @@ class Account(private val state: AccountState) {
 `DecideScope` is the decide function's view of the request: `command`, `ids` (deterministic ids), `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
 
 - **Unique keys** (a user name, an order number): `reserve` in decide; the reservation commits with the events and is released if the append fails. `tenancy` is `TENANT` (the default: unique within the tenant) or `SYSTEM` (unique across tenants). Every unique key includes the tenant unless it is meant to be global.
-- **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = ["ctx.agg.Command"])` declares them); at least once, never early; a rejection when due is the normal guard.
+- **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = [Command::class])` declares them); at least once, never early; a rejection when due is the normal guard.
 
 ## State and evolution
 

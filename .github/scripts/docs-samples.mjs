@@ -12,8 +12,8 @@ import { trackedFiles } from './docs-layout.mjs';
 // sample compiles and its tests pass, or this check fails. A fenced block that
 // follows a sample comment, with only blank lines between them,
 //
-//   <!-- sample: example/quickstart/src/main/kotlin/.../Account.kt -->
-//   <!-- sample: example/eshop/ordering/ordering-domain/src/.../Order.kt#decide -->
+//   <!-- sample: examples/quickstart/src/main/kotlin/.../Account.kt -->
+//   <!-- sample: examples/eshop/ordering/ordering-domain/src/.../Order.kt#decide -->
 //
 // is that file of the repository (without its license header), or the region
 // of that name in it: the lines between `// region <name>` (or `# region`,

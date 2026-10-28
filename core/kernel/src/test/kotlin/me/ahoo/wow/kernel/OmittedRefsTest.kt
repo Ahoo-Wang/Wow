@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
@@ -26,17 +27,16 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.schedule.JobScope
-import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.spi.id.IdGenerators
-import me.ahoo.wow.test.scheduleSpec
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 /** Decision D234 ⑤: a saga's handler leaves a command's ref out, and the contracts name its aggregate type. */
 class OmittedRefsTest {
@@ -80,33 +80,40 @@ class OmittedRefsTest {
     @Test
     fun `an execution's command without its type should go to the aggregate the contracts assign, in the commit's tenant`() {
         val context = saga()
-        val reserve = context.command("product-1", Reserve("o-1"))
+        val reserve = context.derive(CommandRequest.of(Reserve("o-1"), "product-1"))
         reserve.ref.assert().isEqualTo(stock.ref("acme", "product-1"))
-        reserve.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
+        reserve.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.ref("acme", "product-1"), Reserve::class.java),
+        )
         reserve.scope.assert().isEqualTo(Scope("alice", "space-a"))
         reserve.operator.assert().isEqualTo(Operator("alice", "acme"))
-        // A creation without an id leaves the id to the target (decision D191), as command(type, body) does.
-        val created = context.command(Reserve("o-2"))
+        // A creation without an id leaves the id to the target (decision D191).
+        val created = context.derive(CommandRequest.of(Reserve("o-2")))
         created.ref.assert().isEqualTo(stock.unassigned("acme"))
-        created.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 1))
+        created.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.unassigned("acme"), Reserve::class.java)
+        )
         // It is the same request as the full form's.
-        saga().command(stock.ref("acme", "product-1"), Reserve("o-1")).assert().isEqualTo(reserve)
+        saga().derive(CommandRequest.to(stock.ref("acme", "product-1"), Reserve("o-1"))).requestId.assert()
+            .isEqualTo(reserve.requestId)
     }
 
     @Test
     fun `leaving the ref out should fail when no contract or several aggregate types decide the class`() {
         val context = saga()
-        assertThrownBy<IllegalArgumentException> { context.command("x", Unknown("n")) }
+        assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(Unknown("n"), "x")) }
             .hasMessageContaining("OrderSaga.onOrderPlaced sends ${Unknown::class.java.name} without its target")
             .hasMessageContaining("no contract assigns it an aggregate")
             .hasMessageContaining("Add the api module of the bounded context")
-        assertThrownBy<IllegalArgumentException> { context.command(Shared("n")) }
+        assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(Shared("n"))) }
             .hasMessageContaining("several aggregate types decide it: inventory.stock, billing.ledger")
-        assertThrownBy<IllegalArgumentException> { context.command("o-1", DeleteAggregate) }
+        assertThrownBy<IllegalArgumentException> { context.derive(CommandRequest.of(DeleteAggregate, "o-1")) }
             .hasMessageContaining("the lifecycle command")
             .hasMessageContaining("every aggregate type takes it")
         // Outside a node, a context built without the contracts knows none.
-        assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution, event).command("x", Reserve("o")) }
+        assertThrownBy<IllegalArgumentException> {
+            ExecutionSagaContext(execution, event).derive(CommandRequest.of(Reserve("o"), "x"))
+        }
             .hasMessageContaining("no contract assigns it an aggregate")
     }
 
@@ -122,8 +129,8 @@ class OmittedRefsTest {
             Operator("alice", "acme"),
             Scope("alice", "space-a"),
         )
-        val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { _, context ->
-            listOf(context.command("product-2", Reserve("o-1")), context.command(Reserve("o-1")))
+        val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { _, _ ->
+            listOf(CommandRequest.of(Reserve("o-1"), "product-2"), CommandRequest.of(Reserve("o-1")))
         }
         val compensations = runBlocking {
             onRejected.invoke(rejected, rejectionContextOf(onRejected, rejected, IdGenerators.DEFAULT, types))
@@ -160,8 +167,8 @@ class OmittedRefsTest {
             operator = Operator("alice", "acme"),
             scope = Scope("alice", "space-a"),
         )
-        val onCommitted = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { _, context ->
-            listOf(context.command("product-3", Reserve("o-1")))
+        val onCommitted = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { _, _ ->
+            listOf(CommandRequest.of(Reserve("o-1"), "product-3"))
         }
         val confirmations = runBlocking {
             onCommitted.invoke(committed, committedContextOf(onCommitted, committed, IdGenerators.DEFAULT, types))
@@ -173,30 +180,49 @@ class OmittedRefsTest {
     }
 
     @Test
-    fun `an OnSchedule job should write each command's full ref`() {
-        val job = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"), JobScope.TENANT)
-        val omitted = ProcessorBinding.schedule("StockSaga", "onNightly", job) { tick, context ->
-            listOf(context.command(tick.tenantId, Reserve("o-1")))
-        }
-        val created = ProcessorBinding.schedule("StockSaga", "onNightly", job) { _, context ->
-            listOf(context.command(Reserve("o-1")))
-        }
-        val full = ProcessorBinding.schedule("StockSaga", "onNightly", job) { tick, context ->
-            listOf(context.command(stock.ref(tick.tenantId, "all"), Reserve("o-1")))
-        }
+    fun `an OnSchedule job's command of an id or a body should go to its class's aggregate, in the instance's tenant`() {
+        val instance = AggregateType("inventory", "job").ref("acme", "nightly")
+        val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
         val tick = ScheduleTick("acme", "nightly", slot = 1)
-        listOf(omitted, created).forEach { handlers ->
-            scheduleSpec(listOf(handlers)) {
-                whenTick(tick) {
-                    expectError<IllegalArgumentException> {
-                        message.assert().contains("StockSaga.onNightly is an @OnSchedule job")
-                        message.assert().contains("writes each command's full ref")
-                    }
-                }
-            }
-        }
-        scheduleSpec(listOf(full)) {
-            whenTick(tick) { expectCommand(Reserve("o-1"), to = stock.ref("acme", "all")) }
-        }
+        val saga =
+            ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
+        val context: JobContext = ExecutionJobContext(saga, tick)
+        context.tick.assert().isEqualTo(tick)
+        context.executionId.assert().isEqualTo(saga.executionId)
+        context.invocationKey.assert().isEqualTo(saga.invocationKey)
+        context.ids.assert().isSameAs(saga.ids)
+        saga.derive(CommandRequest.of(Reserve("o-1"), "mug")).ref.assert().isEqualTo(stock.ref("acme", "mug"))
+        saga.derive(CommandRequest.of(Reserve("o-2"))).ref.assert().isEqualTo(stock.unassigned("acme"))
+        saga.derive(CommandRequest.to(stock.ref("acme", "all"), Reserve("o-3"))).ref.assert()
+            .isEqualTo(stock.ref("acme", "all"))
+        context.toString().assert().contains("StockSaga.onNightly")
+        assertThrownBy<UnsupportedOperationException> { context.queries }
+    }
+
+    @Test
+    fun `a derived request's fields should shape its command, and a wait or a timeout should be refused`() {
+        val context = saga()
+        val other = context.derive(
+            CommandRequest.builder(Reserve("o-1")).id("product-1").targetTenant("other")
+                .targetScope(Scope("bob")).expectedVersion(4).build(),
+        )
+        other.ref.assert().isEqualTo(stock.ref("other", "product-1"))
+        other.scope.assert().isEqualTo(Scope("bob"))
+        other.expectedVersion.assert().isEqualTo(4)
+        // A business key names the request, whatever else the execution derives.
+        val keyed = context.derive(CommandRequest.builder(Reserve("o-1")).id("product-1").requestId("k-1").build())
+        keyed.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.ref("acme", "product-1"), Reserve::class.java, "k-1"),
+        )
+        saga().derive(CommandRequest.builder(Reserve("o-9")).id("product-1").requestId("k-1").build()).id.assert()
+            .isEqualTo(keyed.id)
+        assertThrownBy<IllegalArgumentException> {
+            context.derive(CommandRequest.builder(Reserve("o-1")).id("p").wait(WaitPlan.COMMITTED).build())
+        }.hasMessageContaining(
+            "OrderSaga.onOrderPlaced derives ${Reserve::class.java.name} with a wait (CommandRequest.wait)"
+        )
+        assertThrownBy<IllegalArgumentException> {
+            context.derive(CommandRequest.builder(Reserve("o-1")).id("p").timeout(1.seconds).build())
+        }.hasMessageContaining("with a timeout (CommandRequest.timeout)")
     }
 }

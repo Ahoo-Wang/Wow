@@ -36,7 +36,7 @@ import { AddToDashboardDialog } from './AddToDashboardDialog.js';
 
 /**
  * 「更多视图操作」 beside the save button: what else is done to the open
- * view, where the reader is, rather than in 「管理视图」 (R2-98).
+ * view, where the reader is, rather than in 「管理视图」.
  *
  * - **另存为**, where a save in place is also offered (`saveAs`).
  * - **设为共享／设为个人**, the move to the other audience the manager's row

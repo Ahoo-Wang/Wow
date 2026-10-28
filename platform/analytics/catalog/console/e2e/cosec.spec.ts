@@ -14,6 +14,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { accessToken } from "./cosec.ts";
 import { CONNECTION, DATABASE, putTable } from "./warehouse.ts";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /*
  * The console against the catalog server in its production shape, the
@@ -46,7 +47,7 @@ test("the service answers a request without a token 401, and trusts no identity 
   const query = "/analytics-catalog/source/snapshot/query";
   const data = { kind: "list", filter: { op: "MATCH_ALL" } };
   expect((await request.post(query, { data })).status()).toBe(401);
-  const headers = { "X-User": "eve", "X-Role": "analytics.catalog.admin" };
+  const headers = { [DevelopmentCallerHeaders.USER]: "eve", [DevelopmentCallerHeaders.ROLES]: "analytics.catalog.admin" };
   expect((await request.post(query, { data, headers })).status()).toBe(401);
 });
 

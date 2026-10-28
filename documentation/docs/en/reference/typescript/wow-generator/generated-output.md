@@ -8,7 +8,7 @@ description: 'Generated output and regeneration — @ahoo-wang/wow-generator'
 Generation produces TypeScript source, not a standalone HTTP implementation. Compile decorator classes with `experimentalDecorators: true`; install the packages imported by the actual output.
 
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 ## Output families
 
 | Output                    | Generation rules                                                                                                                         |
@@ -17,7 +17,8 @@ Generation produces TypeScript source, not a standalone HTTP implementation. Com
 | `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags; wow/Actuator/Wow aggregate tags excluded. Named after the class, camelCase like every generated file: `cartApiClient.ts` |
 | `commandClient.ts`        | Resolved aggregate command paths, body aliases (`AddCartItemCommand`; none for a body already named `…Command`), regular and stream command clients |
 | `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
-| `boundedContext.ts`       | Context-alias constant for resolved contexts                                                                                             |
+| `contract.ts`             | The context's `<Context>Contract` (its name, context-level error codes and aggregates with their error codes), the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops |
+| `client.ts`               | `<Context>Client`: the context's `CommandGateway` and, per aggregate, its command, snapshot, event and state clients |
 | `index.ts`                | Recursive exports for the .ts files of this run and nonempty subdirectories                                                              |
 | `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files; an older `.fetcher-generator.json` is read once and replaced    |
 
@@ -97,7 +98,7 @@ Create the generated client with its ApiMetadata constructor, typically `{ fetch
 
 Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor, and takes wow-client's `COMMAND_STREAM_ENDPOINT` (`@api('', COMMAND_STREAM_ENDPOINT)`): it asks for `text/event-stream` and errors the stream with a `WowError` when the server sends an error event, as `CommandClient.sendAndWaitStream` does. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
 
-<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted; the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';

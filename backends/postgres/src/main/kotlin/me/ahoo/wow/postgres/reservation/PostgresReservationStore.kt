@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -29,6 +28,7 @@ import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -58,7 +58,7 @@ class PostgresReservationStore(
     /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : ReservationStore {
-    private val created = EnsuredTables<PostgresReservationTables>()
+    private val created = EnsuredOnce<String, PostgresReservationTables>()
 
     /**
      * Nothing to create up front: each aggregate type's table is created on its first use, since the store does not
@@ -105,15 +105,15 @@ class PostgresReservationStore(
 
     override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         jdbc { connection ->
-            inTransaction(connection) {
-                val left = connection.prepareStatement(tablesOf(scope.type).abandon).use { abandon ->
+            inTransaction(connection) { bound ->
+                val left = bound.prepareStatement(tablesOf(scope.type).abandon).use { abandon ->
                     abandon.setString(1, hold)
                     val index = abandon.setOwner(abandon.setKey(2, scope, key), owner)
                     abandon.setString(index, hold)
                     abandon.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else null }
                 }
                 if (left == 0) {
-                    connection.prepareStatement(tablesOf(scope.type).abandoned).use { free ->
+                    bound.prepareStatement(tablesOf(scope.type).abandoned).use { free ->
                         free.setOwner(free.setKey(1, scope, key), owner)
                         free.executeUpdate()
                     }

@@ -22,11 +22,13 @@ import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spi.config.configCheck
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Condition
@@ -41,8 +43,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * wires its optional integrations as it wires Kafka, and wow-cosec keeps the Spring-free part, the resolvers and the
  * authorizer. It reads `wow.cosec.*` once, through [WowProperties.cosec], the keys' one reader and one default.
  *
- * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
- *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
+ * - [CoSecCallerResolver] is the host's [CallerResolver] when CoSec is on (`cosec.enabled`, true unless set) and
+ *   the application has none: the host's development callers ([DevelopmentCallerResolver]) step aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
  *   tenant-level callers), comma-separated or indexed lists, and `wow.cosec.trust-injected-app` (false),
  *   whether a service in CoSec's inject mode records the application of the requests its gateway forwards
@@ -64,13 +66,17 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 class CoSecAutoConfiguration {
     @Bean
     @Conditional(NoCallerResolver::class)
+    @ConditionalOnProperty(COSEC_ENABLED, havingValue = "true", matchIfMissing = true)
     fun wowCoSecCallerResolver(properties: WowProperties, environment: Environment): CoSecCallerResolver =
         CoSecCallerResolver(callerOptions(properties, environment))
 
     @Bean
     @Conditional(CoSecAuthorizes::class)
-    fun wowCoSecAuthorizers(authorization: CoSecAuthorization, properties: WowProperties): CoSecAuthorizers =
-        CoSecAuthorizers(authorization, defaultTenant(properties))
+    fun wowCoSecAuthorizers(
+        authorization: CoSecAuthorization,
+        manifest: Manifest,
+        properties: WowProperties,
+    ): CoSecAuthorizers = CoSecAuthorizers(authorization, manifest, defaultTenant(properties))
 
     @Bean
     @Conditional(AuthorizerEnabled::class)
@@ -164,6 +170,9 @@ class CoSecAutoConfiguration {
             map(String::trim).filter(String::isNotEmpty).toCollection(LinkedHashSet())
     }
 }
+
+/** CoSec's switch: its resolver is the host's only while CoSec is on. */
+internal const val COSEC_ENABLED = "cosec.enabled"
 
 /** A class of wow-cosec, present only when the application has the module. */
 internal const val COSEC_MODULE = "me.ahoo.wow.cosec.CoSecCallerResolver"

@@ -20,6 +20,8 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
 
 /**
  * The refusals of a [ServiceNode] that is misconfigured, checked while it is built, each before the parts it would
@@ -28,9 +30,9 @@ import me.ahoo.wow.spi.call.CommandCaller
 internal object NodeChecks {
     /** A node that publishes its failure [ledger] does so through that context's command topic: [sender] sends there. */
     fun ledgerTransport(node: String, ledger: LedgerPublishing?, sender: CommandSender?) {
-        require(ledger == null || sender != null) {
+        configCheck(ledger == null || sender != null, TRANSPORT, null, TRANSPORT_FIX) {
             "Node $node publishes its failure ledger to ${ledger?.context}, through that context's command " +
-                "topic, but has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
+                "topic, but has no command transport."
         }
     }
 
@@ -43,8 +45,8 @@ internal object NodeChecks {
             return
         }
         val outside = contracts.commandsOutside(served)
-        require(outside.isEmpty()) {
-            "Node $node has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but " +
+        configCheck(outside.isEmpty(), TRANSPORT, null, TRANSPORT_FIX) {
+            "Node $node has no command transport, but " +
                 outside.entries.joinToString("; ") { (subscription, contexts) ->
                     "$subscription sends commands to ${contexts.joinToString()}"
                 } + ": a command across contexts goes through its context's command topic."
@@ -53,18 +55,15 @@ internal object NodeChecks {
 
     /** A saga's synchronous calls: each to a context outside [served], which the node's [caller] reaches. */
     fun calls(node: String, contracts: ContractDirectory, served: Set<String>, caller: CommandCaller?) {
-        val problems = contracts.contextsCalled().flatMap { (subscription, contexts) ->
+        val called = contracts.contextsCalled()
+        val problems = called.flatMap { (subscription, contexts) ->
             contexts.mapNotNull { context ->
-                when {
-                    context == ContractDirectory.UNKNOWN_CONTEXT ->
+                when (context) {
+                    ContractDirectory.UNKNOWN_CONTEXT ->
                         "$subscription calls a command no Manifest of the service or its peers decides: depend on " +
                             "the api module of its context, whose jar carries its contract"
 
-                    context in served -> "$subscription calls $context, a context of this node: derive the command"
-
-                    caller == null || !caller.reaches(context) ->
-                        "$subscription calls $context, which the node's caller does not reach (with Spring Boot, " +
-                            "set wow.peers.$context.url)"
+                    in served -> "$subscription calls $context, a context of this node: derive the command"
 
                     else -> null
                 }
@@ -73,18 +72,31 @@ internal object NodeChecks {
         require(problems.isEmpty()) {
             "Node $node cannot make its sagas' calls: ${problems.joinToString("; ")}."
         }
+        val unreached = called.flatMap { (subscription, contexts) ->
+            contexts.filter { caller == null || !caller.reaches(it) }.map { subscription to it }
+        }
+        unreached.firstOrNull()?.let { (_, context) ->
+            throw WowConfigurationException(
+                "wow.peers.$context.url",
+                null,
+                "Node $node cannot make its sagas' calls: " +
+                    unreached.joinToString("; ") { (subscription, it) -> "$subscription calls $it" } +
+                    ", which the node's caller does not reach.",
+                "Give the caller the internal address of each context the sagas call.",
+            )
+        }
     }
 
-    /** The types the `Kafka` router takes ([kafkaRouted]) are served by the node, which has a producer. */
-    fun kafkaRouted(node: String, kafkaRouted: Set<AggregateType>, registry: ModelRegistry, hasProducer: Boolean) {
-        val unknown = kafkaRouted.filter { registry.find(it) == null }
-        require(unknown.isEmpty()) {
-            "The Kafka router is configured for $unknown, which node $node does not serve; it serves " +
+    /** The types the topic router takes ([topicRouted]) are served by the node, which has a producer. */
+    fun topicRouted(node: String, topicRouted: Set<AggregateType>, registry: ModelRegistry, hasProducer: Boolean) {
+        val unknown = topicRouted.filter { registry.find(it) == null }
+        configCheck(unknown.isEmpty(), "wow.aggregates.[${unknown.firstOrNull()}].routing", "topic", ROUTED_FIX) {
+            "The topic router is configured for $unknown, which node $node does not serve; it serves " +
                 "${registry.models.map { it.type }}."
         }
-        require(kafkaRouted.isEmpty() || hasProducer) {
-            "The Kafka router of $kafkaRouted writes their commands to their command topics, but node $node " +
-                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
+        configCheck(topicRouted.isEmpty() || hasProducer, TRANSPORT, null, TRANSPORT_FIX) {
+            "The topic router of $topicRouted writes their commands to their command topics, but node $node " +
+                "has no command transport."
         }
     }
 
@@ -105,4 +117,12 @@ internal object NodeChecks {
             )
         }
     }
+
+    /** The key of the node's topic transport, which carries its command topics. */
+    const val TRANSPORT: String = "wow.transport"
+
+    /** What a node without the command transport it needs changes. */
+    const val TRANSPORT_FIX: String = "Give the node a command transport: its topic transport, with its source."
+
+    private const val ROUTED_FIX: String = "Route through the command topic only the aggregate types the node serves."
 }

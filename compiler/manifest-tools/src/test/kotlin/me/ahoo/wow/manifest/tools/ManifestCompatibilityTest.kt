@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -48,6 +49,8 @@ class ManifestCompatibilityTest {
     companion object {
         private const val CONTEXT = "contexts[shop]"
         private const val CART = "$CONTEXT.aggregates[cart]"
+        private const val DELETE = "wow.lifecycle.DeleteAggregate"
+        private const val APPLY_TAGS = "wow.lifecycle.ApplyTags"
         private val STRING = mapOf("type" to "string")
         private val ROUTE = RouteManifest("POST", "/shop/cart/{id}/add-item")
         private val ERROR = ErrorManifest("shop.cart.full", 409)
@@ -87,9 +90,8 @@ class ManifestCompatibilityTest {
                         AggregateManifest(
                             name = "cart",
                             state = StateManifest(Manifest.schemaRef("shop.CartState"), fingerprint = "a"),
-                            commands = listOf(ADD_ITEM),
+                            commands = listOf(ADD_ITEM, SystemCommands.lifecycle("shop", "cart", DELETE)),
                             events = listOf(ITEM_ADDED),
-                            lifecycle = listOf("wow.lifecycle.DeleteAggregate"),
                             queries = listOf(
                                 QueryManifest("snapshot", listOf(RouteManifest("POST", "/shop/cart/snapshot/query")))
                             ),
@@ -105,6 +107,7 @@ class ManifestCompatibilityTest {
                 "shop.CartState" to schema("items" to mapOf("type" to "array", "items" to STRING)),
                 "shop.AddItem" to schema("productId" to STRING, required = listOf("productId")),
                 "shop.ItemAdded" to schema("productId" to STRING, required = listOf("productId")),
+                DELETE to mapOf("type" to "object"),
             ),
         )
 
@@ -115,7 +118,11 @@ class ManifestCompatibilityTest {
             context { it.copyWith(aggregates = it.aggregates.map(change)) }
 
         private fun Manifest.addItem(change: (CommandManifest) -> CommandManifest): Manifest =
-            cart { it.copyWith(commands = it.commands.map(change)) }
+            cart {
+                it.copyWith(
+                    commands = it.commands.map { command -> if (command.system) command else change(command) }
+                )
+            }
 
         private fun Manifest.itemAdded(change: (EventManifest) -> EventManifest): Manifest =
             cart { it.copyWith(events = it.events.map(change)) }
@@ -194,7 +201,7 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "command removed",
-                BASELINE.cart { it.copyWith(commands = emptyList()) },
+                BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) },
                 "BREAKING $CART.commands[AddItem]: command removed",
             ),
             row(
@@ -395,13 +402,17 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "lifecycle command removed",
-                BASELINE.cart { it.copyWith(lifecycle = emptyList()) },
-                "BREAKING $CART.lifecycle: lifecycle command wow.lifecycle.DeleteAggregate removed",
+                BASELINE.cart { it.copyWith(commands = it.domainCommands) },
+                "BREAKING $CART.commands[$DELETE]: command removed",
             ),
             row(
                 "lifecycle command added",
-                BASELINE.cart { it.copyWith(lifecycle = it.lifecycle + "wow.lifecycle.ApplyTags") },
-                "ADDITIVE $CART.lifecycle: lifecycle command wow.lifecycle.ApplyTags added",
+                BASELINE.cart {
+                    it.copyWith(
+                        commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS)
+                    )
+                },
+                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added",
             ),
             row(
                 "query model removed",
@@ -417,6 +428,19 @@ class ManifestCompatibilityTest {
                 "subscription removed",
                 BASELINE.context { it.copyWith(subscriptions = emptyList()) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed",
+            ),
+            row(
+                "subscription handler renamed",
+                BASELINE.subscription {
+                    it.copyWith(
+                        name = "CartProjector.onItemsAdded",
+                        function = it.function.copyWith(name = "onItemsAdded")
+                    )
+                },
+                "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed: if " +
+                    "CartProjector.onItemsAdded is its handler renamed, annotate it @Name(\"onItemAdded\") to keep the " +
+                    "subscription, its checkpoint and its executions",
+                "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemsAdded]: subscription added",
             ),
             row(
                 "subscription kind changed",
@@ -646,20 +670,20 @@ class ManifestCompatibilityTest {
 
     @Test
     @Suppress("UNCHECKED_CAST")
-    fun `descriptions and lifecycle bodies added to the Manifest should be no change`() {
+    fun `descriptions added to the Manifest should be no change`() {
         val current = BASELINE.addItem { it.copyWith(description = "Adds an item.") }
             .itemAdded { it.copyWith(description = "An item was added.") }
             .def(
                 "shop.AddItem",
                 BASELINE.defs.getValue("shop.AddItem") as Map<String, Any?> + ("description" to "Adds.")
             )
-            .def("wow.lifecycle.DeleteAggregate", mapOf("type" to "object", "description" to "Marks it deleted."))
+            .def(DELETE, mapOf("type" to "object", "description" to "Marks it deleted."))
         ManifestCompatibility.compare(BASELINE, current).changes.assert().isEmpty()
     }
 
     @Test
     fun `a breaking change should fail only within the baseline's major version`() {
-        val broken = BASELINE.cart { it.copyWith(commands = emptyList()) }
+        val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
         ManifestCompatibility.compare(BASELINE, broken).failed.assert().isTrue()
         ManifestCompatibility.compare(
             BASELINE,
@@ -685,12 +709,14 @@ class ManifestCompatibilityTest {
 
     @Test
     fun `the report should list the breaking changes first`() {
-        val current = BASELINE.cart { it.copyWith(lifecycle = listOf("wow.lifecycle.ApplyTags")) }
+        val current = BASELINE.cart {
+            it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+        }
         val report = ManifestCompatibility.compare(BASELINE.copyWith(service = null), current)
         report.render().assert().isEqualTo(
             "Manifest 10.1.0 against the baseline (no version): 1 breaking, 1 additive\n" +
-                "BREAKING $CART.lifecycle: lifecycle command wow.lifecycle.DeleteAggregate removed\n" +
-                "ADDITIVE $CART.lifecycle: lifecycle command wow.lifecycle.ApplyTags added\n",
+                "BREAKING $CART.commands[$DELETE]: command removed\n" +
+                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added\n",
         )
         ManifestCompatibility.compare(BASELINE, current.copyWith(service = null)).render()
             .assert().startsWith("Manifest (no version) against the baseline 10.1.0")
@@ -701,7 +727,7 @@ class ManifestCompatibilityTest {
         val baseline = File(directory, "manifest/baseline.json")
         val current = File(directory, "build/manifest.json")
         val report = File(directory, "build/report/compatibility.txt")
-        ManifestJson.write(BASELINE.cart { it.copyWith(commands = emptyList()) }, current)
+        ManifestJson.write(BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }, current)
 
         ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
         report.readText().assert().contains("No Manifest baseline at $baseline: run updateManifestBaseline")

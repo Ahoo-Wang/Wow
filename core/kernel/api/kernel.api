@@ -1,19 +1,24 @@
 public abstract interface class me/ahoo/wow/kernel/AfterFunction {
 	public abstract fun getApplies ()Lkotlin/jvm/functions/Function1;
+	public abstract fun getProduces ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/kernel/AfterFunction$Suspending : me/ahoo/wow/kernel/AfterFunction {
 	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function4;)V
-	public fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;Ljava/util/Set;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAfter ()Lkotlin/jvm/functions/Function4;
 	public fun getApplies ()Lkotlin/jvm/functions/Function1;
 	public final fun getBlocking ()Z
+	public fun getProduces ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/kernel/AfterFunction$Sync : me/ahoo/wow/kernel/AfterFunction {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Ljava/util/Set;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAfter ()Lkotlin/jvm/functions/Function3;
 	public fun getApplies ()Lkotlin/jvm/functions/Function1;
+	public fun getProduces ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/kernel/AggregateModel {
@@ -46,15 +51,15 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun addEvolver (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/functions/Function2;)V
 	public final fun addMounted (Ljava/lang/Class;Ljava/lang/String;)V
 	public final fun addUpgrade (Ljava/lang/Class;ILme/ahoo/wow/kernel/EventUpgrade;)V
-	public final fun after (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;)V
-	public static synthetic fun after$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
-	public final fun afterBlocking (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
-	public static synthetic fun afterBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
-	public final fun afterSuspending (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
-	public static synthetic fun afterSuspending$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
+	public final fun after (Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;)V
+	public static synthetic fun after$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
+	public final fun afterBlocking (Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun afterBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
+	public final fun afterSuspending (Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun afterSuspending$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun build ()Lme/ahoo/wow/kernel/AggregateModel;
-	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;)V
-	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
+	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;ZLjava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;ZLjava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
@@ -80,12 +85,14 @@ public final class me/ahoo/wow/kernel/CommandType {
 	public final fun isNamed (Ljava/lang/String;)Z
 	public static final fun of (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public static final fun of (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)Lme/ahoo/wow/kernel/CommandType;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/CommandType$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun of (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)Lme/ahoo/wow/kernel/CommandType;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/CommandType$Companion;Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/kernel/CommandType;
 }
 
@@ -98,7 +105,7 @@ public final class me/ahoo/wow/kernel/CommittedBinding {
 	public final fun getProcessor ()Ljava/lang/String;
 	public static final fun handlerOf (Ljava/util/List;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommittedBinding;
 	public final fun handles (Ljava/lang/Class;)Z
-	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/subscribe/SagaContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/subscribe/ReceiptContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/CommittedBinding;
 	public fun toString ()Ljava/lang/String;
 }
@@ -110,34 +117,44 @@ public final class me/ahoo/wow/kernel/CommittedBinding$Companion {
 }
 
 public final class me/ahoo/wow/kernel/CommittedBindingKt {
-	public static final fun committedContextOf (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/SagaContext;
-	public static synthetic fun committedContextOf$default (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/SagaContext;
+	public static final fun committedContextOf (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
+	public static synthetic fun committedContextOf$default (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
 }
 
 public abstract interface class me/ahoo/wow/kernel/DecideFunction {
 	public abstract fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
+	public abstract fun getOnDeleted ()Z
+	public abstract fun getProduces ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/kernel/DecideFunction {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function4;)V
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLkotlin/jvm/functions/Function4;Ljava/util/Set;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLkotlin/jvm/functions/Function4;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBlocking ()Z
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function4;
+	public fun getOnDeleted ()Z
+	public fun getProduces ()Ljava/util/Set;
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Sync : me/ahoo/wow/kernel/DecideFunction {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function3;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function3;Ljava/util/Set;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function3;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function3;
+	public fun getOnDeleted ()Z
+	public fun getProduces ()Ljava/util/Set;
 }
 
 public abstract interface class me/ahoo/wow/kernel/Dependencies {
 	public static final field Companion Lme/ahoo/wow/kernel/Dependencies$Companion;
 	public static final field NONE Lme/ahoo/wow/kernel/Dependencies;
 	public abstract fun find (Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;
-	public fun get (Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;
-	public static synthetic fun get$default (Lme/ahoo/wow/kernel/Dependencies;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun get (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+	public static synthetic fun get$default (Lme/ahoo/wow/kernel/Dependencies;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/Object;
 	public static fun of (Ljava/util/Map;[Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
 	public static fun of ([Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
 }
@@ -145,6 +162,10 @@ public abstract interface class me/ahoo/wow/kernel/Dependencies {
 public final class me/ahoo/wow/kernel/Dependencies$Companion {
 	public final fun of (Ljava/util/Map;[Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
 	public final fun of ([Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
+}
+
+public final class me/ahoo/wow/kernel/DerivedRequestsKt {
+	public static final fun requestsOf (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/kernel/EventType {
@@ -161,42 +182,39 @@ public abstract interface class me/ahoo/wow/kernel/EventUpgrade {
 	public abstract fun upgrade (Ltools/jackson/databind/JsonNode;)Ltools/jackson/databind/JsonNode;
 }
 
-public final class me/ahoo/wow/kernel/ExecutionProjectContext : me/ahoo/wow/api/subscribe/ProjectContext {
+public final class me/ahoo/wow/kernel/ExecutionContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;)V
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/kernel/ExecutionReactContext : me/ahoo/wow/api/subscribe/ReactContext {
-	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;)V
-	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/subscribe/SagaContext {
+public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/subscribe/SagaContext, me/ahoo/wow/kernel/Derivation {
 	public static final field Companion Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;
 	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
-	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
+	public fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public fun commandsOf (Ljava/util/List;)Ljava/util/List;
+	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
+	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
+	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
-	public fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/client/CommandRequest;)V
 }
 
 public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
-	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
+	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
+	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
+	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun derivedId$default (Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;IILjava/lang/Object;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/HandlerRetry {
 	public static final field Companion Lme/ahoo/wow/kernel/HandlerRetry$Companion;
+	public static final field DEFAULT_MAX_ATTEMPTS I
 	public static final field NONE Lme/ahoo/wow/kernel/HandlerRetry;
 	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun classify (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/subscription/FailureClass;
@@ -210,8 +228,8 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 	public final fun getUnrecoverable ()Ljava/util/List;
 	public fun hashCode ()I
 	public final fun isEmpty ()Z
-	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;D)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;D)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun over (Lme/ahoo/wow/kernel/HandlerRetry;)Lme/ahoo/wow/kernel/HandlerRetry;
@@ -219,11 +237,12 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 }
 
 public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
-	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;D)Lme/ahoo/wow/kernel/HandlerRetry;
+	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;D)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;DILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;DILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 }
 
 public final class me/ahoo/wow/kernel/KernelOptions {
@@ -248,7 +267,9 @@ public final class me/ahoo/wow/kernel/KernelOptions$Companion {
 }
 
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
-	public fun <init> (Ljava/lang/Class;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBuilding ()Ljava/lang/String;
 	public final fun getQualifier ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/Class;
 }
@@ -316,10 +337,6 @@ public final class me/ahoo/wow/kernel/ProcessorBinding$Companion {
 	public static synthetic fun schedule$default (Lme/ahoo/wow/kernel/ProcessorBinding$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ProcessorBinding;
 }
 
-public final class me/ahoo/wow/kernel/ProcessorBindingKt {
-	public static final fun derivedOf (Ljava/lang/Object;)Ljava/util/List;
-}
-
 public final class me/ahoo/wow/kernel/RejectionBinding {
 	public static final field Companion Lme/ahoo/wow/kernel/RejectionBinding$Companion;
 	public final fun getBlocking ()Z
@@ -329,7 +346,7 @@ public final class me/ahoo/wow/kernel/RejectionBinding {
 	public final fun getProcessor ()Ljava/lang/String;
 	public static final fun handlerOf (Ljava/util/List;Ljava/lang/Class;)Lme/ahoo/wow/kernel/RejectionBinding;
 	public final fun handles (Ljava/lang/Class;)Z
-	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/subscribe/SagaContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/subscribe/ReceiptContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/RejectionBinding;
 	public fun toString ()Ljava/lang/String;
 }
@@ -341,8 +358,8 @@ public final class me/ahoo/wow/kernel/RejectionBinding$Companion {
 }
 
 public final class me/ahoo/wow/kernel/RejectionBindingKt {
-	public static final fun rejectionContextOf (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/SagaContext;
-	public static synthetic fun rejectionContextOf$default (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/SagaContext;
+	public static final fun rejectionContextOf (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
+	public static synthetic fun rejectionContextOf$default (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
 }
 
 public final class me/ahoo/wow/kernel/ResultsKt {
@@ -353,6 +370,7 @@ public final class me/ahoo/wow/kernel/ResultsKt {
 public final class me/ahoo/wow/kernel/StartFrom : java/lang/Enum {
 	public static final field BEGINNING Lme/ahoo/wow/kernel/StartFrom;
 	public static final field END Lme/ahoo/wow/kernel/StartFrom;
+	public static final field JOIN Lme/ahoo/wow/kernel/StartFrom;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/kernel/StartFrom;
 	public static fun values ()[Lme/ahoo/wow/kernel/StartFrom;
@@ -360,6 +378,13 @@ public final class me/ahoo/wow/kernel/StartFrom : java/lang/Enum {
 
 public final class me/ahoo/wow/kernel/TypedEventsKt {
 	public static final fun eachEvent (Lme/ahoo/wow/api/subscribe/StateEvent;Ljava/lang/Class;Lme/ahoo/wow/api/subscribe/SubscriptionContext;Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/kernel/UndeclaredEventException : java/lang/RuntimeException {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;)V
+	public final fun getCommand ()Ljava/lang/Class;
+	public final fun getEvent ()Ljava/lang/Class;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
 public final class me/ahoo/wow/kernel/UnreadableEventException : java/lang/IllegalStateException {

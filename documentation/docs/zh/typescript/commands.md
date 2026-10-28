@@ -7,7 +7,7 @@ description: 通过生成的客户端发送命令，等待它跨 Saga 和上下�
 
 生成的命令客户端为它的聚合的每条命令提供一个方法。一次调用发送命令，按请求的要求等待到相应的位置，然后以等待结束时的 `CommandResult` resolve，或者以服务回答的 problem reject。本页使用 eShop 生成的客户端（[生成客户端](./generate)）。
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## 只创建一次客户端 {#create-the-clients-once}
 
@@ -74,7 +74,7 @@ import { wait } from '@ahoo-wang/wow-client';
 const accepted = await orders.cancelOrder(
   'order-1',
   { reason: 'changed my mind' },
-  { wait: { plan: [wait.accepted()] } },
+  { wait: [wait.accepted()] },
 );
 ```
 
@@ -85,7 +85,7 @@ const accepted = await orders.cancelOrder(
 | `wait.snapshot()` | 快照包含这次提交，所以读取能看到它 |
 | `wait.handled('Processor.function')` | 那个订阅处理了这次提交 |
 
-计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `boundedContext.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
+计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `contract.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -100,20 +100,18 @@ const placed = await baskets.checkoutBasket(
   'buyer-1',
   {},
   {
-    wait: {
-      plan: [
-        eshopBasketWait.committed(),
-        eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-        eshopOrderingWait.committed(),
-      ],
-      timeout: '10s',
-    },
+    wait: [
+      eshopBasketWait.committed(),
+      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      eshopOrderingWait.committed(),
+    ],
+    timeout: 10_000,
   },
 );
 console.log(`order ${placed.ref.id} at version ${placed.version}`);
 ```
 
-调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 是毫秒数，或者请求头的文本（`10s`、`500ms`、`PT10S`）。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
+调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 以毫秒计。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
 
 ## 以流的形式跟随等待 {#follow-the-wait-as-a-stream}
 
@@ -130,13 +128,11 @@ const stream = await baskets.checkoutBasketStream(
   'buyer-1',
   {},
   {
-    wait: {
-      plan: [
-        eshopBasketWait.committed(),
-        eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-        eshopOrderingWait.committed(),
-      ],
-    },
+    wait: [
+      eshopBasketWait.committed(),
+      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      eshopOrderingWait.committed(),
+    ],
   },
 );
 const reader = stream.getReader();
@@ -148,11 +144,11 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会像不用流时一样以它的 problem reject 这次调用。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`example/eshop/web/src/shop/checkout.ts`）。
+在准入时被拒绝的命令，会像不用流时一样以它的 problem reject 这次调用。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。
 
 ## 命令失败时 {#when-a-command-fails}
 
-拒绝会以一个 `WowProblemError` reject：服务写出的 RFC 9457 problem，它的 `status`、它的 Wow `code` 和 `violations`，对于到达了聚合的命令，还有 `result`。领域的拒绝与生成的 `<Context>ErrorCodes` 中的常量比较，框架的拒绝与 `FrameworkErrorCodes` 比较：
+拒绝会以一个 `WowProblemError` reject：服务写出的 RFC 9457 problem，它的 `status`、它的 Wow `code` 和 `violations`，对于到达了聚合的命令，还有 `result`。领域的拒绝与生成的契约中的 `<Context>Contract.<Aggregate>.Errors` 比较，框架的拒绝与 `FrameworkErrorCodes` 比较：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -161,14 +157,14 @@ declare const orders: OrderCommandClient;
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
-import { EshopOrderingErrorCodes } from './generated/ordering/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 try {
   await orders.payOrder('order-1', { amount: '39.80', paymentId: 'pay-1' });
 } catch (error) {
   if (!(error instanceof WowProblemError)) throw error;
   switch (error.code) {
-    case EshopOrderingErrorCodes.ORDER_WRONG_AMOUNT:
+    case EshopOrderingContract.Order.Errors.WRONG_AMOUNT:
       console.warn(error.problem.detail);
       break;
     case FrameworkErrorCodes.COMMAND_INVALID:
@@ -201,4 +197,4 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 聚合的客户端还发送它的 Manifest 列出的生命周期命令：`deleteAggregate`、`restoreAggregate`、`transferOwner`、`transferSpace` 和 `applyTags`。
 
-每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`）；`scope` 在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。
+每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。

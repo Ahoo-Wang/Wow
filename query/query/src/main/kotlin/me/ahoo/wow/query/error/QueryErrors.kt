@@ -51,6 +51,9 @@ object QueryErrors {
     /** A dataset that is not served, or not to the caller. */
     const val DATASET_NOT_FOUND: String = FrameworkErrors.QUERY_DATASET_NOT_FOUND
 
+    /** An aggregation that names no sort found more groups than its limit. */
+    const val TOO_MANY_GROUPS: String = FrameworkErrors.QUERY_TOO_MANY_GROUPS
+
     /** A state read of a minimum version the aggregate has not reached. */
     const val MIN_VERSION_NOT_REACHED: String = FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
     const val DATASET_UNAVAILABLE: String = FrameworkErrors.QUERY_DATASET_UNAVAILABLE

@@ -27,11 +27,11 @@ fun interface Dependencies {
     fun find(type: Class<*>, qualifier: String?): Any?
 
     /**
-     * The dependency of [type], named [qualifier] when it is given: [find]'s, or a [MissingDependencyException]
-     * when there is none.
+     * The dependency of [type], named [qualifier] when it is given, to build [building] with (a processor, `the Order
+     * model`): [find]'s, or a [MissingDependencyException] naming what it builds when there is none.
      */
-    fun <T : Any> get(type: Class<T>, qualifier: String? = null): T {
-        val dependency = find(type, qualifier) ?: throw MissingDependencyException(type, qualifier)
+    fun <T : Any> get(type: Class<T>, qualifier: String? = null, building: String? = null): T {
+        val dependency = find(type, qualifier) ?: throw MissingDependencyException(type, qualifier, building)
         check(type.isInstance(dependency)) {
             "The dependency of ${type.name}${describe(qualifier)} is a ${dependency.javaClass.name}."
         }
@@ -71,9 +71,13 @@ fun interface Dependencies {
     }
 }
 
-/** No dependency of [type], named [qualifier] when it is not null, to build the aggregate models with. */
-class MissingDependencyException(val type: Class<*>, val qualifier: String?) :
+/**
+ * No dependency of [type], named [qualifier] when it is not null, to build [building] with: a processor
+ * (`OrderSummaryProjection`) or a model (`the Order model`), the generated code's models and processors when it is
+ * null.
+ */
+class MissingDependencyException(val type: Class<*>, val qualifier: String?, val building: String? = null) :
     IllegalStateException(
-        "No dependency of ${type.name}${Dependencies.describe(qualifier)} to build the aggregate models with: " +
-            "register one with the host.",
+        "No dependency of ${type.name}${Dependencies.describe(qualifier)} to build " +
+            "${building ?: "the models and processors"} with: register one with the host.",
     )

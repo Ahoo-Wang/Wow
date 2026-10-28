@@ -138,7 +138,7 @@ class CommandTransformerTest {
     )
 
     private fun request(command: String, body: String, aggregateId: String? = null, requestId: String? = null) =
-        CommandRequest(
+        ServerCommandRequest(
             context = CONTEXT,
             aggregate = "account",
             command = command,
@@ -236,7 +236,7 @@ class CommandTransformerTest {
             causation = Causation("root-1", "root-1"),
         )
         val result = gateway().execute(
-            CommandRequest(
+            ServerCommandRequest(
                 context = CONTEXT,
                 aggregate = "account",
                 command = "Import",
@@ -261,10 +261,6 @@ class CommandTransformerTest {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.ref.assert().isEqualTo(registered.ref)
         result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.ProviderCallback"))
-        gateway.transforms(TYPE, "ProviderCallback").assert().isTrue()
-        gateway.transforms(TYPE, "$TYPE.ChangePassword").assert().isTrue()
-        gateway.transforms(TYPE, "Register").assert().isFalse()
-        gateway.transforms(AggregateType(CONTEXT, "other"), "Register").assert().isFalse()
     }
 
     @Test

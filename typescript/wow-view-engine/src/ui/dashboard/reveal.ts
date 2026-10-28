@@ -29,7 +29,7 @@ function menuOf(panel: Element | null | undefined): HTMLElement | null {
 }
 
 /**
- * A panel just added, brought where it can be seen (R2-38): placed from
+ * A panel just added, brought where it can be seen: placed from
  * the first row on screen, a full board puts it below everything — 2,500
  * pixels down on a board of eight panels — and 「已添加」 in the live region
  * was all a sighted builder got, who then added it a second time.

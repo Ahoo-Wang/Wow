@@ -15,8 +15,8 @@ import type { DashboardFilters } from '../../model/index.js';
 import type { HeldFilters } from '../../runtime/index.js';
 
 /**
- * How an embedding page offers each of a board's filters (D22, the
- * embedding half): Metabase's three states, one per filter.
+ * How an embedding page offers each of a board's filters (the embedding half):
+ * Metabase's three states, one per filter.
  *
  * - `adjustable` — on the bar, the reader's to change. What every filter is
  *   unless the page says otherwise, and all a workbench knows.
@@ -109,7 +109,7 @@ export function readersOf(
 }
 
 /**
- * The modes a static embed's bar reads (D36): the reader changes nothing
+ * The modes a static embed's bar reads: the reader changes nothing
  * there, so every filter the page left adjustable — and the time grouping —
  * reads as what it holds, as a locked one does; a hidden one stays off the
  * bar. The bar's reading alone: what the runtime holds, and what the host's

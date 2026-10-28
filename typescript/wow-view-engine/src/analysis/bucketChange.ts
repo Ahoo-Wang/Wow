@@ -27,7 +27,7 @@ export interface BucketChange {
 /**
  * The change of series `key` at point `index` from the point before it, on
  * a time axis whose points are consecutive buckets (`CartesianData.timeline`)
- * — the tooltip's 「较上一期」 (docs/design/decisions.md D33, Q59).
+ * — the tooltip's 「较上一期」.
  *
  * It asks for nothing the rows do not hold: both numbers are the chart's own,
  * so there is no second query. And it says nothing it cannot know: not on a

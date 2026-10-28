@@ -28,7 +28,7 @@ import { TermTip } from './TermTip.js';
 import { ConditionLine, ConditionsBlock } from './MetricCondition.js';
 
 /**
- * The expansion row (D20 屏 G, D71): the chain of arrays the analysis
+ * The expansion row: the chain of arrays the analysis
  * counts inside, outermost first — 订单 → 明细项 → 批次 — one card a level,
  * each with its own gate on the entries it lets through. It is the tray's
  * first row, because it decides which fields every row after it may name.

@@ -10,8 +10,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Keeps the repository free of leftovers that nothing reads: version catalog
 // entries no build script uses, ignore and labeler entries that name paths no
-// longer in the tree, and CI scripts nothing calls. It reads only the tracked
-// files (no Gradle, no dependencies). Dead `main` source links are checked by
+// longer in the tree, CI scripts nothing calls, and paths under the retired
+// `example` directory (the examples live in `examples/`). It reads only the
+// tracked files (no Gradle, no dependencies). Dead `main` source links are checked by
 // documentation/test/source-links.test.mjs. A workflow trigger names only this
 // line's branch, `main`, the site's `gh-pages`, or a pattern (`bench-run/**`):
 // after a branch is renamed, a trigger still naming the old one never fires.
@@ -216,6 +217,37 @@ export function uncalledScripts(files, read) {
   });
 }
 
+/**
+ * A path under the retired `example` directory: at the start of a path (not
+ * inside one, such as a package directory `me/ahoo/wow/example/` or a route
+ * `/example/cart`), after a GitHub `main/`, or after a `|` separator.
+ */
+const RETIRED_EXAMPLE = /(?:(?<![\w./\\-])|(?<=main\/)|(?<=\|))example\//;
+
+/** Trees that keep the retired `example` paths on purpose: the 9.x inputs. */
+const RETIRED_EXAMPLE_EXEMPT = ['skills/wow-migrate/evals/h5-inputs/'];
+
+const BINARY = /\.(?:png|jpe?g|gif|ico|webp|woff2?|ttf|jar|pdf|zip|gz)$/i;
+
+/**
+ * `{ file, line }` of each line of a tracked text file that names a path under
+ * the retired `example` directory, its trees kept on purpose aside.
+ */
+export function retiredExamplePaths(files, read) {
+  const found = [];
+  for (const file of files) {
+    if (BINARY.test(file)) continue;
+    if (RETIRED_EXAMPLE_EXEMPT.some(prefix => file.startsWith(prefix)))
+      continue;
+    const text = read(file);
+    if (text.includes('\0')) continue;
+    text.split('\n').forEach((line, index) => {
+      if (RETIRED_EXAMPLE.test(line)) found.push({ file, line: index + 1 });
+    });
+  }
+  return found;
+}
+
 export function hygieneProblems(cwd = ROOT, allowed = ALLOWED) {
   const files = trackedFiles(cwd);
   const read = file => readFileSync(join(cwd, file), 'utf8');
@@ -275,6 +307,13 @@ export function hygieneProblems(cwd = ROOT, allowed = ALLOWED) {
       script,
       basename(script),
       'no workflow, package.json script or other script runs it',
+    );
+  }
+  for (const { file, line } of retiredExamplePaths(files, read)) {
+    report(
+      file,
+      `line ${line}`,
+      'names a path under the retired example directory: the examples live in examples/',
     );
   }
   for (const [entry, owner] of allowed) {

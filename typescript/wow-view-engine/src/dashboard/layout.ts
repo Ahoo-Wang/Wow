@@ -202,7 +202,7 @@ export function arrangePanel(
  * The first place a new panel of this size can go: free, at rest (the
  * compaction a later placement runs would not lift it), and at or below
  * `fromRow` — the first row the reader has on screen, so what they add
- * lands where they are looking (D22 A). Rows top to bottom, each left to
+ * lands where they are looking. Rows top to bottom, each left to
  * right. When nothing down to the board's end will take it, it goes under
  * everything and rises to rest there.
  */
@@ -500,7 +500,7 @@ export type OrderStep = 'up' | 'down';
 
 /**
  * The panels after one of them trades places with its neighbour in reading
- * order — the one-column reading's 「上移」／「下移」 (D22 J) written back
+ * order — the one-column reading's 「上移」／「下移」 written back
  * onto the grid — or `null` when there is no neighbour that way, or no such
  * panel.
  *

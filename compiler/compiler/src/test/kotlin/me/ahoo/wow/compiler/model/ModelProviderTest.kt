@@ -151,8 +151,10 @@ class ModelProviderTest {
         services.parentFile.invariantSeparatorsPath.assert().endsWith("META-INF/services")
         services.readText().assert().isEqualTo("sample.BankDomainModelProvider\n")
         generated(compilation, "BankDomainModelProvider.kt")!!.readText().assert().contains(
-            "sample.account.accountModel(context, dependencies.get(sample.account.Fees::class.javaObjectType), " +
-                "dependencies.get(sample.account.Limits::class.javaObjectType) as sample.account.Limits<kotlin.String>)",
+            "sample.account.accountModel(context, " +
+                "dependencies.get(sample.account.Fees::class.javaObjectType, null, \"the Account model\"), " +
+                "dependencies.get(sample.account.Limits::class.javaObjectType, null, \"the Account model\") " +
+                "as sample.account.Limits<kotlin.String>)",
             "sample.ledger.ledgerModel(context)",
         )
 
@@ -174,7 +176,7 @@ class ModelProviderTest {
     fun `a missing dependency should fail the models' assembly, naming its type`() {
         val (compilation, result) = compile(account)
         assertThrownBy<MissingDependencyException> { provider(compilation, result).models(Dependencies.NONE) }
-            .hasMessageContaining("No dependency of sample.account.Fees to build the aggregate models with")
+            .hasMessageContaining("No dependency of sample.account.Fees to build the Account model with")
     }
 
     @Test

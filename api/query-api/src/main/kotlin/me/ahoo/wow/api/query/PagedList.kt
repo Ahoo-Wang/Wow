@@ -3,29 +3,6 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Interface representing a paginated list of items with its total, counted as the query's [TotalMode] asks.
- *
- * @param T The type of items in the list.
- */
-interface IPagedList<out T> {
-    /**
-     * The number of items across all pages: exact when [exact] is `true`, a lower bound ("at least") when it is
-     * `false`, and `null` when the query asked for [TotalMode.NONE].
-     */
-    val total: Long?
-
-    /**
-     * Whether [total] is every match. Always `false` when [total] is `null`.
-     */
-    val exact: Boolean
-
-    /**
-     * The list of items for the current page.
-     */
-    val list: List<T>
-}
-
-/**
  * Data class implementing a paginated list of items.
  *
  * @param T The type of items in the list.
@@ -41,10 +18,10 @@ interface IPagedList<out T> {
  * ```
  */
 class PagedList<out T> @InternalWowApi constructor(
-    override val total: Long?,
-    override val list: List<T>,
-    override val exact: Boolean = total != null,
-) : IPagedList<T> {
+    val total: Long?,
+    val list: List<T>,
+    val exact: Boolean = total != null,
+) {
     init {
         require(total == null || total >= 0) {
             "total must not be negative."

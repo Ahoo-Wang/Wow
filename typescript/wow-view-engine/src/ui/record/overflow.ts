@@ -15,7 +15,7 @@ import { useLayoutEffect, useState, type RefObject } from 'react';
 
 /**
  * Whether the table is wider than the port it stands in — the one fact the
- * frozen columns' edges depend on (P-23, D13 as amended 2026-09-22).
+ * frozen columns' edges depend on (P-23, as amended 2026-09-22).
  *
  * The edge of a held column says "the middle scrolls under here". While the
  * table fits, nothing scrolls under anything: the line then only cut the

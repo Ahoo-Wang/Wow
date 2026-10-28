@@ -19,7 +19,7 @@ outline: deep
 
 商品由每位顾客读取、由员工修改，所以它属于它的租户：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
 
 ```kotlin
 /**
@@ -50,17 +50,16 @@ class Product(private val state: ProductState) {
 
 有时作用域还不够。购物车的 ID 就是买家的用户 ID，所以创建它的第一条命令要核对调用方就是这个买家。命令函数接收 `Command<X>`，把 `command.scope.ownerId` 与 ID 比较：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
@@ -96,4 +95,4 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 
 ## 在另一个作用域中行事 {#act-in-another-scope}
 
-被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `SendOptions`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。
+被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。

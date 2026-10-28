@@ -32,11 +32,6 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
@@ -170,12 +165,12 @@ class QueryAdmissionTest {
         val seen = mutableListOf<String>()
         val filter = object : QueryFilter {
             override suspend fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Q {
-                seen += "filter:${(context.query as IListQuery).filter}"
+                seen += "filter:${(context.query as ListQuery).filter}"
                 return context.query
             }
         }
         val policy = QueryPolicy { caller, context ->
-            seen += "policy:${(context.query as IListQuery).filter}"
+            seen += "policy:${(context.query as ListQuery).filter}"
             caller.entry.assert().isEqualTo(QueryEntry.HTTP)
             context.queryType.assert().isEqualTo(QueryType.LIST)
             context.aggregateType.assert().isEqualTo(aggregateType)
@@ -185,7 +180,7 @@ class QueryAdmissionTest {
         val admitted = QueryAdmission(aggregateType, listOf(filter), listOf(policy))
             .admitBlocking(
                 QueryOperation.LIST,
-                ListQuery(note, limit = 10) as IListQuery,
+                ListQuery(note, limit = 10) as ListQuery,
                 http.withScope(QueryScope(TenantIdFilter("t1"))),
                 trail = trail,
             )
@@ -232,7 +227,7 @@ class QueryAdmissionTest {
             aggregateType,
             listOf(filter("late", 2), filter("early", 1), object : QueryFilter {}),
             listOf(policy("second", 10), policy("first", -10)),
-        ).admitBlocking(QueryOperation.SINGLE, SingleQuery(note) as ISingleQuery).query.filter.assert()
+        ).admitBlocking(QueryOperation.SINGLE, SingleQuery(note) as SingleQuery).query.filter.assert()
             .isEqualTo(AndFilter(listOf(IsNullFilter(QueryField("note")), DeletionFilter(DeletionState.ACTIVE))))
         seen.assert().containsExactly("early", "late", "first", "second")
     }
@@ -241,7 +236,7 @@ class QueryAdmissionTest {
     fun `a policy's deletion scope replaces the snapshot default`() {
         val policy = QueryPolicy { _, _ -> DeletionFilter(DeletionState.DELETED) }
         QueryAdmission(aggregateType, policies = listOf(policy))
-            .admitBlocking(QueryOperation.COUNT, CountQuery(MatchAllFilter) as ICountQuery)
+            .admitBlocking(QueryOperation.COUNT, CountQuery(MatchAllFilter) as CountQuery)
             .query.filter.assert().isEqualTo(DeletionFilter(DeletionState.DELETED))
     }
 
@@ -249,7 +244,7 @@ class QueryAdmissionTest {
     fun `a model without a profile gets no default scope`() {
         val custom = boundSchemaFixture(objectFixture("note" to scalarFixture()), model = QueryModel("custom"))
         QueryAdmission(aggregateType)
-            .admitBlocking(QueryOperation.COUNT, CountQuery(MatchAllFilter) as ICountQuery, schema = custom)
+            .admitBlocking(QueryOperation.COUNT, CountQuery(MatchAllFilter) as CountQuery, schema = custom)
             .query.filter.assert().isEqualTo(MatchAllFilter)
     }
 
@@ -261,7 +256,7 @@ class QueryAdmissionTest {
                 QueryAdmission(aggregateType, entryPolicy = QueryEntryPolicy(requireExplicitEntry = true))
                     .admit(
                         QueryOperation.COUNT,
-                        CountQuery(MatchAllFilter) as ICountQuery,
+                        CountQuery(MatchAllFilter) as CountQuery,
                         QueryCaller.UNSPECIFIED,
                         {
                             loaded = true
@@ -278,7 +273,7 @@ class QueryAdmissionTest {
             runTest {
                 QueryAdmission(aggregateType).admit(
                     QueryOperation.LIST,
-                    ListQuery(note, limit = 1001) as IListQuery,
+                    ListQuery(note, limit = 1001) as ListQuery,
                     http,
                     {
                         loaded = true
@@ -332,7 +327,7 @@ class QueryAdmissionTest {
         trusted.query.filter.assert().isEqualTo(IsNullFilter(QueryField("note")))
         trusted.entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         val governed = QueryAdmission(aggregateType, policies = listOf(policy))
-            .admitBlocking(QueryOperation.LIST, query as IListQuery)
+            .admitBlocking(QueryOperation.LIST, query as ListQuery)
         governed.query.filter.assert().isNotEqualTo(trusted.query.filter)
         // Every entry of a governed admission suspends with the caller as an argument; only QueryAdmission.Trusted
         // admits synchronously, without a caller.
@@ -388,11 +383,11 @@ class QueryAdmissionTest {
     @Test
     fun `governed admission finishes every operation`() {
         val admission = QueryAdmission(aggregateType)
-        admission.admitBlocking(QueryOperation.SINGLE, SingleQuery(note) as ISingleQuery, http).entry
+        admission.admitBlocking(QueryOperation.SINGLE, SingleQuery(note) as SingleQuery, http).entry
             .assert().isEqualTo(QueryEntry.HTTP)
-        admission.admitBlocking(QueryOperation.PAGED, PagedQuery(note) as IPagedQuery, http).query.total
+        admission.admitBlocking(QueryOperation.PAGED, PagedQuery(note) as PagedQuery, http).query.total
             .assert().isEqualTo(TotalMode.BOUNDED)
-        admission.admitBlocking(QueryOperation.CURSOR, CursorQuery(note) as ICursorQuery, http).query.sort
+        admission.admitBlocking(QueryOperation.CURSOR, CursorQuery(note) as CursorQuery, http).query.sort
             .assert().containsExactly(
                 Sort(QueryField("tenantId"), Sort.Direction.ASC),
                 Sort(QueryField("aggregateId"), Sort.Direction.ASC),
@@ -411,20 +406,20 @@ class QueryAdmissionTest {
         val seen = mutableListOf<FilterExpression>()
         val replacing = object : QueryFilter {
             override suspend fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Q {
-                seen += (context.query as IListQuery).filter
+                seen += (context.query as ListQuery).filter
                 return context.query.withFilter(MatchAllFilter)
             }
         }
         val policies = mutableListOf<FilterExpression>()
         val policy = QueryPolicy { _, context ->
-            policies += (context.query as IListQuery).filter
+            policies += (context.query as ListQuery).filter
             MatchAllFilter
         }
         val selection = EqualFilter(QueryField("aggregateId"), "a1")
         val caller = QueryCaller.UNSPECIFIED.withScope(QueryScope(TenantIdFilter("t1"))).withSelection(selection)
         val trail = QueryAuditTrail(aggregateType, QueryType.LIST, Unit, caller)
         val admitted = QueryAdmission(aggregateType, listOf(replacing), listOf(policy))
-            .admitBlocking(QueryOperation.LIST, ListQuery(note, limit = 10) as IListQuery, caller, trail = trail)
+            .admitBlocking(QueryOperation.LIST, ListQuery(note, limit = 10) as ListQuery, caller, trail = trail)
         seen.assert().containsExactly(note)
         policies.single().assert().isEqualTo(AndFilter(listOf(TenantIdFilter("t1"), selection)))
         (admitted.query.filter as AndFilter).operands.assert().containsExactly(
@@ -446,13 +441,13 @@ class QueryAdmissionTest {
         val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, maxFilterNodes = 3))
         val caller = http.withScope(QueryScope(TenantIdFilter("t1"))).withSelection(selection)
         QueryAdmission(aggregateType, entryPolicy = policy)
-            .admitBlocking(QueryOperation.SINGLE, SingleQuery(MatchAllFilter) as ISingleQuery, caller)
+            .admitBlocking(QueryOperation.SINGLE, SingleQuery(MatchAllFilter) as SingleQuery, caller)
             .query.filter.assert().isInstanceOf(AndFilter::class.java)
         // The caller's scope is budgeted.
         assertThrows<QueryRequestException> {
             QueryAdmission(aggregateType, entryPolicy = policy).admitBlocking(
                 QueryOperation.SINGLE,
-                SingleQuery(MatchAllFilter) as ISingleQuery,
+                SingleQuery(MatchAllFilter) as SingleQuery,
                 http.withScope(QueryScope(selection)),
             )
         }.code.assert().isEqualTo(QueryErrorCodes.FILTER_TOO_LARGE)
@@ -464,7 +459,7 @@ class QueryAdmissionTest {
         QueryAdmission(aggregateType)
             .admitBlocking(
                 QueryOperation.COUNT,
-                CountQuery(MatchAllFilter) as ICountQuery,
+                CountQuery(MatchAllFilter) as CountQuery,
                 QueryCaller.UNSPECIFIED.withSelection(tracing),
             )
             .query.filter.assert().isEqualTo(tracing)
@@ -472,7 +467,7 @@ class QueryAdmissionTest {
 
     @Test
     fun `the in-process entry is unbudgeted unless the policy gives it a budget`() {
-        val expensive = ListQuery(ContainsFilter(QueryField("note"), "x"), limit = 10) as IListQuery
+        val expensive = ListQuery(ContainsFilter(QueryField("note"), "x"), limit = 10) as ListQuery
         QueryAdmission(aggregateType).admitBlocking(QueryOperation.LIST, expensive, QueryCaller.IN_PROCESS)
         val strict = QueryEntryPolicy(inProcess = QueryBudget("In-process", allowExpensiveOperators = false))
         assertThrows<QueryRequestException> {
@@ -484,17 +479,17 @@ class QueryAdmissionTest {
 
     @Test
     fun `admission puts the budget's count limit on a count`() {
-        val count = CountQuery(EqualFilter(QueryField("note"), "x")) as ICountQuery
+        val count = CountQuery(EqualFilter(QueryField("note"), "x")) as CountQuery
         val admission = QueryAdmission(aggregateType)
         admission.admitBlocking(QueryOperation.COUNT, count, http).query.limit
             .assert().isEqualTo(QueryBudget.DEFAULT_COUNT_LIMIT)
-        admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 5) as ICountQuery, http)
+        admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 5) as CountQuery, http)
             .query.limit.assert().isEqualTo(5)
         // An unbudgeted entry counts as the query asks.
         admission.admitBlocking(QueryOperation.COUNT, count, QueryCaller.IN_PROCESS).query.limit.assert().isNull()
         admission.admitBlocking(
             QueryOperation.COUNT,
-            CountQuery(count.filter, limit = 50_000) as ICountQuery,
+            CountQuery(count.filter, limit = 50_000) as CountQuery,
             QueryCaller.IN_PROCESS,
         ).query.limit.assert().isEqualTo(50_000)
         // A budget whose count limit is 0 counts exactly.
@@ -503,13 +498,13 @@ class QueryAdmissionTest {
             entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 0)),
         ).admitBlocking(QueryOperation.COUNT, count, http).query.limit.assert().isNull()
         assertThrows<QueryRequestException> {
-            admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 10_001) as ICountQuery, http)
+            admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 10_001) as CountQuery, http)
         }.bindingErrors.single().name.assert().isEqualTo("limit")
     }
 
     @Test
     fun `admission puts the entry's timeout on the admitted query`() {
-        val query = SingleQuery(note) as ISingleQuery
+        val query = SingleQuery(note) as SingleQuery
         QueryAdmission(aggregateType).admitBlocking(QueryOperation.SINGLE, query, http).timeout
             .assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT.toJavaDuration())
         QueryAdmission(aggregateType).admitBlocking(QueryOperation.SINGLE, query, QueryCaller.IN_PROCESS).timeout
@@ -556,7 +551,7 @@ class QueryAdmissionTest {
             aggregateType,
             entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true),
         )
-        val query = SingleQuery(note) as ISingleQuery
+        val query = SingleQuery(note) as SingleQuery
         fun admit(caller: QueryCaller, schema: QueryModelSchema = snapshot) =
             admission.admitBlocking(QueryOperation.SINGLE, query, caller, schema)
 

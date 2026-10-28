@@ -26,8 +26,8 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle` |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | 状态缓存的查找：`hit`、`miss`（一次快照读取和一次 tail 读取） |
 | `wow.state_cache.evictions` | Counter | `wow.context` | 从状态缓存逐出的状态 |
-| `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`wow.capability`：`snapshot-tail-read`（日志在一次往返中读出快照及其后的尾部）、`snapshot-rebuild`（快照存储的原地重建）。`wow.reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unavailable`（该能力不适用于这种情况，例如快照存储与日志不在同一个数据库）、`unsupported`（存储没有这项能力） |
-| `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键（决策 D50）：来自追加后内核的确认，或 `reservation` 订阅的确认 |
+| `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`wow.capability`：`snapshot-tail-read`（存储在一次往返中读出快照及其后的日志尾部）、`snapshot-rebuild`（快照存储的原地重建）。`wow.reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unsupported`（存储没有这项能力） |
+| `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键：来自追加后内核的确认，或 `reservation` 订阅的确认 |
 
 ### 订阅 {#subscriptions}
 

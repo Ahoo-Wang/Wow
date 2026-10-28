@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.viewstore.api.SystemView
@@ -51,10 +51,10 @@ import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 @AggregateRoot(lifecycle = [DeleteAggregate::class, TransferOwner::class])
 @Description("A saved view of the view engine: a record view, an analysis view or a dashboard")
 class View(private val state: ViewState) {
-    @OnCommand(produces = [ViewCreated::class])
-    fun onCreate(command: Command<CreateView>): Decision {
-        val appId = ViewApps.appOf(command) ?: return ViewApps.appRequired()
-        val ownerId = command.scope.ownerId ?: return Decision.reject(
+    @OnCommand
+    fun onCreate(command: Command<CreateView>): ViewCreated {
+        val appId = ViewApps.appOf(command) ?: ViewApps.appRequired()
+        val ownerId = command.scope.ownerId ?: reject(
             ViewStoreRejections.OWNER_REQUIRED,
             "A view is saved by an owner: the caller acts as none.",
         )
@@ -65,50 +65,48 @@ class View(private val state: ViewState) {
             ?: ViewConfigs.titleProblem(body.title)
             ?: ViewConfigs.problemOf(body.config)
         if (problem != null) {
-            return ViewApps.invalid(problem)
+            reject(ViewStoreRejections.INVALID, problem)
         }
-        return Decision.events(
-            ViewCreated(
-                definitionId = body.definitionId,
-                title = body.title.trim(),
-                kind = ViewConfigs.kindOf(body.config)!!,
-                audience = ViewAudience.ofOwner(ownerId),
-                appId = appId,
-                config = body.config,
-            ),
+        return ViewCreated(
+            definitionId = body.definitionId,
+            title = body.title.trim(),
+            kind = ViewConfigs.kindOf(body.config)!!,
+            audience = ViewAudience.ofOwner(ownerId),
+            appId = appId,
+            config = body.config,
         )
     }
 
-    @OnCommand(produces = [ViewSaved::class])
-    fun onSave(command: Command<SaveView>): Decision {
-        ViewApps.otherApp(command, state.appId)?.let { return it }
+    @OnCommand
+    fun onSave(command: Command<SaveView>): ViewSaved {
+        ViewApps.rejectOtherApp(command, state.appId)
         val config = command.body.config
-        ViewConfigs.problemOf(config)?.let { return ViewApps.invalid(it) }
-        return Decision.events(ViewSaved(ViewConfigs.kindOf(config)!!, config))
+        ViewConfigs.problemOf(config)?.let { reject(ViewStoreRejections.INVALID, it) }
+        return ViewSaved(ViewConfigs.kindOf(config)!!, config)
     }
 
-    @OnCommand(produces = [ViewRenamed::class])
-    fun onRename(command: Command<RenameView>): Decision {
-        ViewApps.otherApp(command, state.appId)?.let { return it }
+    @OnCommand
+    fun onRename(command: Command<RenameView>): ViewRenamed? {
+        ViewApps.rejectOtherApp(command, state.appId)
         val title = command.body.title
-        ViewConfigs.titleProblem(title)?.let { return ViewApps.invalid(it) }
+        ViewConfigs.titleProblem(title)?.let { reject(ViewStoreRejections.INVALID, it) }
         if (title.trim() == state.title) {
-            return Decision.NoOp
+            return null
         }
-        return Decision.events(ViewRenamed(title.trim()))
+        return ViewRenamed(title.trim())
     }
 
     /**
      * Makes a personal view shared. A view already shared changes nothing, so its revision does not move: the 9.x
      * route answered that case without a command for the same reason.
      */
-    @OnCommand(produces = [ViewShared::class])
-    fun onShare(command: Command<ShareView>): Decision {
-        ViewApps.otherApp(command, state.appId)?.let { return it }
+    @OnCommand
+    fun onShare(command: Command<ShareView>): ViewShared? {
+        ViewApps.rejectOtherApp(command, state.appId)
         return when (state.audience) {
             ViewAudience.SYSTEM -> systemReadOnly()
-            ViewAudience.SHARED -> Decision.NoOp
-            ViewAudience.PERSONAL -> Decision.events(ViewShared)
+            ViewAudience.SHARED -> null
+            ViewAudience.PERSONAL -> ViewShared
         }
     }
 
@@ -117,34 +115,35 @@ class View(private val state: ViewState) {
      * the command only for a view that owner holds. A personal view claimed by its own owner changes nothing; one of
      * anyone else is not claimed. A view some shared dashboard shows stays shared.
      */
-    @OnCommand(produces = [ViewClaimed::class])
-    suspend fun onClaim(command: Command<ClaimView>, references: SharedBoardReferences): Decision {
-        ViewApps.otherApp(command, state.appId)?.let { return it }
+    @OnCommand
+    suspend fun onClaim(command: Command<ClaimView>, references: SharedBoardReferences): ViewClaimed? {
+        ViewApps.rejectOtherApp(command, state.appId)
         if (state.audience == ViewAudience.SYSTEM) {
-            return systemReadOnly()
+            systemReadOnly()
         }
         val toOwnerId = command.operator?.id?.takeUnless(ViewStoreContext::isReserved)
-            ?: return Decision.reject(ViewStoreRejections.OWNER_REQUIRED, "A view is claimed by a signed-in user.")
+            ?: reject(ViewStoreRejections.OWNER_REQUIRED, "A view is claimed by a signed-in user.")
         if (state.audience == ViewAudience.PERSONAL) {
             return if (command.scope.ownerId == toOwnerId) {
-                Decision.NoOp
+                null
             } else {
-                ViewApps.invalid("Only a shared view can be claimed.")
+                reject(ViewStoreRejections.INVALID, "Only a shared view can be claimed.")
             }
         }
         val boards = references.referencingBoards(command.ref.tenantId, state.appId, command.ref.id)
             .filter { it.id != command.ref.id }
         if (boards.isNotEmpty()) {
-            return Decision.reject(
+            reject(
                 ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD,
                 "The view is shown by the shared dashboards ${boards.joinToString { "\"${it.title}\" (${it.id})" }}.",
                 mapOf(ViewStoreRejections.BOARDS to boards),
             )
         }
-        return Decision.events(ViewClaimed(toOwnerId))
+        return ViewClaimed(toOwnerId)
     }
 
-    private fun systemReadOnly(): Decision = Decision.reject(
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun systemReadOnly(): Nothing = reject(
         ViewStoreRejections.SYSTEM_VIEW_READ_ONLY,
         "A system view never moves audience: it is neither shared nor claimed.",
     )

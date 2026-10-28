@@ -48,16 +48,15 @@ A read of an older version, an instant or a trace replays the log. Such reads ru
 
 The host provides a `QueryApi` bean. Choose the caller with `of(caller)`, then read a state by its id:
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
 
 ```kotlin
 val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
 val state = queries.state("client-alice-1")!!
 state.scope.ownerId.assert().isEqualTo("alice")
 (state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
-// On the memory backend the ordering serves no query model: a list is its 404, never a command.
-val unserved = runCatching { queries.list(ListQuery.of(MatchAllFilter)).toList() }.exceptionOrNull()
-(unserved as WowProblemException).status.assert().isEqualTo(NOT_FOUND)
+// The ordering on the memory backend serves its snapshot queries too: alice lists her one order.
+queries.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
 // Bob, another buyer, sees none of it.
 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
 basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")

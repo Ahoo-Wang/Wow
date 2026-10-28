@@ -70,7 +70,7 @@
           "upgrade": "viewSavedFrom1"
         },
         { "from": "view_renamed", "to": "ViewRenamed" },
-        { "from": "view_audience_changed", "to": "ViewAudienceChanged", "owner": "toOwnerId" },
+        { "from": "view_audience_changed", "to": "ViewAudienceChanged", "lifecycle": { "to": "wow.lifecycle.OwnerTransferred", "fields": { "toOwnerId": "ownerId" } } },
         { "from": "default_aggregate_deleted", "to": "wow.lifecycle.AggregateDeleted" }
       ],
       "state": { "ignore": ["id", "kind"] }

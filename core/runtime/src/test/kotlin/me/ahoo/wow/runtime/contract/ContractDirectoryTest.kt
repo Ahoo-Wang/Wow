@@ -38,6 +38,7 @@ import me.ahoo.wow.runtime.contract.ContractFixtures.shop
 import me.ahoo.wow.runtime.contract.ContractFixtures.subscription
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitChain
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -58,13 +59,14 @@ class ContractDirectoryTest {
         ContractDirectory.requireHosted(local, listOf(contract("shop-service", "shop"), contract(null, "shop")))
         // Another service's contract, or a contract of no served context, is not this service's to match.
         ContractDirectory.requireHosted(local, listOf(contract("sales-service", "sales")))
-        val failure = assertThrows<IllegalStateException> {
+        val failure = assertThrows<WowConfigurationException> {
             ContractDirectory.requireHosted(local, listOf(contract("eshop-shop-service", "shop", "sales")))
         }
+        failure.key.assert().isEqualTo("wow.service")
         failure.message.assert().contains(
             "The contract of [shop] (shop-api.jar) says the service eshop-shop-service hosts them",
             "this service is shop-service",
-            "spring.application.name",
+            "Name the service eshop-shop-service",
         )
     }
 

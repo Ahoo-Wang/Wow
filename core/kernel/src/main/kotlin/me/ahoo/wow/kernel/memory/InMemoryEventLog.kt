@@ -136,9 +136,6 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         lock.withLock { requests[tenantId to requestId]?.firstOrNull { it.ref.type == type } }
 
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        lock.withLock { requests[tenantId to requestId]?.firstOrNull() }
-
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return lock.withLock { entries[partition].size.toLong().takeIf { it > 0 } }

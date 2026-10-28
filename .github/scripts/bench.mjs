@@ -81,6 +81,25 @@ const DIAG_RATE = 20;
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
+// The load generator's CPUs (D224 note ③: the last CPUs of the runner, the servers and their containers the others).
+// One by default. The PostgreSQL suites' generator drove one core to 0.97–0.98 before the servers saturated
+// (2026-10-27, ABAB runs 40469058083 and 40486803393): those suites measured the generator, so theirs gets two,
+// and the servers the rest. A paired suite gives both arms the same split, so its ratios compare.
+export const PG_LOAD_CPUS = 2;
+
+/**
+ * The CPU lists of a runner of `total` CPUs: the last `load` to the load generator, the others to the servers and
+ * the containers, as taskset lists; none below four CPUs, where a split would starve one side.
+ */
+export function cpuSplit(total, load = 1) {
+  if (!(total >= 4) || !(load >= 1) || load > total - 2) return {};
+  const first = total - load;
+  return {
+    load: load === 1 ? `${first}` : `${first}-${total - 1}`,
+    server: `0-${first - 1}`,
+  };
+}
+
 export const SUITES = {
   'e1-mongo-uniform': {
     group: 'ab',
@@ -106,6 +125,7 @@ export const SUITES = {
     scenario: 'E1',
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
+    loadCpus: PG_LOAD_CPUS,
     answers: 'E1 write on PostgreSQL: head against baseline.',
   },
   'e2-mongo': {
@@ -131,6 +151,7 @@ export const SUITES = {
     scenario: 'E3',
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
+    loadCpus: PG_LOAD_CPUS,
     answers: 'E3 saga chain on PostgreSQL: head against baseline.',
   },
   'mixed-mongo': {
@@ -150,6 +171,7 @@ export const SUITES = {
     mix: MIX,
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
+    loadCpus: PG_LOAD_CPUS,
     answers: 'Reads and writes together on PostgreSQL, as mixed-mongo.',
   },
   'large-mongo': {
@@ -722,9 +744,51 @@ export function sustainable(m, rate) {
 // A saturation found at the cap is a lower bound, marked `≥` (`capped`).
 export const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 4096 };
 
+/** What a row shows instead of a ratio that measured the load generator rather than the servers. */
+export const GENERATOR_BOUND = 'invalid: generator-bound';
+
+/**
+ * Whether a load generator that used `cores` of its `cpus` was the bottleneck: past ANOMALY.generatorBusy of them,
+ * what was measured is the generator.
+ */
+export function generatorBound(cores, cpus) {
+  return (
+    cpus > 0 && Number.isFinite(cores) && cores >= ANOMALY.generatorBusy * cpus
+  );
+}
+
+/** Whether an arm's closed-loop saturation step was generator-bound. */
+export function saturationGeneratorBound(suite, arm) {
+  const s = suite.saturation?.[arm];
+  return generatorBound(s?.generatorCores, s?.generatorCpus);
+}
+
+/** Whether either arm's saturation was generator-bound: the saturation ratio is then not the servers'. */
+export function saturationRatioBound(suite) {
+  return (suite.arms ?? []).some(arm =>
+    saturationGeneratorBound(suite, arm.id),
+  );
+}
+
+/**
+ * Whether a run of either arm at the calibrated rates was generator-bound: its rates came from saturations or probes
+ * the generator capped, so the calibrated pairs compare the generator, not the arms.
+ */
+export function calibratedGeneratorBound(suite) {
+  return (suite.runs ?? []).some(
+    run =>
+      run.status === 'ok' &&
+      (run.mode ?? 'calibrated') === 'calibrated' &&
+      generatorBound(
+        run.metrics?.loadGeneratorCores,
+        run.metrics?.loadGeneratorCpus,
+      ),
+  );
+}
+
 const saturationText = s =>
   s?.throughput
-    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s`
+    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}`
     : `**${s?.status ?? 'missing'}**`;
 
 const integer = (name, value, min, max) => {
@@ -1551,7 +1615,12 @@ export function renderSuite(suite) {
     );
   }
   const calibratedPairs = pairTable(suite, CALIBRATED);
-  if (calibratedPairs.length > 0) {
+  if (calibratedPairs.length > 0 && calibratedGeneratorBound(suite)) {
+    lines.push(
+      `Pairs at the calibrated rates: **${GENERATOR_BOUND}**: a run of an arm used nearly all of the load generator's cores (see the runs), so its rate and its throughput were the generator's.`,
+      '',
+    );
+  } else if (calibratedPairs.length > 0) {
     lines.push(
       'Pairs at the calibrated rates (throughput and CPU compare; the latencies are at unequal loads):',
       '',
@@ -1689,6 +1758,8 @@ export function runSuite(name, options) {
     properties,
   } = options;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
+  // The CPUs of the generator and the servers: the suite's own split of a runner of `cpus.total`, else those given.
+  const cpuset = cpus.total ? cpuSplit(cpus.total, definition.loadCpus) : cpus;
   const dataset = definition.dataset ?? options.dataset ?? '100k';
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
@@ -1773,8 +1844,8 @@ export function runSuite(name, options) {
     `--accounts=${data.accounts}`,
     `--seed-concurrency=${data.seedConcurrency}`,
     ...(primed ? ['--prime'] : []),
-    ...(cpus.load ? [`--load-cpus=${cpus.load}`] : []),
-    ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
+    ...(cpuset.load ? [`--load-cpus=${cpuset.load}`] : []),
+    ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
   ];
   const propsOf = arm => ({ ...SIGNALS, ...arm.props });
   const measureRun = (
@@ -1866,6 +1937,9 @@ export function runSuite(name, options) {
         throughput: saturation.saturationThroughput,
         concurrency: saturation.saturationConcurrency,
         capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
+        // The load generator's cores at the saturation step, of those it had.
+        generatorCores: saturation.generatorCores,
+        generatorCpus: saturation.availableProcessors,
       };
     } else {
       suite.saturation[key] = { status: 'failed' };
@@ -1974,7 +2048,7 @@ export function runSuite(name, options) {
             `--ops=${COMPONENT.ops}`,
             `--warm-up-ops=${COMPONENT.warmUpOps}`,
             `--concurrency=${COMPONENT.concurrency}`,
-            ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
+            ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
             `--out=${dir}`,
           ],
           arm.props,
@@ -2179,7 +2253,10 @@ export function renderReport(suites, meta = {}) {
         ['p99', EQUAL],
       ]) {
         const interval = confidence(suite, mode)[metric];
-        const result = verdict(interval, thresholds?.[metric]);
+        const result =
+          mode === CALIBRATED && calibratedGeneratorBound(suite)
+            ? GENERATOR_BOUND
+            : verdict(interval, thresholds?.[metric]);
         if (result === 'higher' || result === 'lower') beyond++;
         rows.push(
           `| ${labelOf(suite)} | ${b}/${a} | ${metric} | ${mode} | ${interval ? `${ratio(interval.point)} [${ratio(interval.lo)}–${ratio(interval.hi)}]` : '-'} | ` +
@@ -2288,8 +2365,9 @@ export function renderReport(suites, meta = {}) {
       const [a, b] = suite.arms.map(arm => arm.id);
       const sa = suite.saturation?.[a];
       const sb = suite.saturation?.[b];
-      const saturation =
-        sa?.throughput && sb?.throughput
+      const saturation = saturationRatioBound(suite)
+        ? GENERATOR_BOUND
+        : sa?.throughput && sb?.throughput
           ? `${sb.capped || sa.capped ? '~' : ''}${ratio(sb.throughput / sa.throughput)}`
           : '-';
       for (const [mode, label] of [
@@ -2301,9 +2379,10 @@ export function renderReport(suites, meta = {}) {
       ]) {
         const rows = pairs(suite, mode);
         if (rows.length === 0) continue;
+        const bound = mode === CALIBRATED && calibratedGeneratorBound(suite);
         lines.push(
           `| ${labelOf(suite)} | ${b}/${a} | ${label} | ${saturation} | ` +
-            `${RATIO_METRICS.map(([key]) => ratioRange(range(rows.map(row => row.ratios[key])))).join(' | ')} |`,
+            `${RATIO_METRICS.map(([key]) => (bound ? GENERATOR_BOUND : ratioRange(range(rows.map(row => row.ratios[key]))))).join(' | ')} |`,
         );
       }
     }
@@ -2491,7 +2570,7 @@ if (
         out: env.OUT,
         ...inputs,
         dataset: job.dataset,
-        cpus: { load: env.LOAD_CPUS, server: env.SERVER_CPUS },
+        cpus: { total: Number(env.CPUS) || undefined },
         installs: Object.fromEntries(
           [
             ['head', env.INSTALL_HEAD],

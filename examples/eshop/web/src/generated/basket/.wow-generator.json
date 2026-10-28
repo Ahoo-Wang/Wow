@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "files": {
+    "eshop-basket/basket/aggregate.ts": "89c77cf6c0fb106d34a26df134c01526ee1fb067e213818d6c66de81c145df30",
+    "eshop-basket/basket/commandClient.ts": "c147e763d39c2505cab8c443112c5998fe4af71bbd13ddadedf87bcafe816c99",
+    "eshop-basket/basket/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
+    "eshop-basket/basket/queryClient.ts": "17eaf51704332a17a02ad21265e4de9c90d8a924d1d8e482536f3e0733378b5f",
+    "eshop-basket/client.ts": "e2d45464c91e3df6ce40a4902d7a44796c5056a692bcd28aeeedd2bb4302284f",
+    "eshop-basket/contract.ts": "77e484f473e61c955bc711d832d2f3bcd18cb4f5bcb3357302bb9a2dfbfabd5d",
+    "eshop-basket/index.ts": "8dc2e71ecd35aa38d8822ed9a44294603d2538fce2d18fe9388c4f5d21d2d75d",
+    "eshop-basket/types.ts": "3ace729906843e4c0482bc83dd1d2d31c2a34454ab23cfdd5eecda64f8b945e2",
+    "index.ts": "e8d3252c4e9fd1a38d9b88fcce5274fecc610a6d56758a6c764b1f153ed25ddf"
+  }
+}

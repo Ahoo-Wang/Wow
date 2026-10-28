@@ -82,7 +82,7 @@ export interface PressableGroup {
 
 /**
  * Whether a press on a group of this dimension has a value for a filter of
- * this type (D22 I): a date filter takes a date bucket — the window it
+ * this type: a date filter takes a date bucket — the window it
  * spans — and a text, id, number or yes-or-no filter takes one value of a
  * `TERMS` dimension. A band of numbers is two bounds, not a value, so a
  * number filter takes no `HISTOGRAM` group; a filter of a kind outside the
@@ -150,7 +150,7 @@ export function pressableGroups(config: ViewConfig | undefined): {
 }
 
 /**
- * What admission says about a panel's click (D22 I). Every finding is a
+ * What admission says about a panel's click. Every finding is a
  * warning: a click that cannot do what it says leaves the panel as it is,
  * and a press on it opens the follow-up menu instead — the board still runs
  * and still saves. `view` is the panel's view once known; before, only the
@@ -251,11 +251,11 @@ export function validatePanelClick(
   }
 }
 
-/** A click that opens another board (D23 Q17). */
+/** A click that opens another board. */
 export type BoardClick = Extract<PanelClick, { kind: 'dashboard' }>;
 
 /**
- * What a click that opens another board says (D23 Q17), each finding a
+ * What a click that opens another board says, each finding a
  * warning. Known without the target: a mapped dimension this panel no
  * longer groups by, a mapped filter of this board's it no longer has. Once
  * the target has been read: a target gone, not a board, or a mapped filter
@@ -341,7 +341,7 @@ export function validateBoardClick(
 
 /**
  * This board's filters another board's filter can take its value from
- * (「这块板的〈筛选〉」, D23 Q17): each of the same filter type
+ * (「这块板的〈筛选〉」): each of the same filter type
  * (`sameFilterType`), so the value it holds is one the target reads. Never
  * matched by name: the author picks one.
  */
@@ -354,7 +354,7 @@ export function boardFilterChoices(
 
 /**
  * The dimensions of a panel another board's filter can take its value from
- * (「这一组的〈维度〉」, D23 Q17): each one bucketed in a way the filter takes
+ * (「这一组的〈维度〉」): each one bucketed in a way the filter takes
  * (`takesGroup`) over a field of the filter's type (`sameFilterType`), once
  * per field. Without the panel's fields — its view not known yet — the
  * bucketing alone is asked. Never matched by name: this is the list the

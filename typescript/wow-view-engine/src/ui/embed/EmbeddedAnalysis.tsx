@@ -46,7 +46,7 @@ import { QueryStrip } from '../kit/StatusStrip.js';
 const NO_SORT: readonly AnalysisSort[] = [];
 
 /**
- * An analysis view on a business page (D22): its chart or its table as the
+ * An analysis view on a business page: its chart or its table as the
  * author saved it, and what it was asked under. In the interactive tier the
  * reader may also switch between table and chart, order the table by a
  * header, and press a group for the analysis view's own follow-up menu —

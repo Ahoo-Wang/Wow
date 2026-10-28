@@ -42,7 +42,7 @@ const PACKAGE = 'package';
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|example\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the view store service (platform/view-store) built from this
@@ -140,6 +140,13 @@ const RULES = [
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
+  // The Manifest's own JSON Schema (ManifestSchema of :manifest): wow-client's
+  // Manifest types are generated from it (test/manifestTypes.test.ts), and
+  // wow-generator reads those types, so a change to it reruns both.
+  [
+    /^api\/manifest\/src\/main\/resources\/META-INF\/wow\/manifest\.schema\.json$/,
+    [SDK],
+  ],
   // The view store service's Manifest baseline: wow-view-store's
   // src/generated/ is wow-generator's output for it, byte for byte
   // (test/generated.test.ts), so a change to it reruns wow-view-store.
@@ -209,13 +216,13 @@ const RULES = [
   // The site's samples compile against the eShop's committed generated
   // clients (documentation/test/typescript-samples.mjs); the eshop-web jobs
   // checks the eShop web app itself.
-  [/^example\/eshop\/web\/src\/generated\//, [DOCS]],
+  [/^examples\/eshop\/web\/src\/generated\//, [DOCS]],
   // The modules (documentation/designs/06-modules.md §4; their tests
   // live under test/, below), the BOM, the dependency versions, the examples
   // and the end-to-end benchmark: the JVM jobs (JVM_PATH); no client or site builds
   // on them yet.
   [
-    /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|example|gradle)\//,
+    /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|examples|gradle)\//,
     [],
   ],
   // Other Gradle modules and prose.
@@ -262,6 +269,10 @@ const UNIT_RULES = [
   [
     /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
     () => ['wow-view-store'],
+  ],
+  [
+    /^api\/manifest\/src\/main\/resources\/META-INF\/wow\/manifest\.schema\.json$/,
+    () => ['wow-client', 'wow-generator'],
   ],
 ];
 

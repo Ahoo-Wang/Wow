@@ -134,7 +134,7 @@ export function filtersOnTab(
  * The board with one panel wired by hand to `panelField` for a filter, and
  * every other data panel not yet wired to it connected on its own where its
  * view has a field of that very name and of the filter's type — on any tab,
- * over any data (D22 G). `connected` names the panels auto-connect wired,
+ * over any data. `connected` names the panels auto-connect wired,
  * for the reader to be told how many and to undo them (`unbindPanels`). A
  * search filter connects to every record panel's search box instead,
  * whatever it is called (`autoField`).
@@ -234,8 +234,8 @@ export function unbindPanels(
 
 /**
  * The fixed list the fields a filter is wired to offer, merged — what a
- * category filter picks from when it has no list of its own (D22 G,
- * 「值从哪来：接上的字段」, as Metabase's category filter does): every
+ * category filter picks from when it has no list of its own (「值从哪来：接上的字段」, as
+ * Metabase's category filter does): every
  * option of every wired field that declares some (an `enum`'s), the same
  * code once, under the label it first comes with. A reader picks 「待出库」
  * and the filter holds `PENDING`, which is what the fields store.
@@ -268,8 +268,8 @@ export function wiredOptions(
 }
 
 /**
- * The wires auto-connect gives a panel about to be added (D22 G: 以后新加的
- * 面板同样自动接): for each filter it has no wire for, a field of its view
+ * The wires auto-connect gives a panel about to be added (以后新加的 面板同样自动接): for
+ * each filter it has no wire for, a field of its view
  * with the name the filter is already wired through elsewhere — the most
  * wired name first — or the filter's own name, and of the filter's type;
  * for a search filter, the view's search box (`autoField`).

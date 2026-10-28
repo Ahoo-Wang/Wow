@@ -31,7 +31,6 @@ import java.lang.reflect.WildcardType
 class JavaFacadeSignaturesTest {
     private val facade = listOf(
         JavaCommandClient::class.java,
-        JavaCommandClient.Options::class.java,
         JavaQueryApi::class.java,
         JavaQueries::class.java,
         JavaTrustedQueries::class.java,

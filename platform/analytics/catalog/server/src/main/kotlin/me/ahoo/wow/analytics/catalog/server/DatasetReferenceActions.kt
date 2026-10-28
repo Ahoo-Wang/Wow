@@ -22,7 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
@@ -127,11 +127,9 @@ class DatasetReferenceActions(
         }
         val type = AggregateType(reference.context, reference.aggregate)
         return try {
-            commands.of(caller).wait(
-                NamedCommand("$type.$command", body),
-                type.ref(caller.tenantId, id),
-                SendOptions.of(wait = WaitPlan.DEFAULT),
-            )
+            commands.of(
+                caller
+            ).wait(CommandRequest.of(NamedCommand("$type.$command", body), id, type, wait = WaitPlan.DEFAULT))
         } catch (failure: RuntimeException) {
             throw refusalOf(failure, manifest)
         }
@@ -215,19 +213,20 @@ class DatasetReferenceActions(
 
         /**
          * The commands of [reference]'s aggregate in [manifest] a row offers, with their inputs: those that create
-         * nothing, are no mounted command and take a flat body.
+         * nothing, are no mounted or system command and take a flat body.
          */
         fun offered(manifest: Manifest, reference: DatasetReference): List<Pair<CommandManifest, List<CommandInput>>> {
             val aggregate = manifest.contexts.firstOrNull { it.name == reference.context }
                 ?.aggregates?.firstOrNull { it.name == reference.aggregate } ?: return emptyList()
-            return aggregate.commands
+            return aggregate.domainCommands
                 .filter { it.creation == Creation.NONE && !it.mounted }
                 .mapNotNull { command -> inputsOf(manifest, command.schema)?.let { command to it } }
         }
 
         /** The inputs of the body [schema] names, or null when it is not flat. */
         fun inputsOf(manifest: Manifest, schema: String): List<CommandInput>? {
-            val definition = manifest.defs[schema.removePrefix(DEFS)] as? Map<*, *> ?: return null
+            if (!Manifest.isSchemaRef(schema)) return null
+            val definition = manifest.defs[Manifest.schemaKey(schema)] as? Map<*, *> ?: return null
             if (definition["type"] != "object") return null
             val required = (definition["required"] as? List<*>).orEmpty().toSet()
             val properties = definition["properties"] as? Map<*, *> ?: return emptyList()
@@ -255,7 +254,5 @@ class DatasetReferenceActions(
         fun statusOf(manifest: Manifest, code: String): Int =
             (manifest.errors + manifest.contexts.flatMap { it.errors } + FrameworkErrors.ALL)
                 .firstOrNull { it.code == code }?.status ?: FrameworkErrors.DOMAIN_REJECTION_STATUS
-
-        private const val DEFS = "#/\$defs/"
     }
 }

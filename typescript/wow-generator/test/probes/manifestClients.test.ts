@@ -29,6 +29,23 @@ afterAll(() => removeDirectories(directories));
 
 const schema = (key: string) => `#/$defs/${key}`;
 
+/** The lifecycle commands `names` of probe.thing, as system commands with their routes. */
+function lifecycle(...names: string[]) {
+  return names.map(name => ({
+    name,
+    schema: schema(name),
+    system: true,
+    routes: [
+      name === 'wow.lifecycle.DeleteAggregate'
+        ? { method: 'DELETE', path: '/probe/thing/{id}' }
+        : {
+            method: 'POST',
+            path: `/probe/thing/{id}/${name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`,
+          },
+    ],
+  }));
+}
+
 /** A Manifest with one context and one aggregate, and what they are given. */
 function manifest(
   aggregate: Record<string, unknown> = {},
@@ -65,9 +82,10 @@ describe('Manifest clients', () => {
   it('generates an aggregate with nothing but its state', async () => {
     const { read } = await generateCompiling(
       manifest({}, {}, { description: 'Probes' }),
-      `import { ThingCommandClient, ThingStateClient, probeWait, ProbeErrorCodes, type ThingEvent } from './out/index.js';
+      `import { ThingCommandClient, ThingStateClient, probeWait, ProbeContract, ProbeClient, type ThingEvent } from './out/index.js';
        const events: ThingEvent[] = [];
-       void [new ThingCommandClient(), new ThingStateClient(), probeWait.committed(), ProbeErrorCodes, events];`,
+       const name: 'probe' = ProbeContract.NAME;
+       void [new ThingCommandClient(), new ThingStateClient(), probeWait.committed(), ProbeContract.Thing.path, new ProbeClient().thing.state, name, events];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
       'export type ThingEvent = SystemEvent;',
@@ -75,7 +93,9 @@ describe('Manifest clients', () => {
     expect(read('probe/thing/queryClient.ts')).not.toContain(
       'SnapshotQueryClient',
     );
-    expect(read('probe/boundedContext.ts')).not.toContain('handled');
+    expect(read('probe/contract.ts')).not.toContain('handled');
+    // An aggregate without query models has no query clients in its context's client.
+    expect(read('probe/client.ts')).not.toContain('snapshots');
   });
 
   it('types every kind of schema', async () => {
@@ -182,12 +202,12 @@ describe('Manifest clients', () => {
     const { read } = await generateCompiling(
       manifest(
         {
-          lifecycle: [
-            'wow.lifecycle.DeleteAggregate',
-            'wow.lifecycle.TransferOwner',
-            'wow.lifecycle.Unknown',
-          ],
           commands: [
+            ...lifecycle(
+              'wow.lifecycle.DeleteAggregate',
+              'wow.lifecycle.TransferOwner',
+              'wow.lifecycle.Unknown',
+            ),
             {
               name: 'DeleteAggregate',
               schema: schema('a.Delete'),
@@ -218,9 +238,13 @@ describe('Manifest clients', () => {
     expect(client).not.toContain('unknown(');
     expect(client).not.toContain('gateway(');
     expect(client).toContain('Creates the aggregate, or acts on the one');
-    const context = read('probe/boundedContext.ts');
-    expect(context).toContain("THING_GONE: 'probe.thing.gone',");
+    // An aggregate's errors are its own, by what follows its name; the others are the context's.
+    expect(read('probe/thing/aggregate.ts')).toContain(
+      "GONE: 'probe.thing.gone',",
+    );
+    const context = read('probe/contract.ts');
     expect(context).toContain("OTHER: 'other',");
+    expect(context).not.toContain("probe.thing.gone',\n  },");
     expect(context).toContain("export type ProbeSubscription = 'P.f';");
   });
 
@@ -228,12 +252,12 @@ describe('Manifest clients', () => {
     const { read } = await generateCompiling(
       manifest(
         {
-          lifecycle: [
-            'wow.lifecycle.ApplyTags',
-            'wow.lifecycle.DeleteAggregate',
-            'wow.lifecycle.TransferSpace',
-          ],
           commands: [
+            ...lifecycle(
+              'wow.lifecycle.ApplyTags',
+              'wow.lifecycle.DeleteAggregate',
+              'wow.lifecycle.TransferSpace',
+            ),
             {
               name: 'Rename',
               schema: schema('a.Rename'),
@@ -471,6 +495,12 @@ describe('Manifest clients', () => {
   it('refuses a Manifest of another format or without what it needs', async () => {
     const other = await generateCold({ format: 2, contexts: [] }, directories);
     expect(other.exitCode).toBe(EXIT_CODES.input);
+    // A marker of requires the generator does not understand is refused too.
+    const requiring = await generateCold(
+      { format: 1, requires: ['routes-v2'], contexts: [] },
+      directories,
+    );
+    expect(requiring.exitCode).toBe(EXIT_CODES.input);
     const broken = await generateCold(
       {
         format: 1,

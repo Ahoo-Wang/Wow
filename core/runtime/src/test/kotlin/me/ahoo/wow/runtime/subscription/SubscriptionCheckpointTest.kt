@@ -287,4 +287,55 @@ class SubscriptionCheckpointTest {
         checkpoint("projection-v1").assert().isEqualTo(8L)
         checkpoint("projection-v2").assert().isEqualTo(8L)
     }
+
+    @Test
+    fun `subscriptions that start where the service joins a stream read it from the beginning on its first join`():
+        Unit = runBlocking {
+        repeat(4) { appender.append("old") }
+        val saga = Handled()
+        val reactor = Handled()
+        val joining = listOf(
+            Subscription("saga", SubscriptionFilter("shop"), StartFrom.JOIN) { saga.record(it) },
+            Subscription("reactor", SubscriptionFilter("shop"), StartFrom.JOIN) { reactor.record(it) },
+        )
+        SubscriptionRuntime("group", log, checkpoints, ledger, joining, testOptions()).apply {
+            start(setOf(0))
+            eventually { saga.size == 4 && reactor.size == 4 }
+            stop()
+        }
+        saga.sequences().assert().isEqualTo((1L..4L).toList())
+        reactor.sequences().assert().isEqualTo((1L..4L).toList())
+    }
+
+    @Test
+    fun `a subscription added to a service that reads the stream starts after what it committed before`():
+        Unit = runBlocking {
+        repeat(4) { appender.append("old") }
+        // An earlier subscription of the service read the stream, even one since removed from the code.
+        checkpoints.save("group", "removed", 0, 4)
+        val added = Handled()
+        val runtime = runtime(Subscription("added", SubscriptionFilter("shop"), StartFrom.JOIN) { added.record(it) })
+        runtime.start(setOf(0))
+        checkpoint("added").assert().isEqualTo(4L)
+        repeat(2) { appender.append("new") }
+        eventually { added.size == 2 }
+        runtime.stop()
+        added.sequences().assert().isEqualTo(listOf(5L, 6L))
+    }
+
+    @Test
+    fun `a subscription added to a running runtime starts where the service joined the stream`(): Unit = runBlocking {
+        repeat(3) { appender.append("old") }
+        val first = Handled()
+        val runtime = runtime(Subscription("first", SubscriptionFilter("shop"), StartFrom.JOIN) { first.record(it) })
+        runtime.start(setOf(0))
+        eventually { first.size == 3 }
+        val later = Handled()
+        runtime.add(Subscription("later", SubscriptionFilter("shop"), StartFrom.JOIN) { later.record(it) })
+        checkpoint("later").assert().isEqualTo(3L)
+        appender.append("new")
+        eventually { later.size == 1 && first.size == 4 }
+        runtime.stop()
+        later.sequences().assert().isEqualTo(listOf(4L))
+    }
 }

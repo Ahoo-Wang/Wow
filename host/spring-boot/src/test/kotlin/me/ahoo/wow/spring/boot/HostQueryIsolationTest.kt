@@ -51,7 +51,7 @@ class HostQueryIsolationTest {
 
     @Test
     fun `each store's queries should run under its bulkhead, beyond which a query is wow-query-busy`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+        startHost().use { host ->
             val id = host.openAccount("bulk")
             val bulkhead = host.context.getBean(QueryStores::class.java).bulkheads
                 .getValue(ContextBackends.DEFAULT_STORE)
@@ -75,7 +75,7 @@ class HostQueryIsolationTest {
 
     @Test
     fun `a state read replaying the log should run under its log store's bulkhead (D246)`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+        startHost().use { host ->
             val id = host.openAccount("replay")
             val bulkhead = host.context.getBean(QueryStores::class.java).bulkheads
                 .getValue(ContextBackends.DEFAULT_STORE)
@@ -98,7 +98,7 @@ class HostQueryIsolationTest {
 
     @Test
     fun `a state read should replay at most wow-query-state-max-replay commits`() {
-        startHost("wow.query.memory.enabled" to true, "wow.query.state.max-replay" to 1).use { host ->
+        startHost("wow.query.state.max-replay" to 1).use { host ->
             host.context.getBean(QueryProperties::class.java).state.maxReplay.assert().isEqualTo(1)
             val id = host.openAccount("bounded")
             repeat(2) { host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(200) }
@@ -165,14 +165,13 @@ class HostQueryIsolationTest {
 
     @Test
     fun `an events query naming no aggregate should run by default and be refused where a store opts in`() {
-        startHost("wow.query.memory.enabled" to true).use { host ->
+        startHost().use { host ->
             host.openAccount("free")
             host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
                 .status.assert().isEqualTo(200)
             host.context.getBean(QueryStores::class.java).unpinned(account).assert().isEqualTo(UnpinnedEvents.ALLOW)
         }
         startHost(
-            "wow.query.memory.enabled" to true,
             "wow.stores.main.type" to "memory",
             "wow.stores.main.query.events.unpinned" to "refuse",
         ).use { host ->
@@ -188,7 +187,6 @@ class HostQueryIsolationTest {
                 .assert().contains(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
         }
         startHost(
-            "wow.query.memory.enabled" to true,
             "wow.query.events.unpinned" to "refuse",
             "wow.aggregates.[bank.account].query.events.unpinned" to "allow",
         ).use { host ->

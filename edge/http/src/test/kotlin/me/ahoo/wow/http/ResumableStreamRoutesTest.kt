@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -201,13 +201,13 @@ class ResumableStreamRoutesTest {
 
     /** Each record of a stream 50ms after the one before. */
     private class Slowed(private val delegate: QueryGateway) : QueryGateway by delegate {
-        override fun stream(query: IListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
+        override fun stream(query: ListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
             delegate.stream(query, caller, after, chunkSize).onEach { delay(50.milliseconds) }
     }
 
     /** A store with no permit: before the first record, or for the chunk after it. */
     private class Busy(private val delegate: QueryGateway, private val afterFirst: Boolean) : QueryGateway by delegate {
-        override fun stream(query: IListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
+        override fun stream(query: ListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
             flow<PositionedRecord> {
                 if (afterFirst) emit(delegate.stream(query, caller, after, chunkSize).first())
                 throw QueryBusyException("default", 1)
@@ -217,7 +217,7 @@ class ResumableStreamRoutesTest {
     /** Closes [streams] once the first record was read, then waits. */
     private class Closing(private val delegate: QueryGateway, private val streams: QueryStreams) :
         QueryGateway by delegate {
-        override fun stream(query: IListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
+        override fun stream(query: ListQuery, caller: QueryCaller, after: String?, chunkSize: Int) =
             flow {
                 emit(delegate.stream(query, caller, after, chunkSize).first())
                 streams.close()
@@ -228,9 +228,9 @@ class ResumableStreamRoutesTest {
     /** A gateway that does not resume; with [slowList], each listed record 50ms after the one before. */
     private class Unresumable(private val delegate: QueryGateway, private val slowList: Boolean = false) :
         QueryGateway by delegate {
-        override suspend fun resumes(query: IListQuery): Boolean = false
+        override suspend fun resumes(query: ListQuery): Boolean = false
 
-        override fun list(query: IListQuery, caller: QueryCaller) = delegate.list(query, caller).onEach {
+        override fun list(query: ListQuery, caller: QueryCaller) = delegate.list(query, caller).onEach {
             if (slowList) delay(50.milliseconds)
         }
     }

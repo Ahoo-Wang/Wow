@@ -28,7 +28,7 @@ class ManifestValuesTest {
     @Test
     fun `the Manifest's types are values`() {
         val cart = Manifests.cart()
-        valueSemantics({ Manifests.fragment() }, Manifests.fragment().withDefs(emptyMap()))
+        valueSemantics({ Manifests.fragment() }, Manifests.fragment().copyWith(defs = emptyMap()))
         valueSemantics({ ServiceInfo("shop") }, ServiceInfo("shop", "1.0.0"))
         valueSemantics({ ContextManifest("shop") }, ContextManifest("shop", "A shop"))
         valueSemantics({ Manifests.cart() }, Manifests.cart(aggregate = "basket"))
@@ -63,18 +63,19 @@ class ManifestValuesTest {
         val fragment = Manifests.fragment()
         val context = fragment.contexts.single()
         val cart = context.aggregates.first()
-        fragment.withContexts(
+        fragment.copyWith(
+            contexts =
             emptyList()
         ).assert().isEqualTo(Manifest(fragment.format, fragment.service, defs = fragment.defs))
-        fragment.withDefs(emptyMap()).contexts.assert().isEqualTo(fragment.contexts)
-        context.withAggregates(emptyList()).subscriptions.assert().isEqualTo(context.subscriptions)
+        fragment.copyWith(defs = emptyMap()).contexts.assert().isEqualTo(fragment.contexts)
+        context.copyWith(aggregates = emptyList()).subscriptions.assert().isEqualTo(context.subscriptions)
         val state = StateManifest("#/\$defs/Other")
-        cart.withState(state).assert().isEqualTo(cart.copyWith(state = state))
-        cart.withCommands(emptyList()).assert().isEqualTo(cart.copyWith(commands = emptyList()))
-        cart.withQueries(emptyList()).assert().isEqualTo(cart.copyWith(queries = emptyList()))
-        cart.state.withFingerprint(null).assert().isEqualTo(StateManifest(cart.state.schema))
+        cart.copyWith(state = state).assert().isEqualTo(cart.copyWith(state = state))
+        cart.copyWith(commands = emptyList()).assert().isEqualTo(cart.copyWith(commands = emptyList()))
+        cart.copyWith(queries = emptyList()).assert().isEqualTo(cart.copyWith(queries = emptyList()))
+        cart.state.copyWith(fingerprint = null).assert().isEqualTo(StateManifest(cart.state.schema))
         val command = cart.commands.first()
-        command.withRoutes(emptyList()).assert().isEqualTo(command.copyWith(routes = emptyList()))
+        command.copyWith(routes = emptyList()).assert().isEqualTo(command.copyWith(routes = emptyList()))
     }
 
     private fun valueSemantics(make: () -> Any, other: Any) {

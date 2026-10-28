@@ -8,16 +8,14 @@ spring:
       static-locations: file:./ui/, file:../console/dist/
 server:
   port: 8088
-# No identity provider until the `cosec` profile: every request is answered 401, unless a local run takes its callers
-# from headers (wow.platform.trust-identity-headers).
-cosec:
-  enabled: false
+# No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
+# from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
+# signed-in caller, and any other node does not start.
+wow.cosec.mode: "off"
 wow:
-  service: ops-service
   # One node, its data in memory, for trying the service out. The `mongo` profile keeps the entries on MongoDB, the
   # `postgres` profile on PostgreSQL, and either serves their snapshot queries (`POST /ops/parked/snapshot/query`); the
   # `kafka` profile connects the node to the services whose ledgers it shows.
-  backend: memory
   internal:
     port: 9098
   ops:
@@ -34,27 +32,11 @@ spring:
   config:
     activate:
       on-profile: cosec
-cosec:
-  enabled: true
-  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
-  jwt:
-    enabled: false
-  inject:
-    enabled: true
-  authorization:
-    enabled: false
-  authentication:
-    enabled: false
-  audit:
-    enabled: false
-  ip2region:
-    enabled: false
-  limiter:
-    enabled: false
 # region roles
 wow:
   cosec:
-    # Tenant-level callers (decision D189): their scope has no owner, so they read every entry of their tenant. An
+    mode: gateway
+    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
     # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
     # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
     tenant-level:
@@ -70,7 +52,6 @@ spring:
   mongodb:
     uri: mongodb://localhost:27017/?replicaSet=rs0
 wow:
-  backend: mongo
   mongo:
     database: wow_ops
 ---
@@ -82,8 +63,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/wow_ops
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ---
 spring:
   config:

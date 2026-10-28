@@ -13,7 +13,7 @@
 
 /**
  * `@ahoo-wang/wow-view-engine/testing`: an in-memory Wow source for a host's
- * tests and demos (D65). Headless — no React, no DOM, no stylesheet — and
+ * tests and demos. Headless — no React, no DOM, no stylesheet — and
  * held to the server's semantics matrix (`FilterSemantics`) and its TCK by
  * the package's own suites.
  */

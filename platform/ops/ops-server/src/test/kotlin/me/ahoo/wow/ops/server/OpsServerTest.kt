@@ -15,8 +15,6 @@ package me.ahoo.wow.ops.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.cosec.CoSecCallerResolver
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -47,23 +45,30 @@ class OpsServerTest {
                 "/ops/parked/{id}/apply-retry-spec",
                 "/ops/parked/{id}/state",
             )
-            // The memory backend serves no snapshot query by itself: the postgres profile does.
+            // The memory backend serves the snapshot queries itself, as the postgres profile's store does.
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.OPERATOR)
-                .status.assert().isEqualTo(NOT_FOUND)
+                .status.assert().isEqualTo(OK)
         }
     }
 
     @Test
-    fun `without the header switch no request is served on its headers' word`() {
-        startOps(OpsConfiguration.TRUST_IDENTITY_HEADERS to false).use { ops ->
-            // CoSec's resolver, with CoSec off (the default profile): no request has a security context.
-            ops.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
-            ops.get("/wow/ops/parked", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-            ops.get("/ops/parked/p-1/state", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+    fun `in development a request without a user is answered 401, the probes and the console's assets are not`() {
+        // The memory backend serves its snapshot queries, as a console's local run reads them.
+        startOps().use { ops ->
+            // A command, a query and a route of the service's own.
+            ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.NOBODY)
+                .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
+            ops.get("/actuator/health/readiness", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
+            ops.get("/index.html", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
         }
     }
 
     private companion object {
+        const val OK = 200
         const val NOT_FOUND = 404
         const val UNAUTHORIZED = 401
     }

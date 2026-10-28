@@ -30,9 +30,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
@@ -47,7 +47,7 @@ import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
-import me.ahoo.wow.query.error.QueryTimeoutException
+import me.ahoo.wow.spi.StorageTimeoutException
 import org.bson.Document
 import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory
@@ -64,7 +64,7 @@ import java.util.concurrent.TimeUnit
  * per stream ([MongoEventDocuments]). Records are projected as [MongoProjections] says.
  *
  * Every command carries `maxTimeMS` of the admitted timeout, and MongoDB cancelling it there is a
- * [QueryTimeoutException]. A bounded count is `countDocuments` with `limit = n + 1`. Lists and offset pages end their
+ * [StorageTimeoutException]. A bounded count is `countDocuments` with `limit = n + 1`. Lists and offset pages end their
  * sort with the documents' tie-breakers (a snapshot's tenant and aggregate ID), so their order is total; a keyset page orders by the cursor's sort alone,
  * which admission ended with the identity. Driver calls run on [dispatcher], virtual threads by default.
  * A collection not created yet holds no documents, so every primitive answers as over an empty collection.
@@ -79,13 +79,13 @@ class MongoSnapshotQueryBackend internal constructor(
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = MongoCursorCodec
 
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val find = collection.find(match(query.query.filter, query))
             .projection(MongoProjections.native(query))
             .sort(totalSort(query))
             .batchSize(options.fetchSize)
             .maxTime(query.timeout)
-        val limited = if (query.query.limit > 0) find.limit(query.query.limit) else find
+        val limited = query.query.limit?.let(find::limit) ?: find
         timed(query.timeout) {
             limited.cursor().use { cursor ->
                 while (cursor.hasNext()) emit(row(query, cursor.next()))
@@ -111,7 +111,7 @@ class MongoSnapshotQueryBackend internal constructor(
             collection.find(filter)
                 .projection(MongoProjections.native(query))
                 .sort(totalSort(query))
-                .skip(window.offset)
+                .skip(Math.toIntExact(window.offset))
                 .limit(window.limit)
                 .batchSize(window.limit)
                 .maxTime(query.timeout)
@@ -146,7 +146,7 @@ class MongoSnapshotQueryBackend internal constructor(
         return BackendPage(rows, positions = positions)
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long = withContext(dispatcher) {
         timed(query.timeout) {
             count(
                 match(query.query.filter, query),
@@ -255,7 +255,7 @@ class MongoSnapshotQueryBackend internal constructor(
             return rounded.coerceAtLeast(1)
         }
 
-        /** Runs [block]: MongoDB stopping it at its `maxTimeMS` fails as the core's [QueryTimeoutException]. */
+        /** Runs [block]: MongoDB stopping it at its `maxTimeMS` fails as a [StorageTimeoutException]. */
         inline fun <T> timed(timeout: Duration?, block: () -> T): T = try {
             block()
         } catch (error: MongoExecutionTimeoutException) {
@@ -264,8 +264,8 @@ class MongoSnapshotQueryBackend internal constructor(
             throw if (error.code == MAX_TIME_MS_EXPIRED) expired(timeout, error) else MongoFailures.translate(error)
         }
 
-        /** [error] as the core's [QueryTimeoutException] of [timeout]; as it is when the query had no timeout. */
+        /** [error] as a [StorageTimeoutException] of [timeout]; as it is when the query had no timeout. */
         fun expired(timeout: Duration?, error: MongoException): RuntimeException =
-            timeout?.let { QueryTimeoutException(it, error) } ?: error
+            timeout?.let { StorageTimeoutException(it, error) } ?: error
     }
 }

@@ -1,9 +1,0 @@
-# MongoDB, a replica set (even one node runs as one): the host creates the client from the URI (decision D318) and keeps
-# the bank's data in a database of its own. `./gradlew :quickstart:run --args='--spring.profiles.active=mongo'`
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/?replicaSet=rs0
-wow:
-  backend: mongo
-  mongo:
-    database: bank

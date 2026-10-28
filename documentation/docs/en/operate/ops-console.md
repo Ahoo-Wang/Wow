@@ -59,7 +59,8 @@ The operator signs in to the console with a CoSec access token. The service read
 ```yaml
 wow:
   cosec:
-    # Tenant-level callers (decision D189): their scope has no owner, so they read every entry of their tenant. An
+    mode: gateway
+    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
     # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
     # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
     tenant-level:

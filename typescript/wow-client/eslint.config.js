@@ -40,9 +40,10 @@ export default tseslint.config(
 /**
  * The dependency directions of src/, one block per layer. An edge not drawn
  * here is an error. The client modules at the top of src/ (commands, http,
- * queries, streams, …) build on the DSL's types only, and the DSL loads no
- * HTTP code and nothing of the client. The entries (src/index.ts, src/dsl.ts)
- * only re-export. verify-package.mjs still checks the built /dsl entry as a
+ * queries, streams, …) build on the DSL's types only, the DSL loads no HTTP
+ * code and nothing of the client, and testing/ loads no test runner. The
+ * entries (src/index.ts, src/dsl.ts, src/testing.ts) only re-export.
+ * verify-package.mjs still checks the built /dsl and /testing entries as a
  * second line.
  */
 function layerBoundaries() {
@@ -50,12 +51,13 @@ function layerBoundaries() {
     dsl: '(^|/)dsl(/|\\.js$|$)',
     // A module of the client, from inside the DSL: `../http.js`, `../../index.js`.
     client:
-      '^(\\.\\./)+(commands|dsl|http|index|manifest|problem|queries|state|streams|wait|wire)\\.js$',
+      '^(\\.\\./)+(commands|developmentCaller|dsl|http|index|manifest|problem|queries|state|streams|wait|wire)\\.js$',
   };
   const packages = {
     fetcher: '^@ahoo-wang/fetcher',
     decorator: '^@ahoo-wang/fetcher-decorator',
     reflect: '^reflect-metadata',
+    runner: '^(vitest|@vitest/|jest|@jest/|mocha)',
   };
   const deny = (from, target, extra = {}) => ({
     regex: target,
@@ -75,8 +77,18 @@ function layerBoundaries() {
       ]),
     },
     {
+      // The /testing entry is run by any test runner, a story or a tool: it
+      // loads none.
+      files: ['src/testing/**/*.ts'],
+      rules: rule([
+        deny('testing/', packages.runner),
+        deny('testing/', packages.decorator),
+        deny('testing/', packages.reflect),
+      ]),
+    },
+    {
       files: ['src/*.ts'],
-      ignores: ['src/index.ts', 'src/dsl.ts'],
+      ignores: ['src/index.ts', 'src/dsl.ts', 'src/testing.ts'],
       rules: rule([
         deny('The client', layer.dsl, { allowTypeImports: true }),
         deny('The client', packages.decorator),

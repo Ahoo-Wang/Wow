@@ -23,7 +23,7 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 | `test/` | `:test-dsl` (artifact `wow-test`), `:tck` and `:tck-containers`, `:architecture`, the benchmarks, the coverage report |
 | `bom/` | `:bom` (`wow-bom`) and `:wow-dependencies` |
 | `platform/` | The ops service and console, the view store, the analytics catalog |
-| `example/` | The eShop's five contexts and their e2e tests, the quickstart, the Java smoke test |
+| `examples/` | The eShop's five contexts and their e2e tests, the quickstart, the Java smoke test |
 | `typescript/` | The npm packages and their Storybook, with rules of their own in `typescript/AGENTS.md` |
 | `documentation/` | The site (`docs/`) and the design records (`designs/`) |
 | `skills/` | The six agent Skills |

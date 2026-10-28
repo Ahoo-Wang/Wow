@@ -42,7 +42,7 @@ function issuesAt(issues: readonly Issue[], at: IssuePath): Issue[] {
 }
 
 /**
- * The way into a metric's own conditions (D20 屏 H): the funnel on the
+ * The way into a metric's own conditions: the funnel on the
  * card, pressed while the block under it is open and lit while the metric
  * carries a condition, so a number's scope is never hidden behind an icon
  * alone. A derived metric has none — the protocol gives it no filter.

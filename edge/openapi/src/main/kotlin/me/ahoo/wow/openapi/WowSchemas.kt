@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.manifest.ManifestSchema
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.map
 import me.ahoo.wow.openapi.Json.nullable
@@ -94,9 +95,12 @@ internal object WowSchemas {
             description = "An instance's own rule of a job; each part that is null follows the job's default.",
         )
 
-    /** The schema of the lifecycle command [name]'s body. */
-    fun lifecycle(name: String): Map<String, Any?> =
-        if (name in LIFECYCLE) schemaRef(name) else objectSchema(emptyMap())
+    /**
+     * The names of the system commands whose bodies the framework describes: a Manifest that holds the body of a
+     * lifecycle command (keyed by its name) describes it in place of the framework.
+     */
+    val SYSTEM_COMMANDS: Set<String>
+        get() = LIFECYCLE.keys + JOB_COMMANDS.keys + REBUILD
 
     private val TAGS: Map<String, Any?>
         get() = map(array(type("string")))
@@ -106,9 +110,6 @@ internal object WowSchemas {
     private val INTEGER: Map<String, Any?> get() = type("integer")
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
-    /** The name of the snapshot rebuild aggregate of a context: `<context>.snapshot`. */
-    const val REBUILD_AGGREGATE: String = "snapshot"
-
     /** The snapshot rebuild command, by its full name. */
     const val REBUILD: String = "wow.snapshot.Rebuild"
 
@@ -116,8 +117,8 @@ internal object WowSchemas {
         get() = objectSchema(
             mapOf("ids" to obj("type" to "array", "items" to STRING, "minItems" to 1, "maxItems" to 1_000)),
             listOf("ids"),
-            "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, " +
-                "in the caller's tenant.",
+            "Rebuilds from the log the snapshots of the aggregates `ids` of the route's aggregate type, in the " +
+                "caller's tenant.",
         )
 
     /** Every framework schema, by name. */
@@ -180,8 +181,37 @@ internal object WowSchemas {
             ),
             listOf("name", "context", "dataset", "path"),
         ),
-        MANIFEST to type("object", description = "The service's Manifest."),
-    )
+    ) + manifestSchemas()
+
+    /**
+     * The Manifest's own schema ([ManifestSchema]): the Manifest as [MANIFEST], each of its definitions as
+     * `wow.Manifest.<Name>`, its references pointing at them.
+     */
+    private fun manifestSchemas(): Map<String, Any?> {
+        val schema = ManifestSchema.schema
+        val definitions = schema.getValue(DEFS) as Map<*, *>
+        val root = schema.filterKeys { it != "\$schema" && it != DEFS }
+        return linkedMapOf<String, Any?>(MANIFEST to manifestRefs(root)) +
+            definitions.entries.associate { (name, definition) -> "$MANIFEST.$name" to manifestRefs(definition) }
+    }
+
+    /** [node] with each reference into the Manifest schema's definitions pointing at its component. */
+    private fun manifestRefs(node: Any?): Any? = when (node) {
+        is Map<*, *> -> node.entries.associate { (key, value) ->
+            key.toString() to if (key == REF && value is String && value.startsWith(MANIFEST_DEFS)) {
+                schemaRef("$MANIFEST.${value.removePrefix(MANIFEST_DEFS)}").getValue(REF)
+            } else {
+                manifestRefs(value)
+            }
+        }
+
+        is List<*> -> node.map(::manifestRefs)
+        else -> node
+    }
+
+    private const val DEFS = "\$defs"
+    private const val REF = "\$ref"
+    private const val MANIFEST_DEFS = "#/\$defs/"
 
     /** The query bodies and answers. */
     private fun querySchemas(): Map<String, Any?> = linkedMapOf(

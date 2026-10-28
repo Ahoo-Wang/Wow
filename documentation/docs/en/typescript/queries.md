@@ -7,7 +7,7 @@ description: Read an aggregate's state through a generated client, after a comma
 
 A generated client reads an aggregate in two ways: its state client reads one aggregate by id, and its query clients run queries over all of its snapshots or its event streams. The query DSL, `@ahoo-wang/wow-client/dsl`, builds the queries, typed with the fields the aggregate's state has. This page uses the eShop's generated ordering clients ([Generate a Client](./generate)).
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## Read one aggregate
 
@@ -21,7 +21,7 @@ const order = await orderStates.get('order-1');
 console.log(order.version, order.state.status, order.state.totalAmount);
 ```
 
-The view holds the state with the aggregate's `ref`, `version`, `scope`, `tags` and whether it is `deleted`. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
+The view holds the state with the aggregate's `ref`, `version`, `scope`, `tags` and whether it is `deleted`. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`; `find(id, options?)` answers `undefined` for it instead, and still rejects any other 404. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
 
 The options pick another state:
 
@@ -81,13 +81,13 @@ The field names are typed from the generated `<Aggregate>StateField` and the sys
 
 | Method | Answers |
 | --- | --- |
-| `single` | The one record that matches; 404 `wow.query.not-found` when none does |
+| `single` | The one record that matches, or `undefined` when none does (the service's 404 `wow.query.not-found`); any other 404 rejects |
 | `list` | At most `limit` records; the service's default limit when absent |
 | `paged` | One page, `{ total, exact, list }` |
 | `cursor` | One page and the `nextCursor` of the next, or `null` after the last |
 | `count` | `{ count, exact }` |
 | `aggregate` | The rows of an aggregation: groups and metrics |
-| `listStream` | The records as server-sent events, one at a time |
+| `stream` | The records as server-sent events, one at a time |
 | `describe` | The query model's descriptor: the fields, the operators, sorts and aggregations each admits, and the limits |
 
 The [Query Language](../reference/query-language) defines each operator, the request of each kind and its answer.
@@ -127,7 +127,7 @@ const placedToday = filter.today('firstEventTime', { zoneId });
 
 ### Long lists
 
-`listStream` reads a list as server-sent events, for a list too long to answer in one response. When the service ends the stream to be resumed, when the connection is cut off, or when it fails with a retryable problem, the client resumes after the last record it read (`Last-Event-ID`), so the reader sees each record once:
+`stream` reads a list as server-sent events, for a list too long to answer in one response. When the service ends the stream to be resumed, when the connection is cut off, or when it fails with a retryable problem, the client resumes after the last record it read (`Last-Event-ID`), so the reader sees each record once:
 
 <!-- typecheck-context
 import { OrderSnapshotQueryClient } from './generated/ordering/index.js';
@@ -137,7 +137,7 @@ declare const orderQueries: OrderSnapshotQueryClient;
 ```ts
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 
-const stream = await orderQueries.listStream(
+const stream = await orderQueries.stream(
   listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 10_000 }),
 );
 const reader = stream.getReader();

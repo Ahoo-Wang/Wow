@@ -107,7 +107,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
         consumer.assign(target)
         val start = consumer.beginningOffsets(target).values.single()
         val end = consumer.endOffsets(target).values.single()
-        PartitionOffsets(start, end)
+        PartitionOffsets.of(start, end)
     }
 
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
@@ -161,7 +161,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
                     if (record.offset() >= next) {
                         next = record.offset() + 1
                         emit(
-                            SourceMessage(
+                            SourceMessage.of(
                                 record.offset(),
                                 record.key(),
                                 KafkaHeaders.of(record.headers()),

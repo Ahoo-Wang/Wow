@@ -4,18 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { ApplyTags, ChargebackNotified, ConfirmPayment, FailPayment, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
 import { PaymentAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-payment.payment`. */
-export const PaymentCommandPaths = {
-  CHARGEBACK_NOTIFIED: '/eshop-payment/payment/{id}/chargeback-notified',
-  CHARGEBACK_NOTIFIED_WITHOUT_ID: '/eshop-payment/payment/chargeback-notified',
-  CONFIRM_PAYMENT: '/eshop-payment/payment/{id}/confirm-payment',
-  FAIL_PAYMENT: '/eshop-payment/payment/{id}/fail-payment',
-  REFUND_PAYMENT: '/eshop-payment/payment/{id}/refund-payment',
-  REQUEST_PAYMENT: '/eshop-payment/payment/{id}/request-payment',
-  REQUEST_PAYMENT_WITHOUT_ID: '/eshop-payment/payment/request-payment',
-} as const;
-
-/** Sends the commands of `eshop-payment.payment`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-payment.payment`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class PaymentCommandClient {
   readonly gateway: CommandGateway;
 
@@ -29,12 +18,12 @@ export class PaymentCommandClient {
    * `ChargebackNotified`, mounted (a transformer finds its aggregate): `POST /eshop-payment/payment/{id}/chargeback-notified`, `POST /eshop-payment/payment/chargeback-notified`.
    */
   chargebackNotified(body: ChargebackNotified, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? PaymentCommandPaths.CHARGEBACK_NOTIFIED_WITHOUT_ID : PaymentCommandPaths.CHARGEBACK_NOTIFIED, body, options);
+    return this.gateway.wait({ ...options, command: 'eshop-payment.payment.ChargebackNotified', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/chargeback-notified' }, { method: 'POST', path: '/eshop-payment/payment/chargeback-notified' }], body });
   }
 
   /** `ChargebackNotified`, answered as one result per hop of its wait (`text/event-stream`). */
   chargebackNotifiedStream(body: ChargebackNotified, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? PaymentCommandPaths.CHARGEBACK_NOTIFIED_WITHOUT_ID : PaymentCommandPaths.CHARGEBACK_NOTIFIED, body, options);
+    return this.gateway.stream({ ...options, command: 'eshop-payment.payment.ChargebackNotified', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/chargeback-notified' }, { method: 'POST', path: '/eshop-payment/payment/chargeback-notified' }], body });
   }
 
   /**
@@ -43,12 +32,12 @@ export class PaymentCommandClient {
    * Produces `PaymentSucceeded`.
    */
   confirmPayment(id: string, body: ConfirmPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(PaymentCommandPaths.CONFIRM_PAYMENT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-payment.payment.ConfirmPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/confirm-payment' }], body, id });
   }
 
   /** `ConfirmPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   confirmPaymentStream(id: string, body: ConfirmPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(PaymentCommandPaths.CONFIRM_PAYMENT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-payment.payment.ConfirmPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/confirm-payment' }], body, id });
   }
 
   /**
@@ -57,12 +46,12 @@ export class PaymentCommandClient {
    * Produces `PaymentFailed`.
    */
   failPayment(id: string, body: FailPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(PaymentCommandPaths.FAIL_PAYMENT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-payment.payment.FailPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/fail-payment' }], body, id });
   }
 
   /** `FailPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   failPaymentStream(id: string, body: FailPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(PaymentCommandPaths.FAIL_PAYMENT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-payment.payment.FailPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/fail-payment' }], body, id });
   }
 
   /**
@@ -71,12 +60,12 @@ export class PaymentCommandClient {
    * Produces `PaymentRefunded`.
    */
   refundPayment(id: string, body: RefundPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(PaymentCommandPaths.REFUND_PAYMENT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-payment.payment.RefundPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/refund-payment' }], body, id });
   }
 
   /** `RefundPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   refundPaymentStream(id: string, body: RefundPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(PaymentCommandPaths.REFUND_PAYMENT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-payment.payment.RefundPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/refund-payment' }], body, id });
   }
 
   /**
@@ -86,12 +75,12 @@ export class PaymentCommandClient {
    * Produces `PaymentRequested`.
    */
   requestPayment(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, { ...options, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
+    return this.gateway.wait({ ...options, command: 'eshop-payment.payment.RequestPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/request-payment' }, { method: 'POST', path: '/eshop-payment/payment/request-payment' }], body, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
   }
 
   /** `RequestPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   requestPaymentStream(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, { ...options, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
+    return this.gateway.stream({ ...options, command: 'eshop-payment.payment.RequestPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/request-payment' }, { method: 'POST', path: '/eshop-payment/payment/request-payment' }], body, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
   }
 
   /**
@@ -99,7 +88,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(PaymentAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -107,7 +96,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(PaymentAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-payment/payment/{id}' }], id });
   }
 
   /**
@@ -115,7 +104,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(PaymentAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -123,7 +112,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(PaymentAggregate.path, id, LifecycleCommands.TRANSFER_OWNER, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.transfer-owner' }], id, body });
   }
 
   /**
@@ -131,6 +120,6 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(PaymentAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

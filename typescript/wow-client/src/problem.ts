@@ -14,7 +14,7 @@
 import type { CommandResult, Violation } from './wire.js';
 
 /**
- * The framework's error codes (design 05 §3, decisions D102, D103, D130),
+ * The framework's error codes,
  * each answered with the status of the Manifest's `errors` table. A domain
  * rejection has a code of its own, answered with 422 unless the service
  * configures another status.
@@ -54,6 +54,7 @@ export const FrameworkErrorCodes = {
   COMMAND_FAILED: 'wow.command.failed',
   /** 409: the aggregate's current state refuses the command (a check of its decide function); the message says why. */
   COMMAND_REFUSED: 'wow.command.refused',
+  COMMAND_UNDECLARED_EVENT: 'wow.command.undeclared-event',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
   /** 503: the node is on standby until a migration's cut-over; it serves reads only. */
@@ -88,6 +89,11 @@ export const FrameworkErrorCodes = {
   /** 404: no dataset of that name is served to the caller. */
   QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
   /**
+   * 400: an aggregation that names no sort has more groups than its `limit`;
+   * add a sort for a top-N, or raise the limit.
+   */
+  QUERY_TOO_MANY_GROUPS: 'wow.query.too-many-groups',
+  /**
    * 409, with `Retry-After`: a state read asked for a version (`minVersion`) the
    * aggregate has not reached within the wait; the problem's `version` is its
    * current one (review R4-Q, Q-13).
@@ -110,7 +116,7 @@ export const FRAMEWORK_ERROR_PREFIX = 'wow.';
 export const PROBLEM_TYPE_PREFIX = 'urn:wow:error:';
 
 /**
- * An RFC 9457 problem as a Wow service writes it (decisions D101, D102):
+ * An RFC 9457 problem as a Wow service writes it:
  * `type` is `urn:wow:error:<code>`, or `about:blank` for an error that is
  * only HTTP's (a missing route, 406, 415).
  */
@@ -302,7 +308,7 @@ export function rememberRequestId(error: unknown, requestId: string): void {
  * The request id (`Wow-Request-Id`) a command that failed with `error` was
  * sent with: also after a failure no server answered (the network, a proxy,
  * an abort), so the command can be retried with the same id and the service
- * answers a commit that did happen as a duplicate (decision D223).
+ * answers a commit that did happen as a duplicate.
  * Undefined for an error of no command the client sent.
  *
  * @param error - What a command rejected with

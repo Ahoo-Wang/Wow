@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.contract
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -29,6 +30,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.json.JsonMapper
 
@@ -209,7 +211,7 @@ class ContractDirectory(
 
     /** The context of the command [reference] names, resolved as [commandTypeOf] does; null when it cannot be. */
     private fun commandContextOf(reference: String): String? =
-        (commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) })?.substringBefore('.')
+        (commandTypeOf(reference) ?: reference.takeUnless { Manifest.isSchemaRef(it) })?.substringBefore('.')
 
     /**
      * The contexts the saga subscriptions of [local] call synchronously ([SubscriptionManifest.calls]),
@@ -242,7 +244,7 @@ class ContractDirectory(
             val references = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
                 subscription.committed.orEmpty() + subscription.schedules.orEmpty()
             val outside = references.filterNot { it in LIFECYCLE_COMMANDS }.mapNotNullTo(sortedSetOf()) { reference ->
-                val type = if (reference.startsWith(DEFS_PREFIX)) commandTypeOf(reference) else reference
+                val type = if (Manifest.isSchemaRef(reference)) commandTypeOf(reference) else reference
                 val target = type?.substringBefore('.') ?: UNKNOWN_CONTEXT
                 target.takeUnless { it in hosted }
             }
@@ -330,7 +332,6 @@ class ContractDirectory(
     }
 
     companion object {
-        private const val DEFS_PREFIX = "#/\$defs/"
 
         /** What [commandsOutside] names the context of a command no Manifest of the service or its peers decides. */
         const val UNKNOWN_CONTEXT: String = "(a context no Manifest declares)"
@@ -353,7 +354,9 @@ class ContractDirectory(
             mapper: JsonMapper = JsonMapper.builder().build(),
             nullableStates: Set<String> = emptySet(),
         ): ContractDirectory {
-            val contracts = ClassPathContracts.load(classLoader) { bytes -> mapper.readValue(bytes, Map::class.java) }
+            val contracts = ClassPathContracts.load(classLoader, { contractLogger.warn { it } }) { bytes ->
+                mapper.readValue(bytes, Map::class.java)
+            }
             requireHosted(local, contracts)
             return ContractDirectory(local, contracts, nullableStates)
         }
@@ -369,13 +372,19 @@ class ContractDirectory(
             contracts.forEach { contract ->
                 val declared = contract.manifest.service?.name ?: return@forEach
                 val contexts = contract.manifest.contexts.map { it.name }.filter { it in served }
-                check(contexts.isEmpty() || declared == service) {
+                configCheck(
+                    contexts.isEmpty() || declared == service,
+                    "wow.service",
+                    service,
+                    "Name the service $declared, or declare $service in the api module's domain module " +
+                        "(wow { contract { service } }).",
+                ) {
                     "The contract of $contexts (${contract.source}) says the service $declared hosts them, but this " +
-                        "service is $service: peers find it by the name its api module declares. Name the service " +
-                        "$declared (with Spring Boot, wow.service or spring.application.name), or declare $service in the api " +
-                        "module's domain module (wow { contract { service } })."
+                        "service is $service: peers find it by the name its api module declares."
                 }
             }
         }
     }
 }
+
+private val contractLogger = KotlinLogging.logger {}

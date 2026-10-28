@@ -23,6 +23,7 @@ package me.ahoo.wow.spi
  * the driver's own exception: a defect, not something a retry fixes.
  *
  * The runtime answers it as the error `wow.storage.unavailable`, which a caller may retry: a command with the same
- * request id, which the kernel deduplicates, a query as it is.
+ * request id, which the kernel deduplicates, a query as it is. A store that is up but at its capacity is the subtype
+ * [StorageBusyException].
  */
-class StorageUnavailableException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+open class StorageUnavailableException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)

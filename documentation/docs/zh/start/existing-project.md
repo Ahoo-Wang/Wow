@@ -6,7 +6,7 @@ outline: deep
 
 # 在已有服务中引入 Wow
 
-[快速开始](./quickstart)把服务放在一个模块里。真实的服务会拆成三个模块，这样其他服务可以只依赖它的契约而不依赖它的领域，它的领域也只依赖内核而不依赖宿主。本页以 eShop 的 catalog 为例完成这样的设置；[eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 的每个服务都是这个形状。
+[快速开始](./quickstart)把服务放在一个模块里。真实的服务会拆成三个模块，这样其他服务可以只依赖它的契约而不依赖它的领域，它的领域也只依赖内核而不依赖宿主。本页以 eShop 的 catalog 为例完成这样的设置；[eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 的每个服务都是这个形状。
 
 ## 你需要什么 {#what-you-need}
 
@@ -121,7 +121,8 @@ tasks.test {
 | `context` | 模块中唯一的 `@BoundedContext` | 模块中的聚合和处理器所属的上下文 |
 | `addCompilerDependency` | `true` | 插件是否把 `wow-compiler` 加到 `ksp` |
 | `schemaOverrides` | 空 | 每个 JVM 类名对应一个 JSON Schema，用于由自定义序列化器写出的类型 |
-| `serviceName`、`serviceVersion` | 项目的名字和版本 | 合并后的 Manifest 所描述的服务 |
+| `serviceName` | 其上下文的契约写明的服务，否则为项目的名字 | 合并后的 Manifest 所描述的服务；其上下文的契约写明不同服务时须设置 |
+| `serviceVersion` | 项目的版本 | 合并后的 Manifest 所描述的服务的版本 |
 | `manifestBaseline` | `manifest/baseline.json` | 兼容检查使用的、提交到仓库的基线 |
 
 `catalog-server/build.gradle.kts`：
@@ -161,7 +162,7 @@ dependencies {
 
 领域模块在它自己的一个 object 上声明一次它的限界上下文：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.domain
@@ -186,7 +187,7 @@ api 模块包含命令和事件，它们是不带身份字段的数据类，其�
 
 服务器是一个普通的 Spring Boot 应用。catalog 的服务器只需要它的应用类：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.server

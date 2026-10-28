@@ -36,7 +36,7 @@ export const CHIP =
   'fve:flex fve:min-w-0 fve:shrink-0 fve:items-center fve:gap-1 fve:py-0.5 fve:pr-0.5 fve:text-sm';
 
 /**
- * The board's fixed scope (D26 Q31, D27): the condition a board saved
+ * The board's fixed scope: the condition a board saved
  * before its filters could not hold, in force on every panel. Read-only and
  * said as 「固定范围」, the way a locked filter says the page holds it: the
  * board keeps it, and no reader takes it out. While the board is built its

@@ -17,14 +17,14 @@ import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.query.filter.hasArithmeticExpression
@@ -93,21 +93,21 @@ class QueryBudget(
 
     /**
      * The list size applied to a list query that sends none, from the configured [default]: at most [maxListSize],
-     * and `null` (none applied, `0` keeps meaning unlimited) when either is `0`.
+     * and `null` (none applied: the list reads every match) when either is `0`.
      */
     fun listDefault(default: Int): Int? =
         if (default <= 0 || maxListSize == 0) null else default.coerceAtMost(maxListSize)
 
-    fun check(query: ISingleQuery, scope: FilterExpression = MatchAllFilter) {
+    fun check(query: SingleQuery, scope: FilterExpression = MatchAllFilter) {
         checkFilter(query.filter, scope, counting = false)
     }
 
-    fun check(query: IListQuery, scope: FilterExpression = MatchAllFilter) {
+    fun check(query: ListQuery, scope: FilterExpression = MatchAllFilter) {
         checkResultSize(query.limit, "list")
         checkFilter(query.filter, scope, counting = false)
     }
 
-    fun check(query: IPagedQuery, scope: FilterExpression = MatchAllFilter) {
+    fun check(query: PagedQuery, scope: FilterExpression = MatchAllFilter) {
         checkPage(query)
         requireValid(query.total != TotalMode.EXACT || allowExactCount || countLimit == 0) {
             QueryViolation.ExactCountDisabled(label)
@@ -115,7 +115,7 @@ class QueryBudget(
         checkFilter(query.filter, scope, counting = query.total != TotalMode.NONE)
     }
 
-    fun check(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+    fun check(query: CursorQuery, scope: FilterExpression = MatchAllFilter) {
         requireValid(query.size >= 1 && (maxPageSize == 0 || query.size <= maxPageSize)) {
             QueryViolation.SizeOutOfRange(label, "cursor size", query.size.toLong(), 1, maxPageSize.toLong(), "size")
         }
@@ -127,7 +127,7 @@ class QueryBudget(
      * bulkhead permits, not by rows, so neither its limit nor its chunk size is checked, only
      * its filter.
      */
-    fun checkStream(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+    fun checkStream(query: CursorQuery, scope: FilterExpression = MatchAllFilter) {
         checkFilter(query.filter, scope, counting = false)
     }
 
@@ -178,7 +178,7 @@ class QueryBudget(
         throw QueryViolation.ExpensiveOperatorDisabled(label, construct, plural, "groupBy").rejection()
     }
 
-    fun check(query: ICountQuery, scope: FilterExpression = MatchAllFilter) {
+    fun check(query: CountQuery, scope: FilterExpression = MatchAllFilter) {
         query.limit?.let { limit ->
             requireValid(countLimit == 0 || limit <= countLimit) {
                 QueryViolation.SizeOutOfRange(label, "count limit", limit.toLong(), 1, countLimit.toLong(), "limit")
@@ -191,7 +191,7 @@ class QueryBudget(
      * The limit a count of [query] runs with under this budget: the query's own, else [countLimit];
      * `null` counts exactly.
      */
-    fun countLimit(query: ICountQuery): Int? = query.limit ?: totalLimit
+    fun countLimit(query: CountQuery): Int? = query.limit ?: totalLimit
 
     /** The bound of a paged query's [BOUNDED][TotalMode.BOUNDED] total: [countLimit], `null` when it is `0`. */
     val totalLimit: Int?
@@ -204,13 +204,14 @@ class QueryBudget(
         checkFilters(listOf(filter) + scope.asScopeFilters(), rejectMatchAll = !allowExpensiveOperators && counting)
     }
 
-    private fun checkResultSize(limit: Int, queryName: String) {
+    /** [limit], at least 1 and at most [maxListSize]; `null`, every match, only when [maxListSize] is `0`. */
+    private fun checkResultSize(limit: Int?, queryName: String) {
         val minimum = if (maxListSize == 0) 0 else 1
-        requireValid(limit >= minimum && (maxListSize == 0 || limit <= maxListSize)) {
+        requireValid(maxListSize == 0 || limit != null && limit in minimum..maxListSize) {
             QueryViolation.SizeOutOfRange(
                 label,
                 "$queryName query limit",
-                limit.toLong(),
+                (limit ?: 0).toLong(),
                 minimum.toLong(),
                 maxListSize.toLong(),
                 "limit",
@@ -218,12 +219,9 @@ class QueryBudget(
         }
     }
 
-    private fun checkPage(query: IPagedQuery) {
+    private fun checkPage(query: PagedQuery) {
         val pagination = query.pagination
-        requireValid(pagination.index >= 1) {
-            QueryViolation.SizeOutOfRange(label, "page index", pagination.index.toLong(), 1, null, PAGINATION_INDEX)
-        }
-        requireValid(pagination.size >= 1 && (maxPageSize == 0 || pagination.size <= maxPageSize)) {
+        requireValid(maxPageSize == 0 || pagination.size <= maxPageSize) {
             QueryViolation.SizeOutOfRange(
                 label,
                 "page size",
@@ -237,7 +235,8 @@ class QueryBudget(
         requireValid(maxPageWindow == 0L || window <= maxPageWindow) {
             QueryViolation.SizeOutOfRange(label, "page window", window, null, maxPageWindow, PAGINATION)
         }
-        val offset = (pagination.index.toLong() - 1) * pagination.size
+        // MongoDB's skip and Elasticsearch's from are ints: a deeper page is refused here, whatever the window allows.
+        val offset = pagination.offset()
         requireValid(offset <= Int.MAX_VALUE) {
             QueryViolation.SizeOutOfRange(label, "page offset", offset, null, Int.MAX_VALUE.toLong(), PAGINATION)
         }
@@ -286,7 +285,6 @@ class QueryBudget(
 
     companion object {
         private const val PAGINATION = "pagination"
-        private const val PAGINATION_INDEX = "pagination.index"
         private const val PAGINATION_SIZE = "pagination.size"
         private const val HAVING = "having"
         const val DEFAULT_MAX_FILTER_NODES: Int = 128

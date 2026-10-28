@@ -155,7 +155,7 @@ function summaryWords(
  * The conditions a result came back under, as one line — 「条件：状态 是
  * 已发运 · 创建时间 在 本月」, or every record where there are none: what
  * the export window says a file holds, and what a chart's picture says of
- * the range it covers (D33 Q58).
+ * the range it covers.
  */
 export function conditionsText(
   items: readonly FilterSummaryItem[],

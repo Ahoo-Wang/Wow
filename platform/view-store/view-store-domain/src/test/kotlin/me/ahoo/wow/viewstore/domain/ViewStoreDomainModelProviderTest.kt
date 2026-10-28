@@ -18,6 +18,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
@@ -45,11 +46,11 @@ class ViewStoreDomainModelProviderTest {
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
         val context = ManifestTree.read(tree).contexts.single()
         val aggregates = context.aggregates.associateBy { it.name }
-        aggregates.getValue(ViewStoreContext.VIEW).lifecycle.assert()
+        aggregates.getValue(ViewStoreContract.View.NAME).lifecycle.assert()
             .containsExactlyInAnyOrder("wow.lifecycle.DeleteAggregate", "wow.lifecycle.TransferOwner")
-        aggregates.getValue(ViewStoreContext.VIEW_PREFERENCES).lifecycle.assert().isEmpty()
-        aggregates.getValue(ViewStoreContext.DATASET_WORDING).ownership.name.assert().isEqualTo("TENANT")
-        aggregates.getValue(ViewStoreContext.VIEW).ownership.name.assert().isEqualTo("OWNER")
+        aggregates.getValue(ViewStoreContract.ViewPreferences.NAME).lifecycle.assert().isEmpty()
+        aggregates.getValue(ViewStoreContract.DatasetWording.NAME).ownership.name.assert().isEqualTo("TENANT")
+        aggregates.getValue(ViewStoreContract.View.NAME).ownership.name.assert().isEqualTo("OWNER")
         context.errors.associate { it.code to it.status }.assert()
             .containsEntry(ViewStoreRejections.INVALID, 400)
             .containsEntry(ViewStoreRejections.NOT_FOUND, 404)

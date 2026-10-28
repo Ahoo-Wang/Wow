@@ -75,7 +75,7 @@ class RetryBindingTest {
             fun onEvent(event: StateEvent<OrderState>) = Unit
 
             @OnEvent
-            @Retry(maxBackoff = "1m")
+            @Retry(maxBackoff = "1m", multiplier = 1.5)
             fun own(event: StateEvent<OrderState>) = Unit
         }
         """.trimIndent(),
@@ -106,7 +106,7 @@ class RetryBindingTest {
         bindings.getValue("Notifier.inherited").retry.assert()
             .isEqualTo(HandlerRetry(maxAttempts = 3, timeout = 2.seconds, unrecoverable = invalid))
         bindings.getValue("Board.onEvent").retry.assert().isNull()
-        bindings.getValue("Board.own").retry.assert().isEqualTo(HandlerRetry(maxBackoff = 60.seconds))
+        bindings.getValue("Board.own").retry.assert().isEqualTo(HandlerRetry(maxBackoff = 60.seconds, multiplier = 1.5))
 
         val fragment = compilation.workingDir.walkTopDown()
             .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
@@ -125,7 +125,9 @@ class RetryBindingTest {
             RetryManifest(3, timeout = "PT2S", unrecoverable = listOf("java.lang.IllegalArgumentException")),
         )
         subscriptions.getValue("Board.onEvent").retry.assert().isNull()
-        subscriptions.getValue("Board.own").retry.assert().isEqualTo(RetryManifest(maxBackoff = "PT1M"))
+        subscriptions.getValue(
+            "Board.own"
+        ).retry.assert().isEqualTo(RetryManifest(maxBackoff = "PT1M", multiplier = 1.5))
     }
 
     @Test
@@ -141,6 +143,7 @@ class RetryBindingTest {
             import me.ahoo.wow.api.annotation.Reactor
             import me.ahoo.wow.api.annotation.Retry
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandRejected
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -159,18 +162,18 @@ class RetryBindingTest {
             @Retry(maxAttempts = -1, initialBackoff = "soon")
             class Shaky {
                 @OnEvent
-                @Retry(maxBackoff = "-1s", timeout = "0s")
+                @Retry(maxBackoff = "-1s", timeout = "0s", multiplier = 0.5)
                 fun onEvent(event: StateEvent<Order>) = Unit
             }
 
             @Saga
             class Compensating {
                 @OnEvent
-                fun onEvent(event: StateEvent<Order>): Command<Open>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<Open>? = null
 
                 @OnRejected
                 @Retry(maxAttempts = 2)
-                fun onRejected(rejected: CommandRejected<Open>): Command<Open>? = null
+                fun onRejected(rejected: CommandRejected<Open>): CommandRequest<Open>? = null
             }
             """.trimIndent(),
         )
@@ -182,6 +185,7 @@ class RetryBindingTest {
             .contains("processor Shaky is annotated @Retry(initialBackoff = \"soon\"): it is a duration")
             .contains("handler Shaky.onEvent is annotated @Retry(maxBackoff = \"-1s\"): it is never negative")
             .contains("handler Shaky.onEvent is annotated @Retry(timeout = \"0s\"): it is positive")
+            .contains("handler Shaky.onEvent is annotated @Retry(multiplier = 0.5): a backoff never shrinks")
             .contains("handler Compensating.onRejected is annotated @Retry: an @OnRejected handler compensates")
     }
 

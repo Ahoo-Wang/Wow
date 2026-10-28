@@ -222,7 +222,7 @@ internal class NodeAssembly(
     }
 
     init {
-        NodeChecks.kafkaRouted(node, options.kafkaRouted, registry, topics?.producer != null)
+        NodeChecks.topicRouted(node, options.topicRouted, registry, topics?.producer != null)
     }
 
     /** The node's one firing loop of every context's timers. */

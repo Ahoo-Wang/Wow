@@ -81,11 +81,11 @@ interface ClickSettingsProps {
 }
 
 /**
- * 「点击时…」 (D22 I): what pressing one group of an analysis panel does —
- * the follow-up menu (the default, D22 H), setting a board filter the panel
+ * 「点击时…」: what pressing one group of an analysis panel does —
+ * the follow-up menu (the default), setting a board filter the panel
  * is wired to through a field it groups by (cross-filtering), or going to
- * another saved view, another board (its filters mapped one by one, D23
- * Q17: `BoardDestination`) or a page of the host's, the group carried
+ * another saved view, another board (its filters mapped one by one,
+ * `BoardDestination`) or a page of the host's, the group carried
  * along. One choice among three, so a `RadioGroup`; what each choice needs
  * sits under it. 「完成」 writes it into the draft (`setPanelClick`), as every
  * edit of a board is; the board's own 「保存」 saves it.

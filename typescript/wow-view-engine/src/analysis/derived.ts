@@ -31,7 +31,7 @@ import {
 import { narrowsGroups } from './top.js';
 
 /**
- * Why a derived series cannot be computed over this result (D33 Q53). Wow's
+ * Why a derived series cannot be computed over this result. Wow's
  * aggregation has no window functions, so a trend, a moving average and a
  * running total are computed here over the rows that came back — and over
  * rows that are not the whole time axis they are silently wrong. A wrong
@@ -236,7 +236,7 @@ function trendLine(values: readonly number[]): number[] {
 /**
  * Why `derived` cannot be drawn, judged before the query that would compute
  * it (the options page's boxes): as `derivedGap`, but a line the source
- * would compute (`windows`, D87–D88) is judged as computed by it.
+ * would compute (`windows`) is judged as computed by it.
  */
 export function draftGap(
   config: AnalysisViewConfig,

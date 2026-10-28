@@ -14,9 +14,9 @@ outline: deep
 
 ## 编写投影 {#write-a-projection}
 
-投影是一个标注了 `@Projection` 的类。每个处理函数标注 `@OnEvent` 或名为 `onEvent`，接收一个已提交的事件；它的依赖是构造函数的参数，从应用的 Bean 绑定：
+投影是一个标注了 `@Projection` 的类。每个处理函数标注 `@OnEvent`，接收一个已提交的事件；它的依赖是构造函数的参数，从应用的 Bean 绑定：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
 ```kotlin
 @Blocking
@@ -47,7 +47,7 @@ fun onEvent(event: StateEvent<OrderState>) {
 
 一次提交可能被处理不止一次：失败的尝试之后、重放时，或者节点之间交接租约时。所以投影的写入以它所写的版本为守卫，这样再次处理一次提交，或迟到地处理一次较旧的提交，都绝不会替换更新的行。订单汇总为每个订单保留最新的版本：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingPorts.kt#save -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingPorts.kt#save -->
 
 ```kotlin
 override fun save(summary: OrderSummary, version: Int) {
@@ -63,7 +63,7 @@ override fun save(summary: OrderSummary, version: Int) {
 
 反应器是一个标注了 `@Reactor` 的类。它的处理函数接收同样的事件，上下文为每次调用提供一个用于外部调用的幂等键：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -84,7 +84,7 @@ override fun save(summary: OrderSummary, version: Int) {
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }
@@ -113,13 +113,14 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 
 `projectionSpec` 和 `reactorSpec` 把已提交的事件交给生成的处理函数，测试再检查假端口里有什么。把同一次提交交两次，就能说明投影是幂等的：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjectionTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjectionTest.kt#test -->
 
 ```kotlin
 @Test
 fun `the same commit handled again should save the same summary`() = projectionSpec(handlers) {
-    whenEvent(event) { expectNoError() }
-    whenEvent(event) { expectNoError() }
+    submitted()
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
     saved.distinct().size.assert().isEqualTo(1)
 }
 ```

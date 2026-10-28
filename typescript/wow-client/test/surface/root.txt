@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 105 names, from src/index.ts.
+# @ahoo-wang/wow-client — 118 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -9,6 +9,7 @@ type  ApplyTags
 value CommandGateway
 type  CommandManifest
 type  CommandOptions
+type  CommandRequest
 type  CommandResult
 type  CommandResultStatus
 type  CommandResultStream
@@ -21,6 +22,8 @@ type  Creation
 value DatasetClient
 type  DatasetEntry
 type  DescriptorResult
+type  DevelopmentCaller
+value DevelopmentCallerHeaders
 type  ErrorInfo
 type  ErrorManifest
 type  EventManifest
@@ -33,11 +36,13 @@ type  FrameworkErrorCode
 value FrameworkErrorCodes
 type  FunctionInfo
 type  FunctionKind
+type  FunctionManifest
 type  Hop
 type  Including
+type  JobManifest
 type  LifecycleCommand
 value LifecycleCommands
-type  ListStreamOptions
+value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
@@ -47,22 +52,28 @@ value PROBLEM_TYPE_PREFIX
 type  PagedQuery
 type  PagedResult
 type  Problem
+type  PublishedManifest
 type  QueryManifest
 value QueryModelClient
 type  RequestOptions
 type  RetryHint
+type  RetryManifest
 type  RouteManifest
 value SNAPSHOT_SUBSCRIPTION
 type  ScheduleCancelled
 type  ScheduleRule
 type  ScheduleSet
 type  Scope
+type  ServiceManifest
+type  SnapshotManifest
 value SnapshotQueryClient
 type  SnapshotRecord
 type  SnapshotSystemField
+type  SourceManifest
 type  SpaceTransferred
 value Stage
 value StateClient
+type  StateManifest
 type  StateReadOptions
 type  StateReadResult
 type  StateTrace
@@ -70,6 +81,7 @@ type  StateTraceOptions
 type  StateView
 type  StreamEnd
 type  StreamEndReason
+type  StreamOptions
 type  StreamResumeOptions
 type  StreamedRow
 type  SubscriptionManifest
@@ -84,11 +96,12 @@ type  TransferOwner
 type  TransferSpace
 type  TransformedFrom
 type  Violation
-type  WaitOptions
 type  WowClientOptions
 value WowHeaders
 value WowProblemError
-value commandSegment
+value checkManifest
+value developmentCaller
+value developmentCallerHeaders
 value fetchManifest
 value formatHop
 value formatScope

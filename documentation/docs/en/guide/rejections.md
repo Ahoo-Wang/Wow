@@ -15,7 +15,7 @@ A decide function refuses a command in one of three ways, and each is answered t
 | The decide function | The caller gets |
 | --- | --- |
 | returns `Decision.reject(code, message)` | the code, with its status (422 by default) |
-| calls `reject(code, message)` of its scope, or throws `RejectedException(Rejection.of(code, message))` (Java) | the same as returning it |
+| calls `reject(code, message)` (`me.ahoo.wow.api.decide`, or its scope's), or throws `RejectedException(Rejection.of(code, message))` (Java) | the same as returning it |
 | calls `require`, `requireNotNull` (an `IllegalArgumentException`) | `wow.command.invalid` (400) |
 | calls `check`, `checkNotNull` or `error` (an `IllegalStateException`) | `wow.command.refused` (409): the aggregate's current state refuses the command |
 | throws anything else | the command **fails** with `wow.command.failed` (500): nothing is written, and a retry fails alike |
@@ -35,7 +35,7 @@ A rule about the command's own shape, such as a quantity that is not positive, a
 
 A code is a `const val` of type `String` annotated `@ErrorCode`, in an `object` nested in the root class:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -60,18 +60,17 @@ object Rejections {
 
 A command function returns the rejection with the code's local name and a message for people:
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
 
 ```kotlin
-@OnCommand(produces = [StockReserved::class])
-fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
-    command.orderId in state.reservations -> Decision.NoOp
-    command.quantity > state.available -> Decision.reject(
+fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
+    command.orderId in state.reservations -> null
+    command.quantity > state.available -> reject(
         Rejections.INSUFFICIENT,
         "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
     )
 
-    else -> Decision.events(StockReserved(command.orderId, command.quantity))
+    else -> StockReserved(command.orderId, command.quantity)
 }
 ```
 
@@ -85,13 +84,12 @@ The message may say anything that helps a person: amounts, ids, the state the ag
 
 **In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code, for a rejection by the aggregate as for one at admission:
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
 val rejected = runCatching {
-    basket.bean<CommandClient>().of(alice)
-        .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
+    basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
 }.exceptionOrNull() as CommandRejectedException
 rejected.code.assert().isEqualTo("wow.command.invalid")
 rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
@@ -116,7 +114,7 @@ A rejection is an answer, never a failure: it is not retried or parked, whicheve
 
 ## Remote calls in a decide function
 
-A decide function runs again after a version conflict, so a remote call in it must be idempotent. Wow's clients derive the request id of a command they send from the deciding command's id and the call's order, so a repeated call is the same request as long as the calls keep their order (`SendOptions.requestId` overrides it). Commands sent concurrently from one decision take their indices in no stable order, so send them one after another, or pass `SendOptions.requestId` when a resend must be deduplicated; a `JavaCommandClient` future derives nothing, so pass the id explicitly there too; a third-party call needs a key of its own, and undoing it goes through `onAppendFailure`. Bringing the remote facts in before the decision is usually better: enrich the command with a `CommandTransformer`, or let a saga call and send the result. A `CommandRejectedException` of a Wow client call is answered as a rejection of this command with the target's code; the target failing, timing out or answering an unknown outcome is a failure, as are I/O errors and timeouts of any client. Wrap a third-party call whose library throws a plain `IllegalStateException` for a transient error, so that it is not taken for a refusal.
+A decide function runs again after a version conflict, so a remote call in it must be idempotent. Wow's clients derive the request id of a command they send from the deciding command's id and the call's order, so a repeated call is the same request as long as the calls keep their order (`CommandRequest.requestId` overrides it). Commands sent concurrently from one decision take their indices in no stable order, so send them one after another, or pass `CommandRequest.requestId` when a resend must be deduplicated; a `JavaCommandClient` future derives nothing, so pass the id explicitly there too; a third-party call needs a key of its own, and undoing it goes through `onAppendFailure`. Bringing the remote facts in before the decision is usually better: enrich the command with a `CommandTransformer`, or let a saga call and send the result. A `CommandRejectedException` of a Wow client call is answered as a rejection of this command with the target's code; the target failing, timing out or answering an unknown outcome is a failure, as are I/O errors and timeouts of any client. Wrap a third-party call whose library throws a plain `IllegalStateException` for a transient error, so that it is not taken for a refusal.
 
 ## Codes the framework rejects with
 

@@ -220,7 +220,7 @@ class PostgresFailureLedger(
         fun PreparedStatement.setSpec(first: Int, spec: ParkedRetrySpec?) {
             if (spec == null) setNull(first, Types.INTEGER) else setInt(first, spec.maxRetries)
             setNullableLong(first + 1, spec?.initialBackoff?.inWholeMilliseconds)
-            setNullableLong(first + 2, spec?.executionTimeout?.inWholeMilliseconds)
+            setNullableLong(first + 2, spec?.timeout?.inWholeMilliseconds)
         }
 
         fun ResultSet.nullableLong(column: String): Long? = getLong(column).takeUnless { wasNull() }
@@ -239,7 +239,7 @@ class PostgresFailureLedger(
                 ParkedRetrySpec(
                     maxRetries = maxRetries,
                     initialBackoff = row.getLong("retry_initial_backoff_millis").milliseconds,
-                    executionTimeout = row.getLong("retry_execution_timeout_millis").milliseconds,
+                    timeout = row.getLong("retry_timeout_millis").milliseconds,
                 )
             },
             recoverable = Recoverable.valueOf(row.getString("recoverable")),

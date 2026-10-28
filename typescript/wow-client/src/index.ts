@@ -24,7 +24,7 @@ export {
   type ApplyTags,
   CommandGateway,
   type CommandOptions,
-  commandSegment,
+  type CommandRequest,
   type CreateCommandOptions,
   type LifecycleCommand,
   LifecycleCommands,
@@ -40,6 +40,12 @@ export {
   type TextNumbersByName,
 } from './exactJson.js';
 export {
+  type DevelopmentCaller,
+  developmentCaller,
+  developmentCallerHeaders,
+  DevelopmentCallerHeaders,
+} from './developmentCaller.js';
+export {
   formatScope,
   type RequestOptions,
   type TargetScope,
@@ -47,19 +53,13 @@ export {
   WowHeaders,
 } from './http.js';
 export {
-  type AggregateManifest,
-  type CommandManifest,
-  type ContextManifest,
+  checkManifest,
   type Creation,
-  type ErrorManifest,
-  type EventManifest,
   fetchManifest,
-  type Manifest,
+  MANIFEST_FEATURES,
   MANIFEST_FORMAT,
-  type QueryManifest,
-  type RouteManifest,
-  type SubscriptionManifest,
 } from './manifest.js';
+export type * from './manifestTypes.js';
 export * from './wire.js';
 export {
   FRAMEWORK_ERROR_PREFIX,
@@ -82,7 +82,7 @@ export {
   DatasetClient,
   type DescriptorResult,
   EventQueryClient,
-  type ListStreamOptions,
+  type StreamOptions,
   type Including,
   type PagedQuery,
   type PagedResult,
@@ -110,5 +110,4 @@ export {
   formatWaitTimeout,
   SNAPSHOT_SUBSCRIPTION,
   wait,
-  type WaitOptions,
 } from './wait.js';

@@ -78,13 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
 ```
 
-Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP（决定 D319）。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点（D305）。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
+Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 
@@ -107,7 +107,7 @@ Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设
 
 默认的 `auto` 按应用提供的 Bean 选择 PostgreSQL 或 MongoDB。两者都没有时节点拒绝启动，除非处于开发 profile，或者它的内部端口只绑定在回环网卡上；这时它在内存中运行，并说明这一点。eShop 的 ordering 服务用它的 `postgres` profile 切换到 PostgreSQL：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:
@@ -118,8 +118,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 除非 `wow.ddl` 设为 `validate` 或 `none`，宿主在启动时创建它的表和集合。日志和快照按聚合类型存储（`wow_log__<context>__<aggregate>`、`wow_snapshot__<context>__<aggregate>`）。命名的存储 `wow.stores` 改为按聚合拆分数据：一个聚合的日志在 PostgreSQL 上，另一个聚合的快照在 Elasticsearch 上。

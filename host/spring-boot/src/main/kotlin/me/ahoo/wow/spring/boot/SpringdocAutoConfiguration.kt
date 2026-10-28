@@ -86,12 +86,11 @@ class SpringdocAutoConfiguration {
     @InternalWowApi
     fun wowSpringdocDocument(
         manifest: Manifest,
-        node: ServiceNode,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
         security: WowOpenApiSecurity,
     ): SpringdocDocument = SpringdocDocument(
-        wowOpenApi(manifest, node.gateway, options, queries.getIfAvailable { HttpQueries.NONE }, security.schemes),
+        wowOpenApi(manifest, options, queries.getIfAvailable { HttpQueries.NONE }, security.schemes),
     )
 
     /** Merges the Wow routes into springdoc's default document (`/v3/api-docs`). */

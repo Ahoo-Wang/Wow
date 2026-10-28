@@ -47,7 +47,7 @@ const active = await carts.list(
 ```
 
 `single`、`list`、`paged`、`cursor`、`count`、`aggregate` 各对应一种操作；
-`listStream` 以服务端推送事件读列表，服务中断的流从中断处续读。`describe(version?)`
+`stream` 以服务端推送事件读列表，服务中断的流从中断处续读。`describe(version?)`
 读查询模型的能力描述（同一路由的 `GET`）：每个字段可用的运算符、排序与聚合，以及
 各项上限；传入已持有的版本，304 时返回 `{ notModified: true, version }`。
 `EventQueryClient` 以同样方式查询聚合的事件流，`QueryModelClient` 查询任意查询路由，
@@ -76,21 +76,31 @@ declare const fetcher: Fetcher;
 import { CommandGateway, wait } from '@ahoo-wang/wow-client';
 
 const commands = new CommandGateway({ fetcher });
-const result = await commands.send(
-  '/shop/cart/{id}/add-cart-item',
-  { productId: 'p-1', quantity: 1 },
-  { id: 'cart-42', wait: { plan: [wait.snapshot()], timeout: 10_000 } },
-);
+const result = await commands.wait({
+  command: 'shop.cart.AddCartItem',
+  body: { productId: 'p-1', quantity: 1 },
+  id: 'cart-42',
+  wait: [wait.snapshot()],
+  timeout: 10_000,
+});
 ```
 
-路由是 `POST /{context}/{aggregate}/{id}/{command}`；可以创建聚合的命令不带 `{id}`。
-`wait` 说明命令走到哪一步才应答（`accepted`、`committed`、`snapshot`，或某个订阅的
-`handled`，也可以跨过 Saga 派生的命令）；`stream` 每到一跳应答一个 `CommandResult`。
+`command` 是完整类型名 `context.aggregate.Command`。命令按服务 Manifest 列出的路由发送：
+请求自带的 `routes`（生成的客户端会填上），否则用交给网关的 Manifest 中的路由，再否则取服务的
+Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `id`，走不带 id 的路由。
+与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
+一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
+`CommandResult`。`wait` 列出各跳（`accepted`、`committed`、`snapshot`，或某个订阅的
+`handled`，也可以跨过 Saga 派生的命令），`timeout` 以毫秒计。`targetTenant` 和
+`targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
-第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。`lifecycle` 发送
-聚合列出的生命周期命令（删除、恢复、转移、标签）。
+第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。系统命令（例如聚合列出的生命周期命令
+`LifecycleCommands.DELETE_AGGREGATE` 等）还要指明聚合的 `type: { context, name }`，
+生命周期命令还要指明 `id`。
 
-`StateClient` 按版本或时间读取聚合的状态及其轨迹；`fetchManifest` 读取服务的
+`StateClient` 按版本或时间读取聚合的状态及其轨迹；聚合不存在时（404
+`wow.aggregate.not-found`）`get` 和 `read` 拒绝，`find(id, options?)` 则返回
+`undefined`，其他 404 仍然拒绝；`fetchManifest` 读取服务的
 Manifest（`GET /wow/manifest`）。
 
 ## 错误
@@ -123,6 +133,39 @@ if (
 `QueryErrorCodes`，不含客户端：没有 Fetcher，也没有 `fetcher-eventstream` 安装的流
 补丁。只构建查询的包用它。`aggregation.query()` 按 Wow 收到聚合时执行的规则校验整个
 聚合，错误的查询在构建处就失败。
+
+## 对着服务测试：`@ahoo-wang/wow-client/testing`
+
+Wow 服务的开发模式从请求头读取调用者（`DevelopmentCallerHeaders`）；
+`developmentCaller` 在一个 fetcher 的每个请求上发送它们。`commandResultOf`、
+`problemOf`、`problemResponse` 和 `stateViewOf` 为假服务构造服务的应答。这个入口不加载
+任何测试运行器。
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  commandResultOf,
+  developmentCaller,
+  problemOf,
+  problemResponse,
+} from '@ahoo-wang/wow-client/testing';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+fetcher.interceptors.request.use(
+  developmentCaller({ user: 'alice', owner: 'alice', tenant: 'acme' }),
+);
+
+const mug = {
+  type: { context: 'eshop-catalog', name: 'product' },
+  tenantId: 'acme',
+  id: 'mug',
+};
+const refused = problemResponse(
+  problemOf(409, 'wow.command.refused', {
+    result: commandResultOf(mug, { status: 'REJECTED' }),
+  }),
+);
+```
 
 ## 文档
 

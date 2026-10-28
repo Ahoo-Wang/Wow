@@ -66,6 +66,7 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryModel
@@ -74,6 +75,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
@@ -314,7 +316,7 @@ abstract class DatasetQueryBackendSpec {
 
     @Test
     fun `keyset pages walk every record once in sort order`() = blocking {
-        Assumptions.assumeTrue(orders.schema.storage.paging.keyset != me.ahoo.wow.query.schema.SupportMode.NONE)
+        assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         walk(Sort(AMOUNT, Sort.Direction.DESC)).assert().containsExactly("o6", "o3", "o2", "o1", "o5", "o4")
         walk(Sort(CREATED_AT, Sort.Direction.ASC)).assert().containsExactly("o1", "o6", "o2", "o3", "o4", "o5")
         walk(Sort(CITY, Sort.Direction.ASC)).assert().containsExactly("o3", "o4", "o1", "o2", "o6", "o5")
@@ -323,7 +325,7 @@ abstract class DatasetQueryBackendSpec {
 
     @Test
     fun `a stream reads keyset chunks with positions and resumes strictly after one`() = blocking {
-        Assumptions.assumeTrue(orders.schema.storage.paging.keyset != me.ahoo.wow.query.schema.SupportMode.NONE)
+        assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))
         fun chunks(after: String? = null) = orders.backend.chunks(
             QueryAdmission.Trusted.cursor(
@@ -387,6 +389,22 @@ abstract class DatasetQueryBackendSpec {
             ),
         )
         rows.map { it.path("city").stringValue() }.assert().containsExactly("Hangzhou")
+        Unit
+    }
+
+    @Test
+    fun `groups without a sort refuse more than their limit, and come back whole within it`() = blocking {
+        fun byCity(limit: Int) = AggregationQuery(
+            filter = EqualFilter(TENANT_COLUMN, "t1"),
+            groupBy = listOf(AggregationGroup.Terms(CITY, "city")),
+            metrics = listOf(AggregationMetric.Count("orders")),
+            limit = limit,
+        )
+        val refused = runCatching { orders.aggregate(byCity(2)) }.exceptionOrNull()
+        refused.assert().isInstanceOf(QueryRequestException::class.java)
+        (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.TooManyGroups(2))
+        orders.aggregate(byCity(3)).map { it.path("city").stringValue() }
+            .assert().containsExactly("Beijing", "Hangzhou", "Shanghai")
         Unit
     }
 

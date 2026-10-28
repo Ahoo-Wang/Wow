@@ -30,6 +30,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.command.unknown` | 503 | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
 | `wow.command.failed` | 500 | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
 | `wow.command.refused` | 409 | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
+| `wow.command.undeclared-event` | 500 | Undeclared event | The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing. |
 | `wow.node.closing` | 503 | Node closing | The node is shutting down; retry on another node. |
 | `wow.node.standby` | 503 | Node on standby | The node is on standby until the cut-over: it serves reads only. |
 | `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
@@ -43,6 +44,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.query.failed` | 500 | Query failed | The query backend failed to run the query. |
 | `wow.query.not-found` | 404 | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
 | `wow.query.dataset-not-found` | 404 | Dataset not found | No dataset of that name is served to the caller. |
+| `wow.query.too-many-groups` | 400 | Too many groups | An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. |
 | `wow.query.timeout` | 504 | Query timed out | The query ran longer than its budget allows; narrow it rather than run it again. |
 | `wow.query.min-version-not-reached` | 409 | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
 | `wow.query.busy` | 429 | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
@@ -71,6 +73,7 @@ A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists wh
 | `EXPENSIVE_OPERATOR_DISABLED` | The entry budget and gates (errorCode IllegalArgument). |
 | `COUNT_REQUIRES_FILTER` | The entry budget and gates (errorCode IllegalArgument). |
 | `RESIDUAL_GROUPS_EXCEEDED` | The entry budget and gates (errorCode IllegalArgument). |
+| `TOO_MANY_GROUPS` | The entry budget and gates (errorCode IllegalArgument). |
 | `EXPLICIT_ENTRY_REQUIRED` | The entry budget and gates (errorCode IllegalArgument). |
 | `REPLAY_TOO_LONG` | A state point read (GET …/{id}/state?version=\|at=, …/state/trace). |
 | `UNKNOWN_FIELD` | Admission against the query model. |

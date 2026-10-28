@@ -175,6 +175,7 @@ interface Observer {
  *
  * [NONE] observes nothing, and [observe] runs a block with no overhead for it.
  */
+@WowSpi
 interface Observation {
     val context: CoroutineContext get() = EmptyCoroutineContext
 
@@ -218,6 +219,7 @@ suspend inline fun <T> Observation.observe(crossinline block: suspend () -> T): 
  * coroutine context, opaque to the core. The runtime carries it to the coroutines it starts for the same work
  * ([traceContext]) and writes its [fields] where the work goes on elsewhere ([trace]).
  */
+@WowSpi
 abstract class TraceContext : AbstractCoroutineContextElement(TraceContext) {
     /** The propagation fields of the trace, such as the W3C `traceparent`. */
     abstract val fields: Map<String, String>
@@ -235,7 +237,7 @@ val CoroutineContext.traceContext: CoroutineContext
 
 /** The optional store capabilities an [Observer.storeFellBack] names, and why one fell back. */
 object StoreFallbacks {
-    /** A log's one-round-trip read of a snapshot with its tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
+    /** A store's one-round-trip read of a snapshot with its log's tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
     const val SNAPSHOT_TAIL_READ: String = "snapshot-tail-read"
 
     /** A snapshot store's rebuild control plane ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore]). */
@@ -243,9 +245,6 @@ object StoreFallbacks {
 
     /** The capability failed; the work was done the other way. */
     const val FAILED: String = "failed"
-
-    /** The capability cannot serve this case, such as a snapshot store in another database than the log. */
-    const val UNAVAILABLE: String = "unavailable"
 
     /** The store does not have the capability. */
     const val UNSUPPORTED: String = "unsupported"

@@ -1,6 +1,8 @@
 org.springframework.boot.EnvironmentPostProcessor=\
 me.ahoo.wow.spring.boot.ShutdownTimeoutEnvironmentPostProcessor,\
 me.ahoo.wow.spring.boot.ForwardHeadersEnvironmentPostProcessor,\
-me.ahoo.wow.spring.boot.HealthGroupsEnvironmentPostProcessor
+me.ahoo.wow.spring.boot.HealthGroupsEnvironmentPostProcessor,\
+me.ahoo.wow.spring.boot.CoSecModeEnvironmentPostProcessor,\
+me.ahoo.wow.spring.boot.ConnectionDefaultsEnvironmentPostProcessor
 org.springframework.boot.diagnostics.FailureAnalyzer=\
 me.ahoo.wow.spring.boot.WowConfigurationFailureAnalyzer

@@ -53,6 +53,12 @@ class CommandRejected<C : Any> @InternalWowApi constructor(
         require(commandType.isNotBlank()) { "A rejection names the type of its command." }
     }
 
+    /**
+     * The aggregate whose commit derived the command ([ExecutionId.ref] of the execution that derived it): the order a
+     * saga compensates, say; [ref] is the aggregate that refused the command.
+     */
+    val source: AggregateRef get() = executionId.ref
+
     /** This CommandRejected with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(

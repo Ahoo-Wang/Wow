@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -45,8 +46,8 @@ import kotlin.time.toKotlinDuration
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
- * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`),
- * every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
+ * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, on
+ * unless false), every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
  */
 internal class MemoryStore(
     config: StoreConfig,
@@ -63,25 +64,25 @@ internal class MemoryStore(
 
     override val durable: Boolean get() = false
 
-    override fun openCheckpoints(): CheckpointStore = InMemoryCheckpointStore()
+    override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
 
-    override fun openLeases(): LeaseStore = InMemoryLeaseStore()
+    override fun openLeases(): Opened<LeaseStore> = Opened.of(InMemoryLeaseStore(config.clock))
 
-    override fun openLedger(): FailureLedger = InMemoryFailureLedger()
+    override fun openLedger(): Opened<FailureLedger> = Opened.of(InMemoryFailureLedger())
 
-    override fun openReservations(): ReservationStore = InMemoryReservationStore()
+    override fun openReservations(): Opened<ReservationStore> = Opened.of(InMemoryReservationStore(config.clock))
 
-    override fun openLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(InMemoryEventLog(partitions))
 
-    override fun openSnapshots(context: String): SnapshotStore =
-        snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store }
+    override fun openSnapshots(context: String): Opened<SnapshotStore> =
+        Opened.of(snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store })
 
-    override fun openTimers(context: String, partitions: Int): TimerStore = InMemoryTimerStore()
+    override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
 }
 
 /**
  * The memory stores' provider, built into the host: their snapshots queryable when [memoryQueries]
- * (`wow.query.memory.enabled`).
+ * (`wow.query.memory.enabled`, on unless false).
  */
 internal class MemoryStoreProvider(private val memoryQueries: Boolean = false) : StoreProvider {
     override val type: String = StoreTypes.MEMORY

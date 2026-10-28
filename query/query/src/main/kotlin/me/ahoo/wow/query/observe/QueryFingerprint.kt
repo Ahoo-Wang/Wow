@@ -18,6 +18,8 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EndsWithFilter
@@ -25,17 +27,15 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.childFilters
@@ -70,26 +70,26 @@ internal fun fingerprintOf(queryType: QueryType, query: Any): String {
 internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShapeWriter().apply {
     token(queryType.name)
     when (queryType) {
-        QueryType.SINGLE -> queryable(query as ISingleQuery)
+        QueryType.SINGLE -> queryable(query as SingleQuery)
         QueryType.LIST -> {
-            val list = query as IListQuery
+            val list = query as ListQuery
             queryable(list)
-            token("limit", list.limit)
+            token("limit", list.limit ?: 0) // No limit tokenizes as 0, as it was written before.
         }
         QueryType.PAGED -> {
-            val paged = query as IPagedQuery
+            val paged = query as PagedQuery
             queryable(paged)
             token("size", paged.pagination.size)
             token("total", paged.total.ordinal)
         }
         QueryType.CURSOR -> {
-            val cursor = query as ICursorQuery
+            val cursor = query as CursorQuery
             queryable(cursor)
             token("size", cursor.size)
             token(if (cursor.cursor == null) "first" else "next")
         }
         QueryType.COUNT -> {
-            val count = query as ICountQuery
+            val count = query as CountQuery
             filter(count.filter)
             token("limit", count.limit ?: 0)
         }

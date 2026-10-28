@@ -40,8 +40,6 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -173,7 +171,7 @@ class BackendQueriesTest {
                 StorageSupport(paging = PagingSupport(unboundedStream = SupportMode.NONE))
             )
             assertThrows<QuerySchemaValidationException> {
-                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 0), streaming)
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), streaming)
             }.violation.assert().isEqualTo(QueryViolation.StorageUnsupported("listing without a limit"))
             backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), streaming)).toList()
                 .assert().isEmpty()
@@ -327,12 +325,56 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `groups without a sort ask the storage for one more, to refuse a cut no one asked for`() {
+        runTest {
+            val groups = flowOf(group("a", 1), group("b", 3), group("c", 5))
+            val unsorted = AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                limit = 2,
+            )
+            val backend = RecordingBackend(groups = { groups })
+            assertThrows<QueryRequestException> {
+                backend.aggregate(QueryAdmission.Trusted.aggregate(unsorted, schema)).toList()
+            }.violation.assert().isEqualTo(QueryViolation.TooManyGroups(2))
+            backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(3))
+            // A sort makes the cut the query's own: a top-N, asked for exactly.
+            val sorted = RecordingBackend(groups = { groups })
+            val top = AggregationQuery(
+                groupBy = unsorted.groupBy,
+                metrics = unsorted.metrics,
+                sort = listOf(Sort(QueryField("name"), Sort.Direction.ASC)),
+                limit = 2,
+            )
+            sorted.aggregate(QueryAdmission.Trusted.aggregate(top, schema)).toList()
+                .map { it["name"].stringValue() }.assert().containsExactly("a", "b")
+            sorted.groupWindows.single().assert().isEqualTo(GroupWindow.First(2))
+            // A residual HAVING reads every group: what passes it is counted against the limit the same way.
+            val residual = schema.withStorage(
+                StorageSupport(aggregation = AggregationSupport(having = SupportMode.RESIDUAL))
+            )
+            val having = AggregationQuery(
+                groupBy = unsorted.groupBy,
+                metrics = unsorted.metrics,
+                limit = 1,
+                having = HavingExpression.Condition("count", ComparisonOperator.GT, 2.0),
+            )
+            val all = RecordingBackend(groups = { groups })
+            assertThrows<QueryRequestException> {
+                all.aggregate(QueryAdmission.Trusted.aggregate(having, residual)).toList()
+            }.violation.assert().isEqualTo(QueryViolation.TooManyGroups(1))
+            all.groupWindows.single().assert().isEqualTo(GroupWindow.All)
+        }
+    }
+
+    @Test
     fun `residual HAVING asks for every group and filters them in the core`() {
         runTest {
             val backend = RecordingBackend(groups = { flowOf(group("a", 1), group("b", 3), group("c", 5)) })
             val query = AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
                 metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("name"), Sort.Direction.ASC)),
                 limit = 1,
                 having = HavingExpression.Condition("count", ComparisonOperator.GT, 2.0),
             )
@@ -353,6 +395,7 @@ class BackendQueriesTest {
             val query = AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
                 metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("name"), Sort.Direction.ASC)),
                 limit = 1,
                 having = HavingExpression.Condition("count", ComparisonOperator.GT, 2.0),
             )
@@ -457,6 +500,7 @@ class BackendQueriesTest {
                     ),
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("day"), Sort.Direction.ASC)),
                 limit = 3,
             )
             val residual = schema.withStorage(
@@ -1088,11 +1132,11 @@ class BackendQueriesTest {
         val windows = mutableListOf<PageWindow>()
         val groupWindows = mutableListOf<GroupWindow>()
         val aggregations = mutableListOf<AggregationQuery>()
-        val counted = mutableListOf<AdmittedQuery<ICountQuery>>()
+        val counted = mutableListOf<AdmittedQuery<CountQuery>>()
         var streams = 0
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             streams++
             emitAll(records())
         }
@@ -1102,7 +1146,7 @@ class BackendQueriesTest {
             return pages(window)
         }
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             counted += query
             return counts()
         }

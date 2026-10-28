@@ -57,7 +57,7 @@ export interface StoredDatasetWording {
   revision: string;
 }
 
-/** Where a dataset's wording is kept (D91); see `DatasetCatalog.wordings`. */
+/** Where a dataset's wording is kept; see `DatasetCatalog.wordings`. */
 export interface DatasetWordingStore {
   /** Every dataset's stored wording, by definition id (`{context}.{dataset}`). */
   list(
@@ -73,7 +73,7 @@ export interface DatasetWordingStore {
 }
 
 /**
- * What a dataset's wording editor reads and writes (D91): the fields the
+ * What a dataset's wording editor reads and writes: the fields the
  * descriptor derives, the wording in force, and a save that stores it and
  * registers the dataset again in the new words.
  */
@@ -122,7 +122,7 @@ export interface DatasetResource {
 }
 
 /**
- * A dataset a catalog listed under an id an earlier catalog serves (D238 ⑨):
+ * A dataset a catalog listed under an id an earlier catalog serves:
  * left out, the earlier one's kept.
  *
  * Experimental (D93): it may change before 10.0 GA.
@@ -171,7 +171,7 @@ interface Listed {
 }
 
 /**
- * Keeps an engine's datasets in step with services' directories (D85): each
+ * Keeps an engine's datasets in step with services' directories: each
  * `refresh` registers a dataset a directory newly lists, registers again
  * one whose descriptor version changed, and removes one no directory lists
  * any more or whose schema does not compile (`version` `null`). A dataset's

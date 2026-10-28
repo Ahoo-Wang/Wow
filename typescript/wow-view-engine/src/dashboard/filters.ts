@@ -322,8 +322,8 @@ export function panelFilterTree(
 }
 
 /**
- * The control a filter's value is edited with (D22 F: the condition editor's
- * value controls, never new ones): a date filter the date control its kind
+ * The control a filter's value is edited with (the condition editor's value
+ * controls, never new ones): a date filter the date control its kind
  * asks for, a yes-or-no the yes/no select, an id filter ids from the host's
  * source or its list; a text or number filter with a list of its own the
  * select over it, as over the list its wired fields declare (`wired`, an

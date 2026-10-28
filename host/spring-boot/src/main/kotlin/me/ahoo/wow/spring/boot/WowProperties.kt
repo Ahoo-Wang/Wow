@@ -168,9 +168,6 @@ class WowProperties {
     /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
     var cosec: CoSec = CoSec()
 
-    /** The settings of the platform services that run on the host: `wow.platform.*`. */
-    var platform: Platform = Platform()
-
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
     internal fun peerTimeouts(): Map<String, kotlin.time.Duration> =
         peers.mapNotNull { (context, target) -> target.timeout?.let { context to it.toKotlinDuration() } }.toMap()
@@ -202,7 +199,7 @@ class WowProperties {
      * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
      * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no
-     * stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true).
+     * stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true).
      * `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type,
      * names the transport.
      */
@@ -281,7 +278,10 @@ class WowProperties {
 
     @InternalWowApi
     class Mongo {
-        /** The database of the log and the stores on the MongoDB backend, for a store that names none. */
+        /**
+         * The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one
+         * `spring.mongodb.uri` names ([ConnectionDefaultsEnvironmentPostProcessor]), else this default.
+         */
         var database: String = DEFAULT_MONGO_DATABASE
 
         /**
@@ -794,7 +794,7 @@ class WowProperties {
      * When a subscription pauses its partition on a systemic failure: at once on a failure classified systemic, or
      * when enough different aggregates failed within a window with no handling succeeding since. While paused, one
      * attempt at a time probes until a handling succeeds. A handler's failures are classified by its
-     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, the backends' and the runtime's own.
+     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, then the runtime's own.
      */
     @InternalWowApi
     class Systemic {
@@ -834,13 +834,13 @@ class WowProperties {
         var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
-        var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
+        var timeout: Duration = DEFAULT_PARKED.spec.timeout.toJavaDuration()
 
         /** How often each node scans its subscriptions' parked entries for retries that are due. */
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), timeout.toKotlinDuration())
     }
 
     /**
@@ -850,17 +850,17 @@ class WowProperties {
     class ParkedSpec {
         var maxRetries: Int? = null
         var initialBackoff: Duration? = null
-        var executionTimeout: Duration? = null
+        var timeout: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && initialBackoff == null && executionTimeout == null) {
+            if (maxRetries == null && initialBackoff == null && timeout == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
                 initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
-                executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
+                timeout?.toKotlinDuration() ?: base.timeout,
             )
         }
     }
@@ -1100,16 +1100,6 @@ class WowProperties {
                 timeout = policy.timeout.takeUnless { it.isInfinite() }?.toJavaDuration()
             }
         }
-    }
-
-    /** The settings of the platform services (ops, view store, analytics catalog) that run on the host. */
-    @InternalWowApi
-    class Platform {
-        /**
-         * Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers,
-         * which any client sets: for local runs, demos and tests only, so it is refused outside development.
-         */
-        var trustIdentityHeaders: Boolean = false
     }
 
     /** The tenants of the callers. */
@@ -1371,6 +1361,14 @@ class WowProperties {
      */
     @InternalWowApi
     class CoSec {
+        /**
+         * How CoSec runs in this service, as defaults its own `cosec.*` keys override
+         * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the
+         * principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating
+         * and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.
+         */
+        var mode: String? = null
+
         /** CoSec's authorization of the commands. */
         var authorizer: Authorizer = Authorizer()
 
@@ -1512,19 +1510,16 @@ class WowProperties {
         CLUSTER,
 
         /**
-         * The `Kafka` router: written to the context's command topic `wow.<context>.commands`, and
-         * executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
+         * The topic router: written to the context's command topic `wow.<context>.commands` on the command transport,
+         * and executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
          * waits only for it is answered 202 once the broker acknowledged the command.
          */
-        KAFKA,
+        TOPIC,
     }
 
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
-
-        /** The switch of a platform service that takes its callers from the request headers. */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
         /**
          * The `wow.*` settings [environment] gives, bound before the beans are, for a condition or an environment

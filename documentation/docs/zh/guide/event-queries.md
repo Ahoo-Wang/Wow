@@ -22,7 +22,7 @@ outline: deep
 
 catalog 读取一个商品的时间线，统计它包含某个事件的提交数，并按名字统计它的事件：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
 
 ```kotlin
 val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
@@ -30,7 +30,7 @@ val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID",
 events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
 events.values().map { it["events"][0]["name"].asString() }.assert()
     .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
-// On the unified engine (decision D235): an event condition is an element match; per-event analytics expand.
+// On the unified engine: an event condition is an element match; per-event analytics expand.
 val published = """{"op":"ELEMENT_MATCH","field":"events","predicate":""" +
     """{"op":"EQ","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
 catalog.post(

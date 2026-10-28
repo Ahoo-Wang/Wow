@@ -13,6 +13,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { CONNECTION, DATABASE, putTable, views } from "./warehouse.ts";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /*
  * The analytics catalog console end to end (roadmap 7.2c): the console as
@@ -115,7 +116,7 @@ test("an approver marks the source reviewed", async ({ page, request }) => {
     .poll(async () => {
       const state = await request.get(
         `/analytics-catalog/source/${encodeURIComponent(source)}/state`,
-        { headers: { "X-User": APPROVER.user, "X-Role": APPROVER.roles[0] } },
+        { headers: { [DevelopmentCallerHeaders.USER]: APPROVER.user, [DevelopmentCallerHeaders.ROLES]: APPROVER.roles[0] } },
       );
       return ((await state.json()) as { state: { status: string } }).state
         .status;

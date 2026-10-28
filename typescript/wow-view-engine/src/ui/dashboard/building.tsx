@@ -66,7 +66,7 @@ function opener(): HTMLElement | null {
 }
 
 /**
- * The board's extensions (`DashboardEditExtensions`, D22 C–E) as the default
+ * The board's extensions (`DashboardEditExtensions`) as the default
  * workbench fills them: 「新建分析」 opens the dialog a board-owned analysis
  * is made in, 「改这里的展示」 the visualization panel for one panel's look,
  * 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as

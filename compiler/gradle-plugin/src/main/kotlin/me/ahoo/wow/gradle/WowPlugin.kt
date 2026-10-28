@@ -80,8 +80,8 @@ import java.util.Properties
  *   source set [CONTRACT_SOURCE_SET]): the context's name and, per aggregate, its type, refs,
  *   ownership, query models and, with `wow-query-api` on its class path, the query fields of its state, named as the
  *   compiler names the domain module's `<State>Properties`. Its classes and jar carry that code; its paired domain
- *   modules compile against a core view of it without that code (attribute [API_VIEW]), every other consumer against
- *   all of it. The generator runs in a worker over the api module's own [TOOLS_CONFIGURATION].
+ *   modules compile against a core view of it without that code (attribute [API_VIEW]), a jar, every
+ *   other consumer against all of it. The generator runs in a worker over the api module's own [TOOLS_CONFIGURATION].
  *
  * The pairing configures the api project from the domain module's, which Gradle's isolated projects forbid; the
  * plugin is not compatible with them (a settings plugin pairing `x-api` with `x-domain` by name takes
@@ -95,7 +95,6 @@ class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create(EXTENSION, WowExtension::class.java)
         extension.addCompilerDependency.convention(true)
-        extension.serviceName.convention(project.name)
         extension.serviceVersion.convention(project.provider { project.version.toString() })
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
         project.pluginManager.withPlugin(KOTLIN_JVM) { configure(project, extension) }
@@ -153,6 +152,7 @@ class WowPlugin : Plugin<Project> {
             task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
             task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
+            task.defaultServiceName.set(project.name)
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
@@ -211,8 +211,9 @@ class WowPlugin : Plugin<Project> {
      * domain's [CONTRACT_ELEMENTS], and its jar includes what [ASSEMBLE_CONTRACT_TASK] keeps. Several domain modules
      * may pair with one api module.
      *
-     * The api module becomes a `java-library`: its consumers then compile against its classes, never its jar, which
-     * waits for the domain's contract, so compiling the domain module needs no jar of its api module.
+     * The api module becomes a `java-library`. Its published jar waits for the domain's contract, so the domain module
+     * never compiles against it: it requests its core view ([coreView]), a jar of the api's own classes, whichever its
+     * compile class path resolves to (`org.gradle.java.compile-classpath-packaging`).
      */
     private fun pairApi(api: Project, domain: String) {
         api.pluginManager.withPlugin("java") {
@@ -250,8 +251,9 @@ class WowPlugin : Plugin<Project> {
      * ([GenerateContractSources]) writes it from what [assemble] keeps, and the source set [CONTRACT_SOURCE_SET]
      * compiles it against [main]'s classes and dependencies. Its classes join the api's classes variants and jar, so
      * every consumer sees them. The domain modules, whose contracts they come from, compile, are processed and complete
-     * their fragments against their core views of the api ([coreView]), which hold [main]'s classes alone, so the
-     * build has no cycle: api main → domain compile and KSP → fragment → contract → generated code → api classes and jar.
+     * their fragments against their core views of the api ([coreView]), jars of [main]'s output alone, so the build
+     * has no cycle under either compile class path packaging: api main → domain compile and KSP →
+     * fragment → contract → generated code → api classes and jar.
      */
     private fun contractSources(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>) {
         val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
@@ -285,28 +287,69 @@ class WowPlugin : Plugin<Project> {
 
     /**
      * The core view of [api] for the domain module [domain]: a variant of its `apiElements` and of its
-     * `runtimeElements` holding its main classes without the generated contract code, whose [API_VIEW] is
-     * [coreView] of [domain]. Only [domain] requests it ([coreRequest]); every other consumer, an in-build peer
-     * included, lacks the attribute's request, so Gradle picks the `classes` variant, which has fewer attributes.
+     * `runtimeElements` holding [CORE_JAR_TASK]'s jar, its main classes and resources without the generated contract
+     * code or the assembled contract, whose [API_VIEW] is [coreView] of [domain]. Only [domain] requests it
+     * ([coreRequest]); every other consumer, an in-build peer included, lacks the attribute's request, so Gradle
+     * picks the api's own variants, which have fewer attributes.
+     *
+     * A jar answers a request for classes too, and the variant matches the domain's request for the view, which none of
+     * the api's own variants does, so Gradle picks it whether the domain's compile class path resolves to classes or to
+     * jars (`org.gradle.java.compile-classpath-packaging`). Two core variants, classes and jar, would match a request for
+     * classes alike and leave it ambiguous. The variant is not published ([unpublishedCore]): the api's POM and module
+     * metadata stay its one jar, contract included.
      */
     private fun coreView(api: Project, domain: String) {
         api.dependencies.attributesSchema.attribute(API_VIEW)
         val main = api.extensions.getByType(SourceSetContainer::class.java).getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+        val jar = coreJar(api, main)
+        unpublishedCore(api)
         listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
             api.configurations.named(it) { elements ->
                 elements.outgoing.variants.create(CORE_VARIANT + elements.outgoing.variants.size) { core ->
                     core.attributes { attributes ->
                         attributes.attribute(
                             LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
-                            api.objects.named(LibraryElements::class.java, LibraryElements.CLASSES),
+                            api.objects.named(LibraryElements::class.java, LibraryElements.JAR),
                         )
                         attributes.attribute(API_VIEW, coreView(domain))
                     }
-                    classesArtifacts(core, main.output.classesDirs)
+                    core.artifact(jar) { artifact -> artifact.type = ArtifactTypeDefinition.JAR_TYPE }
                 }
             }
         }
     }
+
+    /**
+     * Keeps [api]'s core views out of its publication: a secondary variant with a jar would otherwise be published
+     * beside the api's own, and an external consumer has no domain module to request it.
+     */
+    private fun unpublishedCore(api: Project) {
+        if (api.extensions.extraProperties.has(CORE_UNPUBLISHED)) return
+        api.extensions.extraProperties.set(CORE_UNPUBLISHED, true)
+        val component = api.components.getByName("java") as AdhocComponentWithVariants
+        listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
+            component.withVariantsFromConfiguration(api.configurations.getByName(it)) { details ->
+                if (details.configurationVariant.name.startsWith(CORE_VARIANT)) details.skip()
+            }
+        }
+    }
+
+    /**
+     * [CORE_JAR_TASK]: the jar of [api]'s core view, its [main] classes and resources alone, without what the `jar`
+     * task adds from the contract; one per api module, whatever domain modules pair with it.
+     */
+    private fun coreJar(api: Project, main: SourceSet): TaskProvider<Jar> =
+        if (CORE_JAR_TASK in api.tasks.names) {
+            api.tasks.named(CORE_JAR_TASK, Jar::class.java)
+        } else {
+            api.tasks.register(CORE_JAR_TASK, Jar::class.java) { jar ->
+                jar.group = GROUP_NAME
+                jar.description = "Assembles this api module's classes without its contract, for its paired domains."
+                jar.from(main.output)
+                jar.archiveClassifier.set(CORE_CLASSIFIER)
+                jar.destinationDirectory.set(api.layout.buildDirectory.dir("wow/core"))
+            }
+        }
 
     /**
      * Runs [action] once [project] is evaluated: the Kotlin plugin is applied by then, its source set extensions and
@@ -489,6 +532,7 @@ class WowPlugin : Plugin<Project> {
         const val MANIFEST_ELEMENTS = "wowManifestElements"
         const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
         const val CONTRACT_SOURCE_SET = "wowContract"
+        const val CORE_JAR_TASK = "wowCoreJar"
 
         /**
          * The attribute of an api module's core views: [coreView] of the domain module that requests it, whose
@@ -513,6 +557,8 @@ class WowPlugin : Plugin<Project> {
         private const val API_CONFIGURATION = "api"
         private const val CLASSES_VARIANT = "classes"
         private const val CORE_VARIANT = "wowCore"
+        private const val CORE_CLASSIFIER = "wow-core"
+        private const val CORE_UNPUBLISHED = "wowCoreUnpublished"
         private const val MANIFEST_EXTENSION = "json"
         private const val GROUP_NAME = "wow"
         private const val GROUP = "me.ahoo.wow"

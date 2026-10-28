@@ -12,7 +12,7 @@ outline: deep
 
 请求体是一个 JSON 对象：`kind` 指明操作，其他属性是该种类的查询。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/request.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/request.json -->
 
 ```json
 {
@@ -81,7 +81,7 @@ outline: deep
 | `IN` | `field`，`values`：非空的标量数组，不含 `null` | 字段等于 `values` 中的某一个 |
 | `NOT_IN` | `field`、`values` | 字段不等于 `values` 中的任何一个 |
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/in.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/in.json -->
 
 ```json
 {
@@ -105,7 +105,7 @@ outline: deep
 
 `stringComparison` 是 `CASE_SENSITIVE`（默认）或 `CASE_INSENSITIVE`。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/strings.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/strings.json -->
 
 ```json
 {
@@ -153,7 +153,7 @@ outline: deep
 
 没有品牌的商品：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/presence.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/presence.json -->
 
 ```json
 {
@@ -177,7 +177,7 @@ outline: deep
 | `EARLIER_DAYS` | `days` | 最近 `days` 天之前 |
 | `BEFORE_NOW`、`AFTER_NOW` | `offset`：ISO-8601 时长，默认 `PT0S` | 服务器当前时间加上 `offset` 之前或之后（`-PT30M` 表示往回看半小时） |
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
 ```json
 {
@@ -203,7 +203,7 @@ outline: deep
 
 快照查询只看到没有删除的聚合，除非它的过滤自己指明了 `DELETION`。员工 `erin` 最后修改过的商品，无论是否已删除：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/system-fields.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/system-fields.json -->
 
 ```json
 {
@@ -250,7 +250,7 @@ outline: deep
 
 没有 `NOT`：只有一个操作数的 `NOR` 就是对它取反。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/nor.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/nor.json -->
 
 ```json
 {
@@ -269,7 +269,7 @@ outline: deep
 
 `projection` 是 `{"include": [paths], "exclude": [paths]}`；两者都没有时，返回完整的记录。被包含的路径会保留它的子孙。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
 
 ```json
 {
@@ -295,7 +295,7 @@ outline: deep
 
 ### `list` {#list}
 
-`limit` 是返回记录的最大数量。`0` 或不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
+`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`INVALID_REQUEST`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
 
 ### `paged` {#paged}
 
@@ -315,7 +315,7 @@ outline: deep
 
 游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `INVALID_CURSOR`）。无限滚动使用游标；它从不计数。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 
 ```json
 {
@@ -335,7 +335,7 @@ outline: deep
 ### `count` {#count}
 
 `limit` 至少为 1，它限制计数；不写时取 `count-limit`。计数在这个上限处停止时，`exact` 为 false。
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
 
 ```json
 {
@@ -349,9 +349,9 @@ outline: deep
 
 ### `aggregate` {#aggregate}
 
-聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。
+聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝（`TOO_MANY_GROUPS`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
 ```json
 {

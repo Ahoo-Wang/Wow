@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
@@ -53,6 +54,7 @@ import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.toSnapshot
@@ -120,6 +122,7 @@ class InProcessQueryApiTest {
     private fun api(
         defaultListSize: Int = InProcessQueryApi.DEFAULT_LIST_SIZE,
         latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> CommittedState? = { null },
+        policies: List<QueryPolicy> = emptyList(),
     ): InProcessQueryApi {
         val events = InMemoryEventQueryStorage({ type -> if (type == cart) streams else emptyList() })
         val engine = QueryEngine.Builder(manifest)
@@ -127,6 +130,7 @@ class InProcessQueryApiTest {
             .events { type -> events.create(type).takeIf { type == cart } }
             // The host's default (`wow.query.budgets.in-process.*`): the HTTP defaults.
             .entryPolicy(QueryEntryPolicy(inProcess = QueryBudget.IN_PROCESS_DEFAULT))
+            .policies(policies)
             .build()
         return InProcessQueryApi(
             engine,
@@ -326,6 +330,23 @@ class InProcessQueryApiTest {
             queries.events(cart).list(ListQuery(AggregateIdFilter("c-1"))).toList().assert().hasSize(1)
             queries.trusted().snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList().assert().hasSize(3)
         }
+
+    @Test
+    fun `a handler's queries should read its whole tenant, past the policies that read a caller`(): Unit = runBlocking {
+        save("acme", "c-1", "alice")
+        save("acme", "c-2", "bob")
+        // The application's policy: a caller reads the carts its subject owns; trusted code, no caller, reads all.
+        val ownCarts = QueryPolicy { caller, _ ->
+            if (caller.caller == null) MatchAllFilter else OwnerIdFilter(caller.subject.orEmpty())
+        }
+        val node = api(policies = listOf(ownCarts))
+        // A handler of the node reads the whole tenant as trusted code; a caller of the tenant, whose subject is
+        // none, reads as the application's policies let it, as a handler over an API that pins no tenant would.
+        val all = ListQuery(MatchAllFilter)
+        node.tenant("acme").snapshots<CartState>().list(all).toList().map { it.ref.id }
+            .assert().containsExactlyInAnyOrder("c-1", "c-2")
+        node.of(Caller.of(tenantId = "acme")).snapshots<CartState>().list(all).toList().assert().isEmpty()
+    }
 
     @Test
     fun `the events of a type should be typed by the model's event classes`(): Unit = runBlocking {

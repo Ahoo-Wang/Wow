@@ -38,6 +38,13 @@ enum class FunctionKind {
 
     /** The built-in subscription that writes the timers of scheduled commands. */
     TIMERS,
+
+    /**
+     * A kind of function a newer writer sent that this reader does not know. Only a reader produces it:
+     * Wow's clients and nodes read an unknown value as this, as an older reader does whenever a newer
+     * writer adds a value.
+     */
+    UNKNOWN,
 }
 
 /**
@@ -188,7 +195,9 @@ class CommandResult @InternalWowApi constructor(
 ) {
     init {
         require(commandId.isNotBlank()) { "A result names its command." }
-        require((status == Status.SUCCEEDED) == (error == null)) { "Only a result that did not succeed has an error." }
+        require(status == Status.UNKNOWN || (status == Status.SUCCEEDED) == (error == null)) {
+            "Only a result that did not succeed has an error."
+        }
         require(chainEnded == pending.isNotEmpty()) { "A chain that ended early names its pending hops, and only it." }
     }
 
@@ -202,6 +211,13 @@ class CommandResult @InternalWowApi constructor(
 
         /** The hop was not reached for a technical reason, or not in time. */
         FAILED,
+
+        /**
+         * A status a newer writer sent that this reader does not know. Only a reader produces it:
+         * Wow's clients and nodes read an unknown value as this, as an older reader does whenever a newer
+         * writer adds a value.
+         */
+        UNKNOWN,
     }
 
     /** This CommandResult with the given fields replaced: Wow's own copy, left out of the ABI. */

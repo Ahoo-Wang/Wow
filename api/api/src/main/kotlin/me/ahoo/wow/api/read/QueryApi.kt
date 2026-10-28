@@ -17,16 +17,17 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 
 /**
  * The typed read API: the snapshots, the events and the datasets of the read side,
@@ -52,6 +53,18 @@ interface QueryApi {
      * reads the caller hides a row. They keep the in-process budget unless [TrustedQueries.unbounded] drops it.
      */
     fun trusted(): TrustedQueries
+}
+
+/**
+ * A [QueryApi] that builds the reads of a subscription handler itself ([tenant]): the node's, which pins the tenant of
+ * the commit as trusted code, and a route over it. Wow's own construction of a handler's reads, so a node and a test
+ * over the node's API read alike, not an entry point of an application, which reads as a caller ([of]) or as trusted
+ * code ([trusted]). Any other [QueryApi], a test's fake say, serves a handler as a caller of the commit's tenant.
+ */
+@InternalWowApi
+interface TenantQueryApi : QueryApi {
+    /** The queries of a subscription handler of a commit of [tenantId], which its context hands it. */
+    fun tenant(tenantId: String): SubscriptionQueries
 }
 
 /** The query models one caller ([QueryApi.of]) or trusted code ([QueryApi.trusted]) reads. */
@@ -120,13 +133,13 @@ interface TrustedQueries : Queries {
  */
 interface RowQueries<R : Any> {
     /** The first row [query] matches, or `null` when none does. */
-    suspend fun single(query: ISingleQuery): R?
+    suspend fun single(query: SingleQuery): R?
 
     /**
      * The rows [query] matches, at most its limit, or the budget's default list size when it names none (`0`); read
      * whole within the query's timeout. To read every row of a large result, [stream] it.
      */
-    fun list(query: IListQuery): Flow<R>
+    fun list(query: ListQuery): Flow<R>
 
     /**
      * The rows [query] matches as a resumable stream: read in keyset chunks, each its own query under
@@ -136,16 +149,16 @@ interface RowQueries<R : Any> {
      * [list] does, under its bounds, its rows without positions, and cannot be resumed ([after] is then
      * `wow.query.invalid`).
      */
-    fun stream(query: IListQuery, after: String? = null): Flow<Positioned<R>>
+    fun stream(query: ListQuery, after: String? = null): Flow<Positioned<R>>
 
-    /** One page of the rows [query] matches, with its total as [IPagedQuery.total] asks. */
-    suspend fun paged(query: IPagedQuery): PagedList<R>
+    /** One page of the rows [query] matches, with its total as [PagedQuery.total] asks. */
+    suspend fun paged(query: PagedQuery): PagedList<R>
 
     /** One keyset page of the rows [query] matches, with the cursor of the next one. */
-    suspend fun cursor(query: ICursorQuery): CursorPage<R>
+    suspend fun cursor(query: CursorQuery): CursorPage<R>
 
     /** How many rows [query] matches, bounded by its limit or the budget's count limit. */
-    suspend fun count(query: ICountQuery): CountResult
+    suspend fun count(query: CountQuery): CountResult
 
     /**
      * The groups of [query], each decoded as [groupType]: a class of its groups and metrics, or a `Map`. Experimental,

@@ -12,7 +12,7 @@ Every query model of a service, the snapshots and the events of each aggregate t
 
 A body is one JSON object: `kind` names the operation, the other properties are the query of that kind.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/request.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/request.json -->
 
 ```json
 {
@@ -81,7 +81,7 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 | `IN` | `field`, `values`: a non-empty array of scalars, no `null` | The field equals one of `values` |
 | `NOT_IN` | `field`, `values` | The field equals none of `values` |
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/in.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/in.json -->
 
 ```json
 {
@@ -105,7 +105,7 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 
 `stringComparison` is `CASE_SENSITIVE` (the default) or `CASE_INSENSITIVE`.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/strings.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/strings.json -->
 
 ```json
 {
@@ -153,7 +153,7 @@ A missing field and an explicit `null` are both null; only a missing field does 
 
 The products without a brand:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/presence.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/presence.json -->
 
 ```json
 {
@@ -177,7 +177,7 @@ Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai
 | `EARLIER_DAYS` | `days` | Before the last `days` days |
 | `BEFORE_NOW`, `AFTER_NOW` | `offset`: an ISO-8601 duration, `PT0S` by default | Before or after the server's now plus `offset` (`-PT30M` looks back half an hour) |
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
 ```json
 {
@@ -203,7 +203,7 @@ These name no `field`: each filters a system field the model defines.
 
 A snapshot query sees only aggregates that are not deleted, unless its filter names a `DELETION` itself. The products, deleted or not, that the employee `erin` changed last:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/system-fields.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/system-fields.json -->
 
 ```json
 {
@@ -250,7 +250,7 @@ An `expression` is one of `{"type":"FIELD","field":…}`, `{"type":"CONSTANT","v
 
 There is no `NOT`: a `NOR` of one operand negates it.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/nor.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/nor.json -->
 
 ```json
 {
@@ -269,7 +269,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 `projection` is `{"include": [paths], "exclude": [paths]}`; with neither, records come whole. An included path keeps its descendants.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
 
 ```json
 {
@@ -295,7 +295,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 ### `list`
 
-`limit` is the most records returned. `0` or none takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
+`limit` is the most records returned, at least 1. None takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). A `limit` below 1, a `pagination` index or size below 1, or more than 32 `sort` fields is refused as the body is read (`400 wow.query.malformed`, `INVALID_REQUEST`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
 
 ### `paged`
 
@@ -315,7 +315,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 A cursor page is the next `size` records (10 by default, at most `max-page-size`) after `cursor`, the `nextCursor` of the previous page; the first page has none. The server appends the record's unique key to `sort` (`tenantId`, `aggregateId` on the snapshot model), so the order is total and a page never repeats or skips a record. `nextCursor` is `null` on the last page. A cursor is opaque and belongs to its model and sort: send it with the same sort and filter (another sort is `INVALID_CURSOR`). Endless scrolling uses a cursor; it never counts.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 
 ```json
 {
@@ -335,7 +335,7 @@ A cursor page is the next `size` records (10 by default, at most `max-page-size`
 ### `count`
 
 `limit`, at least 1, bounds the count; none takes `count-limit`. `exact` is false when the count stopped at it. 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
 
 ```json
 {
@@ -349,9 +349,9 @@ A count is for a filtered, bounded number; fixed statistics, such as orders per 
 
 ### `aggregate`
 
-An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default).
+An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default). With a `sort`, the first `limit` groups in that order are returned: a top-N. Without one, more groups than `limit` is refused (`TOO_MANY_GROUPS`) rather than cut in key order: add a sort for a top-N, or raise `limit`.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
 ```json
 {

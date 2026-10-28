@@ -43,7 +43,7 @@ class MainProjectDependenciesTest {
                 api(project(":runtime"))
                 implementation(project(":openapi"))
                 testImplementation(project(":client"))
-                integrationTestImplementation(testFixtures(project(":manifest")))
+                integrationTestImplementation(project(":manifest"))
             }
             """.trimIndent(),
         )

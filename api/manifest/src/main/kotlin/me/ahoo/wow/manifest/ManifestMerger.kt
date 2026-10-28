@@ -25,8 +25,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - a command type, and an event type, `context.aggregate.Name` is declared once, counting former names (`@Alias`)
  *   as names: an alias without a dot is within its aggregate, one with dots a full type name;
  * - a subscription name is declared once within its context;
- * - an aggregate's lifecycle commands are not names it declares: every aggregate may list the same system commands,
- *   and an aggregate keeps its list as its one fragment declares it;
+ * - an aggregate's system commands are not names it declares: every aggregate may list the same ones (the lifecycle
+ *   commands, the snapshot rebuild), and an aggregate keeps them as its one fragment declares them; a domain
+ *   command never takes a system name, nor a system command a domain one;
  * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules);
  * - a route, a method and a path, belongs to one command or one query model only, and an aggregate lists a query
  *   model once;
@@ -51,7 +52,9 @@ object ManifestMerger {
             conflicts += "context $name is declared by ${sources.joinToString(" and ")}"
         }
         contexts.forEach { (source, context) -> conflicts += conflictsWithin(source, context) }
-        conflicts += typeNameConflicts(contexts, "command") { aggregate -> aggregate.commands.map { it.name to it.aliases } }
+        conflicts += typeNameConflicts(contexts, "command") { aggregate ->
+            aggregate.domainCommands.map { it.name to it.aliases }
+        }
         conflicts += typeNameConflicts(contexts, "event") { aggregate -> aggregate.events.map { it.name to it.aliases } }
         conflicts += routeConflicts(contexts)
         conflicts += topicConflicts(contexts)
@@ -77,6 +80,8 @@ object ManifestMerger {
             contexts = contexts.map { it.second }.sortedBy { it.name },
             errors = FrameworkErrors.ALL,
             defs = defs,
+            // A reader must understand what any fragment requires.
+            requires = fragments.flatMap { it.manifest.requires }.distinct().sorted(),
         )
     }
 
@@ -152,14 +157,32 @@ object ManifestMerger {
         }
 
     /**
-     * Routes that more than one command or query model declares, and command routes that end in a reserved segment.
+     * Routes that more than one command or query model declares (a domain command's route equal to a system command's
+     * among them), a domain command named or routed in the framework's reserved names, and a system command that is
+     * not.
      */
     private fun routeConflicts(contexts: List<Pair<String, ContextManifest>>): List<String> {
-        val commandRoutes = contexts.flatMap { (source, context) ->
-            context.aggregates.flatMap { aggregate ->
-                aggregate.commands.flatMap { command ->
-                    command.routes.map { it to "${context.name}.${aggregate.name}.${command.name} ($source)" }
+        val commands = contexts.flatMap { (source, context) ->
+            context.commands.map { Triple(it, context.name, source) } +
+                context.aggregates.flatMap { aggregate ->
+                    aggregate.commands.map { Triple(it, "${context.name}.${aggregate.name}", source) }
                 }
+        }
+        val commandRoutes = commands.flatMap { (command, owner, source) ->
+            command.routes.map { it to "$owner.${command.name} ($source)" }
+        }
+        val names = commands.mapNotNull { (command, owner, source) ->
+            val reservedName = command.name.startsWith(CommandRoutes.SYSTEM_SEGMENT_PREFIX)
+            when {
+                command.system && !reservedName ->
+                    "system command $owner.${command.name} of $source is not named in the system namespace " +
+                        "(${CommandRoutes.SYSTEM_SEGMENT_PREFIX}*)"
+
+                !command.system && reservedName ->
+                    "command $owner.${command.name} of $source takes a name the framework reserves " +
+                        "(${CommandRoutes.SYSTEM_SEGMENT_PREFIX}*)"
+
+                else -> null
             }
         }
         val queryRoutes = contexts.flatMap { (source, context) ->
@@ -169,16 +192,17 @@ object ManifestMerger {
                 }
             }
         }
-        val reserved = commandRoutes.filter { (route, _) ->
-            CommandRoutes.isReserved(route.path.substringAfterLast('/'))
-        }.map { (route, owner) ->
-            "route ${route.method} ${route.path} of $owner ends in a segment the framework reserves"
+        val reserved = commands.filterNot { (command) -> command.system }.flatMap { (command, owner, source) ->
+            command.routes.filter { CommandRoutes.isReserved(it.path.substringAfterLast('/')) }.map {
+                "route ${it.method} ${it.path} of $owner.${command.name} ($source) ends in a segment the framework " +
+                    "reserves"
+            }
         }
         val shared = (commandRoutes + queryRoutes).groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }
             .map { (route, owners) ->
                 "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
             }
-        return reserved + shared
+        return names + reserved + shared
     }
 
     /** A fragment's top-level errors that are not the framework's as [FrameworkErrors] defines them. */

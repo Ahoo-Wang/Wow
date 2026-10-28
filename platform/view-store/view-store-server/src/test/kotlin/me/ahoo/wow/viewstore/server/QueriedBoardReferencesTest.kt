@@ -18,14 +18,16 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.QueryNotServedException
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -33,15 +35,15 @@ import tools.jackson.databind.node.ObjectNode
  * (review A3-18): a reference on the last page of many is found.
  */
 class QueriedBoardReferencesTest {
-    private val asked = mutableListOf<ICursorQuery>()
+    private val asked = mutableListOf<CursorQuery>()
 
-    private val view = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+    private val view = ViewStoreContract.View.TYPE
 
     /** [total] dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time. */
     private fun dashboards(total: Int): QueryApi {
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { cursor(any()) } answers {
-                val query = firstArg<ICursorQuery>()
+                val query = firstArg<CursorQuery>()
                 asked += query
                 val from = query.cursor?.toInt() ?: 0
                 val until = minOf(total, from + query.size)
@@ -77,7 +79,15 @@ class QueriedBoardReferencesTest {
 
     @Test
     fun `a node without snapshot queries should know of no reference`(): Unit = runBlocking {
-        val unserved = mockk<QueryApi> { every { trusted().snapshots(view) } throws IllegalArgumentException("none") }
+        val unserved = mockk<QueryApi> {
+            every { trusted().snapshots(view) } throws QueryNotServedException(view, QueryModel.SNAPSHOT)
+        }
         QueriedBoardReferences { unserved }.referencingBoards("t", "app", "v-1").assert().isEmpty()
+    }
+
+    @Test
+    fun `a query the node got wrong should fail, not pass for a node without queries`(): Unit = runBlocking {
+        val wrong = mockk<QueryApi> { every { trusted().snapshots(view) } throws IllegalArgumentException("wrong") }
+        assertThrows<IllegalArgumentException> { QueriedBoardReferences { wrong }.referencingBoards("t", "app", "v-1") }
     }
 }

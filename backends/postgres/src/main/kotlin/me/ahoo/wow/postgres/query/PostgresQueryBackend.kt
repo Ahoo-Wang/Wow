@@ -21,8 +21,8 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.autoCommitted
@@ -35,7 +35,7 @@ import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.error.QueryExecutionException
-import me.ahoo.wow.query.error.QueryTimeoutException
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.postgresql.util.PGobject
@@ -59,7 +59,7 @@ import javax.sql.DataSource
  * projection is applied to each record as it is read.
  *
  * Every statement runs in its own read transaction under `SET LOCAL statement_timeout` of the admitted timeout;
- * PostgreSQL cancelling it there is a [QueryTimeoutException]. JDBC calls run on [dispatcher],
+ * PostgreSQL cancelling it there is a [StorageTimeoutException]. JDBC calls run on [dispatcher],
  * virtual threads by default. A table not created yet (no snapshot of the aggregate type was saved, no
  * stream appended) holds no records: every primitive answers as over an empty table, as the provisional facts of
  * [PostgresQuerySchemaAdapter] describe it.
@@ -84,7 +84,7 @@ class PostgresQueryBackend internal constructor(
      * log appends through. The admission bounds the list (`maxListSize`); a budget without that bound
      * (`maxListSize = 0`) holds a whole unbounded list in memory.
      */
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val statement = records.list(query)
         val projection = query.query.projection
         val read = transaction(query.timeout, { emptyList() }) { connection ->
@@ -140,7 +140,7 @@ class PostgresQueryBackend internal constructor(
         }
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long = withContext(dispatcher) {
         val statement = records.count(query, query.query.filter, query.query.limit?.let { it + 1L })
         transaction(query.timeout, { 0L }) { connection -> count(connection, statement) }
     }
@@ -179,19 +179,19 @@ class PostgresQueryBackend internal constructor(
     /**
      * Runs [block] in a read-only transaction of its own under [timeout], set with the transaction's other bounds in
      * one round trip ([inTransaction]): a statement PostgreSQL cancels for it fails as the core's
-     * [QueryTimeoutException]. It commits when [block] returns and rolls back when it throws. A table that does not
+     * [StorageTimeoutException]. It commits when [block] returns and rolls back when it throws. A table that does not
      * exist yet is empty: the answer is [missing]'s.
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.autoCommitted { connection ->
-            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) {
-                block(connection)
+            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) { bound ->
+                block(bound)
             }
         }
     } catch (error: SQLException) {
         when {
             error.sqlState == UNDEFINED_TABLE -> missing()
-            timeout != null && error.sqlState == QUERY_CANCELED -> throw QueryTimeoutException(timeout, error)
+            timeout != null && error.sqlState == QUERY_CANCELED -> throw StorageTimeoutException(timeout, error)
             else -> throw PostgresFailures.translate(error)
         }
     }

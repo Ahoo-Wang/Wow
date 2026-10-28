@@ -30,7 +30,7 @@ import me.ahoo.wow.compiler.model.symbol.blocking
  *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`),
  * or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
- *   publisher, and, for a saga, read as the commands it derives (`derivedOf`). A saga's
+ *   publisher, and, for a saga, read as the requests of the commands it derives (`requestsOf`). A saga's
  *   `@OnRejected` handlers are bound once, as `RejectionBinding`s of the class their
  *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
  *   rejections they take; so are its `@OnCommitted` handlers, as `CommittedBinding`s, which take
@@ -59,19 +59,23 @@ internal object SubscriptionSource {
             appendLine("package ${binding.packageName}")
         }
         appendLine()
-        appendLine("/** The subscriptions of [$processorType]: one per handler, named `${binding.name}.<function>`. */")
-        appendLine("public fun ${binding.factoryName}(")
-        appendLine("    dependencies: $DEPENDENCIES,")
+        renderFromDependencies(binding)
+        appendLine()
+        appendLine("/**")
+        appendLine(
+            " * The subscriptions of [$processorType], constructed with the services given: one per handler, named"
+        )
+        appendLine(" * `${binding.name}.<function>`.")
+        appendLine(" */")
+        val visibility = if (binding.internal) "internal" else "public"
+        val parameters = binding.dependencies.joinToString("") { "\n    ${it.name}: ${it.type}," }
+        // A processor without problems has a handler at least: one that declares none is refused.
         val handlers = binding.handlers
-        if (handlers.isEmpty()) {
-            appendLine("): List<$PROCESSOR_BINDING<*>> = emptyList()")
-            return@buildString
-        }
-        appendLine("): List<$PROCESSOR_BINDING<*>> {")
+        appendLine("$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> {")
         val instance = if (binding.isObject) {
             processorType
         } else {
-            "$processorType(${binding.dependencies.joinToString(", ") { dependency(it) }})"
+            "$processorType(${binding.dependencies.joinToString(", ") { it.name }})"
         }
         appendLine("    val processor = $instance")
         val rejections = kind == SAGA && binding.rejections.isNotEmpty()
@@ -90,6 +94,26 @@ internal object SubscriptionSource {
         handlers.forEach { handler -> renderHandler(binding, handler, kind, rejections, commits) }
         appendLine("    )")
         appendLine("}")
+    }
+
+    /**
+     * The subscriptions of [binding]'s processor constructed with the services the host's `Dependencies` gives, by type
+     * and `@Name`: the model provider's, and a host's.
+     */
+    private fun StringBuilder.renderFromDependencies(binding: SubscriptionBinding) {
+        appendLine("/**")
+        appendLine(
+            " * The subscriptions of [${binding.processor}], constructed with the services [dependencies] gives: one"
+        )
+        appendLine(" * per handler, named `${binding.name}.<function>`.")
+        appendLine(" */")
+        appendLine("public fun ${binding.factoryName}(")
+        appendLine("    dependencies: $DEPENDENCIES,")
+        val building = binding.simpleNames.joinToString(".")
+        val arguments = binding.dependencies.joinToString("") { "\n    ${lookup(it, building)}," }
+        appendLine(
+            "): List<$PROCESSOR_BINDING<*>> = ${binding.factoryName}($arguments${if (arguments.isEmpty()) "" else "\n"})"
+        )
     }
 
     private fun StringBuilder.renderHandler(
@@ -122,12 +146,12 @@ internal object SubscriptionSource {
         appendLine("        },")
     }
 
-    /** The body of a handler of the whole stream: its call, a saga's read as the commands it derives. */
+    /** The body of a handler of the whole stream: its call, a saga's read as the requests of the commands it derives. */
     private fun streamBody(handler: HandlerBinding, kind: String): String {
         val arguments = if (handler.context) "event, context" else "event"
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        return if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        return if (kind == SAGA) "$KERNEL.requestsOf($awaited)" else awaited
     }
 
     /**
@@ -138,9 +162,9 @@ internal object SubscriptionSource {
     private fun eventBody(handler: HandlerBinding, event: EventParameter, kind: String): String {
         val argument = if (event.form == EventParameter.TYPED) "typed" else "typed.event"
         val arguments = if (handler.context) "$argument, invocation" else argument
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        val result = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        val result = if (kind == SAGA) "$KERNEL.requestsOf($awaited)" else awaited
         val invocation = if (handler.context) "invocation" else "_"
         val each = "$KERNEL.eachEvent(event, ${event.source}::class.java, context) { typed, $invocation -> $result }"
         return if (kind == SAGA) "$each.flatten()" else each
@@ -179,7 +203,7 @@ internal object SubscriptionSource {
         commits: Boolean,
     ) {
         val arguments = if (handler.context) "tick, context" else "tick"
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val rule = "$SCHEDULE.ScheduleRule.Cron.of(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
             "$SCHEDULE.Misfire.${job.misfire})"
@@ -193,7 +217,7 @@ internal object SubscriptionSource {
                 "${handler.blocking}$receipts$retry) {",
         )
         appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
-        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("            $KERNEL.requestsOf($awaited)")
         appendLine("        },")
     }
 
@@ -206,7 +230,7 @@ internal object SubscriptionSource {
         val commandType = handler.commandSource?.let { "$it::class.java" } ?: "null"
         val parameter = if (handler.receipt == Receipt.REJECTED) "rejected" else "committed"
         val arguments = if (handler.context) "$parameter, context" else parameter
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         appendLine(
             "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${handler.function}\", " +
@@ -215,7 +239,7 @@ internal object SubscriptionSource {
         appendLine(
             "                $parameter: ${handler.receipt.parameter}<$command>, ${if (handler.context) "context" else "_"} ->",
         )
-        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("            $KERNEL.requestsOf($awaited)")
         appendLine("        },")
     }
 
@@ -238,9 +262,15 @@ internal object SubscriptionSource {
         appendLine("    ).flatten()")
     }
 
-    private fun dependency(dependency: Dependency): String {
-        val qualifier = dependency.qualifier?.let { ", \"${escape(it)}\"" }.orEmpty()
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType$qualifier)"
+    /**
+     * The lookup of [dependency] in the `dependencies` of a generated function that builds [building] with it: by its
+     * class and qualifier, cast to its type when it is generic.
+     */
+    fun lookup(dependency: Dependency, building: String): String {
+        val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
+        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType, $qualifier, \"${escape(
+            building
+        )}\")"
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
     }
 

@@ -1,7 +1,7 @@
 # The eShop ordering server's image, from its Gradle distribution. From the repository root:
 #   ./gradlew :eshop-ordering-server:installDist
 #   docker build -f deploy/eshop-ordering/Dockerfile -t wow-eshop-ordering-server:local \
-#     example/eshop/ordering/ordering-server
+#     examples/eshop/ordering/ordering-server
 # Any JDK 21 image on Ubuntu, such as eclipse-temurin:21-jre (--build-arg BASE_IMAGE=...).
 ARG BASE_IMAGE=dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu
 ARG APP_NAME=eshop-ordering-server

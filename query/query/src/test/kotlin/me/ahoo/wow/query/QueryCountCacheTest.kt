@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
@@ -80,7 +79,7 @@ class QueryCountCacheTest {
     private inner class Recording(private val delegate: QueryBackend) : QueryBackend by delegate {
         var onCount: () -> Unit = {}
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             counted += null
             onCount()
             return delegate.count(query)

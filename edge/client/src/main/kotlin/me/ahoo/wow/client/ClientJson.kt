@@ -18,10 +18,12 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * The JSON of the clients and of the wire grammar both ends share: Wow's one configuration ([WowJson]),
- * as the public port's, so a decimal in a peer's results or a rejection's extensions keeps its exact value.
+ * as the public port's, so a decimal in a peer's results or a rejection's extensions keeps its exact value. It reads
+ * as a reader older than its peer may be ([WowJson.readerBuilder]): a peer upgraded first answers values this client
+ * reads as `UNKNOWN`.
  */
 internal object ClientJson {
-    val mapper: JsonMapper = WowJson.builder().build()
+    val mapper: JsonMapper = WowJson.readerBuilder().build()
 
     fun write(value: Any): ByteArray = mapper.writeValueAsBytes(value)
 }

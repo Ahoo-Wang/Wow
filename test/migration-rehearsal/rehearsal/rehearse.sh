@@ -207,16 +207,15 @@ launch_v10() {
 }
 
 # launch_views [standby]: the V10 view store service, on the rehearsal host's database; on standby when asked. It takes
-# its callers from the headers (X-User, X-Tenant, CoSec-App-Id), as a local run of it does.
+# its callers from the headers (Wow-User, Wow-Owner, Wow-Tenant, Wow-App), as a development run of it does.
 launch_views() {
   local standby="${1:-}"
   (
     cd "$VIEWS_HOME"
     env JAVA_OPTS="-Xmx1g" ./bin/view-store-server \
-      --spring.profiles.active=postgres --server.port="$VIEWS_PORT" \
+      --spring.profiles.active=postgres,dev --server.port="$VIEWS_PORT" \
       --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
-      --wow.platform.trust-identity-headers=true \
       --wow.node.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       --logging.level.root=warn \
       >>"$WORK/views.out" 2>&1 &

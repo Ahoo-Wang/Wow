@@ -16,7 +16,12 @@ package me.ahoo.wow.spi.json
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Stage
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.module.kotlin.KotlinModule
 import tools.jackson.module.kotlin.readValue
@@ -79,5 +84,21 @@ class WowJsonTest {
         WowJson.mapper.readValue<AggregateRef>(older).assert().isEqualTo(ref)
         WowJson.builder().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build()
             .readValue<AggregateRef>(older).assert().isEqualTo(ref)
+    }
+
+    @Test
+    fun `a reader older than its writer reads an unknown status, stage or kind as UNKNOWN, and Wow's mapper refuses it`() {
+        val newer = """{"format":1,"commandId":"c","requestId":"r","correlationId":"c",
+            "ref":{"type":{"context":"shop","name":"cart"},"tenantId":"t","id":"c-1"},
+            "hop":{"stage":"DELIVERED","context":"shop"},
+            "function":{"kind":"WORKFLOW","context":"shop","processor":"p","name":"n"},
+            "status":"DEFERRED","version":1,"signalTime":1}"""
+        val read = WowJson.readerBuilder().build().readValue<CommandResult>(newer)
+        read.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
+        read.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
+        read.function.kind.assert().isEqualTo(FunctionKind.UNKNOWN)
+        // A known value reads as itself.
+        WowJson.readerBuilder().build().readValue<Stage>("\"COMMITTED\"").assert().isEqualTo(Stage.COMMITTED)
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Stage>("\"DELIVERED\"") }
     }
 }

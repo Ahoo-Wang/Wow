@@ -23,8 +23,6 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
-import me.ahoo.wow.spi.log.SnapshotTailReader
-import me.ahoo.wow.spi.log.readSnapshotTailApart
 
 /**
  * The log of a context whose aggregates are in several log groups, as its kernel and its readers by
@@ -77,18 +75,6 @@ internal class LogGroupRouter(
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         logOf(ref.type).readTail(ref, fromVersion, earlier)
 
-    /** The reader of the aggregate's group's log; a group whose log has none reads apart, which is no fallback. */
-    override val snapshotTails: SnapshotTailReader? =
-        if ((groups.values + default).none { it.snapshotTails != null }) {
-            null
-        } else {
-            SnapshotTailReader { ref, snapshots, earlier ->
-                val log = logOf(ref.type)
-                log.snapshotTails?.readWithSnapshot(ref, snapshots, earlier)
-                    ?: log.takeIf { it.snapshotTails == null }?.readSnapshotTailApart(ref, snapshots, earlier)
-            }
-        }
-
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         logOf(ref.type).readEntries(ref, fromVersion, toVersion)
 
@@ -100,12 +86,6 @@ internal class LogGroupRouter(
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         logOf(type).findByRequestId(type, tenantId, requestId)
-
-    /** The earliest committed stream of the request among every group's. */
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        (listOf(default) + groups.values.distinct())
-            .mapNotNull { it.findByRequestId(tenantId, requestId) }
-            .minByOrNull { it.commitTime }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         throw UnsupportedOperationException("Each log group is tailed by its own log: its sequences are its own.")

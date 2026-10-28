@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.command
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
@@ -49,6 +50,7 @@ import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -172,7 +174,7 @@ class CrossContextWaitTest {
             emptyList()
         } else {
             listOf(
-                context.command(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity))
+                CommandRequest.to(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity))
             )
         }
     }
@@ -250,14 +252,15 @@ class CrossContextWaitTest {
             options = fastNodeOptions(),
             contracts = contracts,
         )
-        assertThrows<IllegalArgumentException> {
+        val refused = assertThrows<WowConfigurationException> {
             salesNodeWithout(ContractDirectory(salesManifest, listOf(peer(stockManifest))))
-        }.message.assert()
+        }
+        refused.key.assert().isEqualTo("wow.transport")
+        refused.message.assert()
             .contains("Node sales-1 has no command transport")
-            .contains("wow.kafka.bootstrap-servers")
             .contains("$SALES/$SAGA sends commands to $STOCK")
         // Without the stock's Manifest, the saga's command is still another context's, one no Manifest declares.
-        assertThrows<IllegalArgumentException> { salesNodeWithout(ContractDirectory(salesManifest)) }
+        assertThrows<WowConfigurationException> { salesNodeWithout(ContractDirectory(salesManifest)) }
             .message.assert().contains("$SALES/$SAGA sends commands to ${ContractDirectory.UNKNOWN_CONTEXT}")
     }
 
@@ -286,16 +289,17 @@ class CrossContextWaitTest {
             caller = caller,
         )
         val contracts = ContractDirectory(calling, listOf(peer(stockManifest)))
-        assertThrows<IllegalArgumentException> { salesNode(contracts, null) }.message.assert()
+        val unreached = assertThrows<WowConfigurationException> { salesNode(contracts, null) }
+        unreached.key.assert().isEqualTo("wow.peers.$STOCK.url")
+        unreached.message.assert()
             .contains("Node sales-1 cannot make its sagas' calls")
             .contains("$SALES/$SAGA calls $STOCK, which the node's caller does not reach")
-            .contains("wow.peers.$STOCK.url")
         val elsewhere = object : CommandCaller {
             override suspend fun call(call: OutgoingCall): CommandResult = error("not called")
 
             override fun reaches(context: String): Boolean = context != STOCK
         }
-        assertThrows<IllegalArgumentException> { salesNode(contracts, elsewhere) }.message.assert()
+        assertThrows<WowConfigurationException> { salesNode(contracts, elsewhere) }.message.assert()
             .contains("which the node's caller does not reach")
         assertThrows<IllegalArgumentException> { salesNode(ContractDirectory(calling), elsewhere) }.message.assert()
             .contains("$SALES/$SAGA calls a command no Manifest of the service or its peers decides")

@@ -90,8 +90,10 @@ class CommittedManifestTest {
         import me.ahoo.wow.api.annotation.OnRejected
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandCommitted
+        import me.ahoo.wow.api.subscribe.ReceiptContext
         import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
@@ -102,19 +104,19 @@ class CommittedManifestTest {
         @Saga
         class OrderSaga {
             @OnEvent
-            fun onPlaced(event: StateEvent<Order>, context: SagaContext): List<Command<ReserveStock>> =
-                listOf(context.command(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
+            fun onPlaced(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<ReserveStock>> =
+                listOf(CommandRequest.to(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
 
             @OnCommitted
-            fun onReserved(committed: CommandCommitted<ReserveStock>, context: SagaContext): Command<ConfirmStock> =
-                context.command(committed.executionId.ref, ConfirmStock(committed.aggregateId))
+            fun onReserved(committed: CommandCommitted<ReserveStock>, context: ReceiptContext): CommandRequest<ConfirmStock> =
+                CommandRequest.to(committed.source, ConfirmStock(committed.ref.id))
 
             @Blocking
             @OnCommitted
-            fun onAnyCommitted(committed: CommandCommitted<*>): Mono<Command<*>> = Mono.empty()
+            fun onAnyCommitted(committed: CommandCommitted<*>): Mono<CommandRequest<*>> = Mono.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>): Command<*>? = null
+            fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
         }
         """.trimIndent(),
     )
@@ -221,49 +223,50 @@ class CommittedManifestTest {
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Retry
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandCommitted
             import me.ahoo.wow.api.subscribe.CommandRejected
-            import me.ahoo.wow.api.subscribe.ProjectContext
+            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
             class BrokenSaga {
                 @OnEvent
-                fun onEvent(event: StateEvent<Order>): Command<*>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun first(committed: CommandCommitted<ReserveStock>): Command<*>? = null
+                fun first(committed: CommandCommitted<ReserveStock>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun second(committed: CommandCommitted<ReserveStock>): Command<*>? = null
+                fun second(committed: CommandCommitted<ReserveStock>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun any(committed: CommandCommitted<*>): Command<*>? = null
+                fun any(committed: CommandCommitted<*>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun anyAgain(committed: CommandCommitted<Any>): Command<*>? = null
+                fun anyAgain(committed: CommandCommitted<Any>): CommandRequest<*>? = null
 
                 @OnEvent
                 @OnCommitted
-                fun both(committed: CommandCommitted<PlaceOrder>): Command<*>? = null
+                fun both(committed: CommandCommitted<PlaceOrder>): CommandRequest<*>? = null
 
                 @OnRejected
                 @OnCommitted
-                fun twoReceipts(committed: CommandCommitted<ConfirmStock>): Command<*>? = null
+                fun twoReceipts(committed: CommandCommitted<ConfirmStock>): CommandRequest<*>? = null
 
                 @Retry(maxAttempts = 2)
                 @OnCommitted
-                fun retried(committed: CommandCommitted<OrderPlaced>): Command<*>? = null
+                fun retried(committed: CommandCommitted<OrderPlaced>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun wrongFirst(rejected: CommandRejected<StockConfirmed>): Command<*>? = null
+                fun wrongFirst(rejected: CommandRejected<StockConfirmed>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun wrongContext(committed: CommandCommitted<Order>, context: ProjectContext): Command<*>? = null
+                fun wrongContext(committed: CommandCommitted<Order>, context: SubscriptionContext): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun tooMany(committed: CommandCommitted<String>, a: Int, b: Int): Command<*>? = null
+                fun tooMany(committed: CommandCommitted<String>, a: Int, b: Int): CommandRequest<*>? = null
 
                 @OnCommitted
                 fun wrongReturn(committed: CommandCommitted<Int>): String = ""
@@ -275,7 +278,7 @@ class CommittedManifestTest {
                 fun onEvent(event: StateEvent<Order>) = Unit
 
                 @OnCommitted
-                fun onCommitted(committed: CommandCommitted<*>): Command<*>? = null
+                fun onCommitted(committed: CommandCommitted<*>): CommandRequest<*>? = null
             }
             """.trimIndent(),
         )
@@ -290,7 +293,7 @@ class CommittedManifestTest {
             .contains("handler BrokenSaga.twoReceipts is both @OnRejected and @OnCommitted")
             .contains("handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler runs in")
             .contains("handler BrokenSaga.wrongFirst must take a me.ahoo.wow.api.subscribe.CommandCommitted first")
-            .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.ProjectContext")
+            .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BrokenSaga.tooMany takes 3 parameters: an @OnCommitted handler takes")
             .contains("handler BrokenSaga.wrongReturn returns kotlin.String")
             .contains("processor Board is a @Projection with @OnCommitted handlers")

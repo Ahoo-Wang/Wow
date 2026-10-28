@@ -71,7 +71,7 @@ export interface PresentationDialogProps {
 }
 
 /**
- * 「改这里的展示」 (D22 D): the visualization panel of the analysis view —
+ * 「改这里的展示」: the visualization panel of the analysis view —
  * the same chart types, the same options, the same totals row — for one
  * panel of a board, beside the panel as it will look.
  *

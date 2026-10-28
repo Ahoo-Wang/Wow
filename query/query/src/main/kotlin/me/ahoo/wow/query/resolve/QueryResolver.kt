@@ -37,11 +37,6 @@ import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
@@ -149,21 +144,21 @@ internal class QueryResolver(
             get() = definition.effective
     }
 
-    fun single(query: ISingleQuery): ISingleQuery {
+    fun single(query: SingleQuery): SingleQuery {
         val filter = filter(query.filter)
         return SingleQuery(filter, projection(query.projection), sort(query.sort, cursor = false))
     }
 
-    fun list(query: IListQuery): IListQuery {
+    fun list(query: ListQuery): ListQuery {
         val filter = filter(query.filter)
         val list = ListQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.limit)
-        requireValid(query.limit != 0 || schema.storage.paging.unboundedStream != SupportMode.NONE) {
+        requireValid(query.limit != null || schema.storage.paging.unboundedStream != SupportMode.NONE) {
             QueryViolation.StorageUnsupported("listing without a limit")
         }
         return list
     }
 
-    fun paged(query: IPagedQuery): IPagedQuery {
+    fun paged(query: PagedQuery): PagedQuery {
         val filter = filter(query.filter)
         val paged = PagedQuery(
             filter,
@@ -182,7 +177,7 @@ internal class QueryResolver(
     }
 
     /** A cursor query, its sort completed by the fields of [uniqueKey] as tie-breakers ([withUniqueSort]). */
-    fun cursor(query: ICursorQuery, uniqueKey: List<QueryField>): ICursorQuery {
+    fun cursor(query: CursorQuery, uniqueKey: List<QueryField>): CursorQuery {
         val effectiveSort = query.sort.withUniqueSort(uniqueKey)
         requireCursorSort(effectiveSort)
         val filter = filter(query.filter)
@@ -197,7 +192,7 @@ internal class QueryResolver(
     fun filter(expression: FilterExpression): FilterExpression = filter(expression, At(ROOT))
 
     /** A count, its filter resolved, counting at most [limit] matches (`null`: exactly). */
-    fun count(query: ICountQuery, limit: Int?): ICountQuery = CountQuery(filter(query.filter), limit)
+    fun count(query: CountQuery, limit: Int?): CountQuery = CountQuery(filter(query.filter), limit)
 
     fun aggregate(query: AggregationQuery): AggregationQuery {
         // What the storage cannot run at all is rejected first; the field records then assume it can.

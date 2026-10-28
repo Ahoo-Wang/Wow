@@ -21,6 +21,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
@@ -53,13 +54,13 @@ class ManifestCheckTest {
 
     @Test
     fun `commands, former names and creation are compared`() {
-        val deposit = manifest.contexts.single().aggregates.single().commands.single()
+        val deposit = manifest.contexts.single().aggregates.single().domainCommands.single()
         val differing = changed { aggregate ->
             aggregate.copyWith(
                 commands = listOf(
                     deposit.copyWith(aliases = listOf("Pay"), creation = ManifestCreation.REQUIRED),
                     CommandManifest("Withdraw", schema = Manifest.schemaRef("Withdraw")),
-                ),
+                ) + aggregate.commands.filter { it.system },
             )
         }
 
@@ -194,7 +195,12 @@ class ManifestCheckTest {
             evolve<Deposited> { balance += it.amount }
             lifecycle(DeleteAggregate::class.java)
         }
-        val differing = changed { it.copyWith(lifecycle = listOf(Lifecycle.DELETE_AGGREGATE, "wow.lifecycle.Archive")) }
+        val differing = changed { aggregate ->
+            aggregate.copyWith(
+                commands = aggregate.domainCommands + listOf(Lifecycle.DELETE_AGGREGATE, "wow.lifecycle.Archive")
+                    .map { SystemCommands.lifecycle("bank", aggregate.name, it) },
+            )
+        }
         ManifestCheck.differences(differing, listOf(narrowed)).assert().containsExactly(
             "lifecycle command wow.lifecycle.Archive of bank.account is in the Manifest but not handled by the model",
         )

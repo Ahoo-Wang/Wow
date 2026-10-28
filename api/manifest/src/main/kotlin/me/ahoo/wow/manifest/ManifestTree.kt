@@ -22,13 +22,14 @@ package me.ahoo.wow.manifest
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
  * `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default,
- * and its `retired` events when it has none.
+ * its `retired` events when it has none, and the Manifest's `requires` when it has none.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
 
     fun write(manifest: Manifest): Map<String, Any?> = obj(
         "format" to manifest.format,
+        "requires" to manifest.requires.ifEmpty { null },
         "service" to manifest.service?.let { obj("name" to it.name, "version" to it.version) },
         "contexts" to manifest.contexts.map(::writeContext),
         "errors" to manifest.errors.map(::writeError),
@@ -44,6 +45,20 @@ object ManifestTree {
             obj("aggregate" to it.aggregate, "topic" to it.topic, "includeState" to it.includeState)
         },
         "errors" to context.errors.map(::writeError),
+        "commands" to context.commands.map(::writeCommand).ifEmpty { null },
+    )
+
+    private fun writeCommand(command: CommandManifest): Map<String, Any?> = obj(
+        "name" to command.name,
+        "aliases" to command.aliases,
+        "schema" to command.schema,
+        "creation" to command.creation.name,
+        "produces" to command.produces,
+        "routes" to command.routes.map(::writeRoute),
+        "mounted" to command.mounted.takeIf { it },
+        "system" to command.system.takeIf { it },
+        "transformsTo" to command.transformsTo,
+        "description" to command.description,
     )
 
     private fun writeError(error: ErrorManifest): Map<String, Any?> =
@@ -58,19 +73,7 @@ object ManifestTree {
             // Written only when raised, so a Manifest of an aggregate that never raised it reads as before.
             "stateRevision" to aggregate.snapshot.stateRevision.takeIf { it != 1 },
         ),
-        "commands" to aggregate.commands.map {
-            obj(
-                "name" to it.name,
-                "aliases" to it.aliases,
-                "schema" to it.schema,
-                "creation" to it.creation.name,
-                "produces" to it.produces,
-                "routes" to it.routes.map(::writeRoute),
-                "mounted" to it.mounted.takeIf { mounted -> mounted },
-                "transformsTo" to it.transformsTo,
-                "description" to it.description,
-            )
-        },
+        "commands" to aggregate.commands.map(::writeCommand),
         "events" to aggregate.events.map {
             obj(
                 "name" to it.name,
@@ -80,7 +83,6 @@ object ManifestTree {
                 "description" to it.description,
             )
         },
-        "lifecycle" to aggregate.lifecycle,
         "queries" to aggregate.queries.map {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
@@ -99,6 +101,7 @@ object ManifestTree {
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
             "events" to subscription.source.events,
+            "eventSchemas" to subscription.source.eventSchemas.ifEmpty { null },
             "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
@@ -121,6 +124,7 @@ object ManifestTree {
                 "timeout" to it.timeout,
                 "recoverable" to it.recoverable,
                 "unrecoverable" to it.unrecoverable,
+                "multiplier" to it.multiplier,
             )
         },
         "job" to subscription.job?.let {
@@ -140,17 +144,30 @@ object ManifestTree {
         entries.filter { it.second != null }.toMap(LinkedHashMap())
 
     /**
-     * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], or a context
-     * whose name breaks [ContextName].
+     * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], a marker of
+     * `requires` this reader does not understand ([ManifestFeatures]), or a context whose name breaks [ContextName].
+     *
+     * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
+     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership`, a subscription of an
+     * unknown `kind`, function `kind` or `start`. Each of them decides behaviour (how a command routes, whom an
+     * aggregate is scoped to, how a subscription runs), so a reader never guesses it: it reads what it understands
+     * and leaves out what it does not. No enumeration of the format is merely descriptive.
      */
-    fun read(tree: Map<*, *>): Manifest {
-        val root = Node(tree, "manifest")
+    fun read(tree: Map<*, *>, warn: (String) -> Unit = {}): Manifest {
+        val root = Node(tree, "manifest", warn)
         val format = root.int("format")
         require(format == Manifest.FORMAT) {
             "Manifest format $format is not supported; this reader reads format ${Manifest.FORMAT}."
         }
+        val requires = root.stringsOrNull("requires").orEmpty()
+        (requires - ManifestFeatures.KNOWN).takeIf { it.isNotEmpty() }?.let { unknown ->
+            throw IllegalArgumentException(
+                "The Manifest requires $unknown, which this reader does not understand: read it with a newer Wow."
+            )
+        }
         return Manifest(
             format = format,
+            requires = requires,
             service = root.objOrNull("service")?.let { ServiceInfo(it.string("name"), it.stringOrNull("version")) },
             contexts = root.objects("contexts").map(::readContext),
             errors = root.objects("errors").map(::readError),
@@ -163,8 +180,8 @@ object ManifestTree {
             ContextName.problem(name)?.let { throw IllegalArgumentException("${node.path}.name: $it") }
         },
         description = node.stringOrNull("description"),
-        aggregates = node.objects("aggregates").map(::readAggregate),
-        subscriptions = node.objects("subscriptions").map(::readSubscription),
+        aggregates = node.objects("aggregates").mapNotNull(::readAggregate),
+        subscriptions = node.objects("subscriptions").mapNotNull(::readSubscription),
         published = node.objects("published").map {
             PublishedManifest(
                 aggregate = it.string("aggregate"),
@@ -173,6 +190,21 @@ object ManifestTree {
             )
         },
         errors = node.objects("errors").map(::readError),
+        commands = if (node.has("commands")) node.objects("commands").mapNotNull(::readCommand) else emptyList(),
+    )
+
+    /** The command of [node], or null, told, when its creation is unknown to this reader. */
+    private fun readCommand(node: Node): CommandManifest? = CommandManifest(
+        name = node.string("name"),
+        aliases = node.strings("aliases"),
+        schema = node.string("schema"),
+        creation = node.enum("creation", Creation.entries) ?: return node.leftOut(),
+        produces = if (node.has("produces")) node.strings("produces") else null,
+        routes = node.objects("routes").map(::readRoute),
+        mounted = node.booleanOrNull("mounted") ?: false,
+        transformsTo = if (node.has("transformsTo")) node.strings("transformsTo") else null,
+        description = node.stringOrNull("description"),
+        system = node.booleanOrNull("system") ?: false,
     )
 
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
@@ -180,8 +212,14 @@ object ManifestTree {
     private fun readError(node: Node): ErrorManifest =
         ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
 
-    private fun readAggregate(node: Node): AggregateManifest {
+    /** The aggregate of [node], or null, told, when its ownership is unknown to this reader. */
+    private fun readAggregate(node: Node): AggregateManifest? {
         val state = node.obj("state")
+        val ownership = if (node.has("ownership")) {
+            node.enumOrNull("ownership", Ownership.entries) ?: return node.leftOut()
+        } else {
+            Ownership.OWNER
+        }
         return AggregateManifest(
             name = node.string("name"),
             description = node.stringOrNull("description"),
@@ -192,19 +230,7 @@ object ManifestTree {
                     snapshot?.intOrNull("stateRevision") ?: 1,
                 )
             },
-            commands = node.objects("commands").map {
-                CommandManifest(
-                    name = it.string("name"),
-                    aliases = it.strings("aliases"),
-                    schema = it.string("schema"),
-                    creation = Creation.valueOf(it.string("creation")),
-                    produces = if (it.has("produces")) it.strings("produces") else null,
-                    routes = it.objects("routes").map(::readRoute),
-                    mounted = it.booleanOrNull("mounted") ?: false,
-                    transformsTo = if (it.has("transformsTo")) it.strings("transformsTo") else null,
-                    description = it.stringOrNull("description"),
-                )
-            },
+            commands = node.objects("commands").mapNotNull(::readCommand),
             events = node.objects("events").map {
                 EventManifest(
                     name = it.string("name"),
@@ -214,30 +240,38 @@ object ManifestTree {
                     description = it.stringOrNull("description"),
                 )
             },
-            lifecycle = node.strings("lifecycle"),
             queries = node.objects("queries").map {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
             schedules = node.stringsOrNull("schedules"),
-            ownership = node.stringOrNull("ownership")?.let(Ownership::valueOf) ?: Ownership.OWNER,
+            ownership = ownership,
             retired = if (node.has("retired")) node.strings("retired") else emptyList(),
         )
     }
 
-    private fun readSubscription(node: Node): SubscriptionManifest {
+    /** The subscription of [node], or null, told, when one of its enumerations has a value this reader does not know. */
+    private fun readSubscription(node: Node): SubscriptionManifest? {
         val source = node.obj("source")
         val function = node.obj("function")
+        val kind = node.enum("kind", SubscriptionKind.entries)
+        val functionKind = function.enum("kind", FunctionKind.entries)
+        val start = node.enumOrNull("start", SubscriptionStart.entries)
+        val unknownStart = node.has("start") && start == null
+        if (kind == null || functionKind == null || unknownStart) {
+            return node.leftOut()
+        }
         return SubscriptionManifest(
             name = node.string("name"),
-            kind = SubscriptionKind.valueOf(node.string("kind")),
+            kind = kind,
             source = SubscriptionSource(
                 context = source.stringOrNull("context"),
                 aggregates = source.strings("aggregates"),
                 events = source.strings("events"),
+                eventSchemas = source.stringsOrNull("eventSchemas").orEmpty(),
                 nullableState = source.booleanOrNull("nullableState") ?: false,
             ),
             function = FunctionManifest(
-                kind = FunctionKind.valueOf(function.string("kind")),
+                kind = functionKind,
                 context = function.string("context"),
                 processor = function.string("processor"),
                 name = function.string("name"),
@@ -246,7 +280,7 @@ object ManifestTree {
             rejected = node.stringsOrNull("rejected"),
             committed = node.stringsOrNull("committed"),
             calls = node.stringsOrNull("calls"),
-            start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
+            start = start,
             schedules = node.stringsOrNull("schedules"),
             retry = node.objOrNull("retry")?.let {
                 RetryManifest(
@@ -256,6 +290,7 @@ object ManifestTree {
                     timeout = it.stringOrNull("timeout"),
                     recoverable = if (it.has("recoverable")) it.strings("recoverable") else null,
                     unrecoverable = if (it.has("unrecoverable")) it.strings("unrecoverable") else null,
+                    multiplier = it.doubleOrNull("multiplier"),
                 )
             },
             job = node.objOrNull("job")?.let {
@@ -272,8 +307,25 @@ object ManifestTree {
     }
 
     /** A JSON object at [path], read with messages that say where a field is missing or of the wrong type. */
-    private class Node(val map: Map<*, *>, val path: String) {
+    private class Node(val map: Map<*, *>, val path: String, val warn: (String) -> Unit) {
         fun has(field: String): Boolean = map[field] != null
+
+        /** Null, telling [warn] that this object, named by its `name`, is left out. */
+        fun <T> leftOut(): T? {
+            warn("$path (${stringOrNull("name")}) is left out: a value of it is unknown to this reader.")
+            return null
+        }
+
+        /** The required enumeration [field] of [entries], or null, told to [warn], when its value is unknown. */
+        fun <E : Enum<E>> enum(field: String, entries: List<E>): E? = string(field).let { known(field, it, entries) }
+
+        /** The enumeration [field] of [entries]; null when it is absent, or, told to [warn], when it is unknown. */
+        fun <E : Enum<E>> enumOrNull(field: String, entries: List<E>): E? =
+            stringOrNull(field)?.let { known(field, it, entries) }
+
+        private fun <E : Enum<E>> known(field: String, value: String, entries: List<E>): E? =
+            entries.firstOrNull { it.name == value }
+                ?: null.also { warn("$path.$field: $value is unknown to this reader, which reads it leniently.") }
 
         /** The string list [field], or null when it is absent. */
         fun stringsOrNull(field: String): List<String>? = if (has(field)) strings(field) else null
@@ -290,9 +342,11 @@ object ManifestTree {
         fun stringOrNull(field: String): String? = typed<String>(field, "a string")
         fun string(field: String): String = required(field, stringOrNull(field))
         fun intOrNull(field: String): Int? = typed<Number>(field, "a number")?.toInt()
+        fun doubleOrNull(field: String): Double? = typed<Number>(field, "a number")?.toDouble()
         fun int(field: String): Int = required(field, intOrNull(field))
         fun booleanOrNull(field: String): Boolean? = typed<Boolean>(field, "a boolean")
-        fun objOrNull(field: String): Node? = typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field") }
+        fun objOrNull(field: String): Node? =
+            typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field", warn) }
         fun obj(field: String): Node = required(field, objOrNull(field))
 
         private fun list(field: String): List<*> = typed<List<*>>(field, "an array").orEmpty()
@@ -304,7 +358,7 @@ object ManifestTree {
 
         fun objects(field: String): List<Node> = list(field).mapIndexed { index, value ->
             require(value is Map<*, *>) { "$path.$field[$index] is not an object: $value" }
-            Node(value, "$path.$field[$index]")
+            Node(value, "$path.$field[$index]", warn)
         }
     }
 }

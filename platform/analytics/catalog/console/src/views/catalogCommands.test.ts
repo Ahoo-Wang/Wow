@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { WowProblemError } from "@ahoo-wang/wow-client";
+import { WowHeaders, WowProblemError } from "@ahoo-wang/wow-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogCommands, problemText } from "./catalogCommands.ts";
 
@@ -96,7 +96,7 @@ describe("the data owner's commands", () => {
     expect(sent[2].body).toEqual({
       fields: [{ path: "buyer", level: "DISPLAY" }],
     });
-    expect(sent[0].headers.get("Wow-Wait")).toContain("snapshot");
+    expect(sent[0].headers.get(WowHeaders.WAIT)).toContain("snapshot");
   });
 
   it("send each command of a dataset to its route, a blank title left out", async () => {

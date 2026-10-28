@@ -56,14 +56,15 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         added: List<String> = emptyList(),
         additions: String? = null,
     ) {
-        if (ddl == Ddl.NONE) return
+        if (!ddl.checks) return
         val mapping = mapping(index)
-        if (mapping == null) {
-            check(ddl == Ddl.AUTO) { "The Elasticsearch index [$index] does not exist (ddl: validate)." }
-            create(index, definition)
-        } else {
-            checkLayout(index, mapping, kind, format)
-            if (ddl == Ddl.AUTO && additions != null && !mapping.properties().keys.containsAll(added)) {
+        ddl.apply(
+            "The Elasticsearch index [$index]",
+            exists = { mapping != null },
+            create = { create(index, definition) },
+        ) {
+            checkLayout(index, mapping!!, kind, format)
+            if (ddl.creates && additions != null && !mapping.properties().keys.containsAll(added)) {
                 client.indices().putMapping(
                     PutMappingRequest.of { it.index(index).withJson(StringReader(additions)) },
                 ).awaitElasticsearch()

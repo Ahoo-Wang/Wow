@@ -39,7 +39,7 @@ export function isDeletionState(value: unknown): value is DeletionState {
 
 /**
  * Whether soft-deleted records are shown: Wow's `DELETION` filter, as a
- * dimension a definition declares (D4) rather than one every view carries.
+ * dimension a definition declares rather than one every view carries.
  *
  * A Wow source answers a query with the records that are not deleted unless
  * the query says otherwise, and that is the whole point of declaring this
@@ -95,7 +95,7 @@ export const deletionFieldKind: FieldKind = {
 };
 
 /**
- * The deletion reading in force that nobody wrote (D17-2).
+ * The deletion reading in force that nobody wrote.
  *
  * For every declared deletion field that no tree in `trees` — the view's
  * own conditions as they ran, the host's scope — answers with a value, the

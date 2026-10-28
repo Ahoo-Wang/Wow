@@ -22,9 +22,9 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
@@ -87,9 +87,9 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
     private val fields: List<String> = dataset.declaration.fields.keys.map(QueryField::path)
 
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val select = Select(query, metadata.table())
-        emitAll(executor.rows(select.records(query.query.limit.takeIf { it > 0 }, 0), query.timeout))
+        emitAll(executor.rows(select.records(query.query.limit, 0), query.timeout))
     }
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
@@ -112,7 +112,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         }
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long =
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long =
         count(query, query.query.filter, query.query.limit, metadata.table())
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
@@ -163,7 +163,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
          * rows that tie on the sort keep one order from page to page. A dataset without an identity has no unique
          * key to end it with.
          */
-        fun records(limit: Int?, offset: Int): ClickHouseStatement =
+        fun records(limit: Int?, offset: Long): ClickHouseStatement =
             statement(filters.compile(query.filter), limit, offset, order = sort + tieBreaker())
 
         private fun tieBreaker(): List<Pair<TypedColumn, Sort.Direction>> {
@@ -197,7 +197,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         private fun statement(
             where: String,
             limit: Int?,
-            offset: Int,
+            offset: Long,
             positions: Boolean = false,
             order: List<Pair<TypedColumn, Sort.Direction>> = sort,
         ): ClickHouseStatement {

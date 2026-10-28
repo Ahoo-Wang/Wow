@@ -195,6 +195,19 @@ jobs:
           verbose: true
           disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+      # A failed or cancelled shard keeps its evidence: the test reports and, for a test that hung, the jstacks the
+      # build wrote (build.gradle.kts, HangWatch) before the job's timeout.
+      - name: Upload the reports of a failed or hung shard
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-reports-${{ matrix.shard }}
+          path: |
+            **/build/reports/hang-dumps/
+            **/build/reports/tests/integrationTest/
+            **/build/test-results/integrationTest/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page, the documentation's code samples equal the
@@ -794,10 +807,10 @@ jobs:
       - name: Build the UI and the workspace packages it uses
         run: pnpm --filter wow-eshop-web... build
       - name: Lint
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm lint
       - name: Test
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm coverage
 
   # The UI end to end: the five eShop services in one JVM in memory
@@ -833,17 +846,17 @@ jobs:
       - name: Build the workspace packages the UI uses
         run: pnpm --filter "wow-eshop-web^..." build
       - name: Install Chromium
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm exec playwright install --with-deps chromium
       - name: Test end to end
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm test:e2e
       - name: Upload the report of a failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: eshop-web-e2e
-          path: example/eshop/web/test-results/
+          path: examples/eshop/web/test-results/
           retention-days: 7
 
   ops-console:

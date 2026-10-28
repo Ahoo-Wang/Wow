@@ -51,6 +51,10 @@ class PeerCommands(
     fun aggregateOf(type: AggregateType): AggregateManifest? =
         type.takeUnless { contracts.isLocal(it.context) }?.let(contracts::aggregateOf)
 
+    /** The aggregate types of the peer contexts whose contracts list [command], a command class. */
+    fun aggregatesOf(command: Class<*>): List<AggregateType> =
+        contracts.aggregatesOf(Manifest.schemaRef(command.name)).filterNot { contracts.isLocal(it.context) }
+
     /**
      * The command type of [aggregate], of [type], that [command] names: its name (`AddItem`), its full name
      * (`ctx.agg.AddItem`), one of its former names, or, for a request built from a command object, its class's binary

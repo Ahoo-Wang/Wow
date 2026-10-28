@@ -15,8 +15,7 @@ package me.ahoo.wow.rehearsal.example
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.StateEvent
 
 /**
@@ -27,10 +26,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
 @Saga
 class CartSaga {
     @OnEvent(derives = [RemoveCartItem::class])
-    fun onOrderCreated(event: StateEvent<OrderState>, context: SagaContext): List<Command<RemoveCartItem>> {
+    fun onOrderCreated(event: StateEvent<OrderState>): List<CommandRequest<RemoveCartItem>> {
         val owner = event.scope.ownerId ?: return emptyList()
         return event.events.filterIsInstance<OrderCreated>().filter { it.fromCart }.map { created ->
-            context.command(
+            CommandRequest.to(
                 CART.ref(event.ref.tenantId, owner),
                 RemoveCartItem(created.items.mapTo(linkedSetOf()) { it.productId }),
             )

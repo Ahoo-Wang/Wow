@@ -62,7 +62,7 @@ export function unavailableIssues(
  * The config with the first finding that can be taken out taken out, or
  * `null` when none of them can: a condition goes (a filter's own or a
  * metric's), a sort entry goes, 「只保留」 goes whole and so does the
- * per-group top N (D89), a dimension keeps
+ * per-group top N, a dimension keeps
  * its field but loses the missing-value group or the filled gaps. A
  * dimension or a metric the source cannot compute stays — taking it out
  * would change the question, not trim it — and is left to the reader.

@@ -29,7 +29,7 @@ import {
 import {
   useFetcherCountQuery,
   useFetcherListQuery,
-  useFetcherListStreamQuery,
+  useFetcherStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
 } from '../src';
@@ -175,7 +175,7 @@ describe('which Fetcher sends the request', () => {
 
   it('ends the stream hook in error when its Fetcher name is not registered', async () => {
     const { result } = renderHook(() =>
-      useFetcherListStreamQuery<OrderState>({
+      useFetcherStreamQuery<OrderState>({
         fetcher: 'not-registered',
         url: '/shop/order/snapshot/query',
         initialQuery: listQuery({ filter: paidFilter }),
@@ -192,7 +192,7 @@ describe('which Fetcher sends the request', () => {
 describe('errors, races, aborts and StrictMode', () => {
   it('sets the problem of a failed request as the error', async () => {
     const server = fakeServer(() =>
-      problem('wow.aggregate.not-found', 'No order.', 404),
+      problem('wow.query.dataset-not-found', 'No dataset.', 404),
     );
     const { result } = renderHook(() =>
       useFetcherSingleQuery<OrderState>({
@@ -205,9 +205,25 @@ describe('errors, races, aborts and StrictMode', () => {
     expect(result.current.error).toBeInstanceOf(WowProblemError);
     expect(result.current.result).toBeUndefined();
     expect(result.current.error).toMatchObject({
-      code: 'wow.aggregate.not-found',
+      code: 'wow.query.dataset-not-found',
       status: 404,
     });
+  });
+
+  it('answers a single query that matches nothing with no result, not an error', async () => {
+    const server = fakeServer(() =>
+      problem('wow.query.not-found', 'No order.', 404),
+    );
+    const { result } = renderHook(() =>
+      useFetcherSingleQuery<OrderState>({
+        fetcher: server.fetcher,
+        url: '/shop/order/snapshot/query',
+        initialQuery: singleQuery({ filter: paidFilter }),
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result).toBeUndefined();
+    expect(result.current.error).toBeUndefined();
   });
 
   it('recovers from an error on the next success', async () => {

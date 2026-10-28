@@ -154,6 +154,7 @@ class WowContractFunctionalTest {
             rootProject.name = "services"
             include("shop-api", "shop-domain", "audit-domain", "billing-api", "billing-domain", "orders")
             include("broken-api", "broken-domain")
+            include("shop-server", "mixed-server", "named-server")
             """,
         )
         write(
@@ -185,19 +186,32 @@ class WowContractFunctionalTest {
             "billing-domain",
             wow = true,
             dependencies = """api(project(":billing-api")); api(project(":shop-api"))""",
+            extra = """wow { contract { service = "billing-service" } }""",
         )
         aggregate("billing-domain", "billing", "Invoice", "billingapi")
         module("orders", wow = true, dependencies = """implementation(project(":shop-api"))""")
         messages("orders", "orders.api", "Order")
         aggregate("orders", "orders", "Order", "orders.api")
         broken()
+        servers()
         result = runner(
             ":shop-api:publish",
             ":billing-api:jar",
             ":orders:${WowPlugin.MERGE_TASK}",
+            ":shop-server:${WowPlugin.MERGE_TASK}",
+            ":named-server:${WowPlugin.MERGE_TASK}",
             ":shop-domain:jar",
             "--configuration-cache",
         ).build()
+    }
+
+    /** Servers that host the contexts of other modules, with no code of their own. */
+    private fun servers() {
+        val shopAndAudit = """implementation(project(":shop-domain")); implementation(project(":audit-domain"))"""
+        module("shop-server", wow = true, dependencies = shopAndAudit)
+        val shopAndBilling = """implementation(project(":shop-domain")); implementation(project(":billing-domain"))"""
+        module("mixed-server", wow = true, dependencies = shopAndBilling)
+        module("named-server", wow = true, dependencies = shopAndBilling, extra = """wow { serviceName = "edge" }""")
     }
 
     /** `broken-domain`, whose event is not in `broken-api`. */
@@ -237,10 +251,12 @@ class WowContractFunctionalTest {
         val contract = contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar"))!!
         contract.service!!.name.assert().isEqualTo("shop-service")
         contract.contexts.map { it.name }.assert().containsExactly("audit", "shop")
-        contract.contexts.last().aggregates.single().commands.single().schema
+        contract.contexts.last().aggregates.single().domainCommands.single().schema
             .assert().isEqualTo(Manifest.schemaRef("shopapi.CreateCart"))
         contract.defs.keys.assert().contains("shopapi.CreateCart", "shopapi.CartCreated", "shop_domain.CartState")
-        contract.contexts.flatMap { it.aggregates }.flatMap { it.commands }.flatMap { it.routes }.assert().isEmpty()
+        // The contract keeps the commands' routes, which the clients send them by.
+        contract.contexts.flatMap { it.aggregates }.flatMap { it.domainCommands }.flatMap { it.routes }.assert()
+            .isNotEmpty()
         // The domain modules are evaluated before it, so the plugin configures it once it is (decision D259).
         ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/audit/AuditContract.class")
@@ -272,6 +288,35 @@ class WowContractFunctionalTest {
         result.task(":shop-domain:${WowPlugin.GENERATE_FRAGMENT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         ManifestJson.read(File(projectDir, "orders/build/wow/manifest.json")).contexts.map { it.name }
             .assert().containsExactly("orders")
+    }
+
+    private fun serviceOf(module: String): String? =
+        ManifestJson.read(File(projectDir, "$module/build/wow/manifest.json")).service?.name
+
+    @Test
+    fun `a service should be named by the contracts of the contexts it hosts`() {
+        serviceOf("shop-server").assert().isEqualTo("shop-service")
+    }
+
+    @Test
+    fun `a service whose contexts' contracts name none should be named after its project`() {
+        // The shop's contract, of a peer here, names its own service, which does not count.
+        serviceOf("orders").assert().isEqualTo("orders")
+    }
+
+    @Test
+    fun `a service whose contexts' contracts name several should fail asking for its name`() {
+        runner(":mixed-server:${WowPlugin.MERGE_TASK}").buildAndFail().output.assert().contains(
+            "The contracts of the service's contexts name different services",
+            "shop-service",
+            "billing-service",
+            "wow { serviceName",
+        )
+    }
+
+    @Test
+    fun `a service's explicit name should win over its contexts' contracts`() {
+        serviceOf("named-server").assert().isEqualTo("edge")
     }
 
     @Test

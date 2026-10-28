@@ -71,7 +71,7 @@ export const SPACE = {
 } as const;
 
 /**
- * The width a fixed-width dashboard is held to, centred (D31): 1200px.
+ * The width a fixed-width dashboard is held to, centred: 1200px.
  *
  * Chosen from the grid rather than the screen. The board is 24 columns with
  * a 10px gap, so at 1200px one column is about 40px and the sizes a panel
@@ -88,7 +88,7 @@ export const SPACE = {
 export const FIXED_BOARD_WIDTH = 1200;
 
 /**
- * The filter tray (decisions.md D12): a wash of the muted colour and no
+ * The filter tray: a wash of the muted colour and no
  * border. The conditions inside it are the bordered things; a border around
  * a row of bordered pills was the box-in-box the layout was rebuilt to lose.
  */

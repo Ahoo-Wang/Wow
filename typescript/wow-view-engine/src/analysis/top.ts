@@ -28,7 +28,7 @@ import type { AnalysisTop, AnalysisViewConfig } from '../model/index.js';
 
 /**
  * The hidden rank's alias: `<metric>__rank`, written the way a computed
- * line's is (D87), with a number after it in the unlikely case a group or a
+ * line's is, with a number after it in the unlikely case a group or a
  * metric of the config already holds the name.
  */
 export function topRankAlias(

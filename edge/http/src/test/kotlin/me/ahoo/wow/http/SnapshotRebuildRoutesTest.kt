@@ -19,7 +19,6 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.DeclaredServices
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CallContext
@@ -37,13 +36,12 @@ class SnapshotRebuildRoutesTest {
     @Test
     fun `a rebuild request of an aggregate type's snapshots is a command of the rebuild aggregate`() {
         val node = HttpNode(rebuilds = true)
-        val requested = node.post("/shop/snapshot/cart/wow.snapshot.rebuild", """{"ids":["c-1","c-2"]}""")
+        val requested = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1","c-2"]}""")
         requested.status.assert().withFailMessage { requested.body.toString() }.isEqualTo(200)
         requested.body!!["ref"]["id"].asString().assert().isEqualTo("cart")
-        val unknown = node.post("/shop/snapshot/order/wow.snapshot.rebuild", """{"ids":["o-1"]}""")
-        unknown.status.assert().isEqualTo(400)
-        unknown.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
-        node.post("/shop/snapshot/cart/wow.snapshot.rebuild", """{"ids":[]}""").status.assert().isEqualTo(400)
+        val unknown = node.post("/shop/order/wow.snapshot.rebuild", """{"ids":["o-1"]}""")
+        unknown.status.assert().isEqualTo(404)
+        node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":[]}""").status.assert().isEqualTo(400)
     }
 
     @Test
@@ -56,7 +54,7 @@ class SnapshotRebuildRoutesTest {
                 callRoutes(cartManifest(), node.gateway, tokens, permits = permits)
             )
             .build()
-            .post().uri("/shop/snapshot/cart/wow.snapshot.rebuild")
+            .post().uri("/shop/cart/wow.snapshot.rebuild")
             .header(WowHeaders.SERVICE, "ops-service")
             .header(WowHeaders.CALL, call)
             .header("Content-Type", "application/json")
@@ -76,12 +74,17 @@ class SnapshotRebuildRoutesTest {
             manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
                     context.copyWith(
-                        aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) }
+                        aggregates = context.aggregates.map { aggregate ->
+                            aggregate.copyWith(
+                                snapshot = SnapshotManifest(false),
+                                commands = aggregate.commands.filterNot { it.name == SnapshotRebuilds.REBUILD },
+                            )
+                        },
                     )
                 },
             )
         }
-        HttpNode(manifest = manifest).post("/shop/snapshot/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""")
+        HttpNode(manifest = manifest).post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""")
             .status.assert().isEqualTo(404)
     }
 

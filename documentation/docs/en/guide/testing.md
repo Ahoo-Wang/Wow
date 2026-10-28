@@ -20,7 +20,7 @@ Coming from the 9.x `AggregateSpec` and `SagaSpec`: [Migrate the Source](../migr
 
 The quickstart's bank account, tested:
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -30,7 +30,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {
@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel("bank")` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in `tenant` by default).
+`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in `tenant` by default).
 
 ### Arrange and act
 
@@ -70,7 +70,9 @@ class AccountSpec {
 | `given(vararg events, scope = null)` | Commits the events as one stream, as if an earlier command had produced them; `scope` leaves the aggregate in that owner and space. |
 | `givenState(state, version, scope)`, `givenState(version, scope) { … }` | Starts the aggregate in a state at a version, without replaying a history; the block form changes the initial state. The first step of a spec. |
 | `givenReservation(namespace, key, owner)` | Gives a reserved key to another aggregate of the same type, so a command that reserves it is refused. |
-| `whenCommand(command, requestId, expectedVersion, scope, …) { … }` | Sends the command through the kernel, from a caller in `scope`, and checks its outcome in the block. |
+| `givenCommands(vararg commands)` | Sends the commands as the scenario's setup; one that is rejected or throws fails the spec, naming it. |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | Sends the command through the kernel and checks its outcome in the block. The `caller` (the spec's `aggregateSpec(model, caller = …)` by default) gives its scope, operator and application, as the command gateway derives them; `scope` names another scope the caller acts in. |
+| `asCaller(caller) { … }` | Sends the block's commands as another caller. |
 | `advanceTime(duration) { … }` | Moves the clock on and sends the aggregate each command it scheduled for itself that is due by then; the block checks the last one. |
 | `expectNothingDue(within)` | Moves the clock on and fails if a command the aggregate scheduled for itself is due by then. |
 | `ref(name)`, `fork(name, from) { … }` | Marks a point; runs a scenario on a copy of the aggregate, now or from a marked point. |
@@ -105,7 +107,7 @@ A rejection is a value, checked by its code. An exception decide throws is a fai
 
 When a scenario starts where a long history would have left the aggregate, start from that state instead of replaying the history. The commands that follow are decided on it, and their streams continue from its version:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
 
 ```kotlin
 @Test
@@ -127,19 +129,19 @@ The state is copied through its JSON, as a snapshot would be, so it must seriali
 
 Scenarios that share a beginning fork from it instead of repeating it. Each fork runs on its own copy of the aggregate: its log, timers, reservations, ids and clock. What a fork does stays in the fork, and nothing before the fork runs again, so a domain service decide called earlier is not called again. `ref` marks a point to fork from later:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
 
 ```kotlin
 @Test
 fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-    whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+    givenCommands(RequestPayment(ORDER, AMOUNT))
     ref("requested")
     fork("confirmed") {
-        whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+        givenCommands(ConfirmPayment(TRANSACTION))
         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
     }
     fork("failed") {
-        whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+        givenCommands(FailPayment(DECLINED))
         whenCommand(ConfirmPayment(TRANSACTION)) {
             expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
@@ -160,12 +162,12 @@ A failure inside a fork names it, with the step and the command it checked: `In 
 
 A fork can also run with other services: give it the same model built with another domain service, by the factory the compiler generated, so that one branch sees the service answer otherwise. The copy of the aggregate is read by that model, which must be of the same aggregate type:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
 
 ```kotlin
 // One branch runs with another payment policy: the same model the compiler generated, built with other
 // services, on a copy of the order so far.
-fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))) {
     whenCommand(ConfirmOrderStock(CAP)) {
         expectScheduled(
             Order.PAYMENT_GRACE_PERIOD,
@@ -180,7 +182,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
 
 `aggregateSpecTests` runs the same kind of specification as a tree for a JUnit `@TestFactory`: each command is a test, and each fork a container of the tests it runs. A failing check fails only its own test; the other steps and forks still run and report on their own:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
 
 ```kotlin
 /**
@@ -188,7 +190,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
  * of the request, so a failing branch is reported on its own and the others still run.
  */
 @TestFactory
-fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentContract.NAME), id = ORDER) {
+fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(), id = ORDER) {
     whenCommand(RequestPayment(ORDER, AMOUNT)) {
         expectEventTypes(PaymentRequested::class)
         fork("confirmed") {
@@ -216,7 +218,7 @@ A fork inside a command's checks branches from that command's outcome.
 
 A command function that schedules a command for its aggregate is tested by moving the clock. `advanceTime` sends each command that is due, as the runtime's timers would:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
 
 ```kotlin
 @Test
@@ -239,19 +241,21 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 ## Sagas
 
-A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(dependencies)` in its package. It constructs only that processor, with its own services from `dependencies`.
+A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(services…)` in its package. It constructs only that processor, with the services the test passes (`orderSummaryProjectionHandlers(summaries = …)`; none for a processor that takes none).
 
-`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `stateEvent(ref, state, vararg events, version, …)` builds the commit:
+`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's view state, which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
 ```kotlin
 @Test
 fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
-        commands.map { it.ref to it.body }.assert().containsExactly(
-            stock.ref(TENANT, "mug") to ReserveStock(ORDER, 5),
-            stock.ref(TENANT, "cap") to ReserveStock(ORDER, 1),
+    // The order's model sources its state from its history; the commit after it is version 2.
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
+        expectCommands(
+            stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
+            stock.ref(order.ref.tenantId, "cap") to ReserveStock(ORDER, 1),
         )
         // Handling the commit again derives the same requests, which the inventory decides once: the spec
         // gives each handling a fresh context, as the runtime does.
@@ -264,18 +268,22 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 ### Rejections and receipts
 
-A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does:
+A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does. The rejection's code is one the target may answer: its contract's generated constant, or a `FrameworkCodes` one; another code fails:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
 fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
         val cap = commands.single { it.ref.id == "cap" }
-        whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+        whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
             expectHandledBy("onReserveRejected")
-            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+            expectCommand(
+                CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."),
+                to = order.ref
+            )
             // The same receipt again derives the same request.
             expectDeterministic()
         }
@@ -287,14 +295,15 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 A saga that calls another service synchronously gets its answers from `answerCalls`: a result, a rejection, or an exception for a service that is down. `expectCalls` and `calls` check what it called:
 
-<!-- sample: example/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
+<!-- sample: examples/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
 
 ```kotlin
 @Test
 fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
-    whenEvent(event(checkedOut)) {
-        expectError<CallRejectedException> {
+    basket()
+    whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
+        expectError<CommandRejectedException> {
             code.assert().isEqualTo(
                 EshopOrderingContract.Order.Errors.WRONG_STATUS
             )
@@ -332,7 +341,7 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec`, against the real
 
 A test in the domain module can load what the compiler generated for it, and check the module's binding index and Manifest fragment: which context it names, which models it builds, which subscriptions its processors become.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
 
 ```kotlin
 @Test

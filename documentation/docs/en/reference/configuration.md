@@ -23,7 +23,7 @@ Every key of the `wow.*` configuration a Spring Boot host reads, 217 in all, gen
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
-| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
+| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
 
 ## `wow.clickhouse`
 
@@ -91,6 +91,7 @@ The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and doc
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `wow.cosec.mode` | `String` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
 | `wow.cosec.trust-injected-app` | `Boolean` | `false` | Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup. |
 
 ## `wow.cosec.authorizer`
@@ -255,7 +256,7 @@ The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' se
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. |
+| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor). |
 | `wow.kafka.ddl` | `Ddl` |  | How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set. |
 | `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
@@ -299,7 +300,7 @@ The defaults of the MongoDB stores.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
-| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none. |
+| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default. |
 | `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
 | `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it. |
 | `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
@@ -382,14 +383,6 @@ How a typed client's request that a peer answered with a problem a retry may get
 | `wow.peer.retry.initial-backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
 | `wow.peer.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
 | `wow.peer.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
-
-## `wow.platform`
-
-The settings of the platform services that run on the host: `wow.platform.*`.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.platform.trust-identity-headers` | `Boolean` | `false` | Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers, which any client sets: for local runs, demos and tests only, so it is refused outside development. |
 
 ## `wow.postgres`
 
@@ -523,7 +516,7 @@ Queries of the snapshots and logs kept in memory.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.query.memory.enabled` | `Boolean` | `false` | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. |
+| `wow.query.memory.enabled` | `Boolean` |  | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there. |
 
 ## `wow.query.sensitivity`
 
@@ -611,10 +604,10 @@ How the parked entries are retried automatically, over minutes and hours.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.subscription.parked.execution-timeout` | `Duration` | `PT2M` | How long a retry may run before the partition's next owner may start another. |
 | `wow.subscription.parked.initial-backoff` | `Duration` | `PT3M` | The wait before the first retry after the failure; each next one waits twice as long after the previous one started. |
 | `wow.subscription.parked.max-retries` | `Integer` | `10` | The most automatic retries of a parked entry; 0 turns them off. |
 | `wow.subscription.parked.scan-interval` | `Duration` | `PT10S` | How often each node scans its subscriptions' parked entries for retries that are due. |
+| `wow.subscription.parked.timeout` | `Duration` | `PT2M` | How long a retry may run before the partition's next owner may start another. |
 
 ## `wow.subscription.read-retry`
 

@@ -44,6 +44,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.kernel.UndeclaredEventException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
@@ -196,7 +197,7 @@ enum class UnknownContexts {
  * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
  * on here, and the later hops are signalled here.
  *
- * The commands of the types [topicRouter] routes take the `Kafka` router instead: the
+ * The commands of the types [topicRouter] routes take the topic router instead: the
  * command is written to its context's command topic, with the wait context, and the wait reaches ACCEPTED once the
  * broker acknowledged it, durable from then on; the owner of its log partition executes it from the topic
  * ([me.ahoo.wow.runtime.command.CommandIntake]) and signals its COMMITTED result and the later hops here, as for a
@@ -220,7 +221,7 @@ class WaitCoordinator(
     private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
-    /** The `Kafka` router of the context's types configured for it; none by default. */
+    /** The topic router of the context's types configured for it; none by default. */
     private val topicRouter: TopicRouter? = null,
     /** Sees the commands refused before the kernel and the waits that time out. */
     private val observer: Observer = Observer.NONE,
@@ -299,7 +300,7 @@ class WaitCoordinator(
     /**
      * Sends [command], admitted here for an aggregate of another service's context (a peer's), to
      * its context's command topic through [relay], and emits a result for each hop of its wait plan as it is reached,
-     * as the `Kafka` router's commands do: ACCEPTED once the broker acknowledged it, durable from then
+     * as the topic router's commands do: ACCEPTED once the broker acknowledged it, durable from then
      * on; the target's intake executes it and signals its COMMITTED result here. [function] names the command in the
      * results this node makes. The command's plan has only ACCEPTED and COMMITTED hops of its context: admission
      * refuses any other.
@@ -342,7 +343,7 @@ class WaitCoordinator(
     }
 
     /**
-     * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the `Kafka` router's
+     * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the topic router's
      * command topic, or a peer's), else executed on [model]'s aggregate, routed by [router].
      */
     @Suppress("LongMethod") // One wait from admission to its end, the command topic's branch included.
@@ -483,7 +484,7 @@ class WaitCoordinator(
     }
 
     /**
-     * Writes [command] to [relay]'s command topic with [wait] (the Kafka router, or a peer's topic);
+     * Writes [command] to [relay]'s command topic with [wait] (the topic router, or a peer's topic);
      * null once the broker acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the
      * send failed, the command perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a
      * retry with the same request id is safe.
@@ -614,7 +615,9 @@ class WaitCoordinator(
      * ([ScheduleNotDueException]): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
      * of this context sends it again later, and the intake of a command another context's timer sent waits for its
      * due time before it runs it, then retries it as any technical failure. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
-     * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
+     * kernel. An event the model does not declare for the command ([UndeclaredEventException]) is
+     * [ResultCodes.UNDECLARED_EVENT], with the message that names the model, the command and the event. Any other
+     * failure of its handling (a decide function or an after hook that throws, a missing
      * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
      * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost
      * reply.
@@ -640,6 +643,8 @@ class WaitCoordinator(
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
             )
+        } catch (undeclared: UndeclaredEventException) {
+            return undeclared(command, function, hop, undeclared)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -669,6 +674,19 @@ class WaitCoordinator(
             else -> null
         }
         return Settlement(committed, listOfNotNull(reached), outcome)
+    }
+
+    /** [command] settled FAILED as a bug of its model: it produced an event its function does not declare. */
+    private fun undeclared(
+        command: Command<*>,
+        function: FunctionInfo,
+        hop: Hop,
+        undeclared: UndeclaredEventException,
+    ): Settlement {
+        logger.error(undeclared) { "Command ${command.id} on ${command.ref} failed: ${undeclared.message}" }
+        val failed = reachedResult(command, function, hop, clock())
+            .failed(ResultCodes.UNDECLARED_EVENT, undeclared.message!!)
+        return Settlement(failed, cause = undeclared)
     }
 
     /**
@@ -878,7 +896,7 @@ class WaitCoordinator(
 }
 
 /**
- * Writes the commands admitted on a node to a command topic instead of executing them there: the `Kafka` router's
+ * Writes the commands admitted on a node to a command topic instead of executing them there: the topic router's
  * or a peer context's. The target's intake executes them.
  */
 @InternalWowApi

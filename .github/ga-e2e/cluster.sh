@@ -42,11 +42,11 @@ OTEL_AGENT_DIR=/tmp/ga-e2e-otel
 
 # image | Gradle distribution directory | Dockerfile (empty: the context's own)
 IMAGES=(
-  "wow-eshop-catalog-server:local|example/eshop/catalog/catalog-server|deploy/eshop-catalog/Dockerfile"
-  "wow-eshop-basket-server:local|example/eshop/basket/basket-server|deploy/eshop-basket/Dockerfile"
-  "wow-eshop-ordering-server:local|example/eshop/ordering/ordering-server|deploy/eshop-ordering/Dockerfile"
-  "wow-eshop-inventory-server:local|example/eshop/inventory/inventory-server|deploy/eshop-inventory/Dockerfile"
-  "wow-eshop-payment-server:local|example/eshop/payment/payment-server|deploy/eshop-payment/Dockerfile"
+  "wow-eshop-catalog-server:local|examples/eshop/catalog/catalog-server|deploy/eshop-catalog/Dockerfile"
+  "wow-eshop-basket-server:local|examples/eshop/basket/basket-server|deploy/eshop-basket/Dockerfile"
+  "wow-eshop-ordering-server:local|examples/eshop/ordering/ordering-server|deploy/eshop-ordering/Dockerfile"
+  "wow-eshop-inventory-server:local|examples/eshop/inventory/inventory-server|deploy/eshop-inventory/Dockerfile"
+  "wow-eshop-payment-server:local|examples/eshop/payment/payment-server|deploy/eshop-payment/Dockerfile"
   "wow-ops-server:local|platform/ops/ops-server|"
   "wow-view-store-server:local|platform/view-store/view-store-server|"
   "wow-analytics-catalog-server:local|platform/analytics/catalog/server|"

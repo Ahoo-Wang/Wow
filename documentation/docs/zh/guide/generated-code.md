@@ -15,7 +15,7 @@ build/generated/ksp/main/
 ├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
 │   ├── EshopOrderingDomainModelProvider.kt    the binding index
 │   ├── OrderModel.kt                          fun orderModel(context, paymentPolicy, configure)
-│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(dependencies)
+│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(services… | dependencies)
 │   └── OrderStateProperties.kt                the state's query fields
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
@@ -24,11 +24,11 @@ build/generated/ksp/main/
 
 ## 模型工厂 {#model-factories}
 
-每个聚合根得到一个以它命名的函数 `<root>Model`，首字母小写：`Order` 得到 `orderModel`。它的参数依次是上下文、命令函数接收的每个领域服务各一个，然后是一个可选的、作用于模型构建器的 `configure` 块。测试直接用它构建模型：`orderModel("eshop-ordering", PaymentPolicy(30.minutes))`。宿主则从应用的 Bean 传入服务。
+每个聚合根得到一个以它命名的函数 `<root>Model`，首字母小写：`Order` 得到 `orderModel`。它的参数依次是上下文（默认为模块所在的上下文）、命令函数接收的每个领域服务各一个，然后是一个可选的、作用于模型构建器的 `configure` 块。测试直接用它构建模型：`orderModel(paymentPolicy = PaymentPolicy(30.minutes))`。宿主则从应用的 Bean 传入服务。与它并列的 `<Root>Model`（`OrderModel`）持有聚合的 `CONTEXT`、`NAME` 与 `TYPE`，供看不到自己契约的领域模块使用。
 
 ## 处理器处理函数 {#processor-handlers}
 
-每个 `@Saga`、`@Projection` 或 `@Reactor` 类得到 `<processor>Handlers(dependencies)`：`OrderProcessSaga` 得到 `orderProcessSagaHandlers`。它用构造函数的依赖构建一次处理器，为每个处理函数返回一个绑定，名为 `<processor>.<function>`，并附上 Saga 的 `@OnRejected` 和 `@OnCommitted` 处理函数。处理器测试通过 `Dependencies.of(...)` 传入它的假实现（[测试领域代码](./testing)）。
+每个 `@Saga`、`@Projection` 或 `@Reactor` 类得到 `<processor>Handlers(services…)`，以命名参数接收构造函数的服务；以及 `<processor>Handlers(dependencies)`，从宿主的 `Dependencies` 中查找这些服务：`OrderProcessSaga` 得到 `orderProcessSagaHandlers`。两者都构建一次处理器，为每个处理函数返回一个绑定，名为 `<processor>.<function>`，并附上 Saga 的 `@OnRejected` 和 `@OnCommitted` 处理函数。处理器测试把假实现作为服务传入（`orderSummaryProjectionHandlers(summaries = …)`，[测试领域代码](./testing)）；缺少依赖时，错误会指出正在构建的处理器或模型。
 
 ## 查询字段 {#query-fields}
 
@@ -56,7 +56,7 @@ wow {
 }
 ```
 
-依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
+依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 也取这个名字，所以承载这些上下文的服务器模块无需重复写明（`wow { serviceName }` 可以覆盖它）。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
 
 api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`：
 

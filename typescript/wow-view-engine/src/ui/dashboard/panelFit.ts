@@ -68,7 +68,7 @@ export function usePanelWholes(): {
 }
 
 /**
- * The rows each panel grows to (P1-3, D52), by id, for the panels that
+ * The rows each panel grows to, by id, for the panels that
  * grow: one whose body holds more than its saved height shows — a table's
  * rows, a note's lines — grows by whole rows until it holds it all or
  * reaches `GROWS_TO_ROWS`. A panel never shrinks: the author's height is

@@ -172,7 +172,7 @@ class HostRefusalTest {
     fun `auto without a durable backend should be refused outside a development node`() {
         // Review R3.5-1: the node started in memory with a warning, and lost its commands on a restart.
         refusal("wow.internal.host" to "0.0.0.0").assert()
-            .contains("No durable backend").contains("wow.backend=memory")
+            .contains("No durable backend").contains("name the memory backend")
         startHost(
             "wow.internal.host" to "0.0.0.0",
             "wow.backend" to "memory",

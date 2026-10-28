@@ -186,11 +186,6 @@
     "description" : "How a typed client's request that a peer answered with a problem a retry may get past is sent again; a saga's call is not retried here, its subscription's retry budget is the one that counts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer"
   }, {
-    "name" : "wow.platform",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Platform",
-    "description" : "The settings of the platform services that run on the host: `wow.platform.*`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.postgres",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
     "description" : "The defaults of the PostgreSQL stores.",
@@ -506,6 +501,11 @@
     "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
+    "name" : "wow.cosec.mode",
+    "type" : "java.lang.String",
+    "description" : "How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
+  }, {
     "name" : "wow.cosec.tenant-level.policies",
     "type" : "java.util.Set<java.lang.String>",
     "description" : "The CoSec policies of these callers.",
@@ -683,7 +683,7 @@
   }, {
     "name" : "wow.kafka.bootstrap-servers",
     "type" : "java.lang.String",
-    "description" : "The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.",
+    "description" : "The brokers; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor).",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.command-intake.enabled",
@@ -772,7 +772,7 @@
   }, {
     "name" : "wow.mongo.database",
     "type" : "java.lang.String",
-    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none.",
+    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "wow"
   }, {
@@ -931,12 +931,6 @@
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$PeerTarget>",
     "description" : "The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
-    "name" : "wow.platform.trust-identity-headers",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers, which any client sets: for local runs, demos and tests only, so it is refused outside development.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Platform",
-    "defaultValue" : false
   }, {
     "name" : "wow.postgres.operation-timeout",
     "type" : "java.time.Duration",
@@ -1211,9 +1205,8 @@
   }, {
     "name" : "wow.query.memory.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Memory",
-    "defaultValue" : false
+    "description" : "Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Memory"
   }, {
     "name" : "wow.query.require-authenticated-scope",
     "type" : "java.lang.Boolean",
@@ -1383,12 +1376,6 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : 1024
   }, {
-    "name" : "wow.subscription.parked.execution-timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a retry may run before the partition's next owner may start another.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
-    "defaultValue" : "PT2M"
-  }, {
     "name" : "wow.subscription.parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
@@ -1406,6 +1393,12 @@
     "description" : "How often each node scans its subscriptions' parked entries for retries that are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT10S"
+  }, {
+    "name" : "wow.subscription.parked.timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a retry may run before the partition's next owner may start another.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
+    "defaultValue" : "PT2M"
   }, {
     "name" : "wow.subscription.read-retry.initial-backoff",
     "type" : "java.time.Duration",
@@ -1554,7 +1547,7 @@
   }, {
     "name" : "wow.transport",
     "type" : "java.lang.String",
-    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
+    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {

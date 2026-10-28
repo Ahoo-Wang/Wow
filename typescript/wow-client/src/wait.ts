@@ -38,7 +38,7 @@ function hop(stage: Stage, context?: string, subscription?: string): Hop {
 }
 
 /**
- * Builds the hops of a wait chain (decisions D62, D99). A context left out is
+ * Builds the hops of a wait chain. A context left out is
  * the command's own. A saga's `handled` hop may be followed by hops of the
  * commands it derived, in their contexts:
  *
@@ -121,16 +121,4 @@ export function formatWaitTimeout(timeout: number | string): string {
     );
   }
   return timeout % 1000 === 0 ? `${timeout / 1000}s` : `${timeout}ms`;
-}
-
-/**
- * What a command waits for (`Wow-Wait`, `Wow-Wait-Timeout`). Without either,
- * the server waits for the snapshot, or for the commit where the aggregate
- * keeps no snapshot (decision D69), within its default timeout.
- */
-export interface WaitOptions {
-  /** The hops, or the `Wow-Wait` value. */
-  readonly plan?: readonly Hop[] | string;
-  /** Milliseconds, or the `Wow-Wait-Timeout` value. */
-  readonly timeout?: number | string;
 }

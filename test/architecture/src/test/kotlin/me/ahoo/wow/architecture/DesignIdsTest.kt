@@ -18,14 +18,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-/** Keeps design IDs out of the production sources and the READMEs: they state the reason instead. */
+/** Keeps design IDs out of the production sources, the READMEs and the user documentation: they state the reason. */
 class DesignIdsTest {
     private val repositoryRoot: File =
         File(requireNotNull(System.getProperty(REPOSITORY_ROOT)) { "System property $REPOSITORY_ROOT is not set." })
             .canonicalFile
 
     @Test
-    fun `production sources and READMEs should cite no design ID`() {
+    fun `production sources, READMEs and user documentation should cite no design ID`() {
         DesignIdRule.designIds(repositoryRoot).assert().isEmpty()
     }
 
@@ -33,9 +33,11 @@ class DesignIdsTest {
     fun `design-ID rule should read sources and READMEs, and skip the design records and the 9x fixtures`() {
         listOf(
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/Node.kt",
-            "example/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java",
+            "examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java",
             "backends/elasticsearch/README.md",
             "deploy/eshop/README.md",
+            "documentation/docs/en/guide/aggregates.md",
+            "documentation/docs/zh/operate/security.md",
         ).forEach { DesignIdRule.designIdScope(it).assert().describedAs(it).isTrue() }
         listOf(
             "core/runtime/src/test/kotlin/me/ahoo/wow/runtime/NodeTest.kt",
@@ -44,7 +46,7 @@ class DesignIdsTest {
             "test/benchmarks/README.md",
             "typescript/wow-view-engine/docs/design/README.md",
             "skills/wow-migrate/evals/h5-inputs/view-store/wow-view-store-api/src/main/kotlin/Api.kt",
-            "documentation/docs/en/guide/aggregates.md",
+            "documentation/docs/public/logo.svg",
         ).forEach { DesignIdRule.designIdScope(it).assert().describedAs(it).isFalse() }
     }
 

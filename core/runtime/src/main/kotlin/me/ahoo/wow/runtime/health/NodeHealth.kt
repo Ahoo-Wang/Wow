@@ -53,8 +53,12 @@ import kotlin.time.Duration.Companion.seconds
  *   ([ServiceNode.standby]), which joins no lease group until it is resumed, a group that does not run
  *   is `UP`, marked `standby`: the node serves reads.
  * - `stores`: each event log (one per log group), from the node's own calls and a probe of its head
- *   every [HealthOptions.sampleInterval]: the last success, the failures lately and since when they fail. `DOWN` when
- *   its calls have failed (or its probe has not answered) for [HealthOptions.storeDownAfter] with no success since.
+ *   every [HealthOptions.sampleInterval], and each store instance the write path needs (one holding a log, a type's
+ *   primary snapshot store) from its probe ([me.ahoo.wow.spi.store.Store.probe]): the last success, the failures
+ *   lately and since when they fail. `DOWN` when its calls have failed (or its probe has not answered) for
+ *   [HealthOptions.storeDownAfter] with no success since.
+ * - `secondaryStores`: each other placed store instance (an additional snapshot store, a query or search store), from
+ *   its probe, as `stores` shows one; never part of readiness: its outage degrades the reads it serves, not the node.
  * - `topics`: each topic the node reads, by where it is in joining its lease group:
  *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise; `UP`, marked `standby`, while
  *   a node on standby has not joined it.
@@ -164,6 +168,7 @@ class NodeHealth(
             val group = node.contexts[store.context]?.group?.name ?: return@forEach
             probe(store.activity) { store.leases.members(group) }
         }
+        stores.placed.forEach { placed -> probe(placed.activity) { placed.activity.recorded { placed.store.probe() } } }
         lastSample = sampleSubscriptions()
         ownership()
     }
@@ -171,7 +176,16 @@ class NodeHealth(
     /** The node's health, every component. */
     fun health(): ComponentHealth = ComponentHealth.of(
         WOW,
-        listOf(nodeState(), ownership(), stores(), topics(), subscriptions(), executor(), liveness()),
+        listOf(
+            nodeState(),
+            ownership(),
+            stores(),
+            secondaryStores(),
+            topics(),
+            subscriptions(),
+            executor(),
+            liveness()
+        ),
     )
 
     /** Whether the node can serve traffic: `DOWN` when `node`, `stores`, `ownership` or `topics` is. */
@@ -220,8 +234,22 @@ class NodeHealth(
         STORES,
         stores.logs.map { store ->
             storeHealth(store.activity.name, store.activity, mapOf("context" to store.context, "store" to store.store))
-        },
+        } + placedHealth(writePath = true),
     )
+
+    private fun secondaryStores(): ComponentHealth = ComponentHealth.of(
+        SECONDARY_STORES,
+        placedHealth(writePath = false)
+    )
+
+    private fun placedHealth(writePath: Boolean): List<ComponentHealth> =
+        stores.placed.filter { it.writePath == writePath }.map { placed ->
+            storeHealth(
+                "${StoreActivity.STORE}:${placed.store.name}",
+                placed.activity,
+                mapOf("store" to placed.store.name, "type" to placed.store.type),
+            )
+        }
 
     private fun storeHealth(name: String, activity: StoreActivity, extra: Map<String, Any?>): ComponentHealth {
         val now = nanos()
@@ -518,6 +546,7 @@ class NodeHealth(
         const val NODE: String = "node"
         const val OWNERSHIP: String = "ownership"
         const val STORES: String = "stores"
+        const val SECONDARY_STORES: String = "secondaryStores"
         const val TOPICS: String = "topics"
         const val SUBSCRIPTIONS: String = "subscriptions"
         const val EXECUTOR: String = "executor"

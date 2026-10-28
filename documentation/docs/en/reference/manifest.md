@@ -11,11 +11,12 @@ A service's Manifest is one JSON document (`format` 1): its bounded contexts, th
 
 What the writer leaves out:
 
-Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default, and its `retired` events when it has none.
+Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
 
 ## `Manifest`
 
 - `format`
+- `requires`: left out when absent or at its default
 - `service`: object; left out when absent or at its default
   - `name`
   - `version`
@@ -34,6 +35,20 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `topic`
   - `includeState`
 - `errors`: array of [`Error`](#error)
+- `commands`: array of [`Command`](#command); left out when absent or at its default
+
+## `Command`
+
+- `name`
+- `aliases`
+- `schema`
+- `creation`
+- `produces`
+- `routes`: array of [`Route`](#route)
+- `mounted`: left out when absent or at its default
+- `system`: left out when absent or at its default
+- `transformsTo`
+- `description`
 
 ## `Error`
 
@@ -51,23 +66,13 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `snapshot`: object
   - `enabled`
   - `stateRevision`: left out when absent or at its default
-- `commands`: array of objects
-  - `name`
-  - `aliases`
-  - `schema`
-  - `creation`
-  - `produces`
-  - `routes`: array of [`Route`](#route)
-  - `mounted`: left out when absent or at its default
-  - `transformsTo`
-  - `description`
+- `commands`: array of [`Command`](#command)
 - `events`: array of objects
   - `name`
   - `aliases`
   - `revision`
   - `schema`
   - `description`
-- `lifecycle`
 - `queries`: array of objects
   - `model`
   - `routes`: array of [`Route`](#route)
@@ -88,6 +93,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `context`
   - `aggregates`
   - `events`
+  - `eventSchemas`: left out when absent or at its default
   - `nullableState`: left out when absent or at its default
 - `function`: object
   - `kind`
@@ -107,6 +113,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `timeout`
   - `recoverable`
   - `unrecoverable`
+  - `multiplier`
 - `job`: object; left out when absent or at its default
   - `name`
   - `cron`

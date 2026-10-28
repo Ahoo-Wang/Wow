@@ -12,7 +12,7 @@
  */
 
 /**
- * A board's filters, batch C2 (D22 F, G): the filter bar, a panel a filter
+ * A board's filters, batch C2 (G): the filter bar, a panel a filter
  * does not reach, a filter's settings, and wiring it to the panels.
  */
 export const filtersMessages = {

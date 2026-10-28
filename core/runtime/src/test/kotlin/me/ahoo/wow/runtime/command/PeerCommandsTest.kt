@@ -33,8 +33,8 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.AdmissionPlugins
@@ -136,7 +136,10 @@ class PeerCommandsTest {
         item: String? = "i-1",
         wait: WaitPlan? = WaitPlan.COMMITTED.within(10.seconds),
         caller: Caller = clerk,
-    ) = CommandRequest.builder(Reserve(quantity), if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item))
+    ) = ServerCommandRequest.builder(
+        Reserve(quantity),
+        if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item)
+    )
         .caller(caller)
         .wait(wait)
         .build()
@@ -182,7 +185,7 @@ class PeerCommandsTest {
         defaulted.hop.assert().isEqualTo(Hop.committed(STOCK))
         defaulted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         // A JSON body names the command, as an edge's request does: the same path.
-        val json = CommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""))
+        val json = ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""))
             .caller(clerk)
             .aggregateId("i-4")
             .wait(WaitPlan.COMMITTED)
@@ -223,21 +226,21 @@ class PeerCommandsTest {
         sales.gateway.execute(reserve(1, caller = Caller(TENANT, Scope("m"), subject = "mallory")))
             .error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(
-            CommandRequest.builder(
+            ServerCommandRequest.builder(
                 Reserve(1),
                 ITEM.ref(TENANT, "i")
             ).caller(clerk).target(TargetScope(TENANT, Scope("x")))
                 .build(),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-        sales.gateway.execute(CommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
+        sales.gateway.execute(ServerCommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
             .error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         sales.gateway.execute(
-            CommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":"many"}"""))
+            ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":"many"}"""))
                 .caller(clerk).aggregateId("i").build(),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val call = CallContext.of("c-1", TENANT, Scope.NONE, me.ahoo.wow.api.decide.Causation("r", "r"))
         sales.gateway.execute(
-            CommandRequest(STOCK, "item", "Reserve", CommandBody.Value(Reserve(1)), clerk, "i", call = call),
+            ServerCommandRequest(STOCK, "item", "Reserve", CommandBody.Value(Reserve(1)), clerk, "i", call = call),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         topics.messages(COMMANDS).assert().isEmpty()
     }
@@ -246,7 +249,7 @@ class PeerCommandsTest {
     fun `an unknown command or context stays unhandled`(): Unit = runBlocking {
         val sales = started()
         val unknownCommand = sales.gateway.execute(
-            CommandRequest.builder(
+            ServerCommandRequest.builder(
                 STOCK,
                 "item",
                 "Release",
@@ -256,7 +259,7 @@ class PeerCommandsTest {
         unknownCommand.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknownCommand.error!!.message.assert().contains("has no command Release")
         val unknownContext = sales.gateway.execute(
-            CommandRequest.builder(
+            ServerCommandRequest.builder(
                 Reserve(1),
                 AggregateType("billing", "invoice").ref(TENANT, "x")
             ).caller(clerk).build(),
@@ -265,7 +268,7 @@ class PeerCommandsTest {
         unknownContext.error!!.message.assert().contains("No aggregate billing.invoice is served here")
         // A command class of another aggregate is not this one's.
         val misdirected = sales.gateway.execute(
-            CommandRequest.builder(PlaceOrder(1), ITEM.ref(TENANT, "x")).caller(clerk).build(),
+            ServerCommandRequest.builder(PlaceOrder(1), ITEM.ref(TENANT, "x")).caller(clerk).build(),
         )
         misdirected.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
@@ -276,7 +279,7 @@ class PeerCommandsTest {
         val result = sales.gateway.execute(reserve(1))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-        result.error!!.message.assert().contains("no command transport").contains("wow.kafka.bootstrap-servers")
+        result.error!!.message.assert().contains("no command transport")
     }
 
     @Test

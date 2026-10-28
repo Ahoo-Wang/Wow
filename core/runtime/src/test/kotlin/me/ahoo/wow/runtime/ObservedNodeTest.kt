@@ -22,7 +22,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.ForwardCommand
@@ -126,7 +126,7 @@ class ObservedNodeTest {
         node.stop()
     }
 
-    private fun deposit(id: String, wait: WaitPlan? = null) = CommandRequest(
+    private fun deposit(id: String, wait: WaitPlan? = null) = ServerCommandRequest(
         BANK,
         "account",
         "Deposit",

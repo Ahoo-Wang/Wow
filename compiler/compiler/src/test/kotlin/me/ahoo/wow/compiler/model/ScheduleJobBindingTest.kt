@@ -63,11 +63,12 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.annotation.Retry
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.Misfire
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.SagaContext
+        import me.ahoo.wow.api.subscribe.JobContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         data class IssueInvoices(val tenantId: String, val slot: Long)
@@ -76,20 +77,20 @@ class ScheduleJobBindingTest {
         class BillingSaga {
             @OnSchedule(name = "invoice", cron = "0 0 0 1 * *", zone = "Asia/Shanghai", scope = JobScope.TENANT)
             @Retry(maxAttempts = 2)
-            fun invoice(tick: ScheduleTick, context: SagaContext): Command<IssueInvoices> =
-                context.command(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
+            fun invoice(tick: ScheduleTick, context: JobContext): CommandRequest<IssueInvoices> =
+                CommandRequest.to(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
 
             @OnSchedule(name = "sweep", cron = "0 */5 * * * *", sharded = true, misfire = Misfire.CATCH_UP)
-            suspend fun sweep(tick: ScheduleTick): List<Command<*>> = emptyList()
+            suspend fun sweep(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
 
             @OnEvent
-            fun onEvent(event: StateEvent<*>): List<Command<*>> = emptyList()
+            fun onEvent(event: StateEvent<*>): List<CommandRequest<*>> = emptyList()
         }
 
         @Saga
         object Nightly {
             @OnSchedule(name = "nightly", cron = "@daily")
-            fun nightly(tick: ScheduleTick): List<Command<*>> = emptyList()
+            fun nightly(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
         }
         """.trimIndent(),
     )
@@ -159,10 +160,11 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.annotation.OnSchedule
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         @Reactor
@@ -174,26 +176,26 @@ class ScheduleJobBindingTest {
         @Saga
         object Wrong {
             @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT, sharded = true)
-            fun misnamed(tick: ScheduleTick): List<Command<*>> = emptyList()
+            fun misnamed(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
 
             @OnSchedule(name = "twice", cron = "0 0 3 * * *")
             @OnEvent
-            fun both(tick: ScheduleTick): List<Command<*>> = emptyList()
+            fun both(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
 
             @OnSchedule(name = "params", cron = "0 0 3 * * *")
-            fun params(event: StateEvent<*>, context: ReactContext, extra: String): List<Command<*>> = emptyList()
+            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String): List<CommandRequest<*>> = emptyList()
 
             @OnSchedule(name = "returns", cron = "0 0 3 * * *")
             fun returns(tick: ScheduleTick): String = ""
 
             @OnSchedule(name = "same", cron = "0 0 3 * * *")
-            fun first(tick: ScheduleTick): List<Command<*>> = emptyList()
+            fun first(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
 
             @OnSchedule(name = "same", cron = "0 0 4 * * *")
-            fun second(tick: ScheduleTick): List<Command<*>> = emptyList()
+            fun second(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
 
             @OnSchedule(name = "hidden", cron = "0 0 3 * * *")
-            private fun hidden(tick: ScheduleTick): List<Command<*>> = emptyList()
+            private fun hidden(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
         }
         """.trimIndent(),
     )
@@ -210,7 +212,7 @@ class ScheduleJobBindingTest {
             .contains("handler Wrong.misnamed is a sharded TENANT job: only a SYSTEM job is sharded")
             .contains("handler Wrong.both is @OnSchedule and @OnEvent or @OnRejected")
             .contains("handler Wrong.params must take a me.ahoo.wow.api.schedule.ScheduleTick first")
-            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.ReactContext")
+            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler Wrong.params takes 3 parameters")
             .contains("handler Wrong.returns returns kotlin.String")
             .contains("processor Wrong declares the job same twice, differently")
@@ -226,6 +228,7 @@ class ScheduleJobBindingTest {
 
             import me.ahoo.wow.api.annotation.OnSchedule
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.schedule.ScheduleTick
             import reactor.core.publisher.Flux
@@ -233,7 +236,7 @@ class ScheduleJobBindingTest {
             @Saga
             object Jobs {
                 @OnSchedule(name = "reactive", cron = "0 0 3 * * *")
-                fun reactive(tick: ScheduleTick): Flux<Command<*>> = Flux.empty()
+                fun reactive(tick: ScheduleTick): Flux<CommandRequest<*>> = Flux.empty()
             }
             """.trimIndent(),
         )

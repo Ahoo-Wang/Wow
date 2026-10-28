@@ -220,7 +220,7 @@ internal class SchemaCompatibility(
     }
 
     private fun refKey(schema: Any?): String? =
-        ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { it.startsWith(DEFS_PREFIX) }?.let(Manifest::schemaKey)
+        ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
 
     /** The schema as a map: `$ref` replaced by its definition (with the reference's siblings), `true` by `{}`. */
     private fun resolve(schema: Any?, defs: Map<String, Any?>): Map<String, Any?> {
@@ -256,7 +256,6 @@ internal class SchemaCompatibility(
     private companion object {
         const val STATE = "state"
         const val REF = "\$ref"
-        const val DEFS_PREFIX = "#/\$defs/"
         const val TYPE = "type"
         const val ENUM = "enum"
         const val PROPERTIES = "properties"

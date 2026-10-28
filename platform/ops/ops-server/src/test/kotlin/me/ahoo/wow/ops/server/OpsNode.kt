@@ -22,59 +22,55 @@ import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
 import me.ahoo.wow.ops.testing.LedgerSimulator
 import me.ahoo.wow.runtime.cluster.CommandWire
-import org.springframework.boot.builder.SpringApplicationBuilder
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
-val json: JsonMapper = JsonMapper.builder().build()
+private const val OK = 200
 
-/** A response: its status, its headers and its body as JSON (null when it has none). */
-class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
-    val json: JsonNode get() = requireNotNull(body) { "The response has no body." }
+/** The body as JSON, which the response must have. */
+val Answer.json: JsonNode get() = requireNotNull(body) { "The response has no body." }
 
-    /** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
-    fun assertProblem(status: Int, code: String): Answer {
-        this.status.assert().describedAs(body.toString()).isEqualTo(status)
-        headers.contentType.toString().assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-        json["code"].asString().assert().isEqualTo(code)
-        return this
-    }
-
-    /** Asserts the command or query succeeded, and returns it. */
-    fun assertOk(): Answer {
-        status.assert().describedAs(body.toString()).isEqualTo(OK)
-        return this
-    }
-
-    /** The ids of the snapshots of a list, in their order. */
-    val ids: List<String> get() = json.values().map { it["aggregateId"].asString() }
-
-    private companion object {
-        const val OK = 200
-    }
+/** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
+fun Answer.assertProblem(status: Int, code: String): Answer {
+    this.status.assert().describedAs(text).isEqualTo(status)
+    header(HttpHeaders.CONTENT_TYPE).assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+    json["code"].asString().assert().isEqualTo(code)
+    return this
 }
 
-/** Who sends a request: the headers [OpsCallers] reads. */
+/** Asserts the command or query succeeded, and returns it. */
+fun Answer.assertOk(): Answer {
+    status.assert().describedAs(text).isEqualTo(OK)
+    return this
+}
+
+/** The ids of the snapshots of a list, in their order. */
+val Answer.ids: List<String> get() = json.values().map { it["aggregateId"].asString() }
+
+/** Who sends a request: the headers the host's development callers read. */
 data class Who(val headers: Map<String, String>) {
     companion object {
         /** An operator, who acts on the entries. */
-        val OPERATOR: Who = Who(mapOf(OpsCallers.USER to "alice", OpsCallers.ROLES to "viewer, ${OpsCallers.OPERATOR}"))
+        val OPERATOR: Who = Who(mapOf(USER to "alice", ROLES to "viewer, ${OpsRoles.OPERATOR}"))
 
         /** A caller of the tenant that reads the entries, and may not act on them. */
-        val VIEWER: Who = Who(mapOf(OpsCallers.USER to "victor", OpsCallers.ROLES to "viewer"))
+        val VIEWER: Who = Who(mapOf(USER to "victor", ROLES to "viewer"))
 
         /** A caller of another tenant. */
         val OUTSIDER: Who = Who(
-            mapOf(OpsCallers.USER to "olga", OpsCallers.TENANT to "t-other", OpsCallers.ROLES to OpsCallers.OPERATOR),
+            mapOf(USER to "olga", TENANT to "t-other", ROLES to OpsRoles.OPERATOR),
         )
 
-        /** No caller: no `X-User`. */
+        /** No caller: no `Wow-User`. */
         val NOBODY: Who = Who(emptyMap())
     }
 }
@@ -84,31 +80,14 @@ data class Who(val headers: Map<String, String>) {
  * [publish] and [resolve] stand in for an owning service's ledger, and [ledgerCommands] read what the ops saga sends
  * to an owning context ([LedgerSimulator]).
  */
-class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
-    private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-    val topics: InMemoryTopics = context.getBean(InMemoryTopics::class.java)
-    private val ledger = LedgerSimulator(context.getBean(Manifest::class.java), topics)
+class OpsNode(val server: WowServer) : AutoCloseable {
+    val context: ConfigurableApplicationContext get() = server.context
+    val topics: InMemoryTopics = server.bean<InMemoryTopics>()
+    private val ledger = LedgerSimulator(server.bean<Manifest>(), topics)
 
-    private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl("http://127.0.0.1:$port")
-        .responseTimeout(Duration.ofSeconds(30))
-        .build()
+    fun post(path: String, body: String, who: Who): Answer = server.http.post(path, body, who.headers)
 
-    fun post(path: String, body: String, who: Who): Answer = send(HttpMethod.POST, path, body, who)
-
-    fun get(path: String, who: Who): Answer = send(HttpMethod.GET, path, null, who)
-
-    private fun send(method: HttpMethod, path: String, body: String?, who: Who): Answer {
-        val request = client.method(method).uri(path)
-            .headers { http -> who.headers.forEach { (name, value) -> http.set(name, value) } }
-        val spec = if (body == null) request else request.contentType(MediaType.APPLICATION_JSON).bodyValue(body)
-        val result = spec.exchange().expectBody(String::class.java).returnResult()
-        return Answer(
-            status = result.status.value(),
-            headers = result.responseHeaders,
-            body = result.responseBody?.takeIf { it.isNotBlank() }?.let { json.readTree(it) },
-        )
-    }
+    fun get(path: String, who: Who): Answer = server.http.get(path, who.headers)
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     fun publish(entry: ParkedEntry): String = runBlocking { ledger.publish(entry) }
@@ -127,7 +106,7 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     }
 
     override fun close() {
-        context.close()
+        server.close()
     }
 }
 
@@ -137,31 +116,17 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
  */
 fun startOps(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
-): OpsNode {
-    val arguments = mapOf(
-        "spring.main.banner-mode" to "off",
-        "server.port" to 0,
-        "server.address" to "127.0.0.1",
-        "wow.internal.port" to 0,
-        "wow.internal.host" to "127.0.0.1",
-        "wow.log.partitions" to 2,
-        "wow.cluster.drain-timeout" to "1s",
-        "wow.subscription.stop-timeout" to "2s",
-        "wow.subscription.checkpoint-interval" to "100ms",
-        "wow.wait.max-timeout" to "15s",
-        OpsConfiguration.TRUST_IDENTITY_HEADERS to true,
-    ) + properties.toMap()
-    val context = SpringApplicationBuilder(
+): OpsNode = OpsNode(
+    wowServer(
         OpsServer::class.java,
-        InMemoryOpsTopics::class.java,
-        *sources.toTypedArray()
-    )
-        .profiles(*profiles.toTypedArray())
-        .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
-    return OpsNode(context)
-}
+        profiles,
+        mapOf("wow.log.partitions" to 2) + properties.toMap(),
+        listOf(InMemoryOpsTopics::class.java) + sources,
+    ),
+)
 
 /** Waits until [condition] holds, polling, for at most [timeout]. */
 fun eventually(what: String, timeout: Duration = Duration.ofSeconds(30), condition: () -> Boolean) {

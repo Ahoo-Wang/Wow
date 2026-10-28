@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.client.CommandRequest
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
@@ -32,7 +33,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.node.SubscriptionFactory
@@ -93,7 +94,7 @@ class TransferSagaConfiguration {
                     val target = event.state.owner.removePrefix(TARGET).takeIf { event.state.owner.startsWith(TARGET) }
                         ?: return@saga emptyList()
                     event.events.filterIsInstance<Deposited>().filter { it.amount == TRANSFER }.map {
-                        context.command(event.ref.type.ref(event.ref.tenantId, target), Deposit(it.amount))
+                        CommandRequest.to(event.ref.type.ref(event.ref.tenantId, target), Deposit(it.amount))
                     }
                 },
             ),
@@ -143,7 +144,7 @@ class MongoSagaStateHostTest {
 
     private fun send(command: String, body: String, id: String, wait: WaitPlan): List<CommandResult> = runBlocking {
         host.node.gateway.send(
-            CommandRequest(
+            ServerCommandRequest(
                 context = BANK,
                 aggregate = "account",
                 command = command,

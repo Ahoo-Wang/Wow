@@ -6,7 +6,7 @@ outline: deep
 
 # 用 Java 编写领域
 
-Wow 编译器读取 Java 源码就像读取 Kotlin 源码一样：同样的注解、同样的生成模型、同样的 Manifest。领域模块可以用 Java 写、用 Kotlin 写，或者两者混用。本页用 Java 写一个小的账户聚合，并列出 Java 目前还做不到的事。它就是仓库里的 Java 冒烟测试 `example/java-smoke`，每次改动构建都会编译并测试它。
+Wow 编译器读取 Java 源码就像读取 Kotlin 源码一样：同样的注解、同样的生成模型、同样的 Manifest。领域模块可以用 Java 写、用 Kotlin 写，或者两者混用。本页用 Java 写一个小的账户聚合，并列出 Java 目前还做不到的事。它就是仓库里的 Java 冒烟测试 `examples/java-smoke`，每次改动构建都会编译并测试它。
 
 ## 准备模块 {#set-up-the-module}
 
@@ -16,7 +16,7 @@ Java 领域模块和 Kotlin 领域模块一样，应用 Kotlin JVM 插件 `kotli
 
 命令和事件是 Java record。`@Summary` 在 Manifest 中为它们写说明：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -33,19 +33,18 @@ public record Withdraw(long amount) {
 
 根是一个标注了 `@AggregateRoot` 的类，带一个接收其状态的构造函数。它的命令函数是普通的 public 方法，按注解或按名字 `onCommand` 找到：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
 
 ```java
 package me.ahoo.wow.example.java;
 
 import me.ahoo.wow.api.annotation.AggregateRoot;
-import me.ahoo.wow.api.annotation.OnCommand;
-import me.ahoo.wow.api.decide.Decision;
+import me.ahoo.wow.api.decide.RejectedException;
+import me.ahoo.wow.api.decide.Rejection;
 
 /**
- * An aggregate root written in Java. Its decide functions are plain Java methods: they return an
- * event, or a {@link Decision} built with the statics {@code Decision.events} and {@code Decision.reject}, whose events
- * {@code @OnCommand(produces)} names. A Java decide function cannot call the {@code suspend} functions of the API,
+ * An aggregate root written in Java. Its decide functions are plain Java methods: they return the event they
+ * produce, and reject a command by throwing a {@link RejectedException} of a {@link Rejection}. A Java decide function cannot call the {@code suspend} functions of the API,
  * such as {@code DecideScope.reserve}, and the test DSL is Kotlin, so the tests of a Java domain are Kotlin.
  */
 @AggregateRoot
@@ -60,28 +59,30 @@ public class Account {
         return new AccountOpened(command.owner());
     }
 
-    @OnCommand(produces = Deposited.class)
-    public Decision onCommand(Deposit command) {
-        if (command.amount() <= 0) {
-            return Decision.reject(AccountRejections.INVALID_AMOUNT, command.amount() + " is not positive.");
-        }
-        return Decision.events(new Deposited(command.amount()));
+    public Deposited onCommand(Deposit command) {
+        requirePositive(command.amount());
+        return new Deposited(command.amount());
     }
 
-    @OnCommand(produces = Withdrawn.class)
-    public Decision onCommand(Withdraw command) {
-        if (command.amount() <= 0) {
-            return Decision.reject(AccountRejections.INVALID_AMOUNT, command.amount() + " is not positive.");
-        }
+    public Withdrawn onCommand(Withdraw command) {
+        requirePositive(command.amount());
         if (command.amount() > state.getBalance()) {
-            return Decision.reject(AccountRejections.INSUFFICIENT_BALANCE, "The balance is " + state.getBalance() + ".");
+            throw new RejectedException(
+                Rejection.of(AccountRejections.INSUFFICIENT_BALANCE, "The balance is " + state.getBalance() + ".")
+            );
         }
-        return Decision.events(new Withdrawn(command.amount()));
+        return new Withdrawn(command.amount());
+    }
+
+    private static void requirePositive(long amount) {
+        if (amount <= 0) {
+            throw new RejectedException(Rejection.of(AccountRejections.INVALID_AMOUNT, amount + " is not positive."));
+        }
     }
 }
 ```
 
-- 方法返回一个事件，或者一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。
+- 方法返回它的事件，或返回 `null` 表示不做改变，通过抛出 `new RejectedException(Rejection.of(code, message))` 拒绝。返回类型无法指明事件时，返回一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。
 - 返回 `Decision` 的方法要在 `@OnCommand(produces = ...)` 中指明它的事件，与 Kotlin 一样。
 - 方法可以在命令之后接收领域服务和 `DecideScope`，也可以接收 `Command<X>` 而不是 `X`。
 
@@ -89,7 +90,7 @@ public class Account {
 
 状态是一个可变类，每个事件对应一个 public 的 `onSourcing` 方法。它的 getter 就是 Jackson 序列化进快照的内容，也是测试 DSL 用来比较、以检查决定没有修改状态的内容：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -128,7 +129,7 @@ public class AccountState {
 
 `@ErrorCode` 写在一个 `public static final String` 字段上。不带点的错误码是本地名，声明在根类或嵌套在根类中的类的字段上；带点的错误码是完整的，就像这些：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -152,7 +153,7 @@ public final class AccountRejections {
 
 测试 DSL 是 Kotlin 写的，所以 Java 领域的测试用 Kotlin 写，放在同一个模块里。它们运行编译器从 Java 源码生成的模型：
 
-<!-- sample: example/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
+<!-- sample: examples/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
 
 ```kotlin
 @Test

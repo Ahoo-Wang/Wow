@@ -158,7 +158,7 @@ function shownGrouping(
 }
 
 /**
- * The filter bar (D22 F): one chip a filter, its value edited with the
+ * The filter bar: one chip a filter, its value edited with the
  * condition editor's own controls and the values the data holds
  * (`filterEditor`, `FilterValueEditor`), the time grouping as one
  * 「按日｜周｜月」, and 「清空」. What a filter holds is the reader's and runs

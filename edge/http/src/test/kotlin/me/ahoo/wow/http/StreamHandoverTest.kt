@@ -35,7 +35,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.CommandHandler
@@ -212,7 +212,7 @@ class StreamHandoverTest {
             snapshots = { delegate ->
                 object : QueryGateway by delegate {
                     override fun stream(
-                        query: IListQuery,
+                        query: ListQuery,
                         caller: QueryCaller,
                         after: String?,
                         chunkSize: Int,

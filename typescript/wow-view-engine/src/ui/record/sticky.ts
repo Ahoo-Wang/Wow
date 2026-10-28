@@ -167,7 +167,7 @@ export interface LeftPin {
 
 /**
  * The one column held against the **right** edge, which is all that side
- * ever has (D19): the host's action column, or the table's own last column
+ * ever has: the host's action column, or the table's own last column
  * where there is none.
  *
  * It carries neither an index nor an offset, and the type is why: with one

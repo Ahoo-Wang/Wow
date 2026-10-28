@@ -96,19 +96,27 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 
 | 声明 | 种类 | 模块 |
 | --- | --- | --- |
+| `me.ahoo.wow.spi.Ddl.apply` | fun | `wow-spi` |
+| `me.ahoo.wow.spi.Ddl.ensure` | fun | `wow-spi` |
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
 | `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.id.GlobalIdGenerator` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.id.AggregateIdGenerator` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.id.AggregateIdGeneratorSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.observation.Observation` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.observation.TraceContext` | class | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.schema.EnsuredOnce` | class | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.StreamSinks` | interface | `wow-spi` |
@@ -116,6 +124,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
+| `me.ahoo.wow.spi.store.Opened` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreResources` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreProvider` | interface | `wow-spi` |
@@ -123,8 +132,11 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.SourceMessage` | class | `wow-spi` |
+| `me.ahoo.wow.spi.transport.PartitionOffsets` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |

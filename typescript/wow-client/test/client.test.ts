@@ -14,9 +14,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { aggregation, filter } from '../src/dsl.js';
 import {
+  checkManifest,
   CommandGateway,
   type CommandResult,
-  commandSegment,
   DatasetClient,
   EventQueryClient,
   fetchManifest,
@@ -25,6 +25,7 @@ import {
   formatWaitTimeout,
   FrameworkErrorCodes,
   LifecycleCommands,
+  MANIFEST_FEATURES,
   newRequestId,
   parseRetryAfter,
   type Problem,
@@ -46,6 +47,12 @@ import {
   stubFetch,
   testFetcher,
 } from './fixtures/fetchStub';
+import {
+  aggregate,
+  context,
+  manifestOf,
+  TEST_MANIFEST,
+} from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 
@@ -152,35 +159,24 @@ describe('scopes and segments', () => {
     ).toBe('tenant="t1", owner="u\\"1", space="s\\\\1"');
     expect(() => formatScope({})).toThrow(TypeError);
   });
-
-  it('kebab-cases command names as the server routes them', () => {
-    expect(commandSegment('AddCartItem')).toBe('add-cart-item');
-    expect(commandSegment('HTTPRequest')).toBe('http-request');
-    expect(commandSegment('AddItemV2')).toBe('add-item-v2');
-    expect(commandSegment('add_item')).toBe('add-item');
-    expect(commandSegment('wow.lifecycle.RestoreAggregate')).toBe(
-      'wow.lifecycle.restore-aggregate',
-    );
-  });
 });
 
 describe('CommandGateway', () => {
   it('sends the Wow headers, the id and the body', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    const gateway = new CommandGateway(client());
-    const answered = await gateway.send(
-      '/eshop-catalog/product/{id}/create-product',
-      { name: 'n', price: 1 },
-      {
-        id: 'p/1',
-        requestId: 'r1',
-        wait: { plan: [wait.committed()], timeout: 2000 },
-        expectedVersion: 3,
-        scope: { tenantId: 't' },
-        space: 's',
-        headers: { 'X-User': 'alice' },
-      },
-    );
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
+    const answered = await gateway.wait({
+      command: 'eshop-catalog.product.CreateProduct',
+      body: { name: 'n', price: 1 },
+      id: 'p/1',
+      requestId: 'r1',
+      wait: [wait.committed()],
+      timeout: 2000,
+      expectedVersion: 3,
+      targetTenant: 't',
+      space: 's',
+      headers: { 'X-User': 'alice' },
+    });
     expect(answered.status).toBe('SUCCEEDED');
     const [sent] = requests;
     expect(sent.method).toBe('POST');
@@ -201,8 +197,11 @@ describe('CommandGateway', () => {
 
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    await new CommandGateway(client()).send(
-      '/eshop-catalog/product/create-product',
+    await new CommandGateway(client(), TEST_MANIFEST).wait({
+      command: 'eshop-catalog.product.CreateProduct',
+    });
+    expect(requests[0].url).toBe(
+      `${BASE_URL}/eshop-catalog/product/create-product`,
     );
     expect(requests[0].body).toEqual({});
     expect(
@@ -210,11 +209,165 @@ describe('CommandGateway', () => {
     ).toEqual(['wow-request-id']);
   });
 
-  it('needs the id of a route that names it', async () => {
-    stubFetch(() => jsonResponse(result()));
+  it('routes by the Manifest, the type from the full name or given, a system command by its type', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
+    await gateway.wait({
+      command: 'Rename',
+      type: { context: 'eshop-catalog', name: 'product' },
+      id: 'p1',
+    });
+    expect(requests[0].url).toBe(`${BASE_URL}/eshop-catalog/product/p1/rename`);
+    await expect(gateway.wait({ command: 'Rename', id: 'p1' })).rejects.toThrow(
+      'not a full type name',
+    );
     await expect(
-      new CommandGateway(client()).send('/c/a/{id}/x', {}),
-    ).rejects.toThrow(TypeError);
+      gateway.wait({ command: LifecycleCommands.DELETE_AGGREGATE, id: 'p1' }),
+    ).rejects.toThrow("set the request's type");
+    await expect(
+      gateway.wait({ command: LifecycleCommands.APPLY_TAGS, type: PRODUCT }),
+    ).rejects.toThrow("set the request's id");
+    await expect(
+      gateway.wait({ command: 'eshop-catalog.product.Rename' }),
+    ).rejects.toThrow("set the request's id");
+    await expect(
+      gateway.wait({ command: 'eshop-catalog.product.Unknown', id: 'p1' }),
+    ).rejects.toThrow('The Manifest lists no command Unknown');
+    await gateway.wait({
+      command: 'wow.snapshot.Rebuild',
+      type: PRODUCT,
+      body: { ids: ['p1'] },
+    });
+    await gateway.wait({
+      command: 'wow.schedule.Enable',
+      type: { context: 'eshop-catalog', name: 'schedule' },
+      id: 'report',
+    });
+    expect(requests.slice(1).map(r => `${r.method} ${r.url}`)).toEqual([
+      `POST ${BASE_URL}/eshop-catalog/product/wow.snapshot.rebuild`,
+      `POST ${BASE_URL}/eshop-catalog/wow.schedule/report/enable`,
+    ]);
+  });
+
+  it('refuses a route a command is not sent by, and fetches the Manifest again after a failure', async () => {
+    let manifestAnswers = 0;
+    const { requests } = stubFetch(request => {
+      if (!request.url.endsWith('/wow/manifest')) return jsonResponse(result());
+      manifestAnswers++;
+      return manifestAnswers === 1
+        ? problemResponse(503, 'wow.storage.unavailable')
+        : jsonResponse(TEST_MANIFEST);
+    });
+    const gateway = new CommandGateway(client());
+    await expect(
+      gateway.wait({
+        command: 'c.a.X',
+        routes: [{ method: 'GET', path: '/c/a/{id}/x' }],
+        id: '1',
+      }),
+    ).rejects.toThrow('a command is sent by POST or DELETE');
+    await expect(gateway.wait({ command: 'c.a.X', id: '1' })).rejects.toThrow(
+      WowProblemError,
+    );
+    await expect(
+      gateway.wait({ command: 'c.a.Y', routes: [], id: '1' }),
+    ).rejects.toThrow('no route to an aggregate by its id');
+    // The Manifest is fetched again after the failure.
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    // A system command of a context without commands of its own is none.
+    await expect(
+      gateway.wait({
+        command: 'wow.schedule.Enable',
+        type: { context: 'c', name: 'schedule' },
+        id: 'j',
+      }),
+    ).rejects.toThrow('The Manifest lists no command wow.schedule.Enable');
+    expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
+      2,
+    );
+  });
+
+  it('finds a command by a former name', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const manifest = manifestOf([
+      context('c', [
+        aggregate('a', [
+          {
+            name: 'X2',
+            aliases: ['X'],
+            schema: '#/$defs/X2',
+            creation: 'NONE',
+            routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
+          },
+        ]),
+      ]),
+    ]);
+    await new CommandGateway(client(), manifest).wait({
+      command: 'c.a.X',
+      id: '1',
+    });
+    expect(requests[0].url).toBe(`${BASE_URL}/c/a/1/x2`);
+  });
+
+  it('sends a request by its own routes, else fetches the Manifest once', async () => {
+    const { requests } = stubFetch(request =>
+      jsonResponse(
+        request.url.endsWith('/wow/manifest') ? TEST_MANIFEST : result(),
+      ),
+    );
+    const gateway = new CommandGateway(client());
+    await gateway.wait({
+      command: 'shop.order.Create',
+      routes: [{ method: 'POST', path: '/shop/order/{id}/place' }],
+      id: 'o1',
+    });
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    await gateway.wait({ command: 'shop.order.Create' });
+    expect(requests.map(r => `${r.method} ${r.url}`)).toEqual([
+      `POST ${BASE_URL}/shop/order/o1/place`,
+      `GET ${BASE_URL}/wow/manifest`,
+      `POST ${BASE_URL}/c/a/1/x`,
+      `POST ${BASE_URL}/shop/order/create`,
+    ]);
+  });
+
+  it('sends answering at accepted, its own timeout or 10 seconds, and waits for the plan', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
+    await gateway.send({ command: 'c.a.X', id: '1', wait: [wait.accepted()] });
+    await gateway.send({ command: 'c.a.X', id: '1', timeout: 3000 });
+    // A request that waits for more is sent with wait, not send.
+    await expect(
+      gateway.send({ command: 'c.a.X', id: '1', wait: [wait.snapshot()] }),
+    ).rejects.toThrow(
+      'send answers on acceptance: use wait() for the plan snapshot.',
+    );
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    expect(
+      requests.map(r => [
+        r.headers.get('Wow-Wait'),
+        r.headers.get('Wow-Wait-Timeout'),
+      ]),
+    ).toEqual([
+      ['accepted', '10s'],
+      ['accepted', '3s'],
+      [null, null],
+    ]);
+  });
+
+  it('targets a scope only when the request names one', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
+    await gateway.wait({
+      command: 'c.a.X',
+      id: '1',
+      targetScope: { ownerId: 'bob' },
+    });
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    expect(requests.map(r => r.headers.get('Wow-Scope'))).toEqual([
+      'owner="bob"',
+      null,
+    ]);
   });
 
   it('rejects a command that did not succeed with its problem and result', async () => {
@@ -224,9 +377,9 @@ describe('CommandGateway', () => {
         violations: [{ path: 'name', code: 'NotBlank', message: 'blank' }],
       }),
     );
-    const gateway = new CommandGateway(client());
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
     const error = await gateway
-      .send('/eshop-catalog/product/create-product', {})
+      .wait({ command: 'eshop-catalog.product.CreateProduct' })
       .catch(e => e);
     expect(error).toBeInstanceOf(WowProblemError);
     expect(error.status).toBe(422);
@@ -244,22 +397,20 @@ describe('CommandGateway', () => {
         result: result('REJECTED'),
       }),
     );
-    const answered = await new CommandGateway(client()).send(
-      '/eshop-catalog/product/create-product',
-      {},
-      { resolveRejected: true },
-    );
+    const answered = await new CommandGateway(client(), TEST_MANIFEST).wait({
+      command: 'eshop-catalog.product.CreateProduct',
+      resolveRejected: true,
+    });
     expect(answered.status).toBe('REJECTED');
   });
 
   it('still rejects a problem without a result when asked to resolve', async () => {
     stubFetch(() => problemResponse(401, 'wow.auth.unauthenticated'));
     await expect(
-      new CommandGateway(client()).send(
-        '/c/a/x',
-        {},
-        { resolveRejected: true },
-      ),
+      new CommandGateway(client(), TEST_MANIFEST).wait({
+        command: 'c.a.X',
+        resolveRejected: true,
+      }),
     ).rejects.toMatchObject({ code: FrameworkErrorCodes.AUTH_UNAUTHENTICATED });
   });
 
@@ -272,8 +423,8 @@ describe('CommandGateway', () => {
         { 'Retry-After': '1' },
       ),
     );
-    const error = await new CommandGateway(client())
-      .send('/c/a/x', {})
+    const error = await new CommandGateway(client(), TEST_MANIFEST)
+      .wait({ command: 'c.a.X' })
       .catch(e => e);
     expect(error.retry).toEqual({
       retryable: true,
@@ -290,11 +441,10 @@ describe('CommandGateway', () => {
           `id:1\nevent:committed\ndata:${JSON.stringify(result('REJECTED'))}\n\n`,
       ),
     );
-    const stream = await new CommandGateway(client()).stream(
-      '/c/a/{id}/x',
-      {},
-      { id: '1' },
-    );
+    const stream = await new CommandGateway(client(), TEST_MANIFEST).stream({
+      command: 'c.a.X',
+      id: '1',
+    });
     const results = await readAll(stream);
     expect(results.map(r => [r.hop.stage, r.status])).toEqual([
       ['ACCEPTED', 'SUCCEEDED'],
@@ -321,7 +471,10 @@ describe('CommandGateway', () => {
       ),
     );
     const results = await readAll(
-      await new CommandGateway(client()).stream('/c/a/{id}/x', {}, { id: '1' }),
+      await new CommandGateway(client(), TEST_MANIFEST).stream({
+        command: 'c.a.X',
+        id: '1',
+      }),
     );
     expect(results.map(r => r.chainEnded ?? false)).toEqual([false, true]);
     expect(results[1].status).toBe('SUCCEEDED');
@@ -333,11 +486,10 @@ describe('CommandGateway', () => {
     );
 
     stubFetch(() => jsonResponse(ended));
-    const answered = await new CommandGateway(client()).send(
-      '/c/a/{id}/x',
-      {},
-      { id: '1' },
-    );
+    const answered = await new CommandGateway(client(), TEST_MANIFEST).wait({
+      command: 'c.a.X',
+      id: '1',
+    });
     expect(answered.chainEnded).toBe(true);
     expect(answered.pending).toHaveLength(1);
   });
@@ -349,37 +501,32 @@ describe('CommandGateway', () => {
     let answer: () => Response | Promise<Response> = () =>
       jsonResponse(result());
     const { requests } = stubFetch(() => answer());
-    const gateway = new CommandGateway(client());
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
 
-    await gateway.send('/eshop-catalog/product/p1/rename', { name: 'n' });
-    await gateway.send(
-      '/eshop-catalog/product/p1/rename',
-      {},
-      { requestId: 'mine' },
-    );
+    const rename = { command: 'eshop-catalog.product.Rename', id: 'p1' };
+    await gateway.wait({ ...rename, body: { name: 'n' } });
+    await gateway.wait({ ...rename, requestId: 'mine' });
     const generated = requests[0].headers.get('Wow-Request-Id');
     expect(generated).toMatch(UUID);
     expect(requests[1].headers.get('Wow-Request-Id')).toBe('mine');
 
     // The network fails: no answer, the error carries the id sent.
     answer = () => Promise.reject(new TypeError('Failed to fetch'));
-    const lost = await gateway
-      .send('/eshop-catalog/product/p1/rename', {})
-      .catch((error: unknown) => error);
+    const lost = await gateway.wait(rename).catch((error: unknown) => error);
     expect(lost).toBeInstanceOf(Error);
     expect(lost).not.toBeInstanceOf(WowProblemError);
     expect(requestIdOf(lost)).toBe(requests[2].headers.get('Wow-Request-Id'));
     expect(requestIdOf(lost)).toMatch(UUID);
     const streamLost = await gateway
-      .stream('/eshop-catalog/product/p1/rename', {}, { requestId: 's1' })
+      .stream({ ...rename, requestId: 's1' })
       .catch((error: unknown) => error);
     expect(requestIdOf(streamLost)).toBe('s1');
     const deleteLost = await gateway
-      .lifecycle(
-        '/eshop-catalog/product',
-        'p1',
-        LifecycleCommands.DELETE_AGGREGATE,
-      )
+      .wait({
+        command: LifecycleCommands.DELETE_AGGREGATE,
+        type: PRODUCT,
+        id: 'p1',
+      })
       .catch((error: unknown) => error);
     expect(requestIdOf(deleteLost)).toBe(
       requests[4].headers.get('Wow-Request-Id'),
@@ -392,7 +539,7 @@ describe('CommandGateway', () => {
         statusText: 'Service Unavailable',
       });
     const unknown = await gateway
-      .send('/eshop-catalog/product/p1/rename', {}, { requestId: 'r-503' })
+      .wait({ ...rename, requestId: 'r-503' })
       .catch((error: unknown) => error);
     expect(unknown).toBeInstanceOf(WowProblemError);
     expect((unknown as WowProblemError).requestId).toBe('r-503');
@@ -419,25 +566,22 @@ describe('CommandGateway', () => {
 
   it('sends lifecycle commands to their routes', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    const gateway = new CommandGateway(client());
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.DELETE_AGGREGATE,
-      undefined,
-      { requestId: 'r' },
-    );
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.APPLY_TAGS,
-      { tags: { region: ['eu'] } },
-    );
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.RESTORE_AGGREGATE,
-    );
+    const gateway = new CommandGateway(client(), TEST_MANIFEST);
+    const product = { type: PRODUCT, id: 'p1' };
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.DELETE_AGGREGATE,
+      requestId: 'r',
+    });
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.APPLY_TAGS,
+      body: { tags: { region: ['eu'] } },
+    });
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.RESTORE_AGGREGATE,
+    });
     expect(requests.map(r => [r.method, r.url, r.body])).toEqual([
       ['DELETE', `${BASE_URL}/eshop-catalog/product/p1`, undefined],
       [
@@ -456,10 +600,10 @@ describe('CommandGateway', () => {
 
   it('puts the base path before every route', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    await new CommandGateway({
-      fetcher: testFetcher(),
-      basePath: '/api',
-    }).send('/c/a/x');
+    await new CommandGateway(
+      { fetcher: testFetcher(), basePath: '/api' },
+      TEST_MANIFEST,
+    ).wait({ command: 'c.a.X' });
     expect(requests[0].url).toBe(`${BASE_URL}/api/c/a/x`);
   });
 });
@@ -578,6 +722,28 @@ describe('problems', () => {
 });
 
 describe('query clients', () => {
+  it('answers a single query that matches nothing with undefined, and any other 404 with its problem', async () => {
+    const products = new SnapshotQueryClient<{ name: string }, 'state.name'>(
+      PRODUCT,
+      client(),
+    );
+    const query = { filter: filter.eq('state.name', 'n') };
+    stubFetch(() => problemResponse(404, FrameworkErrorCodes.QUERY_NOT_FOUND));
+    expect(await products.single(query)).toBeUndefined();
+    stubFetch(() =>
+      problemResponse(404, FrameworkErrorCodes.QUERY_DATASET_NOT_FOUND),
+    );
+    await expect(products.single(query)).rejects.toMatchObject({
+      status: 404,
+      code: FrameworkErrorCodes.QUERY_DATASET_NOT_FOUND,
+    });
+    // A route that does not exist answers a 404 without a Wow code.
+    stubFetch(() => problemResponse(404, undefined));
+    await expect(products.single(query)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
   it('posts each operation with its kind', async () => {
     const { requests } = stubFetch(() => jsonResponse([]));
     const products = new SnapshotQueryClient<{ name: string }, 'state.name'>(
@@ -617,7 +783,7 @@ describe('query clients', () => {
       ),
     );
     const events = new EventQueryClient(PRODUCT, client());
-    const stream = await events.listStream({
+    const stream = await events.stream({
       filter: filter.eq('aggregateId', 'p1'),
     });
     const rows: unknown[] = [];
@@ -682,7 +848,7 @@ describe('query clients', () => {
 
   it('ends a stream whose error event is no problem with a 500', async () => {
     stubFetch(() => sseResponse('event:error\ndata:{}\n\n'));
-    const stream = await new EventQueryClient(PRODUCT, client()).listStream({
+    const stream = await new EventQueryClient(PRODUCT, client()).stream({
       filter: filter.eq('aggregateId', 'p1'),
     });
     await expect(readAll(stream)).rejects.toMatchObject({ status: 500 });
@@ -803,6 +969,20 @@ describe('StateClient', () => {
     ).rejects.toMatchObject({ code: 'wow.aggregate.not-found', status: 404 });
   });
 
+  it('finds a state, or undefined only for an aggregate that does not exist', async () => {
+    let answer: () => Response = () => jsonResponse(view);
+    stubFetch(() => answer());
+    const states = new StateClient<{ name: string }>(PRODUCT, client());
+    expect((await states.find('p1'))?.state.name).toBe('n');
+    answer = () => problemResponse(404, 'wow.aggregate.not-found');
+    expect(await states.find('p1', { version: 2 })).toBeUndefined();
+    // Another 404, a route or a query that does not exist, is a mistake.
+    answer = () => problemResponse(404, 'wow.query.not-found');
+    await expect(states.find('p1')).rejects.toMatchObject({ status: 404 });
+    answer = () => problemResponse(403, 'wow.aggregate.forbidden');
+    await expect(states.find('p1')).rejects.toMatchObject({ status: 403 });
+  });
+
   it('reads a trace', async () => {
     const { requests } = stubFetch(() =>
       jsonResponse({ ref: view.ref, commits: [] }),
@@ -902,5 +1082,20 @@ describe('fetchManifest', () => {
     );
     expect(await fetchManifest(client())).toEqual({ format: 1, contexts: [] });
     expect(requests[0].url).toBe(`${BASE_URL}/wow/manifest`);
+  });
+
+  it('refuses a Manifest of another format, or requiring what it does not understand', async () => {
+    stubFetch(() => jsonResponse({ format: 2, contexts: [] }));
+    await expect(fetchManifest(client())).rejects.toThrow(
+      'this client reads format 1',
+    );
+    const requiring = { ...TEST_MANIFEST, requires: ['routes-v2'] };
+    expect(() => checkManifest(requiring)).toThrow(
+      'requires routes-v2, which this client does not understand',
+    );
+    expect(() => new CommandGateway(client(), requiring)).toThrow(
+      'does not understand',
+    );
+    expect(MANIFEST_FEATURES.size).toBe(0);
   });
 });

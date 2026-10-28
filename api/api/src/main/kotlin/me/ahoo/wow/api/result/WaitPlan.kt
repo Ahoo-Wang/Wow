@@ -33,6 +33,13 @@ enum class Stage {
 
     /** A named subscription has handled the commit. */
     HANDLED,
+
+    /**
+     * A stage a newer writer sent that this reader does not know. Only a reader produces it:
+     * Wow's clients and nodes read an unknown value as this, as an older reader does whenever a newer
+     * writer adds a value.
+     */
+    UNKNOWN,
 }
 
 /**

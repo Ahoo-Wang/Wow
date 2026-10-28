@@ -28,6 +28,7 @@ import {
   stubFetch,
   testFetcher,
 } from './fixtures/fetchStub';
+import { TEST_MANIFEST } from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 const client = () => ({ fetcher: testFetcher() });
@@ -40,11 +41,10 @@ describe('client edges', () => {
   it('goes through the default fetcher and passes the signal', async () => {
     const { requests } = stubFetch(() => jsonResponse({}));
     const controller = new AbortController();
-    await new CommandGateway().send(
-      '/c/a/x',
-      {},
-      { signal: controller.signal },
-    );
+    await new CommandGateway({}, TEST_MANIFEST).wait({
+      command: 'c.a.X',
+      signal: controller.signal,
+    });
     expect(requests[0].url).toBe('/c/a/x');
     expect(requests[0].signal).toBeDefined();
   });
@@ -53,8 +53,8 @@ describe('client edges', () => {
     stubFetch(() => {
       throw new TypeError('network');
     });
-    const error = await new CommandGateway(client())
-      .send('/c/a/x')
+    const error = await new CommandGateway(client(), TEST_MANIFEST)
+      .wait({ command: 'c.a.X' })
       .catch(e => e);
     expect(error).not.toBeInstanceOf(WowProblemError);
   });
@@ -100,7 +100,7 @@ describe('client edges', () => {
           'event:end\ndata:{"reason":"complete","resumable":false}\n\n',
       ),
     );
-    const stream = await new EventQueryClient(PRODUCT, client()).listStream({
+    const stream = await new EventQueryClient(PRODUCT, client()).stream({
       filter: filter.eq('aggregateId', 'p1'),
     });
     expect(await readAll(stream)).toEqual([{ a: 1 }]);

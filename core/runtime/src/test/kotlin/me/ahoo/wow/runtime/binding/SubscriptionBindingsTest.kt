@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
@@ -33,7 +34,7 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -85,7 +86,7 @@ class SubscriptionBindingsTest {
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {
-            context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+            CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
         }
     }
 
@@ -113,7 +114,7 @@ class SubscriptionBindingsTest {
         id: String,
         owner: String? = null,
         wait: WaitPlan? = WaitPlan.COMMITTED,
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = SHOP,
         aggregate = aggregate,
         command = command,
@@ -182,7 +183,7 @@ class SubscriptionBindingsTest {
             val handled = all.single { it.hop.stage == Stage.HANDLED }
             handled.function.kind.assert().isEqualTo(FunctionKind.SAGA)
             val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-2"), 1)
-            val derived = ExecutionSagaContext.derivedId(execution, 0)
+            val derived = ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), RemoveItems::class.java)
             handled.derived.assert().containsExactly(derived)
             val last = all.last()
             last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
@@ -190,7 +191,7 @@ class SubscriptionBindingsTest {
             last.ref.assert().isEqualTo(CART.ref(TENANT, "alice"))
             last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
             decided.assert().containsExactly(derived)
-            val cart = backends.opened.getValue(SHOP).log.findByRequestId(TENANT, derived)!!
+            val cart = backends.opened.getValue(SHOP).log.findByRequestId(CART, TENANT, derived)!!
             cart.causation!!.causationId.assert().isEqualTo("shop.order/t/o-2@1")
             cart.causation!!.correlationId.assert().isEqualTo(all.first().commandId)
         }
@@ -358,11 +359,11 @@ class SubscriptionBindingsTest {
     }
 
     @Test
-    fun `a command derived for another context should fail the saga without a Kafka transport`(): Unit = runBlocking {
+    fun `a command derived for another context should fail the saga without a command transport`(): Unit = runBlocking {
         val derived = DerivedCommands(listOf(orderModel()), node.context(SHOP).coordinator)
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
-            .contains("no Kafka transport")
+            .contains("no command transport")
         val unknown = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType(SHOP, "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(unknown), null) }.exceptionOrNull()!!.message.assert()
             .contains("an aggregate type its context does not have")

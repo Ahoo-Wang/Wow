@@ -49,7 +49,7 @@ export function restyledOnly(
 }
 
 /**
- * What a kanban asks besides a page's question (D83): that it is one, and
+ * What a kanban asks besides a page's question: that it is one, and
  * which lanes. Table and cards ask the same, so they compare equal here; the
  * kanban half a table keeps stored asks nothing until it is the layout.
  */

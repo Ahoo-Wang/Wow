@@ -82,12 +82,8 @@ internal data class AggregateBinding(
 }
 
 /**
- * A dependency of the root's functions: a factory parameter [name] of [type], whose class (without type arguments)
- * is [erasure].
- */
-/**
- * A parameter of the generated model factory: a domain service of [type], found by its class [erasure] and, when the
- * parameter has a `@Name`, by its [qualifier].
+ * A parameter [name] of a generated factory (a model's, a processor's handlers'): a domain service of [type], found by
+ * its class [erasure] and, when the parameter has a `@Name`, by its [qualifier].
  */
 internal class Dependency(val name: String, val type: String, val erasure: String, val qualifier: String?)
 
@@ -118,8 +114,10 @@ internal data class CommandBinding(
     val yields: List<String>?,
     /** The events `@OnCommand(produces)` declares, checked against the aggregate's events. */
     val declaredProduces: List<String>,
-    /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules. */
+    /** `@OnCommand(schedules)`: the binary names of the command classes the function declares it schedules. */
     val schedules: List<String> = emptyList(),
+    /** `@OnCommand(onDeleted)`: whether the command is decided on a deleted aggregate too. */
+    val onDeleted: Boolean = false,
     /** What the command's class says it is ([Descriptions]). */
     val description: String? = null,
     /** Whether the function, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread. */
@@ -128,7 +126,7 @@ internal data class CommandBinding(
 
 /**
  * A `@MountedCommand`: a [command] class mounted under the aggregate named [aggregate], which no
- * function decides; a transformer turns it into the commands of [transformsTo], by full type name, when it says.
+ * function decides; a transformer turns it into the commands of [transformsTo], by binary name, when it says.
  */
 internal data class MountedBinding(
     val command: String,

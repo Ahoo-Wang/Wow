@@ -1,7 +1,3 @@
-plugins {
-    `java-test-fixtures`
-}
-
 description = "Wow Manifest: the contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data"
 
 dependencies {
@@ -11,6 +7,8 @@ dependencies {
     api(project(":annotations"))
     // Only to show that the plain tree of ManifestTree is what a JSON library writes and reads back.
     testImplementation("tools.jackson.module:jackson-module-kotlin")
+    // Only to validate what ManifestTree writes against ManifestSchema.
+    testImplementation(libs.json.schema.validator)
     // Only to hold the contract's vocabulary (error codes, Creation, Ownership) to the programming model's (D294).
     testImplementation(project(":api"))
 }

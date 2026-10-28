@@ -90,7 +90,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `FieldSortDescriptor` | interface | Where a field may appear in a sort. | — |
 | `FilterCapable` | interface | Query that carries a filter expression. | — |
 | `FilterExpression` | type | Filter expression sent to the query API. | — |
-| `FilterListQuery` | interface | The body of a `list` or `listStream` query. | — |
+| `FilterListQuery` | interface | The body of a `list` or `stream` query. | — |
 | `FilterLiteral` | type | JSON scalar accepted as a filter value. | — |
 | `FilterOperator` | enum | Discriminator sent as the `op` property of every filter expression. | — |
 | `FilterPagedQuery` | interface | The body of a `paged` query. | — |
@@ -121,7 +121,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |
 | `PercentileAggregationOptions` | interface | The options of `aggregation.percentile`. | — |
 | `PickPaths` | type | `T` with only the dotted paths `P` (and the objects that lead to them): an included path keeps its descendants, an array its items' paths, and a nullable or optional value stays so. | — |
-| `Projected` | type | The records of type `R` a query whose projection includes the paths`INCLUDE` returns (review R4-Q, Q-14): `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
+| `Projected` | type | The records of type `R` a query whose projection includes the paths`INCLUDE` returns: `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
 | `Projection` | interface | Interface for field projection. | — |
 | `ProjectionCapable` | interface | Interface for objects that support field projection. | — |
 | `QueryConstraintType` | type | A constraint's type: one of `QueryConstraintTypes`, or one a server added. | — |
@@ -169,7 +169,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `cursorQuery` | function | Builds the body of a cursor query, with the defaults filled in: all fields, no sort, a page of `DEFAULT_CURSOR_SIZE`, from the start. | — |
 | `desc` | function | Creates a sort object with descending direction for the specified field. | — |
 | `filter` | const | Builders for `FilterExpression` values. | — |
-| `listQuery` | function | Builds the body of a `list` or `listStream` query. | — |
+| `listQuery` | function | Builds the body of a `list` or `stream` query. | — |
 | `pagedList` | function | Builds a `PagedList`, for a placeholder page or a test double. | — |
 | `pagedQuery` | function | Builds the body of a `paged` query. | — |
 | `pagination` | function | Creates a Pagination object with the provided parameters. | — |

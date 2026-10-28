@@ -17,7 +17,7 @@ package me.ahoo.wow.query.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -38,9 +38,9 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
 }
 
 /**
- * The records of [query] as a resumable stream: keyset pages of [ICursorQuery.size] records, each its
+ * The records of [query] as a resumable stream: keyset pages of [CursorQuery.size] records, each its
  * own [QueryBackend.page] call within the admitted timeout, one after the other from after the query's cursor token,
- * until a page comes back short or [limit] records were emitted (`0`: no limit). Each record carries the token of its
+ * until a page comes back short or [limit] records were emitted (`null`: no limit). Each record carries the token of its
  * position.
  *
  * A backend under a bulkhead takes a permit for each page and gives it back before the page's records are emitted, so
@@ -49,16 +49,16 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
  * last position read, and a record that moves across that position may be seen twice or not at all, as with `cursor`
  * queries.
  */
-fun QueryBackend.chunks(query: AdmittedQuery<ICursorQuery>, limit: Int = 0): Flow<PositionedRecord> {
-    require(limit >= 0) { "limit must be greater than or equal to 0." }
+fun QueryBackend.chunks(query: AdmittedQuery<CursorQuery>, limit: Int? = null): Flow<PositionedRecord> {
+    require(limit == null || limit >= 1) { "limit must be at least 1." }
     return flow {
         val cursor = query.query
         val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
         val tokens = CursorTokens.of(aggregateType, query.schema, sort, cursorPositions)
         var after = cursor.cursor?.let(tokens::decode)
-        var remaining = limit
+        var remaining = limit ?: 0
         while (true) {
-            val size = if (limit == 0) cursor.size else minOf(cursor.size, remaining)
+            val size = if (limit == null) cursor.size else minOf(cursor.size, remaining)
             val page = executing(query.timeout) { page(query, PageWindow.Keyset(after, size)) }
             val rows = page.rows.take(size)
             if (rows.isEmpty()) return@flow
@@ -67,8 +67,8 @@ fun QueryBackend.chunks(query: AdmittedQuery<ICursorQuery>, limit: Int = 0): Flo
             rows.forEachIndexed { index, row ->
                 emit(PositionedRecord(row.requireStandardRecord(), tokens.encode(positions[index])))
             }
-            if (limit != 0) remaining -= rows.size
-            if (rows.size < size || limit != 0 && remaining == 0) return@flow
+            if (limit != null) remaining -= rows.size
+            if (rows.size < size || limit != null && remaining == 0) return@flow
             after = positions[rows.lastIndex]
         }
     }

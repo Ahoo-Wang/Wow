@@ -24,7 +24,7 @@ type Sink = (event: ViewErrorEvent) => void;
 const FailureSinkContext = createContext<Sink | undefined>(undefined);
 
 /**
- * Where the render boundaries below tell the host what they caught (D40):
+ * Where the render boundaries below tell the host what they caught:
  * the engine's `onError`, through the environment the view runs on, with the
  * open view named. The two workbenches and the embeds set it, because they
  * are the ones handed the engine; a boundary with none above it tells only

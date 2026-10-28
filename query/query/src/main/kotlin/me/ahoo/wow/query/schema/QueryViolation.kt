@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 
 /**
@@ -942,6 +943,40 @@ sealed interface QueryViolation {
             /** A [ResidualGroupsExceeded] of the given values. */
             @JvmStatic
             fun of(label: String, max: Int): ResidualGroupsExceeded = ResidualGroupsExceeded(label, max)
+        }
+    }
+
+    /**
+     * An aggregation that names no sort found more than its [limit] groups. Its first [limit] groups in key order would
+     * be a cut nobody asked for: a top-N needs a sort, and every group needs a higher limit.
+     */
+    class TooManyGroups @InternalWowApi constructor(val limit: Int) : QueryViolation {
+        override val kind: Kind
+            get() = Kind.REQUEST
+
+        override val location: String
+            get() = "limit"
+
+        override val code: String
+            get() = QueryErrorCodes.TOO_MANY_GROUPS
+
+        override val message: String
+            get() = "Aggregation has more than [$limit] groups and names no sort: add a sort for a top-N, or raise limit."
+
+        override fun equals(other: Any?): Boolean = this === other || other is TooManyGroups && limit == other.limit
+
+        override fun hashCode(): Int = limit.hashCode()
+
+        override fun toString(): String = "TooManyGroups(limit=$limit)"
+
+        /** Its own problem, not the generic invalid query: the query is well-formed, its answer too large. */
+        override fun rejection(): RuntimeException =
+            QueryRequestException(this, QueryErrors.TOO_MANY_GROUPS)
+
+        companion object {
+            /** A [TooManyGroups] of the given values. */
+            @JvmStatic
+            fun of(limit: Int): TooManyGroups = TooManyGroups(limit)
         }
     }
 

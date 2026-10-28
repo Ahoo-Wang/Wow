@@ -32,28 +32,28 @@ class JobRoutesTest {
     @Test
     fun `a tenant enables, reschedules and disables its instance of a job`() {
         val enabled = node.post(
-            "/shop/schedule/report/wow.schedule.enable",
+            "/shop/wow.schedule/report/enable",
             """{"job":"report","rule":{"zone":"Asia/Shanghai"}}""",
             headers = tenantLevel,
         )
         enabled.status.assert().withFailMessage { enabled.body.toString() }.isEqualTo(200)
         enabled.body!!["ref"]["tenantId"].asString().assert().isEqualTo(TENANT)
-        node.post("/shop/schedule/report/wow.schedule.reschedule", """{"rule":null}""", headers = tenantLevel)
+        node.post("/shop/wow.schedule/report/reschedule", """{"rule":null}""", headers = tenantLevel)
             .status.assert().isEqualTo(200)
-        node.post("/shop/schedule/report/wow.schedule.disable", "{}", headers = tenantLevel)
+        node.post("/shop/wow.schedule/report/disable", "{}", headers = tenantLevel)
             .status.assert().isEqualTo(200)
     }
 
     @Test
     fun `an unknown job is refused as an invalid job command`() {
-        val answer = node.post("/shop/schedule/other/wow.schedule.enable", """{"job":"other"}""", headers = tenantLevel)
+        val answer = node.post("/shop/wow.schedule/other/enable", """{"job":"other"}""", headers = tenantLevel)
         answer.status.assert().isEqualTo(400)
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.SCHEDULE_JOB_INVALID)
     }
 
     @Test
     fun `a context without jobs has no job routes`() {
-        HttpNode().post("/shop/schedule/report/wow.schedule.enable", """{"job":"report"}""").status.assert()
+        HttpNode().post("/shop/wow.schedule/report/enable", """{"job":"report"}""").status.assert()
             .isEqualTo(404)
     }
 }

@@ -12,7 +12,7 @@
  */
 
 /**
- * A press on a dashboard panel, batch D (D22 H, I): the follow-up menu's
+ * A press on a dashboard panel, batch D (I): the follow-up menu's
  * board line, cross-filtering and what it says, 「点击时…」, and the kernel
  * and runtime findings about a panel's click.
  */

@@ -25,10 +25,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import java.net.URI
@@ -36,7 +39,7 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 class CoSecCommandAuthorizerTest {
     private val action = CommandAction(
-        type = CommandType("AddItem", AddItem::class.java),
+        type = CommandType("$CONTEXT.cart.AddItem", AddItem::class.java),
         ref = AggregateRef(AggregateType(CONTEXT, "cart"), "acme", "c-1"),
         scope = Scope("alice", "s1"),
         creation = Creation.ALLOWED,
@@ -72,7 +75,10 @@ class CoSecCommandAuthorizerTest {
     @Test
     fun `the action is evaluated as the request of its command route`() = runTest {
         val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(cosec).authorize(caller, action).assert().isEqualTo(Authorization.Allowed)
+        CoSecCommandAuthorizer(
+            cosec,
+            cartManifest()
+        ).authorize(caller, action).assert().isEqualTo(Authorization.Allowed)
         val request = cosec.request
         request.path.assert().isEqualTo("/shop/cart/c-1/add-item")
         request.method.assert().isEqualTo("POST")
@@ -96,9 +102,37 @@ class CoSecCommandAuthorizerTest {
     }
 
     @Test
+    fun `a system command is evaluated as its route, a routeless one by its full name`() = runTest {
+        val cosec = Recording(Mono.just(result(true, "")))
+        val authorizer = CoSecCommandAuthorizer(cosec, cartManifest())
+        suspend fun asked(name: String, type: AggregateType, id: String): String {
+            authorizer.authorize(
+                caller,
+                CommandAction(CommandType(name, Any::class.java), type.ref("acme", id), Scope("alice"), Creation.NONE)
+            )
+            return "${cosec.request.method} ${cosec.request.path} ${cosec.request.attributes[CoSecCommandAuthorizer.COMMAND]}"
+        }
+        val cart = AggregateType(CONTEXT, "cart")
+        asked(Lifecycle.DELETE_AGGREGATE, cart, "c-1")
+            .assert().isEqualTo("DELETE /shop/cart/c-1 shop.cart.wow.lifecycle.DeleteAggregate")
+        // A rebuild runs on the context's rebuild aggregate, the instance named by the aggregate type it rebuilds.
+        val rebuilds = AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE)
+        asked(SnapshotRebuilds.REBUILD, rebuilds, "cart")
+            .assert().isEqualTo("POST /shop/cart/wow.snapshot.rebuild shop.snapshot.wow.snapshot.Rebuild")
+        val jobs = AggregateType(CONTEXT, ScheduleJobs.AGGREGATE)
+        asked(ScheduleJobs.ENABLE, jobs, "report")
+            .assert().isEqualTo("POST /shop/wow.schedule/report/enable shop.schedule.wow.schedule.Enable")
+        asked(ScheduleJobs.TICK, jobs, "report")
+            .assert().isEqualTo("POST /shop/schedule/report/wow.schedule.Tick shop.schedule.wow.schedule.Tick")
+        // A rebuild of an aggregate type the Manifest does not list has no route either.
+        asked(SnapshotRebuilds.REBUILD, rebuilds, "order")
+            .assert().isEqualTo("POST /shop/snapshot/order/wow.snapshot.Rebuild shop.snapshot.wow.snapshot.Rebuild")
+    }
+
+    @Test
     fun `the principal is rebuilt from the caller`() = runTest {
         val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(cosec).authorize(caller, action)
+        CoSecCommandAuthorizer(cosec, cartManifest()).authorize(caller, action)
         val principal = cosec.context.principal
         principal.id.assert().isEqualTo("alice")
         principal.authenticated.assert().isTrue()
@@ -111,7 +145,11 @@ class CoSecCommandAuthorizerTest {
     @Test
     fun `the host's default tenant is CoSec's, and a caller without a subject is anonymous`() = runTest {
         val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(cosec, defaultTenant = "home").authorize(Caller(tenantId = "home"), action)
+        CoSecCommandAuthorizer(
+            cosec,
+            cartManifest(),
+            defaultTenant = "home"
+        ).authorize(Caller(tenantId = "home"), action)
         cosec.context.tenant.tenantId.assert().isEqualTo(Tenant.DEFAULT_TENANT_ID)
         cosec.context.principal.anonymous.assert().isTrue()
     }
@@ -119,7 +157,7 @@ class CoSecCommandAuthorizerTest {
     @Test
     fun `the host's CoSec authorizers decide over its policies and default tenant`() = runTest {
         val cosec = Recording(Mono.just(result(true, "")))
-        val authorizer = CoSecAuthorizers(cosec, defaultTenant = "home").authorizer()
+        val authorizer = CoSecAuthorizers(cosec, cartManifest(), defaultTenant = "home").authorizer()
         authorizer.assert().isInstanceOf(CoSecCommandAuthorizer::class.java)
         authorizer.authorize(Caller(tenantId = "home"), action).assert().isEqualTo(Authorization.Allowed)
         cosec.context.tenant.tenantId.assert().isEqualTo(Tenant.DEFAULT_TENANT_ID)
@@ -127,12 +165,12 @@ class CoSecCommandAuthorizerTest {
 
     @Test
     fun `a denial keeps CoSec's reason, and no decision is a denial`() = runTest {
-        val authorizer = { answer: Mono<AuthorizeResult> -> CoSecCommandAuthorizer(Recording(answer)) }
+        val authorizer = { answer: Mono<AuthorizeResult> -> CoSecCommandAuthorizer(Recording(answer), cartManifest()) }
         val denied = authorizer(Mono.just(result(false, "Explicit Deny"))).authorize(caller, action)
         denied.assert().isEqualTo(Authorization.Denied("Explicit Deny", FrameworkCodes.AUTH_FORBIDDEN))
         val blank = authorizer(Mono.just(result(false, ""))).authorize(caller, action) as Authorization.Denied
-        blank.message.assert().isEqualTo("CoSec denies AddItem.")
+        blank.message.assert().isEqualTo("CoSec denies shop.cart.AddItem.")
         val none = authorizer(Mono.empty()).authorize(caller, action) as Authorization.Denied
-        none.message.assert().isEqualTo("CoSec gave no decision on AddItem.")
+        none.message.assert().isEqualTo("CoSec gave no decision on shop.cart.AddItem.")
     }
 }

@@ -33,7 +33,7 @@ ksp {
 }
 
 // The plugin's completion of the fragment with the schemas of the types, so the snapshot queries know the state.
-apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
+apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     implementation(project(":kernel"))
@@ -50,7 +50,7 @@ dependencies {
 tasks.test {
     // BenchSignalsCopyTest checks that the eShop soak's copy of BenchSignals is the same class.
     val soakSignals = rootProject.file(
-        "example/eshop/e2e/src/soakTest/kotlin/me/ahoo/wow/example/eshop/e2e/soak/SoakSignals.kt",
+        "examples/eshop/e2e/src/soakTest/kotlin/me/ahoo/wow/example/eshop/e2e/soak/SoakSignals.kt",
     )
     inputs.file(soakSignals).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("soakSignals")
     systemProperty("wow.benchmark.soak-signals", soakSignals.absolutePath)

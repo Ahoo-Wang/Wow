@@ -108,7 +108,7 @@ object PostgresQueryIndexes {
         mode: Ddl,
         indexes: List<PostgresQueryIndex>
     ): PostgresQueryIndexReport {
-        if (mode == Ddl.NONE) return PostgresQueryIndexReport()
+        if (!mode.checks) return PostgresQueryIndexReport()
         val reports = indexes.groupBy { it.table }.map { (table, planned) -> manage(dataSource, mode, table, planned) }
         return PostgresQueryIndexReport(
             created = reports.flatMap { it.created },
@@ -126,8 +126,8 @@ object PostgresQueryIndexes {
         val valid = validity(connection, table, indexes)
         val missing = indexes.filter { it.name !in valid }
         val invalid = indexes.filter { valid[it.name] == false }
-        if (mode == Ddl.VALIDATE) {
-            // The host refuses the startup on what is missing or invalid.
+        if (!mode.creates) {
+            // Validating reports every missing or invalid index at once: the host refuses the startup naming them.
             return@autoCommitted PostgresQueryIndexReport(
                 missing = missing.map { it.name },
                 invalid = invalid.map { it.name },

@@ -136,7 +136,7 @@ describe('resumable query streams (decision D253)', () => {
       () => sseResponse(row('p3') + end('complete')),
     );
     const products = new SnapshotQueryClient(PRODUCT, client());
-    expect(ids(await readAll(await products.listStream(query)))).toEqual([
+    expect(ids(await readAll(await products.stream(query)))).toEqual([
       'p1',
       'p2',
       'p3',
@@ -161,10 +161,9 @@ describe('resumable query streams (decision D253)', () => {
             end('complete'),
         ),
     );
-    const stream = await new EventQueryClient(PRODUCT, client()).listStream(
-      query,
-      { resume: { initialDelayMs: 100, maxDelayMs: 150 } },
-    );
+    const stream = await new EventQueryClient(PRODUCT, client()).stream(query, {
+      resume: { initialDelayMs: 100, maxDelayMs: 150 },
+    });
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2', 'p3', 'p4']);
     expect(lastEventIds(requests).slice(0, 4)).toEqual([
       null,
@@ -185,7 +184,7 @@ describe('resumable query streams (decision D253)', () => {
       () => busy('2'),
       () => sseResponse(row('p2') + end('complete')),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
       { resume: { initialDelayMs: 10 } },
     );
@@ -200,7 +199,7 @@ describe('resumable query streams (decision D253)', () => {
       () => busy('0'),
       () => busy('0'),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
       { resume: { maxRetries: 2 } },
     );
@@ -227,7 +226,7 @@ describe('resumable query streams (decision D253)', () => {
           400,
         ),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
     );
     await expect(readAll(stream)).rejects.toMatchObject({
@@ -242,7 +241,7 @@ describe('resumable query streams (decision D253)', () => {
       () => sseResponse(row('p1') + storage),
       () => sseResponse(row('p2') + end('complete')),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
     );
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2']);
@@ -250,9 +249,7 @@ describe('resumable query streams (decision D253)', () => {
     // A stream without positions cannot be resumed: the problem ends it.
     answers(() => sseResponse('event:row\ndata:{"id":"x"}\n\n' + storage));
     await expect(
-      readAll(
-        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
-      ),
+      readAll(await new SnapshotQueryClient(PRODUCT, client()).stream(query)),
     ).rejects.toMatchObject({ code: 'wow.storage.unavailable' });
   });
 
@@ -261,7 +258,7 @@ describe('resumable query streams (decision D253)', () => {
       () => dropped(''),
       () => sseResponse(row('p1') + end('complete')),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
     );
     expect(ids(await readAll(stream))).toEqual(['p1']);
@@ -273,7 +270,7 @@ describe('resumable query streams (decision D253)', () => {
       () => sseResponse(row('p1') + row('p2') + end('hold-expired')),
       () => sseResponse(row('p3') + end('hold-expired')),
     );
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream({
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream({
       ...query,
       limit: 3,
     });
@@ -288,7 +285,7 @@ describe('resumable query streams (decision D253)', () => {
       sseResponse(row('p8') + row('p9') + end('complete')),
     );
     const rows = await readAll(
-      await new SnapshotQueryClient(PRODUCT, client()).listStreamRows(query, {
+      await new SnapshotQueryClient(PRODUCT, client()).streamRows(query, {
         resume: { lastEventId: 'p7' },
       }),
     );
@@ -301,7 +298,7 @@ describe('resumable query streams (decision D253)', () => {
 
   it('never resumes when told not to, and fails a stream without positions that did not complete', async () => {
     answers(() => sseResponse(row('p1') + end('hold-expired')));
-    const once = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const once = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
       { resume: false },
     );
@@ -310,7 +307,7 @@ describe('resumable query streams (decision D253)', () => {
       sseResponse('event:row\ndata:{"id":"x"}\n\n' + end('complete')),
     );
     const rows = await readAll(
-      await new SnapshotQueryClient(PRODUCT, client()).listStreamRows(query),
+      await new SnapshotQueryClient(PRODUCT, client()).streamRows(query),
     );
     expect(rows).toEqual([{ record: { id: 'x' } }]);
     // A list whose sort cannot order a cursor ends its hold unresumable: the stream fails.
@@ -320,16 +317,12 @@ describe('resumable query streams (decision D253)', () => {
       ),
     );
     await expect(
-      readAll(
-        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
-      ),
+      readAll(await new SnapshotQueryClient(PRODUCT, client()).stream(query)),
     ).rejects.toThrow('hold-expired');
     // So does one cut off after records without positions.
     answers(() => sseResponse('event:row\ndata:{"id":"x"}\n\n'));
     await expect(
-      readAll(
-        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
-      ),
+      readAll(await new SnapshotQueryClient(PRODUCT, client()).stream(query)),
     ).rejects.toThrow('cut off');
   });
 
@@ -339,10 +332,7 @@ describe('resumable query streams (decision D253)', () => {
       const body = controlled();
       const { requests } = answers(() => body.response);
       const reader = (
-        await new SnapshotQueryClient(PRODUCT, client()).listStream(
-          query,
-          options,
-        )
+        await new SnapshotQueryClient(PRODUCT, client()).stream(query, options)
       ).getReader();
       body.send('event:row\ndata:{"id":"x"}\n\n');
       expect((await reader.read()).value).toEqual({ id: 'x' });
@@ -355,7 +345,7 @@ describe('resumable query streams (decision D253)', () => {
     const body = controlled();
     const { requests } = answers(() => body.response);
     const reader = (
-      await new SnapshotQueryClient(PRODUCT, client()).listStream(query, {
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
         resume: false,
       })
     ).getReader();
@@ -378,7 +368,7 @@ describe('resumable query streams (decision D253)', () => {
     const controller = new AbortController();
     answers(() => sseResponse(row('p1') + end('permit-reclaimed')));
     const reader = (
-      await new SnapshotQueryClient(PRODUCT, client()).listStream(query, {
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
         signal: controller.signal,
       })
     ).getReader();
@@ -404,7 +394,7 @@ describe('resumable query streams (decision D253)', () => {
     expect(
       ids(
         await readAll(
-          await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
+          await new SnapshotQueryClient(PRODUCT, client()).stream(query),
         ),
       ),
     ).toEqual(['p1', 'p2']);
@@ -416,7 +406,7 @@ describe('resumable query streams (decision D253)', () => {
       () => sseResponse(row('p1') + end('complete')),
     );
     const rows = await readAll(
-      await new SnapshotQueryClient(PRODUCT, client()).listStream({
+      await new SnapshotQueryClient(PRODUCT, client()).stream({
         ...query,
         limit: 1,
       }),
@@ -432,7 +422,7 @@ describe('resumable query streams (decision D253)', () => {
       hangUntilAborted,
     );
     const reader = (
-      await new SnapshotQueryClient(PRODUCT, client()).listStream(query, {
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
         signal: controller.signal,
       })
     ).getReader();
@@ -446,7 +436,7 @@ describe('resumable query streams (decision D253)', () => {
   it('stops resuming once aborted, and cancels the current read', async () => {
     const controller = new AbortController();
     answers(() => sseResponse(row('p1') + end('hold-expired')));
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
       { signal: controller.signal },
     );
@@ -455,10 +445,9 @@ describe('resumable query streams (decision D253)', () => {
     controller.abort(new Error('left'));
     await expect(reader.read()).rejects.toThrow('left');
     answers(() => sseResponse(row('p1') + row('p2')));
-    const cancelled = await new SnapshotQueryClient(
-      PRODUCT,
-      client(),
-    ).listStream(query);
+    const cancelled = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
     const cancelling = cancelled.getReader();
     await cancelling.read();
     await cancelling.cancel('done');
@@ -467,7 +456,7 @@ describe('resumable query streams (decision D253)', () => {
   it('asks for nothing again once cancelled while a read is in flight', async () => {
     const live = controlled();
     const { requests } = answers(() => live.response);
-    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
     );
     const reader = stream.getReader();

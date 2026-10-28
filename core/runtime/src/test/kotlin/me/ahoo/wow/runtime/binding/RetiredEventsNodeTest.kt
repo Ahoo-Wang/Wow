@@ -25,7 +25,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -83,7 +83,7 @@ class RetiredEventsNodeTest {
     fun stop(): Unit = runBlocking { node.stop() }
 
     private suspend fun add(id: String, vararg items: String): CommandResult = node.gateway.execute(
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = "cart",
             command = "AddItems",

@@ -54,7 +54,7 @@ class ReferenceActionsServerTest {
         "wow.peers.crm.contract" to "manifest",
         "wow.peers.crm.mode" to "user",
         "wow.peer.mode" to "user",
-        "wow.peer.forwarded-headers" to "X-User,X-Role",
+        "wow.peer.forwarded-headers" to "Wow-User,Wow-Roles",
         sources = listOf(MemoryWarehouseConfiguration::class.java),
     )
     private val warehouse = node.context.getBean(MemoryWarehouse::class.java)
@@ -177,8 +177,8 @@ class ReferenceActionsServerTest {
 
     /** The owning service: its Manifest for a named caller, and SuspendMember for a caller with crm.admin. */
     private fun answer(exchange: HttpExchange) {
-        val user = exchange.requestHeaders.getFirst("X-User")
-        val roles = exchange.requestHeaders.getFirst("X-Role").orEmpty()
+        val user = exchange.requestHeaders.getFirst("Wow-User")
+        val roles = exchange.requestHeaders.getFirst("Wow-Roles").orEmpty()
         val body = exchange.requestBody.readAllBytes().decodeToString()
         taken += listOf(exchange.requestMethod, exchange.requestURI.path, user.orEmpty(), body)
         when {
@@ -268,7 +268,11 @@ class ReferenceActionsServerTest {
                             name = "member",
                             state = "${DEFS}crm.MemberState",
                             commands = listOf(
-                                command(name = "SuspendMember", schema = "${DEFS}crm.SuspendMember"),
+                                command(
+                                    name = "SuspendMember",
+                                    schema = "${DEFS}crm.SuspendMember",
+                                    routes = listOf("POST /crm/member/{id}/suspend-member"),
+                                ),
                                 command(
                                     name = "CreateMember",
                                     schema = "${DEFS}crm.CreateMember",

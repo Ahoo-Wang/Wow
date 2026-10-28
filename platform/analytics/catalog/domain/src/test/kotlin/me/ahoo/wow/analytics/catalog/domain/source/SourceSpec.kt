@@ -63,18 +63,18 @@ class SourceSpec {
     private val known = KnownAggregates { context, aggregate -> context == "crm" && aggregate == "member" }
 
     private fun spec(id: String, block: AggregateSpec<SourceState>.() -> Unit) = aggregateSpec(
-        sourceModel(AnalyticsCatalogContext.NAME, catalog, writers, known),
+        sourceModel(warehouseCatalog = catalog, trustedWriters = writers, knownAggregates = known),
         id = id,
         tenantId = AnalyticsCatalogContext.TENANT_ID,
         block = block,
     )
 
     private fun AggregateSpec<SourceState>.drafted() {
-        whenCommand(DraftSource(FakeCatalog.DATABASE, ORDERS)) { expectEventTypes(SourceDrafted::class) }
+        givenCommands(DraftSource(FakeCatalog.DATABASE, ORDERS))
     }
 
     private fun AggregateSpec<SourceState>.adopted() {
-        whenCommand(SyncSource(FakeCatalog.DATABASE, STATE)) { expectEventTypes(WowEnrichmentAdopted::class) }
+        givenCommands(SyncSource(FakeCatalog.DATABASE, STATE))
     }
 
     @Test
@@ -186,6 +186,9 @@ class SourceSpec {
         }
         whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", keepPrefix = -1)))) {
             expectRejected(SourceRejections.INVALID)
+        }
+        whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", keepSuffix = -1)))) {
+            expectRejected(SourceRejections.INVALID) { message.assert().contains("no negative number") }
         }
     }
 
@@ -308,9 +311,9 @@ class SourceSpec {
     fun `an analyst's table that changes or goes should follow, back to its draft when it is no longer complete`() =
         spec(ORDERS_ID) {
             drafted()
-            whenCommand(ReviseSource("tenant")) { expectEventTypes(SourceRevised::class) }
+            givenCommands(ReviseSource("tenant"))
             val all = ORDERS_TABLE.columns.filter { Source.isString(it.type) }.map { FieldSensitivity(it.name) }
-            whenCommand(ReviewSourceSensitivity(all)) { expectEventTypes(SourceSensitivityReviewed::class) }
+            givenCommands(ReviewSourceSensitivity(all))
             whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
             whenCommand(SyncSource(FakeCatalog.DATABASE, ORDERS)) { expectUnchanged() }
             // A numeric column added: still complete.
@@ -348,7 +351,7 @@ class SourceSpec {
         spec(ORDERS_ID) {
             drafted()
             val tight = FieldSensitivity("state", SensitivityLevel.CONFIDENTIAL)
-            whenCommand(ReviewSourceSensitivity(listOf(tight))) { expectEventTypes(SourceSensitivityReviewed::class) }
+            givenCommands(ReviewSourceSensitivity(listOf(tight)))
             whenCommand(ReviseSource(platform = true)) { expectState { platform.assert().isTrue() } }
             catalog.rows += stateRow(sensitive = listOf(PHONE), table = table)
             whenCommand(SyncSource(FakeCatalog.DATABASE, ORDERS)) {
@@ -382,7 +385,7 @@ class SourceSpec {
         }
         whenCommand(ReviseSource(platform = true)) { expectUnchanged() }
         val reviewed = listOf("tenant", "owner", "phone", "member_id").map { FieldSensitivity(it) }
-        whenCommand(ReviewSourceSensitivity(reviewed)) { expectEventTypes(SourceSensitivityReviewed::class) }
+        givenCommands(ReviewSourceSensitivity(reviewed))
         whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
         // Its table changing keeps it reviewed: it has no tenant column to lose.
         catalog.put(ORDERS_TABLE.copy(columns = ORDERS_TABLE.columns.filter { it.name != "tenant" }))
@@ -404,9 +407,9 @@ class SourceSpec {
         whenCommand(
             me.ahoo.wow.analytics.catalog.api.source.ApproveSource
         ) { expectRejected(SourceRejections.INCOMPLETE) }
-        whenCommand(ReviseSource("tenant")) { expectEventTypes(SourceRevised::class) }
+        givenCommands(ReviseSource("tenant"))
         val reviewed = listOf("tenant", "owner", "phone", "member_id").map { FieldSensitivity(it) }
-        whenCommand(ReviewSourceSensitivity(reviewed)) { expectEventTypes(SourceSensitivityReviewed::class) }
+        givenCommands(ReviewSourceSensitivity(reviewed))
         whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
         whenCommand(me.ahoo.wow.analytics.catalog.api.source.ApproveSource) {
             expectEvents(me.ahoo.wow.analytics.catalog.api.source.SourceApproved)

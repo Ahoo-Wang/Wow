@@ -14,11 +14,10 @@
 package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
-/** What the view store's specifications send: owners, applications, operators and configs. */
+/** What the view store's specifications send: owners, callers and configs. */
 object ViewFixtures {
     const val APP = "orders-console"
     const val OTHER_APP = "other-console"
@@ -26,16 +25,20 @@ object ViewFixtures {
     const val BOB = "bob"
     const val TENANT = "tenant"
 
-    val APP_HEADERS: Map<String, String> = app(APP)
-
-    fun app(appId: String): Map<String, String> = mapOf(RequestFacts.APP_ID to appId)
-
     fun owner(ownerId: String): Scope = Scope(ownerId = ownerId)
+
+    /** The signed-in user [id] of [TENANT], in their own scope, calling from [app] (from none when it is null). */
+    fun user(id: String, app: String? = APP): Caller =
+        Caller.of(tenantId = TENANT, scope = owner(id), subject = id, attributes = appOf(app))
+
+    /** No user of [TENANT], calling in [scope] from [app] (from none when it is null). */
+    fun nobody(scope: Scope = Scope.NONE, app: String? = APP): Caller =
+        Caller.of(tenantId = TENANT, scope = scope, attributes = appOf(app))
+
+    private fun appOf(app: String?): Map<String, List<String>> = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty()
 
     val SHARED: Scope = owner(ViewStoreContext.SHARED_OWNER_ID)
     val SYSTEM: Scope = owner(ViewStoreContext.SYSTEM_OWNER_ID)
-
-    fun operator(id: String): Operator = Operator.of(id, TENANT)
 
     fun recordConfig(): Map<String, Any?> = mapOf("kind" to "record", "columns" to listOf("id", "status"))
 

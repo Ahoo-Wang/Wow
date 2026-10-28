@@ -13,7 +13,6 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(kotlin("reflect"))
     testImplementation("com.fasterxml.jackson.core:jackson-annotations")
-    testImplementation(testFixtures(project(":manifest")))
     // Only to show that the fingerprint it writes is the one the kernel checks a snapshot against.
     testImplementation(project(":kernel"))
 }

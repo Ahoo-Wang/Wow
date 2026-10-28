@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -21,10 +22,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.send
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
@@ -106,42 +110,40 @@ class HostClientsTest {
     )
 
     private val dave = Caller.of(scope = Scope("dave"), subject = "dave")
+
+    /** The aggregate types the contracts on the class path list a command class for. */
+    private val types: (Class<*>) -> List<AggregateType> = { contracts.aggregatesOf(Manifest.schemaRef(it.name)) }
     private val account = AggregateType(BANK, "account")
 
     @Test
     fun `a command to a listed peer should go over HTTP, in either mode, and be readable there`(): Unit = runBlocking {
         val local = mockk<CommandClient>()
         listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
-            val commands: CommandClient = RoutedCommandClient(local, peers(mode)).of(dave)
-            val opened = commands.wait(
-                OpenAccount("dave"),
-                account.unassigned(Caller.DEFAULT_TENANT),
-                SendOptions.DEFAULT
-            )
+            val commands: CommandClient = RoutedCommandClient(local, peers(mode), types).of(dave)
+            // The type comes from the peer's contract; a creation names no id.
+            val opened = commands.wait(OpenAccount("dave"))
+            opened.ref.type.assert().isEqualTo(account)
             opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val queries = RoutedQueryApi(mockk(relaxed = true), peers(mode), emptySet()).of(dave)
             queries.snapshots<Account>().state(opened.ref.id)!!.state.owner.assert().isEqualTo("dave")
             queries.snapshots(account).state(opened.ref.id).assert().isNotNull()
-            commands.stream(Deposit(5), opened.ref, SendOptions.DEFAULT).toList().last().status.assert()
+            commands.stream(CommandRequest.to(opened.ref, Deposit(5))).toList().last().status.assert()
                 .isEqualTo(CommandResult.Status.SUCCEEDED)
-            commands.send(
-                Deposit(5),
-                opened.ref,
-                SendOptions.DEFAULT
-            ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            commands.send(Deposit(5), opened.ref.id).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         }
     }
 
     @Test
     fun `a context not listed should stay with the node, and a listed one must be a peer's`(): Unit = runBlocking {
         val local = mockk<CommandClient>(relaxed = true)
-        val routed = RoutedCommandClient(local, peers())
-        routed.of(dave).send(OpenAccount("x"), AggregateType("ledger", "entry").unassigned("t"), SendOptions.DEFAULT)
+        val routed = RoutedCommandClient(local, peers(), types)
+        routed.of(dave).send(CommandRequest.to(AggregateType("ledger", "entry").unassigned("t"), OpenAccount("x")))
         io.mockk.coVerify { local.of(dave) }
         peers().clientOf("ledger").assert().isNotNull()
-        val localQueries = mockk<QueryApi>(relaxed = true)
+        val localQueries = mockk<TenantQueryApi>(relaxed = true)
         val pinned = mockk<SubscriptionQueries>(relaxed = true)
-        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)) { pinned }
+        every { localQueries.tenant("t1") } returns pinned
+        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java))
         val ledger = AggregateType("ledger", "entry")
         val entries = DatasetName.of("ledger", "entries")
         // The node's own state class, a context not listed and trusted queries stay in process.
@@ -162,6 +164,10 @@ class HostClientsTest {
         tenant.trusted().assert().isSameAs(pinned.trusted())
         tenant.snapshots(account).javaClass.name.assert().contains("HttpQueryApi")
         // Without a peer listed, a state class is the node's.
+        // A local API that pins no tenant serves no handler.
+        assertThrows<IllegalStateException> {
+            RoutedQueryApi(mockk<QueryApi>(relaxed = true), peers(), emptySet()).tenant("t1")
+        }
         RoutedQueryApi(
             localQueries,
             PeerClients(
@@ -175,7 +181,6 @@ class HostClientsTest {
             emptySet()
         )
             .of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
-        assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
         assertThrows<WowConfigurationException> {
             PeerClients(
                 mapOf("ledger" to PeerMode.SERVICE),
@@ -212,28 +217,31 @@ class HostClientsTest {
                 mode,
                 described = setOf(BANK),
             )
-            val commands = RoutedCommandClient(mockk(), peers).of(dave)
+            val commands = RoutedCommandClient(mockk(), peers, types).of(dave)
+            // A named command's type is the one its name gives.
             val opened = commands.wait(
-                NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}""")),
-                account.unassigned(Caller.DEFAULT_TENANT),
-                SendOptions.DEFAULT,
+                NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}"""))
             )
             opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             assertThrows<IllegalArgumentException> {
                 runBlocking {
-                    commands.wait(NamedCommand("$BANK.account.Burn", WowJson.mapper.readTree("{}")), opened.ref)
+                    commands.wait(NamedCommand("$BANK.account.Burn", WowJson.mapper.readTree("{}")), opened.ref.id)
                 }
             }.message.assert().contains("does not declare the command Burn")
-            assertThrows<IllegalStateException> { runBlocking { commands.wait(Deposit(5), opened.ref) } }
+            assertThrows<IllegalStateException> {
+                runBlocking {
+                    commands.wait(
+                        CommandRequest.to(opened.ref, Deposit(5))
+                    )
+                }
+            }
                 .message.assert().contains("send it a NamedCommand")
         }
         // A named command to a context not described by its Manifest is refused before it is routed.
         assertThrows<IllegalArgumentException> {
             runBlocking {
-                RoutedCommandClient(mockk(), peers()).of(dave).wait(
-                    NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("{}")),
-                    account.unassigned(Caller.DEFAULT_TENANT),
-                )
+                RoutedCommandClient(mockk(), peers(), types).of(dave)
+                    .wait(NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("{}")))
             }
         }.message.assert().contains("not described by its Manifest")
     }

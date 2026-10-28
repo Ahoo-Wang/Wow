@@ -13,18 +13,25 @@
 
 package me.ahoo.wow.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.ClassPathContracts
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wait.toWire
 import tools.jackson.core.JacksonException
 import java.net.URI
@@ -37,7 +44,8 @@ import kotlin.time.toJavaDuration
  * The synchronous calls of a node's sagas to the HTTP command gateways of other contexts: the service
  * mode of the command client ([ClientMode.Service]), at the base URL [endpoints] gives each context's
  * **internal port** (`wow.peers.<context>.url`), the only
- * one that takes a call; its public port refuses `Wow-Call`. Each call goes to the command's route, as the
+ * one that takes a call; its public port refuses `Wow-Call`. Each call goes to the command's route as the contracts
+ * list it ([CommandIndex.routeOf]), those of the peers' api jars on the class path by default, as the
  * [HttpCommandClient] sends one, and carries:
  *
  * - the command's body as JSON, and its expected version as `If-Match`;
@@ -51,15 +59,18 @@ import kotlin.time.toJavaDuration
  *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
  * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a call the target
- * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [CallFailedException]: the saga's handler
+ * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [WowProblemException], retried with the same request id: the saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
  * subscription's retry budget is the one that counts.
  */
 @InternalWowApi
-class HttpCommandCaller internal constructor(private val transport: HttpTransport) : CommandCaller {
+class HttpCommandCaller internal constructor(
+    private val transport: HttpTransport,
+    private val commands: CommandIndex,
+) : CommandCaller {
     /**
      * The caller of the contexts' internal ports at the fixed [endpoints], as the service named [service], on
-     * [client], each call answered within [timeout].
+     * [client], each call answered within [timeout] and routed as [contracts] list its command.
      */
     @JvmOverloads
     constructor(
@@ -67,11 +78,12 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         service: String? = null,
         client: HttpClient = client(),
         timeout: Duration = DEFAULT_TIMEOUT,
-    ) : this(EndpointResolver.of(emptyMap(), endpoints), service, client, timeout)
+        contracts: List<Manifest> = classPathContracts(),
+    ) : this(EndpointResolver.of(emptyMap(), endpoints), service, client, timeout, contracts = contracts)
 
     /**
      * The caller of the contexts' internal ports [endpoints] finds, as the service named [service], each call answered
-     * within its context's timeout of [timeouts], else [timeout].
+     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command.
      */
     @JvmOverloads
     constructor(
@@ -80,7 +92,11 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         client: HttpClient,
         timeout: Duration,
         timeouts: Map<String, Duration> = emptyMap(),
-    ) : this(HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts))
+        contracts: List<Manifest> = classPathContracts(),
+    ) : this(
+        HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts),
+        CommandIndex(contracts),
+    )
 
     /**
      * Whether the endpoints give [context] an internal URL: the node does not start when a saga calls
@@ -98,10 +114,7 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            throw CallFailedException(
-                "The call of ${command.id} to ${command.ref.type.context} failed: $failure",
-                failure
-            )
+            throw failed("The call of ${command.id} to ${command.ref.type.context} failed: $failure", cause = failure)
         }
         return when (answer) {
             is Answer.Ok -> try {
@@ -110,14 +123,60 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
                 null
             }
             is Answer.Problem -> answer.problem.result
-        } ?: throw CallFailedException(
+        } ?: throw failed(
             "The call of ${command.id} to ${command.ref.type.context} was answered without a result: " +
                 (answer as? Answer.Problem)?.problem?.let { "HTTP ${it.status} ${it.detail.orEmpty()}" }.orEmpty(),
+            status = (answer as? Answer.Problem)?.problem?.status,
         )
     }
 
+    /** The request of [call]: its command's route, body, request id and expected version, and its root context. */
+    internal fun requestOf(call: OutgoingCall): PeerRequest {
+        val command = call.command
+        val ref = command.ref
+        val byId = ref.isAssigned
+        val route = checkNotNull(commands.routeOf(call.type, byId)) {
+            "No contract lists a route of ${call.type} ${if (byId) "to an aggregate by its id" else "without an id"}: " +
+                "depend on the api module of ${ref.type.context}, whose jar carries its contract."
+        }
+        return PeerRequest(
+            context = ref.type.context,
+            path = CommandRoutes.pathOf(route, ref.id.takeIf { byId }?.let(HttpTransport::encode)),
+            method = route.method,
+            caller = Caller.ANONYMOUS,
+            call = contextOf(call),
+            headers = buildMap {
+                put(WowHeaders.REQUEST_ID, command.requestId)
+                command.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
+            },
+            body = ClientJson.write(command.body),
+        )
+    }
+
+    /**
+     * A call that reached no result: [FrameworkCodes.COMMAND_FAILED] with the target's [status] when it answered one,
+     * else a bad gateway, retried with the same request id.
+     */
+    private fun failed(message: String, status: Int? = null, cause: Throwable? = null): WowProblemException =
+        WowProblemException(
+            FrameworkCodes.COMMAND_FAILED,
+            status ?: BAD_GATEWAY,
+            RetryHint(retryable = true, sameRequestId = true),
+            message,
+            cause = cause,
+        )
+
     @InternalWowApi
     companion object {
+        private const val BAD_GATEWAY = 502
+
+        /** The contracts of the peers' api jars on the thread's context class loader. */
+        @JvmStatic
+        fun classPathContracts(): List<Manifest> =
+            ClassPathContracts.load(Thread.currentThread().contextClassLoader, { callerLogger.warn { it } }) { bytes ->
+                WowJson.mapper.readValue(bytes, Map::class.java)
+            }.map { it.manifest }
+
         /** The default bound of one call: as long as a wait's default timeout. */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
 
@@ -131,30 +190,6 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(connectTimeout.toJavaDuration())
             .build()
-
-        /** The request of [call]: its command's route, body, request id and expected version, and its root context. */
-        internal fun requestOf(call: OutgoingCall): PeerRequest {
-            val command = call.command
-            val ref = command.ref
-            val type = ref.type
-            val segment = CommandRoutes.segment(call.name)
-            val path = if (ref.isAssigned) {
-                "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/$segment"
-            } else {
-                "/${type.context}/${type.name}/$segment"
-            }
-            return PeerRequest(
-                context = type.context,
-                path = path,
-                caller = Caller.ANONYMOUS,
-                call = contextOf(call),
-                headers = buildMap {
-                    put(WowHeaders.REQUEST_ID, command.requestId)
-                    command.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
-                },
-                body = ClientJson.write(command.body),
-            )
-        }
 
         /**
          * The root command [call] acts for, as `Wow-Call` carries it, with the request facts its command inherited
@@ -175,3 +210,5 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         }
     }
 }
+
+private val callerLogger = KotlinLogging.logger {}

@@ -49,14 +49,14 @@ export type QueryExecutor<Q, R> = (
 ) => Promise<R>;
 
 /**
- * Opens the event stream of one query: a query client's `listStream`, or any
+ * Opens the event stream of one query: a query client's `stream`, or any
  * function that resolves to a stream of rows. It receives what a
  * {@link QueryExecutor} receives.
  *
  * @template R - One row of the stream
  * @template Q - The query
  */
-export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
+export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 
 /**
  * The options every query hook takes. Each `Use…QueryOptions` extends it with

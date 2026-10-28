@@ -213,7 +213,7 @@ class MongoFailureLedger(
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
                 initialBackoff = spec.getLong(INITIAL_BACKOFF).milliseconds,
-                executionTimeout = spec.getLong(EXECUTION_TIMEOUT).milliseconds,
+                timeout = spec.getLong(TIMEOUT).milliseconds,
             )
         },
         recoverable = document.getString(RECOVERABLE)?.let { Recoverable.valueOf(it) } ?: Recoverable.UNKNOWN,
@@ -224,7 +224,7 @@ class MongoFailureLedger(
     private fun specOf(spec: ParkedRetrySpec?): Document? = spec?.let {
         Document(MAX_RETRIES, it.maxRetries)
             .append(INITIAL_BACKOFF, it.initialBackoff.inWholeMilliseconds)
-            .append(EXECUTION_TIMEOUT, it.executionTimeout.inWholeMilliseconds)
+            .append(TIMEOUT, it.timeout.inWholeMilliseconds)
     }
 
     private companion object {
@@ -251,7 +251,7 @@ class MongoFailureLedger(
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
         const val INITIAL_BACKOFF = "initial_backoff_millis"
-        const val EXECUTION_TIMEOUT = "execution_timeout_millis"
+        const val TIMEOUT = "timeout_millis"
         const val RECOVERABLE = "recoverable"
         const val REQUEST = "request"
     }

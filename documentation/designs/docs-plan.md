@@ -2,7 +2,7 @@
 
 日期：2026-10-20。基线：`db3155777d`。状态：**已完成**（2026-10-22：W0、W1 A～K、补缺 L～O 已合并，站点已上线；GA 前的缺页已由 L～O 组补齐）。下文是当时的方案与实施记录，其中的 `guide/v10/`、`v10` 分支等名称是方案时的状态。范围：`documentation/docs/{en,zh}`（VitePress 站）、`README(.zh-CN).md`、`CONTRIBUTING.md`、`skills/**`。本方案只读仓库，没有写任何页面。
 
-依据：`documentation/designs/**`（00～09、decisions D1～D266、roadmap 9.1 / SK-1 / H-1 / CI-2 / CI-3 / N-1、reviews）、现有 `guide/v10/` 九页草稿、`example/quickstart` 与 eShop、`documentation/test/*`、`.github/scripts/docs-layout.mjs`、`skills/README.md`，以及 R5 残留审查（R21～R25、R28）。
+依据：`documentation/designs/**`（00～09、decisions D1～D266、roadmap 9.1 / SK-1 / H-1 / CI-2 / CI-3 / N-1、reviews）、现有 `guide/v10/` 九页草稿、`examples/quickstart` 与 eShop、`documentation/test/*`、`.github/scripts/docs-layout.mjs`、`skills/README.md`，以及 R5 残留审查（R21～R25、R28）。
 
 ---
 
@@ -10,7 +10,7 @@
 
 1. **网站按读者的“工作”分七个区**：入门 `/start/`、概念 `/concepts/`、开发指南 `/guide/`、TypeScript `/typescript/`、运维 `/operate/`、数据 `/data/`、从 9.x 迁移 `/migrate/`，另有参考 `/reference/` 和贡献 `/contribute/`。Diátaxis 只在三处严格使用：入门是教程，概念是解释，参考是查表。其余各区都是 how-to，按读者的工作组织，不按 Diátaxis 类型再切一层。
 2. **手写约 100 页（每种语言）**：P0（rc 前必须有）54 页，P1（GA 前）37 页，P2（GA 后可补）9 页。另有 **6 类生成页**：配置项、错误码、注解、模块与坐标（P0），Manifest schema、TS 符号索引（每个包一页，P1）；API 稳定性页里的实验性 API 清单也是生成的。生成器与检查是代码，交给代码会话，见 §6 的 DI-1～DI-6。
-3. **样例全部来自已编译的源码**：Kotlin 用已有的 `<!-- sample: <path> -->` 逐字相等机制（`QuickstartPageTest`），推广成一条覆盖全站、README 和 Skills 的 Node 测试；源码来自 `example/quickstart`、eShop 和新增的 `#region`。TS 沿用 `typescript-samples.mjs`。新增四项检查：样例一致、中英结构对齐、YAML 里的 `wow.*` 键必须存在、Skills 里的 Kotlin import 必须在 ABI 转储里。
+3. **样例全部来自已编译的源码**：Kotlin 用已有的 `<!-- sample: <path> -->` 逐字相等机制（`QuickstartPageTest`），推广成一条覆盖全站、README 和 Skills 的 Node 测试；源码来自 `examples/quickstart`、eShop 和新增的 `#region`。TS 沿用 `typescript-samples.mjs`。新增四项检查：样例一致、中英结构对齐、YAML 里的 `wow.*` 键必须存在、Skills 里的 Kotlin import 必须在 ABI 转储里。
 4. **Skills 保留六个**：wow-develop、wow-client、wow-view-definition、wow-view-host、wow-data-query、wow-migrate。前五个按 D266 ③ 改写为只教 V10；wow-migrate 收窄为 9.x→V10（**需要用户确认**，因为 D266 ③ 写的是“不受影响”），并接手 TS 侧的 9.x→V10 迁移。GA 不新增 Skill（D255 冻结范围），`wow-operate` 列为 10.x 候选。
 5. **9.x 页面全部删除**，不留存档目录。旧链接的处理：一张有上限的跳转表，构建时生成静态跳转页；没有映射的路径落到 404 页，引导读者去 9.x 文档。9.x 文档改由 `v9` 分支构建并部署到 `/9.x/`。**这一条改的是 CI/CD，需要用户批准**（见 §8）。
 6. **冻结前就能开写的部分**：概念区全部、术语表、协议参考、迁移的总览 / 数据 / 能力对照、视图引擎八页、运维的部署模型 / 安全 / 控制台，以及全部生成器和检查（DI-*）。
@@ -51,9 +51,9 @@
 |---|---|---|---|---|---|---|---|---|---|
 | start/index | Start here | R1 | 选一条路 | 按读者分的六条路径 | — | — | S | S | P0 |
 | start/why-wow | Why Wow | R1 | 判断值不值得用 | 价值（写、传、用）、11 条公理的白话版、部署前提、什么时候不适合用、与 9.x 的差别一段 | 00 §1～3、§5、§8；D35、D226 | — | M | S | P0 |
-| start/quickstart | Quickstart | R1、R2 | 30 分钟跑起一个服务 | Gradle 插件与 BOM、命令、事件、状态、聚合、测试、运行、curl 发命令、查快照 | guide/v10/quickstart；D29、D83、D87、D217 | `example/quickstart` 全部 | L | F（DX-1 改名字） | P0 |
+| start/quickstart | Quickstart | R1、R2 | 30 分钟跑起一个服务 | Gradle 插件与 BOM、命令、事件、状态、聚合、测试、运行、curl 发命令、查快照 | guide/v10/quickstart；D29、D83、D87、D217 | `examples/quickstart` 全部 | L | F（DX-1 改名字） | P0 |
 | start/existing-project | Add Wow to an existing service | R2 | 在已有的 Spring Boot 应用里引入 | 插件或手动接 KSP、api/domain/server 三件套布局、上下文命名、宿主按类路径装配、选后端 | guide/v10/index；D44、D83、D87、D110 | `compiler/gradle-plugin`、`host/spring-boot`、eShop catalog 的 build 文件 | M | F | P0 |
-| start/tutorial | Tutorial: two contexts end to end | R2、R3 | 从一个服务走到一个系统 | 基于 eShop 的 basket → ordering：聚合、跨上下文 Saga、投影、查询、TS 客户端、Web 界面。一页四节，不拆页 | eShop README；D158、D159、D204 | `example/eshop/{basket,ordering}`、`example/eshop/web` | L | F | P1 |
+| start/tutorial | Tutorial: two contexts end to end | R2、R3 | 从一个服务走到一个系统 | 基于 eShop 的 basket → ordering：聚合、跨上下文 Saga、投影、查询、TS 客户端、Web 界面。一页四节，不拆页 | eShop README；D158、D159、D204 | `examples/eshop/{basket,ordering}`、`examples/eshop/web` | L | F | P1 |
 | start/skills | Agent Skills | R1～R6 | 安装插件、知道该用哪个 Skill | 安装方法、六个 Skill 的选择规则、9.x 用户去 `v9` 的插件 | skills/README | `skills/plugins.json` | S | L（SK-1） | P1 |
 
 ### 2.3 概念 `/concepts/`（解释；设计已经采纳，冻结前就能写）
@@ -92,7 +92,7 @@
 | guide/published-streams | Publish and consume streams | 跨上下文 | 发布的事件流、类型化的对端事件（DX-1c） | D234、D259 | eShop | M | F | P0 |
 | guide/calling-services | Call other services | 跨上下文 | 类型化的命令与查询客户端、原始命令对象、`Wow-Call` | D257、D258 | `edge/client` | M | F（CL1） | P0 |
 | guide/http | Serve and call the HTTP API | 契约 | 服务暴露的路由、`Wow-Wait`、SSE、可续读的流；任务导向，细节表格放在 reference/http | guide/v10/http-api；D16、D30、D253 | `edge/http` | L | F | P0 |
-| guide/manifest | The Manifest and compatibility | 契约 | 生成与合并、`manifest/baseline.json`、兼容检查、哪些改动会破坏客户端 | 05 §2；D83 | `example/eshop/wow-manifest-compatibility.gradle.kts` | M | F | P1 |
+| guide/manifest | The Manifest and compatibility | 契约 | 生成与合并、`manifest/baseline.json`、兼容检查、哪些改动会破坏客户端 | 05 §2；D83 | `examples/eshop/wow-manifest-compatibility.gradle.kts` | M | F | P1 |
 | guide/openapi | OpenAPI and springdoc | 契约 | Manifest → OpenAPI、springdoc 桥接、securitySchemes | D233 | `edge/openapi` | S | S | P1 |
 | guide/generated-code | What the compiler generates | 契约 | 模型工厂、绑定、Properties、`ModelProvider`、Manifest 片段 | guide/v10/generated-code；D37 | `compiler/compiler` | M | F（DX-1） | P1 |
 | guide/testing | Test domain code | 测试 | `aggregateSpec`、`sagaSpec`、`projectionSpec`、`reactorSpec`、fork、定时 | guide/v10/testing | `test/test-dsl`；quickstart 与 eShop 的 Spec | L | S（T1 已合并） | P0 |
@@ -352,11 +352,11 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 
 | 页面组 | Kotlin 样例 | TS 样例 | 样例来源 |
 |---|---|---|---|
-| start/quickstart、首页、README | 是，逐字取自源码 | — | `example/quickstart`（已有，由 `QuickstartPageTest` 检查） |
+| start/quickstart、首页、README | 是，逐字取自源码 | — | `examples/quickstart`（已有，由 `QuickstartPageTest` 检查） |
 | start/existing-project、start/tutorial、guide/* | 是 | tutorial 有 | eShop 的 `*-api`、`*-domain`、`*-server`、`web`（加 `// region <name>` 标记）；quickstart |
 | guide/testing、guide/testing-services | 是 | — | quickstart 的 `AccountSpec`；eShop 的 Spec |
 | reference/query-language、data/querying | JSON 查询 | 是 | `query/query` 测试资源里的查询样本，由内存后端执行 |
-| typescript/*、typescript/view-engine/* | — | 是 | eShop web（`<!-- typecheck-generated: example/eshop/web/src/generated/... -->`），以及页内示例（由 `typescript-samples.mjs` 编译） |
+| typescript/*、typescript/view-engine/* | — | 是 | eShop web（`<!-- typecheck-generated: examples/eshop/web/src/generated/... -->`），以及页内示例（由 `typescript-samples.mjs` 编译） |
 | operate/*、guide/spring-boot | YAML | — | quickstart 与 eShop 的 `application.yaml`（逐字取）；手写 YAML 由 §5.3 的配置键检查守住 |
 | migrate/source | 9.x → V10 对照 | — | wow-migrate 的 H5 输入与参照迁移（左边 9.x 只当文本；右边 V10 取自 eShop 或 quickstart） |
 | skills/** | 片段 | 是 | 片段不编译；import 由 §5.4 检查，TS 沿用现有机制 |
@@ -390,7 +390,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 
 ### 5.5 CI 范围
 
-`ci-scope.mjs` 的文档范围加上 `example/quickstart/**` 和 `example/eshop/**/src/**`：样例源码变了，样例一致检查要重跑。`ci-scope.test.mjs` 里写死的旧页面路径同步更新。
+`ci-scope.mjs` 的文档范围加上 `examples/quickstart/**` 和 `examples/eshop/**/src/**`：样例源码变了，样例一致检查要重跑。`ci-scope.test.mjs` 里写死的旧页面路径同步更新。
 
 ---
 
@@ -521,7 +521,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 - `documentation/test/{markdown-pages,typescript-samples,storybook-links}.test.mjs`、`docs/.vitepress/storybook-links.mjs`。
 - `typescript/wow-view-engine/test/referenceDocs.test.ts`、`themeGuide.test.ts`、`fixtures/themeDocs.ts`、`scripts/symbol-index.mjs`（引用文档路径）。
 - 各包 README（wow-client、wow-react、wow-view-store、wow-view-engine、wow-generator，中英文）、`typescript/storybook/README.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`。
-- `example/eshop/README.md`、`DX-GAPS.md`、`deploy/eshop-ordering/README.md`、`skills/wow-view-host/references/wiring.md`、`build.gradle.kts`（含站点 URL 的那一处）。
+- `examples/eshop/README.md`、`DX-GAPS.md`、`deploy/eshop-ordering/README.md`、`skills/wow-view-host/references/wiring.md`、`build.gradle.kts`（含站点 URL 的那一处）。
 - `documentation/designs/{README,progress}.md` 里提到 `guide/v10` 的地方改成新路径。
 
 ---

@@ -24,7 +24,6 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.SnapshotTailReader
 
 /**
  * The log of an [AggregateSpec] whose aggregate starts in a given state ([AggregateSpec.givenState]) at version
@@ -52,9 +51,6 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         delegate.read(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }
 
-    /** None: read apart, as [read] shifts it, never in one round trip by the delegate, which keeps it unshifted. */
-    override val snapshotTails: SnapshotTailReader? get() = null
-
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         delegate.readEntries(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }
 
@@ -66,9 +62,6 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         delegate.findByRequestId(type, tenantId, requestId)?.shifted(offset)
-
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        delegate.findByRequestId(tenantId, requestId)?.shifted(offset)
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         delegate.tail(partition, after).map { it.shifted(offset) }

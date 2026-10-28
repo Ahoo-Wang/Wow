@@ -14,8 +14,7 @@ application {
 // The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with
 // manifest/baseline.json. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so the server
 // applies the repository's script in its place, as the eShop's servers do (DX gap G6).
-extra["wowService"] = "ops-service"
-apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
+apply(from = rootProject.file("examples/eshop/wow-manifest-compatibility.gradle.kts"))
 
 // The console (roadmap 7.1b), served by the server as static resources from the distribution's ui/ folder
 // (`spring.web.resources.static-locations`): `pnpm --filter wow-ops-console... build` first, or the folder is empty.
@@ -32,6 +31,10 @@ distributions {
 dependencies {
     implementation(project(":ops-domain"))
     implementation(project(":spring-boot"))
+    // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")
@@ -55,16 +58,16 @@ dependencies {
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    testImplementation("org.springframework:spring-test")
+    testImplementation(project(":test-spring-boot"))
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))
 }
 
-// `./gradlew :ops-server:run` is a local run: the console names its caller in request headers, which the server trusts
-// only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+// `./gradlew :ops-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity
+// headers, which the host reads in development alone (review A3-4); a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
-    systemProperty("wow.platform.trust-identity-headers", "true")
+    systemProperty("spring.profiles.active", "dev")
     // The internal port on this machine alone, a development node; a deployment puts it behind a NetworkPolicy (D300).
     systemProperty("wow.internal.host", "127.0.0.1")
 }

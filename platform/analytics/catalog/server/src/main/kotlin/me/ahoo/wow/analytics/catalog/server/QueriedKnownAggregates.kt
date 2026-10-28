@@ -15,11 +15,12 @@ package me.ahoo.wow.analytics.catalog.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SourceKind
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.singleQuery
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.read.trees
 
 /**
@@ -31,7 +32,7 @@ class QueriedKnownAggregates(private val queries: () -> QueryApi) : KnownAggrega
     override suspend fun knows(context: String, aggregate: String): Boolean {
         val sources = try {
             queries().trusted().snapshots(SOURCE).trees()
-        } catch (_: IllegalArgumentException) {
+        } catch (_: QueryNotServedException) {
             return none()
         }
         val found = sources.single(
@@ -54,7 +55,7 @@ class QueriedKnownAggregates(private val queries: () -> QueryApi) : KnownAggrega
     }
 
     private companion object {
-        val SOURCE = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
+        val SOURCE = AnalyticsCatalogContract.Source.TYPE
         val logger = KotlinLogging.logger {}
     }
 }

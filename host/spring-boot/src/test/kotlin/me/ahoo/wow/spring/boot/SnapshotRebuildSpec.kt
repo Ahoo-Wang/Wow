@@ -36,8 +36,9 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.Routing
@@ -287,7 +288,7 @@ abstract class SnapshotRebuildSpec {
 
     private suspend fun add(node: ServiceNode, id: String, amount: Int, wait: WaitPlan? = WaitPlan.COMMITTED) =
         node.gateway.execute(
-            CommandRequest(
+            ServerCommandRequest(
                 context = context,
                 aggregate = COUNTER,
                 command = "Add",
@@ -300,7 +301,7 @@ abstract class SnapshotRebuildSpec {
 
     private suspend fun rebuild(node: ServiceNode, aggregate: String, vararg ids: String): CommandResult =
         node.gateway.execute(
-            CommandRequest(
+            ServerCommandRequest(
                 context = context,
                 aggregate = SnapshotRebuilds.AGGREGATE,
                 command = SnapshotRebuilds.REBUILD,
@@ -369,11 +370,11 @@ abstract class SnapshotRebuildSpec {
                                     schema = Manifest.schemaRef(Add::class.java.name),
                                     creation = ManifestCreation.ALLOWED,
                                 ),
-                            ),
+                            ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, COUNTER, it) } +
+                                SystemCommands.rebuild(context, COUNTER),
                             events = listOf(
                                 EventManifest("Added", schema = Manifest.schemaRef(Added::class.java.name))
                             ),
-                            lifecycle = Lifecycle.COMMANDS.keys.toList(),
                         ),
                     ),
                 ),

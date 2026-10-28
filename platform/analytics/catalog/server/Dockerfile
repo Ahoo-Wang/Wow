@@ -3,9 +3,9 @@
 # ui/. image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`.
 # Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
 # (SPRING_PROFILES_ACTIVE=cosec), CoSec's inject mode behind the CoSec gateway: the gateway verifies each request's
-# CoSec token and the service parses it, with no secret (decision D296); without it every request is answered 401. WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property wow.platform.trust-identity-headers)
-# takes them from X-User, X-Tenant and X-Role instead, for a local run only: elsewhere than in a
-# development profile or with a loopback-only internal port the service refuses to start. The warehouse it reads is
+# CoSec token and the service parses it, with no secret (decision D296). Without CoSec it starts in a development
+# profile alone (SPRING_PROFILES_ACTIVE=dev, of wow.dev-profiles), for a local run, which takes the callers from the
+# Wow-User, Wow-Tenant and Wow-Roles headers any client sets: elsewhere the service refuses to start. The warehouse it reads is
 # WOW_CLICKHOUSE_ENDPOINT (wow.clickhouse.endpoint); the `postgres` profile keeps the sources on PostgreSQL.
 ARG APP_NAME=analytics-catalog-server
 ARG WORK_HOME=/opt/${APP_NAME}

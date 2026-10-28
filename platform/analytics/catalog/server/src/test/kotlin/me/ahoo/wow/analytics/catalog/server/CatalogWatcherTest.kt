@@ -27,8 +27,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.SendOptions
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.Test
@@ -37,7 +37,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 /** The watcher sends `SyncSource` through the node's [CommandClient] as the catalog administrator (decision D257). */
 class CatalogWatcherTest {
-    private val sent = CopyOnWriteArrayList<Triple<Caller?, SyncSource, AggregateRef>>()
+    private val sent = CopyOnWriteArrayList<Pair<Caller?, CommandRequest<*>>>()
 
     /** Succeeds for table `ok`, rejects `bad`, fails `down` while [down]. */
     private inner class Commands(private val caller: Caller? = null) : CommandClient {
@@ -45,12 +45,12 @@ class CatalogWatcherTest {
 
         override fun of(caller: Caller): CommandClient = Commands(caller).also { it.down = down }
 
-        override suspend fun send(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
-            error("The watcher waits.")
+        override suspend fun send(request: CommandRequest<*>): CommandResult = error("The watcher waits.")
 
-        override suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions): CommandResult {
-            val sync = command as SyncSource
-            sent += Triple(caller, sync, ref)
+        override suspend fun wait(request: CommandRequest<*>): CommandResult {
+            val sync = request.command as SyncSource
+            sent += caller to request
+            val ref = AnalyticsCatalogContract.Source.ref(caller!!.tenantId, request.id!!)
             return when (sync.table) {
                 "bad" -> throw CommandRejectedException(result(ref, CommandResult.Status.REJECTED))
                 "down" -> if (down) {
@@ -63,8 +63,7 @@ class CatalogWatcherTest {
             }
         }
 
-        override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> =
-            error("The watcher waits.")
+        override fun stream(request: CommandRequest<*>): Flow<CommandResult> = error("The watcher waits.")
     }
 
     // A result as the node answers it; its constructor is Wow's own.
@@ -86,19 +85,16 @@ class CatalogWatcherTest {
         val commands = Commands()
         val watcher = CatalogWatcher(catalog, { commands }, Duration.ofSeconds(1))
         watcher.look().assert().isEqualTo(1)
-        sent.map { it.second.table }.assert().containsExactly("ok", "bad", "down")
+        sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("ok", "bad", "down")
         sent.all { it.first == CatalogWatcher.CALLER }.assert().isTrue()
-        sent.first().third.assert().isEqualTo(
-            AnalyticsCatalogContract.Source.ref(
-                CatalogWatcher.CALLER.tenantId,
-                AnalyticsCatalogContext.sourceIdOf("ch", "db", "ok")
-            ),
-        )
+        // The source's type comes from its command's class; its id is the table's.
+        sent.first().second.assert()
+            .isEqualTo(CommandRequest.of(SyncSource("db", "ok"), AnalyticsCatalogContext.sourceIdOf("ch", "db", "ok")))
         sent.clear()
         commands.down = false
         // The table that synced is not sent again; the two that did not are.
         watcher.look().assert().isEqualTo(1)
-        sent.map { it.second.table }.assert().containsExactly("bad", "down")
+        sent.map { (it.second.command as SyncSource).table }.assert().containsExactly("bad", "down")
     }
 
     @Test

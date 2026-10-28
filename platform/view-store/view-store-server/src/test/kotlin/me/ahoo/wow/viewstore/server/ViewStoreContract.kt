@@ -332,8 +332,8 @@ abstract class ViewStoreContract {
 
         val ALICE = Who.user("alice")
         val BOB = Who.user("bob")
-        val CAROL = Who.user("carol", null, ViewStoreCallers.SHARED_WRITER)
-        val ADMIN = Who.user("admin", null, ViewStoreCallers.SYSTEM_WRITER)
+        val CAROL = Who.user("carol", null, ViewStoreRoles.SHARED_WRITER)
+        val ADMIN = Who.user("admin", null, ViewStoreRoles.SYSTEM_WRITER)
         val ALICE_ELSEWHERE = Who.user("alice", "tenant-2")
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403

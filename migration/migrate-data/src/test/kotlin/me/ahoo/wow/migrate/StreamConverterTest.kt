@@ -124,21 +124,46 @@ class StreamConverterTest {
     }
 
     @Test
-    fun `a 9x event that transferred the owner moves the stream's owner by its mapping's owner field`() {
+    fun `a 9x event that implemented a lifecycle event is composed with it, which moves the stream's scope`() {
+        val handedOver = LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId"))
         val map = NineXExample.map.order {
-            copy(events = events + EventMapping("order_handed_over", to = "OrderHandedOver", owner = "toOwnerId"))
+            copy(
+                events = events +
+                    EventMapping("order_handed_over", to = "OrderHandedOver", lifecycle = handedOver) +
+                    EventMapping("order_cancelled", to = "OrderCancelled", lifecycle = LifecycleMapping(Lifecycle.AGGREGATE_DELETED)),
+            )
         }
-        val handed = created.copy(events = listOf(event("order_handed_over", """{"toOwnerId":"customer-9"}""")))
+        val handed = created.copy(
+            events = listOf(event("order_handed_over", """{"toOwnerId":"customer-9","note":1}"""))
+        )
         val record = converter(map).convert(handed)
+        record.events.assert().containsExactly(
+            EventRecord("example.order.OrderHandedOver", 1, """{"toOwnerId":"customer-9","note":1}"""),
+            EventRecord(Lifecycle.OWNER_TRANSFERRED, 1, """{"ownerId":"customer-9"}"""),
+        )
+        // The scope is the written transfer's: what a state rebuilt from the events has.
         record.scope.ownerId.assert().isEqualTo("customer-9")
-        record.events.single().payload.assert().isEqualTo("""{"toOwnerId":"customer-9"}""")
-        // A blank or missing owner leaves the stream's own.
-        converter(map).convert(handed.copy(events = listOf(event("order_handed_over", """{"toOwnerId":" "}"""))))
-            .scope.ownerId.assert().isEqualTo("customer-1")
-        converter(map).convert(handed.copy(events = listOf(event("order_handed_over", "{}"))))
-            .scope.ownerId.assert().isEqualTo("customer-1")
-        // A tenant-owned aggregate still records no owner.
-        converter(map, Ownership.TENANT).convert(handed).scope.ownerId.assert().isNull()
+        val cancelled = created.copy(events = listOf(event("order_cancelled", """{"reason":"late"}""")))
+        converter(map).convert(cancelled).events.map { it.name }.assert()
+            .containsExactly("example.order.OrderCancelled", Lifecycle.AGGREGATE_DELETED)
+        // The listed fields alone, renamed, whatever their values.
+        val tagged = NineXExample.map.order {
+            copy(
+                events = events + EventMapping(
+                    "order_tagged",
+                    to = "OrderTagged",
+                    lifecycle = LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf("labels" to "tags")),
+                ),
+            )
+        }
+        converter(
+            tagged
+        ).convert(created.copy(events = listOf(event("order_tagged", """{"labels":{"k":["v"]},"x":1}"""))))
+            .events.last().assert().isEqualTo(EventRecord(Lifecycle.TAGS_APPLIED, 1, """{"tags":{"k":["v"]}}"""))
+        // A 9.x payload without a field the lifecycle event takes fails the stream, naming the event's position.
+        val missing = created.copy(events = listOf(created.events.first(), event("order_handed_over", "{}")))
+        assertThrows<MigrationException> { converter(map).convert(missing) }.message.assert()
+            .contains("event 1 (order_handed_over)", "toOwnerId", Lifecycle.OWNER_TRANSFERRED)
     }
 
     @Test

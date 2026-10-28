@@ -41,7 +41,7 @@ export function rankable(
 }
 
 /**
- * Admits the per-group top N (D89) the way Wow admits the `RANK` window and
+ * Admits the per-group top N the way Wow admits the `RANK` window and
  * the having it compiles into: the source lists `RANK` and offers a having;
  * two dimensions or more, `within` one of them — so another is left to
  * rank inside it; `metric` a number of the group, never a derived metric,

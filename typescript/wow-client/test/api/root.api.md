@@ -5,34 +5,27 @@
 ```ts
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { RequestInterceptor } from '@ahoo-wang/fetcher';
 
 // @public
 export interface AggregateManifest {
     // (undocumented)
-    readonly commands?: readonly CommandManifest[];
+    readonly commands: readonly CommandManifest[];
     // (undocumented)
     readonly description?: string;
     // (undocumented)
-    readonly events?: readonly EventManifest[];
-    // (undocumented)
-    readonly lifecycle?: readonly string[];
+    readonly events: readonly EventManifest[];
     // (undocumented)
     readonly name: string;
+    readonly ownership?: 'OWNER' | 'TENANT' | (string & {});
     // (undocumented)
-    readonly ownership?: Ownership;
-    // (undocumented)
-    readonly queries?: readonly QueryManifest[];
-    // (undocumented)
+    readonly queries: readonly QueryManifest[];
+    readonly retired?: readonly string[];
     readonly schedules?: readonly string[];
     // (undocumented)
-    readonly snapshot?: {
-        readonly enabled?: boolean;
-    };
+    readonly snapshot: SnapshotManifest;
     // (undocumented)
-    readonly state: {
-        readonly schema: string;
-        readonly fingerprint?: string;
-    };
+    readonly state: StateManifest;
 }
 
 // @public
@@ -268,6 +261,9 @@ type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions 
 };
 
 // @public
+export function checkManifest(manifest: Manifest): Manifest;
+
+// @public
 type CollectionFilter<FIELDS extends string = string> = {
     op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
     field: QueryField<FIELDS>;
@@ -276,40 +272,52 @@ type CollectionFilter<FIELDS extends string = string> = {
 
 // @public
 export class CommandGateway {
-    constructor(client?: WowClientOptions);
+    constructor(client?: WowClientOptions, manifest?: Manifest);
     // (undocumented)
     readonly client: WowClientOptions;
-    lifecycle<R = Record<string, unknown>>(aggregatePath: string, id: string, command: LifecycleCommand, body?: TransferOwner | TransferSpace | ApplyTags, options?: CommandOptions): Promise<CommandResult<R>>;
-    send<R = Record<string, unknown>>(path: string, body?: object, options?: CreateCommandOptions): Promise<CommandResult<R>>;
-    stream<R = Record<string, unknown>>(path: string, body?: object, options?: CreateCommandOptions): Promise<CommandResultStream<R>>;
+    send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
+    stream<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResultStream<R>>;
+    wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
 }
 
 // @public
 export interface CommandManifest {
+    readonly aliases: readonly string[];
+    readonly creation: 'NONE' | 'REQUIRED' | 'ALLOWED' | (string & {});
     // (undocumented)
-    readonly aliases?: readonly string[];
-    // (undocumented)
-    readonly creation?: Creation;
+    readonly description?: string;
     // (undocumented)
     readonly mounted?: boolean;
     // (undocumented)
     readonly name: string;
-    // (undocumented)
     readonly produces?: readonly string[];
     // (undocumented)
-    readonly routes?: readonly RouteManifest[];
+    readonly routes: readonly RouteManifest[];
     readonly schema: string;
+    readonly system?: boolean;
     // (undocumented)
     readonly transformsTo?: readonly string[];
 }
 
 // @public
-export interface CommandOptions extends RequestOptions {
+export type CommandOptions = Omit<CommandRequest, 'command' | 'routes' | 'body' | 'type' | 'id'>;
+
+// @public
+export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
+    readonly body?: object;
     readonly bodyNumbers?: TextNumbers;
+    readonly command: string;
     readonly expectedVersion?: number;
+    readonly id?: string;
     readonly requestId?: string;
     readonly resolveRejected?: boolean;
-    readonly wait?: WaitOptions;
+    readonly routes?: readonly RouteManifest[];
+    readonly scope?: never;
+    readonly targetScope?: Omit<TargetScope, 'tenantId'>;
+    readonly targetTenant?: string;
+    readonly timeout?: number;
+    readonly type?: AggregateType;
+    readonly wait?: readonly Hop[] | string;
 }
 
 // @public
@@ -336,8 +344,7 @@ export interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly results: R;
     readonly signalTime: number;
-    // (undocumented)
-    readonly status: CommandResultStatus;
+    readonly status: CommandResultStatus | (string & {});
     // (undocumented)
     readonly transformedFrom?: TransformedFrom | null;
     readonly version?: number | null;
@@ -348,9 +355,6 @@ export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
 
 // @public
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
-
-// @public
-export function commandSegment(name: string): string;
 
 // @public
 export interface CommitView<S = unknown, E extends EventView = EventView> {
@@ -414,21 +418,16 @@ interface ConstraintDescriptor {
 // @public
 export interface ContextManifest {
     // (undocumented)
-    readonly aggregates?: readonly AggregateManifest[];
+    readonly aggregates: readonly AggregateManifest[];
+    readonly commands?: readonly CommandManifest[];
     // (undocumented)
     readonly description?: string;
-    // (undocumented)
-    readonly errors?: readonly ErrorManifest[];
-    // (undocumented)
+    readonly errors: readonly ErrorManifest[];
     readonly name: string;
     // (undocumented)
-    readonly published?: readonly {
-        readonly aggregate: string;
-        readonly topic: string;
-        readonly includeState?: boolean;
-    }[];
+    readonly published: readonly PublishedManifest[];
     // (undocumented)
-    readonly subscriptions?: readonly SubscriptionManifest[];
+    readonly subscriptions: readonly SubscriptionManifest[];
 }
 
 // @public
@@ -458,7 +457,7 @@ export interface CreateCommandOptions extends CommandOptions {
 }
 
 // @public
-export type Creation = 'NONE' | 'REQUIRED' | 'ALLOWED';
+export type Creation = CommandManifest['creation'];
 
 // @public
 interface CursorPage<T> {
@@ -624,6 +623,30 @@ export type DescriptorResult = {
 };
 
 // @public
+export interface DevelopmentCaller {
+    readonly app?: string;
+    readonly owner?: string;
+    readonly roles?: readonly string[];
+    readonly tenant?: string;
+    readonly user: string;
+}
+
+// @public
+export function developmentCaller(caller: DevelopmentCaller | (() => DevelopmentCaller | null | undefined)): RequestInterceptor;
+
+// @public
+export const DevelopmentCallerHeaders: {
+    readonly USER: "Wow-User";
+    readonly OWNER: "Wow-Owner";
+    readonly TENANT: "Wow-Tenant";
+    readonly ROLES: "Wow-Roles";
+    readonly APP: "Wow-App";
+};
+
+// @public
+export function developmentCallerHeaders(caller: DevelopmentCaller): Record<string, string>;
+
+// @public
 interface DistinctCountAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
@@ -724,13 +747,13 @@ export interface ErrorManifest {
 
 // @public
 export interface EventManifest {
+    readonly aliases: readonly string[];
     // (undocumented)
-    readonly aliases?: readonly string[];
+    readonly description?: string;
     // (undocumented)
     readonly name: string;
     // (undocumented)
-    readonly revision?: number;
-    // (undocumented)
+    readonly revision: number;
     readonly schema: string;
 }
 
@@ -1028,6 +1051,7 @@ export const FrameworkErrorCodes: {
     readonly COMMAND_UNKNOWN: "wow.command.unknown";
     readonly COMMAND_FAILED: "wow.command.failed";
     readonly COMMAND_REFUSED: "wow.command.refused";
+    readonly COMMAND_UNDECLARED_EVENT: "wow.command.undeclared-event";
     readonly NODE_CLOSING: "wow.node.closing";
     readonly NODE_STANDBY: "wow.node.standby";
     readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";
@@ -1043,6 +1067,7 @@ export const FrameworkErrorCodes: {
     readonly QUERY_BUSY: "wow.query.busy";
     readonly QUERY_NOT_FOUND: "wow.query.not-found";
     readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
+    readonly QUERY_TOO_MANY_GROUPS: "wow.query.too-many-groups";
     readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
@@ -1052,8 +1077,7 @@ export const FrameworkErrorCodes: {
 export interface FunctionInfo {
     // (undocumented)
     readonly context: string;
-    // (undocumented)
-    readonly kind: FunctionKind;
+    readonly kind: FunctionKind | (string & {});
     // (undocumented)
     readonly name: string;
     // (undocumented)
@@ -1062,6 +1086,18 @@ export interface FunctionInfo {
 
 // @public
 export type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RESERVATION' | 'TIMERS';
+
+// @public
+export interface FunctionManifest {
+    // (undocumented)
+    readonly context: string;
+    // (undocumented)
+    readonly kind: 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | (string & {});
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly processor: string;
+}
 
 // @public
 interface HavingDescriptor {
@@ -1117,8 +1153,7 @@ type HistogramAggregationGroup<FIELDS extends string = string> = {
 export interface Hop {
     // (undocumented)
     readonly context?: string | null;
-    // (undocumented)
-    readonly stage: Stage;
+    readonly stage: Stage | (string & {});
     // (undocumented)
     readonly subscription?: string | null;
 }
@@ -1132,6 +1167,22 @@ export type Including<Q, INCLUDE extends string> = Q & {
 
 // @public
 export function isProblem(value: unknown): value is Problem;
+
+// @public
+export interface JobManifest {
+    // (undocumented)
+    readonly cron: string;
+    // (undocumented)
+    readonly misfire: string;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly scope: string;
+    // (undocumented)
+    readonly sharded: boolean;
+    // (undocumented)
+    readonly zone: string;
+}
 
 // @public
 export type LifecycleCommand = (typeof LifecycleCommands)[keyof typeof LifecycleCommands];
@@ -1158,11 +1209,6 @@ interface LimitsDescriptor {
 }
 
 // @public
-export interface ListStreamOptions extends RequestOptions {
-    readonly resume?: StreamResumeOptions | false;
-}
-
-// @public
 type LogicalFilter<FIELDS extends string = string> = {
     op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
     operands: FilterExpression<FIELDS>[];
@@ -1170,20 +1216,18 @@ type LogicalFilter<FIELDS extends string = string> = {
 
 // @public
 export interface Manifest {
-    // (undocumented)
-    readonly $defs?: Readonly<Record<string, unknown>>;
+    readonly $defs: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
     // (undocumented)
     readonly contexts: readonly ContextManifest[];
-    // (undocumented)
-    readonly errors?: readonly ErrorManifest[];
-    // (undocumented)
+    readonly errors: readonly ErrorManifest[];
     readonly format: number;
+    readonly requires?: readonly string[];
     // (undocumented)
-    readonly service?: {
-        readonly name: string;
-        readonly version?: string;
-    };
+    readonly service?: ServiceManifest;
 }
+
+// @public
+export const MANIFEST_FEATURES: ReadonlySet<string>;
 
 // @public
 export const MANIFEST_FORMAT = 1;
@@ -1354,6 +1398,16 @@ interface ProjectionCapable<FIELDS extends string = string> {
 }
 
 // @public
+export interface PublishedManifest {
+    // (undocumented)
+    readonly aggregate: string;
+    // (undocumented)
+    readonly includeState: boolean;
+    // (undocumented)
+    readonly topic: string;
+}
+
+// @public
 type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
 
 // @public
@@ -1394,7 +1448,7 @@ export interface QueryManifest {
     // (undocumented)
     readonly model: string;
     // (undocumented)
-    readonly routes?: readonly RouteManifest[];
+    readonly routes: readonly RouteManifest[];
 }
 
 // @public
@@ -1414,12 +1468,6 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     list<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>[]>;
     // (undocumented)
     list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
-    listStream<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE>>>;
-    // (undocumented)
-    listStream(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<R>>;
-    listStreamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
-    // (undocumented)
-    listStreamRows(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
     // (undocumented)
     readonly numbers?: TextNumbers | undefined;
     paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE>>>;
@@ -1427,9 +1475,15 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
     // (undocumented)
     readonly path: string;
-    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>>;
+    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE> | undefined>;
     // (undocumented)
-    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
+    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R | undefined>;
+    stream<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<Projected<R, INCLUDE>>>;
+    // (undocumented)
+    stream(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<R>>;
+    streamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+    // (undocumented)
+    streamRows(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
 }
 
 // @public
@@ -1539,6 +1593,24 @@ export interface RetryHint {
 export function retryHintOf(code: string | undefined, status: number, afterMs?: number): RetryHint;
 
 // @public
+export interface RetryManifest {
+    // (undocumented)
+    readonly initialBackoff?: string;
+    // (undocumented)
+    readonly maxAttempts?: number;
+    // (undocumented)
+    readonly maxBackoff?: string;
+    // (undocumented)
+    readonly multiplier?: number;
+    // (undocumented)
+    readonly recoverable?: readonly string[];
+    // (undocumented)
+    readonly timeout?: string;
+    // (undocumented)
+    readonly unrecoverable?: readonly string[];
+}
+
+// @public
 export interface RouteManifest {
     // (undocumented)
     readonly method: string;
@@ -1622,7 +1694,23 @@ enum SensitivityLevel {
 }
 
 // @public
+export interface ServiceManifest {
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly version?: string;
+}
+
+// @public
 export const SNAPSHOT_SUBSCRIPTION = "snapshot";
+
+// @public
+export interface SnapshotManifest {
+    // (undocumented)
+    readonly enabled: boolean;
+    // (undocumented)
+    readonly stateRevision?: number;
+}
 
 // @public
 export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`> extends QueryModelClient<SnapshotRecord<S>, SnapshotSystemField | STATE_FIELDS> {
@@ -1674,6 +1762,20 @@ enum SortDirection {
 }
 
 // @public
+export interface SourceManifest {
+    // (undocumented)
+    readonly aggregates: readonly string[];
+    // (undocumented)
+    readonly context?: string;
+    // (undocumented)
+    readonly events: readonly string[];
+    // (undocumented)
+    readonly eventSchemas?: readonly string[];
+    // (undocumented)
+    readonly nullableState?: boolean;
+}
+
+// @public
 export interface SpaceTransferred {
     // (undocumented)
     readonly spaceId: string;
@@ -1694,11 +1796,19 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly client: WowClientOptions;
+    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S> | undefined>;
     get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
     read(id: string, options?: StateReadOptions): Promise<StateReadResult<S>>;
     trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E>>;
     // (undocumented)
     readonly type: AggregateType;
+}
+
+// @public
+export interface StateManifest {
+    // (undocumented)
+    readonly fingerprint?: string;
+    readonly schema: string;
 }
 
 // @public
@@ -1767,6 +1877,11 @@ export interface StreamEnd {
 export type StreamEndReason = 'complete' | 'hold-expired' | 'permit-reclaimed' | 'node-stopping';
 
 // @public
+export interface StreamOptions extends RequestOptions {
+    readonly resume?: StreamResumeOptions | false;
+}
+
+// @public
 export interface StreamResumeOptions {
     readonly initialDelayMs?: number;
     readonly lastEventId?: string;
@@ -1794,22 +1909,28 @@ export function stringifyJson(value: unknown, marks?: TextNumbers): string;
 // @public
 export interface SubscriptionManifest {
     // (undocumented)
-    readonly [property: string]: unknown;
+    readonly calls?: readonly string[];
     // (undocumented)
     readonly committed?: readonly string[];
     // (undocumented)
     readonly derives?: readonly string[];
     // (undocumented)
-    readonly kind: 'PROJECTION' | 'REACTOR' | 'SAGA';
+    readonly function: FunctionManifest;
+    // (undocumented)
+    readonly job?: JobManifest;
+    // (undocumented)
+    readonly kind: 'PROJECTION' | 'REACTOR' | 'SAGA' | (string & {});
     readonly name: string;
     // (undocumented)
     readonly rejected?: readonly string[];
     // (undocumented)
-    readonly source: {
-        readonly context?: string;
-        readonly aggregates?: readonly string[];
-        readonly events?: readonly string[];
-    };
+    readonly retry?: RetryManifest;
+    // (undocumented)
+    readonly schedules?: readonly string[];
+    // (undocumented)
+    readonly source: SourceManifest;
+    // (undocumented)
+    readonly start?: 'BEGINNING' | 'END' | (string & {});
 }
 
 // @public
@@ -1951,12 +2072,6 @@ export const wait: {
     readonly snapshot: (context?: string) => Hop;
     readonly handled: (subscription: string, context?: string) => Hop;
 };
-
-// @public
-export interface WaitOptions {
-    readonly plan?: readonly Hop[] | string;
-    readonly timeout?: number | string;
-}
 
 // @public
 enum WindowFunction {

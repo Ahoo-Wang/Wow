@@ -10,26 +10,26 @@ outline: deep
 
 ## 发送命令 {#send-a-command}
 
-宿主提供一个 `CommandClient` Bean。用 `of(caller)` 选择调用方，然后把命令对象发往聚合的 ref：
+宿主提供一个 `CommandClient` Bean。用 `of(caller)` 选择调用方，然后连同聚合的 id 发送命令对象：
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
 
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
-val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), ref)
+val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
 submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
 submitted.ref.assert().isEqualTo(ref)
 ```
 
-ref 来自上下文生成的契约 `EshopOrderingContract.Order.ref(tenant, id)`，位于 ordering 的 api 模块中。命令不指明路径，也不指明类型名：客户端从类路径上的契约找出命令的类型。
+命令不指明路径，也不指明类型名：客户端根据命令的类，从服务的模型和类路径上的契约找出聚合类型。创建命令不指明 id，由服务端分配。
 
 | 调用 | 返回 |
 | --- | --- |
-| `send(command, ref)` | 命令被接受后的结果；对端的命令，则是在它的主题确认收到之后 |
-| `wait(command, ref)` | 命令的等待计划的结果，除非选项指定了计划，否则是服务端的默认计划 |
-| `stream(command, ref)` | 等待中每一跳结果的 flow，最后一个就是 `wait` 返回的结果；收集这个 flow 才会发送命令 |
+| `send(command, id)` | 命令被接受后的结果；对端的命令，则是在它的主题确认收到之后 |
+| `wait(command, id)` | 命令的等待计划的结果，除非请求指定了计划，否则是服务端的默认计划 |
+| `stream(command, id)` | 等待中每一跳结果的 flow，最后一个就是 `wait` 返回的结果；收集这个 flow 才会发送命令 |
 
-`SendOptions.of(...)` 设置其余选项：`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetTenant` 和 `targetScope`。
+每个调用也接受一个 `CommandRequest`，即 `CommandRequest.of(command, id, ...)` 或 `CommandRequest.to(ref, command)`，由它设置其余内容：聚合 `type`（`DeleteAggregate` 这类每个聚合都接受的生命周期命令总要指明它）、`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetTenant` 和 `targetScope`。否则租户和作用域就是调用方自己的：与调用方相同的目标租户不改变任何东西。
 
 命令总有一个可追责的调用方：在 `of` 给出别的调用方之前，客户端以匿名调用方发送，命令没有受信任模式。系统发送方传入它自己的服务调用方。
 
@@ -65,12 +65,12 @@ ref 来自上下文生成的契约 `EshopOrderingContract.Order.ref(tenant, id)`
 
 在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.callers` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。Saga 的同步调用也发往这个 `url`，模式由 `wow.peer.mode`（或对端自己的 `mode`）决定。basket 服务就是这样访问 ordering 的内部端口的：
 
-<!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
+<!-- sample: examples/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
-# The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
+# The checkout saga submits the order to the ordering service synchronously, through its command
 # gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
-# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.callers there).
+# (Wow-Service), which the ordering service lists the commands of (wow.callers there).
 peers:
   eshop-ordering:
     url: http://127.0.0.1:9093

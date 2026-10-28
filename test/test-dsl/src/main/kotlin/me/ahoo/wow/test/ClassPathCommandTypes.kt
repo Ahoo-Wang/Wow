@@ -26,14 +26,26 @@ import java.util.concurrent.ConcurrentHashMap
  * whose contract lists its schema (`#/$defs/<binary name>`), a mounted command left out, so a handler
  * that leaves a command's ref out sends it where the service would. Its [nameOf] is [CommandTypes.SIMPLE_NAMES]'.
  *
+ * The same Manifests declare each context's rejection codes ([errorsOf]), which a rejection the specification hands
+ * over is checked against.
+ *
  * A contract that cannot be read is skipped: the specification checks the saga, not the build that packaged it.
  */
-internal class ClassPathCommandTypes(private val aggregates: Map<String, List<AggregateType>>) : CommandTypes {
+internal class ClassPathCommandTypes(
+    private val aggregates: Map<String, List<AggregateType>>,
+    private val errors: Map<String, Set<String>> = emptyMap(),
+) : CommandTypes {
     override fun nameOf(target: AggregateType, command: Class<*>): String? =
         CommandTypes.SIMPLE_NAMES.nameOf(target, command)
 
     override fun aggregatesOf(command: Class<*>): List<AggregateType> =
         aggregates["$DEFS_PREFIX${command.name}"].orEmpty()
+
+    /**
+     * The rejection codes the context of [type] declares, by its Manifest on the class path; null when none
+     * describes that context.
+     */
+    fun errorsOf(type: AggregateType): Set<String>? = errors[type.context]
 
     companion object {
         /** The resource of an api jar's peer contract (`PeerContracts.RESOURCE` of `:manifest`). */
@@ -54,14 +66,23 @@ internal class ClassPathCommandTypes(private val aggregates: Map<String, List<Ag
             val fragments = providers.mapNotNull { classLoader.getResource(it.fragment) }
             val contracts = classLoader.getResources(CONTRACT).toList()
             val aggregates = LinkedHashMap<String, MutableSet<AggregateType>>()
+            val errors = LinkedHashMap<String, MutableSet<String>>()
             (fragments + contracts).distinct().forEach { resource ->
                 val manifest = runCatching {
                     resource.openStream().use { mapper.readValue(it.readBytes(), Map::class.java) }
                 }.getOrNull() ?: return@forEach
                 commandsOf(manifest).forEach { (schema, type) -> aggregates.getOrPut(schema, ::LinkedHashSet) += type }
+                errorsOf(manifest).forEach { (context, codes) -> errors.getOrPut(context, ::LinkedHashSet) += codes }
             }
-            return ClassPathCommandTypes(aggregates.mapValues { it.value.toList() })
+            return ClassPathCommandTypes(aggregates.mapValues { it.value.toList() }, errors)
         }
+
+        /** The rejection codes each context of a Manifest declares, by context name. */
+        internal fun errorsOf(manifest: Map<*, *>): Map<String, List<String>> =
+            manifest.objects("contexts").mapNotNull { context ->
+                val name = context["name"] as? String ?: return@mapNotNull null
+                name to context.objects("errors").mapNotNull { it["code"] as? String }
+            }.toMap()
 
         /** Each command a Manifest's contexts list, by its schema, with the aggregate type that decides it. */
         internal fun commandsOf(manifest: Map<*, *>): List<Pair<String, AggregateType>> =

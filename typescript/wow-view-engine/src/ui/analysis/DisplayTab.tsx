@@ -59,7 +59,7 @@ const LEGENDS = ['auto', 'top', 'bottom', 'right', 'none'] as const;
 const FORMATS = ['auto', 'compact', 'percent'] as const;
 
 /**
- * The display page (D20 屏 J): how the marks are drawn, family by family,
+ * The display page: how the marks are drawn, family by family,
  * with the two settings every drawn chart shares — the legend and the value
  * labels — first. Colours are the theme's and have no control here (D20).
  */

@@ -34,10 +34,6 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsEmptyStringFilter
 import me.ahoo.wow.api.query.LessThanFilter
@@ -672,17 +668,17 @@ class QuerySchemaValidationTest {
  * The validation this test pins runs in admission's single resolution pass; each helper admits through the trusted
  * path and returns its input, so a test reads as the rule it checks.
  */
-private fun validateQuery(query: ISingleQuery, schema: QueryModelSchema): ISingleQuery =
+private fun validateQuery(query: SingleQuery, schema: QueryModelSchema): SingleQuery =
     query.also { QueryAdmission.Trusted.single(it, schema) }
 
-private fun validateQuery(query: IListQuery, schema: QueryModelSchema): IListQuery =
+private fun validateQuery(query: ListQuery, schema: QueryModelSchema): ListQuery =
     query.also { QueryAdmission.Trusted.list(it, schema) }
 
-private fun validateQuery(query: IPagedQuery, schema: QueryModelSchema): IPagedQuery =
+private fun validateQuery(query: PagedQuery, schema: QueryModelSchema): PagedQuery =
     query.also { QueryAdmission.Trusted.paged(it, schema) }
 
 /** The cursor's own sort: its first field stands in for the tie-breaker admission appends. */
-private fun validateQuery(query: ICursorQuery, schema: QueryModelSchema): ICursorQuery = query.also {
+private fun validateQuery(query: CursorQuery, schema: QueryModelSchema): CursorQuery = query.also {
     val tieBreaker = it.sort.firstOrNull()?.field ?: schema.requireIdentityField()
     QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker))
 }

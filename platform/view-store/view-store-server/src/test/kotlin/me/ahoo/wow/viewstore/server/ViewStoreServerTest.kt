@@ -18,7 +18,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.io.File
@@ -34,9 +36,9 @@ class ViewStoreServerTest {
             node.hostedContexts.assert().containsExactly(ViewStoreContext.NAME)
             val manifest = store.context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactlyInAnyOrder(
-                ViewStoreContext.VIEW,
-                ViewStoreContext.VIEW_PREFERENCES,
-                ViewStoreContext.DATASET_WORDING,
+                ViewStoreContract.View.NAME,
+                ViewStoreContract.ViewPreferences.NAME,
+                ViewStoreContract.DatasetWording.NAME,
             )
             // Without the in-memory query backend, no snapshot query is served: a claim then knows of no shared
             // dashboard.
@@ -55,14 +57,11 @@ class ViewStoreServerTest {
     }
 
     @Test
-    fun `without the header switch no request is served on its headers' word`() {
-        startViewStore(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false).use { store ->
-            // CoSec's resolver behind the reserved owners, with CoSec off (the default profile): no request has a
-            // security context.
+    fun `in development the callers are the host's, behind the reserved owners`() {
+        startViewStore().use { store ->
             store.context.getBean(me.ahoo.wow.http.caller.CallerResolver::class.java).assert()
                 .isInstanceOf(ReservedScopeCallers::class.java)
-            store.get("/view-store/view/v-1/state", Who.user("alice")).status.assert().isEqualTo(UNAUTHORIZED)
-            store.get("/view-store/view/v-1/state", Who.ANONYMOUS).status.assert().isEqualTo(UNAUTHORIZED)
+            store.get("/view-store/view/v-1/state", Who.ANONYMOUS).status.assert().isEqualTo(NOT_FOUND)
         }
     }
 
@@ -71,7 +70,7 @@ class ViewStoreServerTest {
         startViewStore().use { store ->
             val served = commandRoutes(store.get("/wow/manifest", Who.user("a")).assertOk().json)
             served.assert().contains("POST /view-store/dataset_wording/clear-dataset-wording")
-            commandRoutes(json.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
+            commandRoutes(WowJson.mapper.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
         }
     }
 
@@ -104,6 +103,5 @@ class ViewStoreServerTest {
 
     private companion object {
         const val NOT_FOUND = 404
-        const val UNAUTHORIZED = 401
     }
 }

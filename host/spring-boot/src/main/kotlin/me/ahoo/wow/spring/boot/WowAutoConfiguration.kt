@@ -156,7 +156,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   misconfiguration, each authorized by the [CallAuthorizer] bean when there is one, else by the [CommandAuthorizer].
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
- *   and every [PublishedSinks] bean (such as the Kafka Sink). Those that read other contexts' published streams read
+ *   and every [PublishedSinks] bean (such as the transport sink). Those that read other contexts' published streams read
  *   them from the [SourceTopics] bean (wow-kafka's).
  * - **Parked entries**: retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
@@ -240,7 +240,7 @@ class WowAutoConfiguration {
         )
 
     /**
-     * The store providers: memory, built in (its snapshots queryable under `wow.query.memory.enabled`),
+     * The store providers: memory, built in (its snapshots queryable unless `wow.query.memory.enabled` is false),
      * those on the classpath (`ServiceLoader`: PostgreSQL's, MongoDB's, a community backend's) and the application's
      * [StoreProvider] and [StoreQueryProvider] beans, each over the one of its type before it.
      */
@@ -253,7 +253,8 @@ class WowAutoConfiguration {
         providers: ObjectProvider<StoreProvider>,
         queryProviders: ObjectProvider<StoreQueryProvider>,
     ): StoreProviders {
-        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
+        val memoryQueries = queries.ifAvailable?.memory?.enabled != false
         return StoreProviders.load(
             beanFactory.beanClassLoader,
             memory = MemoryStoreProvider(memoryQueries),
@@ -371,7 +372,7 @@ class WowAutoConfiguration {
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
      * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call bounded by
-     * `wow.peer.timeout` or its peer's own.
+     * `wow.peer.timeout` or its peer's own and sent by the route its peer's contract in [contracts] lists.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -381,12 +382,14 @@ class WowAutoConfiguration {
         identity: NodeIdentity,
         endpoints: EndpointResolver,
         @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
+        contracts: ContractDirectory,
     ): CommandCaller = HttpCommandCaller(
         endpoints,
         identity.service,
         client,
         properties.peer.timeout.toKotlinDuration(),
         properties.peerTimeouts(),
+        contracts.fragments.map { it.manifest },
     )
 
     /**
@@ -502,7 +505,7 @@ class WowAutoConfiguration {
             val contexts = models.models.mapTo(HashSet()) { it.type.context }
             TransportNeeds.check(
                 TransportNeeds.of(
-                    kafkaRouted(properties, models.models),
+                    topicRouted(properties, models.models),
                     properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
                     kafka.ifAvailable?.commandIntake?.enabled == true,
                 ),
@@ -532,7 +535,7 @@ class WowAutoConfiguration {
                 stateViews = properties.stateViews.options(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
-                kafkaRouted = kafkaRouted(properties, models.models),
+                topicRouted = topicRouted(properties, models.models),
                 ledger = properties.ops.publish.options(transport = sourceTopics?.producer != null),
                 snapshots = properties.snapshot.options(),
             ),
@@ -557,6 +560,7 @@ class WowAutoConfiguration {
             subscriptions = bindings(
                 models.providers,
                 dependencies,
+                contracts.local,
                 subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList() +
                     providedSinks.ifAvailable?.sinks.orEmpty().map { it.factory },
             ),
@@ -679,7 +683,7 @@ class WowAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowCommandClient(gateway: CommandGateway, peers: PeerClients): CommandClient {
         val local = InProcessCommandClient(gateway)
-        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers)
+        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
     }
 
     @Bean
@@ -722,10 +726,15 @@ class WowAutoConfiguration {
     ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
     /**
-     * The anonymous caller, for development alone: a deployment maps the identity its gateway asserts
-     * through a `CallerResolver` bean (CoSec's, with wow-cosec, or the application's), and an intentionally anonymous
-     * service declares one that returns [CallerResolver.ANONYMOUS]. Without one, a node outside development refuses
-     * to start.
+     * The callers of a node without a `CallerResolver` bean, for development alone: a deployment maps the identity its
+     * gateway asserts through one (CoSec's, with wow-cosec and `cosec.enabled`, or the application's), and an
+     * intentionally anonymous service declares one that returns [CallerResolver.ANONYMOUS].
+     *
+     * - In a profile of `wow.dev-profiles`, the callers the request's identity headers name
+     *   ([DevelopmentCallerResolver]): an explicit choice to run for development, so a client may name any caller.
+     * - In development by a loopback internal port alone, the anonymous caller of `wow.tenant.default`: the internal
+     *   port says nothing of who reaches the public one, so no header names a caller.
+     * - Otherwise the node refuses to start.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -734,16 +743,29 @@ class WowAutoConfiguration {
             development.active,
             "wow.dev-profiles",
             null,
-            "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
-                "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
+            "Turn CoSec on (wow-cosec with cosec.enabled, such as a cosec profile) or declare a CallerResolver bean " +
+                "that maps the identity your gateway asserts; for a local run, activate a profile of " +
+                "wow.dev-profiles (dev). An intentionally anonymous service declares one returning " +
+                "CallerResolver.ANONYMOUS.",
         ) {
-            "No CallerResolver bean: outside development (a profile of wow.dev-profiles, or a loopback " +
-                "internal port), the public port would serve every request as the anonymous caller."
+            "No CallerResolver bean, and the node is not in development (neither a profile of wow.dev-profiles nor " +
+                "a loopback internal port): the public port would have no caller to serve."
         }
         val tenant = properties.tenant.default
+        if (development.byProfile) {
+            logger.warn {
+                "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port takes " +
+                    "its callers from the ${DevelopmentCallerResolver.USER}, ${DevelopmentCallerResolver.OWNER}, " +
+                    "${DevelopmentCallerResolver.ROLES}, ${DevelopmentCallerResolver.TENANT} and " +
+                    "${DevelopmentCallerResolver.APP} headers any client sets, and serves a request without " +
+                    "${DevelopmentCallerResolver.USER} as the anonymous caller of tenant $tenant."
+            }
+            return DevelopmentCallerResolver(tenant)
+        }
         logger.warn {
-            "No CallerResolver bean: every request to the public port is served as the anonymous caller " +
-                "(tenant $tenant, no scope), as for development (${development.reason})."
+            "No CallerResolver bean, in development by its ${development.reason} alone: every request to the public " +
+                "port is served as the anonymous caller (tenant $tenant, no scope). A profile of wow.dev-profiles " +
+                "takes the callers from the ${DevelopmentCallerResolver.USER} headers instead."
         }
         if (tenant == Caller.DEFAULT_TENANT) {
             return CallerResolver.ANONYMOUS
@@ -965,9 +987,9 @@ class WowAutoConfiguration {
          * The aggregate types of [models] whose `wow.aggregates.[<context>.<aggregate>].routing` is `kafka`:
          * a key that names no such type is refused.
          */
-        internal fun kafkaRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
+        internal fun topicRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
             val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.KAFKA }
+            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.TOPIC }
                 .keys.mapTo(LinkedHashSet()) { key ->
                     configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
                         "wow.aggregates.[$key].routing names no aggregate type this node serves."
@@ -1022,14 +1044,16 @@ class WowAutoConfiguration {
         /**
          * The subscriptions of the annotated processors of the node's contexts (the generated
          * [ModelProvider.processors] of [providers], the selected ones on the class path), their processors built
-         * from [dependencies], then those of every [SubscriptionFactory] bean in [factories], in their order.
+         * from [dependencies], a handler of another context's events by type reading the aggregates the service's
+         * [manifest] says, then those of every [SubscriptionFactory] bean in [factories], in their order.
          */
         internal fun bindings(
             providers: List<ModelProvider>,
             dependencies: Dependencies,
+            manifest: Manifest,
             factories: List<SubscriptionFactory>,
         ): SubscriptionFactory {
-            val bindings = SubscriptionBindings.of(dependencies, providers)
+            val bindings = SubscriptionBindings.of(dependencies, providers, manifest)
             return SubscriptionFactory.of(listOf(bindings) + factories)
         }
 

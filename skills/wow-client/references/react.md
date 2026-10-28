@@ -4,7 +4,7 @@ Hooks that keep a query, its result, loading and error as React state, on the qu
 
 ## With a query client (preferred)
 
-`useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery` take an `execute` function receiving the query and the run's request options (its `signal` included); a generated client's method fits exactly:
+`useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useStreamQuery` take an `execute` function receiving the query and the run's request options (its `signal` included); a generated client's method fits exactly:
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -29,7 +29,7 @@ export function PaidOrders({ client, page }: { client: OrderSnapshotQueryClient;
 
 ## With an endpoint URL
 
-`useFetcherSingleQuery`, `useFetcherListQuery`, `useFetcherPagedQuery`, `useFetcherCountQuery`, `useFetcherListStreamQuery` POST the query to a route (`/{context}/{aggregate}/snapshot/query` or `…/events/query`) through a Fetcher (or a registered Fetcher's name); use them where no generated client exists.
+`useFetcherSingleQuery`, `useFetcherListQuery`, `useFetcherPagedQuery`, `useFetcherCountQuery`, `useFetcherStreamQuery` POST the query to a route (`/{context}/{aggregate}/snapshot/query` or `…/events/query`) through a Fetcher (or a registered Fetcher's name); use them where no generated client exists.
 
 ## Gaps
 

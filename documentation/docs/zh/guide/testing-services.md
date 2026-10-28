@@ -16,32 +16,28 @@ outline: deep
 
 ## 在测试中运行服务 {#run-the-service-in-the-test}
 
-服务测试用 `SpringApplicationBuilder` 启动应用，使用随机端口和回环地址，并经 HTTP 与它通信：
+服务测试用 `wow-test-spring-boot` 的 `wowServer<App>(profiles…)` 启动应用，使用随机端口和回环地址，并经它的 `http` 客户端与它通信：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
 
 ```kotlin
-private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java).run(
-    "--spring.main.banner-mode=off",
-    "--server.port=0",
-    "--server.address=127.0.0.1",
-    "--wow.internal.port=0",
-    "--wow.internal.host=127.0.0.1",
-    "--wow.cluster.drain-timeout=1s",
-    "--wow.subscription.stop-timeout=2s",
-    "--wow.wait.max-timeout=15s",
-    "--wow.timers.poll-interval=200ms",
-    "--eshop.ordering.payment-grace-period=2s",
+private val server = wowServer<OrderingServer>(
+    "dev",
+    properties = mapOf(
+        "wow.timers.poll-interval" to "200ms",
+        "eshop.ordering.payment-grace-period" to "2s",
+    ),
+    sources = listOf(InMemoryOrderingTopics::class.java),
 )
 ```
 
-- `--server.port=0` 和 `--wow.internal.port=0` 取空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端。
-- 较短的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`）让测试类之间的关闭很快，`wow.timers.poll-interval=200ms` 让定时命令及时触发。
+- 这个 fixture 把两个端口都绑定在回环网卡上的空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端。
+- 它缩短节点关闭时等待的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`），让测试类之间的关闭很快；`properties` 加上测试自己的属性，这里是 `wow.timers.poll-interval=200ms`，让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 
 ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试给它内存中的主题，而不是 Kafka：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
 
 ```kotlin
 @Configuration(proxyBeanMethods = false)
@@ -58,7 +54,7 @@ class InMemoryOrderingTopics {
 
 然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
 
 ```kotlin
 @Test
@@ -71,8 +67,8 @@ fun `an order not paid within its grace period should cancel itself`() {
     eventually("order-unpaid cancelled") { status("order-unpaid") == "CANCELLED" }
     state("order-unpaid")["cancelReason"].asString().assert().contains("payment grace period")
     val late = post("/eshop-ordering/order/order-unpaid/pay-order", """{"paymentId":"p-2","amount":29.00}""")
-    late.first.assert().isEqualTo(CONFLICT)
-    late.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
+    late.status.assert().isEqualTo(CONFLICT)
+    late.body!!["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
 }
 ```
 
@@ -80,31 +76,26 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 内存后端不提供快照查询，也不写数仓。测试这些功能，要让服务运行在存储本身上，由 Testcontainers 启动它们。eShop 把这样的测试放在单独的源集 `integrationTest` 中，这样单元测试保持快速，也不需要 Docker：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
 ```kotlin
 private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
 private val clickhouse = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
-private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java)
-    .profiles("postgres", "clickhouse")
-    .run(
-        "--spring.main.banner-mode=off",
-        "--spring.datasource.url=${postgres.jdbcUrl}",
-        "--spring.datasource.username=${postgres.username}",
-        "--spring.datasource.password=${postgres.password}",
-        "--wow.clickhouse.endpoint=${clickhouse.httpUrl}",
-        "--wow.clickhouse.username=${clickhouse.username}",
-        "--wow.clickhouse.password=${clickhouse.password}",
-        "--wow.log.partitions=4",
-        "--server.port=0",
-        "--server.address=127.0.0.1",
-        "--wow.internal.port=0",
-        "--wow.internal.host=127.0.0.1",
-        "--wow.cluster.drain-timeout=1s",
-        "--wow.subscription.stop-timeout=2s",
-        "--wow.wait.max-timeout=15s",
-    )
-private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+private val server = wowServer<OrderingServer>(
+    "postgres",
+    "clickhouse",
+    "dev",
+    properties = mapOf(
+        "spring.datasource.url" to postgres.jdbcUrl,
+        "spring.datasource.username" to postgres.username,
+        "spring.datasource.password" to postgres.password,
+        "wow.clickhouse.endpoint" to clickhouse.httpUrl,
+        "wow.clickhouse.username" to clickhouse.username,
+        "wow.clickhouse.password" to clickhouse.password,
+        "wow.log.partitions" to 4,
+    ),
+    sources = listOf(InMemoryOrderingTopics::class.java),
+)
 ```
 
 - 应用的 `postgres` profile 定义了它的 `DataSource`，所以宿主选择 PostgreSQL；`clickhouse` profile 打开数仓。

@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -170,7 +171,7 @@ class CommittedReceiptsTest {
             commits.single().assert().isEqualTo(committed)
             rejections.assert().isEmpty()
             // A copy of the receipt is dropped by its command id.
-            topics.send(RECEIPTS, receipt.let { TopicMessage(it.key!!, it.value, it.headers) })
+            topics.send(RECEIPTS, receipt.let { TopicMessage.of(it.key!!, it.value, it.headers) })
             val group = sales.topicSubscriptions.getValue(RECEIPTS).group.name
             eventually {
                 (0 until 2).sumOf {
@@ -316,7 +317,7 @@ class CommittedReceiptsTest {
         val (first, again) = receipts().map { it as CommandCommitted<*> }
         first.ref.isAssigned.assert().isTrue()
         again.ref.assert().isEqualTo(first.ref)
-        again.aggregateId.assert().isEqualTo(first.aggregateId)
+        again.ref.id.assert().isEqualTo(first.ref.id)
         again.version.assert().isEqualTo(first.version)
         first.result.duplicate.assert().isFalse()
         again.result.duplicate.assert().isTrue()
@@ -327,6 +328,8 @@ class CommittedReceiptsTest {
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {
         override suspend fun load(group: String, subscription: String, partition: Int): Long? = null
+
+        override suspend fun list(group: String): List<Checkpoint> = emptyList()
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
     }

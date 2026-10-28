@@ -112,10 +112,13 @@ class ManifestTreeTest {
             "snapshot",
             "commands",
             "events",
-            "lifecycle",
             "queries",
         )
-        aggregate["lifecycle"].assert().isEqualTo(Manifests.LIFECYCLE)
+        // A system command is a command, flagged: its route is listed like any command's.
+        val delete = (aggregate["commands"] as List<*>).map { it as Map<*, *> }
+            .single { it["name"] == SystemCommands.DELETE_AGGREGATE }
+        delete["system"].assert().isEqualTo(true)
+        delete["routes"].assert().isEqualTo(listOf(mapOf("method" to "DELETE", "path" to "/shop/cart/{id}")))
         aggregate["queries"].assert().isEqualTo(
             listOf(
                 mapOf(
@@ -195,7 +198,12 @@ class ManifestTreeTest {
             state = StateManifest(Manifest.schemaRef("sample.Product")),
             ownership = Ownership.TENANT,
         )
-        val retry = RetryManifest(maxAttempts = 3, timeout = "PT2S", unrecoverable = listOf("sample.InvalidAddress"))
+        val retry = RetryManifest(
+            maxAttempts = 3,
+            timeout = "PT2S",
+            unrecoverable = listOf("sample.InvalidAddress"),
+            multiplier = 1.5,
+        )
         val subscription = SubscriptionManifest(
             "Notifier.onEvent",
             SubscriptionKind.REACTOR,
@@ -220,7 +228,12 @@ class ManifestTreeTest {
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert()
             .isEqualTo(
-                mapOf("maxAttempts" to 3, "timeout" to "PT2S", "unrecoverable" to listOf("sample.InvalidAddress"))
+                mapOf(
+                    "maxAttempts" to 3,
+                    "timeout" to "PT2S",
+                    "unrecoverable" to listOf("sample.InvalidAddress"),
+                    "multiplier" to 1.5,
+                )
             )
         ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
             .subscriptions[0].retry!!.copyWith(recoverable = listOf("sample.Busy")).recoverable.assert()
@@ -354,6 +367,62 @@ class ManifestTreeTest {
         ManifestTree.read(tree).errors.single().description.assert().isNull()
     }
 
+    /** [manifest]'s tree as JSON text, with each of [replacements] made once, read back. */
+    @Suppress("UNCHECKED_CAST")
+    private fun treeWith(vararg replacements: Pair<String, String>): Map<*, *> {
+        var json = mapper.writeValueAsString(ManifestTree.write(manifest))
+        replacements.forEach { (old, new) ->
+            check(old in json) { "$old is not in the tree" }
+            json = json.replaceFirst(old, new)
+        }
+        return mapper.readValue(json, Map::class.java)
+    }
+
+    @Test
+    fun `a value of an enumeration a newer writer added leaves out what it belongs to, and is told`() {
+        val warnings = mutableListOf<String>()
+        val cart = manifest.contexts.single().aggregates.first()
+        val read = ManifestTree.read(
+            treeWith(
+                "\"creation\":\"${cart.commands.first().creation}\"" to "\"creation\":\"SOMETIMES\"",
+                "\"kind\":\"${manifest.contexts.single().subscriptions.first().kind}\"" to "\"kind\":\"WORKFLOW\"",
+            ),
+        ) { warnings += it }
+        val context = read.contexts.single()
+        // The command of an unknown creation is left out, as is the subscription of an unknown kind; the rest is read.
+        context.aggregates.first().commands.map { it.name }.assert().isEqualTo(cart.commands.drop(1).map { it.name })
+        context.subscriptions.map { it.name }.assert()
+            .isEqualTo(manifest.contexts.single().subscriptions.drop(1).map { it.name })
+        warnings.assert().anyMatch { it.contains("creation: SOMETIMES is unknown to this reader") }
+        warnings.assert().anyMatch { it.contains("(${cart.commands.first().name}) is left out") }
+        // An aggregate of an unknown ownership is left out too, and a subscription of an unknown start.
+        val unknown = ManifestTree.write(manifest).let { tree ->
+            val contexts = (tree["contexts"] as List<*>).map { context ->
+                val map = context as Map<*, *>
+                map + ("aggregates" to (map["aggregates"] as List<*>).map { (it as Map<*, *>) + ("ownership" to "CLAN") }) +
+                    ("subscriptions" to (map["subscriptions"] as List<*>).map { (it as Map<*, *>) + ("start" to "NEVER") })
+            }
+            tree + ("contexts" to contexts)
+        }
+        val left = ManifestTree.read(unknown) { warnings += it }.contexts.single()
+        left.aggregates.assert().isEmpty()
+        left.subscriptions.assert().isEmpty()
+        warnings.assert().anyMatch { it.contains("(${cart.name}) is left out") }
+    }
+
+    @Test
+    fun `a marker of requires this reader does not understand refuses the Manifest, and none is left out`() {
+        ManifestTree.write(manifest).containsKey("requires").assert().isFalse()
+        assertThrows<IllegalArgumentException> {
+            ManifestTree.read(ManifestTree.write(manifest) + ("requires" to listOf("routes-v2")))
+        }.message.assert().contains("[routes-v2]").contains("does not understand")
+        // What a reader understands is read and written back, and a merged Manifest requires what any fragment does.
+        val requiring = manifest.copyWith(requires = listOf("routes-v2"))
+        ManifestTree.write(requiring)["requires"].assert().isEqualTo(listOf("routes-v2"))
+        ManifestMerger.merge(listOf(ManifestFragment("a", requiring), ManifestFragment("b", Manifest())))
+            .requires.assert().containsExactly("routes-v2")
+    }
+
     @Test
     fun `reading should refuse another format`() {
         assertThrows<IllegalArgumentException> {
@@ -413,7 +482,6 @@ class ManifestTreeTest {
                 aggregate.snapshot.enabled.assert().isTrue()
                 aggregate.commands.assert().isEmpty()
                 aggregate.events.assert().isEmpty()
-                aggregate.lifecycle.assert().isEmpty()
                 aggregate.queries.assert().isEmpty()
                 aggregate.state.fingerprint.assert().isNull()
             }
@@ -475,10 +543,13 @@ class ManifestTreeTest {
         val fragment = Manifests.fragment()
         // A command a subscription derives or handles the rejection of, which the module does not decide, has its
         // schema in $defs too.
-        fragment.schemaRefs.assert().hasSize(7)
+        fragment.schemaRefs.assert().hasSize(9)
+        // A system command's body is a schema too, keyed by its system name.
         fragment.unresolvedSchemaRefs.assert().containsExactly(
             "#/\$defs/sample.CreateCart",
             "#/\$defs/sample.AddItem",
+            "#/\$defs/wow.lifecycle.ApplyTags",
+            "#/\$defs/wow.lifecycle.DeleteAggregate",
             "#/\$defs/sample.CartCreated",
             "#/\$defs/sample.ItemAdded",
             "#/\$defs/sales.Refund",

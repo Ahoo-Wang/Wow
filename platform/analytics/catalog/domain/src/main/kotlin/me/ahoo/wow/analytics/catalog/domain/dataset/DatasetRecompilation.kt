@@ -21,10 +21,9 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion
 import me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -39,7 +38,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
 @Saga
 class DatasetRecompilation {
     @OnEvent
-    suspend fun onSourceChanged(event: StateEvent<SourceState>, context: SagaContext): List<Command<RecompileDataset>> {
+    suspend fun onSourceChanged(
+        event: StateEvent<SourceState>,
+        context: SagaContext
+    ): List<CommandRequest<RecompileDataset>> {
         val source = event.ref.id
         // A job that reads every dataset, not a request: the datasets of the catalog, which is the platform's.
         val readers = context.queries.trusted().unbounded().snapshots<DatasetState>()
@@ -49,7 +51,7 @@ class DatasetRecompilation {
             .toList()
         return readers.map { dataset ->
             val id = AnalyticsCatalogContext.datasetIdOf(dataset.context, dataset.name)
-            context.command(DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id), RecompileDataset)
+            CommandRequest.to(DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id), RecompileDataset)
         }
     }
 
@@ -57,7 +59,7 @@ class DatasetRecompilation {
         this?.definition?.sources?.any { it.sourceId == source } == true
 
     private companion object {
-        val DATASET = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+        val DATASET = DatasetModel.TYPE
         val RECOMPILED = setOf(DatasetStatus.PUBLISHED, DatasetStatus.NEEDS_REVISION)
     }
 }

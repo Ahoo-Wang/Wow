@@ -15,13 +15,23 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
+/**
+ * A query for the page of results after a [cursor], in the order of [sort], with filtering and projection
+ * ([Queryable]).
+ *
+ * @property filter The filter expression the results match.
+ * @property projection The fields the results include or exclude.
+ * @property sort The order of the results, which the cursor follows.
+ * @property size The most items on the page, at least 1.
+ * @property cursor Where the page starts: the previous page's next cursor, or `null` for the first page.
+ */
 class CursorQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val size: Int = DEFAULT_SIZE,
-    override val cursor: String? = null,
-) : ICursorQuery {
+    val size: Int = DEFAULT_SIZE,
+    val cursor: String? = null,
+) : Queryable<CursorQuery> {
     init {
         require(size in 1 until Int.MAX_VALUE) {
             "size must be between 1 and ${Int.MAX_VALUE - 1}."
@@ -31,7 +41,7 @@ class CursorQuery @InternalWowApi constructor(
         }
     }
 
-    override fun withFilter(newFilter: FilterExpression): ICursorQuery = CursorQuery(
+    override fun withFilter(newFilter: FilterExpression): CursorQuery = CursorQuery(
         newFilter,
         projection,
         sort,
@@ -39,7 +49,7 @@ class CursorQuery @InternalWowApi constructor(
         cursor
     )
 
-    override fun withProjection(newProjection: Projection): ICursorQuery = CursorQuery(
+    override fun withProjection(newProjection: Projection): CursorQuery = CursorQuery(
         filter,
         newProjection,
         sort,
@@ -70,9 +80,4 @@ class CursorQuery @InternalWowApi constructor(
     override fun toString(): String = "CursorQuery(filter=$filter, projection=$projection, sort=$sort, size=$size, cursor=$cursor)"
 
     private fun valueFields(): List<Any?> = listOf(filter, projection, sort, size, cursor)
-}
-
-interface ICursorQuery : Queryable<ICursorQuery> {
-    val size: Int
-    val cursor: String?
 }

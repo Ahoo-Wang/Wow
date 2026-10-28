@@ -38,7 +38,7 @@ enum class MongoSharding {
 
     /** Whether a store over [client] with [ddl] shards its collections: asks the server only when it may. */
     fun shards(client: MongoClient, ddl: Ddl): Boolean =
-        this == AUTO && ddl == Ddl.AUTO && MongoShards.isMongos(client)
+        this == AUTO && ddl.creates && MongoShards.isMongos(client)
 
     @InternalWowApi
     companion object {
@@ -134,7 +134,8 @@ internal object MongoShards {
         index: Bson,
         chunks: List<Document> = emptyList(),
     ) {
-        MongoFormat.index(collection, index, IndexOptions().name(SHARD_KEY), Ddl.AUTO)
+        // Sharding runs only for a store that creates its schema: the key's index is created as it is.
+        MongoTimeouts.ddl(collection).createIndex(index, IndexOptions().name(SHARD_KEY))
         val namespace = collection.namespace.fullName
         val admin = MongoTimeouts.ddl(client.getDatabase(ADMIN))
         try {

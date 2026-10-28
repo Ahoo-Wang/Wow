@@ -48,13 +48,15 @@
 | 集成 | `wow-opentelemetry` | 观测接缝的追踪与指标 | wow-opentelemetry |
 | 宿主 | `wow-spring-boot` | 自动配置：按类路径装配，只做装配（D44） | wow-spring、wow-spring-boot-starter |
 | 测试 | `wow-test` | 函数式测试 DSL（聚合、订阅）；只依赖 `wow-kernel` | wow-test、wow-mock |
+| 测试 | `wow-test-query` | 处理器规格的真实内存查询（`memoryQueries`、`givenSnapshots`，D342）；依赖 `wow-test` 与 `wow-query`，`wow-test` 仍只依赖 `wow-kernel` | — |
+| 测试 | `wow-test-spring-boot` | 为测试启动的 Wow 应用（`wowServer<App>(profiles…)`）：公开与内部端口绑定回环地址、由系统选端口，排空、停止、等待超时缩短；JDK HttpClient 的 JSON 客户端（`Answer` 带 Jackson `JsonNode`）；只依赖 `wow-spring-boot`，`wow-test` 仍只依赖 `wow-kernel`（D200）；只有 `wow-spring-boot` 与它引入 Spring Boot | — |
 | 测试 | `wow-tck` | 端口合同测试；只依赖 `wow-spi` | wow-tck |
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
 
 平台模块（ops、view-store、analytics 的 catalog；dataset-registry 已并入 analytics catalog，D251）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。M7 把它们作为新的 V10 项目建在 `platform/<名字>/`（D146）。
 
-示例：eShop（`example/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
+示例：eShop（`examples/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
 
 9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。已定（D187）：wow-models 迁到 V10（`extensions/models`，P.8）；放弃 wow-apiclient（由 Manifest 生成的客户端替代）与 wow-cocache。
 
@@ -112,6 +114,9 @@ flowchart BT
     OAPI[wow-openapi] --> MAN
     HOST[wow-spring-boot] --> RT & HTTP
     TEST[wow-test] --> KER
+    TESTQ[wow-test-query] --> TEST
+    TESTQ --> Q
+    TESTSB[wow-test-spring-boot] --> HOST
     TCK[wow-tck] --> SPI
     MIG[wow-migrate-data] --> KER
 ```
@@ -139,12 +144,12 @@ query/          wow-query  query-tck
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
 edge/           wow-http  wow-client  wow-openapi  wow-cosec  wow-opentelemetry
 host/           wow-spring-boot
-test/           test-dsl  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
+test/           test-dsl  test-query  test-spring-boot  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
 extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
 bom/            bom/（wow-bom，项目 :bom）  dependencies/（wow-dependencies，项目 :wow-dependencies）
 platform/       ops/  view-store/  analytics/（平台服务，不发布）
-example/        eshop/（D204）  quickstart/（D217）  java-smoke/
+examples/        eshop/（D204）  quickstart/（D217）  java-smoke/
 deploy/         各服务的 Kubernetes 清单（eshop-ordering 等）
 typescript/     wow-client  wow-react  wow-generator  wow-view-engine  wow-view-store  storybook  integration-test
 documentation/  docs/（文档站）  designs/（本目录）；skills/  build-logic/  config/ 在根目录

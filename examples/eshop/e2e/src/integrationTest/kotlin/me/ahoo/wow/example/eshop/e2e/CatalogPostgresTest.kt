@@ -1,0 +1,165 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.example.eshop.e2e
+
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.dsl.countQuery
+import me.ahoo.wow.api.query.dsl.listQuery
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
+import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
+import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
+import org.testcontainers.postgresql.PostgreSQLContainer
+import java.math.BigDecimal
+import java.sql.DriverManager
+import java.util.UUID
+
+/**
+ * The catalog service on PostgreSQL (work package E.1): the storefront's queries run on the PostgreSQL snapshot
+ * backend, which builds the indexes the product's state declares with `@QueryIndex`. The same queries run on the
+ * memory backend in `:eshop-catalog-server` (`CatalogQueryContract`). An employee files the products and a buyer
+ * queries them: the catalog's aggregates belong to the tenant (decision D189), so the buyer's owner restricts nothing.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class CatalogPostgresTest {
+    private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
+    private val server = wowServer<CatalogServer>(
+        "postgres",
+        "dev",
+        properties = mapOf(
+            "spring.application.name" to "eshop-catalog-service",
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "wow.log.partitions" to 4,
+            // The test's class path holds the basket's domain too (EshopSharedJvmTest).
+            "wow.contexts.include" to "eshop-catalog",
+        ),
+    )
+
+    @AfterAll
+    fun close() {
+        try {
+            server.close()
+        } finally {
+            postgres.stop()
+        }
+    }
+
+    @Test
+    fun `the published products of a category should be paged cheapest first`() {
+        val category = create("/eshop-catalog/category/create-category", """{"name":"Mugs ${UUID.randomUUID()}"}""")
+        val brand = create("/eshop-catalog/brand/create-brand", """{"name":"Wow ${UUID.randomUUID()}"}""")
+        val byPrice = listOf("12.00", "5.00", "8.50", "3.25", "9.99").associateWith { price ->
+            create(
+                "/eshop-catalog/product/create-product",
+                """{"name":"Mug at $price","price":$price,"brandId":"$brand","categoryId":"$category"}""",
+            ).also { post("/eshop-catalog/product/$it/publish-product", "{}", EMPLOYEE).assertOk() }
+        }.toSortedMap(compareBy { it.toBigDecimal() }).values.toList()
+        // A draft of the category stays off the storefront.
+        create("/eshop-catalog/product/create-product", """{"name":"Draft","price":1,"categoryId":"$category"}""")
+        val published = """{"op":"AND","operands":[
+            {"op":"EQ","field":"state.categoryId","value":"$category"},
+            {"op":"EQ","field":"state.status","value":"PUBLISHED"}]}"""
+        val pages = (1..3).map { index ->
+            post(
+                PRODUCTS,
+                """{"kind":"paged","filter":$published,"sort":[{"field":"state.price","direction":"ASC"}],
+                    "pagination":{"index":$index,"size":2}}""",
+                BUYER,
+            ).assertOk().body!!
+        }
+        pages.map { it["total"].asLong() }.assert().containsOnly(5L)
+        pages.flatMap { page -> page["list"].values().map { it["aggregateId"].asString() } }
+            .assert().containsExactlyElementsOf(byPrice)
+    }
+
+    /**
+     * The storefront's query as a service's own code writes it: the query DSL with the compiler's
+     * the catalog api's `EshopCatalogContract.Product`, run in process on the node's snapshot query gateway, here the
+     * PostgreSQL backend.
+     */
+    @Test
+    fun `the storefront's query written with the DSL and the generated properties should run on PostgreSQL`() {
+        val category = create("/eshop-catalog/category/create-category", """{"name":"Cups ${UUID.randomUUID()}"}""")
+        val brand = create("/eshop-catalog/brand/create-brand", """{"name":"Wow ${UUID.randomUUID()}"}""")
+        val byPrice = listOf("6.00", "2.00", "4.00").associateWith { price ->
+            create(
+                "/eshop-catalog/product/create-product",
+                """{"name":"Cup at $price","price":$price,"brandId":"$brand","categoryId":"$category"}""",
+            ).also { post("/eshop-catalog/product/$it/publish-product", "{}", EMPLOYEE).assertOk() }
+        }
+        val query = listQuery {
+            filter {
+                EshopCatalogContract.Product.STATE__CATEGORY_ID eq category
+                EshopCatalogContract.Product.STATE__STATUS eq ProductStatus.PUBLISHED
+                EshopCatalogContract.Product.STATE__PRICE gte BigDecimal("3.00")
+            }
+            sort { EshopCatalogContract.Product.STATE__PRICE.desc() }
+        }
+        val products = server.bean<QueryApi>().trusted().snapshots<ProductState>()
+        runBlocking { products.list(query).toList() }.map { it.ref.id }
+            .assert().containsExactly(byPrice.getValue("6.00"), byPrice.getValue("4.00"))
+        val inCategory = countQuery { filter { EshopCatalogContract.Product.STATE__CATEGORY_ID eq category } }
+        runBlocking { products.count(inCategory) }.count.assert().isEqualTo(3L)
+    }
+
+    @Test
+    fun `the snapshot table should carry the storefront's indexes`() {
+        // The backend prefixes each index with its table and shortens a long name with a hash, so the definitions,
+        // not the Manifest's index names, say which keys each index leads with.
+        val definitions = DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { db ->
+            db.prepareStatement("SELECT indexdef FROM pg_indexes WHERE tablename = ? AND indexname LIKE ?").use {
+                it.setString(1, "wow_snapshot__eshop_catalog__product")
+                it.setString(2, "%ix_product_state%")
+                it.executeQuery().use { rows -> generateSequence { if (rows.next()) rows.getString(1) else null }.toList() }
+            }
+        }
+        definitions.assert().hasSize(4)
+        definitions.map { definition -> KEYS.filter { it in definition } }.assert().containsExactlyInAnyOrder(
+            listOf("categoryId", "status", "price"),
+            listOf("brandId", "status", "price"),
+            listOf("status", "price"),
+            listOf("price"),
+        )
+    }
+
+    private fun create(path: String, body: String): String =
+        post(path, body, EMPLOYEE).assertOk().body!!["ref"]["id"].asString()
+
+    private fun post(path: String, body: String, headers: Map<String, String>): Answer =
+        server.http.post(path, body, headers)
+
+    private fun Answer.assertOk(): Answer = also { status.assert().describedAs(text).isEqualTo(OK) }
+
+    private companion object {
+        const val OK = 200
+        const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
+        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
+        val BUYER = mapOf(USER to "alice", OWNER to "alice")
+        val KEYS = listOf("categoryId", "brandId", "status", "price")
+    }
+}

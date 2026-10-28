@@ -135,7 +135,7 @@ object MongoQueryIndexes {
         indexes: List<MongoQueryIndex>,
         ensure: (index: MongoQueryIndex) -> Unit,
     ): MongoQueryIndexReport {
-        if (mode == Ddl.NONE) return MongoQueryIndexReport()
+        if (!mode.checks) return MongoQueryIndexReport()
         val reports = indexes.groupBy { it.collection }.map { (collection, planned) ->
             manage(database, mode, collection, planned, ensure)
         }
@@ -161,8 +161,8 @@ object MongoQueryIndexes {
         }
         val missing = indexes.filter { it.name !in existing }
         val invalid = indexes.filter { index -> existing[index.name]?.let { !index.matches(it) } == true }
-        if (mode == Ddl.VALIDATE) {
-            // The host refuses the startup on what is missing or invalid.
+        if (!mode.creates) {
+            // Validating reports every missing or invalid index at once: the host refuses the startup naming them.
             return MongoQueryIndexReport(missing = missing.map { it.name }, invalid = invalid.map { it.name })
         }
         if (missing.isEmpty() && invalid.isEmpty()) return MongoQueryIndexReport()

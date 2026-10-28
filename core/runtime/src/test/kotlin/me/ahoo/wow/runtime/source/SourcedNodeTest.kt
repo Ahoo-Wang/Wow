@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.source
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.HandlerRetry
@@ -54,6 +55,7 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -96,7 +98,7 @@ class SourcedNodeTest {
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
         nullableState = true,
-    ) { event, context -> listOf(context.command(ACCOUNT.ref(event.ref.tenantId, event.ref.id), Deposit(1))) }
+    ) { event, context -> listOf(CommandRequest.to(ACCOUNT.ref(event.ref.tenantId, event.ref.id), Deposit(1))) }
 
     private fun subscription(name: String, kind: SubscriptionKind, nullable: Boolean = true) = SubscriptionManifest(
         name = name,
@@ -262,7 +264,7 @@ class SourcedNodeTest {
         bindings.sourced(node.context(BANK)).map { it.subscription.retry }.assert().containsExactly(retry, retry)
         // Decision D194: a handler of another context's stream, the saga too, starts from the beginning by default.
         bindings.sourced(node.context(BANK)).map { it.subscription.startFrom }.assert()
-            .containsExactly(StartFrom.BEGINNING, StartFrom.BEGINNING)
+            .containsExactly(StartFrom.BEGINNING, StartFrom.JOIN)
     }
 
     @Test
@@ -308,7 +310,9 @@ class SourcedNodeTest {
 
     @Test
     fun `a node with sourced subscriptions should need a source of topics and a published stream`() {
-        assertThrows<IllegalArgumentException> { node(topics = null) }.message.assert().contains("reads no topics")
+        val sourceless = assertThrows<WowConfigurationException> { node(topics = null) }
+        sourceless.message.assert().contains("reads no topics")
+        sourceless.key.assert().isEqualTo("wow.transport")
         val unpublished = object : SubscriptionFactory {
             override fun subscriptions(context: me.ahoo.wow.runtime.node.ContextNode) = emptyList<Subscription>()
 

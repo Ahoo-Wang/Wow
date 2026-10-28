@@ -37,7 +37,7 @@ export interface DefineDatasetSpec {
 
 /**
  * A dataset's definition, derived from its descriptor (host-integration.md
- * 3.2, D84): a dataset is published at run time, so its definition is not
+ * 3.2): a dataset is published at run time, so its definition is not
  * code. Every field of the record the descriptor lists appears, in the
  * descriptor's order — a dataset's declaration already chose them, as a
  * column it does not declare is never exposed — labelled by its

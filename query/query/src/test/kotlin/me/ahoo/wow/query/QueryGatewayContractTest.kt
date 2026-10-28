@@ -25,8 +25,6 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -111,7 +109,7 @@ class QueryGatewayContractTest {
         @Volatile
         var after: CursorPosition? = null
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             emit(snapshotNode())
             emit(snapshotNode())
         }
@@ -121,7 +119,7 @@ class QueryGatewayContractTest {
             return twoRows()
         }
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = 2
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long = 2
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
             emit(WowJson.mapper.createObjectNode().put("tenant", "tenant").put("count", 2))

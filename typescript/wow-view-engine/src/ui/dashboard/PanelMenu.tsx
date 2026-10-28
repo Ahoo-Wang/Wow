@@ -103,7 +103,7 @@ interface PanelMenuProps {
 }
 
 /**
- * 「⋯」 on a panel's header (D22 D): 「数据」 — the panel as a reader uses it
+ * 「⋯」 on a panel's header: 「数据」 — the panel as a reader uses it
  * — and, while the board is built, 「编辑面板」. An item exists only when it can
  * be done here: the host's route for 在工作台中打开, a tab bar for 移到标签页,
  * a panel owning its analysis for 另存为视图 (D4). Never an empty menu: the

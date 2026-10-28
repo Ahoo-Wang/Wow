@@ -38,9 +38,13 @@ class ManifestMergerTest {
                 "/billing/cart/{id}/create-cart",
                 "/billing/cart/create-cart",
                 "/billing/cart/{id}/put-item",
+                "/billing/cart/{id}/wow.lifecycle.apply-tags",
+                "/billing/cart/{id}",
                 "/shop/cart/{id}/create-cart",
                 "/shop/cart/create-cart",
                 "/shop/cart/{id}/put-item",
+                "/shop/cart/{id}/wow.lifecycle.apply-tags",
+                "/shop/cart/{id}",
             )
     }
 
@@ -102,6 +106,7 @@ class ManifestMergerTest {
         }.conflicts
         conflicts.assert().containsExactly(
             "context wow of a.json takes a name the framework reserves",
+            "command wow.cart.wow.lifecycle.RestoreAggregate of a.json takes a name the framework reserves (wow.*)",
             "route POST /wow/cart/{id}/query of wow.cart.Query (a.json) ends in a segment the framework reserves",
             "route POST /wow/cart/query of wow.cart.Query (a.json) ends in a segment the framework reserves",
             "route POST /wow/cart/{id}/state of wow.cart.State (a.json) ends in a segment the framework reserves",
@@ -110,6 +115,34 @@ class ManifestMergerTest {
                 "(a.json) ends in a segment the framework reserves",
             "route POST /wow/cart/wow.lifecycle.restore-aggregate of wow.cart.wow.lifecycle.RestoreAggregate " +
                 "(a.json) ends in a segment the framework reserves",
+        )
+    }
+
+    @Test
+    fun `a system command should be named in the system namespace, and its routes the framework's alone`() {
+        val cart = Manifests.cart()
+        val misnamed = CommandManifest(
+            name = "Purge",
+            schema = Manifest.schemaRef("sample.Purge"),
+            routes = listOf(RouteManifest("POST", "/shop/cart/{id}/purge")),
+            system = true,
+        )
+        // A domain command routed where the framework's DeleteAggregate is.
+        val shadow = CommandManifest(
+            name = "Remove",
+            schema = Manifest.schemaRef("sample.Remove"),
+            routes = listOf(CommandRoutes.deleteRoute("shop", "cart")),
+        )
+        val fragment = Manifests.fragment(
+            aggregates = listOf(cart.copyWith(commands = cart.commands + misnamed + shadow))
+        )
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "system command shop.cart.Purge of a.json is not named in the system namespace (wow.*)",
+            "route DELETE /shop/cart/{id} is declared by shop.cart.wow.lifecycle.DeleteAggregate (a.json) and " +
+                "shop.cart.Remove (a.json)",
         )
     }
 
@@ -155,9 +188,8 @@ class ManifestMergerTest {
     fun `aggregates listing the same lifecycle commands should not conflict and keep their lists`() {
         val basket = Manifests.cart(aggregate = "basket").let { basket ->
             basket.copyWith(
-                commands = emptyList(),
+                commands = listOf(SystemCommands.lifecycle("shop", "basket", Manifests.LIFECYCLE.first())),
                 events = emptyList(),
-                lifecycle = Manifests.LIFECYCLE.take(1),
             )
         }
         val shop = ManifestFragment("shop.json", Manifests.fragment("shop", listOf(Manifests.cart(), basket)))
@@ -165,7 +197,11 @@ class ManifestMergerTest {
 
         val merged = ManifestMerger.merge(listOf(shop, billing))
 
-        merged.contexts.flatMap { context -> context.aggregates.map { "${context.name}.${it.name}" to it.lifecycle } }
+        merged.contexts.flatMap { context ->
+            context.aggregates.map { aggregate ->
+                "${context.name}.${aggregate.name}" to aggregate.commands.filter { it.system }.map { it.name }
+            }
+        }
             .assert().containsExactly(
                 "billing.cart" to Manifests.LIFECYCLE,
                 "shop.cart" to Manifests.LIFECYCLE,

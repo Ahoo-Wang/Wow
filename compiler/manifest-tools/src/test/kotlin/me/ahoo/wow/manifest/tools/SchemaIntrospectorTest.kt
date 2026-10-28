@@ -34,7 +34,9 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -246,7 +248,13 @@ class SchemaIntrospectorTest {
     @Test
     fun `the body of each lifecycle command an aggregate lists should be a definition keyed by its name`() {
         val aggregate = fragment().contexts.single().aggregates.single()
-            .copyWith(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
+            .let { cart ->
+                cart.copyWith(
+                    commands = cart.commands + (Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown").map {
+                        SystemCommands.lifecycle("shop", cart.name, it)
+                    },
+                )
+            }
         val fragment = fragment().copyWith(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val defs = introspector.complete(fragment).defs
         val lifecycleKeys = defs.keys.filter { it.startsWith("wow.") }
@@ -276,5 +284,17 @@ class SchemaIntrospectorTest {
         // A body the fragment already holds is kept.
         val known = fragment.copyWith(defs = mapOf(Lifecycle.DELETE_AGGREGATE to mapOf("type" to "object")))
         introspector.complete(known).defs[Lifecycle.DELETE_AGGREGATE].assert().isEqualTo(mapOf("type" to "object"))
+    }
+
+    @Test
+    fun `the bodies of the snapshot rebuild and the job commands should be definitions keyed by their names`() {
+        val aggregate = fragment().contexts.single().aggregates.single()
+            .let { cart -> cart.copyWith(commands = cart.commands + SystemCommands.rebuild("shop", cart.name)) }
+        val context = ContextManifest("shop", aggregates = listOf(aggregate), commands = SystemCommands.jobs("shop"))
+        val defs = introspector.complete(fragment().copyWith(contexts = listOf(context))).defs
+        SystemCommands.REBUILD.assert().isEqualTo(SnapshotRebuilds.REBUILD)
+        defs.keys.filter { it.startsWith("wow.") }.assert()
+            .containsExactlyInAnyOrder(SystemCommands.REBUILD, *SystemCommands.JOBS.toTypedArray())
+        (defs[SystemCommands.REBUILD] as Map<*, *>)["required"].assert().isEqualTo(listOf("ids"))
     }
 }

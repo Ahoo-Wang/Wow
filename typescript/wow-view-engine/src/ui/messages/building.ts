@@ -12,7 +12,7 @@
  */
 
 /**
- * Building a board, batch B3 (D22 C–E): the tab bar, a new analysis made
+ * Building a board, batch B3: the tab bar, a new analysis made
  * inside the dashboard and saving it as a view, and a panel's own look.
  */
 export const buildingMessages = {

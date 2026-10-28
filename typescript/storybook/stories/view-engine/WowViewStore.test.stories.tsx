@@ -12,12 +12,9 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import {
-  Fetcher,
-  type FetchExchange,
-  type RequestInterceptor,
-} from '@ahoo-wang/fetcher';
-import { DatasetClient } from '@ahoo-wang/wow-client';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { DatasetClient, WowHeaders } from '@ahoo-wang/wow-client';
+import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
@@ -81,23 +78,18 @@ const service: {
   personal?: string;
 } = {};
 
-/** The headers the service's caller resolver reads: a user with the shared role. */
-class Caller implements RequestInterceptor {
-  readonly name = 'StoryCaller';
-  readonly order = 0;
-  intercept(exchange: FetchExchange): void {
-    Object.assign(exchange.ensureRequestHeaders(), {
-      'X-User': 'alice',
-      'X-Tenant': 'retail',
-      'X-Role': 'view-store.shared-writer',
-      'CoSec-App-Id': 'orders-console',
-    });
-  }
-}
-
+/** A fetcher that asks as the service's caller resolver reads it: a user with the shared role. */
 function caller(): Fetcher {
   const fetcher = new Fetcher({ baseURL: BASE_URL });
-  fetcher.interceptors.request.use(new Caller());
+  fetcher.interceptors.request.use(
+    developmentCaller({
+      user: 'alice',
+      owner: 'alice',
+      tenant: 'retail',
+      roles: ['view-store.shared-writer'],
+      app: 'orders-console',
+    }),
+  );
   return fetcher;
 }
 
@@ -217,7 +209,7 @@ export const ListsAndQueries: Story = {
     ).toContain('orders');
     await expect(
       sent('POST', /^\/view-store\/view\/snapshot\/query$/).map(request =>
-        request.headers.get('Wow-Scope'),
+        request.headers.get(WowHeaders.SCOPE),
       ),
     ).toEqual(expect.arrayContaining([null, 'owner="(shared)"']));
     await expect(
@@ -254,8 +246,10 @@ export const SavesASharedView: Story = {
       `/view-store/view/${service.shared}/save-view`,
     );
     await expect(saveView.headers.get('If-Match')).toBe('"1"');
-    await expect(saveView.headers.get('Wow-Scope')).toBe('owner="(shared)"');
-    await expect(saveView.headers.get('Wow-Request-Id')).toBeTruthy();
+    await expect(saveView.headers.get(WowHeaders.SCOPE)).toBe(
+      'owner="(shared)"',
+    );
+    await expect(saveView.headers.get(WowHeaders.REQUEST_ID)).toBeTruthy();
   },
 };
 
@@ -283,8 +277,8 @@ export const SharesAndClaims: Story = {
     await expect(share.path).toBe(
       `/view-store/view/${service.personal}/share-view`,
     );
-    await expect(share.headers.get('Wow-Scope')).toBeNull();
-    await expect(share.headers.get('Wow-Wait')).toContain(
+    await expect(share.headers.get(WowHeaders.SCOPE)).toBeNull();
+    await expect(share.headers.get(WowHeaders.WAIT)).toContain(
       'ViewAudienceSaga.onAudienceChanged',
     );
 
@@ -298,7 +292,7 @@ export const SharesAndClaims: Story = {
     await expect(claim.path).toBe(
       `/view-store/view/${service.personal}/claim-view`,
     );
-    await expect(claim.headers.get('Wow-Scope')).toBe('owner="(shared)"');
+    await expect(claim.headers.get(WowHeaders.SCOPE)).toBe('owner="(shared)"');
     await waitFor(() =>
       expect(
         document.querySelector<HTMLElement>(

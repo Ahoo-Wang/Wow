@@ -88,6 +88,10 @@ const config: StorybookConfig = {
             packagesRoot,
             'wow-client/src/dsl.ts',
           ),
+          '@ahoo-wang/wow-client/testing': join(
+            packagesRoot,
+            'wow-client/src/testing.ts',
+          ),
           '@ahoo-wang/wow-client': join(
             packagesRoot,
             'wow-client/src/index.ts',

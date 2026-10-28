@@ -29,7 +29,7 @@ import { Truncated } from '../kit/Truncated.js';
 /**
  * An embed's first row, when it has one: its title as a heading at the
  * level the host's outline calls for — and under it, where handed one, the
- * words that say what the numbers are read as (D70) — and on the right
+ * words that say what the numbers are read as — and on the right
  * what the host switched on — 在工作台中打开, the export, 「铺满屏幕」.
  * Nothing at all when there is neither: an embed is its result, and a row
  * of chrome nobody asked for is what it exists not to add (D10).
@@ -130,7 +130,7 @@ export function OpenInWorkbench({
 }
 
 /**
- * 「铺满屏幕」 on an embed (`EmbedBaseProps.expandable`, D36): the surface
+ * 「铺满屏幕」 on an embed (`EmbedBaseProps.expandable`): the surface
  * the button stands on fills the screen in place — the same
  * `useViewExpansion` a workbench's title bar holds, pointed at the embed's
  * own `.fve-root` through the button itself — and Escape or the button
@@ -145,8 +145,8 @@ export function EmbedExpand() {
 /**
  * `EmbedExpand` held by the caller, for an embed that decides where the
  * button stands (`EmbeddedDashboard`: its first row, else the end of the
- * filter bar or the tabs, D10) and what it draws while the screen is its
- * (D70: a title and the caption). The expansion lives with the caller, so
+ * filter bar or the tabs) and what it draws while the screen is its
+ * (a title and the caption). The expansion lives with the caller, so
  * the button moving between rows — the filter bar giving way as the board
  * narrows — never ends it. No button while `enabled` is off.
  */

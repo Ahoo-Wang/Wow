@@ -107,7 +107,6 @@ class HostEventStoresTest {
             "wow.stores.main.type" to "memory",
             "wow.stores.search.type" to "search",
             "wow.log.store" to "main",
-            "wow.query.memory.enabled" to "true",
             "wow.aggregates.[bank.account].query.events.store" to "search",
             sources = sources,
         )
@@ -138,7 +137,6 @@ class HostEventStoresTest {
             "wow.stores.main.type" to "memory",
             "wow.stores.search.type" to "search",
             "wow.log.store" to "main",
-            "wow.query.memory.enabled" to "true",
             "wow.aggregates.[bank.account].query.events.store" to "search",
             sources = sources + SearchSinks::class.java,
         )
@@ -160,7 +158,6 @@ class HostEventStoresTest {
                 "wow.stores.main.type" to "memory",
                 "wow.stores.search.type" to "search",
                 "wow.log.store" to "main",
-                "wow.query.memory.enabled" to "true",
                 "wow.aggregates.[bank.account].query.events.store" to "search",
                 sources = sources + SearchSinks::class.java,
             )
@@ -188,7 +185,6 @@ class HostEventStoresTest {
             "wow.stores.main.type" to "memory",
             "wow.stores.search.type" to "search",
             "wow.log.store" to "main",
-            "wow.query.memory.enabled" to "true",
             sources = sources,
         )
         host.use {
@@ -214,6 +210,7 @@ class HostEventStoresTest {
             startHost(
                 "wow.stores.main.type" to "memory",
                 "wow.stores.other.type" to "memory",
+                "wow.query.memory.enabled" to false,
                 "wow.log.store" to "main",
                 "wow.aggregates.[bank.account].query.events.store" to "other",
             ).close()

@@ -11,18 +11,19 @@
  * limitations under the License.
  */
 
-import type { FetchExchange, RequestInterceptor } from "@ahoo-wang/fetcher";
+import type { RequestInterceptor } from "@ahoo-wang/fetcher";
+import { developmentCaller } from "@ahoo-wang/wow-client";
 import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 
 /**
  * Who calls the analytics catalog. A deployment (the server's `cosec`
  * profile) reads it from the CoSec access token the analyst signed in with
  * (`via: "cosec"`): its subject, its tenant and its roles, which the console
- * reads from the token too. A local run (`wow.platform.trust-identity-headers`)
- * reads it from request headers instead (`AnalyticsCatalogCallers`): `X-User`
- * names the caller — without it the service answers 401 — `X-Tenant` its
- * tenant (`(platform)`, the catalog's, when left out), `X-Role` its roles
- * ({@link CallerHeaders}).
+ * reads from the token too. A development run of the service (its `dev`
+ * profile) reads it from request headers instead (the host's development
+ * callers): `Wow-User` names the caller — without it the service answers 401
+ * — `Wow-Tenant` its tenant (`(platform)`, the catalog's, sent always),
+ * `Wow-Roles` its roles ({@link callerHeaders}).
  */
 export interface CatalogCaller {
   user: string;
@@ -32,11 +33,7 @@ export interface CatalogCaller {
   via?: "cosec";
 }
 
-export const USER_HEADER = "X-User";
-export const TENANT_HEADER = "X-Tenant";
-export const ROLES_HEADER = "X-Role";
-
-/** The catalog's roles (`AnalyticsCatalogCallers`, D251 ②). */
+/** The catalog's roles (`AnalyticsCatalogRoles`, D251 ②). */
 export const ADMIN_ROLE = "analytics.catalog.admin";
 export const APPROVER_ROLE = "analytics.catalog.approver";
 export const EDITOR_ROLE = "analytics.catalog.editor";
@@ -206,20 +203,14 @@ function safeStorage(): Storage | null {
  * Sends the caller of headers in force as the headers the catalog reads;
  * a CoSec token's caller goes as its token instead (`withCoSec`).
  */
-export class CallerHeaders implements RequestInterceptor {
-  readonly name = "CatalogCallerHeaders";
-  readonly order = 0;
-
-  constructor(private readonly caller: () => CatalogCaller | null) {}
-
-  intercept(exchange: FetchExchange): void {
-    const caller = this.caller();
-    if (!caller || caller.via === "cosec") return;
-    const headers = exchange.ensureRequestHeaders();
-    headers[USER_HEADER] = caller.user;
-    headers[TENANT_HEADER] = caller.tenant;
-    if (caller.roles.length) headers[ROLES_HEADER] = caller.roles.join(",");
-  }
+export function callerHeaders(
+  caller: () => CatalogCaller | null,
+): RequestInterceptor {
+  return developmentCaller(() => {
+    const current = caller();
+    if (!current || current.via === "cosec") return null;
+    return { user: current.user, tenant: current.tenant, roles: current.roles };
+  });
 }
 
 /** What a caller is known by: another one reads other records. */

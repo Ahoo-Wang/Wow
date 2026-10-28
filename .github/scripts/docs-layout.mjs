@@ -34,7 +34,7 @@ export const MARKDOWN_LOCATIONS = [
   // Storybook's scenario catalog, which the stories cite by section.
   /^typescript\/storybook\/docs\/scenarios\.md$/,
   // The eShop's developer-experience gaps, to close before M7.
-  /^example\/eshop\/DX-GAPS\.md$/,
+  /^examples\/eshop\/DX-GAPS\.md$/,
   // The TypeScript ledger and release runbooks (the JVM's ledger is the roadmap's §6).
   /^typescript\/(?:TODO|RELEASING|RELEASE_NOTES_TEMPLATE)\.md$/,
   // A minor release's notes draft, deleted once the release is published.

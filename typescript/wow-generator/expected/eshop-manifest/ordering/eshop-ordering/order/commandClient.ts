@@ -4,18 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { ApplyTags, AwaitStockValidation, CancelOrder, ConfirmOrderStock, PayOrder, ShipOrder, SubmitOrder, TransferOwner, TransferSpace } from '../types.js';
 import { OrderAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-ordering.order`. */
-export const OrderCommandPaths = {
-  AWAIT_STOCK_VALIDATION: '/eshop-ordering/order/{id}/await-stock-validation',
-  CANCEL_ORDER: '/eshop-ordering/order/{id}/cancel-order',
-  CONFIRM_ORDER_STOCK: '/eshop-ordering/order/{id}/confirm-order-stock',
-  PAY_ORDER: '/eshop-ordering/order/{id}/pay-order',
-  SHIP_ORDER: '/eshop-ordering/order/{id}/ship-order',
-  SUBMIT_ORDER: '/eshop-ordering/order/{id}/submit-order',
-  SUBMIT_ORDER_WITHOUT_ID: '/eshop-ordering/order/submit-order',
-} as const;
-
-/** Sends the commands of `eshop-ordering.order`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-ordering.order`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class OrderCommandClient {
   readonly gateway: CommandGateway;
 
@@ -30,12 +19,12 @@ export class OrderCommandClient {
    * Produces `OrderAwaitingValidation`.
    */
   awaitStockValidation(id: string, body: AwaitStockValidation = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.AWAIT_STOCK_VALIDATION, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/await-stock-validation' }], body, id });
   }
 
   /** `AwaitStockValidation`, answered as one result per hop of its wait (`text/event-stream`). */
   awaitStockValidationStream(id: string, body: AwaitStockValidation = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.AWAIT_STOCK_VALIDATION, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/await-stock-validation' }], body, id });
   }
 
   /**
@@ -44,12 +33,12 @@ export class OrderCommandClient {
    * Produces `OrderCancelled`.
    */
   cancelOrder(id: string, body: CancelOrder, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.CANCEL_ORDER, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.CancelOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/cancel-order' }], body, id });
   }
 
   /** `CancelOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   cancelOrderStream(id: string, body: CancelOrder, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.CANCEL_ORDER, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.CancelOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/cancel-order' }], body, id });
   }
 
   /**
@@ -58,12 +47,12 @@ export class OrderCommandClient {
    * Produces `OrderStockConfirmed`, `OrderStockItemConfirmed`.
    */
   confirmOrderStock(id: string, body: ConfirmOrderStock, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.CONFIRM_ORDER_STOCK, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/confirm-order-stock' }], body, id });
   }
 
   /** `ConfirmOrderStock`, answered as one result per hop of its wait (`text/event-stream`). */
   confirmOrderStockStream(id: string, body: ConfirmOrderStock, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.CONFIRM_ORDER_STOCK, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/confirm-order-stock' }], body, id });
   }
 
   /**
@@ -72,12 +61,12 @@ export class OrderCommandClient {
    * Produces `OrderPaid`.
    */
   payOrder(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.PAY_ORDER, body, { ...options, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.PayOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/pay-order' }], body, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
   }
 
   /** `PayOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   payOrderStream(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.PAY_ORDER, body, { ...options, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.PayOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/pay-order' }], body, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
   }
 
   /**
@@ -86,12 +75,12 @@ export class OrderCommandClient {
    * Produces `OrderShipped`.
    */
   shipOrder(id: string, body: ShipOrder = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.SHIP_ORDER, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.ShipOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/ship-order' }], body, id });
   }
 
   /** `ShipOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   shipOrderStream(id: string, body: ShipOrder = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.SHIP_ORDER, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.ShipOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/ship-order' }], body, id });
   }
 
   /**
@@ -101,12 +90,12 @@ export class OrderCommandClient {
    * Produces `OrderSubmitted`.
    */
   submitOrder(body: SubmitOrder, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, { ...options, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
+    return this.gateway.wait({ ...options, command: 'eshop-ordering.order.SubmitOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/submit-order' }, { method: 'POST', path: '/eshop-ordering/order/submit-order' }], body, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
   }
 
   /** `SubmitOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   submitOrderStream(body: SubmitOrder, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, { ...options, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
+    return this.gateway.stream({ ...options, command: 'eshop-ordering.order.SubmitOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/submit-order' }, { method: 'POST', path: '/eshop-ordering/order/submit-order' }], body, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
   }
 
   /**
@@ -114,7 +103,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(OrderAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -122,7 +111,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(OrderAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-ordering/order/{id}' }], id });
   }
 
   /**
@@ -130,7 +119,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(OrderAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -138,7 +127,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(OrderAggregate.path, id, LifecycleCommands.TRANSFER_OWNER, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.transfer-owner' }], id, body });
   }
 
   /**
@@ -146,6 +135,6 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(OrderAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

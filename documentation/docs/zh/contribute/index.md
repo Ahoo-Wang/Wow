@@ -23,7 +23,7 @@ Wow 仓库包含框架的 JVM 模块、TypeScript 包、平台服务、eShop 示
 | `test/` | `:test-dsl`（制品 `wow-test`）、`:tck` 和 `:tck-containers`、`:architecture`、基准测试、覆盖率报告 |
 | `bom/` | `:bom`（`wow-bom`）和 `:wow-dependencies` |
 | `platform/` | ops 服务与控制台、视图存储、分析目录 |
-| `example/` | eShop 的五个上下文及其 e2e 测试、快速开始、Java 冒烟测试 |
+| `examples/` | eShop 的五个上下文及其 e2e 测试、快速开始、Java 冒烟测试 |
 | `typescript/` | npm 包及其 Storybook，有自己的规则，见 `typescript/AGENTS.md` |
 | `documentation/` | 站点（`docs/`）和设计记录（`designs/`） |
 | `skills/` | 六个 Agent Skills |

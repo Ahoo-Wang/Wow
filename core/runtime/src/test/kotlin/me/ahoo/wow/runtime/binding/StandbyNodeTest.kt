@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
@@ -30,7 +31,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -91,7 +92,7 @@ class StandbyNodeTest {
     private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
         handled += event.ref.id
         event.events.filterIsInstance<Placed>().map {
-            c.command(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
+            CommandRequest.to(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
         }
     }
 
@@ -112,7 +113,7 @@ class StandbyNodeTest {
     @AfterEach
     fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
 
-    private fun place(order: String, vararg items: String) = CommandRequest(
+    private fun place(order: String, vararg items: String) = ServerCommandRequest(
         context = SHOP,
         aggregate = "order",
         command = "Place",
