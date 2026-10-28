@@ -146,7 +146,7 @@ class NodeSampler(
 
     @InternalWowApi
     companion object {
-        val DEFAULT_INTERVAL: Duration = 15.seconds
+        val DEFAULT_INTERVAL: Duration = 10.seconds
         const val DEFAULT_MAX_PARKED: Int = 10_000
         val DEFAULT_READ_TIMEOUT: Duration = 5.seconds
         private val logger = KotlinLogging.logger {}

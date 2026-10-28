@@ -42,7 +42,9 @@ import org.springframework.core.io.DefaultResourceLoader
  */
 class HealthAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(HealthAutoConfiguration::class.java))
+        .withConfiguration(
+            AutoConfigurations.of(NodeSamplerAutoConfiguration::class.java, HealthAutoConfiguration::class.java)
+        )
         .withUserConfiguration(NodeConfiguration::class.java)
 
     @Test
