@@ -25,8 +25,8 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.observation.StoreFallbacks
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
@@ -40,10 +40,14 @@ class SnapshotTailReadsTest {
     private val ref = type.ref("tenant", "c-1")
     private val memory = InMemoryEventLog()
     private val snapshots = InMemorySnapshotStore()
-    private val fallbacks = ArrayList<Triple<String, String, String>>()
+    private val fallbacks =
+        ArrayList<Triple<String, ObservedEvent.StoreFellBack.Capability, ObservedEvent.StoreFellBack.Reason>>()
     private val observer = object : Observer {
-        override fun storeFellBack(context: String, capability: String, reason: String) {
-            fallbacks += Triple(context, capability, reason)
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.StoreFellBack -> fallbacks += Triple(event.context, event.capability, event.reason)
+                else -> Unit
+            }
         }
     }
     private val served = SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList()))
@@ -86,8 +90,16 @@ class SnapshotTailReadsTest {
         val reads = reads { _, _ -> throw IOException("The statement failed.") }
         repeat(2) { reads.read(ref, snapshots, 2).tail.streams.map { it.version }.assert().containsExactly(1) }
         fallbacks.assert().containsExactly(
-            Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
-            Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
+            Triple(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED
+            ),
+            Triple(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED
+            ),
         )
     }
 

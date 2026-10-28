@@ -21,8 +21,8 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.core.JacksonException
@@ -56,7 +56,7 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
  * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the reader
  * [readers] gives its type, the one of a store holding both ([me.ahoo.wow.spi.store.Store.snapshotTails]), else apart
  * ([readSnapshotTailApart]). When the reader fails, the read is done apart: the first time logged as a warning,
- * every time counted with [Observer.storeFellBack].
+ * every time counted with [ObservedEvent.StoreFellBack].
  */
 internal class SnapshotTailReads(
     private val log: EventLog,
@@ -75,7 +75,7 @@ internal class SnapshotTailReads(
             @Suppress("TooGenericExceptionCaught") // Whatever the one read throws, the reads apart decide the outcome.
             failure: Exception,
         ) {
-            fellBack(ref, StoreFallbacks.FAILED)
+            fellBack(ref, ObservedEvent.StoreFellBack.Reason.FAILED)
             if (failedLogged.compareAndSet(false, true)) {
                 logger.warn(failure) {
                     "Reading the snapshot of $ref with its tail in one round trip failed: reading them apart. Later " +
@@ -88,8 +88,13 @@ internal class SnapshotTailReads(
         return log.readSnapshotTailApart(ref, snapshots, earlier)
     }
 
-    private fun fellBack(ref: AggregateRef, reason: String) =
-        observer.storeFellBack(ref.type.context, StoreFallbacks.SNAPSHOT_TAIL_READ, reason)
+    private fun fellBack(ref: AggregateRef, reason: ObservedEvent.StoreFellBack.Reason) = observer.observed(
+        ObservedEvent.StoreFellBack(
+            ref.type.context,
+            ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+            reason
+        ),
+    )
 }
 
 /**

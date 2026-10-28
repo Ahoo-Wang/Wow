@@ -26,6 +26,8 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.TailRead.Reason
 import me.ahoo.wow.spi.observation.Observer
 import java.util.TreeMap
 import java.util.concurrent.ConcurrentSkipListSet
@@ -103,7 +105,7 @@ class HandoffOptions @InternalWowApi constructor(
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
  *
- * Each read of the store is reported to [observer] ([Observer.tailRead]) with its reason. A node that does not own a
+ * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason. A node that does not own a
  * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
  */
 @InternalWowApi
@@ -240,7 +242,7 @@ class HandoffLog(
         private val pending = TreeMap<Long, LogEntry>()
 
         suspend fun run(collector: FlowCollector<LogEntry>) {
-            var reason = START
+            var reason = Reason.START
             while (true) {
                 collector.fromStore(reason)
                 reason = collector.fromMemory()
@@ -248,21 +250,21 @@ class HandoffLog(
         }
 
         /**
-         * Reads the store from the cursor up to the partition's head, when the head is past it; for a probe ([IDLE]),
+         * Reads the store from the cursor up to the partition's head, when the head is past it; for a probe ([ObservedEvent.TailRead.Reason.IDLE]),
          * not while an append of this node in flight hands over what the head shows ([ownCommitAhead]).
          */
-        private suspend fun FlowCollector<LogEntry>.fromStore(reason: String) {
+        private suspend fun FlowCollector<LogEntry>.fromStore(reason: Reason) {
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
             val head = log.head(partition) ?: 0L
-            if (head > cursor && reason == IDLE && ownCommitAhead()) {
+            if (head > cursor && reason == Reason.IDLE && ownCommitAhead()) {
                 // This node's own commits first, from memory; what the head shows past them is other nodes', read now
                 // rather than a probe interval later.
                 deliverRun()
             }
             if (head > cursor) {
                 reads.incrementAndGet()
-                observer.tailRead(context, partition, reason)
+                observer.observed(ObservedEvent.TailRead(context, partition, reason))
                 log.tail(partition, cursor.takeIf { it > 0 })
                     .transformWhile {
                         emit(it)
@@ -293,17 +295,17 @@ class HandoffLog(
         }
 
         /** Continues the run from memory; returns why the store must be read. */
-        private suspend fun FlowCollector<LogEntry>.fromMemory(): String {
+        private suspend fun FlowCollector<LogEntry>.fromMemory(): Reason {
             while (true) {
                 deliverRun()
                 if (listener.overflowed.get()) {
-                    return OVERFLOW
+                    return Reason.OVERFLOW
                 }
                 if (pending.isEmpty()) {
-                    val entry = withTimeoutOrNull(options.probeInterval) { listener.entries.receive() } ?: return IDLE
+                    val entry = withTimeoutOrNull(options.probeInterval) { listener.entries.receive() } ?: return Reason.IDLE
                     hold(entry)
                 } else if (!awaitGap()) {
-                    return GAP
+                    return Reason.GAP
                 }
             }
         }
@@ -368,20 +370,5 @@ class HandoffLog(
                 cursor = entry.position.sequence
             }
         }
-    }
-
-    @InternalWowApi
-    companion object {
-        /** A tail opened: it reads what is committed before it continues from memory. */
-        const val START = "start"
-
-        /** A sequence missing from memory that no append of this node in flight can hand over any more. */
-        const val GAP = "gap"
-
-        /** More entries handed over than the tail holds. */
-        const val OVERFLOW = "overflow"
-
-        /** No hand-over for the probe interval, and entries past the tail in the store. */
-        const val IDLE = "idle"
     }
 }

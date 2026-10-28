@@ -84,7 +84,7 @@ class RecordingObserver : Observer {
     override fun admitting(context: String, aggregate: String, command: String, trace: Map<String, String>) =
         stage("admit", trace[TestTrace.TRACEPARENT])
 
-    override fun executing(command: Command<*>) = stage("execute", TestTrace.CURRENT.get())
+    override fun executing(command: Command<*>, commandType: String) = stage("execute", TestTrace.CURRENT.get())
 
     override fun deciding(command: Command<*>) = stage("decide", TestTrace.CURRENT.get())
 

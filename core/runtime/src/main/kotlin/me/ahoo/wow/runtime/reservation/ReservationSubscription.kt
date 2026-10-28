@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
@@ -54,7 +55,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 class ReservationSubscription(
     private val context: String,
     private val store: ReservationStore,
-    /** Told of each key a committed fact lost ([Observer.reservationLost]). */
+    /** Told of each key a committed fact lost ([ObservedEvent.ReservationLost]). */
     private val observer: Observer = Observer.NONE,
 ) {
     /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
@@ -76,7 +77,7 @@ class ReservationSubscription(
                     "${entry.ref}@${entry.version} reserved ${key.key} in $scope, which ${outcome.by.owner} took " +
                         "after its pending reservation expired: the committed fact lost its key."
                 }
-                observer.reservationLost(context)
+                observer.observed(ObservedEvent.ReservationLost(context))
             }
         }
         for (key in transport.releases) {

@@ -23,7 +23,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Stage
-import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE_ID
 import me.ahoo.wow.observability.WowAttributes.COMMAND
@@ -38,6 +37,7 @@ import me.ahoo.wow.observability.WowAttributes.TIMER_ID
 import me.ahoo.wow.observability.WowAttributes.VERSION
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.timer.Timer
 import java.util.concurrent.TimeUnit
@@ -87,12 +87,6 @@ class OtelObserver(
         return observation(parent, span)
     }
 
-    override fun executing(command: Command<*>): Observation =
-        executing(
-            command,
-            commandName(command.ref.type.context, command.ref.type.name, command.body.javaClass.simpleName)
-        )
-
     /**
      * The execution span carries [commandType], the kernel's resolved name (`context.aggregate.Name`, `@Name`
      * included), as the admission span carries the request's command under its type: one value for
@@ -117,7 +111,25 @@ class OtelObserver(
         }
     }
 
-    override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
+    override fun observed(event: ObservedEvent) {
+        when (event) {
+            is ObservedEvent.Refused -> refused(event.type, event.code)
+            is ObservedEvent.WaitTimedOut -> waitTimedOut(event.type, event.stage)
+            is ObservedEvent.SignalDropped -> signalDropped(event.reason.value)
+            is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome.value)
+            is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
+            is ObservedEvent.ReservationLost -> reservationLost(event.context)
+            is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability.value, event.reason.value)
+            is ObservedEvent.PartitionPaused -> pausedNotice(event.group, event.subscription, WowMetrics.PAUSED_KIND)
+            is ObservedEvent.PartitionResumed -> pausedNotice(event.group, event.subscription, WowMetrics.RESUMED_KIND)
+            is ObservedEvent.PartitionThrottled -> partitionThrottled(event.group, event.subscription, event.throttled)
+            is ObservedEvent.Backpressured -> backpressured(event.group, event.subscription, event.code)
+            is ObservedEvent.TailRead -> tailRead(event.context, event.reason.value)
+            is ObservedEvent.Undecodable -> undecodable(event.topic, event.parked)
+        }
+    }
+
+    private fun undecodable(topic: String, parked: Boolean) {
         cached.counter(
             WowMetrics.UNDECODABLE_MESSAGES,
             WowMetrics.TOPIC,
@@ -127,15 +139,7 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) {
-        pausedNotice(group, subscription, WowMetrics.PAUSED_KIND)
-    }
-
-    override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) {
-        pausedNotice(group, subscription, WowMetrics.RESUMED_KIND)
-    }
-
-    override fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) {
+    private fun partitionThrottled(group: String, subscription: String, throttled: Boolean) {
         cached.counter(
             WowMetrics.THROTTLED_NOTICES,
             WowMetrics.GROUP,
@@ -147,7 +151,7 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun backpressured(group: String, subscription: String, partition: Int, code: String) {
+    private fun backpressured(group: String, subscription: String, code: String) {
         cached.counter(
             WowMetrics.BACKPRESSURE_REFUSALS,
             WowMetrics.GROUP,
@@ -171,7 +175,7 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun refused(type: AggregateType, code: String) {
+    private fun refused(type: AggregateType, code: String) {
         cached.counter(
             WowMetrics.COMMAND_REFUSALS,
             WowMetrics.CONTEXT,
@@ -183,7 +187,7 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun waitTimedOut(type: AggregateType, stage: Stage) {
+    private fun waitTimedOut(type: AggregateType, stage: Stage) {
         cached.counter(
             WowMetrics.WAIT_TIMEOUTS,
             WowMetrics.CONTEXT,
@@ -195,29 +199,35 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun signalDropped(origin: String, reason: String) {
+    private fun signalDropped(reason: String) {
         cached.counter(WowMetrics.SIGNAL_DROPS, WowMetrics.REASON, reason).increment()
     }
 
-    override fun forwardFailed(type: AggregateType, outcome: String) {
+    private fun forwardFailed(type: AggregateType, outcome: String) {
         cached.counter(WowMetrics.FORWARD_FAILURES, WowMetrics.CONTEXT, type.context, WowMetrics.OUTCOME, outcome)
             .increment()
     }
 
-    override fun stateCache(context: String, outcome: String) {
-        if (outcome == StateCacheOutcome.EVICTED) {
+    private fun stateCache(context: String, outcome: ObservedEvent.StateCache.Outcome) {
+        if (outcome == ObservedEvent.StateCache.Outcome.EVICTED) {
             cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, WowMetrics.CONTEXT, context).increment()
         } else {
-            cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, WowMetrics.CONTEXT, context, WowMetrics.OUTCOME, outcome)
+            cached.counter(
+                WowMetrics.STATE_CACHE_LOOKUPS,
+                WowMetrics.CONTEXT,
+                context,
+                WowMetrics.OUTCOME,
+                outcome.value
+            )
                 .increment()
         }
     }
 
-    override fun reservationLost(context: String) {
+    private fun reservationLost(context: String) {
         cached.counter(WowMetrics.RESERVATION_LOSSES, WowMetrics.CONTEXT, context).increment()
     }
 
-    override fun storeFellBack(context: String, capability: String, reason: String) {
+    private fun storeFellBack(context: String, capability: String, reason: String) {
         cached.counter(
             WowMetrics.STORE_FALLBACKS,
             WowMetrics.CONTEXT,
@@ -229,7 +239,7 @@ class OtelObserver(
         ).increment()
     }
 
-    override fun tailRead(context: String, partition: Int, reason: String) {
+    private fun tailRead(context: String, reason: String) {
         cached.counter(WowMetrics.TAIL_READS, WowMetrics.CONTEXT, context, WowMetrics.REASON, reason).increment()
     }
 

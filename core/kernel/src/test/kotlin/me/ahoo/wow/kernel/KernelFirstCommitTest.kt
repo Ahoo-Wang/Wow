@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 
@@ -79,10 +80,13 @@ class KernelFirstCommitTest {
 
     @Test
     fun `each lookup of the state cache is reported as a hit or a miss`(): Unit = runTest {
-        val outcomes = mutableListOf<Pair<String, String>>()
+        val outcomes = mutableListOf<Pair<String, ObservedEvent.StateCache.Outcome>>()
         val observer = object : Observer {
-            override fun stateCache(context: String, outcome: String) {
-                outcomes += context to outcome
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.StateCache -> outcomes += event.context to event.outcome
+                    else -> Unit
+                }
             }
         }
         val kernel = Kernel(log, states = MapCache(), observer = observer)
@@ -90,8 +94,8 @@ class KernelFirstCommitTest {
         val cached = kernel.send(AddItem("apple", 1))
         cached.first.assert().isEqualTo(FirstCommit(log.read(ref, 1, 1).toList().single().commitTime, null))
         outcomes.assert().containsExactly(
-            "example" to StateCacheOutcome.MISS,
-            "example" to StateCacheOutcome.HIT,
+            "example" to ObservedEvent.StateCache.Outcome.MISS,
+            "example" to ObservedEvent.StateCache.Outcome.HIT,
         )
     }
 }

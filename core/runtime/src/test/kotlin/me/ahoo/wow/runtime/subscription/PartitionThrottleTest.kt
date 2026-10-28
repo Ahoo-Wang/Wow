@@ -18,6 +18,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -31,8 +32,11 @@ import kotlin.time.Duration.Companion.seconds
 class PartitionThrottleTest {
     private val events = CopyOnWriteArrayList<Boolean>()
     private val observer = object : Observer {
-        override fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) {
-            events += throttled
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.PartitionThrottled -> events += event.throttled
+                else -> Unit
+            }
         }
     }
 

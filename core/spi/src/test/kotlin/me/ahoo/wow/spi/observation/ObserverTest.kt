@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -60,19 +61,63 @@ class ObserverTest {
         val observer = Observer.NONE
         listOf(
             observer.admitting("shop", "cart", "Open", emptyMap()),
-            observer.executing(Command("c", "r", ref, Any())),
+            observer.executing(Command("c", "r", ref, Any()), "shop.cart.Open"),
             observer.deciding(Command("c", "r", ref, Any())),
             observer.appending(stream),
             observer.handling("s", "shop", stream, emptyMap(), null),
             observer.firing(timer),
         ).forEach { it.assert().isSameAs(Observation.NONE) }
         observer.resuming(mapOf("traceparent" to "t")).assert().isSameAs(EmptyCoroutineContext)
-        observer.storeFellBack("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED)
+        observer.observed(
+            ObservedEvent.StoreFellBack(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED
+            )
+        )
         Observation.NONE.context.assert().isSameAs(EmptyCoroutineContext)
         Observation.NONE.trace.assert().isEmpty()
         Observation.NONE.outcome("ok")
         Observation.NONE.failed(IllegalStateException())
         Observation.NONE.end()
+    }
+
+    @Test
+    fun `an observed event should be a value of its type and fields`() {
+        val cart = AggregateType("shop", "cart")
+        val refused = ObservedEvent.Refused(cart, "wow.command.busy")
+        refused.assert().isEqualTo(ObservedEvent.Refused(cart, "wow.command.busy"))
+            .hasSameHashCodeAs(ObservedEvent.Refused(cart, "wow.command.busy"))
+            .isNotEqualTo(ObservedEvent.Refused(cart, "wow.wait.timeout"))
+        // The same fields of another type are another event.
+        ObservedEvent.Backpressured("g", "s", 1, "down").assert()
+            .isNotEqualTo(ObservedEvent.PartitionPaused("g", "s", 1, "down"))
+        refused.toString().assert().isEqualTo("Refused(type=shop.cart, code=wow.command.busy)")
+        fun events(): List<ObservedEvent> = listOf(
+            refused,
+            ObservedEvent.WaitTimedOut(cart, Stage.COMMITTED),
+            ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
+            ObservedEvent.ForwardFailed(cart, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),
+            ObservedEvent.StateCache("shop", ObservedEvent.StateCache.Outcome.HIT),
+            ObservedEvent.ReservationLost("shop"),
+            ObservedEvent.StoreFellBack(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED,
+            ),
+            ObservedEvent.PartitionPaused("g", "s", 1, "down"),
+            ObservedEvent.PartitionResumed("g", "s", 1, 500),
+            ObservedEvent.PartitionThrottled("g", "s", 1, true),
+            ObservedEvent.Backpressured("g", "s", 1, "wow.command.busy"),
+            ObservedEvent.TailRead("shop", 1, ObservedEvent.TailRead.Reason.GAP),
+            ObservedEvent.Undecodable("t", 1, 7, parked = false),
+        )
+        // Each event equals an equal one built apart, by its fields, and shows them.
+        events().map { it.javaClass }.assert().doesNotHaveDuplicates()
+        events().zip(events()).forEach { (event, same) ->
+            event.assert().isEqualTo(same).hasSameHashCodeAs(same).isNotEqualTo(null)
+            event.toString().assert().isEqualTo(same.toString()).startsWith(event.javaClass.simpleName + "(")
+        }
     }
 
     @Test
