@@ -48,6 +48,10 @@ internal class SchemaComponents(defs: Map<String, Any?>, reserved: Set<String>) 
     /** The reference to the component of the Manifest's schema reference [ref] (`#/$defs/<key>`). */
     fun ref(ref: String): Map<String, Any?> = Json.schemaRef(nameOf(Manifest.schemaKey(ref)))
 
+    /** An inline schema of the Manifest (a route's body or answer), its references pointing to their components. */
+    @Suppress("UNCHECKED_CAST")
+    fun inline(schema: Map<String, Any?>): Map<String, Any?> = rewrite(schema) as Map<String, Any?>
+
     /** The name of the component of the key [key]: an unresolved one is named as it would be. */
     private fun nameOf(key: String): String = names[key] ?: key.replace(NOT_ALLOWED, "_")
 

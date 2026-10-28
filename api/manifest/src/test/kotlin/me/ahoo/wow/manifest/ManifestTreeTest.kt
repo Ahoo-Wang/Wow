@@ -565,7 +565,7 @@ class ManifestTreeTest {
                 RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
                 RouteParameterManifest("limit", RouteParameterManifest.Location.QUERY, mapOf("type" to "integer")),
             ),
-            response = "#/\$defs/sample.CartState",
+            response = Manifest.arraySchema(Manifest.refSchema("sample.CartState")),
             errors = listOf("cart.empty"),
             description = "The day's summary.",
             deprecated = true,

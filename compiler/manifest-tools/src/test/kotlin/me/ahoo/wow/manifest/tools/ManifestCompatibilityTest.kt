@@ -758,8 +758,8 @@ class ManifestCompatibilityTest {
             RouteParameterManifest("day", RouteParameterManifest.Location.PATH, mapOf("type" to "string")),
             RouteParameterManifest("limit", RouteParameterManifest.Location.QUERY, INTEGER, required = false),
         ),
-        request = Manifest.schemaRef("shop.Filter"),
-        response = Manifest.schemaRef("shop.Summary"),
+        request = Manifest.refSchema("shop.Filter"),
+        response = Manifest.arraySchema(Manifest.refSchema("shop.Summary")),
         errors = listOf("shop.summary.closed"),
     )
 
@@ -817,7 +817,7 @@ class ManifestCompatibilityTest {
         routeChanges(routeBaseline.def("shop.Filter", schema("status" to STRING, "since" to STRING))).assert()
             .containsExactly("ADDITIVE contexts[shop].routes[summary].request.since: optional field added")
         routeChanges(routeBaseline.def("shop.Summary", schema("total" to INTEGER))).assert()
-            .containsExactly("BREAKING contexts[shop].routes[summary].response.total: field made optional")
+            .containsExactly("BREAKING contexts[shop].routes[summary].response[].total: field made optional")
         routeChanges(route { it.copyWith(response = null) }).assert()
             .containsExactly("BREAKING contexts[shop].routes[summary].response: body removed")
     }

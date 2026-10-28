@@ -282,9 +282,14 @@ private class Changes(val schemas: SchemaCompatibility) {
         (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
     }
 
-    private fun compareBody(path: String, baseline: String?, current: String?, direction: SchemaDirection) {
+    private fun compareBody(
+        path: String,
+        baseline: Map<String, Any?>?,
+        current: Map<String, Any?>?,
+        direction: SchemaDirection,
+    ) {
         when {
-            baseline != null && current != null -> list += schemas.compare(path, baseline, current, direction = direction)
+            baseline != null && current != null -> list += schemas.compareInline(path, baseline, current, direction)
             baseline != current -> breaking(path, if (current == null) "body removed" else "body added")
         }
     }

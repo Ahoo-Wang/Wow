@@ -2446,14 +2446,12 @@
             }
           },
           "request" : {
-            "type" : "string",
-            "pattern" : "^#/\\$defs/",
-            "description" : "#/$defs/<key>"
+            "type" : "object",
+            "description" : "An inline JSON Schema: a $ref into $defs, or an array of one."
           },
           "response" : {
-            "type" : "string",
-            "pattern" : "^#/\\$defs/",
-            "description" : "#/$defs/<key>"
+            "type" : "object",
+            "description" : "An inline JSON Schema: a $ref into $defs, or an array of one."
           },
           "errors" : {
             "type" : "array",

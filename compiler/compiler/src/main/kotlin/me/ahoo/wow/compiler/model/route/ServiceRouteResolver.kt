@@ -27,6 +27,7 @@ import me.ahoo.wow.compiler.model.symbol.Descriptions
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.manifest.Manifest
 
 /** A parameter of a service route's function, as its binding passes it. */
 internal sealed interface RouteArgument {
@@ -46,7 +47,8 @@ internal sealed interface RouteArgument {
 /**
  * A `@ServiceRoute` function: its class ([handler], a binary name for the Manifest and [handlerType] for the code),
  * the route's [name], [method] and [path] (below the context), the function's [arguments] in their order, the schema
- * [request] and [response] types (binary names; null for none, `Unit` answering 204), and the [errors] it lists.
+ * [request] and [response] (inline schemas: a class's `$ref`, or an array of one; null for none, `Unit` answering 204),
+ * and the [errors] it lists.
  */
 internal data class ServiceRouteBinding(
     val handler: String,
@@ -57,8 +59,8 @@ internal data class ServiceRouteBinding(
     val path: String,
     val arguments: List<RouteArgument>,
     val parameterSchemas: Map<String, Map<String, Any?>>,
-    val request: String?,
-    val response: String?,
+    val request: Map<String, Any?>?,
+    val response: Map<String, Any?>?,
     val errors: List<String>,
     val description: String?,
     val deprecated: Boolean,
@@ -68,8 +70,8 @@ internal data class ServiceRouteBinding(
 /**
  * Reads `@ServiceRoute` functions: a `suspend` member of a class, whose parameters are path
  * variables (named as in the path), `@RouteQuery` parameters, at most one [RouteCall] and, on a method with a body,
- * one body; scalars only in the path and the query; a body and an answer of a class, never a collection, a map or a
- * stream (`Flow`, a `Publisher`); `Unit` answers 204.
+ * one body; scalars only in the path and the query; a body and an answer of a class, or a `List`, a `Set` or a
+ * `Collection` of one, never a map, a scalar or a stream (`Flow`, a `Publisher`); `Unit` answers 204.
  */
 internal object ServiceRouteResolver {
     val SERVICE_ROUTE: String = ServiceRoute::class.java.name
@@ -78,6 +80,8 @@ internal object ServiceRouteResolver {
     private val VARIABLE = Regex("\\{([A-Za-z][A-Za-z0-9]*)}")
     private val SEGMENT = Regex("[a-z0-9]+(-[a-z0-9]+)*|\\{[A-Za-z][A-Za-z0-9]*}")
     private val NAME = Regex("[a-z][A-Za-z0-9]*")
+    private const val SET = "kotlin.collections.Set"
+    private val COLLECTIONS = setOf("kotlin.collections.List", SET, "kotlin.collections.Collection")
 
     /** The JSON Schema of each scalar a path variable or a query parameter may be, by Kotlin type. */
     private val SCALARS: Map<String, Map<String, Any?>> = mapOf(
@@ -90,9 +94,6 @@ internal object ServiceRouteResolver {
 
     /** Types an answer or a body may not be: a collection, a map, a stream or a scalar has no schema of its own. */
     private val NOT_A_SCHEMA = setOf(
-        "kotlin.collections.List",
-        "kotlin.collections.Set",
-        "kotlin.collections.Collection",
         "kotlin.collections.Map",
         "kotlin.Array",
         "kotlinx.coroutines.flow.Flow",
@@ -147,7 +148,7 @@ internal object ServiceRouteResolver {
     private class Reading(val where: String, val method: RouteMethod) {
         val problems = mutableListOf<String>()
         val schemas = linkedMapOf<String, Map<String, Any?>>()
-        var request: String? = null
+        var request: Map<String, Any?>? = null
         private var variables: List<String> = emptyList()
 
         fun checkFunction(function: KSFunctionDeclaration, owner: KSClassDeclaration?, name: String) {
@@ -224,17 +225,32 @@ internal object ServiceRouteResolver {
             return null
         }
 
-        /** The binary name of a body's or an answer's class, which keys its schema; null, told, when it has none. */
-        fun schemaType(type: KSType, what: String): String? {
-            val declaration = type.declaration.classOf()
-            val ownSchema = declaration != null && declaration.qualifiedName?.asString() !in NOT_A_SCHEMA &&
-                declaration.classKind != ClassKind.INTERFACE
-            if (!ownSchema || type.arguments.isNotEmpty()) {
-                problems += "service route $where: its $what is a ${type.render()}; it is a class of its own (wrap a " +
-                    "list in one), not a collection, a map, a stream or a scalar"
-                return null
+        /**
+         * The inline schema of a body or an answer: a reference to its class's schema, which its binary name keys, or
+         * an array of one for a `List`, a `Set` (of distinct items) or a `Collection`; null, told, for anything else.
+         */
+        fun schemaType(type: KSType, what: String): Map<String, Any?>? {
+            val name = type.declaration.qualifiedName?.asString()
+            val items = type.arguments.singleOrNull()?.type?.resolve()
+            if (name in COLLECTIONS && items != null) {
+                return schemaClassOf(items)?.let { Manifest.arraySchema(Manifest.refSchema(it), unique = name == SET) }
+                    ?: refuse(type, what)
             }
-            return declaration.binaryName()
+            if (type.arguments.isNotEmpty()) return refuse(type, what)
+            return schemaClassOf(type)?.let(Manifest::refSchema) ?: refuse(type, what)
+        }
+
+        /** The binary name of [type]'s class when it has a schema of its own. */
+        private fun schemaClassOf(type: KSType): String? {
+            val declaration = type.declaration.classOf() ?: return null
+            val own = declaration.qualifiedName?.asString() !in NOT_A_SCHEMA && declaration.classKind != ClassKind.INTERFACE
+            return declaration.binaryName().takeIf { own && type.arguments.isEmpty() }
+        }
+
+        private fun refuse(type: KSType, what: String): Map<String, Any?>? {
+            problems += "service route $where: its $what is a ${type.render()}; it is a class of its own, or a List, " +
+                "a Set or a Collection of one, not a map, a scalar or a stream"
+            return null
         }
     }
 }

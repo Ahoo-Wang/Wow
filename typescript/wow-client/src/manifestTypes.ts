@@ -44,10 +44,10 @@ export interface ServiceRouteManifest {
   readonly name: string;
   readonly route: RouteManifest;
   readonly parameters?: readonly RouteParameterManifest[];
-  /** #/$defs/<key> */
-  readonly request?: string;
-  /** #/$defs/<key> */
-  readonly response?: string;
+  /** An inline JSON Schema: a $ref into $defs, or an array of one. */
+  readonly request?: unknown;
+  /** An inline JSON Schema: a $ref into $defs, or an array of one. */
+  readonly response?: unknown;
   /** The codes the route refuses with, entries of the context's errors. */
   readonly errors?: readonly string[];
   readonly description?: string;
