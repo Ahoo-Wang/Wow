@@ -15,6 +15,9 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
@@ -47,11 +50,16 @@ class OrderPaymentSagaTest {
 
     /**
      * A commit of the order stream the ordering context publishes: its events as the ordering api's classes, its
-     * state the payment's own view of an order, which no model of the payment sources.
+     * state the ordering api's generated view of an order, which no model of the payment sources.
      */
     private fun orderEvent(event: Any) = stateEvent(
         order,
-        OrderView(TOTAL),
+        OrderStateView(
+            confirmedProducts = setOf("p-1"),
+            items = listOf(OrderItem("p-1", TOTAL, 1)),
+            status = OrderStatus.STOCK_CONFIRMED,
+            totalAmount = TOTAL,
+        ),
         event,
         version = 4,
         commandType = EshopOrderingContract.Order.Commands.CONFIRM_ORDER_STOCK,
