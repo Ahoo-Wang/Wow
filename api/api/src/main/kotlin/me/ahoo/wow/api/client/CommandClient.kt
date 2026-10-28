@@ -43,11 +43,21 @@ import kotlin.time.Duration
  * - [stream] emits each result of that plan's hops as each is reached, the last one the result [wait] would answer
  *   with; collecting the flow sends the command.
  *
- * [send] and [wait] answer only a result that succeeded: a rejection, by the aggregate or at admission (an unknown
- * command, a malformed or invalid one, a forbidden caller), throws a [CommandRejectedException]; a technical failure
- * (a busy or closing node, a store or a broker that is down, a wait that timed out) throws a [WowProblemException]
- * that says whether to retry ([RetryHint]). [stream] emits every result, whatever its status. A request whose
- * aggregate type the client cannot derive from its command's class fails before anything is sent.
+ * [send] and [wait] answer only a result that succeeded, and map what a command is answered by the result's status,
+ * not by where it was refused (`@ahoo-wang/wow-client`'s `CommandClient` maps it the same way):
+ *
+ * - a result that succeeded: returned;
+ * - a rejected result: a [CommandRejectedException];
+ * - a problem whose result is rejected, an admission refusal (an unknown command, an invalid one, a forbidden
+ *   caller): a [CommandRejectedException];
+ * - a result of a status this client does not know, a newer peer's: a [WowProblemException] `wow.command.failed`,
+ *   not retryable;
+ * - any other problem, refused before admission (a body that does not parse), a technical failure (a busy or closing
+ *   node, a store or a broker that is down, a wait that timed out) or a failed result: a [WowProblemException], with
+ *   its result when the peer sent one, and whether to retry ([RetryHint]).
+ *
+ * [stream] emits every result, whatever its status. A request whose aggregate type the client cannot derive from its
+ * command's class fails before anything is sent.
  */
 interface CommandClient {
     /** This client sending as [caller]. */

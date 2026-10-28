@@ -298,16 +298,22 @@ export class WowProblemError extends Error {
  * its aggregate (a business outcome with the domain's code) or at admission
  * (an unknown command, an invalid one, a caller the authorizer forbids).
  * Sending it again with the same request id is rejected again. As Kotlin's
- * `CommandRejectedException`, a command client maps what a command is
- * answered by the result's status, not by where it was refused:
+ * `CommandRejectedException`. `send` and `wait` map what a command is
+ * answered by the result's status, not by where it was refused (Kotlin's
+ * `CommandClient` maps it the same way):
  *
- * | The service answers | `send` and `wait` |
- * | --- | --- |
- * | a result, `succeeded` | resolve it |
- * | a result, `rejected` | reject with {@link CommandRejectedError} |
- * | a problem whose `result` is `rejected` | reject with {@link CommandRejectedError}, its `problem` set |
- * | a result of a status this client does not know (a newer service) | reject with {@link WowProblemError} `wow.command.failed`, not retryable |
- * | any other problem: refused before admission (a body that does not parse, a caller the edge refuses), a technical failure, a `failed` result | reject with {@link WowProblemError}, its `result` set when the service sent one |
+ * - a result that succeeded: resolved;
+ * - a rejected result: a {@link CommandRejectedError};
+ * - a problem whose result is rejected, an admission refusal (an unknown
+ *   command, an invalid one, a forbidden caller): a
+ *   {@link CommandRejectedError}, its `problem` set;
+ * - a result of a status this client does not know, a newer service's: a
+ *   {@link WowProblemError} `wow.command.failed`, not retryable;
+ * - any other problem, refused before admission (a body that does not
+ *   parse), a technical failure (a busy or closing node, a store or a broker
+ *   that is down, a wait that timed out) or a failed result: a
+ *   {@link WowProblemError}, with its result when the service sent one, and
+ *   whether to retry ({@link RetryHint}).
  *
  * `stream` emits every result, whatever its status.
  */
