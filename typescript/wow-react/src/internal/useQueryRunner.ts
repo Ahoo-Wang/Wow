@@ -19,6 +19,11 @@ import {
   useRef,
   useState,
 } from 'react';
+import {
+  type RequestOptions,
+  toWowProblemError,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 import {
   initialQueryState,
@@ -59,32 +64,52 @@ function isAbortError(error: unknown): boolean {
 }
 
 /**
+ * What a run failed with, as the hook reports it: the problem a Wow service
+ * answered with when the failure carries one (a fetcher's `ExchangeError` of
+ * a response that is not 2xx is read as its problem), else the error itself,
+ * a value thrown that is not an `Error` wrapped in one.
+ */
+async function failureOf(thrown: unknown): Promise<Error> {
+  const problem = await toWowProblemError(thrown);
+  if (problem) return problem;
+  return thrown instanceof Error
+    ? thrown
+    : new Error(String(thrown), { cause: thrown });
+}
+
+/**
  * The one request state machine every hook runs on.
  *
  * - Latest wins: every run takes a new number and aborts the one before; an
  *   answer that is no longer the latest, arrives after `abort()` or
  *   `reset()`, or arrives after unmount, changes nothing.
- * - A run starts on mount, whenever the query changes by content or through
- *   `setQuery()`, whenever `identity` changes, and when `autoExecute` turns
- *   on; `execute()` starts one by hand.
+ * - A run starts on mount, whenever the query or `requestOptions` changes
+ *   by content, through `setQuery()`, and when `autoExecute` turns on;
+ *   `execute()` starts one by hand.
  * - `abort()`, `reset()` and unmount abort the request in flight.
  * - StrictMode's second mount aborts the first run and starts one more, so
  *   exactly one answer lands.
  *
- * `identity` is what else a run depends on besides the query: the endpoint
- * of a `useFetcher…` hook. With `retainResult` off the runner hands a run's
- * result to `onSuccess` but does not keep it as `result`: the list-stream
- * hooks keep their rows as `items` already. `execute`, `requestOptions` and the callbacks are read
- * when a run starts or settles, so a change to them never starts one.
+ * - A failure is reported as an `Error`, and as `problem` too when a Wow
+ *   service answered it.
+ *
+ * With `retainResult` off the runner hands a run's result to `onSuccess`
+ * but does not keep it as `result`: the list-stream and cursor hooks keep
+ * their rows as `items` already. `execute` and the callbacks are read when a
+ * run starts or settles, so a change to them never starts one.
  */
-export function useQueryRunner<Q, R, E>(
-  options: QueryHookOptions<Q, R, E>,
-  identity?: string,
+export function useQueryRunner<
+  Q,
+  R,
+  O extends RequestOptions = RequestOptions,
+>(
+  options: QueryHookOptions<Q, R, O>,
   retainResult = true,
-): QueryHookReturn<Q, R, E> {
+): QueryHookReturn<Q, R> {
   const autoExecute = options.autoExecute ?? true;
   const query = useContentStable(options.query);
-  const [state, setState] = useState<QueryState<R, E>>(() =>
+  const requestOptions = useContentStable(options.requestOptions);
+  const [state, setState] = useState<QueryState<R>>(() =>
     initialQueryState(
       autoExecute && (options.query ?? options.initialQuery) !== undefined,
     ),
@@ -101,7 +126,7 @@ export function useQueryRunner<Q, R, E>(
   });
 
   /** Applies an event unless run `id` is no longer the one that counts. */
-  const settle = useCallback((id: number, event: QueryEvent<R, E>) => {
+  const settle = useCallback((id: number, event: QueryEvent<R>) => {
     if (!mounted.current || request.current.id !== id) return false;
     setState(state => queryTransition(state, event));
     return true;
@@ -127,7 +152,7 @@ export function useQueryRunner<Q, R, E>(
       const result = await execute(query, {
         ...requestOptions,
         signal: controller.signal,
-      });
+      } as O & { readonly signal: AbortSignal });
       if (controller.signal.aborted) {
         settle(id, { type: 'abort' });
       } else if (
@@ -138,11 +163,14 @@ export function useQueryRunner<Q, R, E>(
       ) {
         await notify('onSuccess', latest.current.onSuccess, result);
       }
-    } catch (error) {
-      if (controller.signal.aborted || isAbortError(error)) {
+    } catch (thrown) {
+      if (controller.signal.aborted || isAbortError(thrown)) {
         settle(id, { type: 'abort' });
-      } else if (settle(id, { type: 'fail', error: error as E })) {
-        await notify('onError', latest.current.onError, error as E);
+        return;
+      }
+      const error = await failureOf(thrown);
+      if (settle(id, { type: 'fail', error })) {
+        await notify('onError', latest.current.onError, error);
       }
     } finally {
       if (request.current.controller === controller)
@@ -191,13 +219,14 @@ export function useQueryRunner<Q, R, E>(
     }
     if (query !== undefined) current.current = query;
     if (autoExecute) void execute();
-  }, [query, identity, autoExecute, execute, abort]);
+  }, [query, requestOptions, autoExecute, execute, abort]);
 
   return {
     status: state.status,
     loading: state.status === 'loading',
     result: state.result,
     error: state.error,
+    problem: state.error instanceof WowProblemError ? state.error : undefined,
     execute,
     abort,
     reset,

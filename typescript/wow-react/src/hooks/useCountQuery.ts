@@ -20,27 +20,23 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
  * how many rows it matches.
  *
  * @template FIELDS - The field names the filter may use
- * @template E - The error type, `Error` by default
  * @template Q - The filter type: `FilterExpression` by default
  */
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
-  E = Error,
   Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
-> extends QueryHookOptions<Q, CountResult, E> {}
+> extends QueryHookOptions<Q, CountResult> {}
 
 /**
  * What {@link useCountQuery} returns: the count as `result`.
  *
  * @template FIELDS - The field names the filter may use
- * @template E - The error type, `Error` by default
  * @template Q - The filter type: `FilterExpression` by default
  */
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
-  E = Error,
   Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
-> extends QueryHookReturn<Q, CountResult, E> {}
+> extends QueryHookReturn<Q, CountResult> {}
 
 /**
  * Counts what a filter matches through your own `execute` function and keeps
@@ -53,14 +49,13 @@ export interface UseCountQueryReturn<
  * it only through `execute()`.
  *
  * Returns `result` (the count, or `undefined` before the first success),
- * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `loading`, `error`, `problem`, `status`, `execute`, `abort`, `reset`, `getQuery` and
  * `setQuery`.
  *
  * @template FIELDS - The field names the filter may use. With a client whose
  *   fields are narrower than `string`, as a generated client's are, pass
  *   them here; inferred from the first filter, they would admit only its
  *   fields in `setQuery()`
- * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -79,26 +74,24 @@ export interface UseCountQueryReturn<
  * }
  * ```
  */
-export function useCountQuery<FIELDS extends string = string, E = Error>(
-  options: UseCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>,
-): UseCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
+export function useCountQuery<FIELDS extends string = string>(
+  options: UseCountQueryOptions<FIELDS, CountQuery<FIELDS>>,
+): UseCountQueryReturn<FIELDS, CountQuery<FIELDS>>;
 /**
  * {@link useCountQuery} typed by a query `Q` of your own, a subtype of
  * `CountQuery`.
  */
 export function useCountQuery<
   FIELDS extends string = string,
-  E = Error,
   Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
 >(
-  options: UseCountQueryOptions<FIELDS, E, Q>,
-): UseCountQueryReturn<FIELDS, E, Q>;
+  options: UseCountQueryOptions<FIELDS, Q>,
+): UseCountQueryReturn<FIELDS, Q>;
 export function useCountQuery<
   FIELDS extends string,
-  E,
   Q extends CountQuery<FIELDS>,
 >(
-  options: UseCountQueryOptions<FIELDS, E, Q>,
-): UseCountQueryReturn<FIELDS, E, Q> {
-  return useQueryRunner<Q, CountResult, E>(options);
+  options: UseCountQueryOptions<FIELDS, Q>,
+): UseCountQueryReturn<FIELDS, Q> {
+  return useQueryRunner<Q, CountResult>(options);
 }
