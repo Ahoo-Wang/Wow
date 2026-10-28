@@ -69,7 +69,7 @@ describe('the public surface of each entry', () => {
     const root = entryExports('@ahoo-wang/wow-client');
     const dsl = entryExports('@ahoo-wang/wow-client/dsl');
     expect([...dsl.keys()].filter(name => root.has(name))).toEqual([]);
-    for (const client of ['SnapshotQueryClient', 'CommandGateway'])
+    for (const client of ['SnapshotQueryClient', 'CommandClient'])
       expect(dsl.has(client)).toBe(false);
   });
 });

@@ -2,11 +2,12 @@
   "version": 1,
   "files": {
     "index.ts": "2c05d9d9d9b5b1c837df82b64fb5c87ee5695e2a6fbdd0aca4d4a67331653e06",
-    "ops/client.ts": "b14ad21e214b2a32424b7e78ff7839c8960b8b6f6fdb5065947b50241770f80e",
+    "ops/client.ts": "fcf3561857ba9fec92c12caa937c890710dc3e7e8e15b324fb7b2688dc94c9b0",
     "ops/contract.ts": "a8c136ecc8d16bfd1fbf511d601fe541b6928101a5ac1046f46e81f5a52f20ab",
-    "ops/index.ts": "dad7af9d25b69bc2c6d016b396840edcd3c4bfce04110978ecad189d4bef5377",
+    "ops/index.ts": "f2121f9db18076911b430dae06a60a4663089682852422c1c4d5a1fdf240497d",
+    "ops/manifest.ts": "18e1998a72d42eb96e083e95478fa39e0fb522268f71a7d61c4d179929f633db",
     "ops/parked/aggregate.ts": "54f53088fd1ee32dfa92e0067311a6913fbac5cfa30d217ce591bab081677aac",
-    "ops/parked/commandClient.ts": "2153af27b7af48428577e2f486530d5cff2a6253033450a9bebd3bc9fc07c3fd",
+    "ops/parked/commandClient.ts": "d3e3958293614603f3766f555226a733d7364a739632148d30eb2f2b537cceb3",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",
     "ops/types.ts": "7b0ba1d9d4627fdf85555af8605a495697136edaaa3f1f5bce5fa71702e8ab2e"

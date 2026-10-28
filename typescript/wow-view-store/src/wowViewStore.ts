@@ -21,6 +21,7 @@ import {
 import {
   type CommandOptions,
   type CommandResult,
+  WaitPlan,
   type WowClientOptions,
 } from '@ahoo-wang/wow-client';
 import {
@@ -143,10 +144,10 @@ const REMEMBERED_SYSTEM_REVISIONS = 1024;
  * audience; the owner, which reads and writes go by, changes one version
  * later (`ViewAudienceSaga`).
  */
-const AUDIENCE_WAIT = [
+const AUDIENCE_WAIT = WaitPlan.of(
   viewStoreWait.handled('ViewAudienceSaga.onAudienceChanged'),
   viewStoreWait.snapshot(),
-];
+);
 
 /** One instance write, as sent from the place the view is at. */
 interface InstanceWrite {

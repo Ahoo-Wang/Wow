@@ -12,7 +12,12 @@
  */
 
 import type { Fetcher } from "@ahoo-wang/fetcher";
-import { WowProblemError, type CommandOptions } from "@ahoo-wang/wow-client";
+import {
+  CommandRejectedError,
+  type CommandOptions,
+  WaitPlan,
+  WowProblemError,
+} from "@ahoo-wang/wow-client";
 import {
   OpsClient,
   opsWait,
@@ -34,7 +39,7 @@ export interface ParkedCommands {
 }
 
 /** Each command waits for the snapshot of the entry (`Wow-Wait`). */
-const OPTIONS: CommandOptions = { wait: [opsWait.snapshot()] };
+const OPTIONS: CommandOptions = { wait: WaitPlan.of(opsWait.snapshot()) };
 
 /** A blank reason is no reason. */
 function reasonOf(reason: string | undefined): { reason?: string } {
@@ -76,6 +81,12 @@ export function parkedCommands(fetcher: Fetcher): ParkedCommands {
  * else the error's message.
  */
 export function problemText(error: unknown): string {
+  // A rejection reads as the problem it came in, else as its result's error.
+  if (error instanceof CommandRejectedError) {
+    if (error.cause instanceof WowProblemError) return problemText(error.cause);
+    const words = error.result.error?.message ?? error.message;
+    return error.code ? `${words} (${error.code})` : words;
+  }
   if (error instanceof WowProblemError) {
     const { problem } = error;
     const words = problem.detail ?? problem.title ?? `HTTP ${problem.status}`;
