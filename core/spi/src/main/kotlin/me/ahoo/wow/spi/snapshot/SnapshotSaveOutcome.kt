@@ -15,12 +15,14 @@ package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * How the save of one snapshot of a [SnapshotStore.saveAll] ended: [Written], [Refused] by the version guard (the store
  * holds the same or a later version, or one of a higher state revision, which the save then marked stale), or
  * [Failed] alone, the others of the batch unaffected. A failure of the whole call is thrown instead.
  */
+@WowSpi
 sealed interface SnapshotSaveOutcome {
     /** Whether the snapshot was written: what [SnapshotStore.save] returns for it. */
     val written: Boolean

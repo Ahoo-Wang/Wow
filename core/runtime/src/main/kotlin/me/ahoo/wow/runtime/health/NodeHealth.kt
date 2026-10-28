@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
 import kotlin.coroutines.CoroutineContext
@@ -93,8 +94,8 @@ class NodeHealth(
      * a test may give another source.
      */
     private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = SubscriptionRuntime::paused,
-    /** The wall clock the pauses' `since` is of (epoch milliseconds). */
-    private val millis: () -> Long = System::currentTimeMillis,
+    /** The wall clock the pauses' `since` is of (epoch milliseconds): the node's. */
+    private val clock: Clock = node.clock,
 ) : AutoCloseable {
     @Volatile
     private var running: Job? = null
@@ -402,7 +403,7 @@ class NodeHealth(
             details["paused"] = paused.map {
                 mapOf(
                     "partition" to it.partition,
-                    "pausedMillis" to (millis() - it.since).coerceAtLeast(0),
+                    "pausedMillis" to (clock.millis() - it.since).coerceAtLeast(0),
                     "reason" to it.reason,
                 )
             }

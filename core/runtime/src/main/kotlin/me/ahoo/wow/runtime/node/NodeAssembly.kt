@@ -89,7 +89,7 @@ internal class NodeAssembly(
     /** Hears when an entry parks and when its automatic retries are spent; nobody by default. */
     parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
     /** The clock the node's timers fire by: the system's, unless a test moves it. */
-    clock: Clock = Clock.systemUTC(),
+    val clock: Clock = Clock.systemUTC(),
     /**
      * Sees the node's work: admissions, executions, decisions, appends, the handling of every
      * subscription and the firing of timers; nothing by default.
@@ -270,6 +270,7 @@ internal class NodeAssembly(
         classification,
         inFlight,
         timerLoop,
+        clock,
         nodeSnapshots,
         stateCacheCapacity,
         stateCacheBytes,
@@ -287,7 +288,7 @@ internal class NodeAssembly(
 
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
     val router: CommandRouter = when (options.routing) {
-        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster, observer)
+        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster, observer, clock)
         Routing.LOCAL -> CommandRouter.LOCAL
     }
 
@@ -319,6 +320,7 @@ internal class NodeAssembly(
         },
         observer = observer,
         peers = PeerCommands(contracts, sender),
+        clock = clock,
     )
 
     /**
@@ -375,6 +377,7 @@ internal class NodeAssembly(
             publishing,
             parked,
             { wire -> sender.send(wire) },
+            clock = clock,
             ids = admission.ids.global,
             available = available,
             availability = topics?.partitionRefresh ?: publishing.interval,

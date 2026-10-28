@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.binding.SHOP
 import me.ahoo.wow.runtime.binding.SHOP_SERVICE
 import me.ahoo.wow.runtime.binding.TENANT
 import me.ahoo.wow.runtime.binding.cartModel
+import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -64,7 +65,7 @@ class UnhandledCommandsTest {
     )
     private val topics = InMemoryTopics(1)
     private val sourceTopics = SourceTopics(topics, "", topics, intake = true)
-    private val intake = CommandIntake(SHOP, listOf(cart), coordinator, sourceTopics, clock = { NOW })
+    private val intake = CommandIntake(SHOP, listOf(cart), coordinator, sourceTopics, clock = clockOf { NOW })
 
     private fun wire(causation: Causation? = null): CommandWire = ClusterCodec.wire(
         "shop.cart.AddItemsV2",

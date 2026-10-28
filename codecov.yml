@@ -52,7 +52,16 @@ coverage:
 # uploads nothing after another has leaves those statuses unposted (not pending) for that commit. `codecov.notify.after_n_builds` and `comment.after_n_builds` would count every session
 # of the commit, the TypeScript packages' and the carried-forward ones included, so they are left unset. The
 # jvm-unit and integration flags' after_n_builds are the numbers of shards of ci.yml's `check` and `integration`
-# matrices (.github/scripts/integration-shards.mjs checks both).
+# matrices (.github/scripts/integration-shards.mjs checks both, and codecov-patch.test.mjs holds the gate's copy,
+# AFTER_N_BUILDS, to them).
+#
+# The race this leaves: Codecov fixes a commit's carried-forward sessions when it creates the commit's report, so a
+# main commit pushed while its parent's JVM shards are still uploading carries forward only the shards already in
+# (96dadfe, 2026-10-28: 2 of `integration`'s 4), and every commit built on it, a TypeScript-only pull request's head
+# among them, inherits the gap. A flag short of after_n_builds is never satisfied, so Codecov posts none of the
+# statuses that read it, patch included. ci-gate reads the head's sessions from Codecov's uploads API and fails at
+# once, naming the newest complete main commit and the first-parent merge that inherits from it; it waits as before
+# when that API cannot be read.
 #
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).

@@ -16,12 +16,14 @@ package me.ahoo.wow.test.server
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
 import tools.jackson.databind.JsonNode
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Clock
 import java.time.Duration
 
 /**
@@ -37,25 +39,33 @@ inline fun <reified App : Any> wowServer(
     vararg profiles: String,
     properties: Map<String, Any?> = emptyMap(),
     sources: List<Class<*>> = emptyList(),
-): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources)
+    clock: Clock? = null,
+): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources, clock)
 
 /**
  * Starts the Wow application of [application] and [sources] for a test, with [profiles] active, and gives it back
  * running: both its ports bound on the loopback interface, at ports the system chooses, and its drain, stop and wait
  * timeouts short ([TEST_PROPERTIES]), so the test reaches it at once and closing it ([WowServer.close]) is quick.
  * [properties] add to them and override them, as command-line arguments, over the application's own configuration;
- * a null value leaves a key out.
+ * a null value leaves a key out. A [clock] is the node's: every wall time it and its stores read, so a test fixes or
+ * moves time in one place.
  */
 fun wowServer(
     application: Class<*>,
     profiles: List<String> = emptyList(),
     properties: Map<String, Any?> = emptyMap(),
     sources: List<Class<*>> = emptyList(),
+    clock: Clock? = null,
 ): WowServer {
     val arguments = (TEST_PROPERTIES + properties).mapNotNull { (key, value) -> value?.let { "--$key=$it" } }
-    val context = SpringApplicationBuilder(application, *sources.toTypedArray())
-        .profiles(*profiles.toTypedArray())
-        .run(*arguments.toTypedArray())
+    val builder = SpringApplicationBuilder(application, *sources.toTypedArray()).profiles(*profiles.toTypedArray())
+    clock?.let { given ->
+        val register = ApplicationContextInitializer<ConfigurableApplicationContext> { context ->
+            context.beanFactory.registerSingleton(CLOCK, given)
+        }
+        builder.initializers(register)
+    }
+    val context = builder.run(*arguments.toTypedArray())
     return WowServer(context)
 }
 
@@ -77,6 +87,9 @@ val TEST_PROPERTIES: Map<String, Any> = mapOf(
 )
 
 private const val LOOPBACK = "127.0.0.1"
+
+/** The name of a test's clock bean, which takes the place of the node's. */
+private const val CLOCK = "wowTestClock"
 
 /**
  * A Wow application a test started ([wowServer]): its [context], the [publicPort] and [internalPort] it bound, and

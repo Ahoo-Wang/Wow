@@ -195,7 +195,7 @@ class DnsPeerDiscoveryTest {
             val beans = StaticListableBeanFactory().apply { addBean("custom", custom) }
             val environment = MockEnvironment().withProperty("wow.peer.custom.domain", "internal")
             val properties = WowProperties().apply { peer.discovery = "custom" }
-            val resolver = WowAutoConfiguration().wowEndpointResolver(
+            val resolver = NodePeers().wowEndpointResolver(
                 properties,
                 contracts,
                 beans.getBeanProvider(PeerDiscovery::class.java),
@@ -206,7 +206,7 @@ class DnsPeerDiscoveryTest {
                 .containsExactly(URI.create("http://mail-service.internal:9090"))
             resolver.reaches("mail", Port.INTERNAL).assert().isTrue()
             (resolver as AutoCloseable).close()
-            val dns = WowAutoConfiguration().wowEndpointResolver(
+            val dns = NodePeers().wowEndpointResolver(
                 WowProperties(),
                 contracts,
                 StaticListableBeanFactory().getBeanProvider(PeerDiscovery::class.java),

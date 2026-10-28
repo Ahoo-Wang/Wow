@@ -86,7 +86,6 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -106,6 +105,7 @@ import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
@@ -115,6 +115,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
+import java.time.Clock
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
 
@@ -172,6 +173,7 @@ import jakarta.validation.Validator as JakartaValidator
     ],
 )
 @EnableConfigurationProperties(WowProperties::class)
+@Import(NodeClock::class, NodePeers::class)
 class WowAutoConfiguration {
     /**
      * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
@@ -281,6 +283,7 @@ class WowAutoConfiguration {
         identity: ObjectProvider<NodeIdentity>,
         development: DevelopmentMode,
         environment: Environment,
+        clock: Clock,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val node = identity.ifAvailable
@@ -290,6 +293,7 @@ class WowAutoConfiguration {
             BeanStoreResources(beanFactory),
             node?.service.orEmpty(),
             development.reason,
+            clock,
         ) { type -> PortProviders.optionsOf(environment, type) }
         val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
@@ -315,6 +319,7 @@ class WowAutoConfiguration {
 
     @Bean(defaultCandidate = false)
     @ConditionalOnMissingBean(name = [INTERNAL_HTTP_CLIENT])
+    @InternalWowApi
     fun wowInternalHttpClient(properties: WowProperties): HttpClient =
         InternalHttp.client(properties.internal.connectTimeout.toKotlinDuration())
 
@@ -340,39 +345,6 @@ class WowAutoConfiguration {
         service = identity.service,
         observer = observers.getIfUnique { Observer.NONE },
     )
-
-    /**
-     * Where the peers' services are: each context's public routes at
-     * `wow.peers.<context>.public-url`; its internal port at `wow.peers.<context>.url`, else at the nodes
-     * `wow.peer.discovery` finds of the service its contract on the class path names (`dns` by default, DNS SRV). An
-     * application's own bean, a resolver that discovers them, replaces it for the sagas' calls and the clients alike.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowEndpointResolver(
-        properties: WowProperties,
-        contracts: ContractDirectory,
-        discoveries: ObjectProvider<PeerDiscovery>,
-        environment: Environment,
-        context: ApplicationContext,
-    ): EndpointResolver = PeerEndpoints.of(
-        properties,
-        PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
-        { type ->
-            if (type == DnsPeerDiscovery.TYPE) {
-                mapOf(DnsPeerDiscovery.NAME_TEMPLATE to properties.peer.dns.nameTemplate)
-            } else {
-                PortProviders.optionsOf(environment, "peer.$type")
-            }
-        },
-        { peer -> serviceOf(contracts, peer) },
-    )
-
-    /** The one HTTP client the node calls its peers with, the sagas' calls and the typed clients alike. */
-    @Bean(PEER_HTTP_CLIENT, defaultCandidate = false)
-    @ConditionalOnMissingBean(name = [PEER_HTTP_CLIENT])
-    fun wowPeerHttpClient(properties: WowProperties): HttpClient =
-        HttpCommandCaller.client(properties.peer.connectTimeout.toKotlinDuration())
 
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
@@ -505,6 +477,7 @@ class WowAutoConfiguration {
         callers: ObjectProvider<CommandCaller>,
         classifiers: ObjectProvider<FailureClassifier>,
         queries: ObjectProvider<ContextQueries>,
+        clock: Clock,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val sourceTopics = topics.ifAvailable
@@ -523,6 +496,7 @@ class WowAutoConfiguration {
         val routing = routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
+            clock = clock,
             service = identity.service,
             node = identity.node,
             address = identity.address,
@@ -728,6 +702,7 @@ class WowAutoConfiguration {
      * the one exemption of the host's safeguards ([DevelopmentMode]).
      */
     @Bean
+    @InternalWowApi
     fun wowDevelopmentMode(
         properties: WowProperties,
         environment: Environment,
@@ -747,6 +722,7 @@ class WowAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
         configCheck(
             development.active,
@@ -785,6 +761,7 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
         val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
         logger.info {

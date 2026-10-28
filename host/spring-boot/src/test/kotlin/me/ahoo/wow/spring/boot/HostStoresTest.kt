@@ -48,6 +48,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -415,6 +418,18 @@ class HostStoresTest {
                 dataSource = "missing"
             }
         }.assert().contains("names missing, which is no DataSource bean")
+    }
+
+    @Test
+    fun `every store should read the node's clock`() {
+        val clock = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC)
+        val stores = StoreInstances.open(
+            properties { stores["a"] = WowProperties.Store().apply { type = "memory" } },
+            providers,
+            BeanStoreResources(DefaultListableBeanFactory()),
+            clock = clock,
+        )
+        stores.getValue("a").config.clock.assert().isSameAs(clock)
     }
 
     @Test

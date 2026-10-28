@@ -58,6 +58,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
+import java.time.Clock
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -217,7 +218,7 @@ class WaitCoordinator(
     origin: Origin,
     /** The tuning of the waits started here. */
     val options: WaitOptions = WaitOptions(),
-    private val clock: () -> Long = System::currentTimeMillis,
+    internal val clock: Clock = Clock.systemUTC(),
     private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
@@ -323,9 +324,9 @@ class WaitCoordinator(
      */
     suspend fun acceptRelayed(command: Command<*>, function: FunctionInfo, relay: CommandRelay): CommandResult {
         require(command.wait.isAcceptedOnly) { "Only a plan whose only hop is ACCEPTED is answered at once." }
-        val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
+        val deadline = clock.millis() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
         return sendThrough(relay, command, function, null, deadline)
-            ?: reachedResult(command, function, Hop.accepted(command.ref.type.context), clock())
+            ?: reachedResult(command, function, Hop.accepted(command.ref.type.context), clock.millis())
     }
 
     /** [emit], counting a timeout the wait ends with. */
@@ -359,21 +360,21 @@ class WaitCoordinator(
         val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
         val chain = when (checked) {
             is WaitChain.Invalid -> {
-                emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock()))
+                emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock.millis()))
                 return
             }
 
             is WaitChain -> checked
         }
         val timeout = minOf(command.wait.timeout, options.maxTimeout)
-        val deadline = clock() + timeout.inWholeMilliseconds
+        val deadline = clock.millis() + timeout.inWholeMilliseconds
         val waitId = waitIds()
         val waiting = registry.register(waitId, chain.hops, command.id, options.maxRegistered)
         if (waiting == null) {
             // Over the node's waits: refused before it runs, as a busy node refuses it.
             observer.refused(command.ref.type, ResultCodes.BUSY)
             emit(
-                reachedResult(command, function, Hop.accepted(context), clock()).failed(
+                reachedResult(command, function, Hop.accepted(context), clock.millis()).failed(
                     ResultCodes.BUSY,
                     "The node holds the ${options.maxRegistered} waits it allows at once; the command was not run. " +
                         "Retry it later.",
@@ -392,14 +393,14 @@ class WaitCoordinator(
                     emit(failed)
                     return
                 }
-                waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
+                waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
                 expiry = expireAt(deadline, waiting, settled)
                 for (result in waiting.results) {
                     emit(waiting.carry(result))
                 }
                 return
             }
-            waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
+            waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
             expiry = expireAt(deadline, waiting, settled)
             val wait = WaitContext(waitId, origin, chain.hops, deadline)
@@ -407,7 +408,7 @@ class WaitCoordinator(
                 if (withdrawn(settlement)) {
                     // Withdrawn because the deadline passed: the wait ends as the deadline ends it,
                     // whichever of the lane's timer and the deadline thread fired first.
-                    waiting.expire(clock()) { hop -> timedOut(hop, settled = false) }
+                    waiting.expire(clock.millis()) { hop -> timedOut(hop, settled = false) }
                     return@let
                 }
                 settled.set(true)
@@ -436,9 +437,9 @@ class WaitCoordinator(
     private fun expireAt(deadline: Long, waiting: Waiting, settled: AtomicBoolean): ScheduledFuture<*> =
         DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
             {
-                waiting.expire(clock()) { hop -> timedOut(hop, settled.get()) }
+                waiting.expire(clock.millis()) { hop -> timedOut(hop, settled.get()) }
             },
-            (deadline - clock()).coerceAtLeast(0),
+            (deadline - clock.millis()).coerceAtLeast(0),
             TimeUnit.MILLISECONDS,
         )
 
@@ -476,11 +477,11 @@ class WaitCoordinator(
         if (topic == null) {
             // In the admission's trace, which the detached execution continues.
             scope.launch(currentCoroutineContext().traceContext) { runDetached(model, command) }
-            return reachedResult(command, function, hop, clock())
+            return reachedResult(command, function, hop, clock.millis())
         }
-        val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
+        val deadline = clock.millis() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
         return sendThrough(topic.relayOf(model), command, function, null, deadline)
-            ?: reachedResult(command, function, hop, clock())
+            ?: reachedResult(command, function, hop, clock.millis())
     }
 
     /**
@@ -497,9 +498,9 @@ class WaitCoordinator(
         wait: WaitContext?,
         deadline: Long,
     ): CommandResult? {
-        val accepted = { reachedResult(command, function, Hop.accepted(command.ref.type.context), clock()) }
+        val accepted = { reachedResult(command, function, Hop.accepted(command.ref.type.context), clock.millis()) }
         val sent = try {
-            withTimeoutOrNull((deadline - clock()).coerceAtLeast(0).milliseconds) { relay.send(command, wait) }
+            withTimeoutOrNull((deadline - clock.millis()).coerceAtLeast(0).milliseconds) { relay.send(command, wait) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -641,7 +642,12 @@ class WaitCoordinator(
         } catch (early: ScheduleNotDueException) {
             logger.warn { "Clock skew at node ${origin.node}: ${early.message}" }
             return Settlement(
-                reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
+                reachedResult(
+                    command,
+                    function,
+                    hop,
+                    clock.millis()
+                ).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
             )
         } catch (undeclared: UndeclaredEventException) {
             return undeclared(command, function, hop, undeclared)
@@ -650,7 +656,7 @@ class WaitCoordinator(
         } catch (failure: Exception) {
             logger.error(failure) { "Command ${command.id} on ${command.ref} failed: its handling threw." }
             return Settlement(
-                reachedResult(command, function, hop, clock()).failed(
+                reachedResult(command, function, hop, clock.millis()).failed(
                     ResultCodes.FAILED,
                     "The command failed with an unexpected error in ${function.processor}.${function.name}; " +
                         "it committed nothing.",
@@ -661,13 +667,13 @@ class WaitCoordinator(
         if (outcome is CommandOutcome.Unknown) {
             logger.warn(outcome.cause) { "Whether command ${command.id} on ${command.ref} committed is unknown." }
         }
-        val committed = outcome.toResult(command, function, hop, clock())
+        val committed = outcome.toResult(command, function, hop, clock.millis())
         val after = wait?.afterCommitted()?.remaining.orEmpty()
         val reached = when (outcome) {
             is CommandOutcome.Unchanged -> after.firstOrNull()?.let {
                 committed.copyWith(
                     hop = it,
-                    signalTime = clock()
+                    signalTime = clock.millis()
                 )
             }
             is CommandOutcome.AlreadyCommitted -> handledBefore(command, outcome, after.firstOrNull(), after.size == 1)
@@ -684,7 +690,7 @@ class WaitCoordinator(
         undeclared: UndeclaredEventException,
     ): Settlement {
         logger.error(undeclared) { "Command ${command.id} on ${command.ref} failed: ${undeclared.message}" }
-        val failed = reachedResult(command, function, hop, clock())
+        val failed = reachedResult(command, function, hop, clock.millis())
             .failed(ResultCodes.UNDECLARED_EVENT, undeclared.message!!)
         return Settlement(failed, cause = undeclared)
     }
@@ -702,7 +708,7 @@ class WaitCoordinator(
         cause: Throwable? = null,
     ): Settlement {
         observer.refused(command.ref.type, code)
-        return Settlement(reachedResult(command, function, hop, clock()).failed(code, message), cause = cause)
+        return Settlement(reachedResult(command, function, hop, clock.millis()).failed(code, message), cause = cause)
     }
 
     /**
@@ -719,14 +725,14 @@ class WaitCoordinator(
      * Returns the [Settlement]: its [Settlement.outcome] is the kernel's when this node executed it.
      */
     suspend fun forward(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
-        if (wait == null || wait.expiredAt(clock()) || !arrived(command, wait)) {
+        if (wait == null || wait.expiredAt(clock.millis()) || !arrived(command, wait)) {
             return router.route(model, command, null) { executeHere(model, command, null) }
         }
         val function = commandFunction(model, command)
         val context = command.ref.type.context
         val leading = wait.remaining.takeWhile { it.stage != Stage.HANDLED }
         leading.firstOrNull { it.stage == Stage.ACCEPTED }?.let { accepted ->
-            signal(wait, reachedResult(command, function, accepted, clock()))
+            signal(wait, reachedResult(command, function, accepted, clock.millis()))
         }
         val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
         val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
@@ -770,7 +776,7 @@ class WaitCoordinator(
                 command,
                 commandFunction(model, command),
                 Hop.accepted(command.ref.type.context),
-                clock(),
+                clock.millis(),
             ).failed(
                 ResultCodes.WAIT_TIMEOUT,
                 "The call timed out after $timeout, before the command's outcome was known. Retry it with the same " +
@@ -856,7 +862,7 @@ class WaitCoordinator(
             return null
         }
         val kind = directory.kindOf(context, subscription) ?: return null
-        return handledResult(outcome.stream, handled, subscriptionFunction(kind, context, subscription), clock())
+        return handledResult(outcome.stream, handled, subscriptionFunction(kind, context, subscription), clock.millis())
             .copyWith(commandId = command.id, duplicate = true)
     }
 

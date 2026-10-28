@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.springframework.core.env.Environment
@@ -60,6 +61,7 @@ class DevelopmentMode(val reason: String?, val profiles: List<String> = emptyLis
         val OFF: DevelopmentMode = DevelopmentMode(null)
 
         /** Whether a node of [properties] in [environment] runs for development, its internal port bound at [bindHost]. */
+        @InternalWowApi
         fun of(
             properties: WowProperties,
             environment: Environment,
