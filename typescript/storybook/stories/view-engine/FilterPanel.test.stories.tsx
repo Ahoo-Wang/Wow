@@ -30,7 +30,7 @@ import displayMeta, {
 import { colorsSettled, measureTextContrast } from './contrast.js';
 import { nextFrame } from './panelEdges.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator, QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -1034,10 +1034,14 @@ export const RejectedCondition: Story = {
     const canvas = within(canvasElement);
     await expect(
       await canvas.findByText(
-        formatMessage(zhCN, 'runtime.query.failed.unsupported_capability', {
-          field: '仓库',
-          reason: 'Field [warehouse] does not support [EXACT_MATCH].',
-        }),
+        formatMessage(
+          zhCN,
+          `runtime.query.failed.${QueryErrorCodes.UNSUPPORTED_CAPABILITY}`,
+          {
+            field: '仓库',
+            reason: 'Field [warehouse] does not support [EXACT_MATCH].',
+          },
+        ),
         { exact: false },
       ),
     ).toBeVisible();
