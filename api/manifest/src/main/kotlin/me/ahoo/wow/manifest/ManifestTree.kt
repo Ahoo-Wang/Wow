@@ -247,7 +247,8 @@ object ManifestTree {
         val kind = node.enum("kind", SubscriptionKind.entries)
         val functionKind = function.enum("kind", FunctionKind.entries)
         val start = node.enumOrNull("start", SubscriptionStart.entries)
-        if (kind == null || functionKind == null || (node.has("start") && start == null)) {
+        val unknownStart = node.has("start") && start == null
+        if (kind == null || functionKind == null || unknownStart) {
             node.warn(
                 "${node.path} (${node.stringOrNull("name")}) is left out: a value of it is unknown to this reader."
             )
