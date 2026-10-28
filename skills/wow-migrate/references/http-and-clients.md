@@ -91,6 +91,8 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `new DatasetResources(engine, catalogs, onError?, onWordingError?, options?)`, `DatasetResourcesOptions` | `new DatasetResources(engine, { catalogs, onError?, onWordingError?, onDuplicate?, onCatalogError? })` (`DatasetResourcesInit`); `refresh({ signal })` |
 | `DatasetCatalog.list()`, `DatasetWordingStore.list(signal?)` | `list({ signal })` (`ReadOptions`) |
 | `DatasetDirectoryEntry { contextName, name, title: string \| null, version: string \| null }` | `{ context, dataset, title?, version? }`; a directory lists only what it serves, so no `null` version |
+| `SHARED_OWNER_ID`, `SYSTEM_OWNER_ID`, `SYSTEM_TENANT_ID` (wow-view-store) | gone from the entry: name an audience by `SHARED_SCOPE` / `SYSTEM_SCOPE` (`Wow-Scope`); no path carries an owner |
+| `typeof WowViewStoreErrorCodes[keyof …]` written by hand | `WowViewStoreErrorCode` |
 | `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
 | the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
 | `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |

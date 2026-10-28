@@ -39,6 +39,9 @@ beforeEach(() => {
   });
 });
 
+/** The views one list page answers: small, so a few views cross pages. */
+const PAGE = 3;
+
 describeViewStoreConformance({
   name: 'V10 WowViewStore on the fake V10 service',
   capabilities: {
@@ -48,8 +51,8 @@ describeViewStoreConformance({
     idempotentCreate: true,
     systemViews: { definitionId: SYSTEM_DEFINITION },
     storedSystemViews: true,
-    // The views of an audience one list page reads (`LIST_PAGE`).
-    pageSize: 100,
+    // A small page, which the store is told too: every view is a write.
+    pageSize: PAGE,
   },
   connect:
     () =>
@@ -61,5 +64,6 @@ describeViewStoreConformance({
           roles: WRITER_ROLES,
           app: 'conformance',
         }),
+        pageSize: PAGE,
       }),
 });

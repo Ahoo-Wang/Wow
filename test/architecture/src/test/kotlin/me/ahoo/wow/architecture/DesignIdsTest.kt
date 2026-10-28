@@ -67,6 +67,9 @@ class DesignIdsTest {
             )
         File(root, "README.md").writeText("# Wow\n\nNo IDs here.\n\nBut finding F23 here.\n")
         File(root, "build/generated/src/main/kotlin/Gen.kt").apply { parentFile.mkdirs() }.writeText("// D277\n")
+        // A local site build, which git ignores: its pages are whatever the sources said when it was built.
+        File(root, "documentation/docs/.vitepress/dist/guide/old.md").apply { parentFile.mkdirs() }
+            .writeText("Stale (D277).\n")
         DesignIdRule.designIds(root).map { it.substringBeforeLast(": ").substringAfterLast(':') }
             .assert().containsExactly("5", "4", "5", "6", "7", "8")
     }
