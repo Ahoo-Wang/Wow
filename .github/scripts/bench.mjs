@@ -863,7 +863,23 @@ export function sustainable(m, rate) {
 // bench.sh's default cap of 256 workers stopped the closed loop before V10 flattened, and so did 1024 on GitHub's
 // runners (E1, E2 and E3), so the cap is 4096; the doubling stops on its own after two steps that gain less than 5%.
 // A saturation found at the cap is a lower bound, marked `≥` (`capped`).
-export const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 4096 };
+// Two arms whose saturations differ more than `outlier` times are probed again, the lower once: a search can stop
+// early on a stalled step (large-mongo arm b found 202/s at concurrency 1 against arm a's 990/s at 128, 2026-10-28,
+// run 40721764669, an A/A run of one build). The second search stands, and the first is kept beside it.
+export const SATURATION = {
+  warmUp: 3,
+  step: 8,
+  maxConcurrency: 4096,
+  outlier: 3,
+};
+
+/** The arm of two saturations (id → `{throughput}`) to probe again: the lower, when they differ past the outlier. */
+export function saturationOutlier(saturations, ids) {
+  const [a, b] = ids.map(id => saturations[id]?.throughput);
+  if (!(a > 0) || !(b > 0)) return undefined;
+  if (Math.max(a, b) / Math.min(a, b) <= SATURATION.outlier) return undefined;
+  return a < b ? ids[0] : ids[1];
+}
 
 /** What a row shows instead of a ratio that measured the load generator rather than the servers. */
 export const GENERATOR_BOUND = 'invalid: generator-bound';
@@ -909,8 +925,15 @@ export function calibratedGeneratorBound(suite) {
 
 const saturationText = s =>
   s?.throughput
-    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}`
+    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}${againText(s)}`
     : `**${s?.status ?? 'missing'}**`;
+
+/** A saturation probed again: what the first search found, or that the second failed. */
+const againText = s => {
+  if (s.again === 'failed') return ' (probed again: failed)';
+  if (!s.first) return '';
+  return ` (probed again; first ${num(s.first.throughput)}/s at concurrency ${s.first.concurrency})`;
+};
 
 const integer = (name, value, min, max) => {
   const text = String(value ?? '').trim();
@@ -2067,8 +2090,8 @@ export function runSuite(name, options) {
   };
 
   // The closed-loop saturation of an arm in a scenario, recorded under `key`.
-  const saturate = (arm, key, scenario) => {
-    const dir = join(out, `saturation-${key}`);
+  const saturate = (arm, key, scenario, again = false) => {
+    const dir = join(out, `saturation-${key}${again ? '-again' : ''}`);
     const ok =
       bench(
         benchPath,
@@ -2078,16 +2101,18 @@ export function runSuite(name, options) {
           `--warm-up=${SATURATION.warmUp}`,
           `--step=${SATURATION.step}`,
           `--max-concurrency=${SATURATION.maxConcurrency}`,
-          `--label=${name}-saturation-${key}`,
+          `--label=${name}-saturation-${key}${again ? '-again' : ''}`,
           `--out=${dir}`,
         ],
         propsOf(arm),
       ) === 0;
     const file = join(dir, 'saturation.json');
     const saturation = ok && existsSync(file) ? readJson(file) : undefined;
+    const first = again ? suite.saturation[key] : undefined;
     if (saturation?.saturationThroughput > 0) {
       suite.saturation[key] = {
         status: 'ok',
+        ...(first ? { first } : {}),
         throughput: saturation.saturationThroughput,
         concurrency: saturation.saturationConcurrency,
         capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
@@ -2095,6 +2120,9 @@ export function runSuite(name, options) {
         generatorCores: saturation.generatorCores,
         generatorCpus: saturation.availableProcessors,
       };
+    } else if (first) {
+      // A second search that failed leaves the first standing.
+      suite.saturation[key] = { ...first, again: 'failed' };
     } else {
       suite.saturation[key] = { status: 'failed' };
       suite.failures++;
@@ -2105,6 +2133,17 @@ export function runSuite(name, options) {
 
   if (definition.kind === 'paired') {
     for (const arm of arms) saturate(arm, arm.id);
+    const outlier = saturationOutlier(
+      suite.saturation,
+      arms.map(arm => arm.id),
+    );
+    if (outlier)
+      saturate(
+        arms.find(arm => arm.id === outlier),
+        outlier,
+        undefined,
+        true,
+      );
     suite.probes = [];
     suite.calibration = {};
     for (const arm of arms) {

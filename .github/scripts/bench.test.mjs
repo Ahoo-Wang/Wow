@@ -44,6 +44,8 @@ import {
   busyOf,
   queryLimitsWithin,
   queryLimitsText,
+  SATURATION,
+  saturationOutlier,
   runSettings,
   runSuite,
   spread,
@@ -325,7 +327,9 @@ if (process.env.SPRING_APPLICATION_JSON?.includes('bench.signals.enabled')) {
 // The head is the build without --install, the baseline the one with it.
 const head = !opt('install');
 if (command === 'saturate') {
-  fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: 150, saturationConcurrency: 16 }));
+  // FAKE_STALLED_SATURATION names a label whose search stalls at concurrency 1.
+  const stalled = opt('label') === process.env.FAKE_STALLED_SATURATION;
+  fs.writeFileSync(out + '/saturation.json', JSON.stringify(stalled ? { saturationThroughput: 40, saturationConcurrency: 1 } : { saturationThroughput: 150, saturationConcurrency: 16 }));
 } else {
   console.log('[run] fake: measure');
   // A cluster run lingers a moment, so the hand-over helper sees the measured phase start.
@@ -1381,4 +1385,54 @@ test('the bulkhead refusals are counted on their own, beside the query bound tha
     spike.detail,
     /; 32 wow\.query\.busy \(bulkhead\), bound mongo 25 of 50, lowered 0, pressed 0 s$/,
   );
+});
+
+test('two saturations more than 3× apart get the lower probed again, the first kept beside it', () => {
+  assert.equal(SATURATION.outlier, 3);
+  const ids = ['a', 'b'];
+  assert.equal(
+    saturationOutlier({ a: { throughput: 990 }, b: { throughput: 202 } }, ids),
+    'b',
+  );
+  assert.equal(
+    saturationOutlier({ a: { throughput: 100 }, b: { throughput: 300 } }, ids),
+    undefined,
+  );
+  assert.equal(
+    saturationOutlier({ a: { throughput: 990 }, b: {} }, ids),
+    undefined,
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  process.env.FAKE_STALLED_SATURATION = 'e1-mongo-uniform-saturation-b';
+  try {
+    const suite = runSuite('e1-mongo-uniform', {
+      benchPath,
+      warmUp: 1,
+      measure: 5,
+      repeats: 1,
+      fraction: 0.5,
+      aa: true,
+      dataset: '1k',
+      out: join(dir, 'aa'),
+    });
+    const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+    assert.match(calls, /--label=e1-mongo-uniform-saturation-b-again/);
+    assert.deepEqual(suite.saturation.b.first, {
+      status: 'ok',
+      throughput: 40,
+      concurrency: 1,
+      capped: false,
+      generatorCores: undefined,
+      generatorCpus: undefined,
+    });
+    assert.equal(suite.saturation.b.throughput, 150);
+    assert.match(
+      renderReport([suite], { noise: {} }),
+      /150\.0\/s \(probed again; first 40\.0\/s at concurrency 1\)/,
+    );
+  } finally {
+    delete process.env.FAKE_STALLED_SATURATION;
+  }
 });
