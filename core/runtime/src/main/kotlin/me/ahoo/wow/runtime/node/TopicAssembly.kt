@@ -28,7 +28,6 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.subscription.LeaseStore
-import java.time.Clock
 
 /**
  * What a [ServiceNode] reads and owns on topics.
@@ -47,6 +46,7 @@ import java.time.Clock
 internal class TopicAssembly(private val wiring: NodeWiring, private val manifest: Manifest) {
     private val service = wiring.service
     private val node = wiring.node
+    private val clock = wiring.clock
     private val address: String get() = wiring.address()
     private val options = wiring.options
     private val observer = wiring.observer
@@ -152,7 +152,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 subscriptions = listOf(receipts.subscription),
                 options = options.subscription,
                 cluster = options.cluster,
-                clock = Clock.systemUTC(),
+                clock = clock,
                 context = Dispatchers.Default,
                 signals = signals,
                 notifier = notifiers,
@@ -183,7 +183,8 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
             it.creations,
             ledger,
             inFlight,
-            ledgerOnly = ledgerOnly
+            ledgerOnly = ledgerOnly,
+            clock = clock,
         )
     }
 

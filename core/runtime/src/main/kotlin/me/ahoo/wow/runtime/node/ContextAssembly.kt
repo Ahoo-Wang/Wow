@@ -72,6 +72,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 internal class ContextAssembly(private val wiring: NodeWiring) {
     private val service = wiring.service
     private val node = wiring.node
+    private val clock = wiring.clock
     private val address: String get() = wiring.address()
     private val options = wiring.options
     private val admission = wiring.admission
@@ -117,6 +118,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 notifier = notifiers,
                 observer = observer,
                 classification = classification,
+                clock = clock,
             )
         }
 
@@ -174,6 +176,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             options.executor.maxBatch,
             views.forExecutor(),
             inFlight,
+            clock = clock,
         )
         return Parts(
             context,
@@ -246,6 +249,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             notifier = notifiers,
             observer = observer,
             classification = classification,
+            clock = clock,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
@@ -416,8 +420,9 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
                 observer = observer,
+                clock = clock,
             )
-            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), clock, observer = observer)
             firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
             return ContextNode(
                 context,

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.observation.Observer
@@ -457,7 +458,13 @@ class ClusterTest {
                     failed += outcome
                 }
             }
-            val router = PartitionedRouter(listOf(one.ownership), channel, cluster.options, observer) { now.get() }
+            val router = PartitionedRouter(
+                listOf(one.ownership),
+                channel,
+                cluster.options,
+                observer,
+                clockOf { now.get() }
+            )
             val command = one.command(id)
             val wait = WaitContext(
                 "w-1",

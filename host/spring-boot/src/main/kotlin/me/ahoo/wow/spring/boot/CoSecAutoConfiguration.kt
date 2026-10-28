@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
@@ -67,11 +68,13 @@ class CoSecAutoConfiguration {
     @Bean
     @Conditional(NoCallerResolver::class)
     @ConditionalOnProperty(COSEC_ENABLED, havingValue = "true", matchIfMissing = true)
+    @InternalWowApi
     fun wowCoSecCallerResolver(properties: WowProperties, environment: Environment): CoSecCallerResolver =
         CoSecCallerResolver(callerOptions(properties, environment))
 
     @Bean
     @Conditional(CoSecAuthorizes::class)
+    @InternalWowApi
     fun wowCoSecAuthorizers(
         authorization: CoSecAuthorization,
         manifest: Manifest,

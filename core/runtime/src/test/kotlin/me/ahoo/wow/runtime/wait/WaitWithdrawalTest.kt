@@ -33,6 +33,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
@@ -88,7 +89,7 @@ class WaitWithdrawalTest {
      * that much before the deadline thread does (review X-12).
      */
     private fun coordinator(ahead: Long = 0) = WaitCoordinator(
-        Executor(Kernel(log), clock = { System.currentTimeMillis() + ahead }),
+        Executor(Kernel(log), clock = clockOf { System.currentTimeMillis() + ahead }),
         registry,
         directory,
         LocalSignalSender(origin.node, registry),
