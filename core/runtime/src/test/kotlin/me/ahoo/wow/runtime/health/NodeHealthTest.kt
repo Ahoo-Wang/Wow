@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.health
 
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
@@ -83,6 +82,7 @@ import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The node's health (review R3.5-3): the readiness follows the node's state, its lease store, its event log and its
@@ -187,7 +187,7 @@ class NodeHealthTest {
 
     /** Starts [health]'s tick and its sampler, as a host starts both. */
     private fun start(health: NodeHealth) {
-        start(health)
+        health.start()
         samplers.getValue(health).start()
     }
 

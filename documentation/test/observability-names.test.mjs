@@ -9,10 +9,11 @@ import {fileURLToPath} from 'node:url'
 // component a node reports. Each `wow.*` or `messaging.*` name its tables give
 // must be a string literal in the code that reports it, so a renamed metric
 // fails here instead of on a dashboard. Configuration keys (`wow.health.*`,
-// `wow.observability.*`) are held to the configuration metadata elsewhere.
+// `wow.observability.*`, `wow.node.*`) are held to the configuration metadata
+// elsewhere.
 const repository = fileURLToPath(new URL('../../', import.meta.url))
 const REPORTERS = ['edge/observability', 'host/spring-boot', 'backends/kafka', 'platform/analytics/catalog/server']
-const CONFIGURATION = /^wow\.(health|observability)\./
+const CONFIGURATION = /^wow\.(health|observability|node)\./
 const NAME = /`((?:wow|messaging)\.[a-z0-9._-]*[a-z0-9_])`/g
 
 const sources = execFileSync('git', ['ls-files', '--', ...REPORTERS.map((dir) => `${dir}/src/main/**/*.kt`)], {

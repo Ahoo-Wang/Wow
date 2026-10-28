@@ -77,7 +77,11 @@ class HealthAutoConfigurationTest {
 
     @Test
     fun `an application's own node health should be the one the contributors read`() {
-        runner.withBean("ownHealth", NodeHealth::class.java, { node().let { NodeHealth(it, NodeSampler(it)) } }).run { context ->
+        runner.withBean(
+            "ownHealth",
+            NodeHealth::class.java,
+            { node().let { NodeHealth(it, NodeSampler(it)) } }
+        ).run { context ->
             context.getBeansOfType(NodeHealth::class.java).keys.assert().containsExactly("ownHealth")
             context.containsBean(HealthAutoConfiguration.READINESS_INDICATOR).assert().isTrue()
         }
