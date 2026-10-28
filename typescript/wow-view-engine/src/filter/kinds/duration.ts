@@ -29,6 +29,7 @@ import {
 import type { FieldKindDescription } from '../describe.js';
 import { issue, readValue } from '../fieldKind.js';
 import { isDurationFilterValue, type DurationFilterValue } from '../values.js';
+import { amountText, COMPARISON_SIGN } from '../operatorWords.js';
 
 /**
  * A time since another moment (N3, Wow's `EXPRESSION` over a `DATE_DIFF`),
@@ -115,7 +116,7 @@ export function describeDuration(
   const from =
     fields?.find(entry => entry.name === stored.from)?.label ?? stored.from;
   return {
-    text: `${field.label} since ${from} ${stored.comparison} ${stored.value} ${stored.unit.toLowerCase()}`,
+    text: `${field.label} since ${from} ${COMPARISON_SIGN[stored.comparison]} ${amountText(stored.value, stored.unit)}`,
     value: {
       kind: 'duration',
       from,

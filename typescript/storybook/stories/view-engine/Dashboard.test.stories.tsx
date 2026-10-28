@@ -23,12 +23,11 @@ import displayMeta, {
   Filters as DisplayFilters,
   GlobalFilter as DisplayGlobalFilter,
   HeadingPanelAlone as DisplayHeadingPanelAlone,
-  LegacyLayout as DisplayLegacyLayout,
   OneBadPanel as DisplayOneBadPanel,
   WrongReferences as DisplayWrongReferences,
   PanelUnavailable as DisplayPanelUnavailable,
   PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
-  PreBatchCCondition as DisplayPreBatchCCondition,
+  FixedScope as DisplayFixedScope,
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
@@ -44,7 +43,7 @@ import {
   measureOutlineContrast,
   measureRingContrast,
 } from './contrast.js';
-import { legacyDashboardConfig, outage } from './fixtures.js';
+import { outage } from './fixtures.js';
 import { ENGINE_PRESET } from './presets.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
@@ -678,55 +677,13 @@ export const KeyboardStepPushes: Story = {
 };
 
 /**
- * A board stored in the 12-column grid, drawn in 24 (D22 E), measured in a
- * real layout: every panel sits exactly where its twelve-column numbers put
- * it — the grid library's arithmetic for 12 columns (a column and the gap
- * after it, 10px gaps and padding), against the boxes on screen, to a pixel.
- * The kernel test measures every panel a 12-column board can hold the same
- * way; this one holds that the grid on screen agrees.
+ * A board's fixed scope (D26 Q31) beside a filter's default: the default is
+ * on the filter bar, the reader's to change; the fixed scope is read on the
+ * bar's row as 「固定范围」 with nothing to remove it by — and no 「正在显示」
+ * band says it again (D27). Both reach the panels.
  */
-export const LegacyLayoutDrawsTheSame: Story = {
-  ...DisplayLegacyLayout,
-  decorators: [DESK],
-  play: async ({ canvasElement }) => {
-    await onTheGrid(canvasElement);
-    await findDataTable(canvasElement);
-    const grid = canvasElement.querySelector(
-      '.react-grid-layout',
-    ) as HTMLElement;
-    const gap = 10;
-    for (const panel of legacyDashboardConfig().panels) {
-      const item = canvasElement.querySelector(
-        `.react-grid-item[data-panel-id="${panel.id}"]`,
-      ) as HTMLElement;
-      await waitFor(() => {
-        const width = grid.getBoundingClientRect().width;
-        const column = (width - gap * 11 - gap * 2) / 12;
-        const box = item.getBoundingClientRect();
-        const left = box.left - grid.getBoundingClientRect().left;
-        const { x, w } = panel.layout;
-        expect(Math.abs(left - ((column + gap) * x + gap))).toBeLessThan(1.5);
-        expect(Math.abs(box.width - (column * w + (w - 1) * gap))).toBeLessThan(
-          1.5,
-        );
-      });
-    }
-    // Read into the new form, not moved: opening it changes nothing to save.
-    await expect(
-      within(canvasElement).queryByText(zhCN['label.header.unsaved']),
-    ).toBeNull();
-  },
-};
-
-/**
- * A board stored before batch C (D26 Q31): the leaf a filter could hold is
- * that filter's default on the filter bar, the reader's to change; the rest
- * is the board's fixed scope, read on the bar's row as 「固定范围」 with
- * nothing to remove it by — and no 「正在显示」 band says it again (D27).
- * Both reach the panels, and opening it changes nothing to save.
- */
-export const PreBatchCFixedScope: Story = {
-  ...DisplayPreBatchCCondition,
+export const FixedScopeReadOnly: Story = {
+  ...DisplayFixedScope,
   decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -769,8 +726,8 @@ export const PreBatchCFixedScope: Story = {
  * its author, which takes it out whole — the chip goes, the keyboard lands
  * on 「撤销移除固定范围」, and that brings it back, as any edit of the board.
  */
-export const PreBatchCFixedScopeRemoved: Story = {
-  ...DisplayPreBatchCCondition,
+export const FixedScopeRemoved: Story = {
+  ...DisplayFixedScope,
   decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

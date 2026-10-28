@@ -78,7 +78,6 @@ import { OpenRuntimes } from './openRuntimes.js';
 import { storedSummaries, SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
-import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
 import { Resources } from './resources.js';
 import { reportingStore } from './failure/failures.js';
@@ -116,9 +115,9 @@ import { publishCopy, readReferences } from './publish.js';
  */
 export class ViewEngine {
   /**
-   * The host's store as the engine reads it: every view it hands back is
-   * read into the form this engine writes on its way in (`readingStore`,
-   * AGENTS.md's stored-data exception), and nothing past it migrates.
+   * The host's store as the engine asks it: every call passed on, and every
+   * failure told to the host once (`reportingStore`). A stored view is read
+   * as the store holds it.
    */
   readonly store: ViewStore;
   readonly environment: RuntimeEnvironment;
@@ -160,9 +159,9 @@ export class ViewEngine {
   constructor(options: ViewEngineOptions) {
     this.options = options;
     this.environment = options.environment ?? defaultRuntimeEnvironment();
-    // Read in first, then watched: a store failure is told to the host's
-    // `onError` once, whichever command or read it failed under (D40).
-    this.store = reportingStore(readingStore(options.store), this.environment);
+    // A store failure is told to the host's `onError` once, whichever
+    // command or read it failed under.
+    this.store = reportingStore(options.store, this.environment);
     this.kinds = options.kinds ?? builtinFieldKinds;
     this.capabilities = new SourceCapabilities({
       kinds: this.kinds,

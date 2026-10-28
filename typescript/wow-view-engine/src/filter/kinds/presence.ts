@@ -15,6 +15,7 @@ import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type { FieldDefinition, FilterOperatorName } from '../../model/index.js';
 import type { FieldKindDescription } from '../describe.js';
 import { FilterOperators } from '../../model/index.js';
+import { OPERATOR_TEXT } from '../operatorWords.js';
 
 /**
  * Operators that ask about presence rather than about a value. Every kind
@@ -64,17 +65,7 @@ export function describePresenceParts(
     : { text: `${field.label} ${presence}`, value: { kind: 'none' } };
 }
 
+/** A presence operator's English words; `null` for any other operator. */
 export function describePresence(operator: FilterOperatorName): string | null {
-  switch (operator) {
-    case FilterOperators.IS_NULL:
-      return 'is empty';
-    case FilterOperators.IS_NOT_NULL:
-      return 'is not empty';
-    case FilterOperators.EXISTS:
-      return 'exists';
-    case FilterOperators.NOT_EXISTS:
-      return 'does not exist';
-    default:
-      return null;
-  }
+  return isPresenceOperator(operator) ? OPERATOR_TEXT[operator] : null;
 }

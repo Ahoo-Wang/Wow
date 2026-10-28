@@ -13,18 +13,13 @@
 
 /**
  * Building a board, in the kernel (D22 A–E, batch B1): the 24-column grid
- * and how a stored 12-column board is read into it, tabs, a view the board
+ * and the fixed scope, tabs, a view the board
  * owns, a panel's override of how it looks, the heading card, and the
  * edits a board is built by.
  */
 
-import {
-  calcGridItemPosition,
-  defaultGridConfig,
-} from 'react-grid-layout/core';
 import { describe, expect, it } from 'vitest';
 import {
-  DASHBOARD_GRID_COLUMNS,
   MAX_DASHBOARD_TABS,
   MAX_HEADING_LENGTH,
   addPanel,
@@ -50,21 +45,15 @@ import {
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
-  type FilterLeaf,
-  type FilterNode,
   type Issue,
   type PanelDefinition,
 } from '../src/index.js';
-import { migrateDashboardConfig } from '../src/dashboard/migrate.js';
 import { freshId } from '../src/dashboard/panels.js';
-import { LEGACY_GRID_COLUMNS } from '../src/model/dashboard.js';
 import {
   analysisConfig,
   dashboardConfig,
   ordersDefinition,
   panelReference,
-  preCDashboardConfig,
-  preD27DashboardConfig,
   recordConfig,
 } from './fixtures.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
@@ -115,303 +104,7 @@ function validate(
   );
 }
 
-function layouts(config: DashboardViewConfig) {
-  return Object.fromEntries(
-    config.panels.map(panel => [panel.id, panel.layout]),
-  );
-}
-
-describe('the 24-column grid and the boards stored before it', () => {
-  /** A board as stored before the grid had 24 columns: no `columns`. */
-  const legacy = {
-    ...emptyDashboardConfig(),
-    filter: { op: 'and', children: [] },
-    filterMode: 'simple',
-    columns: undefined,
-    tabs: undefined,
-    panels: [
-      saved('a', { x: 0, y: 0, w: 7, h: 4 }),
-      saved('b', { x: 7, y: 0, w: 5, h: 4 }),
-      note('c', { x: 0, y: 4, w: 4, h: 2 }),
-    ],
-  } as unknown as DashboardViewConfig;
-  delete (legacy as Partial<DashboardViewConfig>).columns;
-  delete (legacy as Partial<DashboardViewConfig>).tabs;
-  delete (legacy as Partial<DashboardViewConfig>).fixed;
-
-  it('reads a board that does not say its grid as 12 columns, doubling x and w', () => {
-    const read = migrateDashboardConfig(legacy);
-
-    expect(read.columns).toBe(DASHBOARD_GRID_COLUMNS);
-    expect(read.tabs).toEqual([]);
-    expect(layouts(read)).toEqual({
-      a: { x: 0, y: 0, w: 14, h: 4 },
-      b: { x: 14, y: 0, w: 10, h: 4 },
-      c: { x: 0, y: 4, w: 8, h: 2 },
-    });
-    expect(validate(read)).toEqual([]);
-  });
-
-  it('leaves a board that says its grid alone, as the same object', () => {
-    // Stored in the current form: with its time wires derived (D1).
-    const current = dashboardConfig({
-      panels: [note('a', { x: 3, y: 0, w: 5, h: 1 })],
-      derivesTime: true,
-    });
-    const other = { ...current, columns: 12 } as unknown as DashboardViewConfig;
-
-    expect(migrateDashboardConfig(current)).toBe(current);
-    // Named, so taken at its word: admission refuses it rather than a guess.
-    expect(migrateDashboardConfig(other)).toBe(other);
-  });
-
-  /**
-   * D23 Q16, D26 Q31: a board condition written before batch C becomes its
-   * filters' defaults where a filter could hold it; the rest becomes the
-   * board's fixed scope (`fixed`), which is also the mark that the board
-   * was read — a second read, or a read after any edit, moves nothing. The
-   * condition's member goes with it: a board has none (D27).
-   */
-  describe('a pre-C board condition', () => {
-    const region = { name: 'region', label: '仓库', kind: 'string' } as const;
-    const created = {
-      name: 'created',
-      label: '创建时间',
-      kind: 'datetime',
-    } as const;
-    const amount = { name: 'amount', label: '金额', kind: 'number' } as const;
-    const window = { type: 'relative', unit: 'day', amount: 30 };
-    const EMPTY = { op: 'and', children: [] };
-
-    it('moves a leaf a filter could hold into that filter’s default', () => {
-      const board = preCDashboardConfig(
-        {
-          op: 'and',
-          children: [
-            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
-            {
-              field: 'created',
-              operator: FilterOperator.BETWEEN,
-              value: window,
-            },
-            // An EQ of one number is the one-entry list the filter keeps.
-            { field: 'amount', operator: FilterOperator.EQ, value: 100 },
-          ],
-        },
-        { fields: [region, created, amount] },
-      );
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read).not.toHaveProperty('filter');
-      expect(read).not.toHaveProperty('filterMode');
-      expect(read.fixed).toEqual(EMPTY);
-      expect(read.fields).toEqual([
-        { ...region, default: ['CN'] },
-        { ...created, default: window },
-        { ...amount, default: [100] },
-      ]);
-      // It marks itself: nothing is left to move.
-      expect(migrateDashboardConfig(read)).toBe(read);
-    });
-
-    it('keeps what no filter could hold as the fixed scope', () => {
-      const kept: FilterNode[] = [
-        // Another operator than the filter asks with.
-        { field: 'amount', operator: FilterOperator.GT, value: 100 },
-        // Two values for a filter that takes one.
-        { field: 'region', operator: FilterOperator.IN, value: ['CN', 'JP'] },
-        // A field that is no filter of this board.
-        { field: 'status', operator: FilterOperator.IN, value: ['PAID'] },
-        // A group is not taken apart.
-        {
-          op: 'or',
-          children: [
-            { field: 'region', operator: FilterOperator.IN, value: ['US'] },
-          ],
-        },
-        // A filter with a default of its own keeps it.
-        {
-          field: 'created',
-          operator: FilterOperator.BETWEEN,
-          value: { type: 'relative', unit: 'day', amount: 7 },
-        },
-      ];
-      const board = preCDashboardConfig(
-        { op: 'and', children: kept },
-        { fields: [region, amount, { ...created, default: window }] },
-      );
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read.fixed).toEqual({ op: 'and', children: kept });
-      expect(read).not.toHaveProperty('filter');
-      expect(read.fields).toBe(board.fields);
-      expect(migrateDashboardConfig(read)).toBe(read);
-    });
-
-    it('moves one leaf per filter and keeps the second', () => {
-      const second: FilterLeaf = {
-        field: 'region',
-        operator: FilterOperator.IN,
-        value: ['JP'],
-      };
-      const board = preCDashboardConfig(
-        {
-          op: 'and',
-          children: [
-            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
-            second,
-          ],
-        },
-        { fields: [region] },
-      );
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read.fields).toEqual([{ ...region, default: ['CN'] }]);
-      expect(read.fixed.children).toEqual([second]);
-      expect(read).not.toHaveProperty('filter');
-    });
-
-    /**
-     * A-02: the leaf a single-value filter could not hold stays fixed once
-     * the board was read, whatever the author changes of that filter after
-     * — turning on 「可多选」 must not make the next read move it into a
-     * default a reader can clear.
-     */
-    it('never moves again once read, whatever the author changes of a filter', () => {
-      const leaf: FilterLeaf = {
-        field: 'region',
-        operator: FilterOperator.IN,
-        value: ['EU', 'CN'],
-      };
-      const board = preCDashboardConfig(
-        { op: 'and', children: [leaf] },
-        { fields: [region] },
-      );
-
-      const read = migrateDashboardConfig(board);
-      const edited = {
-        ...read,
-        fields: read.fields.map(field => ({
-          ...field,
-          multiple: true as const,
-        })),
-      };
-      const again = migrateDashboardConfig(edited);
-
-      expect(again).toBe(edited);
-      expect(again.fixed.children).toEqual([leaf]);
-      expect(again.fields[0].default).toBeUndefined();
-    });
-
-    it('takes no tree apart that is not a plain AND, and fixes it whole', () => {
-      const tree = {
-        op: 'or' as const,
-        children: [
-          {
-            field: 'region',
-            operator: FilterOperator.IN as const,
-            value: ['CN'],
-          },
-        ],
-      };
-      const board = preCDashboardConfig(tree, { fields: [region] });
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read.fixed).toBe(tree);
-      expect(read).not.toHaveProperty('filter');
-      expect(read.fields).toBe(board.fields);
-    });
-
-    it('carries a filter that is no tree into the fixed scope, for admission to refuse', () => {
-      const board = preCDashboardConfig('nope');
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read).not.toHaveProperty('filter');
-      expect(read.fixed).toEqual({ op: 'and', children: ['nope'] });
-      expect(validate(read)).toEqual([
-        expect.objectContaining({
-          code: 'filter.node.invalid',
-          path: ['fixed', 'children', 0],
-        }),
-      ]);
-    });
-  });
-
-  /**
-   * D27: a board has no condition of its own. One written between batch C
-   * and D27 carries a `filter` beside its fixed scope — empty, since nothing
-   * wrote into it — and the read takes the member out; what one says is
-   * ANDed into the fixed scope, which every panel ran under beside it. The
-   * member is the mark: once it is gone, a read leaves the board alone.
-   */
-  describe('a board’s own condition', () => {
-    const region = { name: 'region', label: '仓库', kind: 'string' } as const;
-    const cn: FilterLeaf = {
-      field: 'region',
-      operator: FilterOperator.IN,
-      value: ['CN'],
-    };
-    const jp: FilterLeaf = {
-      field: 'region',
-      operator: FilterOperator.IN,
-      value: ['JP'],
-    };
-
-    it('takes an empty one out, the fixed scope as it was', () => {
-      const fixed = { op: 'and' as const, children: [cn] };
-      const board = preD27DashboardConfig({ fields: [region], fixed });
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read).not.toHaveProperty('filter');
-      expect(read).not.toHaveProperty('filterMode');
-      expect(read.fixed).toBe(fixed);
-      expect(migrateDashboardConfig(read)).toBe(read);
-    });
-
-    it('ANDs one that says something into the fixed scope, after it', () => {
-      const board = preD27DashboardConfig(
-        { fields: [region], fixed: { op: 'and', children: [cn] } },
-        { op: 'and', children: [jp] },
-      );
-
-      const read = migrateDashboardConfig(board);
-
-      expect(read).not.toHaveProperty('filter');
-      expect(read.fixed).toEqual({ op: 'and', children: [cn, jp] });
-      expect(migrateDashboardConfig(read)).toBe(read);
-    });
-
-    it('keeps a condition that is not an AND whole, beside an empty fixed scope', () => {
-      const either = { op: 'or' as const, children: [cn, jp] };
-      const board = preD27DashboardConfig({ fields: [region] }, either);
-
-      expect(migrateDashboardConfig(board).fixed).toBe(either);
-    });
-
-    it('carries one that is no tree into the fixed scope, for admission to refuse', () => {
-      const read = migrateDashboardConfig(preD27DashboardConfig({}, 42));
-
-      expect(read.fixed).toEqual({ op: 'and', children: [42] });
-      expect(codes(validate(read))).toEqual(['filter.node.invalid']);
-    });
-
-    it('leaves a board in this form alone, as the same object', () => {
-      const board = dashboardConfig({
-        fields: [region],
-        fixed: { op: 'and', children: [cn] },
-        derivesTime: true,
-      });
-
-      expect(migrateDashboardConfig(board)).toBe(board);
-    });
-  });
-
+describe('the 24-column grid and the fixed scope', () => {
   /**
    * The fixed scope is judged as `filter` was (D26 Q31): over the board's
    * own fields, at its own path, and every panel must carry all of it.
@@ -462,77 +155,23 @@ describe('the 24-column grid and the boards stored before it', () => {
     });
   });
 
-  it('carries what is no panel, or has no numbers, over untouched', () => {
-    const odd = {
-      ...legacy,
-      panels: [
-        'no panel',
-        { id: 'x', layout: 'nowhere' },
-        { id: 'y', layout: { x: '1', w: 2 } },
-      ],
-    } as unknown as DashboardViewConfig;
-
-    const read = migrateDashboardConfig(odd);
-
-    expect(read.panels[0]).toBe(odd.panels[0]);
-    expect(read.panels[1]).toBe(odd.panels[1]);
-    expect(read.panels[2].layout).toEqual({ x: '1', w: 4 });
-    expect(
-      migrateDashboardConfig({ ...legacy, panels: 'nope' } as never).panels,
-    ).toBe('nope');
-    expect(migrateDashboardConfig(null as never)).toBeNull();
-  });
-
-  /**
-   * Measured, not argued: every panel a 12-column board can hold, drawn by
-   * the grid library's own arithmetic at the margins `DashboardGrid` uses,
-   * lands on the same pixels once read into 24 columns — at a phone-ish
-   * `md`, a laptop and a wide screen. The story boards and the fixtures
-   * are among these.
-   */
-  it('draws every 12-column panel on exactly the pixels it had', () => {
-    const margin = defaultGridConfig.margin;
-    const padding = defaultGridConfig.containerPadding ?? margin;
-    const at = (cols: number, containerWidth: number) => ({
-      margin,
-      containerPadding: padding,
-      containerWidth,
-      cols,
-      rowHeight: 80,
-      maxRows: Infinity,
-    });
-    let compared = 0;
-    for (const width of [768, 1003, 1280, 1920])
-      for (let x = 0; x < LEGACY_GRID_COLUMNS; x += 1)
-        for (let w = 1; x + w <= LEGACY_GRID_COLUMNS; w += 1) {
-          const before = calcGridItemPosition(at(12, width), x, 3, w, 2);
-          const read = migrateDashboardConfig({
-            ...legacy,
-            panels: [note('p', { x, y: 3, w, h: 2 })],
-          });
-          const { layout } = read.panels[0];
-          const after = calcGridItemPosition(
-            at(DASHBOARD_GRID_COLUMNS, width),
-            layout.x,
-            layout.y,
-            layout.w,
-            layout.h,
-          );
-          expect(Math.abs(after.left - before.left)).toBeLessThanOrEqual(1);
-          expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(1);
-          expect(after.top).toBe(before.top);
-          expect(after.height).toBe(before.height);
-          compared += 1;
-        }
-    expect(compared).toBe(4 * 78);
-  });
-
   it('refuses a grid of another width, as an error of the board', () => {
     const other = {
       ...dashboardConfig(),
       columns: 12,
     } as unknown as DashboardViewConfig;
     expect(validate(other)).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.grid.unsupported',
+        path: ['columns'],
+      }),
+    ]);
+  });
+
+  it('refuses a board that does not say its grid, as an error of the board', () => {
+    const unsaid: Partial<DashboardViewConfig> = dashboardConfig();
+    delete unsaid.columns;
+    expect(validate(unsaid as DashboardViewConfig)).toEqual([
       expect.objectContaining({
         code: 'dashboard.grid.unsupported',
         path: ['columns'],

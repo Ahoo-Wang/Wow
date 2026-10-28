@@ -14,6 +14,7 @@
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type { FilterOperatorName } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
+import { OPERATOR_TEXT } from '../operatorWords.js';
 import {
   isFiniteNumber,
   isNumberRange,
@@ -135,14 +136,14 @@ export const numberFieldKind: FieldKind = {
     if (Array.isArray(leaf.value)) {
       const values = readValue<number[]>(leaf.value);
       return {
-        text: `${field.label} ${leaf.operator} ${values.join(', ')}`,
+        text: `${field.label} ${OPERATOR_TEXT[leaf.operator]} ${values.join(', ')}`,
         value: { kind: 'list', values },
       };
     }
     if (!isFiniteNumber(leaf.value))
       return { text: field.label, value: { kind: 'blank' } };
     return {
-      text: `${field.label} ${leaf.operator} ${leaf.value}`,
+      text: `${field.label} ${OPERATOR_TEXT[leaf.operator]} ${leaf.value}`,
       value: { kind: 'text', value: leaf.value },
     };
   },

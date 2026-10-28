@@ -17,7 +17,6 @@ import type {
 } from '../../model/index.js';
 import {
   DeletionStates,
-  ComparisonOperators,
   FilterOperators,
   AggregationDateUnits,
 } from '../../model/index.js';
@@ -25,9 +24,9 @@ import {
   isDeletionState,
   isGroupItem,
   type FilterSummaryItem,
-  type ComparisonOperatorName,
   type FilterSummaryValue,
 } from '../../filter/index.js';
+import { COMPARISON_SIGN } from '../../filter/operatorWords.js';
 import { segmentText } from './band.js';
 import { displayValue, valueText, type DisplayContext } from './display.js';
 import type { MessageFormatters } from './MessagesProvider.js';
@@ -347,17 +346,6 @@ function summaryValue(
       return durationText(value, item, messages, context);
   }
 }
-
-/** A comparison as its sign, the same in every language. */
-export const COMPARISON_SIGN: Readonly<Record<ComparisonOperatorName, string>> =
-  {
-    [ComparisonOperators.GT]: '>',
-    [ComparisonOperators.GTE]: '≥',
-    [ComparisonOperators.LT]: '<',
-    [ComparisonOperators.LTE]: '≤',
-    [ComparisonOperators.EQ]: '=',
-    [ComparisonOperators.NE]: '≠',
-  };
 
 /** 「发货时间 距 付款时间 > 48 小时」: a time since another moment (N3). */
 function durationText(

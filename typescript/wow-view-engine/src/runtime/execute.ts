@@ -52,7 +52,11 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { isCalledOff, type QueryFailureReporter } from './failure/failures.js';
+import {
+  isCalledOff,
+  type QueryFailureReporter,
+  type QueryReadOperation,
+} from './failure/failures.js';
 import {
   resultIssues,
   type ProjectedView,
@@ -292,7 +296,7 @@ export async function executeSummaries(
  */
 function attempt<T>(
   context: KernelContext,
-  operation: string,
+  operation: QueryReadOperation,
   controller: AbortController,
   query: Promise<T>,
 ): Promise<T | null> {

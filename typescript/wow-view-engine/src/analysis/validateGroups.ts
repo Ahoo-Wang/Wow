@@ -136,7 +136,7 @@ function groupIssues(
           field: group.field,
         }),
       ];
-    if (!capability.groups.includes(group.type as never))
+    if (!capability.groups.includes(group.type))
       return [
         issue('analysis.group.unsupported', [...path, 'type'], {
           field: group.field,
@@ -149,7 +149,7 @@ function groupIssues(
       ...intervalIssues(group, path),
     ];
     if (group.type === AggregationGroupTypes.DATE_HISTOGRAM) {
-      if (!capability.dateUnits?.includes(group.unit as never))
+      if (!capability.dateUnits?.includes(group.unit))
         issues.push(
           issue('analysis.group.unit-unsupported', [...path, 'unit'], {
             unit: group.unit,

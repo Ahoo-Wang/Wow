@@ -136,18 +136,18 @@ export type AggregationExpressionOperatorName = `${AggregationExpressionOperator
 export interface AggregationFieldCapability {
     // (undocumented)
     any?: boolean;
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     expressionInput?: boolean;
     field: string;
     firstLast?: boolean;
     // (undocumented)
-    functions: AggregationFunction[];
+    functions: AggregationFunctionName[];
     // (undocumented)
-    groups: AggregationGroupType[];
+    groups: AggregationGroupTypeName[];
     inMetricFilter?: boolean;
     missingKey?: boolean;
     // (undocumented)
@@ -948,6 +948,9 @@ export interface ChartSpec {
     waterfall?: WaterfallSpec;
 }
 
+// @public
+export type ChartStage = 'load' | 'draw';
+
 // @public (undocumented)
 export type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
@@ -1407,7 +1410,6 @@ export interface DashboardTimeGrouping {
 // @public (undocumented)
 export interface DashboardViewConfig extends ViewConfigBase {
     columns: typeof DASHBOARD_GRID_COLUMNS;
-    derivesTime?: true;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -1807,7 +1809,7 @@ export function derivedText(expression: AnalysisDerivedExpression, nameOf: (metr
 // @public
 export function describeFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry): FilterSummaryItem[];
 
-// @public (undocumented)
+// @public
 export function describePresence(operator: FilterOperatorName): string | null;
 
 // @public
@@ -2004,6 +2006,9 @@ export interface ExportedRows {
 // @public
 export type ExportFormat<C extends ExportColumn = ExportColumn> = (value: unknown, column: C) => string;
 
+// @public
+export type ExportOperation = 'fetch' | 'deliver' | 'image';
+
 // @public (undocumented)
 export interface ExportRowsOptions {
     max?: number;
@@ -2040,9 +2045,9 @@ export interface FieldAnalysisSpec {
     // (undocumented)
     any?: boolean;
     // (undocumented)
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     // (undocumented)
@@ -2050,9 +2055,9 @@ export interface FieldAnalysisSpec {
     // (undocumented)
     firstLast?: boolean;
     // (undocumented)
-    functions?: AggregationFunction[];
+    functions?: AggregationFunctionName[];
     // (undocumented)
-    groups?: AggregationGroupType[];
+    groups?: AggregationGroupTypeName[];
     // (undocumented)
     inMetricFilter?: boolean;
     // (undocumented)
@@ -2301,7 +2306,7 @@ export interface FilterGroup {
 }
 
 // @public
-export type FilterGroupOperator = 'and' | 'or' | 'nor';
+export type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
 // @public
 export function filterIndexes(path: IssuePath): FilterPath;
@@ -3874,6 +3879,9 @@ export function projectSummaries(definition: DataViewDefinition, config: RecordV
 // @public
 export function qualify(path: string, field: string): string;
 
+// @public
+export type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
+
 // @public (undocumented)
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -4622,6 +4630,9 @@ export interface StoredDatasetWording {
     wording: DatasetOverrides;
 }
 
+// @public
+export type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' | 'changeAudience' | 'getPreferences' | 'setPreferences';
+
 // @public (undocumented)
 export const STRING_COMPARISONS: readonly StringComparisonName[];
 
@@ -5112,33 +5123,62 @@ export interface ViewEngineOptions {
 }
 
 // @public
-export interface ViewErrorContext {
-    boundary?: string;
-    componentStack?: string;
+export type ViewErrorContext = ViewErrorContexts[ViewErrorKind];
+
+// @public
+export interface ViewErrorContexts {
+    action: ViewErrorPlace & {
+        operation: string;
+        recordKey: RecordKey;
+    };
+    chart: ViewErrorPlace & {
+        operation: ChartStage;
+        boundary: string;
+        componentStack?: string;
+    };
+    // (undocumented)
+    export: ViewErrorPlace & {
+        operation: ExportOperation;
+    };
+    query: (ViewErrorPlace & {
+        operation: Exclude<QueryOperation, 'labels'>;
+        violation?: QueryViolation;
+        errorCode?: string;
+    }) | (ViewErrorPlace & {
+        operation: 'labels';
+        remote: string;
+    });
+    render: ViewErrorPlace & {
+        operation: 'render';
+        boundary: string;
+        componentStack?: string;
+    };
+    store: ViewErrorPlace & {
+        operation: StoreOperation;
+        requestId?: string;
+    };
+}
+
+// @public
+export type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
+    [P in K]: {
+        kind: P;
+        error: unknown;
+        context: ViewErrorContexts[P];
+    };
+}[K];
+
+// @public
+export type ViewErrorKind = keyof ViewErrorContexts;
+
+// @public
+export interface ViewErrorPlace {
     // (undocumented)
     definitionId?: string;
-    errorCode?: string;
     instanceId?: string;
-    operation: string;
     panelId?: string;
-    recordKey?: RecordKey;
-    remote?: string;
-    requestId?: string;
     runtimeId?: string;
-    violation?: QueryViolation;
 }
-
-// @public
-export interface ViewErrorEvent {
-    // (undocumented)
-    context: ViewErrorContext;
-    error: unknown;
-    // (undocumented)
-    kind: ViewErrorKind;
-}
-
-// @public
-export type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 export type ViewHandOver = SavedViewTarget | UnsavedViewTarget;

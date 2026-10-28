@@ -144,13 +144,12 @@ describe('the second review', () => {
   });
 
   it('2: a date filter auto-connect wired keeps its field once the board is down to it', () => {
-    const board = read({
-      ...dashboardConfig({
+    const board = read(
+      dashboardConfig({
         fields: [WINDOW, SHIPPED],
         panels: [owned('a'), owned('b')],
       }),
-      derivesTime: true,
-    });
+    );
     const { config } = bindPanel(board, 'shipped', 'a', 'shippedAt', () => [
       CREATED as never,
       SHIP as never,

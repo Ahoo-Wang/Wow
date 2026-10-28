@@ -25,6 +25,7 @@ import {
   type FieldKindRegistry,
 } from '../fieldKind.js';
 import { isFilterLeaf, walkFilter } from '../tree.js';
+import { DELETION_TEXT } from '../operatorWords.js';
 import { FilterOperators } from '../../model/index.js';
 
 /** The three readings Wow's `DELETION` filter admits, in the order offered. */
@@ -89,7 +90,7 @@ export const deletionFieldKind: FieldKind = {
     if (!isDeletionState(leaf.value))
       return { text: field.label, value: { kind: 'blank' } };
     return {
-      text: `${field.label} ${leaf.value}`,
+      text: `${field.label} ${DELETION_TEXT[leaf.value]}`,
       value: { kind: 'text', value: leaf.value },
     };
   },
@@ -123,7 +124,7 @@ export function impliedDeletion(
     return [
       {
         path: [],
-        text: `${field.label} ${DeletionState.ACTIVE}`,
+        text: `${field.label} ${DELETION_TEXT[DeletionState.ACTIVE]}`,
         unresolved: false,
         field: field.name,
         label: field.label,

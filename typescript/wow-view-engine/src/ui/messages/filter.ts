@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-import { FilterOperators } from '../../model/index.js';
-import { wireKey } from './wireKey.js';
+import { DeletionStates } from '../../model/index.js';
+import { DELETION_TEXT, OPERATOR_TEXT } from '../../filter/operatorWords.js';
+import { wireKeys } from './wireKey.js';
 
 /** The condition builder, the applied-condition bar, and the filter kernel. */
 export const filterMessages = {
@@ -189,10 +190,10 @@ export const filterMessages = {
   'label.filter.already-listed': 'Already in the list',
   'label.filter.not-a-number': 'Not a number',
   // The three answers of a deletion condition; the stored value is Wow's
-  // `DeletionState`, and these are its words.
-  'label.deletion.active': 'Not deleted',
-  'label.deletion.deleted': 'Deleted only',
-  'label.deletion.all': 'Deleted included',
+  // `DeletionState`, and these are its words, the kernel's own.
+  'label.deletion.active': DELETION_TEXT[DeletionStates.ACTIVE],
+  'label.deletion.deleted': DELETION_TEXT[DeletionStates.DELETED],
+  'label.deletion.all': DELETION_TEXT[DeletionStates.ALL],
   // The words the bar and the value display say (`label.value.yes`), and
   // the check asks for (「Choose yes or no.」): one word per answer
   // (second review R1-P1-6).
@@ -320,85 +321,12 @@ export const filterMessages = {
   'label.relative.preset.yearToDate': 'this year so far',
   'label.relative.preset.lastYearToDate': 'same days last year',
 
-  // Every `FilterOperator`, in the order the enum declares them.
-  //
-  // Half of them were left out on the grounds that `EQ` and `BETWEEN` read
-  // acceptably derived from the enum name. They do — in English. A catalogue
-  // that names only part of a closed set cannot be translated at all, which
-  // is what `messages={zhCN}` showed: the operator select still offered `eq`
-  // and `between`, because no key existed for a Chinese word to hang on. So
-  // the set is named in full.
-  //
-  // The derived spelling was then kept for the ones that had it, and `eq`,
-  // `ne`, `gte` and `lte` are not English — they are the enum in lower case.
-  // A condition reads `Amount eq Not set`, and the date select offered
-  // `between / gte / lte / is empty`: half sentence, half code, where the
-  // Chinese catalogue had said 「等于」／「大于等于」 all along. Every one of
-  // these is now the phrase the row reads as — field, operator, value — so
-  // `Amount at least 100` is a sentence in both catalogues.
-  //
-  // `test/messages.test.tsx` walks `FilterOperator` and fails on a gap, so
-  // this list cannot drift behind the wow enum.
-  [wireKey('label.operator', FilterOperators.MATCH_ALL)]:
-    'matches every record',
-  [wireKey('label.operator', FilterOperators.MATCH_NONE)]: 'matches no record',
-  [wireKey('label.operator', FilterOperators.ID)]: 'is',
-  [wireKey('label.operator', FilterOperators.IDS)]: 'is any of',
-  [wireKey('label.operator', FilterOperators.AGGREGATE_ID)]: 'is',
-  [wireKey('label.operator', FilterOperators.AGGREGATE_IDS)]: 'is any of',
-  [wireKey('label.operator', FilterOperators.TENANT_ID)]: 'is',
-  [wireKey('label.operator', FilterOperators.OWNER_ID)]: 'is',
-  [wireKey('label.operator', FilterOperators.SPACE_ID)]: 'is',
-  [wireKey('label.operator', FilterOperators.AND)]: 'and',
-  [wireKey('label.operator', FilterOperators.OR)]: 'or',
-  [wireKey('label.operator', FilterOperators.NOR)]: 'nor',
-  [wireKey('label.operator', FilterOperators.EQ)]: 'is',
-  [wireKey('label.operator', FilterOperators.NE)]: 'is not',
-  // A comparison is read off the value beside it, so these say which side of
-  // it the answer lies on rather than naming the symbol: "at least" and "at
-  // most" carry the inclusive edge that `gte`/`lte` only spelled.
-  [wireKey('label.operator', FilterOperators.GT)]: 'more than',
-  [wireKey('label.operator', FilterOperators.GTE)]: 'at least',
-  [wireKey('label.operator', FilterOperators.LT)]: 'less than',
-  [wireKey('label.operator', FilterOperators.LTE)]: 'at most',
-  [wireKey('label.operator', FilterOperators.CONTAINS)]: 'contains',
-  [wireKey('label.operator', FilterOperators.STARTS_WITH)]: 'starts with',
-  [wireKey('label.operator', FilterOperators.ENDS_WITH)]: 'ends with',
-  [wireKey('label.operator', FilterOperators.IN)]: 'is any of',
-  [wireKey('label.operator', FilterOperators.NOT_IN)]: 'is none of',
-  [wireKey('label.operator', FilterOperators.BETWEEN)]: 'between',
-  [wireKey('label.operator', FilterOperators.CONTAINS_ALL)]: 'has all of',
-  [wireKey('label.operator', FilterOperators.IS_EMPTY)]: 'has no entries',
-  [wireKey('label.operator', FilterOperators.IS_EMPTY_STRING)]: 'is blank',
-  [wireKey('label.operator', FilterOperators.IS_NOT_EMPTY_STRING)]:
-    'is not blank',
-  [wireKey('label.operator', FilterOperators.IS_NULL)]: 'is empty',
-  [wireKey('label.operator', FilterOperators.IS_NOT_NULL)]: 'is not empty',
-  [wireKey('label.operator', FilterOperators.EXISTS)]: 'exists',
-  [wireKey('label.operator', FilterOperators.NOT_EXISTS)]: 'does not exist',
-  [wireKey('label.operator', FilterOperators.DELETION)]: 'is',
-  [wireKey('label.operator', FilterOperators.ELEMENT_MATCH)]:
-    'has an entry where',
-  [wireKey('label.operator', FilterOperators.SEARCH)]: 'contains',
-  [wireKey('label.operator', FilterOperators.TODAY)]: 'today',
-  [wireKey('label.operator', FilterOperators.BEFORE_TODAY)]: 'before today',
-  [wireKey('label.operator', FilterOperators.TOMORROW)]: 'tomorrow',
-  [wireKey('label.operator', FilterOperators.THIS_WEEK)]: 'this week',
-  [wireKey('label.operator', FilterOperators.NEXT_WEEK)]: 'next week',
-  [wireKey('label.operator', FilterOperators.LAST_WEEK)]: 'last week',
-  [wireKey('label.operator', FilterOperators.THIS_MONTH)]: 'this month',
-  [wireKey('label.operator', FilterOperators.LAST_MONTH)]: 'last month',
-  [wireKey('label.operator', FilterOperators.YESTERDAY)]: 'yesterday',
-  [wireKey('label.operator', FilterOperators.NEXT_MONTH)]: 'next month',
-  [wireKey('label.operator', FilterOperators.LAST_YEAR)]: 'last year',
-  [wireKey('label.operator', FilterOperators.THIS_YEAR)]: 'this year',
-  [wireKey('label.operator', FilterOperators.NEXT_YEAR)]: 'next year',
-  [wireKey('label.operator', FilterOperators.RECENT_DAYS)]: 'recent days',
-  [wireKey('label.operator', FilterOperators.EARLIER_DAYS)]: 'earlier days',
-  [wireKey('label.operator', FilterOperators.BEFORE_NOW)]: 'before now',
-  [wireKey('label.operator', FilterOperators.AFTER_NOW)]: 'after now',
-  // On a time field, EXPRESSION is a time since another moment (N3).
-  [wireKey('label.operator', FilterOperators.EXPRESSION)]: 'time since',
+  // Every `FilterOperator`, as the phrase the row reads as — field,
+  // operator, value — so `Amount at least 100` is a sentence. A catalogue
+  // that names only part of a closed set cannot be translated at all, so the
+  // set is named in full; the words are the kernel's own English
+  // (`OPERATOR_TEXT`), which the summary's `text` says as well.
+  ...wireKeys('label.operator', OPERATOR_TEXT),
 
   // Filter kernel.
   'filter.value.expected-duration':

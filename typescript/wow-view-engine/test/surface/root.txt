@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 899 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 905 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -92,6 +92,7 @@ type  ChartPickerGroups
 type  ChartProfile
 type  ChartShape
 type  ChartSpec
+type  ChartStage
 type  ChartType
 type  ChartUnfit
 type  ClickChoice
@@ -202,6 +203,7 @@ type  EpochTimeUnit
 value ExportCancelledError
 type  ExportColumn
 type  ExportFormat
+type  ExportOperation
 type  ExportRowsOptions
 type  ExportedRows
 value FIELDLESS_FIELD_KIND_IDS
@@ -362,6 +364,7 @@ type  ProjectedAnalysis
 type  ProjectedBase
 type  ProjectedRecord
 type  ProjectedView
+type  QueryOperation
 type  QueryStatus
 value RECORD_PRESENTATION_MEMBERS
 value REFERENCE_STATISTICS
@@ -436,6 +439,7 @@ type  ShapeFacts
 type  SizedPanel
 type  SortDirectionName
 type  SourceOptions
+type  StoreOperation
 type  StoredDatasetWording
 type  StringComparisonName
 type  StringFilterValue
@@ -487,8 +491,10 @@ type  ViewDestination
 value ViewEngine
 type  ViewEngineOptions
 type  ViewErrorContext
+type  ViewErrorContexts
 type  ViewErrorEvent
 type  ViewErrorKind
+type  ViewErrorPlace
 type  ViewHandOver
 type  ViewInstance
 type  ViewInstanceSummary

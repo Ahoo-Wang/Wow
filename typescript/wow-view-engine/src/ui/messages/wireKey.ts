@@ -24,3 +24,20 @@ export function wireKey<P extends string, V extends string>(
 ): `${P}.${V}` {
   return `${prefix}.${value}`;
 }
+
+/**
+ * A table of words by wire value as catalogue entries, each keyed
+ * {@link wireKey}`(prefix, value)`: a catalogue whose words are the
+ * kernel's own reads them from the one table rather than copying it.
+ */
+export function wireKeys<P extends string, V extends string>(
+  prefix: P,
+  words: Readonly<Record<V, string>>,
+): { readonly [K in V as `${P}.${K}`]: string } {
+  return Object.fromEntries(
+    Object.entries<string>(words).map(([value, word]) => [
+      wireKey(prefix, value),
+      word,
+    ]),
+  ) as { readonly [K in V as `${P}.${K}`]: string };
+}

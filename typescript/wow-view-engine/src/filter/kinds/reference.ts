@@ -13,6 +13,7 @@
 
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
+import { OPERATOR_TEXT } from '../operatorWords.js';
 import {
   isReferenceFilterValue,
   type ReferenceFilterValue,
@@ -98,7 +99,7 @@ export const referenceFieldKind: FieldKind = {
     if (presence) return presence;
     if (leaf.operator === FilterOperators.IS_EMPTY)
       return {
-        text: `${field.label} has no entries`,
+        text: `${field.label} ${OPERATOR_TEXT[FilterOperators.IS_EMPTY]}`,
         relation: 'has-no-entries',
         value: { kind: 'none' },
       };
@@ -107,7 +108,7 @@ export const referenceFieldKind: FieldKind = {
     const items = readValue<ReferenceFilterValue>(leaf.value).items;
     const labels = items.map(item => item.label);
     return {
-      text: `${field.label} ${leaf.operator} ${labels.join(', ')}`,
+      text: `${field.label} ${OPERATOR_TEXT[leaf.operator]} ${labels.join(', ')}`,
       value: { kind: 'list', values: items.map(item => item.id), labels },
     };
   },

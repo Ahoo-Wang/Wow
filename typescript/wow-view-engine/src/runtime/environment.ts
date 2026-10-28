@@ -31,76 +31,143 @@ export interface RuntimeEnvironment {
   /**
    * Told once of every failure the engine meets doing its work — a query, a
    * store call, an export, a render, a chart, a declared action's command —
-   * for a host to log or send to
-   * its monitoring (D40). The failure is still answered on screen as it
+   * for a host to log or send to its monitoring. The failure is still answered on screen as it
    * always was; this is the host's copy. Whatever it throws is dropped, and
    * left out, nothing is logged anywhere.
    */
   onError?(event: ViewErrorEvent): void;
 }
 
-/** What failed, by the part of the engine it failed in. */
-export type ViewErrorKind =
-  'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
+/** A query the engine ran, by what it asked for. */
+export type QueryOperation =
+  | 'query'
+  | 'summaries'
+  | 'totals'
+  | 'split'
+  | 'record'
+  | 'kanban'
+  | 'candidates'
+  | 'labels';
+
+/** A `ViewStore` method, as the engine called it. */
+export type StoreOperation =
+  | 'list'
+  | 'get'
+  | 'create'
+  | 'save'
+  | 'rename'
+  | 'delete'
+  | 'changeAudience'
+  | 'getPreferences'
+  | 'setPreferences';
 
 /**
- * Where a failure happened. `operation` is always said; the rest only where
- * the failing part knows it.
+ * A file or a picture made of a view: the rows read for a file, the file
+ * handed over, a chart drawn as an image.
  */
-export interface ViewErrorContext {
-  /**
-   * What was being done: for `query` one of `query` (the view's own),
-   * `summaries`, `totals`, `split`, `record` (one row read whole),
-   * `candidates` (a condition's values) or `labels` (reference ids read as
-   * names); for `store` the port's method
-   * (`list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences`,
-   * `setPreferences`); for `export` `fetch`, `deliver` or `image`; for
-   * `render` `render`; for `chart` `load` or `draw`; for `action` the
-   * declared action's id (a slot's command: its `operation`, else its
-   * title).
-   */
-  operation: string;
-  /** For `query` `labels`: the remote whose labels could not be read. */
-  remote?: string;
-  /** For `action`: the record the command failed on. */
-  recordKey?: RecordKey;
+export type ExportOperation = 'fetch' | 'deliver' | 'image';
+
+/** Where a chart failed: its library never arrived, or it threw drawing. */
+export type ChartStage = 'load' | 'draw';
+
+/** Where a failure happened, each member only where the failing part knows it. */
+export interface ViewErrorPlace {
   definitionId?: string;
   /** The saved view, when the failing one is saved. */
   instanceId?: string;
   /** The open view (`ViewRuntime.id`) it failed in. */
   runtimeId?: string;
-  /** A store write's idempotency key, the same across its retries. */
-  requestId?: string;
-  /** For `render` and `chart`: the boundary that caught it. */
-  boundary?: string;
-  /** For `render` and `chart` in a dashboard panel: which panel. */
+  /** In a dashboard panel: which panel. */
   panelId?: string;
-  /** For `render` and `chart`: React's component stack, where given. */
-  componentStack?: string;
-  /**
-   * For `query`: which rule a Wow service said the query broke and where —
-   * its stable `code` (wow-client's `QueryErrorCodes`, an open list), the
-   * JSON path or logical field path, and its message. Absent when the
-   * source said none: a budget rejection, a failure the service did not
-   * answer, a source that is not Wow. The report waits for the body the
-   * source answered with to be read, so this is there when it is said.
-   */
-  violation?: QueryViolation;
-  /**
-   * For `query`: the Wow `code` of the problem the service answered with,
-   * as it gave it — `wow.query.invalid`, `wow.aggregate.forbidden`, an
-   * application's own — when it gave one.
-   */
-  errorCode?: string;
 }
 
-/** One failure, as `RuntimeEnvironment.onError` is told of it. */
-export interface ViewErrorEvent {
-  kind: ViewErrorKind;
-  /** What was thrown or rejected with, as it was: a stack, a code, a body. */
-  error: unknown;
-  context: ViewErrorContext;
+/**
+ * What each kind of failure says of where it happened. `operation` is
+ * always said, typed for its kind, so a host can switch on it exhaustively;
+ * the rest only where the failing part knows it.
+ */
+export interface ViewErrorContexts {
+  /**
+   * A query: the view's own (`query`), `summaries`, `totals`, `split`,
+   * `record` (one row read whole), `kanban` (a board's lanes), `candidates`
+   * (a condition's values) — or `labels`, reference ids read as names, which
+   * says the remote instead.
+   */
+  query:
+    | (ViewErrorPlace & {
+        operation: Exclude<QueryOperation, 'labels'>;
+        /**
+         * Which rule a Wow service said the query broke and where — its
+         * stable `code` (wow-client's `QueryErrorCodes`, an open list), the
+         * JSON path or logical field path, and its message. Absent when the
+         * source said none: a budget rejection, a failure the service did
+         * not answer, a source that is not Wow. The report waits for the
+         * body the source answered with to be read, so this is there when
+         * it is said.
+         */
+        violation?: QueryViolation;
+        /**
+         * The Wow `code` of the problem the service answered with, as it
+         * gave it — `wow.query.invalid`, `wow.aggregate.forbidden`, an
+         * application's own — when it gave one.
+         */
+        errorCode?: string;
+      })
+    | (ViewErrorPlace & {
+        operation: 'labels';
+        /** The remote whose labels could not be read. */
+        remote: string;
+      });
+  /** A store call, by the port's method. */
+  store: ViewErrorPlace & {
+    operation: StoreOperation;
+    /** A write's idempotency key, the same across its retries. */
+    requestId?: string;
+  };
+  export: ViewErrorPlace & { operation: ExportOperation };
+  /** A part that threw drawing, caught by its render boundary. */
+  render: ViewErrorPlace & {
+    operation: 'render';
+    /** The boundary that caught it. */
+    boundary: string;
+    /** React's component stack, where given. */
+    componentStack?: string;
+  };
+  /** A chart that could not be drawn, caught by its render boundary. */
+  chart: ViewErrorPlace & {
+    operation: ChartStage;
+    /** The boundary that caught it. */
+    boundary: string;
+    /** React's component stack, where given. */
+    componentStack?: string;
+  };
+  /** A declared action's command that failed on a record. */
+  action: ViewErrorPlace & {
+    /** The action's id; a slot's command: its `operation`, else its title. */
+    operation: string;
+    /** The record the command failed on. */
+    recordKey: RecordKey;
+  };
 }
+
+/** What failed, by the part of the engine it failed in. */
+export type ViewErrorKind = keyof ViewErrorContexts;
+
+/** Where a failure of any kind happened. */
+export type ViewErrorContext = ViewErrorContexts[ViewErrorKind];
+
+/**
+ * One failure, as `RuntimeEnvironment.onError` is told of it: a union on
+ * `kind`, each kind with its own context.
+ */
+export type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
+  [P in K]: {
+    kind: P;
+    /** What was thrown or rejected with, as it was: a stack, a code, a body. */
+    error: unknown;
+    context: ViewErrorContexts[P];
+  };
+}[K];
 
 export interface VisibilitySource {
   isVisible(): boolean;

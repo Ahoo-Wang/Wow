@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 905 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -106,6 +106,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `ChartProfile` | interface | A group's profile: its value on each of several metrics, in the order the spec lists them — one shape of a radar, one line of parallel axes. | — |
 | `ChartShape` | interface | The shape a chart is fitted to: what there is to draw. | — |
 | `ChartSpec` | interface | Charts are stored per family: the sub-object of the current `type` is required and the others are kept, so switching families loses nothing. | — |
+| `ChartStage` | type | Where a chart failed: its library never arrived, or it threw drawing. | — |
 | `ChartType` | type | — | — |
 | `ChartUnfit` | type | Why a chart type cannot draw the shape on hand, as a catalogue key. | — |
 | `ClickChoice` | type | The three things a press can do: the follow-up menu, a filter, a destination. | — |
@@ -216,6 +217,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `ExportCancelledError` | class | What a cancelled export rejects with. | — |
 | `ExportColumn` | interface | The least an export needs of a column: where to read it, what to call it. | — |
 | `ExportFormat` | type | How one value is written. | — |
+| `ExportOperation` | type | A file or a picture made of a view: the rows read for a file, the file handed over, a chart drawn as an image. | — |
 | `ExportRowsOptions` | interface | — | — |
 | `ExportedRows` | interface | — | — |
 | `FIELDLESS_FIELD_KIND_IDS` | const | Kinds whose `name` is a handle for the editor and the label rather than a path into a document. | — |
@@ -246,7 +248,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `FieldTone` | type | What a badge says about the value it wraps, beyond naming it. | — |
 | `FilterCompileContext` | interface | When a filter is evaluated, and in which zone. | — |
 | `FilterGroup` | interface | — | — |
-| `FilterGroupOperator` | type | How a group combines its children, as the same three Wow spells `AND`,`OR` and `NOR`. | — |
+| `FilterGroupOperator` | type | How a group combines its children: Wow's `AND`, `OR` and `NOR`, as the values it spells them with. | — |
 | `FilterLeaf` | interface | — | — |
 | `FilterMode` | type | `simple` mode only admits a single AND group whose children are all leaves. | — |
 | `FilterNode` | type | — | — |
@@ -376,6 +378,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `ProjectedBase` | interface | What both kinds carry besides their view: what is wrong with *these numbers*, as opposed to what is wrong with the config. | — |
 | `ProjectedRecord` | interface | — | — |
 | `ProjectedView` | type | What one execution produced, already shaped by its kernel. | — |
+| `QueryOperation` | type | A query the engine ran, by what it asked for. | — |
 | `QueryStatus` | type | — | — |
 | `RECORD_PRESENTATION_MEMBERS` | const | The record members that only draw the result, on top of the base's (`PRESENTATION_MEMBERS` in `config.ts` joins the two). | — |
 | `REFERENCE_STATISTICS` | const | Where a statistic reference line stands: the mean, or the middle value. | — |
@@ -450,6 +453,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `SizedPanel` | type | A dashboard panel whose layout gives only its size, for `inRows`. | — |
 | `SortDirectionName` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
 | `SourceOptions` | interface | What every read of a source takes: the signal that cancels it. | — |
+| `StoreOperation` | type | A `ViewStore` method, as the engine called it. | — |
 | `StoredDatasetWording` | interface | A dataset's wording as stored, and the revision a write expects. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
 | `StringFilterValue` | type | — | — |
@@ -500,9 +504,11 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `ViewDestination` | type | What the host's `navigate` is handed: a route, where the target's definition has one; otherwise the target as it came — a URL, or a definition the host bound no route for. | — |
 | `ViewEngine` | class | The registry and the command entry point: definitions in, runtimes and writes out. | [Engine and Resources](./engine#api-ViewEngine) |
 | `ViewEngineOptions` | interface | — | [Engine and Resources](./engine#api-ViewEngineOptions) |
-| `ViewErrorContext` | interface | Where a failure happened. | — |
-| `ViewErrorEvent` | interface | One failure, as `RuntimeEnvironment.onError` is told of it. | — |
+| `ViewErrorContext` | type | Where a failure of any kind happened. | — |
+| `ViewErrorContexts` | interface | What each kind of failure says of where it happened. | — |
+| `ViewErrorEvent` | type | One failure, as `RuntimeEnvironment.onError` is told of it: a union on`kind`, each kind with its own context. | — |
 | `ViewErrorKind` | type | What failed, by the part of the engine it failed in. | — |
+| `ViewErrorPlace` | interface | Where a failure happened, each member only where the failing part knows it. | — |
 | `ViewHandOver` | type | The two a workbench opens (`DataWorkbench`'s `handOver`). | — |
 | `ViewInstance` | interface | A saved config plus its identity. | — |
 | `ViewInstanceSummary` | interface | What a list returns: enough to render the sidebar, without the config. | — |
@@ -617,7 +623,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `derivedMetric` | function | A derived metric's first shape: the first metric divided by the second. | — |
 | `derivedText` | function | A derived metric as its author would say it, naming each metric it reads. | — |
 | `describeFilter` | function | The conditions in force, one item per child of the root, so the summary keeps the tree's logic: a group under the root is one item that reads out its own conditions joined by its own operator, with a group inside it in parentheses. | — |
-| `describePresence` | function | — | — |
+| `describePresence` | function | A presence operator's English words; `null` for any other operator. | — |
 | `describePresenceParts` | function | A presence question as one summary item: the operator is the whole condition, so the value says there is nothing beside it to read. | — |
 | `detailSections` | function | How a record's detail is laid out: every field the definition declares, under the groups it declares, in their order — the order the field pickers list them in, so the detail reads like the author arranged the record — and the fields no group gathers after them, in declaration order. | — |
 | `draftedClick` | function | The click a draft makes: `null` for the follow-up menu, `undefined` while the choice picked still lacks what it needs — no filter, no view, no board read yet (`board` is the destination board's config once read), or a URL no board may open. | — |
@@ -811,7 +817,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 899 — with its kind and th
 | `removeAt` | function | Removes the node at a path. | — |
 | `removeConditionAt` | function | The tree without the condition at `path`, and without the negation around it when it has one: an editor holds a negated condition by its leaf's path, so removing it takes the wrapper along rather than leaving an empty`nor` group behind that says nothing and cannot be edited. | — |
 | `removeFilter` | function | The board without a filter, and without every wire to it. | — |
-| `removeFixedScope` | function | The board without its fixed scope: the condition a board saved before its filters could not hold, taken out whole by its author — never a reader's to take — and the empty tree left in its place, so the member stays and the board is never read as pre-C again. | — |
+| `removeFixedScope` | function | The board without its fixed scope: the condition every panel runs under, taken out whole by its author — never a reader's to take — and the empty tree left in its place, so the member stays. | — |
 | `removePanel` | function | The board without one panel, its tab compacted where the panel stood. | — |
 | `removeTab` | function | A board without one of its tabs and the panels on it; the same board for a tab it lacks or its last tab. | — |
 | `renameFilter` | function | A filter's name on the bar; a blank one is not taken. | — |

@@ -53,8 +53,7 @@ import { bindingsOf, clicksFilter, isViewPanel, panelsOf } from './panels.js';
  * or a named period alike), a yes-or-no `EQ`, text, ids and numbers `IN` —
  * one value or several, so the same condition reaches a `string`, an `enum`
  * and a `reference` field without being translated on the way — and a search
- * `SEARCH`, the text a record view's search box looks for. A pre-C board
- * condition is read into defaults by the same table (`migrateDashboardConfig`).
+ * `SEARCH`, the text a record view's search box looks for.
  */
 export const FILTER_TYPE_OPERATOR = {
   date: FilterOperators.BETWEEN,

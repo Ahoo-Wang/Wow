@@ -32,13 +32,8 @@ import {
   withScopeFilter,
   withoutScopeModeWarning,
 } from './scope.js';
-import type { RuntimeEnvironment, ViewErrorKind } from './environment.js';
-import {
-  failureReporter,
-  queryFailureReporter,
-  viewPlace,
-  type FailureReporter,
-} from './failure/failures.js';
+import type { RuntimeEnvironment } from './environment.js';
+import { queryFailureReporter, viewPlace } from './failure/failures.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
 import { sourceFailure, type SourceFailure } from './failure/sourceReason.js';
@@ -724,15 +719,6 @@ export class DataViewRuntime<
   protected recovers(failure: SourceFailure): boolean {
     void failure;
     return false;
-  }
-
-  /**
-   * Tells the host of a failure of this view's (D40), saying which view:
-   * its definition, its saved id as it is at the moment of the failure, and
-   * the runtime it failed in.
-   */
-  protected reporter(kind: ViewErrorKind): FailureReporter {
-    return failureReporter(this.environment, kind, () => viewPlace(this));
   }
 
   private isCurrent(requestId: string): boolean {

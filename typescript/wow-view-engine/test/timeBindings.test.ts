@@ -26,10 +26,7 @@ import {
   type DashboardViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
-import {
-  withTimeBindings,
-  withTimeIgnored,
-} from '../src/dashboard/timeBindings.js';
+import { withTimeBindings } from '../src/dashboard/timeBindings.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -262,43 +259,8 @@ describe('time wires derived, never stored', () => {
     (config.panels.find(panel => panel.id === id) as { bindings?: unknown })
       ?.bindings;
 
-  it('3: reads a board stored before as it was — an unwired panel stays unwired', async () => {
-    const { runtime } = await stored(board([owned('a')]));
-    const { applied } = runtime.getSnapshot() as DashboardRuntimeState;
-    expect(bindingsOf(applied, 'a')).toEqual([]);
-    expect(applied.panels[0]).toMatchObject({ ignoresTime: true });
-    runtime.dispose();
-  });
-
-  it('3: migrates a board stored before once, keeping what auto-connect wired', () => {
-    const before = board([
-      owned('wired', {
-        bindings: [
-          {
-            globalField: 'window',
-            panelField: 'createdAt',
-            auto: true,
-            derived: true,
-          },
-        ],
-      }),
-      owned('unwired'),
-    ]);
-    const read = withTimeIgnored(before);
-    expect(read.derivesTime).toBe(true);
-    expect(read.panels[0]).toMatchObject({
-      bindings: [{ globalField: 'window', panelField: 'createdAt' }],
-    });
-    expect(read.panels[0]).not.toHaveProperty('ignoresTime');
-    expect(read.panels[1]).toMatchObject({ ignoresTime: true });
-    expect(withTimeIgnored(read)).toBe(read);
-  });
-
-  it('stores no wire it derives, marks the board, and reads it back clean', async () => {
-    const { engine, store, runtime, id } = await stored({
-      ...board([owned('a')]),
-      derivesTime: true,
-    });
+  it('stores no wire it derives, and reads it back clean', async () => {
+    const { engine, store, runtime, id } = await stored(board([owned('a')]));
     const before = runtime.getSnapshot() as DashboardRuntimeState;
     expect(bindingsOf(before.applied, 'a')).toEqual([
       {
@@ -312,7 +274,6 @@ describe('time wires derived, never stored', () => {
     runtime.renamePanel('a', 'Orders');
     await engine.save(runtime);
     const saved = (await store.get(id)).config as DashboardViewConfig;
-    expect(saved.derivesTime).toBe(true);
     expect(bindingsOf(saved, 'a')).toEqual([]);
     const after = runtime.getSnapshot() as DashboardRuntimeState;
     expect(after.dirty).toBe(false);
@@ -328,14 +289,13 @@ describe('time wires derived, never stored', () => {
   });
 
   it('4: wires a new panel through its view’s time field, not the name the board uses most', async () => {
-    const { runtime } = await stored({
-      ...board([
+    const { runtime } = await stored(
+      board([
         owned('by-hand', {
           bindings: [{ globalField: 'window', panelField: 'shippedAt' }],
         }),
       ]),
-      derivesTime: true,
-    });
+    );
     runtime.setBuilding(true);
     const added = runtime.addPanel({
       kind: 'view',
@@ -354,10 +314,7 @@ describe('time wires derived, never stored', () => {
   });
 
   it('5: leaves no wire of a panel’s previous view once another replaces it', async () => {
-    const { runtime } = await stored({
-      ...board([reference('p', 'timed')]),
-      derivesTime: true,
-    });
+    const { runtime } = await stored(board([reference('p', 'timed')]));
     const wired = runtime.getSnapshot() as DashboardRuntimeState;
     expect(bindingsOf(wired.draft, 'p')).toHaveLength(1);
     runtime.setBuilding(true);
@@ -370,10 +327,9 @@ describe('time wires derived, never stored', () => {
 
   it('4 (second review): 「只接我选的」 puts the panels back, not reading whole', async () => {
     const shipped: DashboardField = { ...WINDOW, name: 'shipped' };
-    const { runtime } = await stored({
-      ...board([owned('a'), owned('b')], [WINDOW, shipped]),
-      derivesTime: true,
-    });
+    const { runtime } = await stored(
+      board([owned('a'), owned('b')], [WINDOW, shipped]),
+    );
     runtime.setBuilding(true);
     const connected = runtime.bindPanel('shipped', 'a', 'shippedAt');
     expect(connected).toEqual(['b']);

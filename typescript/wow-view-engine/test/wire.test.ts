@@ -19,6 +19,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { AnalysisGroup } from '../src/model/analysis';
+import type { AggregationFieldCapability } from '../src/model/definition';
+import { includesValue } from '../src/model/values';
 import {
   AggregationGroupTypes,
   FilterOperators,
@@ -69,5 +71,31 @@ describe('the literal views of the wire values', () => {
         part: AggregationDatePart.HOUR_OF_DAY,
       }),
     ).toBe(AggregationDatePart.HOUR_OF_DAY);
+  });
+});
+
+describe('includesValue', () => {
+  it('asks a list for a value read from outside, and narrows it to the list’s own', () => {
+    const operators: readonly FilterOperator[] = [FilterOperator.EQ];
+    const read: unknown = FilterOperators.EQ;
+    expect(includesValue(operators, read)).toBe(true);
+    if (includesValue(operators, read))
+      expectTypeOf(read).toEqualTypeOf<FilterOperator>();
+    expect(includesValue(operators, FilterOperators.NE)).toBe(false);
+    expect(includesValue(operators, 'nope')).toBe(false);
+    expect(includesValue(operators, undefined)).toBe(false);
+  });
+
+  it('is not needed where a capability is asked for a value of its own type', () => {
+    // An enum member still assigns to the literal view the capability holds.
+    const capability: AggregationFieldCapability = {
+      field: 'at',
+      groups: [AggregationGroupType.DATE_HISTOGRAM],
+      functions: [],
+    };
+    expect(
+      capability.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM),
+    ).toBe(true);
+    expect(capability.groups.includes(AggregationGroupTypes.TERMS)).toBe(false);
   });
 });

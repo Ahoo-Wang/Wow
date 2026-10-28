@@ -19,7 +19,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import {
   defaultRuntimeEnvironment,
@@ -44,6 +44,16 @@ import type { RenderFailure } from '../src/ui/index.js';
 import { EChart } from '../src/ui/charts/EChart.js';
 import { watchSize } from '../src/ui/charts/sizes.js';
 import { FailureSink } from '../src/ui/kit/failureSink.js';
+import type {
+  QueryOperation,
+  StoreOperation,
+} from '../src/runtime/environment.js';
+import {
+  failureReporter,
+  reportError,
+  reportViewFailure,
+} from '../src/runtime/failure/failures.js';
+import type { ViewStore } from '../src/store/ViewStore.js';
 import {
   deferred,
   mine,
@@ -298,7 +308,8 @@ describe('store failures reach onError', () => {
       },
     });
     // A retry is the same logical write: the host can group the two.
-    expect(events[1].context.requestId).toBe(events[0].context.requestId);
+    const [written, retried] = events as ViewErrorEvent<'store'>[];
+    expect(retried.context.requestId).toBe(written.context.requestId);
   });
 });
 
@@ -537,5 +548,68 @@ describe('render and chart failures reach onError', () => {
     expect(drawings).toEqual(['fine', 'fine']);
     for (const stop of stops) stop();
     vi.unstubAllGlobals();
+  });
+});
+
+describe('a failure event is typed by its kind', () => {
+  it("refuses an operation that is not its kind's", () => {
+    const environment = defaultRuntimeEnvironment();
+    const save = { operation: 'save' } as const;
+    const labels = { operation: 'labels' } as const;
+    const render = { operation: 'render' } as const;
+    // @ts-expect-error -- `save` is a store call, not a query
+    reportError(environment, { kind: 'query', error: 1, context: save });
+    // @ts-expect-error -- a labels read says its remote
+    reportError(environment, { kind: 'query', error: 1, context: labels });
+    // @ts-expect-error -- a render failure says the boundary that caught it
+    reportError(environment, { kind: 'render', error: 1, context: render });
+    reportError(environment, { kind: 'store', error: 1, context: save });
+    const store = failureReporter(environment, 'store');
+    // @ts-expect-error -- `fetch` is an export's
+    store('fetch', 1);
+    // @ts-expect-error -- `save` is a store call's, not an export's
+    reportViewFailure(null, 'export', 'save', 1);
+    reportViewFailure(null, 'export', 'image', 1);
+    store('changeAudience', 1, { requestId: 'r' });
+  });
+
+  it('lets a host switch exhaustively on a query operation', () => {
+    const said = (event: ViewErrorEvent): string => {
+      if (event.kind !== 'query') return event.kind;
+      const operation = event.context.operation;
+      switch (operation) {
+        case 'query':
+        case 'summaries':
+        case 'totals':
+        case 'split':
+        case 'record':
+        case 'kanban':
+        case 'candidates':
+          return operation;
+        case 'labels':
+          // The labels branch, and only it, says the remote.
+          return event.context.remote;
+        default: {
+          const never: never = operation;
+          return never;
+        }
+      }
+    };
+    expect(
+      said({
+        kind: 'query',
+        error: 1,
+        context: { operation: 'labels', remote: 'users' },
+      }),
+    ).toBe('users');
+  });
+
+  it('names every store method but the synchronous `permissions`', () => {
+    expectTypeOf<StoreOperation>().toEqualTypeOf<
+      Exclude<keyof ViewStore, 'permissions'>
+    >();
+    expectTypeOf<
+      Extract<ViewErrorEvent, { kind: 'query' }>['context']['operation']
+    >().toEqualTypeOf<QueryOperation>();
   });
 });
