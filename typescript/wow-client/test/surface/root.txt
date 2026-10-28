@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 119 names, from src/index.ts.
+# @ahoo-wang/wow-client — 121 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -56,7 +56,9 @@ type  Problem
 type  PublishedManifest
 type  QueryManifest
 value QueryModelClient
+type  RefusedResult
 type  RequestOptions
+type  ResolvingRejected
 type  RetryHint
 type  RetryManifest
 type  RouteManifest

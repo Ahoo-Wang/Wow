@@ -275,8 +275,10 @@ export class CommandGateway {
     constructor(client?: WowClientOptions, manifest?: Manifest);
     // (undocumented)
     readonly client: WowClientOptions;
+    send<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
     stream<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResultStream<R>>;
+    wait<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
 }
 
@@ -347,8 +349,7 @@ export interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
-    // (undocumented)
-    readonly ref: CommandRef;
+    readonly ref: AggregateRef;
     // (undocumented)
     readonly requestId: string;
     // (undocumented)
@@ -1375,7 +1376,7 @@ export interface Problem {
     // (undocumented)
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -1573,6 +1574,12 @@ type ReferenceSemantic = {
 });
 
 // @public
+export interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<R>, 'ref'> {
+    // (undocumented)
+    readonly ref: CommandRef;
+}
+
+// @public
 interface RelativeTimeFilterOptions {
     datePattern?: string;
     timeUnit?: TimeUnit;
@@ -1589,6 +1596,11 @@ export interface RequestOptions {
     readonly signal?: AbortSignal;
     readonly space?: string;
 }
+
+// @public
+export type ResolvingRejected<O> = O & {
+    readonly resolveRejected: true;
+};
 
 // @public
 export interface RetryHint {
@@ -2127,7 +2139,7 @@ export class WowProblemError extends Error {
     readonly name = "WowProblemError";
     readonly problem: Problem;
     get requestId(): string | undefined;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     readonly retry: RetryHint;
     readonly status: number;
     // (undocumented)

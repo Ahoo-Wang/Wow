@@ -623,7 +623,7 @@ Pre-release data is not carried: JSON that Wow stored in the old spelling, such 
 A target pinned to an earlier V10 pre-release also changed two request rules:
 
 - `If-Match` takes entity tags only (RFC 9110). A bare `3` is 400 `wow.request.malformed`; send `"3"`, or the `ETag` a state read answered (`"3-<digest>"`), which is taken by its version. Tags naming two different versions are 400, since a command takes one expected version. A weak tag or a tag that names no version is 412, and so is `*` on a command that always creates its aggregate. On any other command `*` adds no condition.
-- An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead; in TypeScript a result's `ref` is a `CommandRef`.
+- An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead. In TypeScript only a refused result can name no id: `RefusedResult`, whose `ref` is a `CommandRef` (`id: string | null`), is the type of `WowProblemError.result` and of what `send`, `wait` and a generated command method answer under `resolveRejected: true`. A `CommandResult` still names its id.
 
 ## Tests
 

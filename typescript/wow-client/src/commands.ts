@@ -20,7 +20,12 @@ import {
   type WowClientOptions,
   WowHeaders,
 } from './http.js';
-import type { AggregateType, CommandResult, Hop } from './wire.js';
+import type {
+  AggregateType,
+  CommandResult,
+  Hop,
+  RefusedResult,
+} from './wire.js';
 import {
   checkManifest,
   fetchManifest,
@@ -104,10 +109,18 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
   readonly bodyNumbers?: TextNumbers;
   /**
    * Resolve a result that did not succeed instead of rejecting with its
-   * {@link WowProblemError}; `false` by default.
+   * {@link WowProblemError}; `false` by default. A request typed with
+   * `resolveRejected: true` is answered a {@link RefusedResult} too
+   * ({@link ResolvingRejected}).
    */
   readonly resolveRejected?: boolean;
 }
+
+/**
+ * Options or a request that set `resolveRejected: true`: what `send`, `wait`
+ * and a generated command method answer then may be a {@link RefusedResult}.
+ */
+export type ResolvingRejected<O> = O & { readonly resolveRejected: true };
 
 /**
  * The options of a generated client's command method: a {@link CommandRequest}
@@ -324,12 +337,26 @@ export class CommandGateway {
    * request's timeout (10 seconds without one), as Kotlin's
    * `CommandClient.send`. A request whose `wait` waits for more rejects with a
    * `TypeError` before it is sent: {@link wait} answers with that plan's result.
+   * Under `resolveRejected: true` a result that did not succeed resolves, as a
+   * {@link RefusedResult}.
    *
    * @param request - The command and how to send it
    */
+  send<R = Record<string, unknown>>(
+    request: ResolvingRejected<CommandRequest>,
+  ): Promise<CommandResult<R> | RefusedResult<R>>;
+  /**
+   * Sends a command and answers its acceptance, as the overload above; a
+   * result that did not succeed rejects with its {@link WowProblemError}.
+   *
+   * @param request - The command and how to send it
+   */
+  send<R = Record<string, unknown>>(
+    request: CommandRequest,
+  ): Promise<CommandResult<R>>;
   async send<R = Record<string, unknown>>(
     request: CommandRequest,
-  ): Promise<CommandResult<R>> {
+  ): Promise<CommandResult<R> | RefusedResult<R>> {
     if (request.wait !== undefined && !acceptedOnly(request.wait)) {
       throw new TypeError(
         `send answers on acceptance: use wait() for the plan ${formatWaitPlan(request.wait)}.`,
@@ -344,13 +371,27 @@ export class CommandGateway {
    * Sends a command and answers the result its wait plan ends with: 200, or
    * 202 for a plan that ends at `accepted`. Without a plan, the server's
    * default: the snapshot, or the commit where the aggregate keeps no
-   * snapshot (decision D69).
+   * snapshot (decision D69). Under `resolveRejected: true` a result that did
+   * not succeed resolves, as a {@link RefusedResult}.
+   *
+   * @param request - The command and how to send it
+   */
+  wait<R = Record<string, unknown>>(
+    request: ResolvingRejected<CommandRequest>,
+  ): Promise<CommandResult<R> | RefusedResult<R>>;
+  /**
+   * Sends a command and answers the result its wait plan ends with, as the
+   * overload above; a result that did not succeed rejects with its
+   * {@link WowProblemError}.
    *
    * @param request - The command and how to send it
    */
   wait<R = Record<string, unknown>>(
     request: CommandRequest,
-  ): Promise<CommandResult<R>> {
+  ): Promise<CommandResult<R>>;
+  wait<R = Record<string, unknown>>(
+    request: CommandRequest,
+  ): Promise<CommandResult<R> | RefusedResult<R>> {
     return this.exchange<R>(request, request.wait, {});
   }
 
@@ -376,7 +417,7 @@ export class CommandGateway {
     request: CommandRequest,
     plan: readonly Hop[] | string | undefined,
     override: { timeout?: number },
-  ): Promise<CommandResult<R>> {
+  ): Promise<CommandResult<R> | RefusedResult<R>> {
     const requestId = request.requestId ?? newRequestId();
     const sent = { ...request, ...override };
     try {
@@ -389,7 +430,7 @@ export class CommandGateway {
         error instanceof WowProblemError &&
         error.result !== undefined
       ) {
-        return error.result as CommandResult<R>;
+        return error.result as RefusedResult<R>;
       }
       throw error;
     }

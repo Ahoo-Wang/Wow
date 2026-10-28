@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CommandResult, Violation } from './wire.js';
+import type { RefusedResult, Violation } from './wire.js';
 
 /**
  * The framework's error codes,
@@ -133,8 +133,11 @@ export interface Problem {
   /** The Wow code; absent for an error that is only HTTP's. */
   readonly code?: string;
   readonly violations?: readonly Violation[];
-  /** The whole result of a command that has a ref. */
-  readonly result?: CommandResult;
+  /**
+   * The whole result of a command that has a ref; its id is null when
+   * admission refused a creation before choosing one.
+   */
+  readonly result?: RefusedResult;
   /**
    * The problem's extension members (RFC 9457): every member the server
    * wrote besides the ones above and `instance`, such as a rejection's
@@ -241,8 +244,8 @@ export class WowProblemError extends Error {
   /** The Wow code; absent for an error that is only HTTP's. */
   readonly code?: string;
   readonly violations: readonly Violation[];
-  /** The command's result, when the command had a ref. */
-  readonly result?: CommandResult;
+  /** The command's result, when the command had a ref ({@link RefusedResult}). */
+  readonly result?: RefusedResult;
   /** What a client may do about it. */
   readonly retry: RetryHint;
   /** The error this one explains: the fetcher's, or the stream's. */

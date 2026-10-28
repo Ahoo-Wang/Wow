@@ -108,7 +108,7 @@ export function orderIdOf(result: CommandResult): string | undefined {
   if (typeof named === "string") return named;
   const { type, id } = result.ref;
   return type.context === "eshop-ordering" && type.name === "order"
-    ? (id ?? undefined)
+    ? id
     : undefined;
 }
 

@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { aggregation, filter } from '../src/dsl.js';
 import {
   checkManifest,
   CommandGateway,
+  type CommandRequest,
   type CommandResult,
   DatasetClient,
   EventQueryClient,
@@ -29,6 +30,7 @@ import {
   newRequestId,
   parseRetryAfter,
   type Problem,
+  type RefusedResult,
   readProblem,
   requestIdOf,
   retryHintOf,
@@ -402,6 +404,49 @@ describe('CommandGateway', () => {
       resolveRejected: true,
     });
     expect(answered.status).toBe('rejected');
+  });
+
+  it('resolves a creation refused before admission chose an id, with no id', async () => {
+    const refused = {
+      ...result('rejected'),
+      ref: { ...result('rejected').ref, id: null },
+    };
+    stubFetch(() =>
+      problemResponse(400, 'wow.command.invalid', { result: refused }),
+    );
+    const answered = await new CommandGateway(client(), TEST_MANIFEST).wait({
+      command: 'eshop-catalog.product.CreateProduct',
+      resolveRejected: true,
+    });
+    expect(answered.ref.id).toBeNull();
+  });
+
+  it('types a refused result only where resolveRejected: true can answer one', () => {
+    const answers = (gateway: CommandGateway, request: CommandRequest) => ({
+      resolving: gateway.wait({ ...request, resolveRejected: true }),
+      sentResolving: gateway.send({ ...request, resolveRejected: true }),
+      rejecting: gateway.wait(request),
+      sentRejecting: gateway.send({ ...request, resolveRejected: false }),
+    });
+    type Answers = ReturnType<typeof answers>;
+    expectTypeOf<Answers['resolving']>().toEqualTypeOf<
+      Promise<CommandResult | RefusedResult>
+    >();
+    expectTypeOf<Answers['sentResolving']>().toEqualTypeOf<
+      Promise<CommandResult | RefusedResult>
+    >();
+    expectTypeOf<Answers['rejecting']>().toEqualTypeOf<
+      Promise<CommandResult>
+    >();
+    expectTypeOf<Answers['sentRejecting']>().toEqualTypeOf<
+      Promise<CommandResult>
+    >();
+    // A result that succeeded names its aggregate; a refused one may not.
+    expectTypeOf<CommandResult['ref']['id']>().toEqualTypeOf<string>();
+    expectTypeOf<RefusedResult['ref']['id']>().toEqualTypeOf<string | null>();
+    expectTypeOf<WowProblemError['result']>().toEqualTypeOf<
+      RefusedResult | undefined
+    >();
   });
 
   it('still rejects a problem without a result when asked to resolve', async () => {

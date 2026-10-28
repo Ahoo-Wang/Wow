@@ -62,8 +62,7 @@ interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
-    // (undocumented)
-    readonly ref: CommandRef;
+    readonly ref: AggregateRef;
     // (undocumented)
     readonly requestId: string;
     // (undocumented)
@@ -144,7 +143,7 @@ interface Problem {
     // (undocumented)
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -160,6 +159,12 @@ export function problemOf(status: number, code?: string, overrides?: Partial<Pro
 
 // @public
 export function problemResponse(problem: Problem, init?: ResponseInit): Response;
+
+// @public
+interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<R>, 'ref'> {
+    // (undocumented)
+    readonly ref: CommandRef;
+}
 
 // @public
 interface Scope {

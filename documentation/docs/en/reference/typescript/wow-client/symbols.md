@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 119 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -70,7 +70,9 @@ Every name `@ahoo-wang/wow-client` exports — 119 — with its kind and the fir
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
+| `RefusedResult` | interface | A result that may not have succeeded, as a problem carries it (`WowProblemError.result`) or `send` and `wait` answer it under`resolveRejected: true`: a creation refused before admission chose an id names none (`CommandRef`). | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
+| `ResolvingRejected` | type | Options or a request that set `resolveRejected: true`: what `send`, `wait` and a generated command method answer then may be a `RefusedResult`. | — |
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
