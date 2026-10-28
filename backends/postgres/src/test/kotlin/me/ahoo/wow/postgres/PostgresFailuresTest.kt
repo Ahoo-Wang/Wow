@@ -29,6 +29,7 @@ import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -48,7 +49,6 @@ class PostgresFailuresTest {
             // C.1 F2: a restarting server ends every connection with 57P01.
             SQLException("FATAL: terminating connection due to administrator command", "57P01"),
             SQLException("the database system is shutting down", "57P03"),
-            SQLException("too many connections", "53300"),
             PSQLException("An I/O error occurred while sending to the backend.", PSQLState.CONNECTION_FAILURE),
             PSQLException("Connection refused.", PSQLState.CONNECTION_UNABLE_TO_CONNECT),
             // Hikari: no connection handed out within its connection timeout.
@@ -61,6 +61,16 @@ class PostgresFailuresTest {
             translated.cause.assert().isSameAs(failure)
             translated.message.assert().isEqualTo("PostgreSQL is unavailable; retry later.")
         }
+    }
+
+    @Test
+    fun `a server out of connections should be busy, a store at its capacity`() {
+        val failure = SQLException("sorry, too many clients already", "53300")
+        PostgresFailures.isTransient(failure).assert().isTrue()
+        val translated = PostgresFailures.translate(failure)
+        translated.assert().isInstanceOf(StorageBusyException::class.java)
+        translated.cause.assert().isSameAs(failure)
+        translated.message.assert().isEqualTo("PostgreSQL has no connection to spare; retry later.")
     }
 
     @Test

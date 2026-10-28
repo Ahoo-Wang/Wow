@@ -37,7 +37,8 @@ class PostgresStoreDdlTest {
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = PostgresFixture.newContext("ddl")
         val validating = PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE)
-        assertThrows<IllegalStateException> { validating.createSchema() }.message.assert().contains("no format record")
+        assertThrows<IllegalStateException> { validating.createSchema() }.message.assert()
+            .contains("does not exist, and the store only validates its schema")
 
         PostgresEventLog(dataSource, context, 2).also {
             it.createSchema()
@@ -46,7 +47,7 @@ class PostgresStoreDdlTest {
         validating.createSchema()
         validating.createTable("order")
         assertThrows<IllegalStateException> { validating.createTable("cart") }.message.assert()
-            .contains("no format record")
+            .contains("does not exist, and the store only validates its schema")
     }
 
     @Test

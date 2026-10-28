@@ -53,6 +53,27 @@ class SourceTokenRulesTest {
         )
     }
 
+    @Test
+    fun `a backend should name a ddl mode only as a parameter's default`(@TempDir root: File) {
+        File(root, "${ArchitectureRules.POSTGRES.dir}/src/main/kotlin/Store.kt").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                /** Creates under [Ddl.AUTO]. */
+                class Store(private val ddl: Ddl = Ddl.AUTO) {
+                    fun a() = if (ddl == Ddl.VALIDATE) 1 else 2
+                    fun b() = ddl.ensure("t", create = {}) { true }
+                    fun c() = when (ddl) { Ddl.NONE -> Unit else -> Unit }
+                }
+                """.trimIndent(),
+            )
+        }
+        SourceTokenRules.BACKENDS_BRANCH_NO_DDL_MODE.violations(root).assert().containsExactly(
+            "${ArchitectureRules.POSTGRES.dir}/src/main/kotlin/Store.kt:3: Ddl.VALIDATE",
+            "${ArchitectureRules.POSTGRES.dir}/src/main/kotlin/Store.kt:5: Ddl.NONE",
+        )
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }

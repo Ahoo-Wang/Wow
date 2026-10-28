@@ -18,7 +18,7 @@ import com.clickhouse.client.api.insert.InsertSettings
 import com.clickhouse.data.ClickHouseFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.withContext
+import me.ahoo.wow.clickhouse.clickhouse
 import java.io.ByteArrayInputStream
 
 /** The few statements the Sink runs, so that its logic is tested without a server. */
@@ -48,30 +48,31 @@ internal interface ClickHouseStatements {
 
 /**
  * The statements over a client-v2 [client]. Its calls answer with futures; each is awaited on [Dispatchers.IO], since
- * the client may do part of the work on the calling thread.
+ * the client may do part of the work on the calling thread. ClickHouse being unavailable fails a call as a
+ * [me.ahoo.wow.spi.StorageUnavailableException] ([me.ahoo.wow.clickhouse.ClickHouseFailures]).
  */
 internal class ClientStatements(private val client: Client) : ClickHouseStatements {
     override suspend fun execute(sql: String) {
-        withContext(Dispatchers.IO) { client.execute(sql).await().close() }
+        Dispatchers.IO.clickhouse { client.execute(sql).await().close() }
     }
 
     override suspend fun insert(table: String, body: ByteArray, token: String) {
         val settings = InsertSettings()
             .setDeduplicationToken(token)
             .serverSetting(DEDUPLICATE_VIEWS, "1")
-        withContext(Dispatchers.IO) {
+        Dispatchers.IO.clickhouse {
             client.insert(table, ByteArrayInputStream(body), ClickHouseFormat.JSONEachRow, settings).await().close()
         }
     }
 
-    override suspend fun exists(database: String, name: String): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun exists(database: String, name: String): Boolean = Dispatchers.IO.clickhouse {
         client.queryAll(
             "SELECT name FROM system.tables WHERE database = {database:String} AND name = {name:String}",
             mapOf<String, Any>("database" to database, "name" to name),
         ).isNotEmpty()
     }
 
-    override suspend fun columns(database: String, name: String): List<ClickHouseColumn> = withContext(Dispatchers.IO) {
+    override suspend fun columns(database: String, name: String): List<ClickHouseColumn> = Dispatchers.IO.clickhouse {
         client.queryAll(
             "SELECT name, type FROM system.columns WHERE database = {database:String} AND table = {name:String} " +
                 "ORDER BY position",
@@ -79,14 +80,14 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
         ).map { ClickHouseColumn(it.getString("name"), it.getString("type")) }
     }
 
-    override suspend fun uuid(database: String, name: String): String? = withContext(Dispatchers.IO) {
+    override suspend fun uuid(database: String, name: String): String? = Dispatchers.IO.clickhouse {
         client.queryAll(
             "SELECT toString(uuid) AS uuid FROM system.tables WHERE database = {database:String} AND name = {name:String}",
             mapOf<String, Any>("database" to database, "name" to name),
         ).firstOrNull()?.getString("uuid")
     }
 
-    override suspend fun comment(database: String, name: String): String? = withContext(Dispatchers.IO) {
+    override suspend fun comment(database: String, name: String): String? = Dispatchers.IO.clickhouse {
         client.queryAll(
             "SELECT comment FROM system.tables WHERE database = {database:String} AND name = {name:String}",
             mapOf<String, Any>("database" to database, "name" to name),

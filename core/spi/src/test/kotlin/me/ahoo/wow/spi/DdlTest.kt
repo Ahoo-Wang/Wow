@@ -46,4 +46,40 @@ class DdlTest {
         run(Ddl.NONE, exists = false).assert().isEmpty()
         Ddl.NONE.checks.assert().isFalse()
     }
+
+    private fun ensure(ddl: Ddl, exists: Boolean): List<String> {
+        val ran = mutableListOf<String>()
+        var created = exists
+        ddl.ensure("The table t", create = {
+            ran += "create"
+            created = true
+        }) {
+            ran += "validate"
+            created
+        }
+        return ran
+    }
+
+    @Test
+    fun `ensure under auto should create idempotently, then validate, without asking whether it exists`() {
+        ensure(Ddl.AUTO, exists = false).assert().containsExactly("create", "validate")
+        ensure(Ddl.AUTO, exists = true).assert().containsExactly("create", "validate")
+        assertThrownBy<IllegalStateException> { Ddl.AUTO.ensure("The table t", create = {}) { false } }
+            .hasMessage("The table t does not exist after its creation.")
+    }
+
+    @Test
+    fun `ensure under validate should validate alone and refuse what is missing, naming it`() {
+        ensure(Ddl.VALIDATE, exists = true).assert().containsExactly("validate")
+        assertThrownBy<IllegalStateException> { ensure(Ddl.VALIDATE, exists = false) }
+            .hasMessage(
+                "The table t does not exist, and the store only validates its schema (ddl validate): create it " +
+                    "first, with ddl auto once or the migration tool.",
+            )
+    }
+
+    @Test
+    fun `ensure under none should do nothing`() {
+        ensure(Ddl.NONE, exists = false).assert().isEmpty()
+    }
 }

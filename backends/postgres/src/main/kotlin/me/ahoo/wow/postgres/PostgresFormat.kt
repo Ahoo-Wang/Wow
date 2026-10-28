@@ -55,10 +55,10 @@ internal object PostgresFormat {
     }
 
     /**
-     * Makes sure of [structures] (each a table and its format version) as [ddl] says: under
-     * [Ddl.AUTO] claims them and runs [create] in one transaction ([creating]), whose statements go through
-     * [PostgresSchema.execute] so that a current schema takes no table lock; under [Ddl.VALIDATE] checks that each is
-     * recorded at its version and exists, creating nothing; under [Ddl.NONE] does nothing.
+     * Makes sure of [structures] (each a table and its format version) as [ddl] says ([Ddl.ensure]): creating them
+     * claims them and runs [create] in one transaction ([creating]), whose statements go through
+     * [PostgresSchema.execute] so that a current schema takes no table lock; validating checks that each is recorded
+     * at its version and exists ([validate]).
      */
     fun schema(
         connection: Connection,
@@ -67,31 +67,37 @@ internal object PostgresFormat {
         wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
         create: () -> Unit,
     ) {
-        when (ddl) {
-            Ddl.AUTO -> creating(connection, structures.first().first, wait) {
-                structures.forEach { (structure, version) -> claim(connection, structure, version) }
-                create()
-            }
-
-            Ddl.VALIDATE -> structures.forEach { (structure, version) -> validate(connection, structure, version) }
-            Ddl.NONE -> Unit
+        ddl.ensure(
+            structures.joinToString { it.first },
+            create = {
+                creating(connection, structures.first().first, wait) {
+                    structures.forEach { (structure, version) -> claim(connection, structure, version) }
+                    create()
+                }
+            },
+        ) {
+            structures.map { (structure, version) -> validate(connection, structure, version) }.all { it }
         }
     }
 
-    /** Checks that [structure] is recorded at [version] and exists, creating nothing ([Ddl.VALIDATE]). */
-    fun validate(connection: Connection, structure: String, version: Int) {
+    /**
+     * Whether [structure] exists, recorded at [version]; refuses one recorded at another version, and a table that
+     * exists without a record (an earlier, incompatible build created it).
+     */
+    fun validate(connection: Connection, structure: String, version: Int): Boolean {
         val stored = if (tableExists(connection, TABLE)) recorded(connection, structure) else null
-        checkNotNull(stored) {
-            "$structure has no format record, and the store only validates its schema (ddl validate): create the " +
-                "schema first, with ddl auto once or the migration tool."
+        val exists = tableExists(connection, structure)
+        if (stored == null) {
+            check(!exists) {
+                "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
+            }
+            return false
         }
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
                 "Migrate it with the migration tool rather than opening it."
         }
-        check(tableExists(connection, structure)) {
-            "$structure has a format record but does not exist, and the store only validates its schema (ddl validate)."
-        }
+        return exists
     }
 
     /**

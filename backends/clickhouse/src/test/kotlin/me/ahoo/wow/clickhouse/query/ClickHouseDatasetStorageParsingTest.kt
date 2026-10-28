@@ -24,12 +24,12 @@ import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetBuilder
-import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -132,13 +132,13 @@ class ClickHouseDatasetStorageParsingTest {
         ClickHouseExecutor.translate(
             RuntimeException(server),
             timeout
-        ).assert().isInstanceOf(QueryTimeoutException::class.java)
+        ).assert().isInstanceOf(StorageTimeoutException::class.java)
         ClickHouseExecutor.translate(server, null).assert().isSameAs(server)
         val other = ServerException(60, "Unknown table", 404, "q")
         ClickHouseExecutor.translate(other, timeout).assert().isSameAs(other)
         val streamed = ClickHouseStreamException("Code: 159. DB::Exception: Timeout exceeded. (TIMEOUT_EXCEEDED)")
         streamed.code.assert().isEqualTo(159)
-        ClickHouseExecutor.translate(streamed, timeout).assert().isInstanceOf(QueryTimeoutException::class.java)
+        ClickHouseExecutor.translate(streamed, timeout).assert().isInstanceOf(StorageTimeoutException::class.java)
         ClickHouseStreamException("garbage").code.assert().isNull()
     }
 

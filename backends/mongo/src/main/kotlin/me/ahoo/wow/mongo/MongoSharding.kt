@@ -134,7 +134,8 @@ internal object MongoShards {
         index: Bson,
         chunks: List<Document> = emptyList(),
     ) {
-        MongoFormat.index(collection, index, IndexOptions().name(SHARD_KEY), Ddl.AUTO)
+        // Sharding runs only for a store that creates its schema: the key's index is created as it is.
+        MongoTimeouts.ddl(collection).createIndex(index, IndexOptions().name(SHARD_KEY))
         val namespace = collection.namespace.fullName
         val admin = MongoTimeouts.ddl(client.getDatabase(ADMIN))
         try {
