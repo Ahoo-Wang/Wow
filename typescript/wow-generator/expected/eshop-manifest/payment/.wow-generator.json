@@ -1,11 +1,12 @@
 {
   "version": 1,
   "files": {
-    "eshop-payment/client.ts": "baa68d9fd4428a787e7606ed4e0468b3f32c3274d3cdd108fecf6a986bad313f",
+    "eshop-payment/client.ts": "331c5c35646222b0c2202e727746f902c776646980bbd46c0f4d47c90e1e2f7b",
     "eshop-payment/contract.ts": "e52da550d9027630e3436dc89155979a0dc919c9867e1dce21693d19c96e7995",
-    "eshop-payment/index.ts": "5e5be8a6090e6abf4341a9901afe47ee09fcc10d2767528aa5f9671e38df2454",
+    "eshop-payment/index.ts": "5ecccfcc543ecd5c4f8033c9af4524141ef92a5e7360f47375bc6229c28892aa",
+    "eshop-payment/manifest.ts": "9fb979c0c6397754ec61a70659de3bc49e4ed989fde5cd7c5a349a4f41cf3d6f",
     "eshop-payment/payment/aggregate.ts": "3743fec2fa3b0407c59a9749e228a4c84d266f937a6de3b10c82ac4eb4a6f1d8",
-    "eshop-payment/payment/commandClient.ts": "c9e3a4320a81574e9f9cf943bbf44ca09ef8bf45accd85036be6896db82f7bfa",
+    "eshop-payment/payment/commandClient.ts": "c81081ee304f96344563416df109c576eb6526577d40cdf49ac46702518ed2ee",
     "eshop-payment/payment/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-payment/payment/queryClient.ts": "fba35ec5bee8e42abb62204940705c30c097aeea2a71b47aff40cdd6b5b3b445",
     "eshop-payment/types.ts": "90a9b7b707ba8f804d5b91d9bc9383cb42cb3bdfd80a91116335f8edc0303c38",

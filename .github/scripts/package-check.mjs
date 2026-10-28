@@ -72,7 +72,7 @@ import {
  * are promised it (the view engine and the view store are ESM only).
  */
 export const ENTRIES = [
-  ['@ahoo-wang/wow-client', 'CommandGateway', { require: true }],
+  ['@ahoo-wang/wow-client', 'CommandClient', { require: true }],
   ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/testing', 'developmentCaller', { require: true }],
   ['@ahoo-wang/wow-react', 'usePagedQuery', { require: true }],
@@ -153,7 +153,7 @@ export function floorPeers(workspaceYaml) {
 }
 
 /** Consumers compiled under each resolution mode. */
-const CLIENT_AND_GENERATOR = `import { CommandGateway } from '@ahoo-wang/wow-client';
+const CLIENT_AND_GENERATOR = `import { CommandClient } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { CodeGenerator } from '@ahoo-wang/wow-generator';
@@ -163,8 +163,8 @@ import { CodeGenerator } from '@ahoo-wang/wow-generator';
 export const condition: number = filter.eq('status', 'PAID');
 // @ts-expect-error the generator's constructor takes options
 export const generator = new CodeGenerator(42);
-// @ts-expect-error the gateway takes client options, not a number
-export const gateway = new CommandGateway(42);
+// @ts-expect-error the command client takes client options, not a number
+export const commands = new CommandClient(42);
 // @ts-expect-error a development caller names its user
 export const caller = developmentCaller({ tenant: 't' });
 `;

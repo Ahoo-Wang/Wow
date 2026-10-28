@@ -73,7 +73,7 @@ describe('the V10 WowDatasetWordings', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         await real(input, init);
-        return new Response('{}', {
+        return new Response('{"status":"succeeded"}', {
           headers: { 'Content-Type': 'application/json' },
         });
       }),

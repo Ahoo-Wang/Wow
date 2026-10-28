@@ -79,7 +79,8 @@ For each bounded context, a directory named after it:
 | File | Holds |
 | --- | --- |
 | `contract.ts` | `<Context>Contract`: the context's name, its context-level error codes and its aggregates, each with its error codes; the `<Context>ErrorCode` union, and the hops of a wait in it |
-| `client.ts` | `<Context>Client`: the context's `CommandGateway` and, per aggregate, its command, snapshot, event and state clients |
+| `manifest.ts` | `<Context>Manifest`: the routes of the context's commands, as its Manifest lists them, with no schema. The command clients send by it, so they fetch no Manifest |
+| `client.ts` | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients |
 | `types.ts` | The commands, events and states of the Manifest's schemas |
 | `<aggregate>/aggregate.ts` | The aggregate's descriptor, the `state.*` fields a query names, and the union of its events |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each, and the lifecycle commands the aggregate lists |

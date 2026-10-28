@@ -16,7 +16,7 @@ import type ts from 'typescript';
 /** The marker a test about the spelling itself carries; see the `.mjs`. */
 export const WIRE_SPELLING_MARKER: string;
 
-/** The vocabularies of Wow's query protocol: each enum's or table's values. */
+/** The vocabularies of Wow's protocol: each enum's or table's values. */
 export function wireVocabularies(dsl?: string): Set<string>[];
 
 /** The program of a tsconfig, over [roots] when given. */

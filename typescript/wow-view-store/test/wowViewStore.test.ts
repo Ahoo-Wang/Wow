@@ -296,9 +296,12 @@ describe('the V10 WowViewStore', () => {
         vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
           const response = await real(input, init);
           if (!String(input).endsWith('/rename-view')) return response;
-          return new Response(JSON.stringify({ ref: { id: made.id } }), {
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return new Response(
+            JSON.stringify({ status: 'succeeded', ref: { id: made.id } }),
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          );
         }),
       );
       const renamed = await store.rename(
@@ -360,7 +363,7 @@ describe('the V10 WowViewStore', () => {
         vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
           const response = await real(input, init);
           return String(input).endsWith('/set-view-preferences')
-            ? new Response('{}', {
+            ? new Response('{"status":"succeeded"}', {
                 headers: { 'Content-Type': 'application/json' },
               })
             : response;

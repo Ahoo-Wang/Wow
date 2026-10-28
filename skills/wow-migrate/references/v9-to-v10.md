@@ -627,7 +627,7 @@ Pre-release data is not carried: JSON that Wow stored in the old spelling, such 
 A target pinned to an earlier V10 pre-release also changed two request rules:
 
 - `If-Match` takes entity tags only (RFC 9110). A bare `3` is 400 `wow.request.malformed`; send `"3"`, or the `ETag` a state read answered (`"3-<digest>"`), which is taken by its version. Tags naming two different versions are 400, since a command takes one expected version. A weak tag or a tag that names no version is 412, and so is `*` on a command that always creates its aggregate. On any other command `*` adds no condition.
-- An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead. In TypeScript only a refused result can name no id: `RefusedResult`, whose `ref` is a `CommandRef` (`id: string | null`), is the type of `WowProblemError.result` and of what `send`, `wait` and a generated command method answer under `resolveRejected: true`. A `CommandResult` still names its id.
+- An aggregate ref whose id the server has not chosen yet has `"id": null`, in a command result and wherever else a ref is written. `(none)` is never an id: a ref that names it is refused, and so is a command sent to the id `(none)`. Client code that compared a result's `ref.id` with `(none)` checks for null instead. In TypeScript only a refused result can name no id: `RefusedResult`, whose `ref` is a `CommandRef` (`id: string | null`), is the type of `CommandRejectedError.result` and of `WowProblemError.result`. A `CommandResult` still names its id.
 
 The query protocol is lower-kebab too, in requests, in the descriptor (`GET` of a query route) and in the problems. Readers accept nothing else, so a client, a saved view and a dataset document that spell the old values must change:
 
@@ -643,6 +643,30 @@ The query protocol is lower-kebab too, in requests, in the descriptor (`GET` of 
 | A dataset document's `types` and `sensitive.level` | `"DECIMAL"`, `"CONFIDENTIAL"` | `"decimal"`, `"confidential"` |
 
 A custom query model or value type is spelled the same way, lower-kebab like the built-ins (`[a-z][a-z0-9]*(-[a-z0-9]+)*`): a dataset or schema configuration that names `CUSTOM_MODEL` or `"types": ["STRING"]` is refused when it is read, with the spelling it takes (`custom-model`, `["string"]`). A domain's own values are unchanged: a filter's `value`, an enum field's values in the descriptor, and a JDK `timeUnit` are written as before. In TypeScript the wow-client DSL members keep their names (`FilterOperator.NOT_IN`) and only their values change; code that compared a DSL value with a literal compares it with the member instead.
+
+The TypeScript command client takes Kotlin's name and model (D356). Regenerate the clients, then move hand-written code:
+
+| Before | After |
+|---|---|
+| `new CommandGateway(options, manifest)` | `new CommandClient(options, { manifest })`; without a Manifest it fetches the service's once (`GET /wow/manifest`) |
+| `resolveRejected: true`, then reading `result.status` and `result.error` | `try`/`catch`: a rejected command rejects with a `CommandRejectedError` (`code`, `result`, `problem`); anything else with a `WowProblemError` |
+| A `WowProblemError` whose `result.status` is `rejected` | A `CommandRejectedError`, its `problem` set when the service answered one |
+| `wait: [wait.committed()]`, `wait: 'committed'` | `wait: WaitPlan.COMMITTED`, `WaitPlan.of(wait.committed())`, `parseWaitPlan('committed')`; `.within(ms)` for its timeout, `timeout` still overriding it |
+| A request's `routes` | The client's Manifest; a generated client carries its context's routes (`manifest.ts`) |
+| A request's `bodyNumbers` | `new CommandClient(options, { bodyNumbers: { '<context>.<aggregate>.<Command>': marks } })` |
+| `ResolvingRejected<O>`, the overloads that answer `CommandResult \| RefusedResult` | One signature: `Promise<CommandResult>` |
+| A generated client's `.gateway` | `.commands` on `<Context>Client`, `.client` on `<Aggregate>CommandClient` |
+
+```ts
+import { CommandRejectedError } from '@ahoo-wang/wow-client';
+
+try {
+  await orders.payOrder('order-1', { amount: '39.80', paymentId: 'pay-1' });
+} catch (error) {
+  if (!(error instanceof CommandRejectedError)) throw error;
+  console.warn(error.code, error.result.error?.message);
+}
+```
 
 ## Tests
 

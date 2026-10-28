@@ -12,7 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { WowProblemError } from '@ahoo-wang/wow-client';
+import { CommandRejectedError, WowProblemError } from '@ahoo-wang/wow-client';
+import { commandResultOf } from '@ahoo-wang/wow-client/testing';
 import { ViewStoreError } from '@ahoo-wang/wow-view-engine';
 import {
   boardTitles,
@@ -98,6 +99,34 @@ describe('the V10 store reads a failure', () => {
     expect(new Failure({ message: 'odd' }).message).toBe(
       'The view store could not be reached: odd',
     );
+  });
+
+  it('reads a rejection by its problem, else by its code as a conflict', async () => {
+    const result = {
+      ...commandResultOf(
+        {
+          type: { context: 'view-store', name: 'view' },
+          tenantId: 't',
+          id: 'v1',
+        },
+        { status: 'rejected' },
+      ),
+      error: { code: 'view-store.app-required', message: 'no app' },
+    };
+    const problem = answered(400, 'view-store.app-required').problem!;
+    const withProblem = await failureOf(
+      new CommandRejectedError(result, {
+        problem: problem.problem,
+        cause: problem,
+      }),
+    );
+    expect(withProblem.problem).toBe(problem);
+    expect(withProblem.code).toBe('INVALID');
+    const without = await failureOf(new CommandRejectedError(result));
+    expect(without.problem).toBeUndefined();
+    expect(without.problemCode).toBe('view-store.app-required');
+    expect(without.reached).toBe(true);
+    expect(without.message).toContain('rejected the command');
   });
 
   it('keeps a failure it already read', async () => {

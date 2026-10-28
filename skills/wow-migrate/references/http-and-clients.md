@@ -40,8 +40,8 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 
 | 9.x | V10 |
 | --- | --- |
-| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: [wait.snapshot()] })`, or `CommandGateway.wait({ command: '<context>.<aggregate>.<Command>', body, id, wait })` |
-| `sendAndWaitStream` | The generated `…Stream` method, or `CommandGateway.stream` |
+| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: WaitPlan.SNAPSHOT })`, or `CommandClient.wait({ command: '<context>.<aggregate>.<Command>', body, id, wait })` |
+| `sendAndWaitStream` | The generated `…Stream` method, or `CommandClient.stream` |
 | `QueryClientFactory`, `cartQueryClientFactory` | The generated `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient`, `<Aggregate>StateClient` |
 | `pagedState`, `listState`, `singleState` (state alone) | `paged`, `list`, `single` answer whole records; read `record.state`, or project with a literal `include` |
 | `getStateById(id)` | `<Aggregate>StateClient.get(id)` (`read(id, { minVersion })` after a command) |
@@ -54,7 +54,7 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 | `useListStreamQuery`, a stream executor over `stream` | `useStreamQuery` with `execute: (query, options) => client.streamRows(query, options)`; it also returns `position`, which `requestOptions: { resume: { lastEventId } }` resumes after |
 | A cursor page through `useSingleQuery` and `setQuery({ ...query, cursor })`; `client.aggregate` in an effect | `useCursorQuery` (`items`, `hasMore`, `fetchNext()`; its query has no `cursor`) and `useAggregateQuery` |
 | A hook's error type argument `E` (`useSingleQuery<R, F, MyError>`) | Gone: `error` is an `Error`, and `problem` the `WowProblemError` when the service answered with one |
-| A failed command resolving with an error code | Every refusal and every command that did not succeed rejects (`resolveRejected: true` to resolve instead) |
+| A failed command resolving with an error code | Every command that did not succeed rejects: a rejected one with a `CommandRejectedError` (`code`, `result`), anything else with a `WowProblemError` |
 
 ### `@ahoo-wang/wow-view-engine` type names (V10 pre-release)
 

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { formatWaitPlan, WowProblemError } from "@ahoo-wang/wow-client";
+import {
+  formatWaitPlan,
+  WaitPlan,
+  WowProblemError,
+} from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { ALICE, fakeServices, problemAnswer, result } from "@/test/fakeShop";
 import { shopClients } from "./clients";
@@ -49,7 +53,9 @@ function hops(count: number) {
 describe("the checkout", () => {
   it("waits for the 15 hops of the README, from the basket to the paid order", () => {
     expect(CHECKOUT_TO_PAID).toHaveLength(15);
-    expect(formatWaitPlan(CHECKOUT_TO_PAID.map((step) => step.hop))).toBe(
+    expect(
+      formatWaitPlan(WaitPlan.of(...CHECKOUT_TO_PAID.map((step) => step.hop))),
+    ).toBe(
       README_CHAIN,
     );
   });

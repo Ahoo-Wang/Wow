@@ -36,7 +36,7 @@ describe('the published dependency chain', () => {
           const decorator = await load('@ahoo-wang/fetcher-decorator');
           assert.equal(typeof decorator.api, 'function');
           const wow = await load('@ahoo-wang/wow-client');
-          assert.equal(typeof wow.CommandGateway, 'function');
+          assert.equal(typeof wow.CommandClient, 'function');
           const dsl = await load('@ahoo-wang/wow-client/dsl');
           assert.equal(dsl.filter.matchAll().op, 'match-all');
           const generator = await load('@ahoo-wang/wow-generator');

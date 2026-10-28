@@ -12,7 +12,12 @@
  */
 
 import { CircleAlertIcon } from "lucide-react";
-import { WowProblemError, type CommandResult, type Violation } from "@ahoo-wang/wow-client";
+import {
+  CommandRejectedError,
+  WowProblemError,
+  type CommandResult,
+  type Violation,
+} from "@ahoo-wang/wow-client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 /** What went wrong, as the UI shows it. */
@@ -30,6 +35,12 @@ export interface ShownProblem {
  * that was rejected after admission, or anything else.
  */
 export function problemOf(error: unknown): ShownProblem {
+  // A rejection shows as the problem it came in, else as its result.
+  if (error instanceof CommandRejectedError) {
+    return error.cause instanceof WowProblemError
+      ? problemOf(error.cause)
+      : problemOfResult(error.result as CommandResult);
+  }
   if (error instanceof WowProblemError) {
     return {
       title: error.problem.title,

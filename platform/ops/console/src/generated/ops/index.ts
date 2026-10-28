@@ -2,5 +2,6 @@
 
 export * from './client.js';
 export * from './contract.js';
+export * from './manifest.js';
 export * from './parked/index.js';
 export * from './types.js';

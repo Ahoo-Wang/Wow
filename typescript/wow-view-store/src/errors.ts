@@ -13,8 +13,9 @@
 
 import {
   FrameworkErrorCodes,
+  CommandRejectedError,
   toWowProblemError,
-  type WowProblemError,
+  WowProblemError,
 } from '@ahoo-wang/wow-client';
 import {
   isViewStoreError,
@@ -71,11 +72,13 @@ export class Failure {
     readonly cause: unknown,
     /** The server's problem, when a response came back. */
     readonly problem?: WowProblemError,
+    /** The command's rejection, when its result came back rejected without a problem. */
+    readonly rejection?: CommandRejectedError,
   ) {}
 
-  /** The problem's code: a framework code (`wow.*`) or the view store's. */
+  /** The problem's code, or the rejection's: a framework code (`wow.*`) or the view store's. */
   get problemCode(): string | undefined {
-    return this.problem?.code;
+    return this.problem?.code ?? this.rejection?.code;
   }
 
   /**
@@ -97,6 +100,8 @@ export class Failure {
     // What a retry may get past (a busy or closing node, a store out of
     // reach, contended writers, a wait that ran out): the outcome is unknown.
     if (this.problem?.retry.retryable) return 'UNAVAILABLE';
+    // The aggregate refused the command in the state it is in.
+    if (this.problem === undefined && this.rejection) return 'CONFLICT';
     switch (this.problem?.status) {
       case 400:
       case 422:
@@ -118,11 +123,12 @@ export class Failure {
 
   /** Whether the server (or something in front of it) answered at all. */
   get reached(): boolean {
-    return this.problem !== undefined;
+    return this.problem !== undefined || this.rejection !== undefined;
   }
 
   get message(): string {
     if (this.problem) return this.problem.message;
+    if (this.rejection) return this.rejection.message;
     return `The view store could not be reached: ${reasonOf(this.cause)}`;
   }
 
@@ -156,6 +162,12 @@ export class Failure {
 /** What a failed request threw, read as a {@link Failure}. */
 export async function failureOf(error: unknown): Promise<Failure> {
   if (error instanceof Failure) return error;
+  // A rejection the service answered with a problem reads as that problem.
+  if (error instanceof CommandRejectedError) {
+    return error.cause instanceof WowProblemError
+      ? new Failure(error, error.cause)
+      : new Failure(error, undefined, error);
+  }
   return new Failure(error, await toWowProblemError(error));
 }
 

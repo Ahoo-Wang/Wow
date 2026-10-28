@@ -12,7 +12,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { WowProblemError } from "@ahoo-wang/wow-client";
+import { CommandRejectedError, WowProblemError } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { result } from "@/test/fakeShop";
 import { ProblemAlert, problemOf } from "./problems";
@@ -51,6 +51,39 @@ describe("a problem", () => {
       violations: [],
     });
     expect(problemOf(result({ status: "failed", error: null })).title).toBe("Failed");
+  });
+
+  it("is read from a rejection: the problem it came in, else its result", () => {
+    const rejected = result({
+      status: "rejected",
+      error: { code: "eshop-basket.basket.empty", message: "Empty" },
+    });
+    const problem = new WowProblemError({
+      type: "urn:wow:error:eshop-basket.basket.empty",
+      title: "Unprocessable",
+      status: 422,
+      code: "eshop-basket.basket.empty",
+      detail: "The basket is empty.",
+    });
+    expect(
+      problemOf(
+        new CommandRejectedError(rejected, {
+          problem: problem.problem,
+          cause: problem,
+        }),
+      ),
+    ).toMatchObject({
+      title: "Unprocessable",
+      status: 422,
+      code: "eshop-basket.basket.empty",
+      detail: "The basket is empty.",
+    });
+    expect(problemOf(new CommandRejectedError(rejected))).toEqual({
+      title: "Rejected",
+      code: "eshop-basket.basket.empty",
+      detail: "Empty",
+      violations: [],
+    });
   });
 
   it("is anything else's message", () => {

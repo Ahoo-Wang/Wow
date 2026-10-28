@@ -12,7 +12,14 @@
  */
 
 import { FrameworkErrorCodes, type Problem } from '../problem.js';
-import type { AggregateRef, CommandResult, StateView } from '../wire.js';
+import {
+  type AggregateRef,
+  type CommandResult,
+  CommandResultStatus,
+  FunctionKind,
+  Stage,
+  type StateView,
+} from '../wire.js';
 
 /**
  * A command's result as a service answers it, for a test's fake: the command
@@ -25,7 +32,7 @@ export function commandResultOf<R = Record<string, unknown>>(
   overrides: Partial<CommandResult<R>> = {},
 ): CommandResult<R> {
   const { context, name } = ref.type;
-  const status = overrides.status ?? 'succeeded';
+  const status = overrides.status ?? CommandResultStatus.SUCCEEDED;
   const commandId = overrides.commandId ?? 'command-1';
   return {
     format: 1,
@@ -33,17 +40,22 @@ export function commandResultOf<R = Record<string, unknown>>(
     requestId: 'request-1',
     correlationId: commandId,
     ref,
-    hop: { stage: 'committed', context },
-    function: { kind: 'command', context, processor: name, name: 'Command' },
+    hop: { stage: Stage.COMMITTED, context },
+    function: {
+      kind: FunctionKind.COMMAND,
+      context,
+      processor: name,
+      name: 'Command',
+    },
     status,
     version: 1,
     duplicate: false,
     error:
-      status === 'succeeded'
+      status === CommandResultStatus.SUCCEEDED
         ? null
         : {
             code:
-              status === 'rejected'
+              status === CommandResultStatus.REJECTED
                 ? FrameworkErrorCodes.COMMAND_REFUSED
                 : FrameworkErrorCodes.COMMAND_FAILED,
             message: `The command was ${status.toLowerCase()}.`,

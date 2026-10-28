@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { commandResultOf } from '@ahoo-wang/wow-client/testing';
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { installRecordedWowService, problem } from './recordedWowService.js';
 
@@ -135,18 +136,24 @@ function answerCommand(
           409,
         );
       state.status = 'PREPARED';
-      return SUCCEEDED;
+      return succeeded(id);
     case 'force-prepare-compensation':
       if (state.isRetryable !== true)
         return problem('compensation.not-retryable', 'Not retryable.', 409);
       state.status = 'PREPARED';
-      return SUCCEEDED;
+      return succeeded(id);
     case 'mark-recoverable':
       state.recoverable = body.recoverable;
-      return SUCCEEDED;
+      return succeeded(id);
   }
   return undefined;
 }
 
-/** The part of a command result the scene reads: it succeeded. */
-const SUCCEEDED = { status: 'SUCCEEDED', duplicate: false };
+/** The result of a command the execution took: it succeeded. */
+function succeeded(id: string) {
+  return commandResultOf({
+    type: { context: 'compensation', name: 'execution_failed' },
+    tenantId: '(0)',
+    id,
+  });
+}

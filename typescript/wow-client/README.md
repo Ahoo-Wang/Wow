@@ -79,28 +79,32 @@ declare const fetcher: Fetcher;
 -->
 
 ```ts
-import { CommandGateway, wait } from '@ahoo-wang/wow-client';
+import { CommandClient, WaitPlan } from '@ahoo-wang/wow-client';
 
-const commands = new CommandGateway({ fetcher });
+const commands = new CommandClient({ fetcher });
 const result = await commands.wait({
   command: 'shop.cart.AddCartItem',
   body: { productId: 'p-1', quantity: 1 },
   id: 'cart-42',
-  wait: [wait.snapshot()],
+  wait: WaitPlan.SNAPSHOT,
   timeout: 10_000,
 });
 ```
 
 `command` is the full type name, `context.aggregate.Command`. The command is
-sent by its route as the service's Manifest lists it: the request's `routes`
-(a generated client sets them), else those of the Manifest the gateway was
-given, else the service's, fetched once (`GET /wow/manifest`). A command that
+sent by its route as the service's Manifest lists it: the Manifest the client
+is given (`new CommandClient(options, { manifest })`, a whole Manifest or a
+generated client's `manifest.ts`, its routes alone), else the service's,
+fetched once (`GET /wow/manifest`). A command that
 may create its aggregate leaves `id` out and goes by the route without one. As with Kotlin's `CommandClient`,
 `send` answers once the command is accepted, `wait` with the result its plan
 ends with (the server's default plan when there is none), and `stream` one
-`CommandResult` per hop. `wait` lists the hops (`accepted`, `committed`,
-`snapshot`, or a subscription's `handled`, also across a saga's derived
-commands), and `timeout` is in milliseconds. `targetTenant` and `targetScope`
+`CommandResult` per hop. `wait` is a `WaitPlan`, as Kotlin's:
+`WaitPlan.ACCEPTED`, `COMMITTED`, `SNAPSHOT`, or `WaitPlan.of(...hops)` of the
+`wait` hops (`accepted`, `committed`, `snapshot`, or a subscription's
+`handled`, also across a saga's derived commands), `.within(ms)` its timeout;
+`timeout` is in milliseconds and overrides it. `parseWaitPlan` and
+`formatWaitPlan` read and write the `Wow-Wait` header. `targetTenant` and `targetScope`
 (`{ ownerId?, spaceId? }`) act in another tenant, owner or space. Every command carries a request id
 (`Wow-Request-Id`), given or generated: a retry with the same one is answered
 as the first commit's duplicate, and `requestIdOf(error)` hands back the one
@@ -116,12 +120,15 @@ any other 404 still rejects; `fetchManifest` reads the service's Manifest (`GET 
 
 ## Errors
 
-The service answers a refusal with an RFC 9457 problem, and the call rejects
-with a `WowProblemError`: the `problem` as written, its `status`, its Wow
-`code` and its `violations`. A command that did not succeed carries its
-`CommandResult` too, and `resolveRejected: true` resolves that result
-instead. A stream that fails midway errors with the same error, so a
-`for await` throws it.
+`send` and `wait` resolve only a result that succeeded, and map the rest by
+the result's status, as Kotlin's `CommandClient`: a rejected command, by its
+aggregate or at admission, rejects with a `CommandRejectedError` (its `code`,
+its `result`, and the `problem` when the service answered one); anything
+else with a `WowProblemError`: the RFC 9457 `problem` as written, its
+`status`, its Wow `code`, its `violations`, and the `result` when the
+service sent one. `stream` emits every result, whatever its status. A
+stream that fails midway errors with the same error, so a `for await`
+throws it.
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';

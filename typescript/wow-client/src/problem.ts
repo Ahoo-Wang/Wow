@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { RefusedResult, Violation } from './wire.js';
+import {
+  CommandResultStatus,
+  type RefusedResult,
+  type Violation,
+} from './wire.js';
 
 /**
  * The framework's error codes,
@@ -290,6 +294,75 @@ export class WowProblemError extends Error {
   /** Whether the code is a framework one (`wow.*`) rather than the domain's. */
   get isFramework(): boolean {
     return this.code?.startsWith(FRAMEWORK_ERROR_PREFIX) ?? false;
+  }
+}
+
+/**
+ * The command was rejected: its result's status is `rejected`, decided by
+ * its aggregate (a business outcome with the domain's code) or at admission
+ * (an unknown command, an invalid one, a caller the authorizer forbids).
+ * Sending it again with the same request id is rejected again. As Kotlin's
+ * `CommandRejectedException`. `send` and `wait` map what a command is
+ * answered by the result's status, not by where it was refused (Kotlin's
+ * `CommandClient` maps it the same way):
+ *
+ * - a result that succeeded: resolved;
+ * - a rejected result: a {@link CommandRejectedError};
+ * - a problem whose result is rejected, an admission refusal (an unknown
+ *   command, an invalid one, a forbidden caller): a
+ *   {@link CommandRejectedError}, its `problem` set;
+ * - a result of a status this client does not know, a newer service's: a
+ *   {@link WowProblemError} `wow.command.failed`, not retryable;
+ * - any other problem, refused before admission (a body that does not
+ *   parse), a technical failure (a busy or closing node, a store or a broker
+ *   that is down, a wait that timed out) or a failed result: a
+ *   {@link WowProblemError}, with its result when the service sent one, and
+ *   whether to retry ({@link RetryHint}).
+ *
+ * `stream` emits every result, whatever its status.
+ */
+export class CommandRejectedError extends Error {
+  override readonly name = 'CommandRejectedError';
+  /** The rejected result; its ref names no aggregate id when none was decided. */
+  readonly result: RefusedResult;
+  /** The problem the service answered with, when it answered one. */
+  readonly problem?: Problem;
+  /** The error this one explains. */
+  readonly cause?: unknown;
+
+  /**
+   * @param result - The rejected result
+   * @param options - The problem it came in, and the error this one explains
+   */
+  constructor(
+    result: RefusedResult,
+    options: { problem?: Problem; cause?: unknown } = {},
+  ) {
+    const said = [result.error?.code, result.error?.message]
+      .filter(Boolean)
+      .join(' ');
+    super(
+      `${result.ref.type.context}.${result.ref.type.name}/${result.ref.id ?? '(no id)'} rejected the command` +
+        (said ? `: ${said}` : '.'),
+    );
+    if (result.status !== CommandResultStatus.REJECTED) {
+      throw new TypeError(
+        `A rejection has a rejected result, not ${result.status}.`,
+      );
+    }
+    this.result = result;
+    if (options.problem !== undefined) this.problem = options.problem;
+    if (options.cause !== undefined) this.cause = options.cause;
+  }
+
+  /** The rejection's error code. */
+  get code(): string {
+    return this.result.error?.code ?? '';
+  }
+
+  /** The request id (`Wow-Request-Id`) of the rejected command. */
+  get requestId(): string {
+    return this.result.requestId;
   }
 }
 

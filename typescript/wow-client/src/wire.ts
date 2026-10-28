@@ -106,14 +106,25 @@ export interface Hop {
 }
 
 /** The kind of function that produced a result. */
-export type FunctionKind =
-  | 'command'
-  | 'project'
-  | 'react'
-  | 'saga'
-  | 'snapshot'
-  | 'reservation'
-  | 'timers';
+export const FunctionKind = {
+  /** The aggregate's command function. */
+  COMMAND: 'command',
+  /** A projection. */
+  PROJECT: 'project',
+  /** An event handler that reacts. */
+  REACT: 'react',
+  /** A saga. */
+  SAGA: 'saga',
+  /** The snapshot subscription. */
+  SNAPSHOT: 'snapshot',
+  /** A reservation. */
+  RESERVATION: 'reservation',
+  /** A timer. */
+  TIMERS: 'timers',
+} as const;
+
+/** A {@link FunctionKind} value. */
+export type FunctionKind = (typeof FunctionKind)[keyof typeof FunctionKind];
 
 /** Who produced a result: a function of `kind` in `context`. */
 export interface FunctionInfo {
@@ -151,7 +162,18 @@ export interface ErrorInfo {
 }
 
 /** How a command ended at a hop. */
-export type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
+export const CommandResultStatus = {
+  /** The command reached the hop. */
+  SUCCEEDED: 'succeeded',
+  /** The domain or admission refused the command. */
+  REJECTED: 'rejected',
+  /** A technical failure stopped the command. */
+  FAILED: 'failed',
+} as const;
+
+/** A {@link CommandResultStatus} value. */
+export type CommandResultStatus =
+  (typeof CommandResultStatus)[keyof typeof CommandResultStatus];
 
 /**
  * The command a request named before a transformer turned it into the one
@@ -213,10 +235,10 @@ export interface CommandResult<R = Record<string, unknown>> {
 }
 
 /**
- * A result that may not have succeeded, as a problem carries it
- * (`WowProblemError.result`) or `send` and `wait` answer it under
- * `resolveRejected: true`: a creation refused before admission chose an id
- * names none ({@link CommandRef}). The Kotlin client has no type of its own
+ * A result that may not have succeeded, as a rejection or a problem carries
+ * it (`CommandRejectedError.result`, `WowProblemError.result`): a command
+ * refused before an aggregate id was decided names none
+ * ({@link CommandRef}). The Kotlin client has no type of its own
  * for it: its `CommandResult.ref` holds such an id as
  * `AggregateRef.UNASSIGNED`.
  *

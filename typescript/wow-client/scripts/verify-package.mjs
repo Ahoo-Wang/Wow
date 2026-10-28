@@ -195,10 +195,10 @@ for (const kept of ['readProblem', 'wait'])
   assert.match(shaken.code, new RegExp(kept), `the probe lost ${kept}`);
 // The control: a probe that does use a client must keep the fetcher, or the
 // assertion above would pass whatever the build did.
-const control = await shake(['CommandGateway']);
+const control = await shake(['CommandClient']);
 assert.ok(
   control.packages.includes('@ahoo-wang/fetcher'),
-  'a probe importing CommandGateway does not load the fetcher; the tree-shaking check proves nothing',
+  'a probe importing CommandClient does not load the fetcher; the tree-shaking check proves nothing',
 );
 
 // 7. No entry grows by accident: what importing each one loads — its module

@@ -17,12 +17,36 @@ import {
   send,
   type WowClientOptions,
 } from './http.js';
-import type { CommandManifest, Manifest } from './manifestTypes.js';
+import type {
+  AggregateManifest,
+  CommandManifest,
+  ContextManifest,
+  Manifest,
+} from './manifestTypes.js';
 
 export type * from './manifestTypes.js';
 
 /** Whether a command creates its aggregate. */
 export type Creation = CommandManifest['creation'];
+
+/** A command as a {@link RoutingManifest} lists it: its name, former names and routes. */
+export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> &
+  Partial<Pick<CommandManifest, 'aliases'>>;
+
+/**
+ * What a `CommandClient` reads of a Manifest to send a command: each
+ * context's aggregates and their commands with their routes, and the context's
+ * own system commands. A whole {@link Manifest} is one; a generated client
+ * carries its service's as data (`manifest.ts`), with no schema.
+ */
+export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
+  readonly contexts: readonly (Pick<ContextManifest, 'name'> & {
+    readonly aggregates?: readonly (Pick<AggregateManifest, 'name'> & {
+      readonly commands?: readonly RoutingCommand[];
+    })[];
+    readonly commands?: readonly RoutingCommand[];
+  })[];
+}
 
 /** The format of the Manifest this client reads. */
 export const MANIFEST_FORMAT = 1;
@@ -40,7 +64,7 @@ export const MANIFEST_FEATURES: ReadonlySet<string> = new Set<string>();
  * @param manifest - The Manifest
  * @throws TypeError naming what this client does not understand
  */
-export function checkManifest(manifest: Manifest): Manifest {
+export function checkManifest<M extends RoutingManifest>(manifest: M): M {
   if (manifest.format !== MANIFEST_FORMAT) {
     throw new TypeError(
       `The Manifest is of format ${manifest.format}; this client reads format ${MANIFEST_FORMAT}.`,

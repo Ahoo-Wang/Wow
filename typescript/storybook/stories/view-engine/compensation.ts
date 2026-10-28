@@ -12,7 +12,13 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { CommandGateway, wait } from '@ahoo-wang/wow-client';
+import {
+  CommandClient,
+  MANIFEST_FORMAT,
+  type RoutingManifest,
+  wait,
+  WaitPlan,
+} from '@ahoo-wang/wow-client';
 import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
@@ -476,38 +482,65 @@ export type RecoverableType =
 /**
  * The compensation commands a failed execution takes. Each waits until the
  * snapshot reflects it, so a refresh right after shows the new state, and
- * each rejects when the service refused it: a refusal is a problem, which the
- * engine reads for the service's own words (`sourceReason`).
+ * each rejects when the service refused it: a `CommandRejectedError` holding
+ * the service's problem, which the engine reads for its own words
+ * (`sourceReason`).
  */
 export function compensationCommands(fetcher: Fetcher) {
-  const gateway = new CommandGateway({ fetcher });
-  // Each command by its route, as the service's Manifest lists it.
+  // Each command by its route, as the service's Manifest lists it: a client
+  // given no Manifest would fetch the service's once instead.
+  const commands = new CommandClient(
+    { fetcher },
+    { manifest: COMPENSATION_ROUTES },
+  );
   const send = async (
     id: string,
     command: string,
-    segment: string,
     body: object = {},
   ): Promise<void> => {
-    await gateway.wait({
+    await commands.wait({
       command: `${CONTEXT}.${AGGREGATE}.${command}`,
-      routes: [
-        { method: 'POST', path: `/${CONTEXT}/${AGGREGATE}/{id}/${segment}` },
-      ],
       body,
       id,
-      wait: [wait.snapshot(CONTEXT)],
+      wait: WaitPlan.of(wait.snapshot(CONTEXT)),
     });
   };
   return {
     /** Wow's `PrepareCompensation`: retry now, within the retry spec. */
-    retry: (id: string) =>
-      send(id, 'PrepareCompensation', 'prepare-compensation'),
+    retry: (id: string) => send(id, 'PrepareCompensation'),
     /** Wow's `ForcePrepareCompensation`: retry even past the limit. */
-    forceRetry: (id: string) =>
-      send(id, 'ForcePrepareCompensation', 'force-prepare-compensation'),
+    forceRetry: (id: string) => send(id, 'ForcePrepareCompensation'),
     markRecoverable: (id: string, recoverable: RecoverableType) =>
-      send(id, 'MarkRecoverable', 'mark-recoverable', { recoverable }),
+      send(id, 'MarkRecoverable', { recoverable }),
   };
 }
 
 export type CompensationCommands = ReturnType<typeof compensationCommands>;
+
+/** The routes of the compensation commands, as the service's Manifest lists them. */
+const COMPENSATION_ROUTES: RoutingManifest = {
+  format: MANIFEST_FORMAT,
+  contexts: [
+    {
+      name: CONTEXT,
+      aggregates: [
+        {
+          name: AGGREGATE,
+          commands: [
+            ['PrepareCompensation', 'prepare-compensation'],
+            ['ForcePrepareCompensation', 'force-prepare-compensation'],
+            ['MarkRecoverable', 'mark-recoverable'],
+          ].map(([name, segment]) => ({
+            name,
+            routes: [
+              {
+                method: 'POST',
+                path: `/${CONTEXT}/${AGGREGATE}/{id}/${segment}`,
+              },
+            ],
+          })),
+        },
+      ],
+    },
+  ],
+};

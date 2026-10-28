@@ -12,7 +12,13 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { WowHeaders, WowProblemError } from "@ahoo-wang/wow-client";
+import {
+  CommandRejectedError,
+  CommandResultStatus,
+  WowHeaders,
+  WowProblemError,
+} from "@ahoo-wang/wow-client";
+import { commandResultOf } from "@ahoo-wang/wow-client/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parkedCommands, problemText } from "./parkedCommands.ts";
 
@@ -46,14 +52,13 @@ function service(answer: () => Response): Sent[] {
 
 const OK = () =>
   new Response(
-    JSON.stringify({
-      id: "c-1",
-      requestId: "r-1",
-      outcome: "SUCCEEDED",
-      stage: "SNAPSHOT",
-      ref: { context: "ops", aggregate: "parked", tenantId: "(0)", id: ID },
-      version: 2,
-    }),
+    JSON.stringify(
+      commandResultOf({
+        type: { context: "ops", name: "parked" },
+        tenantId: "(0)",
+        id: ID,
+      }),
+    ),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 
@@ -161,5 +166,33 @@ describe("a problem's words", () => {
       "Failed to fetch",
     );
     expect(problemText("refused")).toBe("refused");
+  });
+
+  it("words a rejection as the problem it came in, else as its result", () => {
+    const result = {
+      ...commandResultOf(
+        { type: { context: "c", name: "a" }, tenantId: "t", id: "1" },
+        { status: CommandResultStatus.REJECTED },
+      ),
+      error: { code: "c.a.refused", message: "Refused." },
+    };
+    const problem = new WowProblemError({
+      type: "urn:wow:error:c.a.refused",
+      title: "Refused",
+      status: 409,
+      detail: "Not now.",
+      code: "c.a.refused",
+    });
+    expect(
+      problemText(
+        new CommandRejectedError(result, {
+          problem: problem.problem,
+          cause: problem,
+        }),
+      ),
+    ).toBe("Not now. (c.a.refused)");
+    expect(problemText(new CommandRejectedError(result))).toBe(
+      "Refused. (c.a.refused)",
+    );
   });
 });

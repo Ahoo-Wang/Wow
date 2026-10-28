@@ -56,7 +56,7 @@ src/
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
   streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
-  commands.ts     — CommandGateway (send, wait and stream of a CommandRequest), CommandRequest, CommandOptions, LifecycleCommands
+  commands.ts     — CommandClient (send, wait and stream of a CommandRequest, Kotlin's), CommandRequest, CommandOptions, CommandClientOptions, LifecycleCommands
   queries.ts      — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
   state.ts        — StateClient: state reads at a version or a time, and traces
   manifest.ts     — The Manifest's types and fetchManifest (GET /wow/manifest)
@@ -110,7 +110,7 @@ with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build runs
 `scripts/verify-package.mjs`, which holds the built entries to the same
 lists, checks that `/dsl` loads no fetcher package, and bundles a probe that
 imports only `readProblem` and `wait` from the root entry and fails if it
-still loads `@ahoo-wang/fetcher` (a control probe importing `CommandGateway`
+still loads `@ahoo-wang/fetcher` (a control probe importing `CommandClient`
 must load it, so the check cannot pass vacuously), and that `/testing` loads no
 test runner. The build keeps one output
 module per source file (`preserveModules`), so with `sideEffects: false` an

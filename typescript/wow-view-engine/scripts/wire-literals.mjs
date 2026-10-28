@@ -38,10 +38,13 @@ import ts from 'typescript';
 /** A test that is about the spelling itself carries this, with its reason. */
 export const WIRE_SPELLING_MARKER = 'wire spelling (D352b)';
 
-const WOW_DSL = resolve(
+const WOW_CLIENT = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../wow-client/src/dsl',
+  '../../wow-client/src',
 );
+const WOW_DSL = join(WOW_CLIENT, 'dsl');
+/** The command protocol's tables: a result's status, its hop, its function. */
+const WOW_WIRE = join(WOW_CLIENT, 'wire.ts');
 
 function sources(directory) {
   return readdirSync(directory).flatMap(name => {
@@ -63,12 +66,13 @@ function parseSource(path) {
 }
 
 /**
- * The vocabularies of Wow's query protocol, each the values of one enum, or
- * of one frozen `{ NAME: 'value' }` table, in the wow-client DSL sources.
+ * The vocabularies of Wow's protocol, each the values of one enum, or of one
+ * frozen or `as const` `{ NAME: 'value' }` table: the query protocol's in the
+ * wow-client DSL sources, and the command result's in its wire types.
  */
 export function wireVocabularies(dsl = WOW_DSL) {
   const vocabularies = [];
-  for (const path of sources(dsl)) {
+  for (const path of [...sources(dsl), WOW_WIRE]) {
     const visit = node => {
       if (ts.isEnumDeclaration(node)) {
         const values = node.members
@@ -77,10 +81,16 @@ export function wireVocabularies(dsl = WOW_DSL) {
           .map(value => value.text);
         if (values.length) vocabularies.push(new Set(values));
       } else if (
-        ts.isCallExpression(node) &&
-        node.expression.getText() === 'Object.freeze'
+        (ts.isCallExpression(node) &&
+          node.expression.getText() === 'Object.freeze') ||
+        (ts.isVariableDeclaration(node) &&
+          node.initializer &&
+          ts.isAsExpression(node.initializer) &&
+          node.initializer.type.getText() === 'const')
       ) {
-        let argument = node.arguments[0];
+        let argument = ts.isCallExpression(node)
+          ? node.arguments[0]
+          : node.initializer;
         while (argument && ts.isAsExpression(argument))
           argument = argument.expression;
         if (argument && ts.isObjectLiteralExpression(argument)) {

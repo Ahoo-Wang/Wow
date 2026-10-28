@@ -274,7 +274,8 @@ globalThis.fetch = async (url, init) => {
     headers: Object.fromEntries(new Headers(init?.headers).entries()),
     body: init?.body ?? null,
   });
-  return new Response('{}', { headers: { 'Content-Type': 'application/json' } });
+  // A command's result names its status; a query reads what it needs.
+  return new Response('{"status":"succeeded"}', { headers: { 'Content-Type': 'application/json' } });
 };
 ${script}
 `,

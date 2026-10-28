@@ -12,7 +12,12 @@
  */
 
 import type { Fetcher } from "@ahoo-wang/fetcher";
-import { WowProblemError, type CommandOptions } from "@ahoo-wang/wow-client";
+import {
+  CommandRejectedError,
+  type CommandOptions,
+  WaitPlan,
+  WowProblemError,
+} from "@ahoo-wang/wow-client";
 import {
   AnalyticsCatalogClient,
   analyticsCatalogWait,
@@ -53,7 +58,7 @@ export interface CatalogCommands {
 
 /** Each command waits for the snapshot of its record (`Wow-Wait`). */
 const OPTIONS: CommandOptions = {
-  wait: [analyticsCatalogWait.snapshot()],
+  wait: WaitPlan.of(analyticsCatalogWait.snapshot()),
 };
 
 /** A blank title is no title. */
@@ -102,6 +107,12 @@ export function catalogCommands(fetcher: Fetcher): CatalogCommands {
  * else the error's message.
  */
 export function problemText(error: unknown): string {
+  // A rejection reads as the problem it came in, else as its result's error.
+  if (error instanceof CommandRejectedError) {
+    if (error.cause instanceof WowProblemError) return problemText(error.cause);
+    const words = error.result.error?.message ?? error.message;
+    return error.code ? `${words} (${error.code})` : words;
+  }
   if (error instanceof WowProblemError) {
     const { problem } = error;
     const words = problem.detail ?? problem.title ?? `HTTP ${problem.status}`;

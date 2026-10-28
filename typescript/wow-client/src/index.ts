@@ -22,14 +22,14 @@
  */
 export {
   type ApplyTags,
-  CommandGateway,
+  CommandClient,
+  type CommandClientOptions,
   type CommandOptions,
   type CommandRequest,
   type CreateCommandOptions,
   type LifecycleCommand,
   LifecycleCommands,
   newRequestId,
-  type ResolvingRejected,
   type TransferOwner,
   type TransferSpace,
 } from './commands.js';
@@ -59,10 +59,13 @@ export {
   fetchManifest,
   MANIFEST_FEATURES,
   MANIFEST_FORMAT,
+  type RoutingCommand,
+  type RoutingManifest,
 } from './manifest.js';
 export type * from './manifestTypes.js';
 export * from './wire.js';
 export {
+  CommandRejectedError,
   FRAMEWORK_ERROR_PREFIX,
   type FrameworkErrorCode,
   FrameworkErrorCodes,
@@ -105,6 +108,9 @@ export {
   formatHop,
   formatWaitPlan,
   formatWaitTimeout,
+  parseHop,
+  parseWaitPlan,
   SNAPSHOT_SUBSCRIPTION,
   wait,
+  WaitPlan,
 } from './wait.js';

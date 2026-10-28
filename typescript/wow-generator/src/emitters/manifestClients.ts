@@ -108,9 +108,10 @@ export function emitManifestGeneration(
     emitContract(context, modules, outputDir);
     for (const aggregate of context.aggregates) {
       emitAggregate(aggregate, context, modules, files, outputDir);
-      emitCommandClient(aggregate, modules, files, outputDir);
+      emitCommandClient(aggregate, context, modules, files, outputDir);
       emitQueryClient(aggregate, modules, files, outputDir);
     }
+    emitRouting(context, modules);
     emitContextClient(context, modules, outputDir);
   }
 }
@@ -244,6 +245,34 @@ function emitContract(
 }
 
 /**
+ * The routing part of the service's Manifest, as data: each aggregate's
+ * commands, its lifecycle commands among them, with their routes. Its clients
+ * send by it, so they fetch no Manifest; it holds no schema.
+ */
+function emitRouting(context: ContextModel, modules: ModuleSet): void {
+  const module = modules.module(`${context.directory}/manifest.ts`);
+  const name = `${context.typeName}Manifest`;
+  module.imports.add(WOW_CLIENT, ['MANIFEST_FORMAT', 'RoutingManifest']);
+  const command = (commandName: string, routes: readonly Route[]) =>
+    `          { name: ${quoteStringLiteral(commandName)}, routes: ${routesLiteral(routes)} },`;
+  const aggregates = context.aggregates.map(aggregate => {
+    const commands = [
+      ...aggregate.commands
+        .filter(item => item.routes.length > 0)
+        .map(item => command(item.name, item.routes)),
+      ...aggregate.lifecycle.map(item => command(item.name, item.routes)),
+    ];
+    return `      {\n        name: ${quoteStringLiteral(aggregate.name)},\n        commands: [\n${commands.join('\n')}\n        ],\n      },`;
+  });
+  addStatement(
+    module,
+    `${doc([
+      `The routes of \`${context.name}\`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema.`,
+    ])}export const ${name}: RoutingManifest = {\n  format: MANIFEST_FORMAT,\n  contexts: [\n    {\n      name: ${quoteStringLiteral(context.name)},\n      aggregates: [\n${aggregates.join('\n')}\n      ],\n    },\n  ],\n};`,
+  );
+}
+
+/**
  * The clients of a context in one place: per aggregate its command client and
  * its query and state clients, on the same options. Each client stays its own
  * module too, so an application that imports a single client loads no other.
@@ -255,7 +284,8 @@ function emitContextClient(
 ): void {
   const module = modules.module(`${context.directory}/client.ts`);
   const name = `${context.typeName}Client`;
-  module.imports.add(WOW_CLIENT, ['CommandGateway', 'WowClientOptions']);
+  module.imports.add(WOW_CLIENT, ['CommandClient', 'WowClientOptions']);
+  module.imports.add('./manifest.js', [`${context.typeName}Manifest`]);
   const fields: string[] = [];
   const assignments: string[] = [];
   for (const aggregate of context.aggregates) {
@@ -289,8 +319,8 @@ function emitContextClient(
   addStatement(
     module,
     `${doc([
-      `The clients of \`${context.name}\`: its gateway, and per aggregate its command, query and state clients.`,
-    ])}export class ${name} {\n  /** Sends any command of the service: \`send\`, \`wait\` and \`stream\`. */\n  readonly gateway: CommandGateway;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.gateway = new CommandGateway(options);\n${assignments.join('\n')}\n  }\n}`,
+      `The clients of \`${context.name}\`: its command client, and per aggregate its command, query and state clients.`,
+    ])}export class ${name} {\n  /** Sends any command of the service, by its Manifest's routes: \`send\`, \`wait\` and \`stream\`. */\n  readonly commands: CommandClient;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.commands = new CommandClient(options, { manifest: ${context.typeName}Manifest });\n${assignments.join('\n')}\n  }\n}`,
   );
 }
 
@@ -402,11 +432,6 @@ function commandMethods(
   aggregate: AggregateModel,
   stream: boolean,
 ): string {
-  const aggregateConstant = `${aggregate.typeName}Aggregate`;
-  // A body with exact numbers sends them unquoted: its marks go with the request.
-  const numbers = command.bodyNumbers
-    ? `, bodyNumbers: ${aggregateConstant}.textNumbers.commands.${resolvePropertyName(command.name) === command.name ? command.name : `[${quoteStringLiteral(command.name)}]`}`
-    : '';
   const body = command.bodyType === 'unknown' ? 'object' : command.bodyType;
   const bodyParam = command.bodyOptional
     ? `body: ${body} = {}`
@@ -428,7 +453,7 @@ function commandMethods(
     `${aggregate.context}.${aggregate.name}.${command.name}`,
   );
   const request = (id: string) =>
-    `{ ...options, command: ${fullName}, routes: ${routesLiteral(command.routes)}, body${id}${numbers} }`;
+    `{ ...options, command: ${fullName}, body${id} }`;
   const byId = command.byIdPath;
   const unaddressed = command.unaddressedPath;
   const options =
@@ -436,7 +461,7 @@ function commandMethods(
   const idParam = byId && !unaddressed ? 'id: string, ' : '';
   const sent = request(byId && !unaddressed ? ', id' : '');
   if (stream) {
-    return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.gateway.${call}(${sent});\n  }`;
+    return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.client.${call}(${sent});\n  }`;
   }
   return answeringMethod(
     comment,
@@ -447,13 +472,7 @@ function commandMethods(
   );
 }
 
-/**
- * A method that answers a command's result: one overload for options that set
- * `resolveRejected: true`, which may answer a refused result, one for the
- * others, then the method sending [request]. [params] are the method's own,
- * a body with a default among them: the first overload, whose options come
- * last, takes that body as required.
- */
+/** A method that answers a command's result, sending [request] with the method's own [params]. */
 function answeringMethod(
   comment: string,
   name: string,
@@ -461,18 +480,13 @@ function answeringMethod(
   options: string,
   request: string,
 ): string {
-  const required = params.replace(/(\w+): ([^,]+) = \{\}$/, '$1: $2');
-  const optional = params.replace(/(\w+): ([^,]+) = \{\}$/, '$1?: $2');
   const leading = params ? `${params}, ` : '';
-  return (
-    `${comment}  ${name}(${required ? `${required}, ` : ''}options: ResolvingRejected<${options}>): Promise<CommandResult | RefusedResult>;\n` +
-    `  ${name}(${optional ? `${optional}, ` : ''}options?: ${options}): Promise<CommandResult>;\n` +
-    `  ${name}(${leading}options?: ${options}): Promise<CommandResult | RefusedResult> {\n    return this.gateway.wait(${request});\n  }`
-  );
+  return `${comment}  ${name}(${leading}options?: ${options}): Promise<CommandResult> {\n    return this.client.wait(${request});\n  }`;
 }
 
 function emitCommandClient(
   aggregate: AggregateModel,
+  context: ContextModel,
   modules: ModuleSet,
   files: TypeFiles,
   outputDir: string,
@@ -486,10 +500,7 @@ function emitCommandClient(
     commandMethods(command, aggregate, false),
     commandMethods(command, aggregate, true),
   ]);
-  const client = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
-  if (commands.length > 0 || aggregate.lifecycle.length > 0) {
-    client.push('RefusedResult', 'ResolvingRejected');
-  }
+  const client = ['CommandClient', 'CommandResult', 'WowClientOptions'];
   if (commands.length > 0) client.push('CommandResultStream');
   if (commands.some(command => command.byIdPath && command.unaddressedPath)) {
     client.push('CreateCommandOptions');
@@ -523,13 +534,26 @@ function emitCommandClient(
         lifecycle.method,
         params,
         'CommandOptions',
-        `{ ...options, command: LifecycleCommands.${lifecycle.member}, routes: ${routesLiteral(lifecycle.routes)}, id${lifecycle.bodyType ? ', body' : ''} }`,
+        `{ ...options, command: LifecycleCommands.${lifecycle.member}, type: { context: ${quoteStringLiteral(aggregate.context)}, name: ${quoteStringLiteral(aggregate.name)} }, id${lifecycle.bodyType ? ', body' : ''} }`,
       ),
     );
   }
-  if (commands.some(command => command.bodyNumbers)) {
+  // A body with exact numbers sends them unquoted: its marks go with the client, by the command's full name.
+  const marked = commands.filter(command => command.bodyNumbers);
+  if (marked.length > 0) {
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
+  const bodyNumbers = marked.length
+    ? `, bodyNumbers: {\n${marked.map(command => `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${command.name}`)}: ${name}Aggregate.textNumbers.commands.${resolvePropertyName(command.name) === command.name ? command.name : `[${quoteStringLiteral(command.name)}]`},`).join('\n')}\n    }`
+    : '';
+  const manifest = `${context.typeName}Manifest`;
+  module.imports.add(
+    relativeModuleSpecifier(
+      module.directoryPath,
+      join(outputDir, context.directory, 'manifest.ts'),
+    ),
+    [manifest],
+  );
   module.imports.add(WOW_CLIENT, [...new Set(client)].sort());
   importTypes(module, outputDir, files, [
     ...commands.map(command => command.bodyType),
@@ -538,8 +562,8 @@ function emitCommandClient(
   addStatement(
     module,
     `${doc([
-      `Sends the commands of \`${aggregate.context}.${aggregate.name}\`. Each method answers the result its wait plan ends with, as \`CommandGateway.wait\` does: the server's default plan unless the options give one, \`{ wait: [wait.accepted()] }\` to answer once it is accepted. A command that did not succeed rejects with a \`WowProblemError\` holding its result.`,
-    ])}export class ${name}CommandClient {\n  readonly gateway: CommandGateway;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.gateway = new CommandGateway(options);\n  }\n\n${methods.join('\n\n')}\n}`,
+      `Sends the commands of \`${aggregate.context}.${aggregate.name}\` by its service's routes (\`${manifest}\`). Each method answers the result its wait plan ends with, as \`CommandClient.wait\` does: the server's default plan unless the options give one, \`{ wait: WaitPlan.ACCEPTED }\` to answer once it is accepted. A rejected command rejects with a \`CommandRejectedError\`; anything else that did not succeed with a \`WowProblemError\`.`,
+    ])}export class ${name}CommandClient {\n  readonly client: CommandClient;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.client = new CommandClient(options, { manifest: ${manifest}${bodyNumbers} });\n  }\n\n${methods.join('\n\n')}\n}`,
   );
 }
 

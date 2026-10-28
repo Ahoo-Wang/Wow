@@ -20,7 +20,7 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     new URL('./__package_consumer__.mts', import.meta.url),
   );
   const source = `
-    import { CommandGateway, type CommandResult, Stage, WowProblemError } from '@ahoo-wang/wow-client';
+    import { CommandClient, type CommandResult, Stage, WowProblemError } from '@ahoo-wang/wow-client';
     import { aggregation, type AggregationQuery, filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
     const stage: Stage = Stage.COMMITTED;
     // @ts-expect-error The declarations keep the typed stages.
@@ -32,7 +32,7 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     const empty: AggregationQuery = { metrics: [] };
     // @ts-expect-error CommandResult is a real interface, not an unresolved type.
     const invalidResult: CommandResult = {};
-    const send = (gateway: CommandGateway) => gateway.wait({ command: 'shop.order.Create' });
+    const send = (commands: CommandClient) => commands.wait({ command: 'shop.order.Create' });
     void [valid, empty, invalidResult, stage, typo, expression, isProblem, send];
   `;
   const options: ts.CompilerOptions = {
