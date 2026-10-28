@@ -46,6 +46,7 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -376,17 +377,19 @@ class HttpQueryApi internal constructor(
 }
 
 /**
- * The aggregate types of the peers by their state classes: the contracts on the class path name each
- * aggregate's state schema (`#/$defs/<binary name>`), whose class a caller queries the snapshots of.
+ * The aggregate types of the peers by their state classes: a [StateView] names its aggregate, the view a peer's api
+ * generates; the contracts on the class path name each aggregate's state schema (`#/$defs/<binary name>`), whose class
+ * a caller queries the snapshots of.
  */
 internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
     /**
-     * The aggregate type whose state is of [stateType].
+     * The aggregate type whose state is of [stateType], or that the [StateView] [stateType] names.
      *
-     * @throws IllegalArgumentException when no contract, or several, have an aggregate of that state.
+     * @throws IllegalArgumentException when no contract, or several, have an aggregate of that state, or the view names
+     * several aggregates.
      */
     fun typeOf(stateType: Class<*>): AggregateType {
-        val found = types[Manifest.schemaRef(stateType.name)].orEmpty()
+        val found = StateView.typesOf(stateType).ifEmpty { types[Manifest.schemaRef(stateType.name)].orEmpty() }
         require(found.isNotEmpty()) { "No contract has an aggregate whose state is ${stateType.name}." }
         require(found.size == 1) { "The aggregates $found share the state ${stateType.name}: query them by type." }
         return found.single()

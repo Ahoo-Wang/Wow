@@ -15,6 +15,7 @@ package me.ahoo.wow.query.read
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.query.backend.single
 
 /**
@@ -36,11 +37,18 @@ class ReadModels(models: Collection<Model>) {
     }
 
     /**
-     * The aggregate type whose state is of [stateType].
+     * The aggregate type whose state is of [stateType], or that the [StateView] [stateType] names: a view of the state
+     * another context's api generates, which reads it whether this node or a peer serves it.
      *
-     * @throws IllegalArgumentException when no model has, or several models share, that state class.
+     * @throws IllegalArgumentException when no model has, or several models share, that state class, or the view names
+     * several aggregates.
      */
     fun typeOf(stateType: Class<*>): AggregateType {
+        val viewed = StateView.typesOf(stateType)
+        if (viewed.isNotEmpty()) {
+            require(viewed.size == 1) { "The aggregates $viewed share the state ${stateType.name}: query them by type." }
+            return viewed.single()
+        }
         val models = byState[stateType].orEmpty()
         require(models.isNotEmpty()) { "No aggregate of this node has a state of ${stateType.name}." }
         require(models.size == 1) {

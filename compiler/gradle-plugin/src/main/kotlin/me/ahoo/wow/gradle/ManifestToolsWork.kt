@@ -87,7 +87,7 @@ internal object ManifestToolsWork {
     abstract class GenerateContractSources : WorkAction<GenerateContractSources.Parameters> {
         interface Parameters : WorkParameters {
             val contracts: ConfigurableFileCollection
-            val queryFields: Property<Boolean>
+            val classpath: ConfigurableFileCollection
             val output: DirectoryProperty
         }
 
@@ -96,7 +96,7 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "generateContractSources",
                 parameters.contracts.files.toList<File>(),
-                parameters.queryFields.get(),
+                parameters.classpath.files.toList<File>(),
                 parameters.output.get().asFile,
             )
         }

@@ -26,9 +26,6 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
-import java.io.File
-import java.util.zip.ZipException
-import java.util.zip.ZipFile
 import javax.inject.Inject
 
 /**
@@ -36,8 +33,9 @@ import javax.inject.Inject
  * [WowPlugin.ASSEMBLE_CONTRACT_TASK] assembles it: per context the object
  * `<api package>.<Context>Contract` with the context's name and, per aggregate, its `TYPE`, `ref(tenantId, id)`,
  * ownership, snapshot and query models, and the `QueryField` constants of its state's paths, named as the compiler
- * names the domain module's `<State>Properties`. The api module compiles them in its [WowPlugin.CONTRACT_SOURCE_SET]
- * source set and its jar carries them. No contract, no source.
+ * names the domain module's `<State>Properties`; and per state the aggregate publishes, the view `<State>View` another
+ * context reads it as, which references the classes of the [classpath] and copies the domain's own. The api module
+ * compiles them in its [WowPlugin.CONTRACT_SOURCE_SET] source set and its jar carries them. No contract, no source.
  *
  * The query fields need `wow-query-api`, as the compiler's do: they are generated only when the [classpath] the code
  * compiles against holds it. The generator runs in a worker over [tools] (`wow-manifest-tools`).
@@ -68,28 +66,10 @@ abstract class GenerateContractSources @Inject constructor(private val workers: 
 
     /** One work item, writing the sources of [contract] into [outputDirectory]. */
     internal fun submit(queue: WorkQueue) {
-        val queryFields = hasQueryApi(classpath.files)
         queue.submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
             parameters.contracts.from(contract)
-            parameters.queryFields.set(queryFields)
+            parameters.classpath.from(classpath)
             parameters.output.set(outputDirectory)
-        }
-    }
-
-    internal companion object {
-        private const val QUERY_FIELD = "me/ahoo/wow/api/query/QueryField.class"
-
-        /** Whether [classpath] holds `wow-query-api`, whose `QueryField` the query field constants are. */
-        fun hasQueryApi(classpath: Iterable<File>): Boolean = classpath.any { entry ->
-            when {
-                entry.isDirectory -> File(entry, QUERY_FIELD).isFile
-                entry.isFile -> try {
-                    ZipFile(entry).use { it.getEntry(QUERY_FIELD) != null }
-                } catch (_: ZipException) {
-                    false
-                }
-                else -> false
-            }
         }
     }
 }
