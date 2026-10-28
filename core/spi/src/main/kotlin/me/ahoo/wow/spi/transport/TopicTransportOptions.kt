@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.seconds
 object TopicTransportOptions {
     /** A prefix of every topic name, for a cluster several services or environments share. */
     @JvmField
-    val TOPIC_PREFIX: ProviderOption<String> = ProviderOption.string(
+    val TOPIC_PREFIX: ProviderOption.Defaulted<String> = ProviderOption.string(
         "topic-prefix",
         "put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the " +
             "topics are the Manifest's. The sinks write and the subscriptions read under it.",
@@ -35,7 +35,7 @@ object TopicTransportOptions {
 
     /** Whether the node takes commands from its contexts' command topics. */
     @JvmField
-    val COMMAND_INTAKE: ProviderOption<Boolean> = ProviderOption.boolean(
+    val COMMAND_INTAKE: ProviderOption.Defaulted<Boolean> = ProviderOption.boolean(
         "command-intake.enabled",
         "whether each context the node hosts executes the commands other contexts send to its command topic, " +
             "wow.<context>.commands. A context with an aggregate type routed through topics takes them whatever this says.",
@@ -53,7 +53,7 @@ object TopicTransportOptions {
 
     /** How often the node reads the partitions of its topics again. */
     @JvmField
-    val PARTITION_REFRESH: ProviderOption<kotlin.time.Duration> = ProviderOption.duration(
+    val PARTITION_REFRESH: ProviderOption.Defaulted<kotlin.time.Duration> = ProviderOption.duration(
         "topics.partition-refresh",
         "how often the node looks for partitions added to the topics it reads; new partitions are read within about " +
             "twice this.",

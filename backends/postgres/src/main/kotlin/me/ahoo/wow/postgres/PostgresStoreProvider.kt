@@ -67,7 +67,7 @@ internal class PostgresStoreProvider : StoreProvider {
         val queries = config.option(QUERY_DATA_SOURCE)?.let { name ->
             config.resources.resource(DataSource::class.java, name, "${config.key}.${QUERY_DATA_SOURCE.key}")
         }
-        val timeout = checkNotNull(config.option(OPERATION_TIMEOUT))
+        val timeout = config.option(OPERATION_TIMEOUT)
         return PostgresStore(config, dataSource, queries ?: dataSource, timeout)
     }
 

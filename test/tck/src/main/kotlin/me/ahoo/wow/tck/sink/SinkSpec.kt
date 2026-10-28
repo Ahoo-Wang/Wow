@@ -74,14 +74,13 @@ abstract class SinkSpec {
     protected open fun provided(): Pair<SinkProvider, SinkConfig>? = null
 
     @Test
-    fun `the sink should read only the options it declares, each declared once with a description`() {
+    fun `the sink should read only the options it declares, each declared once`() {
         val provided = provided()
         assumeTrue(provided != null, "No provider opens this sink.")
         val (provider, config) = checkNotNull(provided)
         provider.open(config).close()
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
-        provider.options.forEach { option -> option.description.assert().describedAs(option.key).isNotBlank() }
         config.optionsRead.assert().describedAs("the options the sink read").isSubsetOf(declared)
     }
 

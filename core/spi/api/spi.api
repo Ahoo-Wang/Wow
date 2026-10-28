@@ -62,42 +62,44 @@ public final class me/ahoo/wow/spi/call/OutgoingCall$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/call/OutgoingCall$Companion;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/call/OutgoingCall;
 }
 
-public final class me/ahoo/wow/spi/config/ProviderOption {
+public class me/ahoo/wow/spi/config/ProviderOption {
 	public static final field Companion Lme/ahoo/wow/spi/config/ProviderOption$Companion;
 	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static final fun duration-moChb0s (Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public final fun getDefault ()Ljava/lang/Object;
+	public static final fun duration-SxA4cEA (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public fun getDefault ()Ljava/lang/Object;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/spi/config/ProviderOption$Scope;
 	public final fun getType ()Ljava/lang/Class;
 	public static final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static final fun int (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun int (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun isMap ()Z
 	public static final fun map (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun parse (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
-	public final fun perStore ()Lme/ahoo/wow/spi/config/ProviderOption;
+	public fun perStore ()Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Companion {
 	public final fun boolean (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public final fun boolean (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static synthetic fun boolean$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun boolean (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public final fun duration-moChb0s (Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static synthetic fun duration-moChb0s$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Lkotlin/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun duration-SxA4cEA (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public final fun int (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static synthetic fun int$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun int (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun map (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
-	public static synthetic fun string$default (Lme/ahoo/wow/spi/config/ProviderOption$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+}
+
+public final class me/ahoo/wow/spi/config/ProviderOption$Defaulted : me/ahoo/wow/spi/config/ProviderOption {
+	public fun getDefault ()Ljava/lang/Object;
+	public fun perStore ()Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public synthetic fun perStore ()Lme/ahoo/wow/spi/config/ProviderOption;
 }
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Scope : java/lang/Enum {
@@ -882,6 +884,7 @@ public final class me/ahoo/wow/spi/sink/SinkConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;Lme/ahoo/wow/spi/store/Store;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
 	public final fun options (Ljava/lang/String;)Ljava/util/Map;
 	public final fun options (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/util/Map;
@@ -1171,6 +1174,7 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
 	public final fun options (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
@@ -1551,11 +1555,11 @@ public abstract interface class me/ahoo/wow/spi/transport/TopicTransport : java/
 
 public final class me/ahoo/wow/spi/transport/TopicTransportOptions {
 	public static final field ALL Ljava/util/List;
-	public static final field COMMAND_INTAKE Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field COMMAND_INTAKE Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field DDL Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final field INSTANCE Lme/ahoo/wow/spi/transport/TopicTransportOptions;
-	public static final field PARTITION_REFRESH Lme/ahoo/wow/spi/config/ProviderOption;
-	public static final field TOPIC_PREFIX Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final field PARTITION_REFRESH Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field TOPIC_PREFIX Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final fun of (Lme/ahoo/wow/spi/transport/TransportProvider;)Ljava/util/List;
 }
 
@@ -1572,6 +1576,7 @@ public final class me/ahoo/wow/spi/transport/TransportConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;)Ljava/lang/Object;
 	public final fun option (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/lang/Object;
 	public final fun options (Ljava/lang/String;)Ljava/util/Map;
 	public final fun options (Lme/ahoo/wow/spi/config/ProviderOption;)Ljava/util/Map;

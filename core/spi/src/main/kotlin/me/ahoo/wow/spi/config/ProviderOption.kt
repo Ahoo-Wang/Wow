@@ -26,18 +26,19 @@ import kotlin.time.Duration.Companion.milliseconds
  * instance of the provider's type under `wow.<type>.<key>`, and each instance may set it over that; a key a provider
  * does not declare fails the start, naming the declared ones.
  *
- * A provider declares its options with the factories ([string], [duration], [int], [boolean], [map]). A [map] option
- * is a prefix whose sub-keys pass through as they are (`properties.*` of a client): a config reads it with its
- * `options(option)`.
+ * A provider declares its options with the factories ([string], [duration], [int], [boolean], [map]). Given a default,
+ * a factory returns a [Defaulted] option, which a config reads as a value that is always there (`config.option(o)` is a
+ * `T`); without one, the value may be missing (a `T?`). A [map] option is a prefix whose sub-keys pass through as they
+ * are (`properties.*` of a client): a config reads it with its `options(option)`.
  */
 @WowSpi
-class ProviderOption<T : Any> @InternalWowApi constructor(
+open class ProviderOption<T : Any> @InternalWowApi constructor(
     val key: String,
     val description: String,
     val type: Class<T>,
-    val default: T?,
+    open val default: T?,
     val scope: Scope,
-    private val parser: (String) -> T,
+    internal val parser: (String) -> T,
 ) {
     init {
         require(KEY.matches(key)) { "An option key is kebab-case words separated by dots: [$key]." }
@@ -60,7 +61,19 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
     val isMap: Boolean get() = type == Map::class.java
 
     /** This option, settable only on one store instance ([Scope.PER_STORE]). */
-    fun perStore(): ProviderOption<T> = ProviderOption(key, description, type, default, Scope.PER_STORE, parser)
+    open fun perStore(): ProviderOption<T> = ProviderOption(key, description, type, default, Scope.PER_STORE, parser)
+
+    /** An option with a [default]: a config reads its value, set or not, as a `T`. */
+    class Defaulted<T : Any> @InternalWowApi constructor(
+        key: String,
+        description: String,
+        type: Class<T>,
+        override val default: T,
+        scope: Scope,
+        parser: (String) -> T,
+    ) : ProviderOption<T>(key, description, type, default, scope, parser) {
+        override fun perStore(): Defaulted<T> = Defaulted(key, description, type, default, Scope.PER_STORE, parser)
+    }
 
     /** [text] as this option's value; fails naming [where], the key it was set under, when it is not one. */
     fun parse(text: String, where: String): T = try {
@@ -79,36 +92,48 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
     companion object {
         private val KEY = Regex("[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*")
 
-        /** A text setting. */
+        /** A text setting, missing when it is not set. */
         @JvmStatic
-        @JvmOverloads
-        fun string(key: String, description: String, default: String? = null): ProviderOption<String> =
-            ProviderOption(key, description, String::class.java, default, Scope.TYPE) { it }
+        fun string(key: String, description: String): ProviderOption<String> =
+            ProviderOption(key, description, String::class.java, null, Scope.TYPE) { it }
+
+        /** A text setting, [default] when it is not set. */
+        @JvmStatic
+        fun string(key: String, description: String, default: String): Defaulted<String> =
+            Defaulted(key, description, String::class.java, default, Scope.TYPE) { it }
 
         /**
          * A duration, written as Kotlin writes one (`500ms`, `5s`, `1m 30s`), in ISO-8601 (`PT5S`), or as a bare number
-         * of milliseconds (`500`), as a Spring `Duration` property reads it.
+         * of milliseconds (`500`), as a Spring `Duration` property reads it; missing when it is not set.
          */
         @JvmStatic
-        @JvmOverloads
-        fun duration(key: String, description: String, default: Duration? = null): ProviderOption<Duration> =
-            ProviderOption(key, description, Duration::class.java, default, Scope.TYPE, ::parseDuration)
+        fun duration(key: String, description: String): ProviderOption<Duration> =
+            ProviderOption(key, description, Duration::class.java, null, Scope.TYPE, ::parseDuration)
 
-        /** A whole number. */
+        /** A duration, as [duration] reads one, [default] when it is not set. */
         @JvmStatic
-        @JvmOverloads
-        fun int(key: String, description: String, default: Int? = null): ProviderOption<Int> =
-            ProviderOption(key, description, Int::class.javaObjectType, default, Scope.TYPE) { text ->
-                requireNotNull(text.toIntOrNull()) { "not a whole number" }
-            }
+        fun duration(key: String, description: String, default: Duration): Defaulted<Duration> =
+            Defaulted(key, description, Duration::class.java, default, Scope.TYPE, ::parseDuration)
 
-        /** `true` or `false`. */
+        /** A whole number, missing when it is not set. */
         @JvmStatic
-        @JvmOverloads
-        fun boolean(key: String, description: String, default: Boolean? = null): ProviderOption<Boolean> =
-            ProviderOption(key, description, Boolean::class.javaObjectType, default, Scope.TYPE) { text ->
-                requireNotNull(text.lowercase().toBooleanStrictOrNull()) { "neither true nor false" }
-            }
+        fun int(key: String, description: String): ProviderOption<Int> =
+            ProviderOption(key, description, Int::class.javaObjectType, null, Scope.TYPE, ::parseInt)
+
+        /** A whole number, [default] when it is not set. */
+        @JvmStatic
+        fun int(key: String, description: String, default: Int): Defaulted<Int> =
+            Defaulted(key, description, Int::class.javaObjectType, default, Scope.TYPE, ::parseInt)
+
+        /** `true` or `false`, missing when it is not set. */
+        @JvmStatic
+        fun boolean(key: String, description: String): ProviderOption<Boolean> =
+            ProviderOption(key, description, Boolean::class.javaObjectType, null, Scope.TYPE, ::parseBoolean)
+
+        /** `true` or `false`, [default] when it is not set. */
+        @JvmStatic
+        fun boolean(key: String, description: String, default: Boolean): Defaulted<Boolean> =
+            Defaulted(key, description, Boolean::class.javaObjectType, default, Scope.TYPE, ::parseBoolean)
 
         /**
          * The settings under [prefix], each sub-key passed through as it is (a client's `properties.*`, a server's
@@ -122,6 +147,11 @@ class ProviderOption<T : Any> @InternalWowApi constructor(
                 throw IllegalArgumentException("a map option is read by its sub-keys")
             }
         }
+
+        private fun parseInt(text: String): Int = requireNotNull(text.toIntOrNull()) { "not a whole number" }
+
+        private fun parseBoolean(text: String): Boolean =
+            requireNotNull(text.lowercase().toBooleanStrictOrNull()) { "neither true nor false" }
 
         private fun parseDuration(text: String): Duration =
             text.toLongOrNull()?.milliseconds ?: Duration.parse(text)

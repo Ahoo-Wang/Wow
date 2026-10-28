@@ -145,7 +145,7 @@ abstract class StoreTck {
     }
 
     @Test
-    fun `the store should read only the options its provider declares, each declared once with a description`() {
+    fun `the store should read only the options its provider declares, each declared once`() {
         val config = StoreConfig.of(
             config().name,
             config().type,
@@ -156,7 +156,6 @@ abstract class StoreTck {
         provider.open(config)
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
-        provider.options.forEach { option -> option.description.assert().describedAs(option.key).isNotBlank() }
         config.optionsRead.assert().describedAs("the options the store read").isSubsetOf(declared)
     }
 

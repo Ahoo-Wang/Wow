@@ -220,11 +220,11 @@ class TransportAutoConfiguration {
  * transport has ([TopicTransportOptions]) the host reads for the node's topics.
  */
 internal class SelectedTransport(val provider: TransportProvider, val config: TransportConfig) {
-    val topicPrefix: String get() = config.option(TopicTransportOptions.TOPIC_PREFIX).orEmpty()
+    val topicPrefix: String get() = config.option(TopicTransportOptions.TOPIC_PREFIX)
 
-    val commandIntake: Boolean get() = config.option(TopicTransportOptions.COMMAND_INTAKE) == true
+    val commandIntake: Boolean get() = config.option(TopicTransportOptions.COMMAND_INTAKE)
 
-    val partitionRefresh: Duration get() = checkNotNull(config.option(TopicTransportOptions.PARTITION_REFRESH))
+    val partitionRefresh: Duration get() = config.option(TopicTransportOptions.PARTITION_REFRESH)
 
     /** The transport's `ddl`, null when it sets none. */
     val ddl: Ddl? get() = config.option(TopicTransportOptions.DDL)?.let { text ->

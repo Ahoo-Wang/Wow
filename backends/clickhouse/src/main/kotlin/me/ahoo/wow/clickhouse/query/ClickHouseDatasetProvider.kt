@@ -44,7 +44,7 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
         SETTINGS,
     )
 
-    override fun available(config: QueryDatasetConfig): Boolean = config.option(ENABLED) != false &&
+    override fun available(config: QueryDatasetConfig): Boolean = config.option(ENABLED) &&
         (config.resources.has(Client::class.java) || config.option(ClickHouseClients.ENDPOINT) != null)
 
     override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> {
@@ -55,8 +55,8 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
 
     /** The dataset options [config] gives: its database, the metadata's time to live and the statements' settings. */
     fun optionsOf(config: QueryDatasetConfig): ClickHouseDatasetOptions = ClickHouseDatasetOptions(
-        database = checkNotNull(config.option(ClickHouseClients.DATABASE)),
-        metadataTtl = checkNotNull(config.option(METADATA_TTL)).toJavaDuration(),
+        database = config.option(ClickHouseClients.DATABASE),
+        metadataTtl = config.option(METADATA_TTL).toJavaDuration(),
         settings = config.options(SETTINGS),
     )
 
@@ -72,7 +72,7 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
         const val TYPE: String = "clickhouse"
 
         /** Whether the datasets are served over ClickHouse. */
-        val ENABLED: ProviderOption<Boolean> = ProviderOption.boolean(
+        val ENABLED: ProviderOption.Defaulted<Boolean> = ProviderOption.boolean(
             "query.enabled",
             "whether the datasets are served over ClickHouse when the endpoint is set or the application has a " +
                 "ClickHouse client.",
@@ -80,7 +80,7 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
         )
 
         /** How long a table's columns and engine are reused before `system.columns` is read again. */
-        val METADATA_TTL: ProviderOption<kotlin.time.Duration> = ProviderOption.duration(
+        val METADATA_TTL: ProviderOption.Defaulted<kotlin.time.Duration> = ProviderOption.duration(
             "query.metadata-ttl",
             "how long a dataset table's columns and engine are reused before system.columns is read again.",
             1.minutes,

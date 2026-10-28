@@ -54,7 +54,7 @@ class ClickHouseSinkProvider : SinkProvider {
         AGGREGATES,
     )
 
-    override fun available(config: SinkConfig): Boolean = config.option(ENABLED) == true
+    override fun available(config: SinkConfig): Boolean = config.option(ENABLED)
 
     override fun open(config: SinkConfig): StreamSinks {
         val manifest = config.resources.resource(Manifest::class.java, null, config.key)
@@ -88,7 +88,7 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** Whether the published streams are written to ClickHouse: the Sink's one switch, off by default. */
         @JvmField
-        val ENABLED: ProviderOption<Boolean> = ProviderOption.boolean(
+        val ENABLED: ProviderOption.Defaulted<Boolean> = ProviderOption.boolean(
             "sink.enabled",
             "whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse " +
                 "client or endpoint alone writes nothing.",
@@ -97,7 +97,7 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** The most records one insert carries. */
         @JvmField
-        val BATCH_SIZE: ProviderOption<Int> = ProviderOption.int(
+        val BATCH_SIZE: ProviderOption.Defaulted<Int> = ProviderOption.int(
             "sink.batch-size",
             "the most records one insert carries.",
             ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
@@ -105,7 +105,7 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** How many recent inserts each table remembers to drop a retried one. */
         @JvmField
-        val DEDUPLICATION_WINDOW: ProviderOption<Int> = ProviderOption.int(
+        val DEDUPLICATION_WINDOW: ProviderOption.Defaulted<Int> = ProviderOption.int(
             "sink.deduplication-window",
             "how many recent inserts each table remembers to drop a retried one: the " +
                 "non_replicated_deduplication_window of the tables auto creates.",
@@ -129,10 +129,10 @@ class ClickHouseSinkProvider : SinkProvider {
                 "${config.key}.${DDL.key} is $ddlText, which is no DDL mode: set it to auto, validate or none."
             }
             return ClickHouseSinkOptions(
-                database = checkNotNull(config.option(ClickHouseClients.DATABASE)),
+                database = config.option(ClickHouseClients.DATABASE),
                 ddl = ddl,
-                batchSize = checkNotNull(config.option(BATCH_SIZE)),
-                deduplicationWindow = checkNotNull(config.option(DEDUPLICATION_WINDOW)),
+                batchSize = config.option(BATCH_SIZE),
+                deduplicationWindow = config.option(DEDUPLICATION_WINDOW),
                 aggregates = aggregates(config),
             )
         }

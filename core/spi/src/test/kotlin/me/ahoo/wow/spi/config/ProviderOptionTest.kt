@@ -43,6 +43,26 @@ class ProviderOptionTest {
     }
 
     @Test
+    fun `an option given a default should be read as a value that is always there, per store too`() {
+        val region: ProviderOption.Defaulted<String> = ProviderOption.string("region", "the region.", "eu-1")
+        val perStore: ProviderOption.Defaulted<String> = region.perStore()
+        perStore.scope.assert().isEqualTo(ProviderOption.Scope.PER_STORE)
+        perStore.default.assert().isEqualTo("eu-1")
+        val retries: ProviderOption.Defaulted<Int> = ProviderOption.int("retries", "how many retries.", 3)
+        val on: ProviderOption.Defaulted<Boolean> = ProviderOption.boolean("on", "whether it is on.", false)
+        val set = StoreConfig.of("a", "t", options = mapOf("region" to "us-2", "retries" to " "))
+        val region2: String = set.option(region)
+        region2.assert().isEqualTo("us-2")
+        val defaulted: Int = set.option(retries)
+        defaulted.assert().isEqualTo(3)
+        set.option(on).assert().isFalse()
+        set.option(timeout).assert().isEqualTo(5.seconds)
+        // Without a default, the value may be missing.
+        set.option(size).assert().isNull()
+        size.perStore().default.assert().isNull()
+    }
+
+    @Test
     fun `a value that is not one of the option's type should fail naming where it was set`() {
         val failure = assertThrows<WowConfigurationException> { size.parse("many", "wow.stores.a.options.batch.size") }
         failure.key.assert().isEqualTo("wow.stores.a.options.batch.size")
