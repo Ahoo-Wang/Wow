@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -32,10 +33,11 @@ class ClickHouseSinkProviderTest {
         SinkConfig.of("clickhouse", "clickhouse", options.toMap(), resources)
 
     @Test
-    fun `the sink is available with an endpoint, unless switched off`() {
+    fun `the sink is switched on by its setting alone`() {
         provider.type.assert().isEqualTo("clickhouse")
         provider.available(config()).assert().isFalse()
-        provider.available(config("endpoint" to "http://c:8123")).assert().isTrue()
+        provider.available(config("endpoint" to "http://c:8123")).assert().isFalse()
+        provider.available(config("sink.enabled" to "true")).assert().isTrue()
         provider.available(config("endpoint" to "http://c:8123", "sink.enabled" to "false")).assert().isFalse()
         assertThrows<WowConfigurationException> {
             provider.available(config("endpoint" to "http://c:8123", "sink.enabled" to "maybe"))
@@ -54,7 +56,7 @@ class ClickHouseSinkProviderTest {
     @Test
     fun `the sinks write the Manifest's streams over the application's client, or one of their own`() {
         val manifest = Manifest(service = ServiceInfo("bank-service"))
-        val client = ClickHouseSinkProvider.clientOf(config("endpoint" to "http://127.0.0.1:1", "username" to "u"))
+        val client = ClickHouseClients.of(mapOf("endpoint" to "http://127.0.0.1:1", "username" to "u"))
         client.use {
             val shared = provider.open(
                 config(
@@ -72,5 +74,9 @@ class ClickHouseSinkProviderTest {
         )
         own.close()
         assertThrows<IllegalStateException> { provider.open(config("endpoint" to "http://127.0.0.1:1")) }
+        val neither = config("sink.enabled" to "true", resources = StoreResources.of(mapOf("m" to manifest)))
+        assertThrows<IllegalArgumentException> {
+            provider.open(neither)
+        }.message.assert().contains("ClickHouse Client bean", "wow.clickhouse.endpoint")
     }
 }

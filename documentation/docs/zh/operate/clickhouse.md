@@ -10,7 +10,7 @@ ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复�
 
 ## 连接服务 {#connect-a-service}
 
-把 `wow-clickhouse` 放到类路径上，并设置 `wow.clickhouse.endpoint`，即服务器的 HTTP 端点；只有设置了它，ClickHouse 才会被装配。eShop 的 ordering 服务在它的 `clickhouse` profile 中这样做：
+把 `wow-clickhouse` 放到类路径上，设置 `wow.clickhouse.endpoint`（服务器的 HTTP 端点），并用 `wow.clickhouse.sink.enabled: true` 开启 Sink。把每个事件写入数据仓库是服务主动选择承担的开销，所以在该设置开启之前 Sink 一直关闭；端点和客户端都不会开启它。eShop 的 ordering 服务在它的 `clickhouse` profile 中两者都做了：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
 
@@ -24,11 +24,13 @@ wow:
     # The order stream is written to ClickHouse by the Sink (eshop_ordering_order_state_flat, ...), and the sales
     # dataset, META-INF/wow/dataset/eshop-ordering.sales.json, is queried there: /wow/dataset/eshop-ordering/sales/query.
     endpoint: http://localhost:8123
+    sink:
+      enabled: true
 ```
 
-`wow.clickhouse.username`（`default`）和 `password` 用于登录，`wow.clickhouse.database`（`default`）存放这些表。Sink 写入 Manifest 发布的每个聚合；`wow.clickhouse.sink.enabled: false` 关闭它。
+`wow.clickhouse.username`（`default`）和 `password` 用于登录，`wow.clickhouse.database`（`default`）存放这些表。Sink 写入 Manifest 发布的每个聚合。只要有客户端，数据集就会提供服务，除非设置 `wow.clickhouse.query.enabled: false`。
 
-Sink 和数据集各自用这些设置打开一个客户端，并随节点关闭。想共用一个客户端，或自己也要用 ClickHouse 的应用，把客户端声明为 bean：两者就都用它，且从不关闭它。应用用 Spring 的 `Binder` 绑定 `wow.clickhouse`，用 `ClickHouseClients.of` 构建客户端，并随自己的上下文关闭它。分析目录服务就是这样做的：
+Sink 和数据集按同一条规则取得客户端：应用有 ClickHouse `Client` bean 时用它，Wow 从不关闭它；否则各自用这些设置打开一个客户端，并随节点关闭。开启了 Sink 却两者都没有时，启动失败，并指出这两种方式。想共用一个客户端，或自己也要用 ClickHouse 的应用，把客户端声明为 bean：用 Spring 的 `Binder` 绑定 `wow.clickhouse`，用 `ClickHouseClients.of` 构建客户端，并随自己的上下文关闭它。分析目录服务为读取数据仓库就是这样做的；它的客户端不会开启 Sink：
 
 <!-- sample: platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/AnalyticsCatalogConfiguration.kt#shared-client -->
 

@@ -33,14 +33,14 @@ The settings of ClickHouse: the connection the Sink and the dataset backend shar
 | --- | --- | --- | --- |
 | `wow.clickhouse.database` | `String` | `default` | The database of the Sink's tables and of a dataset whose table names none. |
 | `wow.clickhouse.ddl` | `String` |  | How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set. |
-| `wow.clickhouse.endpoint` | `String` |  | The ClickHouse server's HTTP endpoint, such as http://localhost:8123; the Sink writes only when it is set, and the datasets are served when it is set or the application has a ClickHouse Client. |
+| `wow.clickhouse.endpoint` | `String` |  | The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use. |
 | `wow.clickhouse.password` | `String` | `""` | The password to sign in with. |
 | `wow.clickhouse.query.enabled` | `Boolean` | `true` | Whether the datasets are served over ClickHouse when the endpoint is set or the application has a ClickHouse client. |
 | `wow.clickhouse.query.metadata-ttl` | `Duration` | `PT1M` | How long a dataset table's columns and engine are reused before system.columns is read again. |
 | `wow.clickhouse.query.settings` | `Map<String,String>` |  | Server settings every dataset query runs under, such as max_memory_usage; the execution time comes from each query's budget (wow.query.budgets.http.timeout), not from here. |
 | `wow.clickhouse.sink.batch-size` | `Integer` | `1000` | The most records one insert carries. |
 | `wow.clickhouse.sink.deduplication-window` | `Integer` | `1000` | How many recent inserts each table remembers to drop a retried one: the non_replicated_deduplication_window of the tables auto creates. |
-| `wow.clickhouse.sink.enabled` | `Boolean` | `true` | Whether the Manifest's published streams are written to ClickHouse. |
+| `wow.clickhouse.sink.enabled` | `Boolean` | `false` | Whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse client or endpoint alone writes nothing. |
 | `wow.clickhouse.username` | `String` | `default` | The user name to sign in with. |
 
 ## `wow.cluster`

@@ -337,7 +337,7 @@
   }, {
     "name" : "wow.clickhouse.endpoint",
     "type" : "java.lang.String",
-    "description" : "The ClickHouse server's HTTP endpoint, such as http://localhost:8123; the Sink writes only when it is set, and the datasets are served when it is set or the application has a ClickHouse Client.",
+    "description" : "The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use.",
     "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider"
   }, {
     "name" : "wow.clickhouse.password",
@@ -377,9 +377,9 @@
   }, {
     "name" : "wow.clickhouse.sink.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the Manifest's published streams are written to ClickHouse.",
+    "description" : "Whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse client or endpoint alone writes nothing.",
     "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
-    "defaultValue" : true
+    "defaultValue" : false
   }, {
     "name" : "wow.clickhouse.username",
     "type" : "java.lang.String",

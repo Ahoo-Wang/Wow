@@ -27,10 +27,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The ClickHouse Sink, type `clickhouse`: available once `endpoint` is set, unless `sink.enabled` is `false`. It
- * writes every stream the service's Manifest (a resource of the application) publishes, through the application's
- * [Client] when it has one, which it never closes, else through one of its own ([ClickHouseClients]), which it closes
- * with the sinks. Its settings, relative to its configuration (`wow.clickhouse.*`), are its [options]: the
+ * The ClickHouse Sink, type `clickhouse`: switched on by `sink.enabled: true` alone, since writing every event to a
+ * warehouse is a cost a service chooses; neither a client nor an endpoint switches it on. It writes every stream the
+ * service's Manifest (a resource of the application) publishes, through the application's [Client] when it has one,
+ * which it never closes, else through one of `endpoint` and the credentials, which it closes with the sinks
+ * ([ClickHouseClients.clientOf]); with neither, it fails the start naming both. Its settings, relative to its configuration (`wow.clickhouse.*`), are its [options]: the
  * connection's, `ddl` ([Ddl], `auto` by default; the host gives `wow.ddl` when it is not set), `sink.batch-size`,
  * `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl` under
  * `aggregates.<context>.<aggregate>`, which the host gives from
@@ -39,7 +40,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class ClickHouseSinkProvider : SinkProvider {
     override val type: String = TYPE
 
-    override val requirement: String = "endpoint, the ClickHouse HTTP endpoint"
+    override val requirement: String = "sink.enabled: true"
 
     override val options: List<ProviderOption<*>> = listOf(
         ClickHouseClients.ENDPOINT,
@@ -53,21 +54,19 @@ class ClickHouseSinkProvider : SinkProvider {
         AGGREGATES,
     )
 
-    override fun available(config: SinkConfig): Boolean =
-        config.option(ClickHouseClients.ENDPOINT) != null && config.option(ENABLED) != false
+    override fun available(config: SinkConfig): Boolean = config.option(ENABLED) == true
 
     override fun open(config: SinkConfig): StreamSinks {
         val manifest = config.resources.resource(Manifest::class.java, null, config.key)
-        val owned = if (config.resources.has(Client::class.java)) null else clientOf(config)
-        val client = owned ?: config.resources.resource(Client::class.java, null, config.key)
-        val sinks = ClickHouseSinks(client, manifest, options(config))
+        val client = ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse Sink", config::option)
+        val sinks = ClickHouseSinks(client.client, manifest, options(config))
         return object : StreamSinks {
             override val processor: String = ClickHouseSinks.PROCESSOR
 
             override fun sinkOf(context: String, aggregate: String): Sink = sinks.sinkOf(context, aggregate)
 
             override fun close() {
-                owned?.close()
+                client.close()
             }
 
             override fun toString(): String = "ClickHouseSinks(${options(config).database})"
@@ -87,12 +86,13 @@ class ClickHouseSinkProvider : SinkProvider {
                 "when not set.",
         )
 
-        /** Whether the published streams are written to ClickHouse. */
+        /** Whether the published streams are written to ClickHouse: the Sink's one switch, off by default. */
         @JvmField
         val ENABLED: ProviderOption<Boolean> = ProviderOption.boolean(
             "sink.enabled",
-            "whether the Manifest's published streams are written to ClickHouse.",
-            true,
+            "whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse " +
+                "client or endpoint alone writes nothing.",
+            false,
         )
 
         /** The most records one insert carries. */
@@ -121,15 +121,6 @@ class ClickHouseSinkProvider : SinkProvider {
         ).perStore()
 
         private const val HISTORY = ".history."
-
-        /** A client of [config]'s endpoint and credentials. */
-        fun clientOf(config: SinkConfig): Client = ClickHouseClients.of(
-            requireNotNull(config.option(ClickHouseClients.ENDPOINT)) {
-                "${config.key}.${ClickHouseClients.ENDPOINT.key} is not set."
-            },
-            checkNotNull(config.option(ClickHouseClients.USERNAME)),
-            checkNotNull(config.option(ClickHouseClients.PASSWORD)),
-        )
 
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {

@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Configuration
 
 /**
  * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
- * `wow.clickhouse.endpoint` set, every stream the Manifest publishes is written to ClickHouse by a subscription
+ * `wow.clickhouse.sink.enabled` set, every stream the Manifest publishes is written to ClickHouse by a subscription
  * `clickhouse-sink.<aggregate>`, over the application's ClickHouse client or one the Sink opens itself.
  */
 class HostClickHouseSinkTest {
@@ -45,33 +45,47 @@ class HostClickHouseSinkTest {
         )
         .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
 
+    private val client: Client = Client.Builder().addEndpoint("http://127.0.0.1:1").setUsername("default").build()
+
     @Test
-    fun `without an endpoint nothing should be wired`() {
-        runner.run { context ->
-            context.getBeansOfType(Client::class.java).assert().isEmpty()
+    fun `a client or an endpoint alone should start no Sink`() {
+        runner.run { context -> context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty() }
+        // The analytics catalog's case: a client declared to read the warehouse writes nothing to it.
+        runner.withBean(Client::class.java, { client }).run { context ->
+            context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
+        }
+        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
             context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
         }
     }
 
     @Test
-    fun `with an endpoint the client and the sinks should be wired`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
-            // No application client: the Sink opens one of its own, closed with its sinks.
-            context.getBeansOfType(Client::class.java).assert().isEmpty()
+    fun `a Sink switched on should write over the application's client`() {
+        runner.withPropertyValues(ENABLED).withBean(Client::class.java, { client }).run { context ->
             val sinks = context.getBean(ProvidedSinks::class.java).sinks.single()
-            sinks.nameOf(PublishedManifest("account", "t")).assert()
-                .isEqualTo("clickhouse-sink.account")
+            sinks.nameOf(PublishedManifest("account", "t")).assert().isEqualTo("clickhouse-sink.account")
             // The Manifest publishes nothing: no sink reads any state.
             sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
         }
     }
 
     @Test
-    fun `the sink should be switched off by its property`() {
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.sink.enabled=false")
-            .run { context ->
-                context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
-            }
+    fun `a Sink switched on should write over a client of the endpoint, its own`() {
+        runner.withPropertyValues(ENABLED, "wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
+            context.getBeansOfType(Client::class.java).assert().isEmpty()
+            context.getBean(ProvidedSinks::class.java).sinks.single().nameOf(PublishedManifest("account", "t"))
+                .assert().isEqualTo("clickhouse-sink.account")
+        }
+    }
+
+    @Test
+    fun `a Sink switched on with neither a client nor an endpoint should refuse the start, naming both`() {
+        runner.withPropertyValues(ENABLED).run { context ->
+            val failure = generateSequence(context.startupFailure) { it.cause }
+                .filterIsInstance<WowConfigurationException>().first()
+            failure.key.assert().isEqualTo("wow.clickhouse")
+            failure.message.assert().contains("ClickHouse Client bean", "wow.clickhouse.endpoint")
+        }
     }
 
     @Test
@@ -95,6 +109,7 @@ class HostClickHouseSinkTest {
             options.deduplicationWindow.assert().isEqualTo(200)
         }
         runner.withPropertyValues(
+            ENABLED,
             "wow.clickhouse.endpoint=http://127.0.0.1:1",
             "wow.aggregates.[account].clickhouse.history.enabled=false",
         )
@@ -109,6 +124,7 @@ class HostClickHouseSinkTest {
     @Test
     fun `a host should run a ClickHouse sink subscription per published aggregate`() {
         startHost(
+            "wow.clickhouse.sink.enabled" to "true",
             "wow.clickhouse.endpoint" to "http://127.0.0.1:1",
             "wow.clickhouse.ddl" to "none",
             sources = listOf(HostTestApp::class.java, PublishingManifest::class.java),
@@ -133,5 +149,9 @@ class HostClickHouseSinkTest {
                     },
                 )
             }
+    }
+
+    private companion object {
+        const val ENABLED = "wow.clickhouse.sink.enabled=true"
     }
 }

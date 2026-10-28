@@ -15,11 +15,13 @@ package me.ahoo.wow.clickhouse
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.store.StoreResources
 
 /**
  * The ClickHouse connection settings (`wow.clickhouse.*`) the Sink and the dataset backend share, and the client-v2
- * [Client] of them. Each of the two opens a client of its own over them when the application has no [Client] bean,
- * and closes it with itself; with one, both use the application's and never close it.
+ * [Client] of them. Both find their client by one rule ([clientOf]): the application's [Client] bean when it has one,
+ * which Wow never closes; else one of these settings, which each opens and closes itself; with neither, a Sink that
+ * is switched on fails the start, naming both ways.
  *
  * An application that wants one shared client, or uses ClickHouse itself, declares the bean over the same settings,
  * bound with Spring's `Binder` (`Bindable.mapOf(String::class.java, String::class.java)` of `wow.clickhouse`), and
@@ -30,8 +32,8 @@ object ClickHouseClients {
     @JvmField
     val ENDPOINT: ProviderOption<String> = ProviderOption.string(
         "endpoint",
-        "the ClickHouse server's HTTP endpoint, such as http://localhost:8123; the Sink writes only when it is set, " +
-            "and the datasets are served when it is set or the application has a ClickHouse Client.",
+        "the ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a " +
+            "client of it and its credentials, unless the application has a ClickHouse Client bean, which they use.",
     )
 
     /** The user name to sign in with. */
@@ -74,6 +76,35 @@ object ClickHouseClients {
         .setUsername(username)
         .setPassword(password)
         .build()
+
+    /**
+     * The client of [what] (the Sink, the datasets): the application's among [resources], which the result does not
+     * close, else one of the endpoint and credentials [setting] reads, which it owns and closes; fails naming both ways
+     * under [key] when there is neither.
+     */
+    internal fun clientOf(
+        resources: StoreResources,
+        key: String,
+        what: String,
+        setting: (ProviderOption<String>) -> String?,
+    ): OwnedClient {
+        if (resources.has(Client::class.java)) {
+            return OwnedClient(resources.resource(Client::class.java, null, key), owned = false)
+        }
+        val endpoint = requireNotNull(setting(ENDPOINT)) {
+            "$what needs a ClickHouse client: declare a ClickHouse Client bean, or set $key.${ENDPOINT.key} " +
+                "(with ${USERNAME.key} and ${PASSWORD.key})."
+        }
+        val client = of(endpoint, checkNotNull(setting(USERNAME)), checkNotNull(setting(PASSWORD)))
+        return OwnedClient(client, owned = true)
+    }
+
+    /** A [client], which closing this closes when Wow [owned] it, and leaves open when it is the application's. */
+    internal class OwnedClient(val client: Client, val owned: Boolean) : AutoCloseable {
+        override fun close() {
+            if (owned) client.close()
+        }
+    }
 
     /** The configuration prefix of the settings. */
     const val PREFIX: String = "wow.clickhouse"

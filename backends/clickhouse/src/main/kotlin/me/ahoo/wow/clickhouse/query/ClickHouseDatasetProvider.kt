@@ -25,8 +25,9 @@ import kotlin.time.toJavaDuration
 
 /**
  * The ClickHouse dataset backend (`wow.clickhouse.*`), found by `ServiceLoader`: the [ClickHouseDatasetBindings] over
- * the application's client-v2 [Client] when it has one, which it never closes, else over one of its own of `endpoint`
- * and the credentials ([ClickHouseClients]), which the bindings close when the host closes them. It is available when
+ * the client the Sink's rule gives ([ClickHouseClients.clientOf]): the application's client-v2 [Client] when it has
+ * one, which it never closes, else one of `endpoint` and the credentials, which the bindings close when the host
+ * closes them. It is available when
  * either is there and `wow.clickhouse.query.enabled` is not `false`. A dataset's bare `table` is in
  * `wow.clickhouse.database`, where the Sink writes; its statements run under `wow.clickhouse.query.settings.*`.
  */
@@ -47,18 +48,9 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
         (config.resources.has(Client::class.java) || config.option(ClickHouseClients.ENDPOINT) != null)
 
     override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> {
-        if (config.resources.has(Client::class.java)) {
-            val client = config.resources.resource(Client::class.java, null, config.key)
-            return ClickHouseDatasetBindings(client, optionsOf(config))
-        }
-        val client = ClickHouseClients.of(
-            requireNotNull(config.option(ClickHouseClients.ENDPOINT)) {
-                "${config.key}.${ClickHouseClients.ENDPOINT.key} is not set."
-            },
-            checkNotNull(config.option(ClickHouseClients.USERNAME)),
-            checkNotNull(config.option(ClickHouseClients.PASSWORD)),
-        )
-        return OwnedClientBindings(ClickHouseDatasetBindings(client, optionsOf(config)), client)
+        val client = ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse datasets", config::option)
+        val bindings = ClickHouseDatasetBindings(client.client, optionsOf(config))
+        return if (client.owned) OwnedClientBindings(bindings, client) else bindings
     }
 
     /** The dataset options [config] gives: its database, the metadata's time to live and the statements' settings. */
@@ -71,7 +63,7 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
     /** [bindings] over a [client] of their own, which closing them closes. */
     private class OwnedClientBindings(
         private val bindings: QueryBindings<QueryDataset>,
-        private val client: Client,
+        private val client: ClickHouseClients.OwnedClient,
     ) : QueryBindings<QueryDataset> by bindings, AutoCloseable {
         override fun close() = client.close()
     }
