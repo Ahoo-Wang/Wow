@@ -105,6 +105,7 @@ public final class me/ahoo/wow/spi/json/WowJson {
 	public static final field INSTANCE Lme/ahoo/wow/spi/json/WowJson;
 	public final fun builder ()Ltools/jackson/databind/json/JsonMapper$Builder;
 	public final fun getMapper ()Ltools/jackson/databind/json/JsonMapper;
+	public final fun readerBuilder ()Ltools/jackson/databind/json/JsonMapper$Builder;
 }
 
 public abstract interface class me/ahoo/wow/spi/ledger/FailureLedger {

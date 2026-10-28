@@ -376,6 +376,16 @@ class HttpCommandClientTest {
     }
 
     @Test
+    fun `a status, stage or kind a peer upgraded first answers should be read as UNKNOWN`(): Unit = runBlocking {
+        val newer = WowJson.mapper.writeValueAsString(committed())
+            .replace("\"SUCCEEDED\"", "\"DEFERRED\"").replace("\"COMMITTED\"", "\"DELIVERED\"")
+        peer.reply(Reply(200, mapOf("Content-Type" to "application/json"), newer.toByteArray()))
+        val result = client().wait(CommandRequest.to(ref, DeliverItems(emptyList())))
+        result.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
+        result.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
+    }
+
+    @Test
     fun `a user-mode stream should read one result per server-sent event`(): Unit = runBlocking {
         val accepted = WowJson.mapper.writeValueAsString(resultOf(ref, hop = Hop.accepted("mail")))
         val done = WowJson.mapper.writeValueAsString(committed())

@@ -130,6 +130,20 @@ class SagaCallTest {
         failed.status.assert().isEqualTo(CommandCalls.FAILED_STATUS)
         failed.retryHint.retryable.assert().isTrue()
         failed.retryHint.sameRequestId.assert().isTrue()
+        // A newer target's status this node does not know is not known to have succeeded: a failure, retried.
+        val newer = ExecutionSagaContext(
+            execution,
+            event,
+            IdGenerators.DEFAULT,
+            CommandTypes.SIMPLE_NAMES,
+            calls = CommandCalls { result(it, CommandResult.Status.UNKNOWN) },
+        )
+        val unknown = thrown<WowProblemException> {
+            runBlocking { newer.call(CommandRequest.to(stock.ref("t", "mug"), "reserve")) }
+        }
+        unknown.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
+        unknown.message!!.assert().contains("a status this node does not know")
+        unknown.retryHint.sameRequestId.assert().isTrue()
         // Without a client, a call names the configuration it lacks.
         val unconfigured = ExecutionSagaContext(execution, event)
         val missing = thrown<WowProblemException> {

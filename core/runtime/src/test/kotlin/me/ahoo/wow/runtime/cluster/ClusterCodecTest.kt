@@ -26,6 +26,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.Transport
@@ -148,6 +149,13 @@ class ClusterCodecTest {
         ).result.assert().isEqualTo(rejected)
         ClusterCodec.decodeReply(ClusterCodec.encode(ForwardReply.refused(Refusal.NOT_OWNER)))
             .refused.assert().isEqualTo(Refusal.NOT_OWNER)
+    }
+
+    @Test
+    fun `a node of the minor version before reads a newer node's unknown stage as UNKNOWN`() {
+        val newer = ClusterCodec.encode(WaitSignal(waitId = "w-1", result = result))
+            .decodeToString().replace("\"COMMITTED\"", "\"DELIVERED\"").toByteArray()
+        ClusterCodec.decodeSignal(newer).result.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
     }
 
     @Test

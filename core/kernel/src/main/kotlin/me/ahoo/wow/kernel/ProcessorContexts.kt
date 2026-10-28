@@ -167,7 +167,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
     /**
      * Calls the command of [request] through [calls]: its result when it succeeded; a [CommandRejectedException]
      * when the target refused it, a [WowProblemException] retried with the same request id when it failed
-     * there; [calls] throws one when it reaches no result.
+     * there or answered a status this node does not know (a newer target's); [calls] throws one when it reaches no
+     * result.
      */
     override suspend fun call(request: CommandRequest<*>): CommandResult {
         val command = commandOf(request)
@@ -177,6 +178,10 @@ class ExecutionSagaContext @InternalWowApi constructor(
             CommandResult.Status.REJECTED -> throw CommandRejectedException(result)
             CommandResult.Status.FAILED -> throw CommandCalls.failure(
                 "The call of ${command.id} on ${command.ref} failed: ${result.error?.code} ${result.error?.message}",
+                result = result,
+            ) // A status of a target newer than this node: not known to have succeeded, so retried as a failure.
+            CommandResult.Status.UNKNOWN -> throw CommandCalls.failure(
+                "The call of ${command.id} on ${command.ref} answered a status this node does not know.",
                 result = result,
             )
         }
