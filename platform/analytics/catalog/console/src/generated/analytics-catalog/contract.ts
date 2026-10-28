@@ -41,7 +41,7 @@ export const AnalyticsCatalogContract = {
 } as const;
 
 /** An error code of `analytics-catalog`, of the context or of one of its aggregates. */
-export type AnalyticsCatalogErrorCode = 'analytics.catalog.definition-invalid' | 'analytics.catalog.incomplete' | 'analytics.catalog.invalid' | 'analytics.catalog.loosening' | 'analytics.catalog.name-taken' | 'analytics.catalog.not-published' | 'analytics.catalog.not-requested' | 'analytics.catalog.table-missing' | 'analytics.catalog.table-not-found' | 'analytics.catalog.unknown-aggregate' | 'analytics.catalog.view-failed' | 'analytics.catalog.wow-source';
+export type AnalyticsCatalogErrorCode = 'analytics.catalog.definition-invalid' | 'analytics.catalog.incomplete' | 'analytics.catalog.invalid' | 'analytics.catalog.loosening' | 'analytics.catalog.name-taken' | 'analytics.catalog.not-published' | 'analytics.catalog.not-requested' | 'analytics.catalog.table-missing' | 'analytics.catalog.table-not-found' | 'analytics.catalog.unknown-aggregate' | 'analytics.catalog.view-failed' | 'analytics.catalog.wow-source' | 'analytics-catalog.dataset.not-a-reference' | 'analytics-catalog.dataset.not-served';
 
 /** The subscriptions of `analytics-catalog` a `handled` hop names. */
 export type AnalyticsCatalogSubscription = 'DatasetRecompilation.onSourceChanged';

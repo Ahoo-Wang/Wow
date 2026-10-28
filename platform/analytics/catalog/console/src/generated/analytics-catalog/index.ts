@@ -4,5 +4,6 @@ export * from './client.js';
 export * from './contract.js';
 export * from './dataset/index.js';
 export * from './manifest.js';
+export * from './routes.js';
 export * from './source/index.js';
 export * from './types.js';

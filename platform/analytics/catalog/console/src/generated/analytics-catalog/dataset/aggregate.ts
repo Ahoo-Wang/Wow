@@ -13,6 +13,12 @@ export const DatasetAggregate = {
   path: '/analytics-catalog/dataset',
   ownership: 'tenant',
   snapshot: true,
+  Errors: {
+    /** 404: The field is no REFERENCE field of the dataset. */
+    NOT_A_REFERENCE: 'analytics-catalog.dataset.not-a-reference',
+    /** 404: No dataset of the id is served. */
+    NOT_SERVED: 'analytics-catalog.dataset.not-served',
+  },
 } as const;
 
 /** The `state.*` paths of `dataset`'s snapshots a query filters, sorts and projects on. */

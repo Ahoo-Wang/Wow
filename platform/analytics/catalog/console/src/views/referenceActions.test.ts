@@ -19,11 +19,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ORDER_ACTIONS } from "@/app/testing.tsx";
 import {
   bodyOf,
-  fetchReferenceActions,
   formOf,
   REFERENCE_WORDS,
   referenceActions,
-  referenceSend,
+  referenceRoutes,
   type CommandInput,
 } from "./referenceActions.ts";
 
@@ -183,10 +182,9 @@ describe("the catalog's relay", () => {
 
   it("lists a dataset's row actions, and sends one of them", async () => {
     const sent = service(200, ORDER_ACTIONS);
-    expect(await fetchReferenceActions(fetcher(), "shop.order_wide")).toEqual(
-      ORDER_ACTIONS,
-    );
-    await referenceSend(fetcher())(
+    const routes = referenceRoutes(fetcher());
+    expect(await routes.actions("shop.order_wide")).toEqual(ORDER_ACTIONS);
+    await routes.send(
       "shop.order_wide",
       "customer",
       "c 1",
@@ -212,11 +210,12 @@ describe("the catalog's relay", () => {
       status: 400,
       code: "wow.command.unhandled",
     });
+    const routes = referenceRoutes(fetcher());
+    await expect(routes.actions("shop.order_wide")).rejects.toBeInstanceOf(
+      WowProblemError,
+    );
     await expect(
-      fetchReferenceActions(fetcher(), "shop.order_wide"),
-    ).rejects.toBeInstanceOf(WowProblemError);
-    await expect(
-      referenceSend(fetcher())(
+      routes.send(
         "shop.order_wide",
         "customer",
         "c-1",

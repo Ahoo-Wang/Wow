@@ -18,6 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
@@ -88,6 +90,7 @@ class ServiceRoutesTest {
                         ),
                         ServiceRouteManifest(name = "kinds", route = RouteManifest("GET", "/$CONTEXT/kinds/{n}")),
                         ServiceRouteManifest(name = "relay", route = RouteManifest("POST", "/$CONTEXT/relay")),
+                        ServiceRouteManifest(name = "peer", route = RouteManifest("POST", "/$CONTEXT/peer/{answer}")),
                         ServiceRouteManifest(
                             name = "addNote",
                             route = RouteManifest("POST", "/$CONTEXT/notes"),
@@ -121,6 +124,12 @@ class ServiceRoutesTest {
             )
         },
         handler("relay") { call, _ -> call.commands.of(call.caller).toString() },
+        handler("peer") { _, request ->
+            when (request.path("answer", String::class)) {
+                "gone" -> throw WowProblemException("crm.member.gone", 410, RetryHint(false, false), "Gone.")
+                else -> throw RouteRefusal(FrameworkErrors.COMMAND_UNHANDLED, "Not offered.")
+            }
+        },
         handler("addNote") { _, request ->
             notes += request.body<Note>(typeOf<Note>()).text
             Unit
@@ -233,6 +242,17 @@ class ServiceRoutesTest {
         // Without a command client, a handler that sends one fails.
         HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers)).post("/$CONTEXT/relay", null)
             .status.assert().isEqualTo(500)
+    }
+
+    @Test
+    fun `another service's answer passes through, and a framework code takes the framework's status`() {
+        val gone = node.post("/$CONTEXT/peer/gone", null)
+        gone.status.assert().isEqualTo(410)
+        gone.body!!["code"].asString().assert().isEqualTo("crm.member.gone")
+        gone.body["detail"].asString().assert().isEqualTo("Gone.")
+        val unhandled = node.post("/$CONTEXT/peer/other", null)
+        unhandled.status.assert().isEqualTo(400)
+        unhandled.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
     }
 
     @Test
