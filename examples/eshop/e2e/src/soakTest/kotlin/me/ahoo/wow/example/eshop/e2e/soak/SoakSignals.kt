@@ -68,11 +68,11 @@ class SoakSignals : Observer, AutoCloseable {
 
     override fun observed(event: ObservedEvent) {
         when (event) {
-            is ObservedEvent.TailRead -> count("tailRead", event.reason)
+            is ObservedEvent.TailRead -> count("tailRead", event.reason.value)
             is ObservedEvent.Refused -> count("refused", event.code)
             is ObservedEvent.WaitTimedOut -> count("waitTimedOut", event.stage.toString())
-            is ObservedEvent.SignalDropped -> count("signalDropped", event.reason)
-            is ObservedEvent.ForwardFailed -> count("forwardFailed", event.outcome)
+            is ObservedEvent.SignalDropped -> count("signalDropped", event.reason.value)
+            is ObservedEvent.ForwardFailed -> count("forwardFailed", event.outcome.value)
             // The reason names the failing aggregate and its exception, so the key is the subscription alone.
             is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
             is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)

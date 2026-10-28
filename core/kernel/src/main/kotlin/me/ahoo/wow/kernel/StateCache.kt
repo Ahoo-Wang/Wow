@@ -130,11 +130,3 @@ data class FirstCommit(val eventTime: Long, val operator: Operator?) {
         fun of(snapshot: SnapshotRecord): FirstCommit = FirstCommit(snapshot.firstEventTime, snapshot.firstOperator)
     }
 }
-
-/** The outcomes of [me.ahoo.wow.spi.observation.ObservedEvent.StateCache]. */
-@InternalWowApi
-object StateCacheOutcome {
-    const val HIT: String = "hit"
-    const val MISS: String = "miss"
-    const val EVICTED: String = "evicted"
-}

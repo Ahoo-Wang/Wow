@@ -410,7 +410,7 @@ class ClusterTest {
             { throw ClusterChannelException("Stream reset") },
             { throw IllegalStateException("The reply does not decode.") },
         )
-        val failed = mutableListOf<String>()
+        val failed = mutableListOf<ObservedEvent.ForwardFailed.Outcome>()
         val observer = object : Observer {
             override fun observed(event: ObservedEvent) {
                 when (event) {
@@ -432,7 +432,8 @@ class ClusterTest {
         }
         one.decided.assert().hasSize(3)
         // Review A5-11: each forward without the owner's settlement is observed, by outcome.
-        failed.assert().containsExactly("local", "local", "local", "unknown", "unknown")
+        val (local, unknown) = ObservedEvent.ForwardFailed.Outcome.LOCAL to ObservedEvent.ForwardFailed.Outcome.UNKNOWN
+        failed.assert().containsExactly(local, local, local, unknown, unknown)
     }
 
     @Test
@@ -455,7 +456,7 @@ class ClusterTest {
                     now.addAndGet(1_000)
                 }
             }
-            val failed = CopyOnWriteArrayList<String>()
+            val failed = CopyOnWriteArrayList<ObservedEvent.ForwardFailed.Outcome>()
             val observer = object : Observer {
                 override fun observed(event: ObservedEvent) {
                     when (event) {

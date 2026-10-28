@@ -68,7 +68,13 @@ class ObserverTest {
             observer.firing(timer),
         ).forEach { it.assert().isSameAs(Observation.NONE) }
         observer.resuming(mapOf("traceparent" to "t")).assert().isSameAs(EmptyCoroutineContext)
-        observer.observed(ObservedEvent.StoreFellBack("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED))
+        observer.observed(
+            ObservedEvent.StoreFellBack(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED
+            )
+        )
         Observation.NONE.context.assert().isSameAs(EmptyCoroutineContext)
         Observation.NONE.trace.assert().isEmpty()
         Observation.NONE.outcome("ok")
@@ -84,21 +90,26 @@ class ObserverTest {
             .hasSameHashCodeAs(ObservedEvent.Refused(cart, "wow.command.busy"))
             .isNotEqualTo(ObservedEvent.Refused(cart, "wow.wait.timeout"))
         // The same fields of another type are another event.
-        ObservedEvent.ForwardFailed(cart, "busy").assert().isNotEqualTo(ObservedEvent.Refused(cart, "busy"))
+        ObservedEvent.Backpressured("g", "s", 1, "down").assert()
+            .isNotEqualTo(ObservedEvent.PartitionPaused("g", "s", 1, "down"))
         refused.toString().assert().isEqualTo("Refused(type=shop.cart, code=wow.command.busy)")
         val events: List<ObservedEvent> = listOf(
             refused,
             ObservedEvent.WaitTimedOut(cart, Stage.COMMITTED),
-            ObservedEvent.SignalDropped("node-2", "queue-full"),
-            ObservedEvent.ForwardFailed(cart, "unknown"),
-            ObservedEvent.StateCache("shop", "hit"),
+            ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
+            ObservedEvent.ForwardFailed(cart, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),
+            ObservedEvent.StateCache("shop", ObservedEvent.StateCache.Outcome.HIT),
             ObservedEvent.ReservationLost("shop"),
-            ObservedEvent.StoreFellBack("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
+            ObservedEvent.StoreFellBack(
+                "shop",
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED,
+            ),
             ObservedEvent.PartitionPaused("g", "s", 1, "down"),
             ObservedEvent.PartitionResumed("g", "s", 1, 500),
             ObservedEvent.PartitionThrottled("g", "s", 1, true),
             ObservedEvent.Backpressured("g", "s", 1, "wow.command.busy"),
-            ObservedEvent.TailRead("shop", 1, "gap"),
+            ObservedEvent.TailRead("shop", 1, ObservedEvent.TailRead.Reason.GAP),
             ObservedEvent.Undecodable("t", 1, 7, parked = false),
         )
         events.map { it.javaClass }.assert().doesNotHaveDuplicates()

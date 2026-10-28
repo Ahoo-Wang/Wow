@@ -80,7 +80,7 @@ class KernelFirstCommitTest {
 
     @Test
     fun `each lookup of the state cache is reported as a hit or a miss`(): Unit = runTest {
-        val outcomes = mutableListOf<Pair<String, String>>()
+        val outcomes = mutableListOf<Pair<String, ObservedEvent.StateCache.Outcome>>()
         val observer = object : Observer {
             override fun observed(event: ObservedEvent) {
                 when (event) {
@@ -94,8 +94,8 @@ class KernelFirstCommitTest {
         val cached = kernel.send(AddItem("apple", 1))
         cached.first.assert().isEqualTo(FirstCommit(log.read(ref, 1, 1).toList().single().commitTime, null))
         outcomes.assert().containsExactly(
-            "example" to StateCacheOutcome.MISS,
-            "example" to StateCacheOutcome.HIT,
+            "example" to ObservedEvent.StateCache.Outcome.MISS,
+            "example" to ObservedEvent.StateCache.Outcome.HIT,
         )
     }
 }

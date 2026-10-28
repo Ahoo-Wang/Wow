@@ -152,7 +152,7 @@ class HandoffLogTest {
         job.cancelAndJoin()
 
         store.tails.get().assert().isEqualTo(1)
-        reads.reasons.assert().containsExactly(HandoffLog.START)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.START)
         log.delivered.assert().isEqualTo(5L)
     }
 
@@ -171,7 +171,7 @@ class HandoffLogTest {
 
         entries.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L, 3L, 4L))
         entries[1].stream.ref.assert().isEqualTo(refs[1])
-        reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
     }
 
     @Test
@@ -188,7 +188,7 @@ class HandoffLogTest {
             job.cancelAndJoin()
 
             entries.map { it.stream.ref }.assert().isEqualTo(listOf(refs[0], refs[1]))
-            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
         }
 
     @Test
@@ -200,7 +200,7 @@ class HandoffLogTest {
         seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
         job.cancelAndJoin()
 
-        reads.reasons.assert().containsExactly(HandoffLog.IDLE)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.IDLE)
         // Probes that find the head where the tail is read nothing.
         store.tails.get().assert().isEqualTo(1)
     }
@@ -250,7 +250,7 @@ class HandoffLogTest {
 
             log.delivered.assert().isEqualTo(1L)
             log.storeReads.assert().isEqualTo(1L)
-            reads.reasons.assert().containsExactly(HandoffLog.IDLE)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.IDLE)
         }
 
     @Test
@@ -297,7 +297,7 @@ class HandoffLogTest {
             job.cancelAndJoin()
 
             seen.assert().isEqualTo((1L..10L).toList())
-            reads.reasons.assert().contains(HandoffLog.OVERFLOW)
+            reads.reasons.assert().contains(ObservedEvent.TailRead.Reason.OVERFLOW)
         }
 
     @Test
@@ -318,7 +318,7 @@ class HandoffLogTest {
         seen.take(1).single().position.sequence.assert().isEqualTo(5L)
         job.cancelAndJoin()
 
-        reads.reasons.assert().containsExactly(HandoffLog.OVERFLOW)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.OVERFLOW)
     }
 
     @Test
@@ -354,7 +354,7 @@ class HandoffLogTest {
             withTimeout(5.seconds) { seen.take(2) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L))
             job.cancelAndJoin()
 
-            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
         }
 
     @Test
@@ -392,7 +392,7 @@ class HandoffLogTest {
             withTimeout(5.seconds) { seen.take(3) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L, 3L))
             job.cancelAndJoin()
 
-            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
         }
 
     @Test
@@ -406,7 +406,7 @@ class HandoffLogTest {
         store.append(next(refs[1]))
         log.append(next(refs[2]))
         withTimeout(5.seconds) { seen.take(2) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L))
-        reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
         gated.release.complete(Unit)
         held.await()
         job.cancelAndJoin()
@@ -433,7 +433,7 @@ class HandoffLogTest {
         withTimeout(5.seconds) { seen.take(3) }.map { it.position.sequence }.assert().isEqualTo(listOf(2L, 3L, 4L))
         job.cancelAndJoin()
 
-        reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
     }
 
     @Test
@@ -454,7 +454,7 @@ class HandoffLogTest {
             again.take(1).single().position.sequence.assert().isEqualTo(6L)
             rejoined.cancelAndJoin()
 
-            reads.reasons.assert().containsExactly(HandoffLog.START)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.START)
             store.tails.get().assert().isEqualTo(1)
         }
 
@@ -563,7 +563,7 @@ private class HoldFirst(private val delegate: EventLog) : EventLog by delegate {
 
 /** Records the reason of every read of the store a tail made. */
 private class ReadsObserver : Observer {
-    val reasons = CopyOnWriteArrayList<String>()
+    val reasons = CopyOnWriteArrayList<ObservedEvent.TailRead.Reason>()
 
     override fun observed(event: ObservedEvent) {
         when (event) {

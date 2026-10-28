@@ -119,7 +119,7 @@ class SnapshotMaintenanceTest {
                 override fun observed(event: ObservedEvent) {
                     when (event) {
                         is ObservedEvent.StoreFellBack -> {
-                            fallbacks += "${event.context} ${event.capability} ${event.reason}"
+                            fallbacks += "${event.context} ${event.capability.value} ${event.reason.value}"
                         }
                         else -> Unit
                     }

@@ -162,18 +162,3 @@ val CoroutineContext.trace: Map<String, String>
 /** The [TraceContext] of this context alone, to start another coroutine of the same work in; empty when none. */
 val CoroutineContext.traceContext: CoroutineContext
     get() = this[TraceContext] ?: EmptyCoroutineContext
-
-/** The optional store capabilities an [ObservedEvent.StoreFellBack] names, and why one fell back. */
-object StoreFallbacks {
-    /** A store's one-round-trip read of a snapshot with its log's tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
-    const val SNAPSHOT_TAIL_READ: String = "snapshot-tail-read"
-
-    /** A snapshot store's rebuild control plane ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore]). */
-    const val SNAPSHOT_REBUILD: String = "snapshot-rebuild"
-
-    /** The capability failed; the work was done the other way. */
-    const val FAILED: String = "failed"
-
-    /** The store does not have the capability. */
-    const val UNSUPPORTED: String = "unsupported"
-}

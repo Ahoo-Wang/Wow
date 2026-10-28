@@ -21,7 +21,6 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
-import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.cluster.CommandRouter
@@ -128,7 +127,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * sizes [codec] measures, each eviction observed.
      */
     private fun stateCacheOf(context: String, codec: EventCodec): StateCache {
-        val evicted = { observer.observed(ObservedEvent.StateCache(context, StateCacheOutcome.EVICTED)) }
+        val evicted = { observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.EVICTED)) }
         return when (val capacity = stateCacheCapacity) {
             null -> LruStateCache(
                 maxBytes = checkNotNull(stateCacheBytes),

@@ -137,7 +137,7 @@ class PostgresHandoffTest {
             // Read well within the gap wait (1 s): no append of this node could still hand the missing one over.
             withTimeout(800) { tail.join() }
 
-            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+            reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
             tail.cancelAndJoin()
         }
 
@@ -156,7 +156,7 @@ class PostgresHandoffTest {
     }
 
     private class Reads : Observer {
-        val reasons = CopyOnWriteArrayList<String>()
+        val reasons = CopyOnWriteArrayList<ObservedEvent.TailRead.Reason>()
 
         override fun observed(event: ObservedEvent) {
             when (event) {

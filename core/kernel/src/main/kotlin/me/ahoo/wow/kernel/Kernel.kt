@@ -763,10 +763,10 @@ class Kernel(
     private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
         val ref = requests.ref
         requests.cached()?.let {
-            observer.observed(ObservedEvent.StateCache(ref.type.context, StateCacheOutcome.HIT))
+            observer.observed(ObservedEvent.StateCache(ref.type.context, ObservedEvent.StateCache.Outcome.HIT))
             return it to true
         }
-        observer.observed(ObservedEvent.StateCache(ref.type.context, StateCacheOutcome.MISS))
+        observer.observed(ObservedEvent.StateCache(ref.type.context, ObservedEvent.StateCache.Outcome.MISS))
         val read = loading?.let { snapshotTails.read(ref, it, requests.earlier) }
         read?.snapshot?.let { snapshot ->
             codec.fitting(model, snapshot)?.let { state ->

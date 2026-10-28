@@ -23,7 +23,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Stage
-import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE_ID
 import me.ahoo.wow.observability.WowAttributes.COMMAND
@@ -116,16 +115,16 @@ class OtelObserver(
         when (event) {
             is ObservedEvent.Refused -> refused(event.type, event.code)
             is ObservedEvent.WaitTimedOut -> waitTimedOut(event.type, event.stage)
-            is ObservedEvent.SignalDropped -> signalDropped(event.reason)
-            is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome)
+            is ObservedEvent.SignalDropped -> signalDropped(event.reason.value)
+            is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome.value)
             is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
             is ObservedEvent.ReservationLost -> reservationLost(event.context)
-            is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability, event.reason)
+            is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability.value, event.reason.value)
             is ObservedEvent.PartitionPaused -> pausedNotice(event.group, event.subscription, WowMetrics.PAUSED_KIND)
             is ObservedEvent.PartitionResumed -> pausedNotice(event.group, event.subscription, WowMetrics.RESUMED_KIND)
             is ObservedEvent.PartitionThrottled -> partitionThrottled(event.group, event.subscription, event.throttled)
             is ObservedEvent.Backpressured -> backpressured(event.group, event.subscription, event.code)
-            is ObservedEvent.TailRead -> tailRead(event.context, event.reason)
+            is ObservedEvent.TailRead -> tailRead(event.context, event.reason.value)
             is ObservedEvent.Undecodable -> undecodable(event.topic, event.parked)
         }
     }
@@ -209,11 +208,17 @@ class OtelObserver(
             .increment()
     }
 
-    private fun stateCache(context: String, outcome: String) {
-        if (outcome == StateCacheOutcome.EVICTED) {
+    private fun stateCache(context: String, outcome: ObservedEvent.StateCache.Outcome) {
+        if (outcome == ObservedEvent.StateCache.Outcome.EVICTED) {
             cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, WowMetrics.CONTEXT, context).increment()
         } else {
-            cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, WowMetrics.CONTEXT, context, WowMetrics.OUTCOME, outcome)
+            cached.counter(
+                WowMetrics.STATE_CACHE_LOOKUPS,
+                WowMetrics.CONTEXT,
+                context,
+                WowMetrics.OUTCOME,
+                outcome.value
+            )
                 .increment()
         }
     }

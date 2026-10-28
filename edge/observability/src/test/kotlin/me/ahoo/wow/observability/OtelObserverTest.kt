@@ -29,7 +29,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
-import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.observation.trace
@@ -132,13 +131,19 @@ class OtelObserverTest {
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
         observer.observed(ObservedEvent.WaitTimedOut(ORDER, Stage.COMMITTED))
-        observer.observed(ObservedEvent.SignalDropped("node-2", "queue-full"))
-        observer.observed(ObservedEvent.ForwardFailed(ORDER, "unknown"))
-        observer.observed(ObservedEvent.TailRead(SALES, 3, "gap"))
-        observer.observed(ObservedEvent.StateCache(SALES, "miss"))
-        observer.observed(ObservedEvent.StateCache(SALES, "evicted"))
+        observer.observed(ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL))
+        observer.observed(ObservedEvent.ForwardFailed(ORDER, ObservedEvent.ForwardFailed.Outcome.UNKNOWN))
+        observer.observed(ObservedEvent.TailRead(SALES, 3, ObservedEvent.TailRead.Reason.GAP))
+        observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.MISS))
+        observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.EVICTED))
         observer.observed(ObservedEvent.ReservationLost(SALES))
-        observer.observed(ObservedEvent.StoreFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED))
+        observer.observed(
+            ObservedEvent.StoreFellBack(
+                SALES,
+                ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                ObservedEvent.StoreFellBack.Reason.FAILED
+            )
+        )
         val meters = telemetry.meters
         meters.get(WowMetrics.STORE_FALLBACKS).tags(
             WowMetrics.CONTEXT,
@@ -183,17 +188,21 @@ class OtelObserverTest {
             listOf(
                 ObservedEvent.Refused(ORDER, "wow.command.busy"),
                 ObservedEvent.WaitTimedOut(ORDER, Stage.COMMITTED),
-                ObservedEvent.SignalDropped("node-2", "queue-full"),
-                ObservedEvent.ForwardFailed(ORDER, "unknown"),
-                ObservedEvent.StateCache(SALES, "miss"),
-                ObservedEvent.StateCache(SALES, "evicted"),
+                ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
+                ObservedEvent.ForwardFailed(ORDER, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),
+                ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.MISS),
+                ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.EVICTED),
                 ObservedEvent.ReservationLost(SALES),
-                ObservedEvent.StoreFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
+                ObservedEvent.StoreFellBack(
+                    SALES,
+                    ObservedEvent.StoreFellBack.Capability.SNAPSHOT_TAIL_READ,
+                    ObservedEvent.StoreFellBack.Reason.FAILED
+                ),
                 ObservedEvent.PartitionPaused("sales", "Board.onEvent", 3, "down"),
                 ObservedEvent.PartitionResumed("sales", "Board.onEvent", 3, 1_500),
                 ObservedEvent.PartitionThrottled("sales", "Board.onEvent", 3, true),
                 ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.command.busy"),
-                ObservedEvent.TailRead(SALES, 3, "gap"),
+                ObservedEvent.TailRead(SALES, 3, ObservedEvent.TailRead.Reason.GAP),
                 ObservedEvent.Undecodable("orders", 0, 7, parked = true),
             ).forEach(observer::observed)
             // The names dashboards and alerts are built on: a change here is a breaking change for operators.
@@ -216,6 +225,34 @@ class OtelObserverTest {
                 "wow.wait.timeouts",
             )
         }
+
+    @Test
+    fun `every value of a closed set should tag its meter as it always has`() {
+        ObservedEvent.SignalDropped.Reason.entries.forEach { observer.observed(ObservedEvent.SignalDropped("n", it)) }
+        ObservedEvent.ForwardFailed.Outcome.entries.forEach {
+            observer.observed(
+                ObservedEvent.ForwardFailed(ORDER, it)
+            )
+        }
+        ObservedEvent.StateCache.Outcome.entries.forEach { observer.observed(ObservedEvent.StateCache(SALES, it)) }
+        ObservedEvent.TailRead.Reason.entries.forEach { observer.observed(ObservedEvent.TailRead(SALES, 0, it)) }
+        ObservedEvent.StoreFellBack.Capability.entries.forEach { capability ->
+            ObservedEvent.StoreFellBack.Reason.entries.forEach {
+                observer.observed(ObservedEvent.StoreFellBack(SALES, capability, it))
+            }
+        }
+        fun tags(meter: String, tag: String) =
+            telemetry.meters.find(meter).counters().mapNotNull { it.id.getTag(tag) }.toSortedSet()
+        tags(WowMetrics.SIGNAL_DROPS, WowMetrics.REASON).assert()
+            .containsExactly("closed", "expired", "failed", "queue-full", "refused")
+        tags(WowMetrics.FORWARD_FAILURES, WowMetrics.OUTCOME).assert().containsExactly("busy", "local", "unknown")
+        tags(WowMetrics.STATE_CACHE_LOOKUPS, WowMetrics.OUTCOME).assert().containsExactly("hit", "miss")
+        telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS).counter().count().assert().isEqualTo(1.0)
+        tags(WowMetrics.TAIL_READS, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
+        tags(WowMetrics.STORE_FALLBACKS, WowMetrics.CAPABILITY).assert()
+            .containsExactly("snapshot-rebuild", "snapshot-tail-read")
+        tags(WowMetrics.STORE_FALLBACKS, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
+    }
 
     @Test
     fun `the throttles of a partition and its backpressured attempts should be counted`() {
