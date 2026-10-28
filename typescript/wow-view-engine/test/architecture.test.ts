@@ -16,9 +16,8 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import {
-  wireLiterals,
-  wireProgram,
-  wireVocabularies,
+  scanWireLiteralsApart,
+  type WireLiteral,
 } from '../scripts/wire-literals.mjs';
 import { describe, expect, it } from 'vitest';
 // Type-only, so this suite still runs with nothing built — the whole point
@@ -225,17 +224,36 @@ const UI_ROOT: readonly string[] = [
 ];
 
 const WOW = '@ahoo-wang/wow-client';
-/** The vocabularies of Wow's query protocol, read off the wow-client sources. */
-const WIRE_VOCABULARIES = wireVocabularies();
-
-/** The source and the tests, type-checked: a wire literal is known by its type. */
-let wireChecked: ts.Program | undefined;
-function wireTyped(): ts.Program {
-  wireChecked ??= wireProgram(
-    resolve(dirname(fileURLToPath(import.meta.url)), '../tsconfig.test.json'),
-  );
-  return wireChecked;
+/**
+ * The Wow wire literals of the source and of the tests, scanned once over one
+ * type-checked program of both, in a process of its own (see
+ * `scanWireLiteralsApart`): a wire literal is known by its type.
+ */
+let wireScan: Record<'src' | 'test', WireLiteral[]> | undefined;
+function wireScanned(): Record<'src' | 'test', WireLiteral[]> {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const testFiles = (directory: string): string[] =>
+    readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return testFiles(path);
+      return /\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+  wireScan ??= scanWireLiteralsApart({
+    tsconfig: resolve(here, '../tsconfig.test.json'),
+    scopes: {
+      src: {
+        files: files
+          .map(file => file.path)
+          .filter(path => relative(src, path) !== join('model', 'wire.ts')),
+      },
+      test: { files: testFiles(resolve(here)), honourMarker: true },
+    },
+  }) as Record<'src' | 'test', WireLiteral[]>;
+  return wireScan;
 }
+
+/** One scan of the source and the tests, apart from coverage: ~3 s here, ~10 s on a CI runner; 35 s inside coverage. */
+const WIRE_SCAN_TIMEOUT = 30_000;
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 
@@ -1003,41 +1021,37 @@ describe('architecture', () => {
       expect(violations).toEqual([]);
     });
 
-    it('reads every Wow wire value from model/wire.ts, never as a literal', () => {
-      // D353 ⑥: a value Wow puts on the wire is read off wow-client's enums
-      // (through `model/wire.ts`'s literal views), so when Wow respells its
-      // values (D352) they change in wow-client alone. The set is read off
-      // the wow-client sources at test time and follows them.
-      const literals = files.flatMap(file =>
-        relative(src, file.path) === join('model', 'wire.ts')
-          ? []
-          : wireLiterals(wireTyped(), file.path, WIRE_VOCABULARIES).map(
-              ({ value, line }) => `${describePath(file)}:${line} '${value}'`,
-            ),
-      );
-      expect(literals).toEqual([]);
-    });
+    it(
+      'reads every Wow wire value from model/wire.ts, never as a literal',
+      { timeout: WIRE_SCAN_TIMEOUT },
+      () => {
+        // D353 ⑥: a value Wow puts on the wire is read off wow-client's enums
+        // (through `model/wire.ts`'s literal views), so when Wow respells its
+        // values (D352) they change in wow-client alone. The set is read off
+        // the wow-client sources at test time and follows them.
+        const literals = wireScanned().src.map(
+          ({ path, value, line }) =>
+            `${relative(src, path)}:${line} '${value}'`,
+        );
+        expect(literals).toEqual([]);
+      },
+    );
 
-    it('spells no Wow wire value in a test, unless the test is about the spelling', () => {
-      // A fixture reads the value off wow-client's enums as a host would, so
-      // D352 changes it there; a test whose subject is the spelling itself
-      // (plain JSON a store or a host writes) says so with the marker.
-      const testDir = resolve(src, '../test');
-      const tests = (directory: string): string[] =>
-        readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-          const path = join(directory, entry.name);
-          if (entry.isDirectory()) return tests(path);
-          return /\.tsx?$/.test(entry.name) ? [path] : [];
-        });
-      const literals = tests(testDir).flatMap(path =>
-        wireLiterals(wireTyped(), path, WIRE_VOCABULARIES, {
-          honourMarker: true,
-        }).map(
-          ({ value, line }) => `${relative(testDir, path)}:${line} '${value}'`,
-        ),
-      );
-      expect(literals).toEqual([]);
-    });
+    it(
+      'spells no Wow wire value in a test, unless the test is about the spelling',
+      { timeout: WIRE_SCAN_TIMEOUT },
+      () => {
+        // A fixture reads the value off wow-client's enums as a host would, so
+        // D352 changes it there; a test whose subject is the spelling itself
+        // (plain JSON a store or a host writes) says so with the marker.
+        const testDir = resolve(src, '../test');
+        const literals = wireScanned().test.map(
+          ({ path, value, line }) =>
+            `${relative(testDir, path)}:${line} '${value}'`,
+        );
+        expect(literals).toEqual([]);
+      },
+    );
 
     it('takes a wow-client query client as a ViewSource, with no adapter', () => {
       // Type-level, checked by `tsc -p tsconfig.test.json`: the port is

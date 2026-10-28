@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -100,22 +101,67 @@ export function wireVocabularies(dsl = WOW_DSL) {
   return vocabularies;
 }
 
-/** The program of a tsconfig, type-checked as its own build checks it. */
-export function wireProgram(tsconfig) {
+/**
+ * The program of a tsconfig, type-checked as its own build checks it: over
+ * [roots] when given (the files a scan reads, which pull in what they
+ * import), else over the tsconfig's own files.
+ */
+export function wireProgram(tsconfig, roots) {
   const parsed = ts.getParsedCommandLineOfConfigFile(
     tsconfig,
     {},
     { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} },
   );
   return ts.createProgram({
-    rootNames: parsed.fileNames,
+    rootNames: roots ?? parsed.fileNames,
     options: {
       ...parsed.options,
       noEmit: true,
+      skipLibCheck: true,
       composite: false,
       incremental: false,
     },
   });
+}
+
+/**
+ * The wire literals of each scope of [request] — `{ tsconfig, scopes: {
+ * name: { files, honourMarker } } }` — over one program of all their files,
+ * by scope name.
+ */
+export function scanWireLiterals({ tsconfig, scopes }) {
+  const vocabularies = wireVocabularies();
+  const program = wireProgram(tsconfig, [
+    ...new Set(Object.values(scopes).flatMap(scope => scope.files)),
+  ]);
+  return Object.fromEntries(
+    Object.entries(scopes).map(([name, { files, honourMarker = false }]) => [
+      name,
+      files.flatMap(path =>
+        wireLiterals(program, path, vocabularies, { honourMarker }).map(
+          found => ({ path, ...found }),
+        ),
+      ),
+    ]),
+  );
+}
+
+const SELF = fileURLToPath(import.meta.url);
+
+/**
+ * [scanWireLiterals] in a Node process of its own. Type-checking the engine
+ * is seconds of compiler work, and a test run's coverage instruments every
+ * function it executes — the compiler's too — which made the scan ten times
+ * slower on CI; the child process is not instrumented.
+ */
+export function scanWireLiteralsApart(request) {
+  return JSON.parse(
+    execFileSync(process.execPath, [SELF], {
+      input: JSON.stringify(request),
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    }),
+  );
 }
 
 /** Whether the marker sits on the node's line or leads a node holding it. */
@@ -334,3 +380,9 @@ export function wireLiterals(
   visit(file);
   return found;
 }
+
+// Run as a script: the scan of the request on stdin, as JSON on stdout.
+if (process.argv[1] && resolve(process.argv[1]) === SELF)
+  process.stdout.write(
+    JSON.stringify(scanWireLiterals(JSON.parse(readFileSync(0, 'utf8')))),
+  );

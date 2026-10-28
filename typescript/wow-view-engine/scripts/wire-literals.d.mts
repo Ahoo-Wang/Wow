@@ -19,8 +19,34 @@ export const WIRE_SPELLING_MARKER: string;
 /** The vocabularies of Wow's query protocol: each enum's or table's values. */
 export function wireVocabularies(dsl?: string): Set<string>[];
 
-/** The program of a tsconfig, type-checked as its own build checks it. */
-export function wireProgram(tsconfig: string): ts.Program;
+/** The program of a tsconfig, over [roots] when given. */
+export function wireProgram(
+  tsconfig: string,
+  roots?: readonly string[],
+): ts.Program;
+
+/** What a scan reads: one tsconfig, and scopes of files by name. */
+export interface WireScanRequest {
+  tsconfig: string;
+  scopes: Record<string, { files: readonly string[]; honourMarker?: boolean }>;
+}
+
+/** One wire literal a scan found. */
+export interface WireLiteral {
+  path: string;
+  value: string;
+  line: number;
+}
+
+/** The wire literals of each scope, over one program of all their files. */
+export function scanWireLiterals(
+  request: WireScanRequest,
+): Record<string, WireLiteral[]>;
+
+/** [scanWireLiterals] in a Node process of its own, out of a test run's coverage. */
+export function scanWireLiteralsApart(
+  request: WireScanRequest,
+): Record<string, WireLiteral[]>;
 
 /** The literals of a file that are a Wow wire value by the type of their slot. */
 export function wireLiterals(
