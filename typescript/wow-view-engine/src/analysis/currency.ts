@@ -20,6 +20,9 @@ import {
   type DataViewDefinition,
   type Issue,
   type RecordData,
+  AggregationExpressionTypes,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
 } from '../model/index.js';
 import { companionReading, joinCurrencies } from '../model/currency.js';
 import { issue } from '../filter/index.js';
@@ -111,9 +114,9 @@ export function currencyCompanions(
 /** Whether a metric's value is in its field's unit, and so in its currency. */
 function carriesCurrency(metric: AnalysisMetric): boolean {
   switch (metricFunctionOf(metric)) {
-    case 'COUNT':
-    case 'DISTINCT_COUNT':
-    case 'DERIVED':
+    case AggregationMetricTypes.COUNT:
+    case AggregationMetricTypes.DISTINCT_COUNT:
+    case AggregationMetricTypes.DERIVED:
       return false;
     default:
       return true;
@@ -133,13 +136,16 @@ export function companionMetrics(
     const condition = filter === undefined ? {} : { filter };
     return [
       {
-        type: 'DISTINCT_COUNT',
+        type: AggregationMetricTypes.DISTINCT_COUNT,
         alias: companion.count,
-        expression: { type: 'FIELD', field: companion.field },
+        expression: {
+          type: AggregationExpressionTypes.FIELD,
+          field: companion.field,
+        },
         ...condition,
       },
       {
-        type: 'ANY',
+        type: AggregationMetricTypes.ANY,
         alias: companion.code,
         field: companion.field,
         ...condition,
@@ -158,11 +164,11 @@ export function derivedOperands(
   byAlias: ReadonlyMap<string, AnalysisMetric>,
   seen: Set<string> = new Set(),
 ): string[] {
-  if (metric.type !== 'DERIVED') return [metric.alias];
+  if (metric.type !== AggregationMetricTypes.DERIVED) return [metric.alias];
   const refs: string[] = [];
   const walk = (node: AnalysisDerivedExpression): void => {
-    if (node.type === 'METRIC_REF') refs.push(node.metric);
-    else if (node.type === 'BINARY') {
+    if (node.type === DerivedExpressionTypes.METRIC_REF) refs.push(node.metric);
+    else if (node.type === DerivedExpressionTypes.BINARY) {
       walk(node.left);
       walk(node.right);
     }

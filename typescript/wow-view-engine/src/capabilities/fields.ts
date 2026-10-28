@@ -24,13 +24,21 @@ import {
   temporalOf,
   TEMPORAL_FIELD_KIND_IDS,
   without,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  FilterOperators,
+  QuerySemanticTypes,
+  SearchModes,
+  StringComparisons,
+  QueryConstraintTypes,
+  TimeUnits,
   type FieldDefinition,
   type FieldNumeric,
   type FieldTemporal,
   type FilterOperatorName,
   type Issue,
   type IssuePath,
-  type PagingMode,
+  type RecordPagingMode,
   type SummaryFunction,
 } from '../model/index.js';
 import {
@@ -46,7 +54,7 @@ interface FieldContext {
   descriptor: QueryModelDescriptor;
   kinds: FieldKindRegistry;
   /** The paging the definition's record view declares, which picks the sort. */
-  paging: PagingMode | undefined;
+  paging: RecordPagingMode | undefined;
   /** Each field named by an alias, by that alias: its canonical path. */
   renamed: Record<string, string>;
   /**
@@ -63,9 +71,6 @@ interface FieldContext {
   openOperators: ReadonlySet<string>;
   findings: Issue[];
 }
-
-/** The constraint that makes `STARTS_WITH` a case-sensitive prefix only. */
-const STARTS_WITH_REQUIRES_PREFIX = 'STARTS_WITH_REQUIRES_PREFIX';
 
 /**
  * The definition's fields as the descriptor admits them (capabilities.md
@@ -236,11 +241,13 @@ function withDuration(
 ): ReadonlySet<string> {
   if (
     scope !== undefined ||
-    !context.descriptor.record.rootOperators.includes('EXPRESSION' as never) ||
-    !described.aggregate?.groups.includes('DATE_HISTOGRAM')
+    !context.descriptor.record.rootOperators.includes(
+      FilterOperators.EXPRESSION as never,
+    ) ||
+    !described.aggregate?.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM)
   )
     return admitted;
-  return new Set([...admitted, 'EXPRESSION']);
+  return new Set([...admitted, FilterOperators.EXPRESSION]);
 }
 
 /**
@@ -264,15 +271,19 @@ function admittedOperators(
       entry => entry.path === path,
     );
     if (!element?.filter) return new Set();
-    return new Set([...described.operators, 'ELEMENT_MATCH']);
+    return new Set([...described.operators, FilterOperators.ELEMENT_MATCH]);
   }
   const prefixOnly = context.descriptor.constraints.some(
-    constraint => constraint.type === STARTS_WITH_REQUIRES_PREFIX,
+    constraint =>
+      constraint.type === QueryConstraintTypes.STARTS_WITH_REQUIRES_PREFIX,
   );
-  if (!prefixOnly || field.stringComparison === 'CASE_SENSITIVE')
+  if (
+    !prefixOnly ||
+    field.stringComparison === StringComparisons.CASE_SENSITIVE
+  )
     return described.operators;
   const admitted = new Set(described.operators);
-  admitted.delete('STARTS_WITH');
+  admitted.delete(FilterOperators.STARTS_WITH);
   return admitted;
 }
 
@@ -358,11 +369,13 @@ function narrowSummary(
   const declared = field.summary;
   if (!declared || declared.length === 0) return field;
   const metrics = context.descriptor.analysis.metrics;
-  const functions = metrics.includes('NUMERIC')
+  const functions = metrics.includes(AggregationMetricTypes.NUMERIC)
     ? (described.aggregate?.functions ?? [])
     : [];
   const admits = (fn: SummaryFunction) =>
-    fn === 'COUNT' ? metrics.includes('COUNT') : functions.includes(fn);
+    fn === AggregationMetricTypes.COUNT
+      ? metrics.includes(AggregationMetricTypes.COUNT)
+      : functions.includes(fn);
   const kept = declared.filter(admits);
   if (kept.length === declared.length) return field;
   context.findings.push(
@@ -407,19 +420,23 @@ function sameTemporal(
   declared: FieldTemporal,
   semantic: QuerySemanticType,
 ): boolean {
-  if (semantic.type === 'TEMPORAL_DATE') return declared.type === 'date';
-  if (semantic.type !== 'TEMPORAL_EPOCH' || declared.type !== 'epoch')
+  if (semantic.type === QuerySemanticTypes.TEMPORAL_DATE)
+    return declared.type === 'date';
+  if (
+    semantic.type !== QuerySemanticTypes.TEMPORAL_EPOCH ||
+    declared.type !== 'epoch'
+  )
     return false;
   return (
-    (declared.timeUnit ?? 'MILLISECONDS') ===
-    (semantic.timeUnit ?? 'MILLISECONDS')
+    (declared.timeUnit ?? TimeUnits.MILLISECONDS) ===
+    (semantic.timeUnit ?? TimeUnits.MILLISECONDS)
   );
 }
 
 function temporalText(temporal: FieldTemporal): string {
   return temporal.type === 'date'
     ? 'date'
-    : `epoch ${temporal.timeUnit ?? 'MILLISECONDS'}`;
+    : `epoch ${temporal.timeUnit ?? TimeUnits.MILLISECONDS}`;
 }
 
 /**
@@ -428,15 +445,15 @@ function temporalText(temporal: FieldTemporal): string {
  */
 export function semanticText(semantic: QuerySemanticType): string {
   switch (semantic.type) {
-    case 'TEMPORAL_DATE':
+    case QuerySemanticTypes.TEMPORAL_DATE:
       return 'date';
-    case 'TEMPORAL_EPOCH':
-      return `epoch ${semantic.timeUnit ?? 'MILLISECONDS'}`;
-    case 'TEMPORAL_FORMATTED':
+    case QuerySemanticTypes.TEMPORAL_EPOCH:
+      return `epoch ${semantic.timeUnit ?? TimeUnits.MILLISECONDS}`;
+    case QuerySemanticTypes.TEMPORAL_FORMATTED:
       return `text ${semantic.pattern}`;
-    case 'DECIMAL':
+    case QuerySemanticTypes.DECIMAL:
       return `decimal scale ${semantic.scale}`;
-    case 'MONEY':
+    case QuerySemanticTypes.MONEY:
       return semantic.currency !== undefined
         ? `money ${semantic.currency} scale ${semantic.scale}`
         : `money by ${semantic.currencyField} scale ${semantic.scale}`;
@@ -455,12 +472,17 @@ export function semanticText(semantic: QuerySemanticType): string {
 export function numericOf(
   semantic: QuerySemanticType | undefined,
 ): FieldNumeric | undefined {
-  if (!semantic || (semantic.type !== 'DECIMAL' && semantic.type !== 'MONEY'))
+  if (
+    !semantic ||
+    (semantic.type !== QuerySemanticTypes.DECIMAL &&
+      semantic.type !== QuerySemanticTypes.MONEY)
+  )
     return undefined;
   const scale = semantic.scale;
   if (!Number.isInteger(scale) || scale < 0 || scale > MAX_NUMERIC_SCALE)
     return undefined;
-  if (semantic.type === 'DECIMAL') return { type: 'decimal', scale };
+  if (semantic.type === QuerySemanticTypes.DECIMAL)
+    return { type: 'decimal', scale };
   if (typeof semantic.currency === 'string')
     return CURRENCY_CODE_PATTERN.test(semantic.currency)
       ? { type: 'money', scale, currency: semantic.currency.toUpperCase() }
@@ -537,8 +559,9 @@ function narrowSearch(
   // Wow's enum, whose values are the literals a definition writes.
   const modes: readonly string[] = search.modes;
   if (!modes.includes(mode)) {
-    if (mode !== 'PHRASE' || !modes.includes('TERMS')) return unavailable();
-    next = { ...next, searchMode: 'TERMS' };
+    if (mode !== SearchModes.PHRASE || !modes.includes(SearchModes.TERMS))
+      return unavailable();
+    next = { ...next, searchMode: SearchModes.TERMS };
     context.findings.push(
       issue('capability.search.as-terms', at, { field: named }, 'note'),
     );

@@ -11,6 +11,16 @@
  * limitations under the License.
  */
 
+import {
+  AggregationDateParts,
+  AggregationDateUnits,
+  AggregationGroupTypes,
+  ComparisonOperators,
+  DateDiffUnits,
+  SortDirections,
+} from '../../model/index.js';
+import { wireKey } from './wireKey.js';
+
 /**
  * The analysis editor and its charts, with the two kernels behind them.
  *
@@ -96,37 +106,52 @@ export const analysisMessages = {
   'label.analysis.conditions-mode': 'Conditions: {mode}',
   'label.analysis.granularity': 'Granularity',
   // A date dimension's granularity, as Wow names the units.
-  'label.date-unit.YEAR': 'By year',
-  'label.date-unit.QUARTER': 'By quarter',
-  'label.date-unit.MONTH': 'By month',
-  'label.date-unit.WEEK': 'By week',
-  'label.date-unit.DAY': 'By day',
-  'label.date-unit.HOUR': 'By hour',
-  'label.date-unit.MINUTE': 'By minute',
-  'label.date-unit.SECOND': 'By second',
+  [wireKey('label.date-unit', AggregationDateUnits.YEAR)]: 'By year',
+  [wireKey('label.date-unit', AggregationDateUnits.QUARTER)]: 'By quarter',
+  [wireKey('label.date-unit', AggregationDateUnits.MONTH)]: 'By month',
+  [wireKey('label.date-unit', AggregationDateUnits.WEEK)]: 'By week',
+  [wireKey('label.date-unit', AggregationDateUnits.DAY)]: 'By day',
+  [wireKey('label.date-unit', AggregationDateUnits.HOUR)]: 'By hour',
+  [wireKey('label.date-unit', AggregationDateUnits.MINUTE)]: 'By minute',
+  [wireKey('label.date-unit', AggregationDateUnits.SECOND)]: 'By second',
   // A calendar part (DATE_PART): records of different weeks or days fall
   // into one group, so the words say which cycle they are folded along.
   'label.analysis.date-part': 'Cycle',
-  'label.date-part.DAY_OF_WEEK': 'By weekday',
-  'label.date-part.HOUR_OF_DAY': 'By hour of day',
-  'label.date-part.DAY_OF_MONTH': 'By day of month',
-  'label.date-part.MONTH_OF_YEAR': 'By month of year',
-  'label.analysis.part.DAY_OF_WEEK': '{field} (weekday)',
-  'label.analysis.part.HOUR_OF_DAY': '{field} (hour of day)',
-  'label.analysis.part.DAY_OF_MONTH': '{field} (day of month)',
-  'label.analysis.part.MONTH_OF_YEAR': '{field} (month of year)',
+  [wireKey('label.date-part', AggregationDateParts.DAY_OF_WEEK)]: 'By weekday',
+  [wireKey('label.date-part', AggregationDateParts.HOUR_OF_DAY)]:
+    'By hour of day',
+  [wireKey('label.date-part', AggregationDateParts.DAY_OF_MONTH)]:
+    'By day of month',
+  [wireKey('label.date-part', AggregationDateParts.MONTH_OF_YEAR)]:
+    'By month of year',
+  [wireKey('label.analysis.part', AggregationDateParts.DAY_OF_WEEK)]:
+    '{field} (weekday)',
+  [wireKey('label.analysis.part', AggregationDateParts.HOUR_OF_DAY)]:
+    '{field} (hour of day)',
+  [wireKey('label.analysis.part', AggregationDateParts.DAY_OF_MONTH)]:
+    '{field} (day of month)',
+  [wireKey('label.analysis.part', AggregationDateParts.MONTH_OF_YEAR)]:
+    '{field} (month of year)',
   // A time dimension's column says what one of its rows spans: 「创建时间
   // （按日）」, "Created (by day)". One key a unit rather than the unit's
   // own word in a pattern, because the English select says "By day" and a
   // header in the middle of a title says "by day".
-  'label.analysis.dated.YEAR': '{field} (by year)',
-  'label.analysis.dated.QUARTER': '{field} (by quarter)',
-  'label.analysis.dated.MONTH': '{field} (by month)',
-  'label.analysis.dated.WEEK': '{field} (by week)',
-  'label.analysis.dated.DAY': '{field} (by day)',
-  'label.analysis.dated.HOUR': '{field} (by hour)',
-  'label.analysis.dated.MINUTE': '{field} (by minute)',
-  'label.analysis.dated.SECOND': '{field} (by second)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.YEAR)]:
+    '{field} (by year)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.QUARTER)]:
+    '{field} (by quarter)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.MONTH)]:
+    '{field} (by month)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.WEEK)]:
+    '{field} (by week)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.DAY)]:
+    '{field} (by day)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.HOUR)]:
+    '{field} (by hour)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.MINUTE)]:
+    '{field} (by minute)',
+  [wireKey('label.analysis.dated', AggregationDateUnits.SECOND)]:
+    '{field} (by second)',
   // A number band: its lower bound to its upper, an en dash between.
   'label.analysis.band': '{from}–{to}',
   'label.analysis.interval': 'Band width',
@@ -158,10 +183,10 @@ export const analysisMessages = {
   'label.analysis.duration-from': 'From which time, for {name}',
   'label.analysis.duration-to': 'To which time, for {name}',
   'label.analysis.duration-unit': 'Unit of {name}',
-  'label.date-diff-unit.SECOND': 'Seconds',
-  'label.date-diff-unit.MINUTE': 'Minutes',
-  'label.date-diff-unit.HOUR': 'Hours',
-  'label.date-diff-unit.DAY': 'Days',
+  [wireKey('label.date-diff-unit', DateDiffUnits.SECOND)]: 'Seconds',
+  [wireKey('label.date-diff-unit', DateDiffUnits.MINUTE)]: 'Minutes',
+  [wireKey('label.date-diff-unit', DateDiffUnits.HOUR)]: 'Hours',
+  [wireKey('label.date-diff-unit', DateDiffUnits.DAY)]: 'Days',
   'label.analysis.group-by-duration': 'Group by this duration',
   // How a derived metric's number reads (D38).
   'label.analysis.derived.style-of': 'How {name} reads',
@@ -210,20 +235,21 @@ export const analysisMessages = {
   'label.analysis.top-by': 'by',
   'label.analysis.top-metric': 'Metric to rank by',
   'label.analysis.top-direction': 'Ranking order',
-  'label.analysis.top-direction.DESC': 'highest first',
-  'label.analysis.top-direction.ASC': 'lowest first',
+  [wireKey('label.analysis.top-direction', SortDirections.DESC)]:
+    'highest first',
+  [wireKey('label.analysis.top-direction', SortDirections.ASC)]: 'lowest first',
   'label.analysis.top-invalid': 'A whole number from 1 to {max}.',
   'label.analysis.remove-top': 'Keep every group in each',
   'label.analysis.top-note':
     'Tied groups share a place, so a tie may keep more.',
   'label.analysis.reading-top':
     '{reading} · Top {count} in each {within} by {metric} ({order})',
-  'label.having.op.GT': 'more than',
-  'label.having.op.GTE': 'at least',
-  'label.having.op.LT': 'less than',
-  'label.having.op.LTE': 'at most',
-  'label.having.op.EQ': 'equal to',
-  'label.having.op.NE': 'not equal to',
+  [wireKey('label.having.op', ComparisonOperators.GT)]: 'more than',
+  [wireKey('label.having.op', ComparisonOperators.GTE)]: 'at least',
+  [wireKey('label.having.op', ComparisonOperators.LT)]: 'less than',
+  [wireKey('label.having.op', ComparisonOperators.LTE)]: 'at most',
+  [wireKey('label.having.op', ComparisonOperators.EQ)]: 'equal to',
+  [wireKey('label.having.op', ComparisonOperators.NE)]: 'not equal to',
   'label.analysis.totals': 'Totals row',
   'label.analysis.totals-whole':
     'With no dimension the one row is every record in the range, so there is no totals row.',
@@ -675,10 +701,13 @@ export const analysisMessages = {
     'The {type} chart cannot draw this result ({reason}); it shows as a table.',
 
   // What a dimension cuts by, said as the cut rather than as Wow's enum.
-  'label.group.type.TERMS': 'By value',
-  'label.group.type.HISTOGRAM': 'By number range',
-  'label.group.type.DATE_HISTOGRAM': 'By time unit',
-  'label.group.type.DATE_PART': 'By cycle (weekday, hour…)',
+  [wireKey('label.group.type', AggregationGroupTypes.TERMS)]: 'By value',
+  [wireKey('label.group.type', AggregationGroupTypes.HISTOGRAM)]:
+    'By number range',
+  [wireKey('label.group.type', AggregationGroupTypes.DATE_HISTOGRAM)]:
+    'By time unit',
+  [wireKey('label.group.type', AggregationGroupTypes.DATE_PART)]:
+    'By cycle (weekday, hour…)',
 
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
@@ -722,14 +751,22 @@ export const analysisMessages = {
   // A 0 the chart filled in rather than measured (decisions.md D23, Q14):
   // a bucket or a group the rows lack, said in the tooltip and the reading
   // table, never written on the mark.
-  'label.chart.filled.YEAR': '{value} (no records this year)',
-  'label.chart.filled.QUARTER': '{value} (no records this quarter)',
-  'label.chart.filled.MONTH': '{value} (no records this month)',
-  'label.chart.filled.WEEK': '{value} (no records this week)',
-  'label.chart.filled.DAY': '{value} (no records this day)',
-  'label.chart.filled.HOUR': '{value} (no records this hour)',
-  'label.chart.filled.MINUTE': '{value} (no records this minute)',
-  'label.chart.filled.SECOND': '{value} (no records this second)',
+  [wireKey('label.chart.filled', AggregationDateUnits.YEAR)]:
+    '{value} (no records this year)',
+  [wireKey('label.chart.filled', AggregationDateUnits.QUARTER)]:
+    '{value} (no records this quarter)',
+  [wireKey('label.chart.filled', AggregationDateUnits.MONTH)]:
+    '{value} (no records this month)',
+  [wireKey('label.chart.filled', AggregationDateUnits.WEEK)]:
+    '{value} (no records this week)',
+  [wireKey('label.chart.filled', AggregationDateUnits.DAY)]:
+    '{value} (no records this day)',
+  [wireKey('label.chart.filled', AggregationDateUnits.HOUR)]:
+    '{value} (no records this hour)',
+  [wireKey('label.chart.filled', AggregationDateUnits.MINUTE)]:
+    '{value} (no records this minute)',
+  [wireKey('label.chart.filled', AggregationDateUnits.SECOND)]:
+    '{value} (no records this second)',
   'label.chart.filled.group': '{value} (no records in this group)',
   'label.chart.legend.more': '{count} more',
   'label.chart.legend.less': 'Show less',
@@ -849,14 +886,22 @@ export const analysisMessages = {
   'label.chart.period.skipped': '{period} is not over yet and is not counted',
   'label.chart.change.against': 'vs previous period',
   // A metric card's change, against the period right before by its unit.
-  'label.chart.change.against.YEAR': 'vs the year before',
-  'label.chart.change.against.QUARTER': 'vs the quarter before',
-  'label.chart.change.against.MONTH': 'vs the month before',
-  'label.chart.change.against.WEEK': 'vs the week before',
-  'label.chart.change.against.DAY': 'vs the day before',
-  'label.chart.change.against.HOUR': 'vs the hour before',
-  'label.chart.change.against.MINUTE': 'vs the minute before',
-  'label.chart.change.against.SECOND': 'vs the second before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.YEAR)]:
+    'vs the year before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.QUARTER)]:
+    'vs the quarter before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.MONTH)]:
+    'vs the month before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.WEEK)]:
+    'vs the week before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.DAY)]:
+    'vs the day before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.HOUR)]:
+    'vs the hour before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.MINUTE)]:
+    'vs the minute before',
+  [wireKey('label.chart.change.against', AggregationDateUnits.SECOND)]:
+    'vs the second before',
   'label.chart.change.against.previous-year': 'vs the same period last year',
   // A metric card's comparison, against the metric it is compared with.
   'label.chart.compare.against': 'vs {metric}',

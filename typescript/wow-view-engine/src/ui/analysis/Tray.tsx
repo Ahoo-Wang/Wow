@@ -13,6 +13,7 @@
 
 import { useId, useState } from 'react';
 import type { FieldOption } from '../../model/index.js';
+import { AggregationMetricTypes } from '../../model/index.js';
 import type {
   AnalysisEditorController,
   FilterEditorController,
@@ -112,7 +113,11 @@ export function Tray({
       metric => metric.alias === conditioning,
     );
     const open = analysis.metrics[index];
-    if (open && open.type !== 'DERIVED' && isEmptyTree(open.filter))
+    if (
+      open &&
+      open.type !== AggregationMetricTypes.DERIVED &&
+      isEmptyTree(open.filter)
+    )
       analysis.setMetricFilter(index, { op: 'and', children: [] });
     filter.submit();
   };

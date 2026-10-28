@@ -17,6 +17,7 @@ import type {
   Issue,
   IssuePath,
 } from '../model/index.js';
+import { AggregationGroupTypes } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import {
   consumesAll,
@@ -382,7 +383,7 @@ export function funnelIssues(
   // is no conversion. Its keys are not text either, and a stage is read
   // back by its name (`stageValues`), so it could not be ordered at all.
   const staged = config.groups.find(group_ => group_.alias === stages.category);
-  if (staged && staged.type !== 'TERMS')
+  if (staged && staged.type !== AggregationGroupTypes.TERMS)
     issues.push(
       issue('chart.funnel.stages-need-category', [...path, 'category']),
     );
@@ -427,7 +428,7 @@ export function cardIssues(
 
   // A sparkline needs exactly the time dimension it draws, and nothing else.
   const dateGroups = config.groups.filter(
-    group_ => group_.type === 'DATE_HISTOGRAM',
+    group_ => group_.type === AggregationGroupTypes.DATE_HISTOGRAM,
   );
   if (config.groups.length !== 1 || dateGroups.length !== 1)
     issues.push(issue('chart.metric.trend-needs-one-date-group', context.path));

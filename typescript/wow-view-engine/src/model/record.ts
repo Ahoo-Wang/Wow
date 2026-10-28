@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import type { SummaryFunction } from './field.js';
 import type { DataViewConfigBase } from './config.js';
 
@@ -21,7 +22,7 @@ export type RecordData = Record<string, unknown>;
 export type RecordKey = string | number;
 
 /** Sort direction as stored in a config: Wow's `SortDirection` values. */
-export type SortDirection = 'ASC' | 'DESC';
+export type SortDirectionName = `${SortDirection}`;
 
 /**
  * How a record view draws its rows: a table, a grid of cards, or the cards
@@ -31,18 +32,18 @@ export type SortDirection = 'ASC' | 'DESC';
 export type RecordLayout = 'table' | 'card' | 'kanban';
 
 /** Which paging protocol the source offers; declared by the definition. */
-export type PagingMode = 'paged' | 'cursor';
+export type RecordPagingMode = 'paged' | 'cursor';
 
 /**
  * Where to read from. The definition's paging mode decides which member is
  * available, and a cursor of `null` asks for the first page.
  */
-export type RecordPageTarget<P extends PagingMode = PagingMode> =
+export type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> =
   P extends 'paged' ? { index: number } : { cursor: string | null };
 
 export interface RecordSort {
   field: string;
-  direction: SortDirection;
+  direction: SortDirectionName;
 }
 
 /**

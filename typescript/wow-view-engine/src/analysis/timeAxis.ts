@@ -11,8 +11,13 @@
  * limitations under the License.
  */
 
+import type { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client/dsl';
-import { DATE_PART_DOMAINS } from '../model/index.js';
+import {
+  DATE_PART_DOMAINS,
+  AggregationGroupTypes,
+  FilterOperators,
+} from '../model/index.js';
 import type {
   AnalysisGroup,
   AnalysisViewConfig,
@@ -36,7 +41,10 @@ import { narrowsGroups } from './top.js';
  * to say; where it falls is time's.
  */
 
-export type DateGroup = Extract<AnalysisGroup, { type: 'DATE_HISTOGRAM' }>;
+export type DateGroup = Extract<
+  AnalysisGroup,
+  { type: `${AggregationGroupType.DATE_HISTOGRAM}` }
+>;
 
 /**
  * The time dimension — a date bucket — `alias` names in the config the rows
@@ -48,11 +56,15 @@ export function timeGroup(
 ): DateGroup | undefined {
   return config.groups.find(
     (group): group is DateGroup =>
-      group.alias === alias && group.type === 'DATE_HISTOGRAM',
+      group.alias === alias &&
+      group.type === AggregationGroupTypes.DATE_HISTOGRAM,
   );
 }
 
-type PartGroup = Extract<AnalysisGroup, { type: 'DATE_PART' }>;
+type PartGroup = Extract<
+  AnalysisGroup,
+  { type: `${AggregationGroupType.DATE_PART}` }
+>;
 
 /** The calendar part dimension — the weekday, the hour — `alias` names, if it names one. */
 export function partGroup(
@@ -61,7 +73,7 @@ export function partGroup(
 ): PartGroup | undefined {
   return config.groups.find(
     (group): group is PartGroup =>
-      group.alias === alias && group.type === 'DATE_PART',
+      group.alias === alias && group.type === AggregationGroupTypes.DATE_PART,
   );
 }
 
@@ -314,7 +326,7 @@ export function appliedWindow(
     const value = leaf.value as DateTimeFilterValue | null | undefined;
     if (!value || typeof value !== 'object' || !('type' in value)) continue;
     switch (leaf.operator) {
-      case 'BETWEEN': {
+      case FilterOperators.BETWEEN: {
         const range = resolveDateTimeRange(value, now, timeZone);
         narrow(
           instant(range.from),
@@ -324,16 +336,16 @@ export function appliedWindow(
       }
       // "After the 1st" starts where the 1st ends; "before the 1st" ends
       // where it starts. The inclusive operators take the day whole.
-      case 'GT':
+      case FilterOperators.GT:
         narrow(past(bound(value, 'end')), null);
         break;
-      case 'GTE':
+      case FilterOperators.GTE:
         narrow(bound(value, 'start'), null);
         break;
-      case 'LT':
+      case FilterOperators.LT:
         narrow(null, bound(value, 'start'));
         break;
-      case 'LTE':
+      case FilterOperators.LTE:
         narrow(null, past(bound(value, 'end')));
         break;
       default:

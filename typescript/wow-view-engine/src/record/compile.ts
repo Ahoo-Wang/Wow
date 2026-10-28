@@ -27,6 +27,9 @@ import {
   columnHidden,
   currencyPathOf,
   isFieldlessKind,
+  AggregationFunctions,
+  AggregationMetricTypes,
+  SortDirections,
   type DataViewDefinition,
   type RecordPageTarget,
   type RecordViewConfig,
@@ -66,7 +69,9 @@ function compileSort(config: RecordViewConfig, rowKey: string): FieldSort[] {
   const sort = config.sort.map(entry => ({
     field: entry.field,
     direction:
-      entry.direction === 'DESC' ? SortDirection.DESC : SortDirection.ASC,
+      entry.direction === SortDirections.DESC
+        ? SortDirection.DESC
+        : SortDirection.ASC,
   }));
   return sort.some(entry => entry.field === rowKey)
     ? sort
@@ -160,7 +165,7 @@ export function recordProjection(
     asked.push(config.kanban.lane);
   for (const sort of config.sort) asked.push(sort.field);
   for (const summary of config.summaries ?? [])
-    if (summary.fn !== 'COUNT') asked.push(summary.field);
+    if (summary.fn !== AggregationMetricTypes.COUNT) asked.push(summary.field);
   asked.push(...(capability.rowFields ?? []));
   // Money whose currency each record holds reads in that currency, so the
   // field holding it comes back with the amount, shown or not. Its path is
@@ -249,11 +254,15 @@ export function compileRecord(
 const SUMMARY_METRIC: Readonly<
   Record<SummaryFunction, (field: string, alias: string) => AggregationMetric>
 > = Object.freeze({
-  COUNT: (_field, alias) => aggregation.count(alias),
-  SUM: (field, alias) => aggregation.sum(aggregation.field(field), alias),
-  AVG: (field, alias) => aggregation.avg(aggregation.field(field), alias),
-  MIN: (field, alias) => aggregation.min(aggregation.field(field), alias),
-  MAX: (field, alias) => aggregation.max(aggregation.field(field), alias),
+  [AggregationMetricTypes.COUNT]: (_field, alias) => aggregation.count(alias),
+  [AggregationFunctions.SUM]: (field, alias) =>
+    aggregation.sum(aggregation.field(field), alias),
+  [AggregationFunctions.AVG]: (field, alias) =>
+    aggregation.avg(aggregation.field(field), alias),
+  [AggregationFunctions.MIN]: (field, alias) =>
+    aggregation.min(aggregation.field(field), alias),
+  [AggregationFunctions.MAX]: (field, alias) =>
+    aggregation.max(aggregation.field(field), alias),
 });
 
 /**

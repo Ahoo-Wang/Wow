@@ -18,6 +18,7 @@ import {
   type HavingExpression,
 } from '@ahoo-wang/wow-client/dsl';
 import type { AnalysisTop, AnalysisViewConfig } from '../model/index.js';
+import { SortDirections } from '../model/index.js';
 
 /*
  * 「每个〈维度〉只留前 N 个」 (D89): the per-group top N, compiled into a
@@ -55,7 +56,9 @@ export function topRankMetric(
       d.rank(top.metric, {
         within: [top.within],
         direction:
-          top.direction === 'ASC' ? SortDirection.ASC : SortDirection.DESC,
+          top.direction === SortDirections.ASC
+            ? SortDirection.ASC
+            : SortDirection.DESC,
       }),
     topRankAlias(config, top),
   );

@@ -14,16 +14,17 @@
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type { FieldDefinition, FilterOperatorName } from '../../model/index.js';
 import type { FieldKindDescription } from '../describe.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * Operators that ask about presence rather than about a value. Every kind
  * offers them and none of them reads the leaf's value.
  */
 export const PRESENCE_OPERATORS: readonly FilterOperatorName[] = [
-  'IS_NULL',
-  'IS_NOT_NULL',
-  'EXISTS',
-  'NOT_EXISTS',
+  FilterOperators.IS_NULL,
+  FilterOperators.IS_NOT_NULL,
+  FilterOperators.EXISTS,
+  FilterOperators.NOT_EXISTS,
 ];
 
 export function isPresenceOperator(operator: FilterOperatorName): boolean {
@@ -35,13 +36,13 @@ export function compilePresence(
   operator: FilterOperatorName,
 ): FilterExpression | null {
   switch (operator) {
-    case 'IS_NULL':
+    case FilterOperators.IS_NULL:
       return filter.isNull(field);
-    case 'IS_NOT_NULL':
+    case FilterOperators.IS_NOT_NULL:
       return filter.isNotNull(field);
-    case 'EXISTS':
+    case FilterOperators.EXISTS:
       return filter.exists(field);
-    case 'NOT_EXISTS':
+    case FilterOperators.NOT_EXISTS:
       return filter.notExists(field);
     default:
       return null;
@@ -65,13 +66,13 @@ export function describePresenceParts(
 
 export function describePresence(operator: FilterOperatorName): string | null {
   switch (operator) {
-    case 'IS_NULL':
+    case FilterOperators.IS_NULL:
       return 'is empty';
-    case 'IS_NOT_NULL':
+    case FilterOperators.IS_NOT_NULL:
       return 'is not empty';
-    case 'EXISTS':
+    case FilterOperators.EXISTS:
       return 'exists';
-    case 'NOT_EXISTS':
+    case FilterOperators.NOT_EXISTS:
       return 'does not exist';
     default:
       return null;

@@ -13,7 +13,7 @@
 
 import type {
   DataViewConfig,
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisGroup,
   DataViewDefinition,
   Issue,
@@ -21,6 +21,7 @@ import type {
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
 import { analysisScope } from '../../analysis/index.js';
+import { AggregationGroupTypes } from '../../model/index.js';
 
 /**
  * What the board's time grouping does to one panel: its time dimension
@@ -45,19 +46,23 @@ export type PanelGrouping = 'taken' | 'kept' | null;
 export function regrouped(
   config: DataViewConfig,
   definition: DataViewDefinition,
-  unit: AnalysisDateUnit | undefined,
+  unit: AggregationDateUnitName | undefined,
   path: IssuePath,
 ): { config: DataViewConfig; grouping: PanelGrouping; issues: Issue[] } {
   const none = { config, grouping: null, issues: [] };
   if (unit === undefined || config.kind !== 'analysis') return none;
-  if (!config.groups.some(group => group.type === 'DATE_HISTOGRAM'))
+  if (
+    !config.groups.some(
+      group => group.type === AggregationGroupTypes.DATE_HISTOGRAM,
+    )
+  )
     return none;
   const capability = definition.analysis;
   const scope = capability && analysisScope(definition, capability, config);
   let taken = false;
-  const kept: AnalysisDateUnit[] = [];
+  const kept: AggregationDateUnitName[] = [];
   const groups = config.groups.map((group): AnalysisGroup => {
-    if (group.type !== 'DATE_HISTOGRAM') return group;
+    if (group.type !== AggregationGroupTypes.DATE_HISTOGRAM) return group;
     const units = scope?.aggregations.get(group.field)?.dateUnits ?? [];
     if (!(units as readonly string[]).includes(unit)) {
       kept.push(group.unit);

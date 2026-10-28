@@ -18,6 +18,8 @@ import {
   type AnalysisMetric,
   type ChartSpec,
   type ChartType,
+  AggregationDateUnits,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { fiveNumberSets } from './boxplot.js';
 import { ohlcSets } from './candlestick.js';
@@ -101,10 +103,14 @@ export function fitChartSlots(
         .map(metric => metric.alias),
     ),
     dateGroups: groups
-      .filter(group => group.type === 'DATE_HISTOGRAM')
+      .filter(group => group.type === AggregationGroupTypes.DATE_HISTOGRAM)
       .map(group => group.alias),
     dayGroups: groups
-      .filter(group => group.type === 'DATE_HISTOGRAM' && group.unit === 'DAY')
+      .filter(
+        group =>
+          group.type === AggregationGroupTypes.DATE_HISTOGRAM &&
+          group.unit === AggregationDateUnits.DAY,
+      )
       .map(group => group.alias),
   };
   const drawable = drawableType(chart, shape);

@@ -18,6 +18,7 @@ import type {
   AnalysisHavingExpression,
   AnalysisTop,
 } from '../../model/index.js';
+import { SortDirections } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
@@ -336,7 +337,7 @@ function withTop(
     metric: title(top.metric),
     count: top.count,
     order: messages.label(
-      `label.analysis.top-direction.${top.direction ?? 'DESC'}`,
+      `label.analysis.top-direction.${top.direction ?? SortDirections.DESC}`,
     ),
   });
 }

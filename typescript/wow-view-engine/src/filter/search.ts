@@ -17,6 +17,7 @@ import type {
   FilterNode,
   FilterTree,
 } from '../model/index.js';
+import { FilterOperators } from '../model/index.js';
 
 /**
  * The search a view keeps on hand: the text of the search condition on the
@@ -61,7 +62,11 @@ export function withRootSearch(
     return at < 0
       ? root
       : { ...root, children: root.children.filter((_, i) => i !== at) };
-  const leaf: FilterLeaf = { field, operator: 'SEARCH', value: text };
+  const leaf: FilterLeaf = {
+    field,
+    operator: FilterOperators.SEARCH,
+    value: text,
+  };
   const children =
     at < 0
       ? [...root.children, leaf]

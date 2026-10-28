@@ -18,7 +18,8 @@
 
 import {
   ANALYSIS_DATE_DIFF_UNITS,
-  type AnalysisDateDiffUnit,
+  ComparisonOperators,
+  type DateDiffUnitName,
 } from '../model/index.js';
 
 export type StringFilterValue = string | string[];
@@ -262,22 +263,22 @@ export function isDateTimeFilterValue(
  */
 export interface DurationFilterValue {
   from: string;
-  comparison: DurationComparison;
+  comparison: ComparisonOperatorName;
   value: number;
-  unit: AnalysisDateDiffUnit;
+  unit: DateDiffUnitName;
 }
 
 /** The comparisons a time since another moment may make, in the order offered. */
 export const DURATION_COMPARISONS = [
-  'GT',
-  'GTE',
-  'LT',
-  'LTE',
-  'EQ',
-  'NE',
+  ComparisonOperators.GT,
+  ComparisonOperators.GTE,
+  ComparisonOperators.LT,
+  ComparisonOperators.LTE,
+  ComparisonOperators.EQ,
+  ComparisonOperators.NE,
 ] as const;
 
-export type DurationComparison = (typeof DURATION_COMPARISONS)[number];
+export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 
 /** Whether a stored value reads as a whole `DurationFilterValue`. */
 export function isDurationFilterValue(

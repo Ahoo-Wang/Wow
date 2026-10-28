@@ -25,8 +25,9 @@ import type {
   FieldDefinition,
   FieldGroupDefinition,
   RecordSort,
-  SortDirection,
+  SortDirectionName,
 } from '../../model/index.js';
+import { SortDirections } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
 import {
@@ -80,13 +81,17 @@ import { cn } from 'cn';
  * this reads it back defensively anyway, because being the second line of
  * defence is the only way a render is allowed to depend on validation.
  */
-const DIRECTION_LABEL: Record<SortDirection, MessageKey> = {
-  ASC: 'label.sort.asc',
-  DESC: 'label.sort.desc',
+const DIRECTION_LABEL: Record<SortDirectionName, MessageKey> = {
+  [SortDirections.ASC]: 'label.sort.asc',
+  [SortDirections.DESC]: 'label.sort.desc',
 };
 
-function directionOf(direction: SortDirection | undefined): SortDirection {
-  return direction === 'DESC' ? 'DESC' : 'ASC';
+function directionOf(
+  direction: SortDirectionName | undefined,
+): SortDirectionName {
+  return direction === SortDirections.DESC
+    ? SortDirections.DESC
+    : SortDirections.ASC;
 }
 
 /**
@@ -397,7 +402,7 @@ export function SortSettings({
                   onClick={() =>
                     table.setSort([
                       ...table.sort,
-                      { field: field.name, direction: 'ASC' },
+                      { field: field.name, direction: SortDirections.ASC },
                     ])
                   }
                 >
@@ -593,10 +598,10 @@ function DirectionMark({
   direction,
   icon,
 }: {
-  direction: SortDirection;
+  direction: SortDirectionName;
   icon?: 'inline-start' | 'inline-end';
 }) {
-  const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;
+  const Arrow = direction === SortDirections.ASC ? ArrowUpIcon : ArrowDownIcon;
   return <Arrow data-slot="sort-direction" data-icon={icon} />;
 }
 
@@ -604,7 +609,10 @@ function DirectionMark({
 function flip(entry: RecordSort): RecordSort {
   return {
     field: entry.field,
-    direction: directionOf(entry.direction) === 'ASC' ? 'DESC' : 'ASC',
+    direction:
+      directionOf(entry.direction) === SortDirections.ASC
+        ? SortDirections.DESC
+        : SortDirections.ASC,
   };
 }
 

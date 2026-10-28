@@ -11,11 +11,15 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   isValueMetric,
   type AnalysisHavingExpression,
   type AnalysisMetric,
   type AnalysisViewConfig,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
+  HavingExpressionTypes,
 } from '../model/index.js';
 
 /** What a metric may be read by, beyond its being there. */
@@ -114,7 +118,7 @@ function danglingIn(
   const dangling = new Set<string>();
   for (const metric of metrics) {
     if (
-      metric.type === 'DERIVED' &&
+      metric.type === AggregationMetricTypes.DERIVED &&
       !derivedRefs(metric.expression).every(alias => readable.has(alias))
     )
       dangling.add(metric.alias);
@@ -157,7 +161,8 @@ function kept(
   const operands = node.operands.map(operand => kept(operand, stands));
   if (operands.every((operand, at) => operand === node.operands[at]))
     return node;
-  if (node.type === 'OR' && operands.includes(undefined)) return undefined;
+  if (node.type === HavingExpressionTypes.OR && operands.includes(undefined))
+    return undefined;
   const left = operands.filter(
     (operand): operand is AnalysisHavingExpression => operand !== undefined,
   );
@@ -174,12 +179,15 @@ function kept(
 
 /** The aliases a derived expression reads. */
 export function derivedRefs(
-  expression: Extract<AnalysisMetric, { type: 'DERIVED' }>['expression'],
+  expression: Extract<
+    AnalysisMetric,
+    { type: `${AggregationMetricType.DERIVED}` }
+  >['expression'],
 ): string[] {
   switch (expression?.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       return [expression.metric];
-    case 'BINARY':
+    case DerivedExpressionTypes.BINARY:
       return [
         ...derivedRefs(expression.left),
         ...derivedRefs(expression.right),

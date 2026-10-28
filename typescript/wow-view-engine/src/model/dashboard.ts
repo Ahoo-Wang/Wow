@@ -15,7 +15,7 @@ import type { FieldKindId, FieldOption } from './field.js';
 import type { FilterTree, FilterValue } from './filter.js';
 import type { ViewConfigBase } from './config.js';
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisLayout,
   AnalysisTableSpec,
   AnalysisViewConfig,
@@ -139,8 +139,8 @@ export const MAX_DASHBOARD_FILTERS = 20;
  */
 export interface DashboardTimeGrouping {
   /** The units offered, in the order the bar shows them. */
-  units: AnalysisDateUnit[];
-  default: AnalysisDateUnit;
+  units: AggregationDateUnitName[];
+  default: AggregationDateUnitName;
 }
 
 /**
@@ -152,7 +152,7 @@ export interface DashboardFilters {
   /** Each filter's value by its name; a filter not here holds nothing. */
   values: Record<string, FilterValue>;
   /** The time grouping's unit, on a board that has one. */
-  unit?: AnalysisDateUnit;
+  unit?: AggregationDateUnitName;
   /**
    * The panel each filter's value was pressed on, by filter name (D22 I,
    * cross-filtering): that panel is not narrowed by the value it set, and

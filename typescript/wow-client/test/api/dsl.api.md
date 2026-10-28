@@ -507,7 +507,7 @@ export interface DistinctCountAggregationMetric<FIELDS extends string = string> 
 // @public
 export interface DurationSemantic {
     timeUnit: TimeUnit;
-    type: 'DURATION';
+    type: typeof QuerySemanticTypes.DURATION;
 }
 
 // @public
@@ -1002,12 +1002,12 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 // @public
 export interface NumericDecimal {
     scale: number;
-    type: 'DECIMAL';
+    type: typeof QuerySemanticTypes.DECIMAL;
 }
 
 // @public
 export type NumericMoney = {
-    type: 'MONEY';
+    type: typeof QuerySemanticTypes.MONEY;
     scale: number;
 } & ({
     currency: string;
@@ -1221,6 +1221,17 @@ type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIEL
 export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
 
 // @public
+export const QuerySemanticTypes: Readonly<{
+    readonly TEMPORAL_DATE: "TEMPORAL_DATE";
+    readonly TEMPORAL_EPOCH: "TEMPORAL_EPOCH";
+    readonly TEMPORAL_FORMATTED: "TEMPORAL_FORMATTED";
+    readonly DECIMAL: "DECIMAL";
+    readonly MONEY: "MONEY";
+    readonly DURATION: "DURATION";
+    readonly REFERENCE: "REFERENCE";
+}>;
+
+// @public
 export enum QueryValueKind {
     ARRAY = "ARRAY",
     NULL = "NULL",
@@ -1260,7 +1271,7 @@ export interface RecordDescriptor {
 
 // @public
 export type ReferenceSemantic = {
-    type: 'REFERENCE';
+    type: typeof QuerySemanticTypes.REFERENCE;
 } & ({
     contextName: string;
     aggregateName: string;
@@ -1372,19 +1383,19 @@ type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R 
 
 // @public
 export interface TemporalDate {
-    type: 'TEMPORAL_DATE';
+    type: typeof QuerySemanticTypes.TEMPORAL_DATE;
 }
 
 // @public
 export interface TemporalEpoch {
     timeUnit?: TimeUnit;
-    type: 'TEMPORAL_EPOCH';
+    type: typeof QuerySemanticTypes.TEMPORAL_EPOCH;
 }
 
 // @public
 export interface TemporalFormatted {
     pattern: string;
-    type: 'TEMPORAL_FORMATTED';
+    type: typeof QuerySemanticTypes.TEMPORAL_FORMATTED;
 }
 
 // @public

@@ -17,12 +17,20 @@ import {
   type AnalysisViewConfig,
   type DataViewDefinition,
   type Issue,
+  AggregationMetricTypes,
+  SortDirections,
+  WindowFunctions,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { aliasesOf } from './validateAliases.js';
 
 /** The metric types a rank reads: a number of the group, not a derived one. */
-const RANKED = new Set(['COUNT', 'NUMERIC', 'DISTINCT_COUNT', 'PERCENTILE']);
+const RANKED = new Set<string>([
+  AggregationMetricTypes.COUNT,
+  AggregationMetricTypes.NUMERIC,
+  AggregationMetricTypes.DISTINCT_COUNT,
+  AggregationMetricTypes.PERCENTILE,
+]);
 
 /**
  * Whether a metric can rank the groups: a number of the group — never a
@@ -57,7 +65,7 @@ export function validateTop(
   if (top === undefined) return [];
   if (
     capability.having !== true ||
-    !(capability.windows ?? []).includes('RANK')
+    !(capability.windows ?? []).includes(WindowFunctions.RANK)
   )
     return [issue('analysis.top.unsupported', ['top'])];
   if (config.groups.length < 2)
@@ -85,8 +93,8 @@ export function validateTop(
     );
   if (
     top.direction !== undefined &&
-    top.direction !== 'ASC' &&
-    top.direction !== 'DESC'
+    top.direction !== SortDirections.ASC &&
+    top.direction !== SortDirections.DESC
   )
     issues.push(issue('analysis.top.malformed', ['top', 'direction']));
   return issues;

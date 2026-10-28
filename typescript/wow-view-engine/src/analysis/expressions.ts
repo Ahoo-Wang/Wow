@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationExpressionType } from '@ahoo-wang/wow-client/dsl';
 import {
   isDateCell,
   type AnalysisDerivedExpression,
@@ -18,6 +19,10 @@ import {
   type Issue,
   type IssuePath,
   type RuntimeLimits,
+  AggregationExpressionOperators,
+  AggregationExpressionTypes,
+  AggregationGroupTypes,
+  DerivedExpressionTypes,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { unknownOrOutside, type AnalysisScope } from './capability.js';
@@ -47,7 +52,7 @@ function expressionIssues(
 
   // An expression is computed inside the counting unit, so its fields are the
   // innermost element's; one from outside exists but is out of reach.
-  if (expression.type === 'FIELD') {
+  if (expression.type === AggregationExpressionTypes.FIELD) {
     if (!scope.aggregations.has(expression.field))
       return [
         issue(unknownOrOutside(scope, expression.field), [...path, 'field'], {
@@ -76,20 +81,20 @@ function expressionIssues(
       : [];
   }
 
-  if (expression.type === 'CONSTANT')
+  if (expression.type === AggregationExpressionTypes.CONSTANT)
     return Number.isFinite(expression.value)
       ? []
       : [issue('analysis.constant.not-finite', [...path, 'value'])];
 
-  if (expression.type === 'DATE_DIFF')
+  if (expression.type === AggregationExpressionTypes.DATE_DIFF)
     return dateDiffIssues(expression, scope, path, expressionsAllowed, units);
 
   const issues: Issue[] = [];
   if (!expressionsAllowed)
     issues.push(issue('analysis.expressions.undeclared', path));
   if (
-    expression.operator === 'DIVIDE' &&
-    expression.right?.type === 'CONSTANT' &&
+    expression.operator === AggregationExpressionOperators.DIVIDE &&
+    expression.right?.type === AggregationExpressionTypes.CONSTANT &&
     expression.right.value === 0
   )
     issues.push(
@@ -141,7 +146,10 @@ export function budgetedExpressionIssues(
  * knows a field holds a moment — and takes into arithmetic.
  */
 function dateDiffIssues(
-  expression: Extract<AnalysisExpression, { type: 'DATE_DIFF' }>,
+  expression: Extract<
+    AnalysisExpression,
+    { type: `${AggregationExpressionType.DATE_DIFF}` }
+  >,
   scope: AnalysisScope,
   path: IssuePath,
   expressionsAllowed: boolean,
@@ -165,7 +173,9 @@ function dateDiffIssues(
       issues.push(issue('analysis.expression.malformed', at));
     else if (!offered)
       issues.push(issue(unknownOrOutside(scope, field), at, { field }));
-    else if (!offered.groups.includes('DATE_HISTOGRAM' as never))
+    else if (
+      !offered.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM as never)
+    )
       issues.push(issue('analysis.date-diff.not-time', at, { field }));
     else if (offered.expressionInput === false)
       issues.push(
@@ -195,10 +205,10 @@ export function budgetedDerivedIssues(
 function isExpression(value: AnalysisExpression | undefined): boolean {
   const type = (value as { type?: unknown } | undefined)?.type;
   return (
-    type === 'FIELD' ||
-    type === 'CONSTANT' ||
-    type === 'BINARY' ||
-    type === 'DATE_DIFF'
+    type === AggregationExpressionTypes.FIELD ||
+    type === AggregationExpressionTypes.CONSTANT ||
+    type === AggregationExpressionTypes.BINARY ||
+    type === AggregationExpressionTypes.DATE_DIFF
   );
 }
 
@@ -207,7 +217,11 @@ function isDerivedExpression(
   value: AnalysisDerivedExpression | undefined,
 ): value is AnalysisDerivedExpression {
   const type = (value as { type?: unknown } | undefined)?.type;
-  return type === 'METRIC_REF' || type === 'CONSTANT' || type === 'BINARY';
+  return (
+    type === DerivedExpressionTypes.METRIC_REF ||
+    type === DerivedExpressionTypes.CONSTANT ||
+    type === DerivedExpressionTypes.BINARY
+  );
 }
 
 function derivedIssues(
@@ -221,7 +235,7 @@ function derivedIssues(
   if (!isDerivedExpression(expression))
     return [issue('analysis.expression.malformed', path)];
 
-  if (expression.type === 'METRIC_REF') {
+  if (expression.type === DerivedExpressionTypes.METRIC_REF) {
     if (!available.has(expression.metric))
       return [
         issue('analysis.derived.unknown-metric', [...path, 'metric'], {
@@ -238,7 +252,7 @@ function derivedIssues(
         ]
       : [];
   }
-  if (expression.type === 'CONSTANT')
+  if (expression.type === DerivedExpressionTypes.CONSTANT)
     return Number.isFinite(expression.value)
       ? []
       : [issue('analysis.constant.not-finite', [...path, 'value'])];

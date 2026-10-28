@@ -16,7 +16,7 @@ import {
   MAX_DASHBOARD_FILTERS,
   filterTypeOf,
   isFieldName,
-  type AnalysisDateUnit,
+  type AggregationDateUnitName,
   type DashboardField,
   type DashboardViewConfig,
   type Issue,
@@ -153,7 +153,7 @@ export function validateTimeGrouping(config: DashboardViewConfig): Issue[] {
   const seen = new Set<unknown>();
   units.forEach((unit, index) => {
     const at: IssuePath = [...path, 'units', index];
-    if (!ANALYSIS_DATE_UNITS.includes(unit as AnalysisDateUnit))
+    if (!ANALYSIS_DATE_UNITS.includes(unit as AggregationDateUnitName))
       issues.push(
         issue('dashboard.grouping.unit-unknown', at, { unit: String(unit) }),
       );

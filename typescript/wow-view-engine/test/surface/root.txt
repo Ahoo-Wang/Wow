@@ -17,21 +17,20 @@ type  ActionPlace
 type  ActionRefusal
 type  ActionRow
 type  ActionTone
+type  AggregationDatePartName
+type  AggregationDateUnitName
+type  AggregationExpressionOperatorName
 type  AggregationFieldCapability
+type  AggregationFunctionName
+type  AggregationGroupTypeName
 type  AnalysisCapability
 type  AnalysisColumn
 type  AnalysisColumnView
-type  AnalysisDateDiffUnit
-type  AnalysisDatePart
-type  AnalysisDateUnit
 type  AnalysisDerivedExpression
 type  AnalysisElement
 type  AnalysisElementCapability
 type  AnalysisExpression
-type  AnalysisExpressionOperator
-type  AnalysisFunction
 type  AnalysisGroup
-type  AnalysisGroupType
 type  AnalysisHavingExpression
 type  AnalysisLayout
 type  AnalysisLimitBounds
@@ -46,7 +45,6 @@ type  AnalysisSpec
 type  AnalysisTableSpec
 type  AnalysisTop
 type  AnalysisViewConfig
-type  AnalysisWindowFunction
 type  AnyViewRuntime
 type  ArrangeStep
 type  ArrayFilterValue
@@ -100,6 +98,7 @@ type  ClickDraft
 type  ClickGoKind
 type  ColumnCurrency
 type  ColumnEdge
+type  ComparisonOperatorName
 type  ConfigOfKind
 type  ConflictChoice
 type  ConflictingState
@@ -162,6 +161,7 @@ value DatasetResources
 type  DatasetResourcesOptions
 type  DatasetWordingEditor
 type  DatasetWordingStore
+type  DateDiffUnitName
 type  DateInstant
 type  DatePartOffer
 type  DateTemporal
@@ -185,7 +185,6 @@ type  DetailSection
 type  DrillContext
 type  DrilledGroup
 type  Dropped
-type  DurationComparison
 type  DurationFilterValue
 value EDITOR_INPUTS
 value EPOCH_TIME_UNITS
@@ -338,7 +337,6 @@ value PANEL_PRESENTATION_MEMBERS
 value PEAKS_ONLY_FROM
 value PRESENCE_OPERATORS
 type  PagedPaging
-type  PagingMode
 type  PanelBinding
 type  PanelClick
 type  PanelDefinition
@@ -387,6 +385,7 @@ type  RecordLaneView
 type  RecordLayout
 type  RecordPageTarget
 type  RecordPaging
+type  RecordPagingMode
 type  RecordProjection
 type  RecordRow
 type  RecordSort
@@ -430,7 +429,7 @@ type  SeriesMark
 type  ShapeContext
 type  ShapeFacts
 type  SizedPanel
-type  SortDirection
+type  SortDirectionName
 type  StoredDatasetWording
 type  StringComparisonName
 type  StringFilterValue
@@ -506,6 +505,7 @@ type  VisibilitySource
 type  WaterfallData
 type  WaterfallSpec
 type  WaterfallStep
+type  WindowFunctionName
 type  WriteAction
 type  WriteContext
 type  WriteHandle

@@ -16,13 +16,14 @@ import isoWeek from 'dayjs/plugin/isoWeek.js';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
-import type { AnalysisDateUnit } from '../model/index.js';
+import type { AggregationDateUnitName } from '../model/index.js';
 import type {
   DateTimeFilterValue,
   DateTimePreset,
   PresetDateTimeValue,
   RelativeDateTimeValue,
 } from './values.js';
+import { AggregationDateUnits } from '../model/index.js';
 
 // Zones, week starts, quarters and month lengths are what a date library is
 // for; these four plugins cover every window the presets and relative values
@@ -321,24 +322,24 @@ export function resolveDateTimeBound(
  * a quarter three months.
  */
 const PERIOD_UNITS = [
-  ['SECOND', 'second', 1, 'second'],
-  ['MINUTE', 'minute', 1, 'minute'],
-  ['HOUR', 'hour', 1, 'hour'],
-  ['DAY', 'day', 1, 'day'],
-  ['WEEK', 'day', 7, 'day'],
-  ['MONTH', 'month', 1, 'month'],
-  ['QUARTER', 'quarter', 3, 'month'],
-  ['YEAR', 'year', 1, 'year'],
+  [AggregationDateUnits.SECOND, 'second', 1, 'second'],
+  [AggregationDateUnits.MINUTE, 'minute', 1, 'minute'],
+  [AggregationDateUnits.HOUR, 'hour', 1, 'hour'],
+  [AggregationDateUnits.DAY, 'day', 1, 'day'],
+  [AggregationDateUnits.WEEK, 'day', 7, 'day'],
+  [AggregationDateUnits.MONTH, 'month', 1, 'month'],
+  [AggregationDateUnits.QUARTER, 'quarter', 3, 'month'],
+  [AggregationDateUnits.YEAR, 'year', 1, 'year'],
 ] as const;
 
 /** A time on a clock, to the millisecond, with no zone of its own. */
 const WALL_CLOCK = 'YYYY-MM-DDTHH:mm:ss.SSS';
 
 /** A clock unit is as long as it always is; a calendar one is not. */
-const CLOCK_MS: Partial<Record<AnalysisDateUnit, number>> = {
-  SECOND: 1000,
-  MINUTE: 60_000,
-  HOUR: 3_600_000,
+const CLOCK_MS: Partial<Record<AggregationDateUnitName, number>> = {
+  [AggregationDateUnits.SECOND]: 1000,
+  [AggregationDateUnits.MINUTE]: 60_000,
+  [AggregationDateUnits.HOUR]: 3_600_000,
 };
 
 /**
@@ -359,7 +360,7 @@ export function periodOf(
   from: string,
   to: string,
   timeZone: string,
-): AnalysisDateUnit | null {
+): AggregationDateUnitName | null {
   if (!isValidTimeZone(timeZone)) return null;
   const start = Date.parse(instantIn(from, timeZone, 'start'));
   const end = Date.parse(instantIn(to, timeZone, 'end'));

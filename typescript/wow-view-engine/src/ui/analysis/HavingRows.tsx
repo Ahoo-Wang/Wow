@@ -18,7 +18,7 @@ import {
   withHavingRows,
   type HavingRow,
 } from '../../analysis/index.js';
-import { isValueMetric } from '../../model/index.js';
+import { isValueMetric, ComparisonOperators } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
@@ -111,7 +111,11 @@ export function useHaving(analysis: AnalysisEditorController) {
         ? () =>
             write([
               ...rows,
-              { metric: first.value, operator: 'GT', value: null },
+              {
+                metric: first.value,
+                operator: ComparisonOperators.GT,
+                value: null,
+              },
             ])
         : undefined,
   };

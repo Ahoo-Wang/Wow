@@ -20,6 +20,7 @@
 
 import {
   filterTypeOf,
+  FilterOperators,
   type DashboardField,
   type DashboardFilterType,
   type DashboardFilters,
@@ -56,12 +57,12 @@ import { bindingsOf, clicksFilter, isViewPanel, panelsOf } from './panels.js';
  * condition is read into defaults by the same table (`migrateDashboardConfig`).
  */
 export const FILTER_TYPE_OPERATOR = {
-  date: 'BETWEEN',
-  text: 'IN',
-  id: 'IN',
-  number: 'IN',
-  boolean: 'EQ',
-  search: 'SEARCH',
+  date: FilterOperators.BETWEEN,
+  text: FilterOperators.IN,
+  id: FilterOperators.IN,
+  number: FilterOperators.IN,
+  boolean: FilterOperators.EQ,
+  search: FilterOperators.SEARCH,
 } as const satisfies Record<DashboardFilterType, FilterOperatorName>;
 
 /**
@@ -75,7 +76,7 @@ export function filterOperatorOf(
 ): FilterOperatorName {
   const type = filterTypeOf(field.kind);
   if (type !== null) return FILTER_TYPE_OPERATOR[type];
-  return kinds.get(field.kind)?.defaultOperator ?? 'EQ';
+  return kinds.get(field.kind)?.defaultOperator ?? FilterOperators.EQ;
 }
 
 /** Whether a filter's value says nothing yet: nothing picked, nothing typed. */

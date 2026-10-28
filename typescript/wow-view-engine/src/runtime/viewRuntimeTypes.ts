@@ -21,7 +21,7 @@ import type {
   FieldDefinition,
   FilterTree,
   Issue,
-  PagingMode,
+  RecordPagingMode,
   RecordData,
   RecordKey,
   RecordPageTarget,
@@ -206,7 +206,7 @@ export type DefinitionFor<C extends ViewConfig> = C extends DashboardViewConfig
 
 /** Paging and selection belong to Record alone. */
 export interface RecordViewRuntime<
-  P extends PagingMode = PagingMode,
+  P extends RecordPagingMode = RecordPagingMode,
 > extends ViewRuntime<RecordViewConfig> {
   page(target: RecordPageTarget<P>): void;
   select(keys: RecordKey[]): void;

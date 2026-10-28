@@ -11,8 +11,21 @@
  * limitations under the License.
  */
 
-import type { SearchMode, StringComparison } from '@ahoo-wang/wow-client/dsl';
+import type {
+  AggregationFunction,
+  AggregationMetricType,
+  SearchMode,
+  StringComparison,
+  TimeUnit,
+} from '@ahoo-wang/wow-client/dsl';
 import type { FilterOperatorName } from './filter.js';
+import {
+  AggregationFunctions,
+  AggregationMetricTypes,
+  SearchModes,
+  StringComparisons,
+  TimeUnits,
+} from './wire.js';
 
 /**
  * Identifies a `FieldKind`: the package registers the built-in ones and an
@@ -260,15 +273,23 @@ export function isDateCell(cell: string | undefined): boolean {
   return cell === 'date' || cell === 'datetime';
 }
 
-/** Row-level aggregations a record view may show under a column. */
-export type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
+/**
+ * Row-level aggregations a record view may show under a column: four of
+ * Wow's `AggregationFunction`s and its `COUNT` metric.
+ */
+export type SummaryFunction = `${
+  | AggregationFunction.SUM
+  | AggregationFunction.AVG
+  | AggregationFunction.MIN
+  | AggregationFunction.MAX
+  | AggregationMetricType.COUNT}`;
 
 export const SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
-  'SUM',
-  'AVG',
-  'MIN',
-  'MAX',
-  'COUNT',
+  AggregationFunctions.SUM,
+  AggregationFunctions.AVG,
+  AggregationFunctions.MIN,
+  AggregationFunctions.MAX,
+  AggregationMetricTypes.COUNT,
 ];
 
 /**
@@ -281,9 +302,9 @@ export const SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
  * out of the set rather than shown and then explained.
  */
 export const DATE_SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
-  'MIN',
-  'MAX',
-  'COUNT',
+  AggregationFunctions.MIN,
+  AggregationFunctions.MAX,
+  AggregationMetricTypes.COUNT,
 ];
 
 /**
@@ -334,11 +355,11 @@ export interface DateTemporal {
 }
 
 /** The units of `TimeUnit` an epoch time is kept in, as Wow spells them. */
-export type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
+export type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
 export const EPOCH_TIME_UNITS: readonly EpochTimeUnit[] = [
-  'MILLISECONDS',
-  'SECONDS',
+  TimeUnits.MILLISECONDS,
+  TimeUnits.SECONDS,
 ];
 
 export const TEMPORAL_TYPES: readonly FieldTemporal['type'][] = [
@@ -380,7 +401,7 @@ export const TIME_PRECISIONS: readonly TimePrecision[] = ['minute', 'second'];
  */
 export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
   type: 'epoch',
-  timeUnit: 'MILLISECONDS',
+  timeUnit: TimeUnits.MILLISECONDS,
 };
 
 /** How this field keeps its time: its declaration, or the default. */
@@ -399,8 +420,8 @@ export function epochUnitOf(
   field: Pick<FieldDefinition, 'kind' | 'cell' | 'temporal'>,
 ): EpochTimeUnit | undefined {
   const temporal = field.temporal;
-  return temporal?.type === 'epoch' && temporal.timeUnit === 'SECONDS'
-    ? 'SECONDS'
+  return temporal?.type === 'epoch' && temporal.timeUnit === TimeUnits.SECONDS
+    ? TimeUnits.SECONDS
     : undefined;
 }
 
@@ -523,7 +544,10 @@ export function currencyPathOf(
  * an analysis spells as a metric of its own; the same reason leaves the sum,
  * the average, the deviation and the variance out.
  */
-const DATE_AGGREGATION_FUNCTIONS = ['MIN', 'MAX'] as const;
+const DATE_AGGREGATION_FUNCTIONS = [
+  AggregationFunctions.MIN,
+  AggregationFunctions.MAX,
+] as const;
 
 /**
  * The aggregate functions a field really offers an analysis: what its
@@ -682,17 +706,20 @@ export interface FieldDefinition {
 /** Wow's `SearchMode`, as the literal a definition writes. */
 export type SearchModeName = `${SearchMode}`;
 
-export const SEARCH_MODES: readonly SearchModeName[] = ['TERMS', 'PHRASE'];
+export const SEARCH_MODES: readonly SearchModeName[] = [
+  SearchModes.TERMS,
+  SearchModes.PHRASE,
+];
 
-export const DEFAULT_SEARCH_MODE: SearchModeName = 'TERMS';
+export const DEFAULT_SEARCH_MODE: SearchModeName = SearchModes.TERMS;
 
 /** Wow's `StringComparison`, as the literal a definition writes. */
 export type StringComparisonName = `${StringComparison}`;
 
 export const DEFAULT_STRING_COMPARISON: StringComparisonName =
-  'CASE_INSENSITIVE';
+  StringComparisons.CASE_INSENSITIVE;
 
 export const STRING_COMPARISONS: readonly StringComparisonName[] = [
-  'CASE_SENSITIVE',
-  'CASE_INSENSITIVE',
+  StringComparisons.CASE_SENSITIVE,
+  StringComparisons.CASE_INSENSITIVE,
 ];

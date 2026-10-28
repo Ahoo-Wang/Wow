@@ -30,7 +30,10 @@ import type { MessageFormatters } from '../kit/MessagesProvider.js';
 export { freeAlias };
 import {
   isValueMetric,
-  type AnalysisDateUnit,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  AggregationExpressionTypes,
+  type AggregationDateUnitName,
   type AnalysisGroup,
   type AnalysisMetric,
 } from '../../model/index.js';
@@ -85,11 +88,11 @@ export function usedAliases(analysis: AnalysisEditorController): string[] {
 export function defaultGroup(
   field: AnalysisFieldOption,
   taken: readonly string[],
-  unit?: AnalysisDateUnit,
+  unit?: AggregationDateUnitName,
 ): AnalysisGroup {
   return groupOfType(
     field,
-    field.groups[0] ?? 'TERMS',
+    field.groups[0] ?? AggregationGroupTypes.TERMS,
     freeAlias(field.field, taken),
     unit,
   );
@@ -100,15 +103,21 @@ export function defaultMetric(
   field: AnalysisFieldOption,
   taken: readonly string[],
 ): AnalysisMetric {
-  const choice = summaryChoices(field)[0] ?? 'ANY';
+  const choice = summaryChoices(field)[0] ?? AggregationMetricTypes.ANY;
   return metricOfSummary(field, choice, freeAlias(field.field, taken));
 }
 
 /** The field a metric measures, or none for a count and a derived metric. */
 export function fieldOfMetric(metric: AnalysisMetric): string {
-  if (metric.type === 'COUNT' || metric.type === 'DERIVED') return '';
+  if (
+    metric.type === AggregationMetricTypes.COUNT ||
+    metric.type === AggregationMetricTypes.DERIVED
+  )
+    return '';
   if (isValueMetric(metric)) return metric.field;
-  return metric.expression.type === 'FIELD' ? metric.expression.field : '';
+  return metric.expression.type === AggregationExpressionTypes.FIELD
+    ? metric.expression.field
+    : '';
 }
 
 /**
@@ -192,8 +201,12 @@ export function groupReference(
                 )
               : (analysis.fields.find(entry => entry.field === group.field)
                   ?.label ?? group.field),
-          ...(group.type === 'DATE_HISTOGRAM' ? { dateUnit: group.unit } : {}),
-          ...(group.type === 'DATE_PART' ? { datePart: group.part } : {}),
+          ...(group.type === AggregationGroupTypes.DATE_HISTOGRAM
+            ? { dateUnit: group.unit }
+            : {}),
+          ...(group.type === AggregationGroupTypes.DATE_PART
+            ? { datePart: group.part }
+            : {}),
         }
       : { label: group.label, named: true },
     messages,
@@ -218,11 +231,11 @@ export function metricFallbackName(
     messages.say(
       analysis.fields.find(entry => entry.field === field)?.label ?? field,
     );
-  if (metric.type === 'COUNT')
+  if (metric.type === AggregationMetricTypes.COUNT)
     return messages.label('label.analysis.row-count');
   if (isFormula(metric) || isDuration(metric))
     return expressionText(metric.expression, fieldLabel, composed);
-  if (metric.type === 'DERIVED')
+  if (metric.type === AggregationMetricTypes.DERIVED)
     return derivedText(metric.expression, alias => {
       // An operand is a reference to another metric, and says its summary
       // (「金额的总和 ÷ 记录数」), as the derived column's header does.

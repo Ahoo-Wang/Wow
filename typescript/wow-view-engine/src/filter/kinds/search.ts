@@ -16,7 +16,7 @@ import {
   type FilterExpression,
   type SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
-import { DEFAULT_SEARCH_MODE } from '../../model/index.js';
+import { DEFAULT_SEARCH_MODE, FilterOperators } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 
 /**
@@ -33,8 +33,8 @@ import { issue, readValue, type FieldKind } from '../fieldKind.js';
  */
 export const searchFieldKind: FieldKind = {
   id: 'search',
-  operators: ['SEARCH'],
-  defaultOperator: 'SEARCH',
+  operators: [FilterOperators.SEARCH],
+  defaultOperator: FilterOperators.SEARCH,
   scalar: false,
   // `SEARCH` names no field, so it is one of the root filters Wow refuses
   // inside an element predicate.

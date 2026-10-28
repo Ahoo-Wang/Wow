@@ -21,6 +21,7 @@
 import {
   columnHidden,
   groupFieldsOf,
+  AggregationMetricTypes,
   type DataViewConfig,
   type FieldDefinition,
   type Issue,
@@ -71,8 +72,11 @@ function namedFields(config: DataViewConfig): string[] {
   }
   names.push(...config.groups.flatMap(groupFieldsOf));
   for (const metric of config.metrics) {
-    if (metric.type === 'ANY') names.push(metric.field);
-    else if (metric.type === 'FIRST' || metric.type === 'LAST')
+    if (metric.type === AggregationMetricTypes.ANY) names.push(metric.field);
+    else if (
+      metric.type === AggregationMetricTypes.FIRST ||
+      metric.type === AggregationMetricTypes.LAST
+    )
       names.push(metric.field, ...(metric.orderBy ? [metric.orderBy] : []));
     else if (
       'expression' in metric &&

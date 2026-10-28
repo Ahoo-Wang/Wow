@@ -19,6 +19,7 @@ import {
   groupOfType,
 } from '../../analysis/index.js';
 import type { AnalysisGroup } from '../../model/index.js';
+import { AggregationGroupTypes } from '../../model/index.js';
 import type {
   AnalysisEditorController,
   AnalysisFieldOption,
@@ -241,7 +242,7 @@ function DimensionCard({
           <span className="fve:text-muted-foreground">{types[0].label}</span>
         )
       )}
-      {group.type === 'DATE_HISTOGRAM' && (
+      {group.type === AggregationGroupTypes.DATE_HISTOGRAM && (
         <CompactSelect
           label={messages.label('label.analysis.granularity')}
           items={(field?.dateUnits ?? [group.unit]).map(unit => ({
@@ -257,7 +258,7 @@ function DimensionCard({
           }
         />
       )}
-      {group.type === 'DATE_PART' && (
+      {group.type === AggregationGroupTypes.DATE_PART && (
         <CompactSelect
           label={messages.label('label.analysis.date-part')}
           items={(field?.dateParts ?? [group.part]).map(part => ({
@@ -273,7 +274,7 @@ function DimensionCard({
           }
         />
       )}
-      {group.type === 'HISTOGRAM' && (
+      {group.type === AggregationGroupTypes.HISTOGRAM && (
         <NumberInput
           label={messages.label('label.analysis.interval')}
           chrome="box"
@@ -292,7 +293,7 @@ function DimensionCard({
         disabled={disabled}
         onRename={() => setRenaming(true)}
       >
-        {group.type === 'TERMS' && field?.missingKey && (
+        {group.type === AggregationGroupTypes.TERMS && field?.missingKey && (
           <DropdownMenuCheckboxItem
             checked={group.missingKey !== undefined}
             onCheckedChange={on => analysis.setMissingBucket(index, on)}
@@ -300,7 +301,8 @@ function DimensionCard({
             {messages.label('label.analysis.missing-bucket')}
           </DropdownMenuCheckboxItem>
         )}
-        {(group.type === 'DATE_HISTOGRAM' || group.type === 'DATE_PART') &&
+        {(group.type === AggregationGroupTypes.DATE_HISTOGRAM ||
+          group.type === AggregationGroupTypes.DATE_PART) &&
           analysis.denseAllowed && (
             <DropdownMenuCheckboxItem
               checked={group.dense === true}
@@ -308,7 +310,7 @@ function DimensionCard({
               onCheckedChange={on => analysis.setDense(index, on)}
             >
               {messages.label(
-                group.type === 'DATE_PART'
+                group.type === AggregationGroupTypes.DATE_PART
                   ? alone
                     ? 'label.analysis.dense-part'
                     : 'label.analysis.dense-part-alone'

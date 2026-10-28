@@ -26,7 +26,9 @@
 import {
   filterTypeOf,
   without,
-  type AnalysisGroupType,
+  sameFilterType,
+  AggregationGroupTypes,
+  type AggregationGroupTypeName,
   type DashboardField,
   type DashboardFilterType,
   type DashboardViewConfig,
@@ -36,7 +38,6 @@ import {
   type IssuePath,
   type PanelClick,
   type ViewConfig,
-  sameFilterType,
 } from '../model/index.js';
 import { isPlainObject, issue } from '../filter/index.js';
 import { filtersOf } from './filters.js';
@@ -77,7 +78,7 @@ export function fillUrl(
 /** One dimension of a panel's view, as a press reads it: a field bucketed so. */
 export interface PressableGroup {
   field: string;
-  type: AnalysisGroupType;
+  type: AggregationGroupTypeName;
 }
 
 /**
@@ -90,10 +91,12 @@ export interface PressableGroup {
  */
 export function takesGroup(
   type: DashboardFilterType | null,
-  group: AnalysisGroupType,
+  group: AggregationGroupTypeName,
 ): boolean {
   if (type === null) return false;
-  return type === 'date' ? group === 'DATE_HISTOGRAM' : group === 'TERMS';
+  return type === 'date'
+    ? group === AggregationGroupTypes.DATE_HISTOGRAM
+    : group === AggregationGroupTypes.TERMS;
 }
 
 /**

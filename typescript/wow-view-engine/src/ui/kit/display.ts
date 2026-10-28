@@ -14,8 +14,11 @@
 import {
   DEFAULT_APPROXIMATE_METRICS,
   isDateCell,
-  type AnalysisDatePart,
-  type AnalysisDateUnit,
+  AggregationFunctions,
+  AggregationMetricTypes,
+  AggregationDateUnits,
+  type AggregationDatePartName,
+  type AggregationDateUnitName,
   type FieldNumeric,
   type RecordData,
   type FieldOption,
@@ -81,11 +84,11 @@ export interface DisplayField {
    */
   numeric?: FieldNumeric;
   /** For a date histogram group: its keys are the starts of these buckets. */
-  dateUnit?: AnalysisDateUnit;
+  dateUnit?: AggregationDateUnitName;
   /** The zone those buckets were cut in, when the group named one. */
   timeZone?: string;
   /** For a calendar part group: its keys are this part's integers. */
-  datePart?: AnalysisDatePart;
+  datePart?: AggregationDatePartName;
   /**
    * For an array of objects, the element field each element is read by and
    * its name within the element (`FieldDefinition.elementTitle`).
@@ -320,10 +323,13 @@ function numericParts(
  * header and in the tray's summary select alike.
  */
 export function summaryFunctionKey(
-  fn: SummaryFunction | Exclude<MetricFunction, 'DERIVED'>,
+  fn:
+    | SummaryFunction
+    | Exclude<MetricFunction, typeof AggregationMetricTypes.DERIVED>,
   cell?: string,
 ): MessageKey {
-  return (fn === 'MIN' || fn === 'MAX') && isDateCell(cell)
+  return (fn === AggregationFunctions.MIN || fn === AggregationFunctions.MAX) &&
+    isDateCell(cell)
     ? `label.summary.fn.date.${fn}`
     : `label.summary.fn.${fn}`;
 }
@@ -372,9 +378,9 @@ export function columnTitle(
     /** The reading of the values under it: a date's `MIN` is its earliest. */
     cell?: string;
     /** A time group's granularity: what one of its rows spans. */
-    dateUnit?: AnalysisDateUnit;
+    dateUnit?: AggregationDateUnitName;
     /** A calendar part group's part: what its rows fold together. */
-    datePart?: AnalysisDatePart;
+    datePart?: AggregationDatePartName;
     /** A metric's own condition: the one value it keeps, when it is one. */
     condition?: Pick<MetricCondition, 'value'>;
   },
@@ -412,9 +418,9 @@ export function columnTitle(
   }
   // A derived metric is arithmetic over other metrics: no field stands behind
   // it, so its stored name is all there is to show.
-  if (column.fn === 'DERIVED') return label;
+  if (column.fn === AggregationMetricTypes.DERIVED) return label;
   const title =
-    column.fn === 'COUNT'
+    column.fn === AggregationMetricTypes.COUNT
       ? messages.label('label.analysis.row-count')
       : messages.label('label.summary.of', {
           field: label,
@@ -711,36 +717,36 @@ export function csvCellText(
  */
 function bucket(
   date: Date,
-  unit: AnalysisDateUnit,
+  unit: AggregationDateUnitName,
   timeZone: string | undefined,
   locale: string | undefined,
 ): string {
   switch (unit) {
-    case 'YEAR':
+    case AggregationDateUnits.YEAR:
       return format(date, locale, gregorianYear(timeZone));
-    case 'QUARTER': {
+    case AggregationDateUnits.QUARTER: {
       const month = Number(
         format(date, 'en-US', { month: 'numeric', timeZone }),
       );
       const quarter = Math.floor((month - 1) / 3) + 1;
       return `${format(date, locale, gregorianYear(timeZone))} Q${quarter}`;
     }
-    case 'MONTH':
+    case AggregationDateUnits.MONTH:
       return format(date, locale, {
         ...gregorianYear(timeZone),
         month: 'long',
       });
-    case 'WEEK':
-    case 'DAY':
+    case AggregationDateUnits.WEEK:
+    case AggregationDateUnits.DAY:
       return format(date, locale, { dateStyle: 'medium', timeZone });
-    case 'HOUR':
-    case 'MINUTE':
+    case AggregationDateUnits.HOUR:
+    case AggregationDateUnits.MINUTE:
       return format(date, locale, {
         dateStyle: 'medium',
         timeStyle: 'short',
         timeZone,
       });
-    case 'SECOND':
+    case AggregationDateUnits.SECOND:
       return format(date, locale, {
         dateStyle: 'medium',
         timeStyle: 'medium',

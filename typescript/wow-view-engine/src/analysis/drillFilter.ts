@@ -17,6 +17,7 @@ import type {
   FilterTree,
   FilterValue,
 } from '../model/index.js';
+import { FilterOperators } from '../model/index.js';
 import {
   isDateTimeFilterValue,
   isFilterGroup,
@@ -60,11 +61,12 @@ export function drillFilter(
   const nested = new Map<string, FilterNode[]>();
   for (const condition of conditions) {
     const clash =
-      isFilterLeaf(condition) && condition.operator !== 'EXPRESSION'
+      isFilterLeaf(condition) &&
+      condition.operator !== FilterOperators.EXPRESSION
         ? children.findIndex(
             child =>
               isFilterLeaf(child) &&
-              child.operator !== 'EXPRESSION' &&
+              child.operator !== FilterOperators.EXPRESSION &&
               child.field === condition.field,
           )
         : -1;
@@ -93,7 +95,11 @@ export function drillFilter(
  * stretch in no zone waits for the runtime's; both stay beside the row.
  */
 function holdsWhole(scope: FilterLeaf, row: FilterLeaf): boolean {
-  if (scope.operator !== 'BETWEEN' || row.operator !== 'BETWEEN') return false;
+  if (
+    scope.operator !== FilterOperators.BETWEEN ||
+    row.operator !== FilterOperators.BETWEEN
+  )
+    return false;
   const outer = pinnedStretch(scope.value);
   const inner = pinnedStretch(row.value);
   return (

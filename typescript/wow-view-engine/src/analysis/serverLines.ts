@@ -27,6 +27,12 @@ import type {
   DerivedSeries,
   RecordData,
 } from '../model/index.js';
+import {
+  AggregationDateUnits,
+  AggregationMetricTypes,
+  SortDirections,
+  WindowFunctions,
+} from '../model/index.js';
 import { isAdditiveMetric } from './additive.js';
 import { timeGroup } from './timeAxis.js';
 
@@ -58,11 +64,11 @@ export function serverLineAlias(line: Line, window?: number): string {
 
 /** The windows each kind needs from the source, and how many it spends. */
 const NEEDS = {
-  cumulative: ['RUNNING'],
-  'cumulative-share': ['RUNNING', 'TOTAL'],
-  'moving-average': ['RUNNING'],
-  previous: ['PREVIOUS'],
-  'previous-year': ['PREVIOUS'],
+  cumulative: [WindowFunctions.RUNNING],
+  'cumulative-share': [WindowFunctions.RUNNING, WindowFunctions.TOTAL],
+  'moving-average': [WindowFunctions.RUNNING],
+  previous: [WindowFunctions.PREVIOUS],
+  'previous-year': [WindowFunctions.PREVIOUS],
 } as const;
 
 /**
@@ -140,9 +146,9 @@ export function yearAgoGap(
   metric: string,
   moments: ReadonlySet<string> = new Set(),
 ): YearAgoGap | undefined {
-  if (!offeredWindows.includes('PREVIOUS')) return 'unsupported';
+  if (!offeredWindows.includes(WindowFunctions.PREVIOUS)) return 'unsupported';
   const x = config.chart.metric?.trend?.x;
-  if (timeGroup(config, x)?.unit === 'WEEK') return 'week';
+  if (timeGroup(config, x)?.unit === AggregationDateUnits.WEEK) return 'week';
   const measured = config.metrics.find(one => one.alias === metric);
   return measured && WINDOWED.has(measured.type) && !moments.has(metric)
     ? undefined
@@ -217,7 +223,12 @@ export function isPrevious(kind: DerivedSeries['kind']): boolean {
 }
 
 /** The metric types a window reads: a number of the group, not a derived one. */
-const WINDOWED = new Set(['COUNT', 'NUMERIC', 'DISTINCT_COUNT', 'PERCENTILE']);
+const WINDOWED = new Set<string>([
+  AggregationMetricTypes.COUNT,
+  AggregationMetricTypes.NUMERIC,
+  AggregationMetricTypes.DISTINCT_COUNT,
+  AggregationMetricTypes.PERCENTILE,
+]);
 
 /**
  * The order a line runs in: along time, forward; along categories, the
@@ -230,7 +241,10 @@ function orderOf(
 ): FieldSort | undefined {
   const x = config.chart.cartesian?.x;
   // A week has no bucket a year earlier: 52 weeks back is no week of the year.
-  if (line.kind === 'previous-year' && timeGroup(config, x)?.unit === 'WEEK')
+  if (
+    line.kind === 'previous-year' &&
+    timeGroup(config, x)?.unit === AggregationDateUnits.WEEK
+  )
     return undefined;
   if (time && x !== undefined)
     return { field: x, direction: SortDirection.ASC };
@@ -240,7 +254,9 @@ function orderOf(
   return {
     field: line.metric,
     direction:
-      first.direction === 'ASC' ? SortDirection.ASC : SortDirection.DESC,
+      first.direction === SortDirections.ASC
+        ? SortDirection.ASC
+        : SortDirection.DESC,
   };
 }
 

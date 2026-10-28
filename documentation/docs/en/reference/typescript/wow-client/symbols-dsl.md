@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client/dsl exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client/dsl` exports — 161 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
 
 ::: v-pre
 
@@ -136,6 +136,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `QueryModelDescriptor` | interface | How a query model can be queried over HTTP: the answer`GET {aggregate}/snapshot/schema` and `GET {aggregate}/event/schema` give. | — |
 | `QueryModels` | const | The query models Wow names in a descriptor's `model`. | — |
 | `QuerySemanticType` | type | What a field's value means beyond its type, sent as its `semantic`: one of the three temporal kinds, which the relative time filters (`TODAY`,`RECENT_DAYS`, …) and date histograms need; one of the two numeric formats, which say how a number is read and displayed; a duration; or a reference to an aggregate. | — |
+| `QuerySemanticTypes` | const | The semantics Wow names in a field's `semantic.type`, one per member of`QuerySemanticType`: read a descriptor's semantic by these rather than by its spelling. | — |
 | `QueryValueKind` | enum | The structural shape of a field's value, sent as its `kind`. | — |
 | `QueryValueType` | type | A field's value type: one of `QueryValueTypes`, or one a server added. | — |
 | `QueryValueTypes` | const | The value types Wow names in a field's `types`. | — |

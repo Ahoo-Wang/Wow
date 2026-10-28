@@ -7,22 +7,28 @@
 import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
 import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
+import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
+import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { ReactNode } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
@@ -84,6 +90,15 @@ export interface ActionRunner {
 // @public
 type ActionTone = 'default' | 'danger';
 
+// @public (undocumented)
+type AggregationDatePartName = `${AggregationDatePart}`;
+
+// @public (undocumented)
+type AggregationDateUnitName = `${AggregationDateUnit}`;
+
+// @public (undocumented)
+type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
+
 // @public
 interface AggregationFieldCapability {
     // (undocumented)
@@ -108,11 +123,17 @@ interface AggregationFieldCapability {
 }
 
 // @public (undocumented)
+type AggregationFunctionName = `${AggregationFunction}`;
+
+// @public
+type AggregationGroupTypeName = `${AggregationGroupType}`;
+
+// @public (undocumented)
 interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
     count: boolean;
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     dense?: boolean;
     elements?: AnalysisElementCapability[];
     expressions?: boolean;
@@ -126,7 +147,7 @@ interface AnalysisCapability {
     limits?: AnalysisLimits;
     metricSort?: boolean;
     rootGroups?: boolean;
-    windows?: AnalysisWindowFunction[];
+    windows?: WindowFunctionName[];
 }
 
 // @public
@@ -146,8 +167,8 @@ interface AnalysisColumnView {
     cell?: string;
     condition?: MetricCondition;
     currency?: ColumnCurrency;
-    datePart?: AnalysisDatePart;
-    dateUnit?: AnalysisDateUnit;
+    datePart?: AggregationDatePartName;
+    dateUnit?: AggregationDateUnitName;
     fn?: MetricFunction;
     interval?: number;
     kind?: string;
@@ -169,25 +190,16 @@ interface AnalysisColumnView {
     width?: number;
 }
 
-// @public (undocumented)
-type AnalysisDateDiffUnit = `${DateDiffUnit}`;
-
-// @public (undocumented)
-type AnalysisDatePart = `${AggregationDatePart}`;
-
-// @public (undocumented)
-type AnalysisDateUnit = `${AggregationDateUnit}`;
-
 // @public
 type AnalysisDerivedExpression = {
-    type: 'METRIC_REF';
+    type: `${DerivedExpressionType.METRIC_REF}`;
     metric: string;
 } | {
-    type: 'CONSTANT';
+    type: `${DerivedExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    type: `${DerivedExpressionType.BINARY}`;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisDerivedExpression;
     right: AnalysisDerivedExpression;
 };
@@ -207,8 +219,8 @@ export interface AnalysisEditorController extends QuestionEditing {
     conditionFields: readonly FieldDefinition[];
     // (undocumented)
     countable: boolean;
-    dateDiffUnits: readonly AnalysisDateDiffUnit[];
-    dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
+    dateDiffUnits: readonly DateDiffUnitName[];
+    dateUnitFor(field: AnalysisFieldOption): AggregationDateUnitName;
     denseAllowed: boolean;
     dismissDrop(): void;
     dropped: DropNotice | null;
@@ -272,7 +284,7 @@ export interface AnalysisEditorController extends QuestionEditing {
     unit: string | null;
     // (undocumented)
     updateChart(patch: Partial<ChartSpec>): void;
-    windows: readonly AnalysisWindowFunction[];
+    windows: readonly WindowFunctionName[];
 }
 
 // @public
@@ -293,42 +305,39 @@ interface AnalysisElementCapability {
 
 // @public
 type AnalysisExpression = {
-    type: 'FIELD';
+    type: `${AggregationExpressionType.FIELD}`;
     field: string;
 } | {
-    type: 'CONSTANT';
+    type: `${AggregationExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'DATE_DIFF';
+    type: `${AggregationExpressionType.DATE_DIFF}`;
     from: string;
     to: string;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 } | {
-    type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    type: `${AggregationExpressionType.BINARY}`;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisExpression;
     right: AnalysisExpression;
 };
-
-// @public (undocumented)
-type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 // @public
 export interface AnalysisFieldOption {
     // (undocumented)
     any: boolean;
     cell?: string;
-    dateParts: AnalysisDatePart[];
+    dateParts: AggregationDatePartName[];
     // (undocumented)
-    dateUnits: AnalysisDateUnit[];
+    dateUnits: AggregationDateUnitName[];
     // (undocumented)
     distinctCount: boolean;
     expressionInput?: boolean;
     // (undocumented)
     field: string;
     firstLast: boolean;
-    functions: AnalysisFunction[];
-    groups: AnalysisGroupType[];
+    functions: AggregationFunctionName[];
+    groups: AggregationGroupTypeName[];
     // (undocumented)
     label: string;
     missingKey: boolean;
@@ -337,44 +346,38 @@ export interface AnalysisFieldOption {
     steps?: boolean;
 }
 
-// @public (undocumented)
-type AnalysisFunction = `${AggregationFunction}`;
-
 // @public
 type AnalysisGroup = AnalysisNamed & ({
-    type: 'TERMS';
+    type: `${AggregationGroupType.TERMS}`;
     field: string;
     alias: string;
     missingKey?: string;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     field: string;
     alias: string;
     interval: number;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     expression: AnalysisExpression;
     alias: string;
     interval: number;
     field?: undefined;
 } | {
-    type: 'DATE_HISTOGRAM';
+    type: `${AggregationGroupType.DATE_HISTOGRAM}`;
     field: string;
     alias: string;
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     timeZone?: string;
     dense?: boolean;
 } | {
-    type: 'DATE_PART';
+    type: `${AggregationGroupType.DATE_PART}`;
     field: string;
     alias: string;
-    part: AnalysisDatePart;
+    part: AggregationDatePartName;
     timeZone?: string;
     dense?: boolean;
 });
-
-// @public
-type AnalysisGroupType = `${AggregationGroupType}`;
 
 // @public
 type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
@@ -406,39 +409,39 @@ interface AnalysisLimits {
 
 // @public
 type AnalysisMetric = AnalysisNamed & ({
-    type: 'COUNT';
+    type: `${AggregationMetricType.COUNT}`;
     alias: string;
     filter?: FilterTree;
 } | {
-    type: 'NUMERIC';
+    type: `${AggregationMetricType.NUMERIC}`;
     alias: string;
-    function: AnalysisFunction;
+    function: AggregationFunctionName;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'ANY';
+    type: `${AggregationMetricType.ANY}`;
     alias: string;
     field: string;
     filter?: FilterTree;
 } | {
-    type: 'FIRST' | 'LAST';
+    type: `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
     alias: string;
     field: string;
     orderBy?: string;
     filter?: FilterTree;
 } | {
-    type: 'DISTINCT_COUNT';
+    type: `${AggregationMetricType.DISTINCT_COUNT}`;
     alias: string;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'PERCENTILE';
+    type: `${AggregationMetricType.PERCENTILE}`;
     alias: string;
     expression: AnalysisExpression;
     percentile: number;
     filter?: FilterTree;
 } | {
-    type: 'DERIVED';
+    type: `${AggregationMetricType.DERIVED}`;
     alias: string;
     expression: AnalysisDerivedExpression;
     format?: DerivedFormat;
@@ -507,7 +510,7 @@ interface AnalysisSort {
     // (undocumented)
     alias: string;
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
 }
 
 // @public
@@ -515,7 +518,7 @@ interface AnalysisSpec {
     // (undocumented)
     count?: boolean;
     // (undocumented)
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     // (undocumented)
     expressions?: boolean;
     // (undocumented)
@@ -536,7 +539,7 @@ interface AnalysisTop {
     // (undocumented)
     count: number;
     // (undocumented)
-    direction?: SortDirection;
+    direction?: SortDirectionName;
     // (undocumented)
     metric: string;
     // (undocumented)
@@ -568,9 +571,6 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     top?: AnalysisTop;
 }
-
-// @public
-type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
@@ -956,6 +956,9 @@ interface ColumnCurrency {
 type ColumnEdge = 'left' | 'right';
 
 // @public (undocumented)
+type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+
+// @public (undocumented)
 type ConflictChoice = 'reload' | 'overwrite';
 
 // @public
@@ -1070,7 +1073,7 @@ export interface DashboardController {
     setBuilding(active: boolean): void;
     setFilterValue(name: string, value: FilterValue | null): Issue[];
     // (undocumented)
-    setGroupingUnit(unit: AnalysisDateUnit): void;
+    setGroupingUnit(unit: AggregationDateUnitName): void;
     showTab(tabId: string): void;
     spanFilters(panelId: string): readonly DashboardField[];
     tab: string | null;
@@ -1154,7 +1157,7 @@ interface DashboardFilterEditing {
 // @public
 interface DashboardFilters {
     from?: Record<string, string>;
-    unit?: AnalysisDateUnit;
+    unit?: AggregationDateUnitName;
     values: Record<string, FilterValue>;
 }
 
@@ -1246,7 +1249,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     setBuilding(active: boolean): void;
     setFilters(filters: DashboardFilters): Issue[];
     setFilterValue(name: string, value: FilterValue | null): Issue[];
-    setGroupingUnit(unit: AnalysisDateUnit): void;
+    setGroupingUnit(unit: AggregationDateUnitName): void;
     setRefreshInterval(interval: number | null): void;
     showTab(tabId: string | null): void;
     spanFilters(panelId: string): DashboardField[];
@@ -1289,8 +1292,8 @@ interface DashboardTarget {
 // @public
 interface DashboardTimeGrouping {
     // (undocumented)
-    default: AnalysisDateUnit;
-    units: AnalysisDateUnit[];
+    default: AggregationDateUnitName;
+    units: AggregationDateUnitName[];
 }
 
 // @public (undocumented)
@@ -1471,6 +1474,9 @@ interface DataViewDefinition {
 }
 
 // @public (undocumented)
+type DateDiffUnitName = `${DateDiffUnit}`;
+
+// @public (undocumented)
 interface DateTemporal {
     // (undocumented)
     type: 'date';
@@ -1621,9 +1627,6 @@ interface Dropped {
 // @public
 const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
 
-// @public (undocumented)
-type DurationComparison = (typeof DURATION_COMPARISONS)[number];
-
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
 
@@ -1707,7 +1710,7 @@ interface EpochTemporal {
 }
 
 // @public
-type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
+type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
 // @public (undocumented)
 interface ExportedRows {
@@ -2095,9 +2098,9 @@ type FilterSummaryValue =
 | {
     kind: 'duration';
     from: string;
-    comparison: DurationComparison;
+    comparison: ComparisonOperatorName;
     amount: number;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 }
 /** A named calendar period, resolved at compile time. */
 | {
@@ -2114,7 +2117,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'period';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     timeZone: string;
 }
@@ -2127,7 +2130,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'periods';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     last: string;
     timeZone: string;
@@ -2345,7 +2348,7 @@ interface HandOver {
 
 // @public
 type HavingOperator = Extract<AnalysisHavingExpression, {
-    type: 'CONDITION';
+    type: `${HavingExpressionType.CONDITION}`;
 }>['operator'];
 
 // @public
@@ -2384,7 +2387,7 @@ interface HeatmapSpec {
 // @public
 interface HeldFilters {
     // (undocumented)
-    unit?: AnalysisDateUnit | null;
+    unit?: AggregationDateUnitName | null;
     // (undocumented)
     values: Readonly<Record<string, FilterValue | null>>;
 }
@@ -2600,7 +2603,7 @@ interface MetricCondition {
 }
 
 // @public
-type MetricFunction = AnalysisFunction | 'COUNT' | 'DISTINCT_COUNT' | 'PERCENTILE' | 'FIRST' | 'LAST' | 'ANY' | 'DERIVED';
+type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
 // @public (undocumented)
 type MetricHeadline = 'last' | 'whole';
@@ -2639,7 +2642,7 @@ interface MetricPeriod {
         to: number;
         zone: string;
     };
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     unmatched?: true;
 }
 
@@ -2780,9 +2783,6 @@ interface PagedPaging {
     size: number;
     total?: number;
 }
-
-// @public
-type PagingMode = 'paged' | 'cursor';
 
 // @public
 interface PanelBinding {
@@ -3009,7 +3009,7 @@ function questionEditing(input: QuestionEditingInput): {
     moveMetric: (from: number, to: number) => MetricMove | undefined;
     removeMetric: (index: number) => void;
     addFormula: () => void;
-    addDuration: (unit: AnalysisDateDiffUnit) => void;
+    addDuration: (unit: DateDiffUnitName) => void;
     groupByDuration: (index: number) => void;
     addDerived: () => void;
     setHaving: (having: AnalysisHavingExpression | undefined) => void;
@@ -3135,7 +3135,7 @@ interface RecordCapability {
     layouts: RecordLayout[];
     maxSortFields?: number;
     maxWindow?: number;
-    paging: PagingMode;
+    paging: RecordPagingMode;
     parallelArrays?: string[][];
     requiresFilter?: boolean;
     rowFields?: string[];
@@ -3354,7 +3354,7 @@ interface RecordLaneView {
 type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public
-type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
+type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P extends 'paged' ? {
     index: number;
 } : {
     cursor: string | null;
@@ -3362,6 +3362,9 @@ type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
 
 // @public (undocumented)
 type RecordPaging = PagedPaging | CursorPaging;
+
+// @public
+type RecordPagingMode = 'paged' | 'cursor';
 
 // @public (undocumented)
 interface RecordProjection {
@@ -3395,7 +3398,7 @@ export interface RecordRowActionContext {
 // @public (undocumented)
 interface RecordSort {
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
     // (undocumented)
     field: string;
 }
@@ -3463,7 +3466,7 @@ export interface RecordTableController {
     setSummary(field: string, fn: SummaryFunction | null): void;
     sort: RecordSort[];
     // (undocumented)
-    sortOf(field: string): SortDirection | null;
+    sortOf(field: string): SortDirectionName | null;
     // (undocumented)
     status: QueryStatus;
     // (undocumented)
@@ -3501,7 +3504,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 }
 
 // @public
-interface RecordViewRuntime<P extends PagingMode = PagingMode> extends ViewRuntime<RecordViewConfig> {
+interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
     fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
     loadLane(laneId: string): void;
@@ -3843,7 +3846,7 @@ export type SnapshotOf<R> = R extends {
 } ? S : never;
 
 // @public
-type SortDirection = 'ASC' | 'DESC';
+type SortDirectionName = `${SortDirection}`;
 
 // @public
 export interface SplitOption {
@@ -3881,7 +3884,7 @@ interface SummaryCell {
 }
 
 // @public
-type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
+type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
 // @public (undocumented)
 interface SummaryRow {
@@ -4573,6 +4576,9 @@ interface WaterfallStep {
     value: number;
     x: unknown;
 }
+
+// @public
+type WindowFunctionName = `${WindowFunction}`;
 
 // @public
 export interface WorkbenchController {

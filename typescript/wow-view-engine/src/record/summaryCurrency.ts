@@ -13,6 +13,7 @@
 
 import {
   currencyPathOf,
+  AggregationMetricTypes,
   type DataViewDefinition,
   type SummaryFunction,
 } from '../model/index.js';
@@ -30,7 +31,7 @@ export function summaryCurrency(
   definition: DataViewDefinition,
   summary: { field: string; fn: SummaryFunction },
 ): { field: string; code: string; count: string } | undefined {
-  if (summary.fn === 'COUNT') return undefined;
+  if (summary.fn === AggregationMetricTypes.COUNT) return undefined;
   const field = definition.fields.find(entry => entry.name === summary.field);
   const currency = field && currencyPathOf(field);
   if (currency === undefined) return undefined;

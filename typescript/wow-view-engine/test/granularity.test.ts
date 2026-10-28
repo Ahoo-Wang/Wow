@@ -17,10 +17,13 @@ import {
   recommendDateUnit,
   resultSpan,
 } from '../src/analysis/index.js';
-import type { AnalysisDateUnit, FilterTree } from '../src/model/index.js';
+import type {
+  AggregationDateUnitName,
+  FilterTree,
+} from '../src/model/index.js';
 
 const DAY = 86_400_000;
-const ALL: AnalysisDateUnit[] = [
+const ALL: AggregationDateUnitName[] = [
   'SECOND',
   'MINUTE',
   'HOUR',

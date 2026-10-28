@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
@@ -20,8 +21,11 @@ import {
   isDateCell,
   currencyPathOf,
   isFieldlessKind,
-  type CurrencyReading,
   numberFormatOf,
+  DEFAULT_RUNTIME_LIMITS,
+  AggregationFunctions,
+  AggregationMetricTypes,
+  type CurrencyReading,
   type DataViewDefinition,
   type FieldDefinition,
   type FieldNumeric,
@@ -34,7 +38,6 @@ import {
   type RecordKey,
   type RecordPageTarget,
   type RecordViewConfig,
-  DEFAULT_RUNTIME_LIMITS,
   type RuntimeLimits,
   type SummaryFunction,
   type EpochTimeUnit,
@@ -610,7 +613,11 @@ function summaryReading(
   field: FieldDefinition | undefined,
   fn: SummaryFunction,
 ): string | undefined {
-  if (!field || (fn !== 'MIN' && fn !== 'MAX')) return undefined;
+  if (
+    !field ||
+    (fn !== AggregationFunctions.MIN && fn !== AggregationFunctions.MAX)
+  )
+    return undefined;
   const cell = field.cell ?? field.kind;
   return isDateCell(cell) ? cell : undefined;
 }
@@ -629,7 +636,7 @@ function summaryReading(
 function reduceInstants(
   rows: readonly RecordData[],
   field: string,
-  fn: 'MIN' | 'MAX',
+  fn: `${AggregationFunction.MIN}` | `${AggregationFunction.MAX}`,
 ): number | string | null {
   let best: { at: number; value: number | string } | undefined;
   for (const row of rows) {
@@ -639,7 +646,12 @@ function reduceInstants(
     if (typeof value !== 'string' && typeof value !== 'number') continue;
     const instant = readInstant(value);
     if (!instant) continue;
-    if (!best || (fn === 'MIN' ? instant.ms < best.at : instant.ms > best.at))
+    if (
+      !best ||
+      (fn === AggregationFunctions.MIN
+        ? instant.ms < best.at
+        : instant.ms > best.at)
+    )
       best = { at: instant.ms, value };
   }
   return best?.value ?? null;
@@ -651,23 +663,26 @@ function reduceRows(
   fn: SummaryFunction,
   reading?: string,
 ): number | string | null {
-  if (fn === 'COUNT') return rows.length;
-  if (reading !== undefined && (fn === 'MIN' || fn === 'MAX'))
+  if (fn === AggregationMetricTypes.COUNT) return rows.length;
+  if (
+    reading !== undefined &&
+    (fn === AggregationFunctions.MIN || fn === AggregationFunctions.MAX)
+  )
     return reduceInstants(rows, field, fn);
   const numbers = rows
     .map(row => recordValue(row, field))
     .filter((value): value is number => typeof value === 'number');
   if (numbers.length === 0) return null;
   switch (fn) {
-    case 'SUM':
+    case AggregationFunctions.SUM:
       return numbers.reduce((total, value) => total + value, 0);
-    case 'AVG':
+    case AggregationFunctions.AVG:
       return (
         numbers.reduce((total, value) => total + value, 0) / numbers.length
       );
-    case 'MIN':
+    case AggregationFunctions.MIN:
       return Math.min(...numbers);
-    case 'MAX':
+    case AggregationFunctions.MAX:
       return Math.max(...numbers);
   }
 }
@@ -693,7 +708,9 @@ export function projectSummaries(
         ? reduceRows(source.rows, summary.field, summary.fn, reading)
         : readAggregated(row, summaryAlias(summary.field, summary.fn), reading);
     const currencyPath =
-      field && summary.fn !== 'COUNT' ? currencyPathOf(field) : undefined;
+      field && summary.fn !== AggregationMetricTypes.COUNT
+        ? currencyPathOf(field)
+        : undefined;
     const companion = summaryCurrency(definition, summary);
     const currency =
       currencyPath === undefined

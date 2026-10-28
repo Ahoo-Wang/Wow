@@ -18,8 +18,8 @@ import {
   numberFormatOf,
   type CurrencyReading,
   type FieldNumeric,
-  type AnalysisDatePart,
-  type AnalysisDateUnit,
+  type AggregationDatePartName,
+  type AggregationDateUnitName,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -30,6 +30,8 @@ import {
   type RecordData,
   type EpochTimeUnit,
   type RuntimeLimits,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import { inCurrency, joinCurrencies } from '../model/currency.js';
 import type { FieldKindRegistry } from '../filter/index.js';
@@ -118,7 +120,7 @@ export interface AnalysisColumnView {
   /** A field kept in epoch seconds; milliseconds when unsaid. */
   timeUnit?: EpochTimeUnit;
   /** For a date histogram group: the width of the buckets its keys start. */
-  dateUnit?: AnalysisDateUnit;
+  dateUnit?: AggregationDateUnitName;
   /** For a date histogram group: the zone its buckets were cut in. */
   timeZone?: string;
   /**
@@ -134,7 +136,7 @@ export interface AnalysisColumnView {
    * bare integer, and an axis runs through the part's whole domain
    * (`DATE_PART_DOMAINS`).
    */
-  datePart?: AnalysisDatePart;
+  datePart?: AggregationDatePartName;
   /**
    * For a value group that keeps a bucket of the records with no value: the
    * key that bucket comes back under (`AnalysisGroup.missingKey`). The
@@ -360,7 +362,7 @@ function valueOf(
  */
 function wholeOf(row: RecordData, config: AnalysisViewConfig): RecordData {
   const wholeless = config.metrics
-    .filter(metric => metric.type === 'ANY')
+    .filter(metric => metric.type === AggregationMetricTypes.ANY)
     .map(metric => metric.alias);
   if (wholeless.length === 0) return row;
   return Object.fromEntries(
@@ -374,13 +376,15 @@ function bucketOf(
   AnalysisColumnView,
   'dateUnit' | 'timeZone' | 'interval' | 'missingKey' | 'datePart'
 > {
-  if (group?.type === 'DATE_PART') return { datePart: group.part };
-  if (group?.type === 'HISTOGRAM') return { interval: group.interval };
-  if (group?.type === 'TERMS')
+  if (group?.type === AggregationGroupTypes.DATE_PART)
+    return { datePart: group.part };
+  if (group?.type === AggregationGroupTypes.HISTOGRAM)
+    return { interval: group.interval };
+  if (group?.type === AggregationGroupTypes.TERMS)
     return group.missingKey === undefined
       ? {}
       : { missingKey: group.missingKey };
-  if (group?.type !== 'DATE_HISTOGRAM') return {};
+  if (group?.type !== AggregationGroupTypes.DATE_HISTOGRAM) return {};
   return {
     dateUnit: group.unit,
     ...(group.timeZone === undefined ? {} : { timeZone: group.timeZone }),
@@ -469,7 +473,7 @@ export function projectAnalysis(
   // time field it was taken from.
   const valued = new Set([
     ...[...groups.values()]
-      .filter(group => group.type !== 'DATE_PART')
+      .filter(group => group.type !== AggregationGroupTypes.DATE_PART)
       .map(group => group.alias),
     ...config.metrics.filter(readsAsItsField).map(metric => metric.alias),
   ]);
@@ -661,7 +665,7 @@ function undatedLast(
     first === undefined
       ? config.groups[0]
       : config.groups.find(one => one.alias === first.alias);
-  if (group?.type !== 'DATE_HISTOGRAM') return rows;
+  if (group?.type !== AggregationGroupTypes.DATE_HISTOGRAM) return rows;
   const undated = (row: RecordData) =>
     row[group.alias] === null || row[group.alias] === undefined;
   return rows.some(undated)
@@ -707,9 +711,9 @@ function numericOf(
 ): Pick<AnalysisColumnView, 'numeric'> {
   if (field.numberFormat !== undefined || !field.numeric) return {};
   switch (metricFunctionOf(metric)) {
-    case 'COUNT':
-    case 'DISTINCT_COUNT':
-    case 'DERIVED':
+    case AggregationMetricTypes.COUNT:
+    case AggregationMetricTypes.DISTINCT_COUNT:
+    case AggregationMetricTypes.DERIVED:
       return {};
     default:
       return { numeric: field.numeric };
@@ -742,7 +746,7 @@ function metricCurrencies(
     found.set(metric.alias, {
       companions: told,
       writes:
-        metric.type !== 'DERIVED' ||
+        metric.type !== AggregationMetricTypes.DERIVED ||
         (metric.format?.style === 'currency' &&
           metric.format.currency === undefined),
     });
@@ -837,7 +841,7 @@ function formulaLabel(
   const fieldLabel = (field: string) => byName.get(field)?.label ?? field;
   if (isFormula(metric) || isDuration(metric))
     return expressionText(metric.expression, fieldLabel, true);
-  if (metric.type !== 'DERIVED') return undefined;
+  if (metric.type !== AggregationMetricTypes.DERIVED) return undefined;
   return derivedText(metric.expression, alias => {
     const referenced = byAlias.get(alias);
     if (!referenced) return alias;
@@ -846,7 +850,7 @@ function formulaLabel(
     // or a formula, marked for the UI to word as its own column is worded —
     // its own condition included.
     if (referenced.label !== undefined) return referenced.label;
-    if (referenced.type === 'DERIVED')
+    if (referenced.type === AggregationMetricTypes.DERIVED)
       return formulaLabel(referenced, byName, byAlias, conditionOf) ?? alias;
     const source = metricFieldOf(referenced);
     return metricReferenceText(

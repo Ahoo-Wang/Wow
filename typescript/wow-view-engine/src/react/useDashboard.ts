@@ -15,7 +15,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
   boardWidth,
-  type AnalysisDateUnit,
+  type AggregationDateUnitName,
   type DashboardWidth,
   type DashboardField,
   type DashboardFilters,
@@ -177,7 +177,7 @@ export interface DashboardController {
    * was refused.
    */
   setFilterValue(name: string, value: FilterValue | null): Issue[];
-  setGroupingUnit(unit: AnalysisDateUnit): void;
+  setGroupingUnit(unit: AggregationDateUnitName): void;
   /** 「清空」: every filter cleared, the required ones to their defaults. */
   clearFilters(): void;
   /**
@@ -379,7 +379,7 @@ export function useDashboard(
       [runtime],
     ),
     setGroupingUnit: useCallback(
-      (unit: AnalysisDateUnit) => runtime?.setGroupingUnit(unit),
+      (unit: AggregationDateUnitName) => runtime?.setGroupingUnit(unit),
       [runtime],
     ),
     clearFilters: useCallback(() => runtime?.clearFilters(), [runtime]),

@@ -144,6 +144,7 @@ src/
     record.ts                 — RecordData, RecordColumn, and how an untrusted `pinned` / `hidden` reads
     storeError.ts             — ViewStoreError
     text.ts                   — `text(key)`: a key standing where a label goes, a marked string; `say` says one where it is shown or leaves the engine, in a catalogue or a resolver (D2, words at the leaf); `withText` walks a value for its keys (host-integration.md 3.1)
+    wire.ts                   — the protocol's values: each wow-client enum as a literal-typed view (`literals`), the one place every layer reads a Wow wire value (D353); internal, in no entry
     index.ts                  — Types and constants only: definitions are code and configs are data, so this layer describes both and depends on nothing else
   filter/                     — Filter kernel — imports model only
     compile.ts                — compileFilter → FilterExpression; `FilterCompileContext` is the moment and zone a relative condition resolves against
@@ -760,6 +761,7 @@ src/
       scope.ts                — who a view is for: the audience picker's words and the list's two headings
       status.ts               — What the view says about itself: what failed, what is still on screen, and whether something is running right now
       view.ts                 — a view itself: which kind it is, the list it sits in, and the commands
+      wireKey.ts              — `wireKey(prefix, value)`: the key of a word for a wire value, built from the value so it follows Wow's spelling (D353)
       workbench.ts            — the frame around a view
       zh-CN.ts                — `zhCN`, the same keys in 简体中文
     record/                   — What the record view is made of

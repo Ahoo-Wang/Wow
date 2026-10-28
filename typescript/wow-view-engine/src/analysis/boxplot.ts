@@ -11,12 +11,19 @@
  * limitations under the License.
  */
 
+import type {
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   fieldAliasSegment,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type BoxplotSpec,
   type RecordData,
+  AggregationExpressionTypes,
+  AggregationFunctions,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import { num } from './chartRows.js';
 import { freeAlias } from './freeAlias.js';
@@ -48,25 +55,34 @@ const BOX_PERCENTILES = [25, 50, 75] as const;
  * text, so two metrics are of one field under one condition exactly when
  * the two keys are equal.
  */
-function boxPart(
-  metric: AnalysisMetric,
-): { of: string; kind: 'MIN' | 'MAX' | 'PERCENTILE'; at: number } | undefined {
-  const filter = metric.type === 'DERIVED' ? undefined : metric.filter;
+function boxPart(metric: AnalysisMetric):
+  | {
+      of: string;
+      kind:
+        | `${AggregationFunction.MIN}`
+        | `${AggregationFunction.MAX}`
+        | `${AggregationMetricType.PERCENTILE}`;
+      at: number;
+    }
+  | undefined {
+  const filter =
+    metric.type === AggregationMetricTypes.DERIVED ? undefined : metric.filter;
   const scope = JSON.stringify(filter ?? null);
-  if (metric.type === 'PERCENTILE')
+  if (metric.type === AggregationMetricTypes.PERCENTILE)
     return {
       of: `${JSON.stringify(metric.expression)}|${scope}`,
-      kind: 'PERCENTILE',
+      kind: AggregationMetricTypes.PERCENTILE,
       at: metric.percentile,
     };
   if (
-    metric.type === 'NUMERIC' &&
-    (metric.function === 'MIN' || metric.function === 'MAX')
+    metric.type === AggregationMetricTypes.NUMERIC &&
+    (metric.function === AggregationFunctions.MIN ||
+      metric.function === AggregationFunctions.MAX)
   )
     return {
       of: `${JSON.stringify(metric.expression)}|${scope}`,
       kind: metric.function,
-      at: metric.function === 'MIN' ? 0 : 100,
+      at: metric.function === AggregationFunctions.MIN ? 0 : 100,
     };
   return undefined;
 }
@@ -100,8 +116,9 @@ export function fiveNumberSets(
     const part = boxPart(metric);
     if (!part) continue;
     const entry = byField.get(part.of) ?? { percentiles: [] };
-    if (part.kind === 'MIN') entry.low ??= metric.alias;
-    else if (part.kind === 'MAX') entry.high ??= metric.alias;
+    if (part.kind === AggregationFunctions.MIN) entry.low ??= metric.alias;
+    else if (part.kind === AggregationFunctions.MAX)
+      entry.high ??= metric.alias;
     else if (!entry.percentiles.some(one => one.at === part.at))
       entry.percentiles.push({ alias: metric.alias, at: part.at });
     byField.set(part.of, entry);
@@ -145,9 +162,11 @@ export function isFiveNumberSet(
     (typeof parts)[number]
   >[];
   return (
-    low.kind === 'MIN' &&
-    high.kind === 'MAX' &&
-    [q1, median, q3].every(part => part.kind === 'PERCENTILE') &&
+    low.kind === AggregationFunctions.MIN &&
+    high.kind === AggregationFunctions.MAX &&
+    [q1, median, q3].every(
+      part => part.kind === AggregationMetricTypes.PERCENTILE,
+    ) &&
     q1.at < median.at &&
     median.at < q3.at &&
     parts.every(part => part?.of === low.of)
@@ -166,14 +185,19 @@ export function fiveNumberMetrics(
   taken: readonly string[],
 ): AnalysisMetric[] | undefined {
   if (
-    metric.type !== 'PERCENTILE' &&
-    !(metric.type === 'NUMERIC' && metric.expression.type === 'FIELD')
+    metric.type !== AggregationMetricTypes.PERCENTILE &&
+    !(
+      metric.type === AggregationMetricTypes.NUMERIC &&
+      metric.expression.type === AggregationExpressionTypes.FIELD
+    )
   )
     return undefined;
   const { expression, filter } = metric;
   const own = boxPart(metric);
   const stem =
-    expression.type === 'FIELD' ? fieldAliasSegment(expression.field) : 'value';
+    expression.type === AggregationExpressionTypes.FIELD
+      ? fieldAliasSegment(expression.field)
+      : 'value';
   const used = [...taken];
   const alias = (suffix: string) => {
     const next = freeAlias(`${stem}_${suffix}`, used);
@@ -182,11 +206,17 @@ export function fiveNumberMetrics(
   };
   const scoped = filter === undefined ? {} : { filter };
   const parts: (
-    { kind: 'MIN' | 'MAX' } | { kind: 'PERCENTILE'; at: number }
+    | {
+        kind: `${AggregationFunction.MIN}` | `${AggregationFunction.MAX}`;
+      }
+    | { kind: `${AggregationMetricType.PERCENTILE}`; at: number }
   )[] = [
-    { kind: 'MIN' },
-    ...BOX_PERCENTILES.map(at => ({ kind: 'PERCENTILE' as const, at })),
-    { kind: 'MAX' },
+    { kind: AggregationFunctions.MIN },
+    ...BOX_PERCENTILES.map(at => ({
+      kind: AggregationMetricTypes.PERCENTILE,
+      at,
+    })),
+    { kind: AggregationFunctions.MAX },
   ];
   return parts
     .filter(
@@ -194,20 +224,21 @@ export function fiveNumberMetrics(
         !(
           own &&
           own.kind === part.kind &&
-          (part.kind !== 'PERCENTILE' || own.at === part.at)
+          (part.kind !== AggregationMetricTypes.PERCENTILE ||
+            own.at === part.at)
         ),
     )
     .map((part): AnalysisMetric =>
-      part.kind === 'PERCENTILE'
+      part.kind === AggregationMetricTypes.PERCENTILE
         ? {
-            type: 'PERCENTILE',
+            type: AggregationMetricTypes.PERCENTILE,
             alias: alias(`p${part.at}`),
             expression,
             percentile: part.at,
             ...scoped,
           }
         : {
-            type: 'NUMERIC',
+            type: AggregationMetricTypes.NUMERIC,
             alias: alias(part.kind.toLowerCase()),
             function: part.kind,
             expression,

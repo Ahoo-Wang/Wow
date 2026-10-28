@@ -12,6 +12,11 @@
  */
 
 import type {
+  AggregationExpressionType,
+  AggregationMetricType,
+  DerivedExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
+import type {
   AggregationDatePart,
   DateDiffUnit,
   AggregationDateUnit,
@@ -24,18 +29,26 @@ import type { DataViewConfigBase } from './config.js';
 import type { ChartSpec } from './chart.js';
 import type { FilterTree } from './filter.js';
 import type { LiteralEnums } from './json.js';
-import type { SortDirection } from './record.js';
+import type { SortDirectionName } from './record.js';
+import {
+  AggregationDateParts,
+  AggregationDateUnits,
+  AggregationExpressionTypes,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  DateDiffUnits,
+} from './wire.js';
 
 /**
  * The Wow aggregation enums as the string literals a config stores. Naming
  * them here keeps the protocol in this layer: everything above reaches for
  * these rather than for `@ahoo-wang/wow-client`.
  */
-export type AnalysisGroupType = `${AggregationGroupType}`;
-export type AnalysisFunction = `${AggregationFunction}`;
-export type AnalysisDateUnit = `${AggregationDateUnit}`;
-export type AnalysisDatePart = `${AggregationDatePart}`;
-export type AnalysisDateDiffUnit = `${DateDiffUnit}`;
+export type AggregationGroupTypeName = `${AggregationGroupType}`;
+export type AggregationFunctionName = `${AggregationFunction}`;
+export type AggregationDateUnitName = `${AggregationDateUnit}`;
+export type AggregationDatePartName = `${AggregationDatePart}`;
+export type DateDiffUnitName = `${DateDiffUnit}`;
 
 /**
  * Every unit a time between two moments is measured in (`DATE_DIFF`), in
@@ -44,12 +57,13 @@ export type AnalysisDateDiffUnit = `${DateDiffUnit}`;
  * and the second. Each has a fixed length — a day is exactly 24 hours.
  */
 export const ANALYSIS_DATE_DIFF_UNITS = [
-  'HOUR',
-  'DAY',
-  'MINUTE',
-  'SECOND',
-] as const satisfies readonly AnalysisDateDiffUnit[];
-export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
+  DateDiffUnits.HOUR,
+  DateDiffUnits.DAY,
+  DateDiffUnits.MINUTE,
+  DateDiffUnits.SECOND,
+] as const satisfies readonly DateDiffUnitName[];
+export type AggregationExpressionOperatorName =
+  `${AggregationExpressionOperator}`;
 
 /**
  * Every date unit Wow buckets by, coarsest first — the order a choice among
@@ -58,15 +72,15 @@ export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
  * it to Wow's enum.
  */
 export const ANALYSIS_DATE_UNITS = [
-  'YEAR',
-  'QUARTER',
-  'MONTH',
-  'WEEK',
-  'DAY',
-  'HOUR',
-  'MINUTE',
-  'SECOND',
-] as const satisfies readonly AnalysisDateUnit[];
+  AggregationDateUnits.YEAR,
+  AggregationDateUnits.QUARTER,
+  AggregationDateUnits.MONTH,
+  AggregationDateUnits.WEEK,
+  AggregationDateUnits.DAY,
+  AggregationDateUnits.HOUR,
+  AggregationDateUnits.MINUTE,
+  AggregationDateUnits.SECOND,
+] as const satisfies readonly AggregationDateUnitName[];
 
 /**
  * Every calendar part Wow groups by (`DATE_PART`), in the order a choice
@@ -75,11 +89,11 @@ export const ANALYSIS_DATE_UNITS = [
  * it to Wow's enum.
  */
 export const ANALYSIS_DATE_PARTS = [
-  'DAY_OF_WEEK',
-  'HOUR_OF_DAY',
-  'DAY_OF_MONTH',
-  'MONTH_OF_YEAR',
-] as const satisfies readonly AnalysisDatePart[];
+  AggregationDateParts.DAY_OF_WEEK,
+  AggregationDateParts.HOUR_OF_DAY,
+  AggregationDateParts.DAY_OF_MONTH,
+  AggregationDateParts.MONTH_OF_YEAR,
+] as const satisfies readonly AggregationDatePartName[];
 
 /**
  * The keys a calendar part groups into, first and last: an ISO weekday runs
@@ -88,11 +102,11 @@ export const ANALYSIS_DATE_PARTS = [
  * the part's, so a part's axis is this run whatever the rows held.
  */
 export const DATE_PART_DOMAINS = {
-  DAY_OF_WEEK: [1, 7],
-  HOUR_OF_DAY: [0, 23],
-  DAY_OF_MONTH: [1, 31],
-  MONTH_OF_YEAR: [1, 12],
-} as const satisfies Record<AnalysisDatePart, readonly [number, number]>;
+  [AggregationDateParts.DAY_OF_WEEK]: [1, 7],
+  [AggregationDateParts.HOUR_OF_DAY]: [0, 23],
+  [AggregationDateParts.DAY_OF_MONTH]: [1, 31],
+  [AggregationDateParts.MONTH_OF_YEAR]: [1, 12],
+} as const satisfies Record<AggregationDatePartName, readonly [number, number]>;
 
 /**
  * The calendar parts a field's capability offers a `DATE_PART` dimension, in
@@ -102,8 +116,8 @@ export const DATE_PART_DOMAINS = {
  */
 export function datePartsOf(
   capability: DatePartOffer | undefined,
-): AnalysisDatePart[] {
-  if (!capability?.groups.includes('DATE_PART')) return [];
+): AggregationDatePartName[] {
+  if (!capability?.groups.includes(AggregationGroupTypes.DATE_PART)) return [];
   const declared = capability.dateParts;
   return ANALYSIS_DATE_PARTS.filter(
     part => declared === undefined || declared.includes(part),
@@ -119,14 +133,14 @@ export interface DatePartOffer {
 /** Every field an expression reads, in the order it reads them. */
 export function expressionFieldsOf(expression: AnalysisExpression): string[] {
   switch (expression?.type) {
-    case 'FIELD':
+    case AggregationExpressionTypes.FIELD:
       return [expression.field];
-    case 'BINARY':
+    case AggregationExpressionTypes.BINARY:
       return [
         ...expressionFieldsOf(expression.left),
         ...expressionFieldsOf(expression.right),
       ];
-    case 'DATE_DIFF':
+    case AggregationExpressionTypes.DATE_DIFF:
       return [expression.from, expression.to];
     default:
       return [];
@@ -154,7 +168,7 @@ export function groupFieldsOf(group: AnalysisGroup): string[] {
 export function dateDiffUnitsOf(
   capability:
     { expressions?: boolean; dateDiffUnits?: readonly string[] } | undefined,
-): AnalysisDateDiffUnit[] {
+): DateDiffUnitName[] {
   if (capability?.expressions !== true) return [];
   const declared = capability.dateDiffUnits;
   return ANALYSIS_DATE_DIFF_UNITS.filter(
@@ -178,8 +192,18 @@ export interface AnalysisNamed {
  */
 export type AnalysisGroup = AnalysisNamed &
   (
-    | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
-    | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    | {
+        type: `${AggregationGroupType.TERMS}`;
+        field: string;
+        alias: string;
+        missingKey?: string;
+      }
+    | {
+        type: `${AggregationGroupType.HISTOGRAM}`;
+        field: string;
+        alias: string;
+        interval: number;
+      }
     | {
         /**
          * Bands of a number computed per record (N3), such as the hours
@@ -187,17 +211,17 @@ export type AnalysisGroup = AnalysisNamed &
          * field of its own — `field` is absent — and its bands follow the
          * expression's unit.
          */
-        type: 'HISTOGRAM';
+        type: `${AggregationGroupType.HISTOGRAM}`;
         expression: AnalysisExpression;
         alias: string;
         interval: number;
         field?: undefined;
       }
     | {
-        type: 'DATE_HISTOGRAM';
+        type: `${AggregationGroupType.DATE_HISTOGRAM}`;
         field: string;
         alias: string;
-        unit: AnalysisDateUnit;
+        unit: AggregationDateUnitName;
         timeZone?: string;
         dense?: boolean;
       }
@@ -208,10 +232,10 @@ export type AnalysisGroup = AnalysisNamed &
          * Its keys are the part's integers (`DATE_PART_DOMAINS`), read in
          * `timeZone`, else the engine's zone, as a date histogram is cut.
          */
-        type: 'DATE_PART';
+        type: `${AggregationGroupType.DATE_PART}`;
         field: string;
         alias: string;
-        part: AnalysisDatePart;
+        part: AggregationDatePartName;
         timeZone?: string;
         dense?: boolean;
       }
@@ -219,8 +243,8 @@ export type AnalysisGroup = AnalysisNamed &
 
 /** Isomorphic to Wow's `AggregationExpression`. */
 export type AnalysisExpression =
-  | { type: 'FIELD'; field: string }
-  | { type: 'CONSTANT'; value: number }
+  | { type: `${AggregationExpressionType.FIELD}`; field: string }
+  | { type: `${AggregationExpressionType.CONSTANT}`; value: number }
   | {
       /**
        * The time from one moment to another, `to − from`, in `unit` (N3):
@@ -228,14 +252,14 @@ export type AnalysisExpression =
        * moment is missing. Both are time fields the analysis may bucket by
        * date (`DATE_HISTOGRAM`), each read in its own encoding.
        */
-      type: 'DATE_DIFF';
+      type: `${AggregationExpressionType.DATE_DIFF}`;
       from: string;
       to: string;
-      unit: AnalysisDateDiffUnit;
+      unit: DateDiffUnitName;
     }
   | {
-      type: 'BINARY';
-      operator: AnalysisExpressionOperator;
+      type: `${AggregationExpressionType.BINARY}`;
+      operator: AggregationExpressionOperatorName;
       left: AnalysisExpression;
       right: AnalysisExpression;
     };
@@ -246,15 +270,24 @@ export type AnalysisExpression =
  */
 export type AnalysisMetric = AnalysisNamed &
   (
-    | { type: 'COUNT'; alias: string; filter?: FilterTree }
     | {
-        type: 'NUMERIC';
+        type: `${AggregationMetricType.COUNT}`;
         alias: string;
-        function: AnalysisFunction;
+        filter?: FilterTree;
+      }
+    | {
+        type: `${AggregationMetricType.NUMERIC}`;
+        alias: string;
+        function: AggregationFunctionName;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
-    | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
+    | {
+        type: `${AggregationMetricType.ANY}`;
+        alias: string;
+        field: string;
+        filter?: FilterTree;
+      }
     | {
         /**
          * The field's value on the group's earliest (`FIRST`, 期初值) or
@@ -264,20 +297,21 @@ export type AnalysisMetric = AnalysisNamed &
          * Only records with both a value and an `orderBy` count, and those
          * the metric's `filter` keeps.
          */
-        type: 'FIRST' | 'LAST';
+        type:
+          `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
         alias: string;
         field: string;
         orderBy?: string;
         filter?: FilterTree;
       }
     | {
-        type: 'DISTINCT_COUNT';
+        type: `${AggregationMetricType.DISTINCT_COUNT}`;
         alias: string;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
     | {
-        type: 'PERCENTILE';
+        type: `${AggregationMetricType.PERCENTILE}`;
         alias: string;
         expression: AnalysisExpression;
         /** Open interval (0, 100), as Wow requires. */
@@ -285,7 +319,7 @@ export type AnalysisMetric = AnalysisNamed &
         filter?: FilterTree;
       }
     | {
-        type: 'DERIVED';
+        type: `${AggregationMetricType.DERIVED}`;
         alias: string;
         expression: AnalysisDerivedExpression;
         /**
@@ -331,12 +365,12 @@ export const MAX_DERIVED_DECIMALS = 6;
  * summary a tray card offers is derived from this rather than listed again.
  */
 export const FIELD_METRIC_TYPES = [
-  'NUMERIC',
-  'DISTINCT_COUNT',
-  'PERCENTILE',
-  'FIRST',
-  'LAST',
-  'ANY',
+  AggregationMetricTypes.NUMERIC,
+  AggregationMetricTypes.DISTINCT_COUNT,
+  AggregationMetricTypes.PERCENTILE,
+  AggregationMetricTypes.FIRST,
+  AggregationMetricTypes.LAST,
+  AggregationMetricTypes.ANY,
 ] as const satisfies readonly AnalysisMetric['type'][];
 
 export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
@@ -348,15 +382,20 @@ export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
  * 「只保留」 read them, and a totals row has no whole of 「任一值」.
  */
 const VALUE_METRIC_TYPES = [
-  'ANY',
-  'FIRST',
-  'LAST',
+  AggregationMetricTypes.ANY,
+  AggregationMetricTypes.FIRST,
+  AggregationMetricTypes.LAST,
 ] as const satisfies readonly ValueMetric['type'][];
 
 /** A metric whose value is one record's value (`VALUE_METRIC_TYPES`). */
 export type ValueMetric = Extract<
   AnalysisMetric,
-  { type: 'ANY' | 'FIRST' | 'LAST' }
+  {
+    type:
+      | `${AggregationMetricType.ANY}`
+      | `${AggregationMetricType.FIRST}`
+      | `${AggregationMetricType.LAST}`;
+  }
 >;
 
 /** Whether a metric is one record's value (`VALUE_METRIC_TYPES`). */
@@ -373,11 +412,11 @@ export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
  * `RUNNING`, `PREVIOUS`, `RANK`); an analysis does not configure them yet.
  */
 export type AnalysisDerivedExpression =
-  | { type: 'METRIC_REF'; metric: string }
-  | { type: 'CONSTANT'; value: number }
+  | { type: `${DerivedExpressionType.METRIC_REF}`; metric: string }
+  | { type: `${DerivedExpressionType.CONSTANT}`; value: number }
   | {
-      type: 'BINARY';
-      operator: AnalysisExpressionOperator;
+      type: `${DerivedExpressionType.BINARY}`;
+      operator: AggregationExpressionOperatorName;
       left: AnalysisDerivedExpression;
       right: AnalysisDerivedExpression;
     };
@@ -390,7 +429,7 @@ export interface AnalysisElement {
 
 export interface AnalysisSort {
   alias: string;
-  direction: SortDirection;
+  direction: SortDirectionName;
 }
 
 /**
@@ -404,7 +443,7 @@ export interface AnalysisTop {
   within: string;
   metric: string;
   count: number;
-  direction?: SortDirection;
+  direction?: SortDirectionName;
 }
 
 /**

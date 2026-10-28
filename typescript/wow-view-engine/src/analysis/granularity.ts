@@ -12,11 +12,12 @@
  */
 
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisGroup,
   FilterTree,
   RecordData,
 } from '../model/index.js';
+import { AggregationDateUnits, AggregationGroupTypes } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { bucketRange } from './buckets.js';
 import { appliedWindow } from './timeAxis.js';
@@ -34,27 +35,27 @@ import { appliedWindow } from './timeAxis.js';
  */
 
 /** Roughly how long each unit is, for counting buckets across a span. */
-const UNIT_MS: Record<AnalysisDateUnit, number> = {
-  SECOND: 1000,
-  MINUTE: 60_000,
-  HOUR: 3_600_000,
-  DAY: 86_400_000,
-  WEEK: 7 * 86_400_000,
-  MONTH: 30.4375 * 86_400_000,
-  QUARTER: 91.3125 * 86_400_000,
-  YEAR: 365.25 * 86_400_000,
+const UNIT_MS: Record<AggregationDateUnitName, number> = {
+  [AggregationDateUnits.SECOND]: 1000,
+  [AggregationDateUnits.MINUTE]: 60_000,
+  [AggregationDateUnits.HOUR]: 3_600_000,
+  [AggregationDateUnits.DAY]: 86_400_000,
+  [AggregationDateUnits.WEEK]: 7 * 86_400_000,
+  [AggregationDateUnits.MONTH]: 30.4375 * 86_400_000,
+  [AggregationDateUnits.QUARTER]: 91.3125 * 86_400_000,
+  [AggregationDateUnits.YEAR]: 365.25 * 86_400_000,
 };
 
 /** Every unit, finest first. */
-const FINE_TO_COARSE: readonly AnalysisDateUnit[] = [
-  'SECOND',
-  'MINUTE',
-  'HOUR',
-  'DAY',
-  'WEEK',
-  'MONTH',
-  'QUARTER',
-  'YEAR',
+const FINE_TO_COARSE: readonly AggregationDateUnitName[] = [
+  AggregationDateUnits.SECOND,
+  AggregationDateUnits.MINUTE,
+  AggregationDateUnits.HOUR,
+  AggregationDateUnits.DAY,
+  AggregationDateUnits.WEEK,
+  AggregationDateUnits.MONTH,
+  AggregationDateUnits.QUARTER,
+  AggregationDateUnits.YEAR,
 ];
 
 /** Fewer buckets than this and the chart is a couple of bars; the unit is too coarse. */
@@ -67,9 +68,9 @@ const MIN_BUCKETS = 6;
  */
 export function recommendDateUnit(
   span: number | null,
-  offered: readonly AnalysisDateUnit[],
-): AnalysisDateUnit {
-  const first = offered[0] ?? 'DAY';
+  offered: readonly AggregationDateUnitName[],
+): AggregationDateUnitName {
+  const first = offered[0] ?? AggregationDateUnits.DAY;
   if (span === null || !Number.isFinite(span) || span <= 0) return first;
   const candidates = FINE_TO_COARSE.filter(unit => offered.includes(unit));
   if (candidates.length === 0) return first;
@@ -111,9 +112,12 @@ export function resultSpan(
   timeZone: string,
 ): number | null {
   const group = groups.find(
-    entry => entry.type === 'DATE_HISTOGRAM' && entry.field === field,
+    entry =>
+      entry.type === AggregationGroupTypes.DATE_HISTOGRAM &&
+      entry.field === field,
   );
-  if (!group || group.type !== 'DATE_HISTOGRAM') return null;
+  if (!group || group.type !== AggregationGroupTypes.DATE_HISTOGRAM)
+    return null;
   let first: number | null = null;
   let last: number | null = null;
   for (const row of rows) {

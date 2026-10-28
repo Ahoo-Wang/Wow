@@ -29,11 +29,13 @@ import {
   type MetricMove,
 } from '../analysis/index.js';
 import {
+  AggregationGroupTypes,
+  AggregationMetricTypes,
   isDateCell,
   isValueMetric,
   without,
   type AnalysisColumn,
-  type AnalysisDateDiffUnit,
+  type DateDiffUnitName,
   type AnalysisGroup,
   type AnalysisHavingExpression,
   type AnalysisTop,
@@ -132,7 +134,7 @@ export function questionEditing({
       ),
     setMissingBucket: (index: number, on: boolean) =>
       patchGroup(index, group =>
-        group.type !== 'TERMS'
+        group.type !== AggregationGroupTypes.TERMS
           ? group
           : on
             ? { ...group, missingKey: DEFAULT_MISSING_KEY }
@@ -140,7 +142,8 @@ export function questionEditing({
       ),
     setDense: (index: number, on: boolean) =>
       patchGroup(index, group =>
-        group.type !== 'DATE_HISTOGRAM' && group.type !== 'DATE_PART'
+        group.type !== AggregationGroupTypes.DATE_HISTOGRAM &&
+        group.type !== AggregationGroupTypes.DATE_PART
           ? group
           : on
             ? { ...group, dense: true }
@@ -175,7 +178,7 @@ export function questionEditing({
      */
     setMetricFilter: (index: number, filter: FilterTree | undefined) =>
       patchMetric(index, metric =>
-        metric.type === 'DERIVED'
+        metric.type === AggregationMetricTypes.DERIVED
           ? metric
           : filter === undefined
             ? (without(metric, 'filter') as AnalysisMetric)
@@ -319,7 +322,7 @@ export function questionEditing({
      * fields it buckets by date and takes into arithmetic. Nothing when it
      * holds fewer than two: a moment to itself is always nothing.
      */
-    addDuration: (unit: AnalysisDateDiffUnit) => {
+    addDuration: (unit: DateDiffUnitName) => {
       const [from, to] = durationEnds(scope);
       if (!from || !to) return;
       reshape(current => ({
@@ -343,7 +346,7 @@ export function questionEditing({
           groups: [
             ...current.groups,
             {
-              type: 'HISTOGRAM',
+              type: AggregationGroupTypes.HISTOGRAM,
               alias: freeAlias('band', taken(current)),
               expression: metric.expression,
               interval: 1,
@@ -394,7 +397,7 @@ function durationEnds(scope: AnalysisScope | null): string[] {
   return [...(scope?.aggregations.values() ?? [])]
     .filter(
       entry =>
-        entry.groups.includes('DATE_HISTOGRAM' as never) &&
+        entry.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM as never) &&
         entry.expressionInput !== false,
     )
     .map(entry => entry.field)

@@ -132,7 +132,7 @@ export interface RecordCapability {
   layouts: RecordLayout[];
   maxSortFields?: number;
   maxWindow?: number;
-  paging: PagingMode;
+  paging: RecordPagingMode;
   parallelArrays?: string[][];
   requiresFilter?: boolean;
   rowFields?: string[];

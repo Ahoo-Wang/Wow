@@ -22,6 +22,7 @@ import {
   type AnalysisViewConfig,
   type Issue,
   type IssuePath,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
@@ -107,7 +108,8 @@ function groupIssues(
     if (group.field === undefined)
       return [
         ...displayNameIssues(group, path),
-        ...(group.type === 'HISTOGRAM' && 'expression' in group
+        ...(group.type === AggregationGroupTypes.HISTOGRAM &&
+        'expression' in group
           ? budgetedExpressionIssues(
               group.expression,
               scope,
@@ -146,7 +148,7 @@ function groupIssues(
       ...displayNameIssues(group, path),
       ...intervalIssues(group, path),
     ];
-    if (group.type === 'DATE_HISTOGRAM') {
+    if (group.type === AggregationGroupTypes.DATE_HISTOGRAM) {
       if (!capability.dateUnits?.includes(group.unit as never))
         issues.push(
           issue('analysis.group.unit-unsupported', [...path, 'unit'], {
@@ -154,7 +156,7 @@ function groupIssues(
           }),
         );
     }
-    if (group.type === 'DATE_PART') {
+    if (group.type === AggregationGroupTypes.DATE_PART) {
       if (!datePartsOf(capability).includes(group.part))
         issues.push(
           issue('analysis.group.part-unsupported', [...path, 'part'], {
@@ -162,7 +164,10 @@ function groupIssues(
           }),
         );
     }
-    if (group.type === 'DATE_HISTOGRAM' || group.type === 'DATE_PART') {
+    if (
+      group.type === AggregationGroupTypes.DATE_HISTOGRAM ||
+      group.type === AggregationGroupTypes.DATE_PART
+    ) {
       // A calendar dimension fills in every bucket its range — or its part's
       // domain — implies rather than only the ones that have rows, and a
       // second dimension would multiply that filling out across each of its
@@ -192,7 +197,7 @@ function groupIssues(
           );
       }
     }
-    if (group.type === 'TERMS') {
+    if (group.type === AggregationGroupTypes.TERMS) {
       if (group.missingKey !== undefined) {
         if (typeof group.missingKey !== 'string')
           issues.push(
@@ -247,7 +252,7 @@ function missingKeyAllowed(
 
 /** A band must be wider than nothing. */
 function intervalIssues(group: AnalysisGroup, path: IssuePath): Issue[] {
-  return group.type === 'HISTOGRAM' &&
+  return group.type === AggregationGroupTypes.HISTOGRAM &&
     !(Number.isFinite(group.interval) && group.interval > 0)
     ? [issue('analysis.group.interval-not-positive', [...path, 'interval'])]
     : [];

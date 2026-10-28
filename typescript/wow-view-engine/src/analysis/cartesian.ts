@@ -16,6 +16,7 @@ import {
   type AnalysisViewConfig,
   type ChartType,
   type RecordData,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import {
   absenceReader,
@@ -314,7 +315,10 @@ function splitOrder(
   if (timeGroup(config, split))
     return forwardInTime(series, entry => entry.value);
   const group = config.groups.find(one => one.alias === split);
-  if (group?.type === 'DATE_PART' || group?.type === 'HISTOGRAM')
+  if (
+    group?.type === AggregationGroupTypes.DATE_PART ||
+    group?.type === AggregationGroupTypes.HISTOGRAM
+  )
     return inNumberOrder(series, entry => entry.value);
   const metric = series[0]?.metric;
   return bySize(

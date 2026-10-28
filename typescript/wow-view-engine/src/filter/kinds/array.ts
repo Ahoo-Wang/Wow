@@ -27,6 +27,7 @@ import {
   entryRelation,
   isEntryOperator,
 } from './entries.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * The English `text` has always read this way. The bar words the relation
@@ -43,11 +44,11 @@ const RELATION_TEXT: Record<FilterSummaryRelation, string> = {
 
 /** What each list operator asks of the entries. */
 const RELATIONS = {
-  IN: 'has-any',
-  NOT_IN: 'has-none',
-  CONTAINS_ALL: 'has-all',
-  IS_EMPTY: 'has-no-entries',
-  IS_NOT_NULL: 'has-entries',
+  [FilterOperators.IN]: 'has-any',
+  [FilterOperators.NOT_IN]: 'has-none',
+  [FilterOperators.CONTAINS_ALL]: 'has-all',
+  [FilterOperators.IS_EMPTY]: 'has-no-entries',
+  [FilterOperators.IS_NOT_NULL]: 'has-entries',
 } as const satisfies Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
 
 /** What one entry of an array field may be. */
@@ -68,11 +69,18 @@ export type ArrayFilterValue = (string | number)[];
  */
 export const arrayFieldKind: FieldKind = {
   id: 'array',
-  operators: ['IN', 'NOT_IN', 'CONTAINS_ALL', ...ENTRY_OPERATORS],
-  defaultOperator: 'IN',
+  operators: [
+    FilterOperators.IN,
+    FilterOperators.NOT_IN,
+    FilterOperators.CONTAINS_ALL,
+    ...ENTRY_OPERATORS,
+  ],
+  defaultOperator: FilterOperators.IN,
   relations: RELATIONS,
   compiledOperators: operator =>
-    isEntryOperator(operator) ? ['IS_EMPTY', 'IS_NULL'] : [operator],
+    isEntryOperator(operator)
+      ? [FilterOperators.IS_EMPTY, FilterOperators.IS_NULL]
+      : [operator],
   scalar: false,
 
   emptyValue() {
@@ -97,9 +105,9 @@ export const arrayFieldKind: FieldKind = {
 
     const entries = readValue<ArrayFilterValue>(leaf.value);
     switch (leaf.operator) {
-      case 'CONTAINS_ALL':
+      case FilterOperators.CONTAINS_ALL:
         return filter.containsAll(name, entries);
-      case 'NOT_IN':
+      case FilterOperators.NOT_IN:
         return filter.notIn(name, entries);
       default:
         return filter.isIn(name, entries);
@@ -136,7 +144,8 @@ export const arrayFieldKind: FieldKind = {
     // how a currency entry ended up a bare number beside a column of ¥.
     const labels = values.map(entry => optionLabelOf(field.options, entry));
     const relation: FilterSummaryRelation =
-      leaf.operator === 'CONTAINS_ALL' || leaf.operator === 'NOT_IN'
+      leaf.operator === FilterOperators.CONTAINS_ALL ||
+      leaf.operator === FilterOperators.NOT_IN
         ? RELATIONS[leaf.operator]
         : RELATIONS.IN;
     return {

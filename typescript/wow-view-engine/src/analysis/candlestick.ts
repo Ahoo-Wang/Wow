@@ -16,6 +16,9 @@ import {
   type AnalysisMetric,
   type CandlestickSpec,
   type RecordData,
+  AggregationExpressionTypes,
+  AggregationFunctions,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import { num } from './chartRows.js';
 import { freeAlias } from './freeAlias.js';
@@ -43,23 +46,31 @@ export const OHLC_SLOTS = [
 function candlePart(
   metric: AnalysisMetric,
 ): { of: string; slot: keyof Ohlc; order?: string } | undefined {
-  if (metric.type === 'DERIVED' || metric.type === 'COUNT') return undefined;
+  if (
+    metric.type === AggregationMetricTypes.DERIVED ||
+    metric.type === AggregationMetricTypes.COUNT
+  )
+    return undefined;
   const scope = JSON.stringify(metric.filter ?? null);
-  if (metric.type === 'FIRST' || metric.type === 'LAST')
+  if (
+    metric.type === AggregationMetricTypes.FIRST ||
+    metric.type === AggregationMetricTypes.LAST
+  )
     return {
       of: `${metric.field}|${scope}`,
-      slot: metric.type === 'FIRST' ? 'open' : 'close',
+      slot: metric.type === AggregationMetricTypes.FIRST ? 'open' : 'close',
       order: metric.orderBy ?? '',
     };
   if (
-    metric.type === 'NUMERIC' &&
+    metric.type === AggregationMetricTypes.NUMERIC &&
     // A config from a store may hold a metric without its expression.
-    metric.expression?.type === 'FIELD' &&
-    (metric.function === 'MIN' || metric.function === 'MAX')
+    metric.expression?.type === AggregationExpressionTypes.FIELD &&
+    (metric.function === AggregationFunctions.MIN ||
+      metric.function === AggregationFunctions.MAX)
   )
     return {
       of: `${metric.expression.field}|${scope}`,
-      slot: metric.function === 'MAX' ? 'high' : 'low',
+      slot: metric.function === AggregationFunctions.MAX ? 'high' : 'low',
     };
   return undefined;
 }
@@ -159,15 +170,19 @@ export function ohlcMetrics(
   const own = candlePart(metric);
   if (!own) return undefined;
   const field =
-    metric.type === 'FIRST' || metric.type === 'LAST'
+    metric.type === AggregationMetricTypes.FIRST ||
+    metric.type === AggregationMetricTypes.LAST
       ? metric.field
-      : metric.type === 'NUMERIC' && metric.expression.type === 'FIELD'
+      : metric.type === AggregationMetricTypes.NUMERIC &&
+          metric.expression.type === AggregationExpressionTypes.FIELD
         ? metric.expression.field
         : undefined;
-  if (field === undefined || metric.type === 'DERIVED') return undefined;
+  if (field === undefined || metric.type === AggregationMetricTypes.DERIVED)
+    return undefined;
   const filter = metric.filter === undefined ? {} : { filter: metric.filter };
   const orderBy =
-    (metric.type === 'FIRST' || metric.type === 'LAST') &&
+    (metric.type === AggregationMetricTypes.FIRST ||
+      metric.type === AggregationMetricTypes.LAST) &&
     metric.orderBy !== undefined
       ? { orderBy: metric.orderBy }
       : {};
@@ -178,13 +193,13 @@ export function ohlcMetrics(
     used.push(next);
     return next;
   };
-  const expression = { type: 'FIELD', field } as const;
+  const expression = { type: AggregationExpressionTypes.FIELD, field } as const;
   return OHLC_SLOTS.filter(slot => slot !== own.slot).map(
     (slot): AnalysisMetric => {
       switch (slot) {
         case 'open':
           return {
-            type: 'FIRST',
+            type: AggregationMetricTypes.FIRST,
             alias: alias(slot),
             field,
             ...orderBy,
@@ -192,7 +207,7 @@ export function ohlcMetrics(
           };
         case 'close':
           return {
-            type: 'LAST',
+            type: AggregationMetricTypes.LAST,
             alias: alias(slot),
             field,
             ...orderBy,
@@ -200,17 +215,17 @@ export function ohlcMetrics(
           };
         case 'high':
           return {
-            type: 'NUMERIC',
+            type: AggregationMetricTypes.NUMERIC,
             alias: alias(slot),
-            function: 'MAX',
+            function: AggregationFunctions.MAX,
             expression,
             ...filter,
           };
         case 'low':
           return {
-            type: 'NUMERIC',
+            type: AggregationMetricTypes.NUMERIC,
             alias: alias(slot),
-            function: 'MIN',
+            function: AggregationFunctions.MIN,
             expression,
             ...filter,
           };

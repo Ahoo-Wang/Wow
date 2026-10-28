@@ -26,6 +26,7 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * A closed set of values declared by the definition. Both `IN` and `NOT_IN`
@@ -33,8 +34,12 @@ import {
  */
 export const enumFieldKind: FieldKind = {
   id: 'enum',
-  operators: ['IN', 'NOT_IN', ...PRESENCE_OPERATORS],
-  defaultOperator: 'IN',
+  operators: [
+    FilterOperators.IN,
+    FilterOperators.NOT_IN,
+    ...PRESENCE_OPERATORS,
+  ],
+  defaultOperator: FilterOperators.IN,
   // One of the declared candidates, which are strings unless the definition
   // wrote numeric codes — `isSingleStringField` reads those and answers no.
   singleString: true,
@@ -48,7 +53,7 @@ export const enumFieldKind: FieldKind = {
   // rather than refused (todo G). A blank one stays blank. The view is
   // saved back as `IN` the next time it is saved.
   readLeaf(leaf) {
-    if (leaf.operator !== 'EQ') return leaf;
+    if (leaf.operator !== FilterOperators.EQ) return leaf;
     const { value } = leaf;
     const values: EnumFilterValue =
       value === null || value === undefined || value === ''
@@ -56,7 +61,7 @@ export const enumFieldKind: FieldKind = {
         : Array.isArray(value)
           ? (value as EnumFilterValue)
           : [value as EnumFilterValue[number]];
-    return { ...leaf, operator: 'IN', value: values };
+    return { ...leaf, operator: FilterOperators.IN, value: values };
   },
 
   validate({ value, operator, field, path }) {
@@ -73,7 +78,7 @@ export const enumFieldKind: FieldKind = {
     const presence = compilePresence(field.name, leaf.operator);
     if (presence) return presence;
     const values = leaf.value as EnumFilterValue;
-    return leaf.operator === 'NOT_IN'
+    return leaf.operator === FilterOperators.NOT_IN
       ? filter.notIn(field.name, values)
       : filter.isIn(field.name, values);
   },

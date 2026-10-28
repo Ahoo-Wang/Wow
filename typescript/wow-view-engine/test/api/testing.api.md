@@ -7,12 +7,15 @@
 import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
 import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
+import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
@@ -20,7 +23,9 @@ import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
@@ -131,6 +136,15 @@ export interface AdmitOptions {
     text?(key: string): string | undefined;
 }
 
+// @public (undocumented)
+type AggregationDatePartName = `${AggregationDatePart}`;
+
+// @public (undocumented)
+type AggregationDateUnitName = `${AggregationDateUnit}`;
+
+// @public (undocumented)
+type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
+
 // @public
 interface AggregationFieldCapability {
     // (undocumented)
@@ -155,11 +169,14 @@ interface AggregationFieldCapability {
 }
 
 // @public (undocumented)
+type AggregationFunctionName = `${AggregationFunction}`;
+
+// @public (undocumented)
 interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
     count: boolean;
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     dense?: boolean;
     elements?: AnalysisElementCapability[];
     expressions?: boolean;
@@ -173,7 +190,7 @@ interface AnalysisCapability {
     limits?: AnalysisLimits;
     metricSort?: boolean;
     rootGroups?: boolean;
-    windows?: AnalysisWindowFunction[];
+    windows?: WindowFunctionName[];
 }
 
 // @public
@@ -184,25 +201,16 @@ interface AnalysisColumn {
     width?: number;
 }
 
-// @public (undocumented)
-type AnalysisDateDiffUnit = `${DateDiffUnit}`;
-
-// @public (undocumented)
-type AnalysisDatePart = `${AggregationDatePart}`;
-
-// @public (undocumented)
-type AnalysisDateUnit = `${AggregationDateUnit}`;
-
 // @public
 type AnalysisDerivedExpression = {
-    type: 'METRIC_REF';
+    type: `${DerivedExpressionType.METRIC_REF}`;
     metric: string;
 } | {
-    type: 'CONSTANT';
+    type: `${DerivedExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    type: `${DerivedExpressionType.BINARY}`;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisDerivedExpression;
     right: AnalysisDerivedExpression;
 };
@@ -225,58 +233,52 @@ interface AnalysisElementCapability {
 
 // @public
 type AnalysisExpression = {
-    type: 'FIELD';
+    type: `${AggregationExpressionType.FIELD}`;
     field: string;
 } | {
-    type: 'CONSTANT';
+    type: `${AggregationExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'DATE_DIFF';
+    type: `${AggregationExpressionType.DATE_DIFF}`;
     from: string;
     to: string;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 } | {
-    type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    type: `${AggregationExpressionType.BINARY}`;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisExpression;
     right: AnalysisExpression;
 };
 
-// @public (undocumented)
-type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
-
-// @public (undocumented)
-type AnalysisFunction = `${AggregationFunction}`;
-
 // @public
 type AnalysisGroup = AnalysisNamed & ({
-    type: 'TERMS';
+    type: `${AggregationGroupType.TERMS}`;
     field: string;
     alias: string;
     missingKey?: string;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     field: string;
     alias: string;
     interval: number;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     expression: AnalysisExpression;
     alias: string;
     interval: number;
     field?: undefined;
 } | {
-    type: 'DATE_HISTOGRAM';
+    type: `${AggregationGroupType.DATE_HISTOGRAM}`;
     field: string;
     alias: string;
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     timeZone?: string;
     dense?: boolean;
 } | {
-    type: 'DATE_PART';
+    type: `${AggregationGroupType.DATE_PART}`;
     field: string;
     alias: string;
-    part: AnalysisDatePart;
+    part: AggregationDatePartName;
     timeZone?: string;
     dense?: boolean;
 });
@@ -303,39 +305,39 @@ interface AnalysisLimits {
 
 // @public
 type AnalysisMetric = AnalysisNamed & ({
-    type: 'COUNT';
+    type: `${AggregationMetricType.COUNT}`;
     alias: string;
     filter?: FilterTree;
 } | {
-    type: 'NUMERIC';
+    type: `${AggregationMetricType.NUMERIC}`;
     alias: string;
-    function: AnalysisFunction;
+    function: AggregationFunctionName;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'ANY';
+    type: `${AggregationMetricType.ANY}`;
     alias: string;
     field: string;
     filter?: FilterTree;
 } | {
-    type: 'FIRST' | 'LAST';
+    type: `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
     alias: string;
     field: string;
     orderBy?: string;
     filter?: FilterTree;
 } | {
-    type: 'DISTINCT_COUNT';
+    type: `${AggregationMetricType.DISTINCT_COUNT}`;
     alias: string;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'PERCENTILE';
+    type: `${AggregationMetricType.PERCENTILE}`;
     alias: string;
     expression: AnalysisExpression;
     percentile: number;
     filter?: FilterTree;
 } | {
-    type: 'DERIVED';
+    type: `${AggregationMetricType.DERIVED}`;
     alias: string;
     expression: AnalysisDerivedExpression;
     format?: DerivedFormat;
@@ -352,7 +354,7 @@ interface AnalysisSort {
     // (undocumented)
     alias: string;
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
 }
 
 // @public
@@ -360,7 +362,7 @@ interface AnalysisSpec {
     // (undocumented)
     count?: boolean;
     // (undocumented)
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     // (undocumented)
     expressions?: boolean;
     // (undocumented)
@@ -381,7 +383,7 @@ interface AnalysisTop {
     // (undocumented)
     count: number;
     // (undocumented)
-    direction?: SortDirection;
+    direction?: SortDirectionName;
     // (undocumented)
     metric: string;
     // (undocumented)
@@ -413,9 +415,6 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     top?: AnalysisTop;
 }
-
-// @public
-type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 type Availability = true | string;
@@ -565,6 +564,9 @@ interface ChartSpec {
 // @public (undocumented)
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
+// @public (undocumented)
+type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+
 // @public
 const DASHBOARD_GRID_COLUMNS = 24;
 
@@ -615,7 +617,7 @@ interface DashboardField {
 // @public
 interface DashboardFilters {
     from?: Record<string, string>;
-    unit?: AnalysisDateUnit;
+    unit?: AggregationDateUnitName;
     values: Record<string, FilterValue>;
 }
 
@@ -667,8 +669,8 @@ interface DashboardTarget {
 // @public
 interface DashboardTimeGrouping {
     // (undocumented)
-    default: AnalysisDateUnit;
-    units: AnalysisDateUnit[];
+    default: AggregationDateUnitName;
+    units: AggregationDateUnitName[];
 }
 
 // @public (undocumented)
@@ -741,6 +743,9 @@ interface DataViewDefinition {
 }
 
 // @public (undocumented)
+type DateDiffUnitName = `${DateDiffUnit}`;
+
+// @public (undocumented)
 interface DateTemporal {
     // (undocumented)
     type: 'date';
@@ -802,9 +807,6 @@ interface DerivedSeries {
 // @public
 const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
 
-// @public (undocumented)
-type DurationComparison = (typeof DURATION_COMPARISONS)[number];
-
 // @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];
 
@@ -830,7 +832,7 @@ interface EpochTemporal {
 }
 
 // @public
-type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
+type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
 // @public
 interface FieldAnalysisSpec {
@@ -1131,9 +1133,9 @@ type FilterSummaryValue =
 | {
     kind: 'duration';
     from: string;
-    comparison: DurationComparison;
+    comparison: ComparisonOperatorName;
     amount: number;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 }
 /** A named calendar period, resolved at compile time. */
 | {
@@ -1150,7 +1152,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'period';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     timeZone: string;
 }
@@ -1163,7 +1165,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'periods';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     last: string;
     timeZone: string;
@@ -1410,9 +1412,6 @@ interface OwnedView {
 }
 
 // @public
-type PagingMode = 'paged' | 'cursor';
-
-// @public
 interface PanelBinding {
     auto?: true;
     derived?: true;
@@ -1551,7 +1550,7 @@ interface RecordCapability {
     layouts: RecordLayout[];
     maxSortFields?: number;
     maxWindow?: number;
-    paging: PagingMode;
+    paging: RecordPagingMode;
     parallelArrays?: string[][];
     requiresFilter?: boolean;
     rowFields?: string[];
@@ -1592,6 +1591,9 @@ type RecordKey = string | number;
 // @public
 type RecordLayout = 'table' | 'card' | 'kanban';
 
+// @public
+type RecordPagingMode = 'paged' | 'cursor';
+
 // @public (undocumented)
 interface RecordRow {
     // (undocumented)
@@ -1602,7 +1604,7 @@ interface RecordRow {
 // @public (undocumented)
 interface RecordSort {
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
     // (undocumented)
     field: string;
 }
@@ -1757,13 +1759,13 @@ interface ScatterSpec {
 type SearchModeName = `${SearchMode}`;
 
 // @public
-type SortDirection = 'ASC' | 'DESC';
+type SortDirectionName = `${SortDirection}`;
 
 // @public
 type StringComparisonName = `${StringComparison}`;
 
 // @public
-type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
+type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
 // @public
 interface SystemView {
@@ -1880,6 +1882,9 @@ interface WaterfallSpec {
     value: string;
     x: string;
 }
+
+// @public
+type WindowFunctionName = `${WindowFunction}`;
 
 // (No @packageDocumentation comment for this package)
 

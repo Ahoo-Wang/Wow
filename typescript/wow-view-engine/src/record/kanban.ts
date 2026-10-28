@@ -22,6 +22,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   MAX_KANBAN_LANES,
   isFieldlessKind,
+  FilterOperators,
   type DataViewDefinition,
   type FieldDefinition,
   type FieldOption,
@@ -169,10 +170,14 @@ export function laneConfig(
     lane.value === null
       ? {
           field: field.name,
-          operator: 'NOT_IN',
+          operator: FilterOperators.NOT_IN,
           value: (field.options ?? []).map(option => option.value),
         }
-      : { field: field.name, operator: 'IN', value: [lane.value] };
+      : {
+          field: field.name,
+          operator: FilterOperators.IN,
+          value: [lane.value],
+        };
   return {
     ...config,
     filter: mergeFilters(config.filter, { op: 'and', children: [leaf] }),
@@ -199,7 +204,9 @@ export function compileKanbanCounts(
   if (values.length === 0) return null;
   const tree = mergeFilters(config.filter, {
     op: 'and',
-    children: [{ field: field.name, operator: 'IN', value: values }],
+    children: [
+      { field: field.name, operator: FilterOperators.IN, value: values },
+    ],
   });
   return {
     filter: compileFilter(definition.fields, tree, kinds, context),

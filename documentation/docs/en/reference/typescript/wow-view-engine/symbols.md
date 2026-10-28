@@ -31,21 +31,20 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ActionRefusal` | interface | One record the command will not be sent to, and why. | — |
 | `ActionRow` | type | A record as an action is handed it: its key and its data. | — |
 | `ActionTone` | type | How much an action costs: `danger` draws it (and its confirmation) red. | — |
+| `AggregationDatePartName` | type | — | — |
+| `AggregationDateUnitName` | type | — | — |
+| `AggregationExpressionOperatorName` | type | — | — |
 | `AggregationFieldCapability` | interface | How one field may be aggregated; shared by root and element fields. | — |
+| `AggregationFunctionName` | type | — | — |
+| `AggregationGroupTypeName` | type | The Wow aggregation enums as the string literals a config stores. | — |
 | `AnalysisCapability` | interface | — | — |
 | `AnalysisColumn` | interface | One column of the result table. | — |
 | `AnalysisColumnView` | interface | A column of the result table; groups come first, then metrics. | — |
-| `AnalysisDateDiffUnit` | type | — | — |
-| `AnalysisDatePart` | type | — | — |
-| `AnalysisDateUnit` | type | — | — |
 | `AnalysisDerivedExpression` | type | A derived metric's arithmetic: references to earlier metrics, numbers and the four operators. | — |
 | `AnalysisElement` | interface | Expansion of an array path; its filter is scoped to the element fields. | — |
 | `AnalysisElementCapability` | interface | How an element's fields may be aggregated. | — |
 | `AnalysisExpression` | type | Isomorphic to Wow's `AggregationExpression`. | — |
-| `AnalysisExpressionOperator` | type | — | — |
-| `AnalysisFunction` | type | — | — |
 | `AnalysisGroup` | type | Isomorphic to Wow's `AggregationGroup`: fields are validated against the definition and enums are stored as literals. | — |
-| `AnalysisGroupType` | type | The Wow aggregation enums as the string literals a config stores. | — |
 | `AnalysisHavingExpression` | type | Wow's having/derived trees only reference aliases and numbers. | — |
 | `AnalysisLayout` | type | — | — |
 | `AnalysisLimitBounds` | interface | The range 「前 N 组」 may take, and the N it stands for when nobody said one. | — |
@@ -60,7 +59,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `AnalysisTableSpec` | interface | — | — |
 | `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」: within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
-| `AnalysisWindowFunction` | type | A window function of Wow's derived expressions. | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |
 | `ArrangeStep` | type | One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. | — |
 | `ArrayFilterValue` | type | What one entry of an array field may be. | — |
@@ -114,6 +112,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ClickGoKind` | type | Where a destination goes: a saved view, another board, a page. | — |
 | `ColumnCurrency` | interface | How a metric column of money in a currency each record holds is read, row by row: the companions telling each row's currency (`CurrencyCompanion`) — its own, or a derived metric's operands' — and whether its number is written in that currency. | — |
 | `ColumnEdge` | type | Which edge the table holds a column against. | — |
+| `ComparisonOperatorName` | type | — | — |
 | `ConfigOfKind` | type | Narrows a config union member by its kind. | — |
 | `ConflictChoice` | type | — | — |
 | `ConflictingState` | interface | What the server holds, said by which of the two it is. | — |
@@ -176,6 +175,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DatasetResourcesOptions` | interface | What `DatasetResources` tells besides a dataset it cannot serve: each duplicate it leaves out, and a catalog whose directory cannot be read. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
+| `DateDiffUnitName` | type | — | — |
 | `DateInstant` | interface | The instant a value of this kind names, and what kind of value said it. | — |
 | `DatePartOffer` | interface | What `datePartsOf` reads: a capability, or the editor's option of one. | — |
 | `DateTemporal` | interface | — | — |
@@ -199,7 +199,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DrillContext` | interface | — | — |
 | `DrilledGroup` | interface | One dimension of a pressed row, and the conditions that select it. | — |
 | `Dropped` | interface | What a step of the chain took out of the question. | — |
-| `DurationComparison` | type | — | — |
 | `DurationFilterValue` | interface | A time since another moment (N3): the leaf's field is the later moment,`from` the earlier one, and the condition compares the time between them — 「发货时间 距 付款时间 &gt; 48 小时」 — in `unit`, a day being 24 hours. | — |
 | `EDITOR_INPUTS` | const | Every input shape the engine can draw, as values and not as a type alone. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
 | `EPOCH_TIME_UNITS` | const | — | — |
@@ -352,7 +351,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `PEAKS_ONLY_FROM` | const | From this many categories a bar chart left to its default writes only its peak and trough (`peaksOnlyLabels`): about the count where a number over every bar has to be turned on its side to fit, and the row of upright numbers is noise rather than a reading. | — |
 | `PRESENCE_OPERATORS` | const | Operators that ask about presence rather than about a value. | — |
 | `PagedPaging` | interface | Where a paged result stands, as the pager reads it: every number the bar shows and every step it offers, worked out once from what **ran**. | — |
-| `PagingMode` | type | Which paging protocol the source offers; declared by the definition. | — |
 | `PanelBinding` | interface | Wires a board filter to a field of the panel's view: the filter narrows the panel through that field. | — |
 | `PanelClick` | type | What a press on one group of an analysis panel does, set by the board's author (「点击时…」). | — |
 | `PanelDefinition` | interface | The definition a panel's view is of, and what its bindings may name. | — |
@@ -401,6 +399,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `RecordLayout` | type | How a record view draws its rows: a table, a grid of cards, or the cards laid out in one lane per stage (`kanban`). | — |
 | `RecordPageTarget` | type | Where to read from. | — |
 | `RecordPaging` | type | — | — |
+| `RecordPagingMode` | type | Which paging protocol the source offers; declared by the definition. | — |
 | `RecordProjection` | interface | — | — |
 | `RecordRow` | interface | — | — |
 | `RecordSort` | interface | — | — |
@@ -444,13 +443,13 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ShapeContext` | interface | What shaping reads besides the config and the rows. | — |
 | `ShapeFacts` | interface | The facts of a result's shape a family's fit reads. | — |
 | `SizedPanel` | type | A dashboard panel whose layout gives only its size, for `inRows`. | — |
-| `SortDirection` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
+| `SortDirectionName` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
 | `StoredDatasetWording` | interface | A dataset's wording as stored, and the revision a write expects. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
 | `StringFilterValue` | type | — | — |
 | `SummaryCell` | interface | — | — |
 | `SummaryChoice` | type | How a metric summarises its field, as one choice: a function for a numeric metric, the metric's own type for the other types that measure a field (`FIELD_METRIC_TYPES`). | — |
-| `SummaryFunction` | type | Row-level aggregations a record view may show under a column. | — |
+| `SummaryFunction` | type | Row-level aggregations a record view may show under a column: four of Wow's `AggregationFunction`s and its `COUNT` metric. | — |
 | `SummaryRow` | interface | — | — |
 | `SummarySource` | type | Where the numbers come from; a page total never needs a round trip. | — |
 | `SystemView` | interface | A baseline view shipped with the definition. | [Definitions and Field Kinds](./definitions#api-SystemView) |
@@ -520,6 +519,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `WaterfallData` | interface | — | — |
 | `WaterfallSpec` | interface | A waterfall: how a total is built up step by step. | — |
 | `WaterfallStep` | interface | One step of a waterfall: its group, its change, and where it floats. | — |
+| `WindowFunctionName` | type | A window function of Wow's derived expressions. | — |
 | `WriteAction` | type | — | — |
 | `WriteContext` | interface | One logical write. | [Persistence Port](./store#api-ViewStore) |
 | `WriteHandle` | interface | Addresses a write that no open runtime owns, such as renaming a view from the list. | — |

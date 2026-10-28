@@ -13,16 +13,18 @@
 
 import { useCallback, useMemo } from 'react';
 import {
+  AggregationDateUnits,
   approximateMetrics,
   dateDiffUnitsOf,
   overlaid,
+  WindowFunctions,
 } from '../model/index.js';
 import type {
-  AnalysisWindowFunction,
+  WindowFunctionName,
   FieldGroupDefinition,
   FilterTree,
-  AnalysisDateDiffUnit,
-  AnalysisDateUnit,
+  DateDiffUnitName,
+  AggregationDateUnitName,
   AnalysisElement,
   AnalysisGroup,
   AnalysisHavingExpression,
@@ -73,7 +75,7 @@ import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
 
-const NO_WINDOWS: readonly AnalysisWindowFunction[] = [];
+const NO_WINDOWS: readonly WindowFunctionName[] = [];
 
 export interface AnalysisEditorController extends QuestionEditing {
   /**
@@ -151,7 +153,7 @@ export interface AnalysisEditorController extends QuestionEditing {
    * the computed lines and the per-group top N it may take on. Empty where
    * the descriptor lists none.
    */
-  windows: readonly AnalysisWindowFunction[];
+  windows: readonly WindowFunctionName[];
   /**
    * True while the rows on screen answer an older question than the one
    * being asked: the runtime is about to run the draft on its own
@@ -192,7 +194,7 @@ export interface AnalysisEditorController extends QuestionEditing {
    * (`dateDiffUnitsOf`); empty where the capability offers no computed
    * expressions, which takes 「两个时刻之差」 away.
    */
-  dateDiffUnits: readonly AnalysisDateDiffUnit[];
+  dateDiffUnits: readonly DateDiffUnitName[];
   /** Whether the rows may be ordered by a metric (`metricSort`). */
   metricSortAllowed: boolean;
   /** Whether a date dimension may fill its empty buckets (`dense`). */
@@ -239,7 +241,7 @@ export interface AnalysisEditorController extends QuestionEditing {
    * off the applied range's conditions on the field, failing that off the
    * buckets a result already has on it, else the field's first unit.
    */
-  dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
+  dateUnitFor(field: AnalysisFieldOption): AggregationDateUnitName;
   setSort(sort: AnalysisSort[]): void;
   /**
    * Sets the sort and runs it now — unless something else in the draft is
@@ -350,11 +352,11 @@ export function useAnalysisEditor(
   );
 
   const dateUnitFor = useCallback(
-    (field: AnalysisFieldOption): AnalysisDateUnit => {
+    (field: AnalysisFieldOption): AggregationDateUnitName => {
       const applied = state?.applied;
       const result = state?.result;
       if (!runtime || !applied || applied.kind === 'dashboard')
-        return field.dateUnits[0] ?? 'DAY';
+        return field.dateUnits[0] ?? AggregationDateUnits.DAY;
       const { timeZone } = runtime.environment;
       const span =
         rangeSpan(
@@ -509,7 +511,7 @@ export function useAnalysisEditor(
     havingAllowed: capability?.having === true,
     topAllowed:
       capability?.having === true &&
-      (capability.windows ?? []).includes('RANK'),
+      (capability.windows ?? []).includes(WindowFunctions.RANK),
     top: config?.top,
     ranTop:
       state?.result?.config.kind === 'analysis'

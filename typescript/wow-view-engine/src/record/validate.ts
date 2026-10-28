@@ -16,6 +16,9 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
   summaryFunctionsOf,
+  DeletionStates,
+  FilterOperators,
+  SortDirections,
   type DataViewDefinition,
   type FieldDefinition,
   type FilterTree,
@@ -110,7 +113,11 @@ function hasCondition(
 ): boolean {
   for (const { node } of walkFilter(tree)) {
     if (!isFilterLeaf(node)) continue;
-    if (node.operator === 'DELETION' && node.value === 'ALL') continue;
+    if (
+      node.operator === FilterOperators.DELETION &&
+      node.value === DeletionStates.ALL
+    )
+      continue;
     const field = fields.get(node.field);
     const kind = field && kinds.get(field.kind);
     if (!field || !kind) return true;
@@ -258,7 +265,10 @@ function validateSort(
     // unsaid it reaches the editor as a key into a wording table and takes
     // the workbench down with it; said here it is a finding like any other,
     // and the draft stays in the error state until it is fixed.
-    if (sort.direction !== 'ASC' && sort.direction !== 'DESC')
+    if (
+      sort.direction !== SortDirections.ASC &&
+      sort.direction !== SortDirections.DESC
+    )
       issues.push(
         issue('record.sort.direction-invalid', ['sort', index, 'direction'], {
           field: sort.field,

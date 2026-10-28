@@ -33,11 +33,12 @@
 import {
   columnHidden,
   columnPinned,
+  SortDirections,
   SUMMARY_FUNCTIONS,
   type RecordColumn,
   type RecordSort,
   type RecordSummary,
-  type SortDirection,
+  type SortDirectionName,
   type SummaryFunction,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
@@ -59,8 +60,10 @@ function entries(value: unknown): Record<string, unknown>[] {
  * names a field the user chose, and the direction is the part they can flip
  * once they can see it. `validateRecord` reports the value separately.
  */
-function sortDirection(value: unknown): SortDirection {
-  return value === 'DESC' ? 'DESC' : 'ASC';
+function sortDirection(value: unknown): SortDirectionName {
+  return value === SortDirections.DESC
+    ? SortDirections.DESC
+    : SortDirections.ASC;
 }
 
 export function recordSort(value: unknown): RecordSort[] {

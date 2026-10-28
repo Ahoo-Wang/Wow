@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
+import type { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   sameJson,
-  type AnalysisDateUnit,
+  type AggregationDateUnitName,
   type AnalysisGroup,
-  type AnalysisGroupType,
+  type AggregationGroupTypeName,
   type AnalysisViewConfig,
   type ChartSpec,
   type FieldDefinition,
@@ -23,6 +24,8 @@ import {
   type FilterNode,
   type FilterValue,
   type RecordData,
+  AggregationGroupTypes,
+  FilterOperators,
 } from '../model/index.js';
 import {
   isFilterLeaf,
@@ -120,7 +123,11 @@ export function drillRecordConditions(
   const conditions = all.filter(inElement);
   const holder = fields.find(field => field.name === element.path);
   const kind = holder && kinds.get(holder.kind);
-  if (!holder || !kind || !operatorsOf(holder, kind).includes('ELEMENT_MATCH'))
+  if (
+    !holder ||
+    !kind ||
+    !operatorsOf(holder, kind).includes(FilterOperators.ELEMENT_MATCH)
+  )
     return null;
   // The level's gate first and the groups after it, one "all of" where the
   // gate was one, as `drillFilter` joins a row to a range — unless a group
@@ -137,7 +144,7 @@ export function drillRecordConditions(
     ...root,
     {
       field: holder.name,
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperators.ELEMENT_MATCH,
       // A predicate is a tree stored as a leaf's value, which the value type
       // knows only as JSON; the element-match kind reads it back as one.
       value: predicate as unknown as FilterValue,
@@ -254,7 +261,7 @@ export function drillSpan(
     if (!field) return null;
     const from = first[group.alias];
     const to = last[group.alias];
-    if (group.type === 'DATE_HISTOGRAM') {
+    if (group.type === AggregationGroupTypes.DATE_HISTOGRAM) {
       const span = spanOf(group, from, to, context);
       if (!span) return null;
       spans = true;
@@ -275,7 +282,10 @@ export function drillSpan(
  * closed a millisecond before the later bucket's end (K1).
  */
 function spanOf(
-  group: Extract<AnalysisGroup, { type: 'DATE_HISTOGRAM' }>,
+  group: Extract<
+    AnalysisGroup,
+    { type: `${AggregationGroupType.DATE_HISTOGRAM}` }
+  >,
   a: unknown,
   b: unknown,
   context: DrillContext,
@@ -292,7 +302,7 @@ function spanOf(
     conditions: [
       {
         field: group.field,
-        operator: 'BETWEEN',
+        operator: FilterOperators.BETWEEN,
         value: {
           type: 'absolute',
           from: new Date(start).toISOString(),
@@ -312,7 +322,7 @@ function conditionsOf(
   context: DrillContext,
 ): FilterLeaf[] | null {
   switch (group.type) {
-    case 'TERMS': {
+    case AggregationGroupTypes.TERMS: {
       // The sentinel bucket holds the records that have no value — and any
       // whose value is the sentinel itself, which the condition cannot tell
       // apart and does not try to.
@@ -321,18 +331,28 @@ function conditionsOf(
         value === undefined ||
         (group.missingKey !== undefined && value === group.missingKey)
       )
-        return [{ field: group.field, operator: 'IS_NULL', value: null }];
+        return [
+          {
+            field: group.field,
+            operator: FilterOperators.IS_NULL,
+            value: null,
+          },
+        ];
       return [equal(group.field, value, field, kinds)];
     }
-    case 'HISTOGRAM': {
+    case AggregationGroupTypes.HISTOGRAM: {
       if (group.field === undefined) return null;
       if (typeof value !== 'number' || !Number.isFinite(value)) return null;
       return [
-        { field: group.field, operator: 'GTE', value },
-        { field: group.field, operator: 'LT', value: value + group.interval },
+        { field: group.field, operator: FilterOperators.GTE, value },
+        {
+          field: group.field,
+          operator: FilterOperators.LT,
+          value: value + group.interval,
+        },
       ];
     }
-    case 'DATE_HISTOGRAM': {
+    case AggregationGroupTypes.DATE_HISTOGRAM: {
       const start = readInstant(value)?.ms;
       if (start === undefined) return null;
       const timeZone = group.timeZone ?? context.timeZone;
@@ -344,7 +364,7 @@ function conditionsOf(
       return [
         {
           field: group.field,
-          operator: 'BETWEEN',
+          operator: FilterOperators.BETWEEN,
           value: {
             type: 'absolute',
             from: new Date(range.from).toISOString(),
@@ -354,7 +374,7 @@ function conditionsOf(
         },
       ];
     }
-    case 'DATE_PART':
+    case AggregationGroupTypes.DATE_PART:
       // 「周一」 is every Monday the range holds, and no condition a view
       // can store says that: a date condition is one stretch of time. The
       // group is still named (a menu reads it), but it leads to no records.
@@ -375,15 +395,15 @@ function equal(
 ): FilterLeaf {
   const kind = kinds.get(field.kind);
   const scalar = value as string | number | boolean;
-  if (kind?.operators.includes('EQ'))
-    return { field: name, operator: 'EQ', value: scalar };
+  if (kind?.operators.includes(FilterOperators.EQ))
+    return { field: name, operator: FilterOperators.EQ, value: scalar };
   if (field.kind === 'reference')
     return {
       field: name,
-      operator: 'IN',
+      operator: FilterOperators.IN,
       value: { items: [{ id: scalar, label: String(scalar) }] },
     };
-  return { field: name, operator: 'IN', value: [scalar] };
+  return { field: name, operator: FilterOperators.IN, value: [scalar] };
 }
 
 /**
@@ -493,14 +513,14 @@ function readsValuesOf(
 export function groupFor(
   field: FieldDefinition,
   offered: {
-    groups: readonly AnalysisGroupType[];
-    dateUnits: readonly AnalysisDateUnit[];
+    groups: readonly AggregationGroupTypeName[];
+    dateUnits: readonly AggregationDateUnitName[];
     missingKey?: boolean;
   },
   kind?: Pick<FieldKind, 'singleString'>,
 ): AnalysisGroup {
   // A field is offered as a split only when it has a group type at all.
-  const type = offered.groups[0] ?? 'TERMS';
+  const type = offered.groups[0] ?? AggregationGroupTypes.TERMS;
   return groupOfType(
     groupFacts(field, offered.dateUnits, kind, offered),
     type,

@@ -12,7 +12,7 @@
  */
 
 import { InfoIcon, XIcon } from 'lucide-react';
-import type { AnalysisDateUnit } from '../../model/index.js';
+import type { AggregationDateUnitName } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
@@ -26,10 +26,10 @@ export function GroupingControl({
   onChange,
   onRemove,
 }: {
-  units: readonly AnalysisDateUnit[];
-  unit: AnalysisDateUnit;
+  units: readonly AggregationDateUnitName[];
+  unit: AggregationDateUnitName;
   idle: boolean;
-  onChange(unit: AnalysisDateUnit): void;
+  onChange(unit: AggregationDateUnitName): void;
   onRemove?(): void;
 }) {
   const messages = useViewMessages();
@@ -43,7 +43,7 @@ export function GroupingControl({
       <ToggleGroup
         value={[unit]}
         onValueChange={next => {
-          const picked = next[0] as AnalysisDateUnit | undefined;
+          const picked = next[0] as AggregationDateUnitName | undefined;
           if (picked && units.includes(picked)) onChange(picked);
         }}
         variant="outline"

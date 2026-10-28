@@ -12,7 +12,8 @@
  */
 
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react';
-import type { RecordSort, SortDirection } from '../../model/index.js';
+import type { RecordSort, SortDirectionName } from '../../model/index.js';
+import { SortDirections } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
 import { cycledSort } from '../../react/recordEdits.js';
 import { cn } from 'cn';
@@ -305,8 +306,8 @@ export function SortableHeader({
 
 /** What waits for Apply on a column, said after what the press does. */
 const WAITING = {
-  ASC: 'label.sort.waiting.asc',
-  DESC: 'label.sort.waiting.desc',
+  [SortDirections.ASC]: 'label.sort.waiting.asc',
+  [SortDirections.DESC]: 'label.sort.waiting.desc',
 } as const;
 
 /**
@@ -320,7 +321,7 @@ function pressAction(
 ): 'ascending' | 'descending' | 'none' | 'restore' {
   const [lead] = after;
   if (lead?.field === field)
-    return lead.direction === 'ASC' ? 'ascending' : 'descending';
+    return lead.direction === SortDirections.ASC ? 'ascending' : 'descending';
   return lead === undefined ? 'none' : 'restore';
 }
 
@@ -335,11 +336,11 @@ function pressAction(
  * where it can be said in words.
  */
 function ariaSort(
-  direction: SortDirection | null,
+  direction: SortDirectionName | null,
   primary: boolean,
 ): 'ascending' | 'descending' | undefined {
   if (!primary) return undefined;
-  return direction === 'ASC' ? 'ascending' : 'descending';
+  return direction === SortDirections.ASC ? 'ascending' : 'descending';
 }
 
 /**
@@ -358,7 +359,7 @@ function ariaSort(
  * instead — quiet enough not to compete with the column's name, present
  * enough to be found without moving the pointer.
  */
-function SortMark({ direction }: { direction: SortDirection | null }) {
+function SortMark({ direction }: { direction: SortDirectionName | null }) {
   if (direction === null)
     return (
       // No size class: the button around it is the vendored `Button` at
@@ -369,7 +370,7 @@ function SortMark({ direction }: { direction: SortDirection | null }) {
         className="fve:text-muted-foreground/60"
       />
     );
-  const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;
+  const Arrow = direction === SortDirections.ASC ? ArrowUpIcon : ArrowDownIcon;
   return <Arrow data-slot="sort-direction" />;
 }
 

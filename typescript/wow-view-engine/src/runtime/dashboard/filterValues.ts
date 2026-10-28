@@ -14,7 +14,7 @@
 import { dequal } from 'dequal';
 import {
   filterTypeOf,
-  type AnalysisDateUnit,
+  type AggregationDateUnitName,
   type DashboardFilters,
   type DashboardViewConfig,
   type FieldOption,
@@ -191,7 +191,7 @@ export class FilterValues {
   }
 
   /** The time grouping's unit; one the board does not offer is ignored. */
-  unit(unit: AnalysisDateUnit): void {
+  unit(unit: AggregationDateUnitName): void {
     if (this.heldUnit) return;
     this.put({ ...this.host.current(), unit });
   }

@@ -21,7 +21,7 @@ import type {
   RecordLayout,
   RecordSort,
   RecordSummary,
-  SortDirection,
+  SortDirectionName,
   SummaryFunction,
 } from '../model/index.js';
 import { columnHidden, columnPinned, isFieldlessKind } from '../model/index.js';
@@ -160,7 +160,7 @@ export interface RecordTableController {
    * be lying about them. Empty before anything has run.
    */
   ranSort: RecordSort[];
-  sortOf(field: string): SortDirection | null;
+  sortOf(field: string): SortDirectionName | null;
   /**
    * Ascending, then descending, then off.
    *

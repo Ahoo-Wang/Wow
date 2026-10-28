@@ -18,6 +18,7 @@ import type {
   FilterTree,
   IssuePath,
 } from '../model/index.js';
+import { FilterOperators } from '../model/index.js';
 
 /**
  * Whether a value is a node at all.
@@ -504,7 +505,7 @@ export function filterFields(tree: FilterTree): string[] {
 
 /** The earlier moment a time since another moment (N3) names, if it is one. */
 export function durationFrom(leaf: FilterLeaf): string | undefined {
-  if (leaf.operator !== 'EXPRESSION') return undefined;
+  if (leaf.operator !== FilterOperators.EXPRESSION) return undefined;
   const value = leaf.value;
   return value !== null &&
     typeof value === 'object' &&

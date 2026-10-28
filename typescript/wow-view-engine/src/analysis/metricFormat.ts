@@ -11,18 +11,25 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   isDateCell,
   isValueMetric,
   numberFormatOf,
-  type AnalysisDateDiffUnit,
+  type DateDiffUnitName,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
-  type AnalysisFunction,
+  type AggregationFunctionName,
   type AnalysisMetric,
   type DerivedFormat,
   type FieldDefinition,
   type NumberFormat,
+  AggregationExpressionOperators,
+  AggregationExpressionTypes,
+  AggregationFunctions,
+  AggregationMetricTypes,
+  DateDiffUnits,
+  DerivedExpressionTypes,
 } from '../model/index.js';
 
 /**
@@ -34,17 +41,19 @@ import {
  * the same word.
  */
 export type MetricFunction =
-  | AnalysisFunction
-  | 'COUNT'
-  | 'DISTINCT_COUNT'
-  | 'PERCENTILE'
-  | 'FIRST'
-  | 'LAST'
-  | 'ANY'
-  | 'DERIVED';
+  | AggregationFunctionName
+  | `${AggregationMetricType.COUNT}`
+  | `${AggregationMetricType.DISTINCT_COUNT}`
+  | `${AggregationMetricType.PERCENTILE}`
+  | `${AggregationMetricType.FIRST}`
+  | `${AggregationMetricType.LAST}`
+  | `${AggregationMetricType.ANY}`
+  | `${AggregationMetricType.DERIVED}`;
 
 export function metricFunctionOf(metric: AnalysisMetric): MetricFunction {
-  return metric.type === 'NUMERIC' ? metric.function : metric.type;
+  return metric.type === AggregationMetricTypes.NUMERIC
+    ? metric.function
+    : metric.type;
 }
 
 /** A whole number: nothing counted is ever a fraction of one. */
@@ -83,15 +92,15 @@ export function metricFormat(
 ): NumberFormat | undefined {
   const format = numberFormatOf(field);
   switch (metricFunctionOf(metric)) {
-    case 'COUNT':
-    case 'DISTINCT_COUNT':
+    case AggregationMetricTypes.COUNT:
+    case AggregationMetricTypes.DISTINCT_COUNT:
       return COUNTED;
-    case 'AVG':
-    case 'STDDEV':
-    case 'VARIANCE':
+    case AggregationFunctions.AVG:
+    case AggregationFunctions.STDDEV:
+    case AggregationFunctions.VARIANCE:
       return { ...format, ...AVERAGED };
-    case 'DERIVED':
-      return metric.type === 'DERIVED' && metric.format
+    case AggregationMetricTypes.DERIVED:
+      return metric.type === AggregationMetricTypes.DERIVED && metric.format
         ? derivedNumberFormat(metric.format, format)
         : { ...AVERAGED };
     default:
@@ -139,11 +148,11 @@ export function derivedOperandFormat(
 ): NumberFormat | undefined {
   const currencies = new Set<string>();
   const walk = (node: AnalysisDerivedExpression): void => {
-    if (node.type === 'METRIC_REF') {
+    if (node.type === DerivedExpressionTypes.METRIC_REF) {
       const format = formatOf(node.metric);
       if (format?.style === 'currency' && format.currency)
         currencies.add(format.currency.toUpperCase());
-    } else if (node.type === 'BINARY') {
+    } else if (node.type === DerivedExpressionTypes.BINARY) {
       walk(node.left);
       walk(node.right);
     }
@@ -173,13 +182,14 @@ export function metricFormats(
     const field =
       name !== undefined
         ? fieldOf(name)
-        : metric.type === 'DERIVED'
+        : metric.type === AggregationMetricTypes.DERIVED
           ? {
               numberFormat: derivedOperandFormat(metric.expression, alias =>
                 formats.get(alias),
               ),
             }
-          : metric.type === 'NUMERIC' || metric.type === 'PERCENTILE'
+          : metric.type === AggregationMetricTypes.NUMERIC ||
+              metric.type === AggregationMetricTypes.PERCENTILE
             ? {
                 numberFormat: formulaFormat(metric.expression, field =>
                   numberFormatOf(fieldOf(field)),
@@ -223,11 +233,23 @@ export function formulaFormat(
  * hour and a half is 1.5 hours, and a tenth is as fine as a duration is
  * read on a dashboard.
  */
-const DURATION_FORMATS: Readonly<Record<AnalysisDateDiffUnit, NumberFormat>> = {
-  SECOND: { style: 'unit', unit: 'second', maximumFractionDigits: 1 },
-  MINUTE: { style: 'unit', unit: 'minute', maximumFractionDigits: 1 },
-  HOUR: { style: 'unit', unit: 'hour', maximumFractionDigits: 1 },
-  DAY: { style: 'unit', unit: 'day', maximumFractionDigits: 1 },
+const DURATION_FORMATS: Readonly<Record<DateDiffUnitName, NumberFormat>> = {
+  [DateDiffUnits.SECOND]: {
+    style: 'unit',
+    unit: 'second',
+    maximumFractionDigits: 1,
+  },
+  [DateDiffUnits.MINUTE]: {
+    style: 'unit',
+    unit: 'minute',
+    maximumFractionDigits: 1,
+  },
+  [DateDiffUnits.HOUR]: {
+    style: 'unit',
+    unit: 'hour',
+    maximumFractionDigits: 1,
+  },
+  [DateDiffUnits.DAY]: { style: 'unit', unit: 'day', maximumFractionDigits: 1 },
 };
 
 /** A plain number: no unit of its own, and none taken from it. */
@@ -243,14 +265,14 @@ function reading(
   formatOf: (field: string) => NumberFormat | undefined,
 ): Reading {
   switch (expression.type) {
-    case 'FIELD':
+    case AggregationExpressionTypes.FIELD:
       return { format: formatOf(expression.field) };
-    case 'CONSTANT':
+    case AggregationExpressionTypes.CONSTANT:
       return SCALAR;
     // A time between two moments is in its unit: 「12.5 小时」.
-    case 'DATE_DIFF':
+    case AggregationExpressionTypes.DATE_DIFF:
       return { format: DURATION_FORMATS[expression.unit] };
-    case 'BINARY': {
+    case AggregationExpressionTypes.BINARY: {
       const left = reading(expression.left, formatOf);
       const right = reading(expression.right, formatOf);
       if (left === SCALAR && right === SCALAR) return SCALAR;
@@ -258,9 +280,14 @@ function reading(
       // except as a dividend: 2 ÷ ¥ is no money.
       if (right === SCALAR) return left;
       if (left === SCALAR)
-        return expression.operator === 'DIVIDE' ? NO_FORMAT : right;
+        return expression.operator === AggregationExpressionOperators.DIVIDE
+          ? NO_FORMAT
+          : right;
       // Two measured operands.
-      if (expression.operator === 'ADD' || expression.operator === 'SUBTRACT')
+      if (
+        expression.operator === AggregationExpressionOperators.ADD ||
+        expression.operator === AggregationExpressionOperators.SUBTRACT
+      )
         return sameFormat(left.format, right.format) ? left : NO_FORMAT;
       return NO_FORMAT;
     }
@@ -290,11 +317,11 @@ function sameFormat(
 export function metricFieldOf(metric: AnalysisMetric): string | undefined {
   if (isValueMetric(metric)) return metric.field;
   if (
-    metric.type === 'NUMERIC' ||
-    metric.type === 'DISTINCT_COUNT' ||
-    metric.type === 'PERCENTILE'
+    metric.type === AggregationMetricTypes.NUMERIC ||
+    metric.type === AggregationMetricTypes.DISTINCT_COUNT ||
+    metric.type === AggregationMetricTypes.PERCENTILE
   )
-    return metric.expression?.type === 'FIELD'
+    return metric.expression?.type === AggregationExpressionTypes.FIELD
       ? metric.expression.field
       : undefined;
   return undefined;
@@ -311,12 +338,12 @@ export function metricFieldOf(metric: AnalysisMetric): string | undefined {
 export function readsAsItsField(metric: AnalysisMetric): boolean {
   if (metricFieldOf(metric) === undefined) return false;
   switch (metricFunctionOf(metric)) {
-    case 'MIN':
-    case 'MAX':
-    case 'PERCENTILE':
-    case 'FIRST':
-    case 'LAST':
-    case 'ANY':
+    case AggregationFunctions.MIN:
+    case AggregationFunctions.MAX:
+    case AggregationMetricTypes.PERCENTILE:
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST:
+    case AggregationMetricTypes.ANY:
       return true;
     default:
       return false;
@@ -384,10 +411,10 @@ export function metricMeasure(
   own: string,
 ): string {
   switch (fn) {
-    case 'COUNT':
-    case 'DISTINCT_COUNT':
+    case AggregationMetricTypes.COUNT:
+    case AggregationMetricTypes.DISTINCT_COUNT:
       return 'count';
-    case 'DERIVED': {
+    case AggregationMetricTypes.DERIVED: {
       // Declared a unit (D38), a derived number is a value in it — two
       // rates in percent share a scale; declared none, it is its own.
       const unit = unitOf(format);
@@ -395,7 +422,11 @@ export function metricMeasure(
     }
     default: {
       const scale =
-        fn === 'SUM' ? 'total' : fn === 'VARIANCE' ? 'square' : 'value';
+        fn === AggregationFunctions.SUM
+          ? 'total'
+          : fn === AggregationFunctions.VARIANCE
+            ? 'square'
+            : 'value';
       return `${scale}:${unitOf(format) ?? `own:${own}`}`;
     }
   }

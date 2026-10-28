@@ -13,14 +13,16 @@
 
 import {
   ANALYSIS_DATE_DIFF_UNITS,
-  type AnalysisDateDiffUnit,
+  ComparisonOperators,
+  DateDiffUnits,
+  type DateDiffUnitName,
   type FilterValue,
 } from '../../../model/index.js';
 import {
   DURATION_COMPARISONS,
   isDurationFilterValue,
   writeValue,
-  type DurationComparison,
+  type ComparisonOperatorName,
   type DurationFilterValue,
 } from '../../../filter/index.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
@@ -54,9 +56,9 @@ export function DurationValue({
   const whole = (patch: Partial<DurationFilterValue>): FilterValue =>
     writeValue({
       from: current.from ?? '',
-      comparison: current.comparison ?? 'GT',
+      comparison: current.comparison ?? ComparisonOperators.GT,
       value: current.value ?? 0,
-      unit: current.unit ?? 'HOUR',
+      unit: current.unit ?? DateDiffUnits.HOUR,
       ...patch,
     } satisfies DurationFilterValue);
   const set = isDurationFilterValue(value);
@@ -75,13 +77,13 @@ export function DurationValue({
         label={messages.label('label.filter.duration-comparison')}
         disabled={disabled || !set}
         invalid={invalid}
-        value={current.comparison ?? 'GT'}
+        value={current.comparison ?? ComparisonOperators.GT}
         items={DURATION_COMPARISONS.map(comparison => ({
           value: comparison,
           label: COMPARISON_SIGN[comparison],
         }))}
         onChange={comparison =>
-          onChange(whole({ comparison: comparison as DurationComparison }))
+          onChange(whole({ comparison: comparison as ComparisonOperatorName }))
         }
       />
       <NumberInput
@@ -98,14 +100,12 @@ export function DurationValue({
         label={messages.label('label.filter.duration-unit')}
         disabled={disabled || !set}
         invalid={invalid}
-        value={current.unit ?? 'HOUR'}
+        value={current.unit ?? DateDiffUnits.HOUR}
         items={ANALYSIS_DATE_DIFF_UNITS.map(unit => ({
           value: unit,
           label: messages.label(`label.date-diff-unit.${unit}`),
         }))}
-        onChange={unit =>
-          onChange(whole({ unit: unit as AnalysisDateDiffUnit }))
-        }
+        onChange={unit => onChange(whole({ unit: unit as DateDiffUnitName }))}
       />
     </div>
   );

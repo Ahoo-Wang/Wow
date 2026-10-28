@@ -12,6 +12,7 @@
  */
 
 import type { Issue, IssuePath, RuntimeLimits } from '../model/index.js';
+import { AggregationExpressionTypes } from '../model/index.js';
 import { issue } from '../filter/index.js';
 
 /**
@@ -81,7 +82,9 @@ export function budgetIssues(
 export function binaryChildren(node: unknown): readonly unknown[] {
   const shaped = node as
     { type?: unknown; left?: unknown; right?: unknown } | null | undefined;
-  return shaped?.type === 'BINARY' ? [shaped.left, shaped.right] : [];
+  return shaped?.type === AggregationExpressionTypes.BINARY
+    ? [shaped.left, shaped.right]
+    : [];
 }
 
 /** The operands of a having group; a non-array is the walk's to report. */

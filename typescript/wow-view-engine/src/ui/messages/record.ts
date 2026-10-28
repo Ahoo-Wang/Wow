@@ -11,6 +11,12 @@
  * limitations under the License.
  */
 
+import {
+  AggregationFunctions,
+  AggregationMetricTypes,
+} from '../../model/index.js';
+import { wireKey } from './wireKey.js';
+
 /** The record view: its layouts, toolbar, paging, rows and summaries. */
 export const recordMessages = {
   // Layout switches.
@@ -206,27 +212,30 @@ export const recordMessages = {
   'label.summary.scope.page': 'This page',
   'label.summary.scope.total': 'All rows',
   'label.summary.fn.none': 'No summary',
-  'label.summary.fn.SUM': 'Sum',
-  'label.summary.fn.AVG': 'Average',
-  'label.summary.fn.MIN': 'Min',
-  'label.summary.fn.MAX': 'Max',
-  'label.summary.fn.COUNT': 'Count',
+  [wireKey('label.summary.fn', AggregationFunctions.SUM)]: 'Sum',
+  [wireKey('label.summary.fn', AggregationFunctions.AVG)]: 'Average',
+  [wireKey('label.summary.fn', AggregationFunctions.MIN)]: 'Min',
+  [wireKey('label.summary.fn', AggregationFunctions.MAX)]: 'Max',
+  [wireKey('label.summary.fn', AggregationMetricTypes.COUNT)]: 'Count',
   // The same two functions over a column of moments. A date has no smallest
   // and no largest: it has a first and a last, and «Min of Created» reads as
   // a number that column never held. One word per meaning, so the number
   // keeps Min and Max and the moment gets its own pair; which of the two a
   // column speaks is decided by how it reads its cells (`display.ts`).
-  'label.summary.fn.date.MIN': 'Earliest',
-  'label.summary.fn.date.MAX': 'Latest',
+  [wireKey('label.summary.fn.date', AggregationFunctions.MIN)]: 'Earliest',
+  [wireKey('label.summary.fn.date', AggregationFunctions.MAX)]: 'Latest',
   // The analysis view's summaries are this same set, not a second one
   // (D20: one meaning per word). A record column offers the first five; an
   // analysis metric offers these as well, and both compose their header with
   // `label.summary.of`, so "Average of Amount" says one thing on either
   // screen. They live here because `label.summary.*` is one prefix family.
-  'label.summary.fn.STDDEV': 'Standard deviation',
-  'label.summary.fn.VARIANCE': 'Variance',
-  'label.summary.fn.DISTINCT_COUNT': 'Distinct count',
-  'label.summary.fn.PERCENTILE': 'Percentile',
+  [wireKey('label.summary.fn', AggregationFunctions.STDDEV)]:
+    'Standard deviation',
+  [wireKey('label.summary.fn', AggregationFunctions.VARIANCE)]: 'Variance',
+  [wireKey('label.summary.fn', AggregationMetricTypes.DISTINCT_COUNT)]:
+    'Distinct count',
+  [wireKey('label.summary.fn', AggregationMetricTypes.PERCENTILE)]:
+    'Percentile',
   // "Any one of them", and the stress is on *any*: the backend returns some
   // value from the group and does not promise the same one twice.
   //
@@ -238,10 +247,11 @@ export const recordMessages = {
   // (`label.analysis.any-note`).
   // The value on a group's earliest and latest record (FIRST / LAST): an
   // opening and a closing value, as a period's are named.
-  'label.summary.fn.FIRST': 'Opening value',
-  'label.summary.fn.LAST': 'Closing value',
-  'label.summary.fn.ANY': 'Any value',
-  'label.summary.fn.ANY.item': 'Any value (not stable)',
+  [wireKey('label.summary.fn', AggregationMetricTypes.FIRST)]: 'Opening value',
+  [wireKey('label.summary.fn', AggregationMetricTypes.LAST)]: 'Closing value',
+  [wireKey('label.summary.fn', AggregationMetricTypes.ANY)]: 'Any value',
+  [`${wireKey('label.summary.fn', AggregationMetricTypes.ANY)}.item` as const]:
+    'Any value (not stable)',
   'label.summary.unavailable': '—',
   // A summary row naming the summarised columns out of view (D51): the
   // first one's summary on the button and how many there are when more than
