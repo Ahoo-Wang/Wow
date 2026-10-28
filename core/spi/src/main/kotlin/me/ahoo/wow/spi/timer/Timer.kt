@@ -250,19 +250,24 @@ enum class TimerStatus {
     PARKED,
 }
 
-/** The [Timer.outcome]s the runtime records. */
+/**
+ * The [Timer.outcome]s the runtime records. A firing's is the value of its observed outcome
+ * ([me.ahoo.wow.spi.observation.ObservedOutcome]), so a timer, its span and its metrics name one outcome alike.
+ */
 object TimerOutcomes {
-    const val COMMITTED = "COMMITTED"
-    const val ALREADY_COMMITTED = "ALREADY_COMMITTED"
-    const val UNCHANGED = "UNCHANGED"
+    const val COMMITTED = "committed"
+
+    /** The target had committed the command before: a slot sent again, whose outcome was not recorded. */
+    const val DUPLICATE = "duplicate"
+    const val UNCHANGED = "unchanged"
 
     /** The target refused the command: a normal state guard, not retried. */
-    const val REJECTED = "REJECTED"
+    const val REJECTED = "rejected"
 
     /** Sent to another context's command topic: its broker acknowledged it. */
-    const val SENT = "SENT"
-    const val EXPIRED = "EXPIRED"
-    const val SKIPPED = "SKIPPED"
+    const val SENT = "sent"
+    const val EXPIRED = "expired"
+    const val SKIPPED = "skipped"
 }
 
 /** How timers are named and derived from the log. */

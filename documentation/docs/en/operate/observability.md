@@ -50,9 +50,9 @@ Put `wow-observability` on the class path. The spans go through the application'
 | A query | A span per query |
 | A Kafka send | A producer span per send |
 
-The spans carry the context, aggregate, tenant, command and subscription as attributes (`wow.context`, `wow.aggregate`, `wow.tenant.id`, `wow.command`, `wow.subscription`, …), so a trace follows a command through its sagas across services.
+The spans carry the context, aggregate, tenant, command and subscription as attributes (`wow.context`, `wow.aggregate.name`, `wow.tenant.id`, `wow.command.name`, `wow.subscription`, …), so a trace follows a command through its sagas across services.
 
-**Metrics.** The main ones, tagged with the spans' attributes (`wow.context`, `wow.aggregate`, `wow.subscription`, …):
+**Metrics.** The main ones, tagged with the spans' attributes (`wow.context`, `wow.aggregate.name`, `wow.subscription`, …):
 
 | Metric | Type | Measures |
 | --- | --- | --- |

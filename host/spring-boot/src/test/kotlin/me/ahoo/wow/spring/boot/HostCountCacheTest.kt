@@ -20,7 +20,9 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -32,8 +34,8 @@ import kotlin.time.toKotlinDuration
 class OutcomeObserver : QueryObserver {
     val outcomes = CopyOnWriteArrayList<String>()
 
-    override fun start(aggregateType: AggregateType, queryType: QueryType): Observation = object : Observation {
-        override fun outcome(outcome: String) {
+    override fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation = object : Observation {
+        override fun outcome(outcome: ObservedOutcome) {
             outcomes += "$queryType:$outcome"
         }
     }
@@ -61,7 +63,7 @@ class QueryOutcomes {
  */
 fun Host.assertCountCache() {
     val outcomes = context.getBean(OutcomeObserver::class.java).outcomes
-    fun cached() = outcomes.filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }
+    fun cached() = outcomes.filter { it.endsWith(":${ObservedOutcome.CACHED.value}") }
     val filter = """{"op":"eq","field":"state.owner","value":"counted"}"""
     fun count(tenant: String = "acme"): Long {
         val counted = post("/bank/account/snapshot/query", """{"kind":"count","filter":$filter}""", tenant)
@@ -128,7 +130,7 @@ class HostCountCacheTest {
             val paged = """{"kind":"paged","filter":{"op":"match-all"},"pagination":{"index":1,"size":1}}"""
             repeat(2) { host.post("/bank/account/snapshot/query", paged).status.assert().isEqualTo(200) }
             host.context.getBean(OutcomeObserver::class.java).outcomes
-                .filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }.assert().containsExactly("PAGED:cached")
+                .filter { it.endsWith(":${ObservedOutcome.CACHED.value}") }.assert().containsExactly("PAGED:cached")
         }
     }
 
@@ -173,7 +175,7 @@ class HostCountCacheTest {
                         .status.assert().isEqualTo(200)
                 }
                 val cached = host.context.getBean(OutcomeObserver::class.java).outcomes
-                    .filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }
+                    .filter { it.endsWith(":${ObservedOutcome.CACHED.value}") }
                 cached.assert().hasSize(if (eventsEnabled) 1 else 0)
             }
         }

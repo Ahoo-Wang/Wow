@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url'
 // fails here instead of on a dashboard. Configuration keys (`wow.health.*`,
 // `wow.observability.*`) are held to the configuration metadata elsewhere.
 const repository = fileURLToPath(new URL('../../', import.meta.url))
-const REPORTERS = ['edge/observability', 'host/spring-boot', 'backends/kafka']
+const REPORTERS = ['edge/observability', 'host/spring-boot', 'backends/kafka', 'platform/analytics/catalog/server']
 const CONFIGURATION = /^wow\.(health|observability)\./
 const NAME = /`((?:wow|messaging)\.[a-z0-9._-]*[a-z0-9_])`/g
 
@@ -36,26 +36,59 @@ for (const locale of ['en', 'zh']) {
     })
 }
 
-// The other way: every metric of the catalog is on the page, so a new metric is documented before it ships.
-const catalog = readFileSync(
-    join(repository, 'edge/observability/src/main/kotlin/me/ahoo/wow/observability/WowAttributes.kt'),
+// The other way: every metric of the catalog is on the page, as the catalog declares it: its type, exactly its
+// tags, and every value of a tag whose values the framework names. The catalog is held to its snapshot
+// (edge/observability MetricNamingTest), and the analytics catalog server's own gauges to its constants.
+const catalog = JSON.parse(
+    readFileSync(join(repository, 'edge/observability/src/test/resources/metrics.json'), 'utf8'),
+)
+const analytics = readFileSync(
+    join(
+        repository,
+        'platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/AnalyticsCatalogConfiguration.kt',
+    ),
     'utf8',
 )
-const metrics = [
-    ...catalog
-        .slice(catalog.indexOf('object WowMetrics'), catalog.indexOf('val NAMES'))
-        .matchAll(/const val \w+: String = "(wow\.[^"]+)"/g),
-].map(([, name]) => name)
+const analyticsGauges = [...analytics.matchAll(/const val DATASETS_\w+: String = "(wow\.[^"]+)"/g)].map(([, name]) => ({
+    name,
+    type: 'gauge',
+    tags: [],
+    values: {},
+}))
+const TYPES = {timer: 'Timer', counter: 'Counter', gauge: 'Gauge'}
 
 for (const locale of ['en', 'zh']) {
     const page = join(repository, `documentation/docs/${locale}/reference/observability.md`)
-    test(`every metric of the catalog is on the ${locale} observability reference`, {skip: !existsSync(page)}, () => {
-        assert.ok(metrics.length > 30, `Only ${metrics.length} metrics found; the catalog's shape changed`)
-        const text = readFileSync(page, 'utf8')
-        assert.deepEqual(
-            metrics.filter((name) => !text.includes(`\`${name}\``)),
-            [],
-            'Not on the page',
+    test(`every metric of the catalog is on the ${locale} observability reference, as declared`, {skip: !existsSync(page)}, () => {
+        const metrics = [...catalog, ...analyticsGauges]
+        assert.ok(catalog.length > 30, `Only ${catalog.length} metrics found; the snapshot's shape changed`)
+        assert.equal(analyticsGauges.length, 2, "The analytics catalog server's gauges changed")
+        const rows = new Map(
+            readFileSync(page, 'utf8')
+                .split('\n')
+                .filter((line) => line.startsWith('| `wow.'))
+                .map((line) => {
+                    const cells = line.split(' | ').map((cell) => cell.replace(/^\| |\s*\|$/g, ''))
+                    return [cells[0].replaceAll('`', ''), {cells, line}]
+                }),
         )
+        const wrong = []
+        for (const metric of metrics) {
+            const row = rows.get(metric.name)
+            if (!row) {
+                wrong.push(`${metric.name}: not on the page`)
+                continue
+            }
+            const [, type, tags] = row.cells
+            if (type !== TYPES[metric.type]) wrong.push(`${metric.name}: ${type}, not ${TYPES[metric.type]}`)
+            const listed = [...(tags ?? '').matchAll(/`([^`]+)`/g)].map(([, tag]) => tag)
+            if (listed.join(',') !== metric.tags.join(','))
+                wrong.push(`${metric.name}: tags ${listed.join(', ')}, not ${metric.tags.join(', ')}`)
+            for (const [tag, values] of Object.entries(metric.values))
+                for (const value of values)
+                    if (!row.line.includes(`\`${value}\``) && !row.line.includes(`\`${tag}=${value}\``))
+                        wrong.push(`${metric.name}: no \`${value}\` of ${tag}`)
+        }
+        assert.deepEqual(wrong, [], 'The page differs from the catalog')
     })
 }

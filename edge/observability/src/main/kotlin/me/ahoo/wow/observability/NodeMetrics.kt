@@ -106,13 +106,13 @@ class NodeMetrics(
             node.parked.subscriptions.forEach { subscription ->
                 taken += gauge(
                     WowMetrics.PARKED_AGGREGATES,
-                    Tags.of(WowMetrics.SUBSCRIPTION, subscription),
-                    countParked(subscription).toDouble()
+                    WowMetrics.PARKED_AGGREGATES.tagsOf(subscription),
+                    countParked(subscription).toDouble(),
                 )
             }
         }
         node.contexts.forEach { (name, context) ->
-            val tags = Tags.of(WowMetrics.CONTEXT, name)
+            val tags = WowMetrics.EXECUTOR_IN_FLIGHT.tagsOf(name)
             taken += gauge(WowMetrics.EXECUTOR_IN_FLIGHT, tags, context.executor.commandsInFlight.toDouble())
             taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
             taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
@@ -125,13 +125,10 @@ class NodeMetrics(
             val heads = HashMap<Int, Long>()
             runtime.positions().forEach { position ->
                 val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
-                val tags = Tags.of(
-                    WowMetrics.GROUP,
+                val tags = WowMetrics.POSITION.tagsOf(
                     runtime.group,
-                    WowMetrics.SUBSCRIPTION,
                     position.subscription,
-                    WowMetrics.PARTITION,
-                    position.partition.toString(),
+                    position.partition.toString()
                 )
                 taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
                 taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
@@ -180,18 +177,18 @@ class NodeMetrics(
         }
     }
 
-    /** Sets the gauge [name] of [tags] to [value], registering it the first time; its key. */
-    private fun gauge(name: String, tags: Tags, value: Double): Pair<String, Tags> {
-        val key = name to tags
+    /** Sets the gauge [metric] of [tags] to [value], registering it the first time; its key. */
+    private fun gauge(metric: MetricSpec, tags: Tags, value: Double): Pair<String, Tags> {
+        val key = metric.name to tags
         gauges.computeIfAbsent(key) { _ ->
             val holder = AtomicReference(value)
-            holder to Gauge.builder(name, holder) { it.get() }.tags(tags).register(meters)
+            holder to metric.gauge(meters, holder, tags) { it.get() }
         }.first.set(value)
         return key
     }
 
     private fun subscriptionTags(group: String, subscription: String): Tags =
-        Tags.of(WowMetrics.GROUP, group, WowMetrics.SUBSCRIPTION, subscription)
+        WowMetrics.PAUSED_PARTITIONS.tagsOf(group, subscription)
 
     /** Stops sampling. */
     override fun close() {

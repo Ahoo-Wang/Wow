@@ -15,6 +15,7 @@ package me.ahoo.wow.observability
 
 import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.observability.WowMetrics.tagValue
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 
@@ -26,12 +27,6 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
 @InternalWowApi
 class ParkedMetrics(private val meters: MeterRegistry) : ParkedNotifier {
     override suspend fun notify(notice: ParkedNotice) {
-        meters.counter(
-            WowMetrics.PARKED_NOTICES,
-            WowMetrics.SUBSCRIPTION,
-            notice.entry.subscription,
-            WowMetrics.KIND,
-            notice.kind.name.lowercase(),
-        ).increment()
+        WowMetrics.PARKED_NOTICES.counter(meters, notice.entry.subscription, notice.kind.tagValue).increment()
     }
 }

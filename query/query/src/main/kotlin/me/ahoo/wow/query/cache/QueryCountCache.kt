@@ -158,9 +158,6 @@ class QueryCountCache(
     private class Entry(val validator: Long, val result: CountResult, val countedAt: Long)
 
     companion object {
-        /** The outcome a query's observation is told when its count or total came from the cache. */
-        const val CACHED_OUTCOME: String = "cached"
-
         private const val INITIAL_CAPACITY = 16
         private const val LOAD_FACTOR = 0.75f
         private val logger = KotlinLogging.logger {}

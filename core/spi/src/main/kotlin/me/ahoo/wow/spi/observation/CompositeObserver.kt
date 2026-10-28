@@ -82,7 +82,7 @@ internal class CompositeObserver(private val observers: List<Observer>) : Observ
         override val context: CoroutineContext =
             started.map { it.second.context }.firstOrNull { it != EmptyCoroutineContext } ?: EmptyCoroutineContext
 
-        override fun outcome(outcome: String) =
+        override fun outcome(outcome: ObservedOutcome) =
             started.forEach { (observer, observation) -> guarded(observer, Unit) { observation.outcome(outcome) } }
 
         override fun failed(error: Throwable) =

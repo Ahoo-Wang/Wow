@@ -131,13 +131,13 @@ class RoutedFailuresTest {
 
             answer = null
             timers.fire(timer("t-1")).assert().isEqualTo(TimerOutcomes.COMMITTED)
-            timers.fire(timer("t-1")).assert().isEqualTo(TimerOutcomes.ALREADY_COMMITTED)
+            timers.fire(timer("t-1")).assert().isEqualTo(TimerOutcomes.DUPLICATE)
             timers.fire(
                 timer("t-u", "RemoveItems", """{"items":["pear"]}""")
             ).assert().isEqualTo(TimerOutcomes.UNCHANGED)
             remote = true
             // Another node's reply carries no outcome: a commit is told by its result alone.
             timers.fire(timer("t-2")).assert().isEqualTo(TimerOutcomes.COMMITTED)
-            timers.fire(timer("t-2")).assert().isEqualTo(TimerOutcomes.ALREADY_COMMITTED)
+            timers.fire(timer("t-2")).assert().isEqualTo(TimerOutcomes.DUPLICATE)
         }
 }

@@ -20,12 +20,14 @@ import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryTargets
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryAuditTrail
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.query.state.StateVisibility
@@ -140,18 +142,23 @@ class ReadFacade(
         read: suspend () -> T,
     ): T {
         val queryType = what.queryType
-        return observer.started(type, queryType).observe {
-            val trail = if (observer.audits) QueryAuditTrail(type, queryType, what, caller) else null
-            try {
-                read().also { result ->
-                    trail?.rows(rows(result))
-                    observer.finished(type, queryType, trail, null)
+        return observer.started(
+            type,
+            queryType,
+            if (queryType == QueryType.TRACE) QueryModel.EVENTS else QueryModel.SNAPSHOT
+        )
+            .observe {
+                val trail = if (observer.audits) QueryAuditTrail(type, queryType, what, caller) else null
+                try {
+                    read().also { result ->
+                        trail?.rows(rows(result))
+                        observer.finished(type, queryType, trail, null)
+                    }
+                } catch (error: Throwable) {
+                    observer.finished(type, queryType, trail, error)
+                    throw error
                 }
-            } catch (error: Throwable) {
-                observer.finished(type, queryType, trail, error)
-                throw error
             }
-        }
     }
 
     /** The body of an event [name] of [type] as every caller sees it: masked as the Manifest declares. */

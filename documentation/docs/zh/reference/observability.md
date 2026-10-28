@@ -9,18 +9,18 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 
 ## 指标 {#metrics}
 
-标签写作 `name=value`；没有写值的标签，取其名字所说明的值。标签与 Span 的属性同名（`wow.*`，有语义约定时用约定的名字：`error.type`、`messaging.destination.name`），取值有界：指标从不带聚合 ID、请求 ID 这类标识。分区标签 `wow.partition` 只出现在订阅位置的三个 Gauge 上。
+标签写作 `name=value`；没有写值的标签，取其名字所说明的值。每个指标恰好带它那一行列出的标签；取值由框架命名的标签会列出全部取值，均为小写。标签与 Span 的属性同名（`wow.*`，有语义约定时用约定的名字：`error.type`、`messaging.destination.name`），取值有界：指标从不带聚合 ID、请求 ID 这类标识。分区标签 `wow.partition` 只出现在订阅位置的三个 Gauge 上。
 
 ### 命令 {#commands}
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.command.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.outcome` | 命令的执行，从接手它到得出结果 |
-| `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
-| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate`, `error.type` | 被聚合的决策拒绝的命令（带或不带事件），按拒绝的错误码 |
+| `wow.command.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.outcome` | 命令的执行，从接手它到得出结果：`committed`、`rejected`、`duplicate`（此前已提交）、`unchanged`、`contended`、`unknown`、`ok`（未指明结果）、`error`、`cancelled` |
+| `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
+| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 被聚合的决策拒绝的命令（带或不带事件），按拒绝的错误码 |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；在本地运行）、`unknown`（可能已到达） |
-| `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate`, `wow.stage` | 超时的等待，按所等待的阶段 |
-| `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号 |
+| `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate.name`, `wow.stage` | 超时的等待，按它到达的最后阶段：`accepted`、`committed`、`handled`、`unknown` |
+| `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号：`queue-full`、`closed`、`expired`、`refused`、`failed` |
 | `wow.executor.in_flight` | Gauge | `wow.context` | 上下文执行器中在途的命令 |
 | `wow.executor.lanes` | Gauge | `wow.context` | 在执行器中有命令的聚合 |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | 在日志追加队列中等待的提交 |
@@ -53,31 +53,41 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.query.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.query.type`, `wow.outcome` | 一次查询，从准入到结束 |
-| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate`, `wow.read` | 限定到其聚合的事件查询，按批读取（`wow.read=batch`）或按点读取（`wow.read=point`） |
+| `wow.query.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome` | 对聚合类型的快照或事件的一次查询，从准入到结束。`wow.query.type`：`single`、`list`、`paged`、`cursor`、`count`、`aggregation`、`state`、`trace`。`wow.outcome`：`ok`、`cached`（计数或总数来自缓存）、`error`、`cancelled` |
+| `wow.query.dataset.duration` | Timer | `wow.context`, `wow.dataset`, `wow.query.type`, `wow.outcome` | 对数据集的一次查询，从准入到结束；类型与结果同 `wow.query.duration`：`single`、`list`、`paged`、`cursor`、`count`、`aggregation`、`state`、`trace`；`ok`、`cached`、`error`、`cancelled` |
+| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | 限定到其聚合的事件查询，按批读取（`wow.read=batch`）或按点读取（`wow.read=point`） |
 | `wow.query.limit.current` | Gauge | `wow.store` | 存储当前的并发查询上限 |
 | `wow.query.pressure` | Gauge | `wow.store` | 自适应上限处于压力之下期间为 1 |
 | `wow.query.limit.decreases` | Counter | `wow.store` | 自适应上限下调的次数 |
 
 Gauge 每隔 `wow.observability.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
 
+### 分析目录服务器 {#analytics-catalog-server}
+
+分析目录服务器在提供数据集时报告它自己的两个 Gauge，单位为秒。
+
+| 指标 | 类型 | 标签 | 度量 |
+| --- | --- | --- | --- |
+| `wow.analytics.catalog.datasets.sync.age` | Gauge | | 距节点上次读取数据集发布的时间；首次读取之前为 NaN |
+| `wow.analytics.catalog.datasets.publication.lag` | Gauge | | 节点应用的最新一次发布从发布到提供所用的时间 |
+
 ## Span {#spans}
 
-tracer 名为 `me.ahoo.wow`。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。Span 以它的 `wow.outcome` 结束，失败会记录在它上面。
+tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。Span 以它的 `wow.outcome` 结束，失败会记录在它上面。
 
 | Span | 类型 | 属性 |
 | --- | --- | --- |
-| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate`, `wow.command` |
-| `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command`, `wow.command.id`, `wow.request.id` |
-| `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.tenant.id` |
-| `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.version` |
-| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.version` |
-| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.version`, `messaging.destination.name`, `messaging.operation.type` |
+| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
+| `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command.name`, `wow.command.id`, `wow.request.id` |
+| `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id` |
+| `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.destination.name`, `messaging.operation.type` |
 | `<topic> publish` | PRODUCER | `messaging.destination.name`, `messaging.operation.type`, `messaging.batch.message_count` |
 | `fire <command type>` | INTERNAL | `wow.context`, `wow.timer.id`, `wow.aggregate.id` |
-| `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.query.type` |
+| `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`（数据集查询为 `wow.dataset`）, `wow.query.type` |
 
-`wow.command` 是命令的全名 `<context>.<aggregate>.<Name>`，在准入 Span 和执行 Span 上都有，所以用一个值就能找到两者。
+`wow.command.name` 是命令的全名 `<context>.<aggregate>.<Name>`，在准入 Span 和执行 Span 上都有，所以用一个值就能找到两者。
 
 ## 健康 {#health}
 

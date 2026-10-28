@@ -191,11 +191,11 @@ class AnalyticsCatalogConfiguration {
             properties.datasets.reconcileInterval,
         )
         meters.ifAvailable?.let { registry ->
-            Gauge.builder("$PREFIX.datasets.sync.age", watcher) { watcher.syncAge() }
+            Gauge.builder(DATASETS_SYNC_AGE, watcher) { watcher.syncAge() }
                 .description("Seconds since the node last read the datasets' publications; NaN before the first read.")
                 .baseUnit("seconds")
                 .register(registry)
-            Gauge.builder("$PREFIX.datasets.publication.lag", watcher) { it.lag.toMillis() / MILLIS }
+            Gauge.builder(DATASETS_PUBLICATION_LAG, watcher) { it.lag.toMillis() / MILLIS }
                 .description("Seconds the newest publication the node applied took to be served.")
                 .baseUnit("seconds")
                 .register(registry)
@@ -244,6 +244,12 @@ class AnalyticsCatalogConfiguration {
 
         const val PREFIX: String = AnalyticsCatalogProperties.PREFIX
         const val DATASETS: String = "${AnalyticsCatalogProperties.PREFIX}.datasets"
+
+        /** Gauge, in seconds: since the node last read the datasets' publications. Named apart from the keys. */
+        const val DATASETS_SYNC_AGE: String = "wow.analytics.catalog.datasets.sync.age"
+
+        /** Gauge, in seconds: how long the newest publication the node applied took to be served. */
+        const val DATASETS_PUBLICATION_LAG: String = "wow.analytics.catalog.datasets.publication.lag"
         private const val MILLIS = 1000.0
 
         private val logger = KotlinLogging.logger {}

@@ -673,7 +673,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observation {
 	public fun failed (Ljava/lang/Throwable;)V
 	public fun getContext ()Lkotlin/coroutines/CoroutineContext;
 	public fun getTrace ()Ljava/util/Map;
-	public fun outcome (Ljava/lang/String;)V
+	public fun outcome (Lme/ahoo/wow/spi/observation/ObservedOutcome;)V
 }
 
 public final class me/ahoo/wow/spi/observation/Observation$Companion {
@@ -827,6 +827,28 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$Undecodable : me/ah
 public final class me/ahoo/wow/spi/observation/ObservedEvent$WaitTimedOut : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getStage ()Lme/ahoo/wow/api/result/Stage;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedOutcome : java/lang/Enum {
+	public static final field ADMITTED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field CACHED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field CANCELLED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field COMMITTED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field CONFLICT Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field CONTENDED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field DUPLICATE Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field ERROR Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field OK Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field REFUSED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field REJECTED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field SENT Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field UNCHANGED Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field UNKNOWN Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedOutcome;
 }
 
 public abstract interface class me/ahoo/wow/spi/observation/Observer {
@@ -1517,8 +1539,8 @@ public final class me/ahoo/wow/spi/timer/TimerChange$Companion {
 }
 
 public final class me/ahoo/wow/spi/timer/TimerOutcomes {
-	public static final field ALREADY_COMMITTED Ljava/lang/String;
 	public static final field COMMITTED Ljava/lang/String;
+	public static final field DUPLICATE Ljava/lang/String;
 	public static final field EXPIRED Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/spi/timer/TimerOutcomes;
 	public static final field REJECTED Ljava/lang/String;

@@ -50,6 +50,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -200,7 +201,7 @@ private object SlowReturns : Observer {
             Observation.NONE
         } else {
             object : Observation {
-                override fun outcome(outcome: String) = Thread.sleep(HOLD_MILLIS)
+                override fun outcome(outcome: ObservedOutcome) = Thread.sleep(HOLD_MILLIS)
             }
         }
 
