@@ -99,7 +99,7 @@ export const HostRootBeatsPinnedPresets: Story = {
   render: () => (
     <div data-surfaces>
       {BUILT_IN_PRESETS.map(preset => (
-        <ViewSurface key={preset} preset={preset} theme="light">
+        <ViewSurface key={preset} preset={preset} colorMode="light">
           {preset}
         </ViewSurface>
       ))}
@@ -138,7 +138,7 @@ export const SurfaceTokensReachPopups: Story = {
   ...DisplayWithData,
   args: {
     ...DisplayWithData.args,
-    theme: 'light',
+    colorMode: 'light',
     preset: 'porcelain',
     tokens: { '--fve-primary': HOST_PRIMARY },
   },
@@ -227,7 +227,7 @@ const HOST_PRESET_CSS = `:where([data-fve-preset='${HOST_PRESET}']) {
 /** The same surface on a page with no preset, and inside `outer`. */
 function Pair({ preset, outer }: { preset: string; outer: string }) {
   const surface = (where: string): ReactNode => (
-    <ViewSurface preset={preset} theme="light" data-where={where}>
+    <ViewSurface preset={preset} colorMode="light" data-where={where}>
       {preset}
     </ViewSurface>
   );
@@ -457,12 +457,12 @@ export const HostStylesheetBeforeTheEngine: Story = {
   render: () => (
     <div>
       {PRESETS.map(preset => (
-        <ViewSurface key={preset} preset={preset} theme="light">
+        <ViewSurface key={preset} preset={preset} colorMode="light">
           {preset}
         </ViewSurface>
       ))}
       {/* `neutral` writes nothing, so nothing outside a layer covers it. */}
-      <ViewSurface preset="neutral" theme="light" data-layered-preset="">
+      <ViewSurface preset="neutral" colorMode="light" data-layered-preset="">
         layered
       </ViewSurface>
     </div>

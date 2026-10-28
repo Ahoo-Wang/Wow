@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 122 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 124 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionFailureContext
@@ -17,6 +17,7 @@ type  BulkSelection
 type  DashboardController
 type  DashboardOpening
 type  DashboardPanelView
+type  DatasetsReading
 type  DatasetsState
 type  DrillTarget
 type  DropCause
@@ -96,8 +97,10 @@ value toIssue
 value useAnalysisEditor
 value useAnalysisResult
 value useAutoRefresh
+value useCreateViewEngine
 value useDashboard
 value useDatasets
+value useEngine
 value useFilterEditor
 value useHandOver
 value useHandedConditions
@@ -118,7 +121,6 @@ value useSaveCommands
 value useSearchBox
 value useUnavailable
 value useValueCandidates
-value useViewEngine
 value useViewList
 value useViewManager
 value useViewRuntime

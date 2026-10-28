@@ -34,7 +34,11 @@ import {
 } from '../kit/HandOffMenu.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem, type DetachedDialog } from '../kit/toolbar.js';
+import {
+  ToolbarItem,
+  libraryDialog,
+  type DetachedDialog,
+} from '../kit/toolbar.js';
 import type { ChartImageOffer, ImageFormat } from './imageExport.js';
 
 /** Each picture's item, by its full catalogue key. */
@@ -147,7 +151,7 @@ export function ExportMenu({
           {data && (
             <DialogMenuItem
               data-slot="export-data"
-              onClick={() => handle.open(null)}
+              onClick={() => libraryDialog(handle)?.open(null)}
             >
               <FileSpreadsheetIcon />
               {messages.label('label.export.data')}

@@ -120,12 +120,29 @@ export interface DetachedPopover {
   part: 'trigger' | 'popup';
 }
 
-/** The handle `DetachedPopover` joins its two halves by. */
-export type PopoverHandle = PopoverPrimitive.Handle<unknown>;
+/**
+ * The handle `DetachedPopover` joins its two halves by: made by the
+ * component that draws both and read by nothing else, so a host passes it
+ * along and never looks inside.
+ */
+export interface PopoverHandle {
+  readonly __popoverHandle: unique symbol;
+}
+
+/** The popover library's handle behind one, for its trigger and its root. */
+export type LibraryPopoverHandle = PopoverPrimitive.Handle<unknown>;
+
+/** The library's handle a `PopoverHandle` stands for. */
+export function libraryPopover(
+  handle: PopoverHandle | undefined,
+): LibraryPopoverHandle | undefined {
+  return handle as LibraryPopoverHandle | undefined;
+}
 
 /** A new handle, as `useState` takes an initialiser. */
 function createPopoverHandle(): PopoverHandle {
-  return PopoverPrimitive.createHandle<unknown>();
+  // The library's handle is the value; the engine's type only names it.
+  return PopoverPrimitive.createHandle<unknown>() as unknown as PopoverHandle;
 }
 
 /** One handle for the life of the component, for one detached popover. */
@@ -153,12 +170,24 @@ export interface DetachedDialog {
   part: 'trigger' | 'popup';
 }
 
-/** The handle `DetachedDialog` joins its two halves by. */
-export type DialogHandle = DialogPrimitive.Handle<unknown>;
+/**
+ * The handle `DetachedDialog` joins its two halves by, opaque as
+ * `PopoverHandle` is.
+ */
+export interface DialogHandle {
+  readonly __dialogHandle: unique symbol;
+}
+
+/** The library's handle a `DialogHandle` stands for. */
+export function libraryDialog(
+  handle: DialogHandle | undefined,
+): DialogPrimitive.Handle<unknown> | undefined {
+  return handle as DialogPrimitive.Handle<unknown> | undefined;
+}
 
 /** A new handle, as `useState` takes an initialiser. */
 function createDialogHandle(): DialogHandle {
-  return DialogPrimitive.createHandle<unknown>();
+  return DialogPrimitive.createHandle<unknown>() as unknown as DialogHandle;
 }
 
 /**

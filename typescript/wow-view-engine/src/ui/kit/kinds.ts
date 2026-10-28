@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { createContext, useContext } from 'react';
 import type { Issue, ViewAudience, ViewKind } from '../../model/index.js';
+import type { ViewIcon } from './icon.js';
 import { defaultMessages, type MessageKey } from './messages.js';
 
 /**
@@ -30,7 +31,7 @@ import { defaultMessages, type MessageKey } from './messages.js';
  * mapping lives once: a kind that looked like an inbox in the list and like
  * something else in the header would read as two different things.
  */
-export const KIND_ICON: Record<ViewKind, typeof InboxIcon> = {
+export const KIND_ICON: Record<ViewKind, ViewIcon> = {
   record: InboxIcon,
   analysis: SigmaIcon,
   dashboard: LayoutDashboardIcon,
@@ -45,7 +46,7 @@ export const KIND_ICON: Record<ViewKind, typeof InboxIcon> = {
  * deleted, and one glyph meaning "only mine" in the title bar and "cannot be
  * changed" in the list is a picture with two readings.
  */
-export const AUDIENCE_ICON: Record<ViewAudience, typeof UserIcon> = {
+export const AUDIENCE_ICON: Record<ViewAudience, ViewIcon> = {
   personal: UserIcon,
   shared: UsersIcon,
 };
@@ -54,7 +55,7 @@ export const AUDIENCE_ICON: Record<ViewAudience, typeof UserIcon> = {
  * A view that came with the definition: it travels with the code, so it is
  * never renamed or deleted here, and a lock is that fact as a picture.
  */
-export const SYSTEM_ICON = LockIcon;
+export const SYSTEM_ICON: ViewIcon = LockIcon;
 
 /**
  * The one kind of view a surface has open, where it has one: a dashboard

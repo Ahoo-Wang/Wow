@@ -110,7 +110,7 @@ export function consoleBindings(
     }),
     ...datasetBindings(served, {
       route: ({ id }, view) => rowsPath(id, view),
-      options: ({ id }) => {
+      binding: ({ id }) => {
         const actions = rowActions(id);
         return actions ? { actions } : undefined;
       },

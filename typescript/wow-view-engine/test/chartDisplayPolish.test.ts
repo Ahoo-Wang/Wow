@@ -453,7 +453,7 @@ describe('a chart as a picture (Q58)', () => {
     option: cartesianOption(categories([5, 12, 3]), context(barSpec()), THEME),
     width: 640,
     height: 360,
-    theme: THEME,
+    palette: THEME,
     legend,
   });
 
@@ -518,7 +518,7 @@ describe('a chart as a picture (Q58)', () => {
         option: cartesianOption(categories([5, 12]), context(barSpec()), theme),
         width: 640,
         height: 360,
-        theme,
+        palette: theme,
         legend: [],
       },
       { title: 'T', range: 'R' },

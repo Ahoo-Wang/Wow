@@ -79,7 +79,10 @@ function useReferences(
 function useServed(): Served {
   const { datasets } = useServices();
   const caller = useCaller();
-  const served = useDatasets(datasets, caller ? callerKey(caller) : null);
+  const served = useDatasets(
+    datasets,
+    caller ? { key: callerKey(caller) } : { paused: true },
+  );
   const references = useReferences(served.datasets);
   return useMemo(() => ({ ...served, references }), [served, references]);
 }

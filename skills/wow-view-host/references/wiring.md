@@ -40,7 +40,7 @@ export async function datasetBindings(
   const datasets = new DatasetResources(engine, {
     catalogs: datasetCatalogOf(new DatasetClient({ fetcher })),
   });
-  const served = await datasets.refresh();
+  const { datasets: served } = await datasets.refresh();
   return served.map(({ id }) =>
     bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }),
   );
@@ -249,7 +249,7 @@ expect(resolveNavigation(toQueue, bindingOf)).toMatchObject({
 
 Pointers only; do not hand-write either:
 
-- **Theme:** one choice on `ViewHost` — `theme="host"` with `@ahoo-wang/wow-view-engine/shadcn-bridge.css` for a host with a shadcn (Tailwind v4) theme, or `preset="…"` with that preset's stylesheet (and `brand`) for a host that wears the engine's. `colorMode="host"` where the app already paints dark mode (next-themes or its own toggle). The host's own chrome takes `className="fve-tokens"` on its shell, not on `<body>`. Inside it, style with the host's own classes reading the theme's tokens (`bg-card` mapped to `var(--card)`); the engine's `fve:` utilities, its `data-slot` attributes and its DOM are not public — only the tokens, the `data-fve-*` attributes, `.fve-root`/`.fve-tokens`, `.dark` and the token class `fve:bg-canvas` are. Details: [Theming](https://wow.ahoo.me/typescript/view-engine/theming).
+- **Theme:** one choice on `ViewHost` — `tokenSource="host"` with `@ahoo-wang/wow-view-engine/shadcn-bridge.css` for a host with a shadcn (Tailwind v4) theme, or `preset="…"` with that preset's stylesheet (and `brand`) for a host that wears the engine's. `colorMode="host"` where the app already paints dark mode (next-themes or its own toggle). The host's own chrome takes `className="fve-tokens"` on its shell, not on `<body>`. Inside it, style with the host's own classes reading the theme's tokens (`bg-card` mapped to `var(--card)`); the engine's `fve:` utilities, its `data-slot` attributes and its DOM are not public — only the tokens, the `data-fve-*` attributes, `.fve-root`/`.fve-tokens`, `.dark` and the token class `fve:bg-canvas` are. Details: [Theming](https://wow.ahoo.me/typescript/view-engine/theming).
 - **CSP:** serve the stylesheet as a file, publish the response's nonce in `<meta property="csp-nonce">`, and allow `blob:` in `img-src` for the chart PNG export. Details: [Content Security Policy](https://wow.ahoo.me/typescript/view-engine/csp).
 
 ## Server rendering (Next.js and other React SSR)

@@ -49,7 +49,7 @@ import type {
 } from '../runtime/index.js';
 import { boardFindings } from '../runtime/dashboard/panels.js';
 import type { FieldKindRegistry } from '../filter/index.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 /** One panel, ready to place: geometry, what runs inside, what is wrong. */
 export interface DashboardPanelView {

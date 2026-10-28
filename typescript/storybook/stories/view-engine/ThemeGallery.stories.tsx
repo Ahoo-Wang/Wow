@@ -61,7 +61,7 @@ function Band({
   preset: string;
   mode: BandMode;
 }) {
-  const pinned = { theme: mode, preset, ...HOST_LANGUAGE } as const;
+  const pinned = { colorMode: mode, preset, ...HOST_LANGUAGE } as const;
   return (
     <section
       data-gallery-band

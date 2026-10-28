@@ -927,6 +927,7 @@ export {
   type DatasetDuplicate,
   type DatasetDirectoryEntry,
   type DatasetOverrides,
+  type DatasetRefresh,
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,

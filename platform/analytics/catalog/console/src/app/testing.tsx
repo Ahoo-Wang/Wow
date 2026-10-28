@@ -281,7 +281,7 @@ export function renderConsole(
   const callers = new CallerStore(null, tokens);
   if (caller) callers.set(caller);
   const commands = commandsStub();
-  const refresh = vi.fn(async () => served);
+  const refresh = vi.fn(async () => ({ datasets: served, duplicates: [] }));
   const referenceActionsOf = vi.fn(async (dataset: string) => {
     if (dataset !== ORDER_ACTIONS.dataset) throw new Error("No row actions.");
     return ORDER_ACTIONS;
@@ -292,7 +292,7 @@ export function renderConsole(
     fetcher: new Fetcher({ baseURL: "" }),
     commands,
     engine,
-    datasets: { refresh, duplicates: [] },
+    datasets: { refresh },
     references: { actions: referenceActionsOf, send },
   };
   const router = createMemoryRouter(ROUTES, { initialEntries: [path] });

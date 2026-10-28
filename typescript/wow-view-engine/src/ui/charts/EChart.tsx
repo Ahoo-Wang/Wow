@@ -23,7 +23,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { useSurfaceTheme } from '../kit/surfaceContext.js';
+import { useSurfaceColorMode } from '../kit/surfaceContext.js';
 import { useSurfaceTokens } from '../kit/ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
@@ -198,7 +198,7 @@ interface EChartProps {
  * (`notMerge`, so a series taken away is gone rather than left behind), and
  * disposed with the element. The theme is read off the element when it
  * mounts and again whenever the surface's mode or the tokens it reads change
- * (`useSurfaceTheme`, `useSurfaceTokens`: one observer up the tree watches
+ * (`useSurfaceColorMode`, `useSurfaceTokens`: one observer up the tree watches
  * `class`, `data-theme`, `data-fve-preset` and `style`), so a switch to dark
  * or to another set of `--fve-*` redraws in place rather than remounting.
  */
@@ -228,7 +228,7 @@ export function EChart({
   // boundary around the chart catches it (`ChartFailure`), rather than lost
   // in the size observer's callback, which no boundary sees.
   const [broken, setBroken] = useState<ChartFailure>();
-  const mode = useSurfaceTheme();
+  const mode = useSurfaceColorMode();
   const tokens = useSurfaceTokens();
   // Paper reads the theme again: light, and patterned (`print.ts`).
   const printing = usePrinting();
@@ -300,7 +300,7 @@ export function EChart({
         option: adjustment ? merged(drawing, adjustment) : drawing,
         width,
         height,
-        theme,
+        palette: theme,
         legend: (now.legendEntries ?? []).filter(entry => !entry.hidden),
       };
     });

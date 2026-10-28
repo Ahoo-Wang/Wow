@@ -313,7 +313,7 @@ const NON_TEXT_CONTRAST = 3;
  */
 const controlBorders = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme },
+  args: { ...DisplayWithData.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -400,7 +400,7 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
  */
 const focusIndicators = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme },
+  args: { ...DisplayWithData.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -462,7 +462,7 @@ export const FocusIndicatorsInDarkTheme: Story = focusIndicators('dark');
  */
 export const DarkHairlines: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme: 'dark' },
+  args: { ...DisplayWithData.args, colorMode: 'dark' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -498,7 +498,7 @@ export const DarkHairlines: Story = {
  */
 const badgesOnRows = (theme: 'light' | 'dark'): Story => ({
   ...DisplayCellFamily,
-  args: { ...DisplayCellFamily.args, theme },
+  args: { ...DisplayCellFamily.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -599,7 +599,7 @@ export const BadgesOnRowsInDarkTheme: Story = badgesOnRows('dark');
  */
 const headerBand = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme, preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: theme, preset: 'neutral' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = (await canvas.findByRole('table')) as HTMLTableElement;
@@ -665,7 +665,7 @@ export const HeaderBandInDarkTheme: Story = headerBand('dark');
  */
 const toneBadgeInk = (theme: 'light' | 'dark'): Story => ({
   ...DisplayCellFamily,
-  args: { ...DisplayCellFamily.args, theme },
+  args: { ...DisplayCellFamily.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -766,7 +766,7 @@ const calloutTone = (
   tone: 'error' | 'warning',
 ): Story => ({
   ...base,
-  args: { ...base.args, theme },
+  args: { ...base.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     // Two stories measuring the same theme would both pass and prove half of
     // this, so the mode is read off the surface before anything else.
@@ -851,7 +851,7 @@ export const WarningCalloutInDarkTheme: Story = calloutTone(
  */
 const deleteActionContrast = (theme: 'light' | 'dark'): Story => ({
   ...DisplayManageViews,
-  args: { ...DisplayManageViews.args, theme },
+  args: { ...DisplayManageViews.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
@@ -1101,7 +1101,7 @@ export const ReducedMotionIsHonoured: Story = {
  */
 const outlineBadgeEdges = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme },
+  args: { ...DisplayWithData.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');

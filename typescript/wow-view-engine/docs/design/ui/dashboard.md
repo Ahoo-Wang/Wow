@@ -46,7 +46,7 @@
 ## 面板失败：保留上次的结果，可以重试
 
 - **刷新失败不丢上一次的结果**（R5）：子 runtime 的 `result` 只随成功推进，面板照样画它，上面一条 `QueryStrip`（`stale`）说「〈原因〉 · 显示的是上一次成功的结果」——与两个工作台、`EmbeddedView` 同一句话、同一个部件。从前面板见到 error 就把整块正文换成「查询失败」，断一次网读者正在看的数就没了，而工作台与嵌入视图都留着。只有**背后什么都没有**的失败（第一次就失败）才占正文（`panel-failed`，`Empty` 的形状）。
-- **单个面板可以重试**（U4／G5）：两处失败都带「重试」——正文里的 `panel-failed` 在 `EmptyContent` 里放一个按钮，stale 那条线在行尾放 `QueryStrip` 自己的按钮——都调 `dashboard.refreshPanel(panel.id)`，只重跑这一块；从前唯一的出路是标题栏的整板刷新，为一块面板把其余全部重跑一遍。`DashboardPanel` 单独使用、没人给 `onRetry` 时不出按钮。
+- **单个面板可以重试**（U4／G5）：两处失败都带「重试」——正文里的 `panel-failed` 在 `EmptyContent` 里放一个按钮，stale 那条线在行尾放 `QueryStrip` 自己的按钮——都调 `dashboard.refreshPanel(panel.id)`，只重跑这一块；从前唯一的出路是标题栏的整板刷新，为一块面板把其余全部重跑一遍。`DashboardPanelCard` 单独使用、没人给 `onRetry` 时不出按钮。
 - 文案复用 `label.query.failed`／`label.query.stale`／`label.query.retry`，没有新词。（见 test/dashboardPlacement.test.tsx「a panel whose query failed」；浏览器里 stories/view-engine/Dashboard.test.stories.tsx「RefreshFailedKeepsData」）
 
 ## 面板 chrome 与 warning 标记
@@ -69,7 +69,7 @@
 
 ## 内容面板：排版与占位
 
-- **文字面板里的标题排在面板标题之下**（U-12）：作者写的 `#` 原来画成 `h1`，按标题跳读时它跳到视图名（`h2`）上面，读起来像一个新页面。现在 `MarkdownPanel` 把 `#` 画成面板标题的下一级、`##` 再下一级，封顶 `h6`（`headingLevel`：工作台里面板标题是 `h3`，文字面板的 `#` 就是 `h4`；嵌入里跟着宿主给的级别走，`DashboardPanel` 经 `ContentPanel` 交下来）。字号按作者写的深度（`data-depth`）画，不按大纲给的级别：`#` 在哪一级都是文字面板里最大的那一档。（见 test/dashboardContent.test.tsx「puts a note’s headings under the panel’s title, never past h6」、test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」）
+- **文字面板里的标题排在面板标题之下**（U-12）：作者写的 `#` 原来画成 `h1`，按标题跳读时它跳到视图名（`h2`）上面，读起来像一个新页面。现在 `MarkdownPanel` 把 `#` 画成面板标题的下一级、`##` 再下一级，封顶 `h6`（`headingLevel`：工作台里面板标题是 `h3`，文字面板的 `#` 就是 `h4`；嵌入里跟着宿主给的级别走，`DashboardPanelCard` 经 `ContentPanel` 交下来）。字号按作者写的深度（`data-depth`）画，不按大纲给的级别：`#` 在哪一级都是文字面板里最大的那一档。（见 test/dashboardContent.test.tsx「puts a note’s headings under the panel’s title, never past h6」、test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」）
 - **markdown 面板不引 `@tailwindcss/typography`，而是把那几条覆盖写成一个具名常量**（`MARKDOWN_PROSE`）。优先复用第三方是这一包的默认，这里是反过来的那一种，理由写在调用处：`prose` 是一栏文章——`max-width: 65ch`、围绕 16–20px 正文的字号阶梯，即便 `prose-sm` 的 `h1` 也有 30px 上下，比面板自己的标题还大，而面板多宽是用户拖出来的；它的颜色是一套写死的 gray，要让它认 `--foreground`／`--muted-foreground`／`--primary` 就得在 `styles.css` 里重定义十六个 `--tw-prose-*`，比它要替掉的那四条规则还多，而且颜色从此有两个决定的地方；它大部分规则是给这个面板画不出来的元素准备的（原始 HTML 是关的）。原来写在类名里的 `prose-sm` **一直是死的**——插件从未安装，编译出的样式表里一条 `prose` 规则也没有；
 - **图片加载失败的占位就是 `Empty`**（`EmptyMedia variant="icon"` + `EmptyDescription`），与 `DashboardGrid` 里「面板不可用」「查询失败」同一个形状，不再是一个自己居中的 `div`。不放标题：作者写的 `alt` 是仅有的那句话，上面再加一句「图片加载失败」等于把同一件事说两遍；`alt` 缺席时才用 `label.image.failed` 当那句描述。（见 test/dashboardContent.test.tsx）
 - **带链接的图片要有名字**：链接的名字是它里面的文字，没有 `alt` 的图片什么也不给，于是读屏只念一个「链接」。没有 `alt` 时用面板标题、再没有就用「打开链接的页面」（`label.image.link`），写在链接里的一个 `sr-only` 里；
@@ -129,7 +129,7 @@
 ### 面板自己的展示（D22 D，批 B3）
 
 - **「改这里的展示…」打开的就是可视化面板**（`ui/dashboard/PresentationDialog.tsx`，只给分析面板：记录面板没有可视化面板可画的东西）：左边是这块面板改后的样子（与栅格里的面板同一个子 runtime、同一个画法），右边是工作台的 `ChartPicker` 与 `ChartOptions`——图型网格、这种图的选项、表格合计行。每一下都当场写进这块面板的 `presentation`（`setPresentation`，草稿与屏幕同时）：分析编辑器的 `setLayout`／`updateChart`／`setTotals` 在这里改写为写覆盖，而不是写视图；一个与视图自己一样的样子不算覆盖（那一项不写，全都一样就是 `null`）。换图型只重画不重跑（D20，runtime 的收口见 [runtime.md#dashboard](../runtime.md#dashboard)），合计行是一次自己的查询、照跑。「完成」收起，「取消」放回打开时的样子，对话框里的「恢复为视图的样子」随时可按；关上时键盘回到面板的「⋯」。（见 test/dashboardExtensions.test.tsx「a panel’s own look」）
-- **面板头上说「此处改为〈图型〉」**（`presentationMark`，`DashboardPanel` 标题后一枚 `secondary` 的 `Badge`）：「此处改为饼图」「此处改为表格」，只改了合计行时是「此处改了展示」；覆盖不合身被丢掉时不带（面板头上已有那条 warning）。有覆盖时「⋯」的「编辑面板」组多一项「恢复为视图的样子」＝`onResetPresentation(panelId)`＝`setPresentation(panelId, null)`，没有覆盖就没有这一项。（见 test/dashboardExtensions.test.tsx「offers 恢复为视图的样子 only over a look of its own」；浏览器里「OverrideToPieAndReset」：换成饼图后面板画的是饼、查询数不变，从菜单恢复后回到柱状图，对话框的「取消」放回原样）
+- **面板头上说「此处改为〈图型〉」**（`presentationMark`，`DashboardPanelCard` 标题后一枚 `secondary` 的 `Badge`）：「此处改为饼图」「此处改为表格」，只改了合计行时是「此处改了展示」；覆盖不合身被丢掉时不带（面板头上已有那条 warning）。有覆盖时「⋯」的「编辑面板」组多一项「恢复为视图的样子」＝`onResetPresentation(panelId)`＝`setPresentation(panelId, null)`，没有覆盖就没有这一项。（见 test/dashboardExtensions.test.tsx「offers 恢复为视图的样子 only over a look of its own」；浏览器里「OverrideToPieAndReset」：换成饼图后面板画的是饼、查询数不变，从菜单恢复后回到柱状图，对话框的「取消」放回原样）
 
 ### 扩展：搭板子里住在编辑条与面板菜单之外的那几件
 

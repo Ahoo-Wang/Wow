@@ -9,7 +9,7 @@ description: '/react 入口的 Hooks：打开视图、订阅运行时、视图�
 
 它们共同的约定：
 
-- **Hooks 接收引擎，从不接收选项**。`useViewEngine` 是唯一的例外，它为组件的生命周期建一个引擎，卸载时释放；需要更长生命期的应用自己建引擎，再交给其余 Hooks。
+- **Hooks 接收引擎，从不接收选项**。`useCreateViewEngine` 是唯一的例外，它为组件的生命周期建一个引擎，卸载时释放；需要更长生命期的应用自己建引擎，再交给其余 Hooks。
 - **命令 resolve 而不 reject**：`useSaveCommands` 与 `useViewManager` 把结局放进状态，点击处理器不需要 try/catch，没解决的写入一直可见，直到用户重试、覆盖或放弃。
 - **加载状态是推导的**：只要手上的回答属于另一次请求，这一次就还在进行，所以 effect 只在回答到达时写状态；在它之后才到的回答被丢弃，而不是套到没人在看的视图上。
 
@@ -38,14 +38,16 @@ export function ToShipCount() {
 
 | Hook | 作用 |
 |---|---|
-| `useViewEngine(options)` | 为组件的生命周期建一个引擎，卸载时释放。选项只读一次：定义集合与存储不是渲染期的值 |
+| `useCreateViewEngine(options)` | 为组件的生命周期建一个引擎，卸载时释放。选项只读一次：定义集合与存储不是渲染期的值 |
+| `useEngine(own?)` | 组件所画的引擎：给了 `own` 就用它，否则用上层 `ViewHost` 持有的那个；两者都没有时抛错。宿主自己放在 `ViewHost` 下的组件在这里读应用的引擎，而不必一层层传下来 |
 | `useOpenView(engine, instanceId, scopeFilter?, opening?)` | 打开一个实例并拥有它产生的运行时：换 id 或卸载时释放前一个。被引擎释放的运行时（实例被删）不会交出，id 会再开一次。`scopeFilter` 从第一次查询起生效，开时读一次之后跟随，每次渲染传新对象也不会重开；定义拒绝的条件不生效，`scopeIssues` 说明哪个没生效。`opening` 给看板说打开在哪个页签、筛选是什么 |
 | `useViewRuntime(runtime)` | 订阅一个运行时，返回快照。运行时先提交状态再通知，没变化时返回同一个对象——正是 `useSyncExternalStore` 对存储的要求 |
 
 `useOpenView` 的 `retry()` 再开同一个 id：给可能会过去的失败（存储不可达，或服务端答了自己的错误）一条回头路。
 
 ```ts
-export declare function useViewEngine(options: ViewEngineOptions): ViewEngine;
+export declare function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
+export declare function useEngine(own?: ViewEngine): ViewEngine;
 export declare function useOpenView(engine: ViewEngine, instanceId: string | null, scopeFilter?: FilterTree | null, opening?: (instanceId: string) => Omit<OpenOptions, 'scopeFilter'> | undefined): OpenViewState;
 export declare function useViewRuntime<R extends ViewRuntimeStore<unknown>>(runtime: R | null): SnapshotOf<R> | null;
 

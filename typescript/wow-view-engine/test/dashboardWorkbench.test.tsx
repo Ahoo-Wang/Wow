@@ -126,7 +126,7 @@ describe('DashboardWorkbench', () => {
         engine={engine}
         definitionId="overview"
         instanceId="overview-1"
-        theme="light"
+        colorMode="light"
         preset="neutral"
       />,
     );

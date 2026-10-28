@@ -87,7 +87,7 @@ Where saved views are kept is [Saved views](./storage).
 | `navigate` | router | Every way off in your own hands; it wins over `router` |
 | `locale`, `messages` | language | The language values are shown in, and the words merged over the engine's own ([below](#messages)) |
 | `bindings` | commands | One `bind(id, …)` per resource: its route, actions and reading ([below](#bind)) |
-| `theme`, `preset`, `brand` | theme | Follow the host's shadcn theme, or wear one of the engine's presets ([Theming](./theming)) |
+| `tokenSource`, `preset`, `brand` | theme | Take the host's own variables (its shadcn theme), or wear one of the engine's presets ([Theming](./theming)) |
 | `colorMode`, `rememberColorMode` | theme | Light, dark or the system's, and where the reader's choice is kept |
 
 <!-- typecheck: file=Host.tsx -->

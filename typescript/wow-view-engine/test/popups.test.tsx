@@ -123,7 +123,7 @@ describe('popups carry the theme out of the root', () => {
       return <FilterPanel filter={useFilterEditor(runtime)} />;
     }
     render(
-      <ViewSurface theme="dark">
+      <ViewSurface colorMode="dark">
         <Probe />
       </ViewSurface>,
     );
@@ -145,7 +145,7 @@ describe('popups carry the theme out of the root', () => {
   it('puts the root class and the surface theme on a menu', async () => {
     const user = userEvent.setup();
     render(
-      <ViewSurface theme="dark">
+      <ViewSurface colorMode="dark">
         <EditorFold open={false} onOpenChange={() => undefined}>
           <EditorBandToggle
             label="Filter"
@@ -198,7 +198,7 @@ describe('popups carry the theme out of the root', () => {
     }
     render(
       <div className="dark">
-        <ViewSurface theme={theme}>
+        <ViewSurface colorMode={theme}>
           <Probe />
         </ViewSurface>
       </div>,
@@ -233,7 +233,7 @@ describe('popups carry the theme out of the root', () => {
 describe('a dialog themes its backdrop as well as its surface', () => {
   function openDialog(theme: 'light' | 'dark') {
     render(
-      <ViewSurface theme={theme}>
+      <ViewSurface colorMode={theme}>
         <Dialog defaultOpen>
           <DialogContent>
             <DialogTitle>Confirm</DialogTitle>
@@ -275,7 +275,7 @@ describe('a dialog themes its backdrop as well as its surface', () => {
    */
   it('keeps a state-dependent class a function, with the root in front', async () => {
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <Dialog defaultOpen>
           <DialogContent
             className={state => (state.open ? 'is-open' : 'is-closed')}
@@ -324,7 +324,7 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
 
   it("takes the panel's length, holds its fade until the panel is gone, and does not blur", async () => {
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <Dialog defaultOpen>
           <SheetContent>
             <DialogTitle>Record</DialogTitle>
@@ -348,7 +348,7 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
 describe('an alert dialog themes its backdrop as well as its surface', () => {
   it('puts the root class, the theme and the layer on both', async () => {
     render(
-      <ViewSurface theme="dark">
+      <ViewSurface colorMode="dark">
         <AlertDialog open>
           <AlertDialogContent>
             <AlertDialogTitle>Delete</AlertDialogTitle>
@@ -380,7 +380,7 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
    */
   it('dims what is behind it harder than a plain dialog', async () => {
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <AlertDialog open>
           <AlertDialogContent>
             <AlertDialogTitle>Delete</AlertDialogTitle>
@@ -418,7 +418,7 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
   it('stays open when the page behind it is clicked', async () => {
     const user = userEvent.setup();
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <AlertDialog open>
           <AlertDialogContent>
             <AlertDialogTitle>Delete</AlertDialogTitle>
@@ -679,12 +679,12 @@ describe("a popup hands a caller's ref its element", () => {
   it.each(popups)('on a %s', async (slot, popup) => {
     const ref = createRef<HTMLDivElement>();
     const called = vi.fn();
-    render(<ViewSurface theme="light">{popup(ref)}</ViewSurface>);
+    render(<ViewSurface colorMode="light">{popup(ref)}</ViewSurface>);
     await waitFor(() => expect(ref.current).not.toBeNull());
     expect(ref.current?.getAttribute('data-slot')).toBe(slot);
     cleanup();
 
-    render(<ViewSurface theme="light">{popup(called)}</ViewSurface>);
+    render(<ViewSurface colorMode="light">{popup(called)}</ViewSurface>);
     await waitFor(() =>
       expect(called).toHaveBeenCalledWith(
         document.querySelector(`[data-slot="${slot}"]`),
@@ -697,7 +697,7 @@ describe('every popup opens on the popup layer', () => {
   const LAYER = 'var(--fve-popup-z-index, 50)';
 
   it.each(KINDS)('carries the layer on a $name', async ({ slot, composed }) => {
-    render(<ViewSurface theme="light">{composed}</ViewSurface>);
+    render(<ViewSurface colorMode="light">{composed}</ViewSurface>);
 
     const popup = await waitFor(() => popupOf(slot));
     // A dialog has no positioner: it is fixed to the viewport itself, so the
@@ -723,7 +723,7 @@ describe('every popup opens on the popup layer', () => {
     "keeps the layer under a caller's style, given %s",
     async (_form, style) => {
       render(
-        <ViewSurface theme="light">
+        <ViewSurface colorMode="light">
           <Dialog open>
             <DialogContent style={style}>
               <DialogTitle>Confirm</DialogTitle>
@@ -743,7 +743,7 @@ describe('every popup opens on the popup layer', () => {
 
   it('carries the layer on a dialog backdrop too', async () => {
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <Dialog open>
           <DialogContent>
             <DialogTitle>Confirm</DialogTitle>
@@ -789,7 +789,7 @@ describe('every popup takes the type of its surface', () => {
 
   it.each(KINDS)('writes it on a $name', async ({ slot, composed }) => {
     stubSurfaceFont();
-    render(<ViewSurface theme="light">{composed}</ViewSurface>);
+    render(<ViewSurface colorMode="light">{composed}</ViewSurface>);
 
     const popup = await waitFor(() => popupOf(slot));
 
@@ -801,7 +801,7 @@ describe('every popup takes the type of its surface', () => {
   it("keeps it and the layer under a dialog caller's style", async () => {
     stubSurfaceFont();
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <Dialog open>
           <DialogContent style={() => ({ maxWidth: 600 })}>
             <DialogTitle>Confirm</DialogTitle>
@@ -822,7 +822,7 @@ describe('every popup takes the type of its surface', () => {
   it('writes nothing while the surface has no type to hand on', async () => {
     stubSurfaceFont('');
     render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <Dialog open>
           <DialogContent>
             <DialogTitle>Confirm</DialogTitle>
@@ -879,7 +879,7 @@ describe('the composed popups keep step with the registry', () => {
       };
       cleanup();
 
-      render(<ViewSurface theme="light">{composed}</ViewSurface>);
+      render(<ViewSurface colorMode="light">{composed}</ViewSurface>);
       const ours = await waitFor(() => popupOf(slot));
 
       expect({

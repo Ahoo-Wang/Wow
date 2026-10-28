@@ -64,7 +64,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `router` | The router port: `useReactRouter()` from `/react-router`, or two members over another router. With it the engine keeps the address: every way off a board or a view goes through the route of the resource it leads to; a workbench opens the address's `?view=` and writes it back; a bound resource's record detail follows `?id=`; a view handed over, and a board's filters and tab, travel as the history entry's state |
 | `navigate` | Every way off in the host's own hands instead of the router's: handed resolved through the route of the resource it leads to (`ViewRoute`); a URL, and a resource with no route, as it came |
 | `locale`, `messages` | The language port: the language values show in, and words merged over those in force — the engine's own and the definitions' keys (`text(key)`) alike. Changing them redraws every open view without reopening, re-querying or dirtying anything |
-| `theme`, `preset`, `brand` | The theme's two paths: `theme="host"` follows the host's shadcn theme (the host imports `shadcn-bridge.css`); or `preset` names a preset (its stylesheet imported), which the host's own chrome wears through `fve-tokens`. `brand` is the brand colour over the preset |
+| `tokenSource`, `preset`, `brand` | The theme's two paths: `tokenSource="host"` takes the host's own variables, its shadcn theme (the host imports `shadcn-bridge.css`), rather than a preset; or `preset` names a preset (its stylesheet imported), which the host's own chrome wears through `fve-tokens`. `brand` is the brand colour over the preset |
 | `colorMode`, `rememberColorMode` | Light or dark: `system` by default — the engine paints `<html>`'s `.dark` and `color-scheme` and follows the system live; `light` / `dark` start pinned; `host` where the host paints its own mode (as next-themes does) and the engine only follows `.dark`. The reader picks another through `useColorMode`; `rememberColorMode` is the `localStorage` key that keeps the pick on this machine |
 
 Theming in detail: [Theming the View Engine](../../../typescript/view-engine/theming.md).
@@ -82,7 +82,7 @@ export interface ViewHostProps {
   preset?: ViewPreset;
   rememberColorMode?: string;
   router?: ViewRouter;
-  theme?: 'host';
+  tokenSource?: 'host';
 }
 export declare function ViewHost(input: ViewHostProps): import('react').JSX.Element;
 ```

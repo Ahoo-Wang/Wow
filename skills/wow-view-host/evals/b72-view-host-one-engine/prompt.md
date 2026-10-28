@@ -6,4 +6,4 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Each page builds useViewEngine(createEngine({ locale })) and rebuilds it on a language switch; the router sync for ?view= is hand-written. Clean this up. Give the code and the commands in your answer.
+Each page builds useCreateViewEngine(createEngine({ locale })) and rebuilds it on a language switch; the router sync for ?view= is hand-written. Clean this up. Give the code and the commands in your answer.

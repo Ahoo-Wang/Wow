@@ -20,78 +20,14 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { FilterTree, Issue } from '../model/index.js';
-import {
+import type {
+  AnyViewRuntime,
+  OpenOptions,
   ViewEngine,
-  type AnyViewRuntime,
-  type OpenOptions,
-  type ViewEngineOptions,
 } from '../runtime/index.js';
-import { browserRuntimeEnvironment } from './environment.js';
 import { toIssue } from './issues.js';
 
 const NO_OP = () => {};
-
-/**
- * Creates one engine for the lifetime of the component and disposes it on
- * unmount. An application that wants a longer life builds the engine itself
- * and passes it to the other hooks; they take an engine, never options.
- *
- * Options are read once. Changing them later has no effect, because a
- * definition set and a store are not render-time values.
- */
-export function useViewEngine(options: ViewEngineOptions): ViewEngine {
-  const [engine] = useState(
-    () =>
-      new ViewEngine({
-        ...options,
-        // After the spread, so an explicit `environment: undefined` from a
-        // caller's options object cannot drop page-visibility awareness.
-        environment: options.environment ?? browserRuntimeEnvironment(),
-      }),
-  );
-  useEffect(() => () => engine.dispose(), [engine]);
-  return engine;
-}
-
-/**
- * Subscribes to a runtime. The runtime commits state before it notifies and
- * returns the same object while nothing changes, which is exactly what
- * `useSyncExternalStore` asks of a store.
- *
- * The parameter is the store shape rather than `ViewRuntime<C>`, so the
- * discriminated union `open` returns is accepted as it is and the snapshot
- * type follows from the runtime that was passed.
- */
-export function useViewRuntime<R extends ViewRuntimeStore<unknown>>(
-  runtime: R | null,
-): SnapshotOf<R> | null {
-  const subscribe = useCallback(
-    (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
-    [runtime],
-  );
-  const snapshot = useCallback(
-    // The conditional type cannot be proven inside the generic; what makes it
-    // true is that the value comes from this runtime's own `getSnapshot`.
-    () => (runtime?.getSnapshot() ?? null) as SnapshotOf<R> | null,
-    [runtime],
-  );
-  // The server reads the same snapshot: a runtime's state is plain data,
-  // the same wherever it is read, and a runtime opened in an effect is null
-  // on the server and on the first client frame alike.
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
-
-/** What `useViewRuntime` needs: any runtime satisfies it. */
-export interface ViewRuntimeStore<S> {
-  subscribe(listener: () => void): () => void;
-  getSnapshot(): S;
-}
-
-/**
- * The snapshot a runtime hands out. It distributes, so passing the union
- * `open` returns gives back the union of their states rather than one member.
- */
-export type SnapshotOf<R> = R extends { getSnapshot(): infer S } ? S : never;
 
 /**
  * What a dashboard opens with, as a host's address has it: the tab on screen

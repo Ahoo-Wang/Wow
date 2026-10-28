@@ -250,7 +250,7 @@ function RecordWorkbenchDemo({
   narrowHost = false,
   narrowWidth = 375,
   writeOutcome,
-  theme,
+  colorMode,
   preset,
   density,
   tokens,
@@ -348,7 +348,7 @@ function RecordWorkbenchDemo({
    * Pins the surface to one mode, the way a host does when its page is not
    * the one deciding. Left unset the view follows the toolbar's `.dark`.
    */
-  theme?: 'light' | 'dark';
+  colorMode?: 'light' | 'dark';
   /** Pins a preset on the surface and its popups (`data-fve-preset`). */
   preset?: string;
   /** Pins a density on the surface and its popups (`data-fve-density`). */
@@ -501,7 +501,7 @@ function RecordWorkbenchDemo({
             // story that says `english` gets the shipped defaults instead.
             messages={english ? undefined : HOST_LANGUAGE.messages}
             locale={english ? 'en-US' : HOST_LANGUAGE.locale}
-            theme={theme}
+            colorMode={colorMode}
             preset={preset}
             density={density}
             tokens={tokens}
@@ -776,7 +776,7 @@ const meta = {
     narrowHost: { table: { disable: true } },
     narrowWidth: { table: { disable: true } },
     writeOutcome: { table: { disable: true } },
-    theme: { table: { disable: true } },
+    colorMode: { table: { disable: true } },
     preset: { table: { disable: true } },
     density: { table: { disable: true } },
     tokens: { table: { disable: true } },

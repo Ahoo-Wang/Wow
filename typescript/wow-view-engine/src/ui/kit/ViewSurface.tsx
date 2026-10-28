@@ -34,7 +34,7 @@ import {
   SurfaceHostTokensContext,
   SurfaceLanguageContext,
   SurfacePresetContext,
-  SurfaceThemeContext,
+  SurfaceColorModeContext,
 } from './surfaceContext.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
 import {
@@ -44,19 +44,20 @@ import {
 } from '../theme/tokens.js';
 
 /**
- * The mode a surface is asked for: `light` or `dark` pins it, `system`
- * follows the reader's `prefers-color-scheme`, live. Left out, it follows a
- * `.dark` class on an ancestor — the host's own switch.
+ * Light or dark: `light` or `dark` pins it, `system` follows the reader's
+ * `prefers-color-scheme`, live — the mode a surface is asked for, and the
+ * one a reader picks on `ViewHost` (`useColorMode`).
  */
-export type ViewTheme = 'light' | 'dark' | 'system';
+export type ColorMode = 'system' | 'light' | 'dark';
 
 export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   /**
-   * Follows the host when left out; set it to pin an embedded view, or to
+   * Follows the host when left out — a `.dark` class on an ancestor, the
+   * host's own switch; set it to pin an embedded view, or to
    * `system` to follow the reader's system on a page with no switch of its
    * own.
    */
-  theme?: ViewTheme;
+  colorMode?: ColorMode;
   /**
    * A preset from `@ahoo-wang/wow-view-engine/themes.css` (or one of the
    * host's own, written the same way), pinned on this surface and on every
@@ -277,7 +278,7 @@ function systemMode(): 'light' | 'dark' {
 }
 
 /**
- * The mode `theme` pins the root to, `system` answered from the reader's
+ * The mode `colorMode` pins the root to, `system` answered from the reader's
  * `prefers-color-scheme` and followed live.
  *
  * The answer is written as the same `data-theme` a pinned mode writes, so the
@@ -289,14 +290,14 @@ function systemMode(): 'light' | 'dark' {
  * server render) the answer is light, the stylesheet's own default.
  */
 function usePinnedMode(
-  theme: ViewTheme | undefined,
+  colorMode: ColorMode | undefined,
 ): 'light' | 'dark' | undefined {
   const system = React.useSyncExternalStore(
     subscribeToSystem,
     systemMode,
     () => 'light' as const,
   );
-  return theme === 'system' ? system : theme;
+  return colorMode === 'system' ? system : colorMode;
 }
 
 const SurfaceDisplayContext = React.createContext<DisplayContext>({});
@@ -316,7 +317,7 @@ export function ViewSurface({ engine, ...props }: ViewSurfaceProps) {
 
 function Surface({
   className,
-  theme,
+  colorMode,
   preset,
   density,
   tokens,
@@ -333,7 +334,7 @@ function Surface({
 }: Omit<ViewSurfaceProps, 'engine'>) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const resolved = useResolvedTheme(rootRef);
-  const pinned = usePinnedMode(theme);
+  const pinned = usePinnedMode(colorMode);
   // A surface given no language shows values in the one a provider above
   // it set (`ViewHost`'s `locale`), as its wording follows it.
   const inherited = useInheritedLocale();
@@ -405,7 +406,7 @@ function Surface({
       ref={attach}
     >
       <SurfaceLanguageContext.Provider value={wordsIn}>
-        <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
+        <SurfaceColorModeContext.Provider value={pinned ?? resolved?.mode}>
           <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
             <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
               <SurfaceBrandChartContext.Provider value={resolved?.brandChart}>
@@ -436,7 +437,7 @@ function Surface({
               </SurfaceBrandChartContext.Provider>
             </SurfaceChangeColorsContext.Provider>
           </SurfacePresetContext.Provider>
-        </SurfaceThemeContext.Provider>
+        </SurfaceColorModeContext.Provider>
       </SurfaceLanguageContext.Provider>
     </div>
   );

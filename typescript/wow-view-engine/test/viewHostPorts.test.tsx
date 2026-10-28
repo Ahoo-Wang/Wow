@@ -931,7 +931,7 @@ describe('the theme’s two paths (4.1)', () => {
       <ViewHost
         engine={engineOf()}
         colorMode="host"
-        theme="host"
+        tokenSource="host"
         preset="azure"
         brand="#1d4ed8"
       >

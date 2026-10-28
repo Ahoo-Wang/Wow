@@ -18,13 +18,7 @@ import type {
   DatasetResources,
 } from '../runtime/datasetResources.js';
 
-/**
- * The datasets a `DatasetResources` serves, as `useDatasets` reads them.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
- */
+/** The datasets a `DatasetResources` serves, as `useDatasets` reads them. */
 export interface DatasetsState {
   /** The datasets served, in the directories' order, as read last. */
   datasets: readonly DatasetResource[];
@@ -38,23 +32,33 @@ export interface DatasetsState {
   refresh(): void;
 }
 
+/** When `useDatasets` reads the directories. */
+export interface DatasetsReading {
+  /**
+   * What the datasets served depend on, such as the caller in force, since
+   * another caller sees other datasets: a change of it reads them again.
+   * Left out, they are read once, as the hook mounts.
+   */
+  key?: string;
+  /**
+   * Reads nothing while set — no caller yet, say — and keeps what was read
+   * last; clearing it reads at once.
+   */
+  paused?: boolean;
+}
+
 /**
  * Keeps a host in step with the datasets `resources` serves: it reads
- * them when it mounts and whenever `key` changes — the caller in force, say,
- * since another caller sees other datasets — and on `refresh`; `null` reads
- * nothing (no caller yet). A read that lands after another was asked for is
- * dropped.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
+ * them when it mounts, whenever `reading.key` changes and on `refresh`,
+ * and not at all while `reading.paused` is set. A read that lands after
+ * another was asked for is dropped.
  */
 export function useDatasets(
-  resources: Pick<DatasetResources, 'refresh' | 'duplicates'>,
-  key: string | null = '',
+  resources: Pick<DatasetResources, 'refresh'>,
+  { key = '', paused = false }: DatasetsReading = {},
 ): DatasetsState {
   const [round, setRound] = useState(0);
-  const asked = key === null ? null : `${key}#${round}`;
+  const asked = paused ? null : `${key}#${round}`;
   const [read, setRead] = useState<{
     for: string | null;
     datasets: readonly DatasetResource[];
@@ -66,14 +70,8 @@ export function useDatasets(
     let live = true;
     const reading = new AbortController();
     resources.refresh({ signal: reading.signal }).then(
-      datasets => {
-        if (live)
-          setRead({
-            for: asked,
-            datasets,
-            duplicates: resources.duplicates,
-            error: null,
-          });
+      ({ datasets, duplicates }) => {
+        if (live) setRead({ for: asked, datasets, duplicates, error: null });
       },
       (error: unknown) => {
         if (live) setRead(current => ({ ...current, for: asked, error }));

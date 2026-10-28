@@ -35,9 +35,9 @@ import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
 import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
+import { useEngine } from '../react/engineContext.js';
 import {
   useBindings,
-  useEngine,
   useRoutedNavigate,
 } from './workbench/ViewEngineProvider.js';
 import { ErrorStrip, StatusStrip, WarningStrip } from './kit/StatusStrip.js';

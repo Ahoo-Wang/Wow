@@ -233,7 +233,7 @@ export const UnsetMechanismDrawsTheRegistry: Story = {
   ...DisplayWithData,
   args: {
     ...DisplayWithData.args,
-    theme: 'light',
+    colorMode: 'light',
     preset: 'neutral',
     paged: true,
   },
@@ -278,7 +278,7 @@ const porcelainMenu = (theme: 'light' | 'dark'): Story => ({
   globals: { fvePreset: 'porcelain' },
   args: {
     ...DisplayWithData.args,
-    theme,
+    colorMode: theme,
     preset: undefined,
     tokens: { '--fve-brand': VIOLET },
   },
@@ -321,7 +321,7 @@ const azureMarks = (theme: 'light' | 'dark'): Story => ({
   globals: { fvePreset: 'azure' },
   args: {
     ...DisplayWithData.args,
-    theme,
+    colorMode: theme,
     preset: undefined,
     paged: true,
     tokens: { '--fve-brand': VIOLET },

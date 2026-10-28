@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 905 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 906 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -171,6 +171,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 905 — with its kind and th
 | `DatasetDirectoryEntry` | interface | One dataset of a service's directory, named as wow-client's `DatasetEntry` names it: the bounded context it lives in, its name there, and its title. | — |
 | `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves: left out, the earlier one's kept. | — |
 | `DatasetOverrides` | type | What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. | — |
+| `DatasetRefresh` | interface | What one `DatasetResources.refresh` found. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
 | `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each`refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |

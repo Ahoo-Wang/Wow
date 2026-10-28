@@ -2,14 +2,23 @@
 
 `react/` 只依赖运行时与纯内核。每个钩子一节：先是签名，再是它承担的规则。默认组件与视觉规则见 [ui/README.md](ui/README.md)。
 
-## useViewEngine
+## useCreateViewEngine
 
 ```ts
-useViewEngine(options): ViewEngine
+useCreateViewEngine(options): ViewEngine
 ```
 
 - 建一个并在卸载时释放；
 - 需要更长生命周期由应用自建后传入。
+
+## useEngine
+
+```ts
+useEngine(own?): ViewEngine
+```
+
+- 读组件所画的引擎：给了 `own` 用它，否则用上层 `ViewHost` 提供的那个（`react/engineContext.ts` 的 context，`ViewHost` 在 `/ui` 里提供它）；两者都没有时抛错；
+- 宿主自己在 `ViewHost` 下的组件也在这里读应用的引擎，不必一层层传。
 
 ## useViewRuntime
 
@@ -17,7 +26,7 @@ useViewEngine(options): ViewEngine
 useViewRuntime(runtime): ViewRuntimeState | null
 ```
 
-- useSyncExternalStore。（见 test/useViewEngine.test.tsx「useViewRuntime」）
+- useSyncExternalStore。（见 test/engineHooks.test.tsx「useViewRuntime」）
 
 ## useOpenView
 
@@ -28,7 +37,7 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 - 拥有所开 runtime：换 id 或卸载即释放；
 - runtime 在其下被释放（如实例被删除）时不再交出，按同一 id 重新打开，得到新 runtime 或 not_found；
 - 注入的 scopeFilter 被拒时，由 `scopeIssues` 交出被拒的那几条，宿主据此提示；**第一次打开就被拒与后来被拒是同一回事**（D17-5）：被拒的收窄根本不生效，视图照自己的配置跑，屏幕上是**没收窄的那份结果**加一条告警。它读的是 `runtime.refusedScope`（runtime 自己的状态，改变时会通知）而不是某一次注入的返回值——一开就带上的那个条件是在构造里进去的，那里没有谁接得住返回值；
-- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/useViewEngine.test.tsx「useOpenView」与 test/embeddedView.test.tsx）
+- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/engineHooks.test.tsx「useOpenView」与 test/embeddedView.test.tsx）
 
 ## useViewList
 

@@ -39,16 +39,12 @@ import { ViewSurface } from './kit/ViewSurface.js';
 /**
  * A standalone dataset view's props: the datasets served, which one is
  * open, and what `DataWorkbench` takes for it.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export interface DatasetWorkbenchProps extends Omit<
   DataWorkbenchProps,
   'definitionId'
 > {
-  /** The datasets served, as `useDatasets` or `DatasetResources.refresh` answers them. */
+  /** The datasets served, as `useDatasets` or `DatasetResources.refresh` answers them (`datasets`). */
   datasets: readonly DatasetResource[];
   /**
    * Which dataset is open, by its definition id, as `value` is on an input:
@@ -81,10 +77,6 @@ function nameOf({ id, entry }: DatasetResource): string {
  * with a navigation of its own binds the datasets there instead
  * (`datasetBindings`) and opens each in a `DataWorkbench`. A board over
  * datasets is an ordinary board whose panels name them.
- *
- * Experimental (D93): it may change before 10.0 GA.
- *
- * @beta
  */
 export function DatasetWorkbench({
   datasets,
@@ -112,7 +104,7 @@ export function DatasetWorkbench({
     >
       <ViewSurface
         engine={workbench.engine}
-        theme={workbench.theme}
+        colorMode={workbench.colorMode}
         preset={workbench.preset}
         density={workbench.density}
         tokens={workbench.tokens}
@@ -170,7 +162,7 @@ export function DatasetWorkbench({
         loading ? null : (
           <ViewSurface
             engine={workbench.engine}
-            theme={workbench.theme}
+            colorMode={workbench.colorMode}
             preset={workbench.preset}
             messages={workbench.messages}
             locale={workbench.locale}

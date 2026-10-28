@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 257 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 256 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -34,8 +34,8 @@ type  DashboardExtensionsOptions
 type  DashboardFilterMode
 value DashboardGrid
 type  DashboardGridProps
-value DashboardPanel
-type  DashboardPanelProps
+value DashboardPanelCard
+type  DashboardPanelCardProps
 value DashboardTabs
 type  DashboardTabsProps
 value DashboardWorkbench
@@ -196,6 +196,7 @@ type  ViewHeaderProps
 type  ViewHeaderState
 value ViewHost
 type  ViewHostProps
+type  ViewIcon
 value ViewList
 type  ViewListProps
 type  ViewLocation
@@ -213,7 +214,6 @@ value ViewSurface
 type  ViewSurfaceProps
 value ViewSwitcher
 type  ViewSwitcherProps
-type  ViewTheme
 type  ViewWriteCallbacks
 type  ViewingCommands
 value WarningStrip
@@ -243,16 +243,15 @@ value tableTime
 value useColorMode
 value useDashboardEditExtensions
 value useDashboardExtensions
-value useEngine
 value useKindIssue
 value useKindWord
 value useSaidText
 value useSay
 value useSurfaceAttributes
+value useSurfaceColorMode
 value useSurfaceDisplay
 value useSurfaceFont
 value useSurfaceHostTokens
-value useSurfaceTheme
 value useSurfaceTokens
 value useViewExpansion
 value useViewMessages

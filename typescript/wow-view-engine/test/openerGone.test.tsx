@@ -234,7 +234,7 @@ function Page({
   }, [onControls]);
   const nameOpener = useCallback(() => named.current ?? true, []);
   return (
-    <ViewSurface theme="light">
+    <ViewSurface colorMode="light">
       <div role="toolbar" aria-label="Band">
         <button type="button">Stays</button>
         <div data-testid="row">

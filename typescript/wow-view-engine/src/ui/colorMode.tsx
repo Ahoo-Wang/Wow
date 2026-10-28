@@ -29,9 +29,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-
-/** The modes a reader may pick: the system's, or one pinned. */
-export type ColorMode = 'system' | 'light' | 'dark';
+import type { ColorMode } from './kit/ViewSurface.js';
 
 /** Who paints the mode: the engine, starting from one of the three, or the host. */
 export type HostColorMode = ColorMode | 'host';

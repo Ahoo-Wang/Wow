@@ -28,9 +28,9 @@ import {
   useAddressedHandOver,
   useAddressedInstance,
 } from './workbench/address.js';
+import { useEngine } from '../react/engineContext.js';
 import {
   useBindings,
-  useEngine,
   useRoutedNavigate,
 } from './workbench/ViewEngineProvider.js';
 import type { ViewMessages } from './kit/messages.js';
@@ -42,7 +42,7 @@ import {
 import type { RenderFailureHandler } from './kit/RenderBoundary.js';
 import { FailureSink } from './kit/failureSink.js';
 import type { ViewDensity, ViewPreset } from './kit/presets.js';
-import type { ViewSurfaceProps, ViewTheme } from './kit/ViewSurface.js';
+import type { ColorMode, ViewSurfaceProps } from './kit/ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
 
@@ -106,7 +106,7 @@ export interface DataWorkbenchProps {
    */
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
-  theme?: ViewTheme;
+  colorMode?: ColorMode;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
@@ -230,7 +230,7 @@ function DataWorkbenchSurface({
   handOver,
   onNavigate: route,
   templates,
-  theme,
+  colorMode,
   preset,
   density,
   tokens,
@@ -300,7 +300,7 @@ function DataWorkbenchSurface({
             <WorkbenchShell
               workbench={workbench}
               title={engine.definitions.get(definitionId)?.title}
-              theme={theme}
+              colorMode={colorMode}
               preset={preset}
               density={density}
               tokens={tokens}

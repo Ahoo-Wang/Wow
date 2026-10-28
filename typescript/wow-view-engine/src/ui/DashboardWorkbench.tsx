@@ -24,10 +24,8 @@ import { SurfaceAnnouncer, useAnnouncer } from './kit/Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
 import { RefreshControl } from './workbench/RefreshControl.js';
 import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
-import {
-  useEngine,
-  useRoutedNavigate,
-} from './workbench/ViewEngineProvider.js';
+import { useEngine } from '../react/engineContext.js';
+import { useRoutedNavigate } from './workbench/ViewEngineProvider.js';
 import {
   boardKey,
   useAddressedBoard,
@@ -42,7 +40,7 @@ import {
 import type { RenderFailureHandler } from './kit/RenderBoundary.js';
 import { FailureSink } from './kit/failureSink.js';
 import type { ViewDensity, ViewPreset } from './kit/presets.js';
-import type { ViewSurfaceProps, ViewTheme } from './kit/ViewSurface.js';
+import type { ColorMode, ViewSurfaceProps } from './kit/ViewSurface.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import { useBuildShell } from './dashboard/buildShell.js';
@@ -115,7 +113,7 @@ export interface DashboardWorkbenchProps {
    */
   template?: DashboardViewConfig;
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
-  theme?: ViewTheme;
+  colorMode?: ColorMode;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
@@ -218,7 +216,7 @@ function DashboardWorkbenchBody({
   instanceId,
   onInstanceChange,
   onNavigate: route,
-  theme,
+  colorMode,
   preset,
   density,
   tokens,
@@ -360,7 +358,7 @@ function DashboardWorkbenchBody({
     <WorkbenchShell
       workbench={workbench}
       title={engine.definitions.get(definitionId)?.title}
-      theme={theme}
+      colorMode={colorMode}
       preset={preset}
       density={density}
       tokens={tokens}

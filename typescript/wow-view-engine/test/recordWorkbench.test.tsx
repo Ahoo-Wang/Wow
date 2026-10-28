@@ -106,7 +106,7 @@ describe('DataWorkbench', () => {
         engine={withTwo()}
         definitionId="orders"
         instanceId="orders-1"
-        theme="dark"
+        colorMode="dark"
         preset="neutral"
       />,
     );

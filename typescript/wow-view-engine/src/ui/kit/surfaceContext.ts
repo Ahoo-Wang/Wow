@@ -27,16 +27,17 @@ import type { FveToken } from '../theme/tokens.js';
  * The mode a surface is actually in, for what renders outside it. A popup is
  * portalled to the document body, where `.fve-root` and its `data-theme` are
  * not ancestors; `popups.tsx` reads this to carry both onto the popup. It
- * holds the pinned `theme` when there is one, and otherwise the mode the
+ * holds the pinned `colorMode` when there is one, and otherwise the mode the
  * surface resolved from the cascade — so a `.dark` on any ancestor, not only
  * on `<html>`, reaches the popup too.
  */
-export const SurfaceThemeContext = React.createContext<
+export const SurfaceColorModeContext = React.createContext<
   'light' | 'dark' | undefined
 >(undefined);
 
-export function useSurfaceTheme(): 'light' | 'dark' | undefined {
-  return React.useContext(SurfaceThemeContext);
+/** The mode the nearest surface is in: light or dark, resolved. */
+export function useSurfaceColorMode(): 'light' | 'dark' | undefined {
+  return React.useContext(SurfaceColorModeContext);
 }
 
 /**
@@ -145,7 +146,7 @@ export function useSurfaceAttributes(): {
 } {
   return {
     lang: React.useContext(SurfaceLanguageContext),
-    'data-theme': React.useContext(SurfaceThemeContext),
+    'data-theme': React.useContext(SurfaceColorModeContext),
     'data-fve-preset': React.useContext(SurfacePresetContext),
     'data-fve-change-colors': React.useContext(SurfaceChangeColorsContext),
     'data-fve-density': React.useContext(SurfaceDensityContext),
