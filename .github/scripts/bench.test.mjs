@@ -23,7 +23,8 @@ import {
   cpuSplit,
   GENERATOR_BOUND,
   generatorBound,
-  PG_LOAD_CPUS,
+  PAIRED_LOAD_CPUS,
+  loadCpusOf,
   saturationRatioBound,
   halves,
   noiseFile,
@@ -449,15 +450,25 @@ test('cpuSplit gives the load generator the last CPUs and the servers the others
   assert.deepEqual(cpuSplit(2), {});
   assert.deepEqual(cpuSplit(4, 3), {});
   assert.deepEqual(cpuSplit(Number.NaN), {});
-  for (const name of ['e1-pg-uniform', 'e3-pg', 'mixed-pg'])
-    assert.equal(SUITES[name].loadCpus, PG_LOAD_CPUS);
-  assert.equal(SUITES['e1-mongo-uniform'].loadCpus, undefined);
+  // One rule: every paired suite gives the generator two CPUs, whatever its backend; the others one.
+  const paired = Object.entries(SUITES).filter(
+    ([, it]) => it.kind === 'paired',
+  );
+  assert.ok(paired.length > 0);
+  for (const [name, definition] of paired)
+    assert.equal(loadCpusOf(definition), PAIRED_LOAD_CPUS, name);
+  for (const [name, definition] of Object.entries(SUITES).filter(
+    ([, it]) => it.kind !== 'paired',
+  ))
+    assert.equal(loadCpusOf(definition), 1, name);
+  for (const definition of Object.values(SUITES))
+    assert.equal(definition.loadCpus, undefined);
 });
 
-test('runSuite pins a PostgreSQL suite with its own split of the runner', () => {
+test('runSuite pins a paired suite, on MongoDB as on PostgreSQL, with the generator on two CPUs', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);
-  runSuite('e1-pg-uniform', {
+  runSuite('e1-mongo-uniform', {
     benchPath,
     warmUp: 1,
     measure: 5,
@@ -466,7 +477,7 @@ test('runSuite pins a PostgreSQL suite with its own split of the runner', () => 
     cpus: { total: 4 },
     installs: { base: '/builds/base/benchmark-server' },
     refs: { baseRef: 'base', baseSha: 'b1', headRef: 'v10', headSha: 'h1' },
-    out: join(dir, 'results', 'e1-pg-uniform'),
+    out: join(dir, 'results', 'e1-mongo-uniform'),
   });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(calls, /--load-cpus=2-3 --server-cpus=0-1/);
@@ -654,6 +665,36 @@ test('anomalies flag pauses, store fallbacks, error spikes, dips and long tails'
   );
   // A 30 ms p99 over a 2 ms median is below the floor.
   assert.deepEqual(anomaliesOf(run({ p50: 2, p99: 30 })), []);
+  // An overloaded run says what bound its operations in flight, as its result recorded it.
+  const result = {
+    load: {
+      rate: 900,
+      inFlightCap: 2000,
+      inFlightBoundBy: 'per-target ceiling',
+    },
+    results: { ok: 1000, failed: 40, errors: { 'E1:generator-overload': 40 } },
+  };
+  const capped = metrics(result);
+  assert.equal(capped.inFlightCap, 2000);
+  assert.equal(capped.inFlightBoundBy, 'per-target ceiling');
+  assert.match(
+    anomaliesOf(
+      run({
+        failed: 40,
+        errors: capped.errors,
+        inFlightCap: 2000,
+        inFlightBoundBy: 'per-target ceiling',
+      }),
+    ).find(a => a.kind === 'error spike').detail,
+    /generator-overload: 2000 in flight at most \(per-target ceiling\)$/,
+  );
+  // Other errors say nothing of the cap.
+  assert.doesNotMatch(
+    anomaliesOf(
+      run({ failed: 20, errors: { 'http-408': 20 }, inFlightCap: 2000 }),
+    )[0].detail,
+    /in flight/,
+  );
   const paused = run(
     { failed: 500 },
     {

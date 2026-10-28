@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.load
 
 import java.net.URI
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReferenceArray
 import java.util.concurrent.atomic.LongAdder
 import java.util.concurrent.locks.LockSupport
+import kotlin.math.ceil
 
 /**
  * The open-loop driver: operations are scheduled at a fixed arrival rate, the `i`th at
@@ -30,8 +32,8 @@ import java.util.concurrent.locks.LockSupport
  * so a late send counts against it too.
  *
  * The first [warmUpSeconds] are not recorded; the next [measureSeconds] are, into [Measured]. An operation belongs to
- * the phase and the second its scheduled time falls in. At most [maxInFlight] operations are outstanding: one
- * scheduled beyond that is not sent and is counted as `generator-overload`, which marks the run as not keeping up.
+ * the phase and the second its scheduled time falls in. At most [inFlight] operations are outstanding ([InFlightCap]):
+ * one scheduled beyond that is not sent and is counted as `generator-overload`, which marks the run as not keeping up.
  * Operation `i` runs the scenario [mix] picks for it; a mix also records each scenario's latencies and errors apart.
  * The operations go round robin to the [targets] that are up ([Targets]): a node that refuses a connection, such as one
  * a hand-over run stopped, is left out for a moment, and an operation it refused runs on the next node.
@@ -44,7 +46,7 @@ class OpenLoop(
     private val rate: Double,
     private val warmUpSeconds: Int,
     private val measureSeconds: Int,
-    private val maxInFlight: Int = DEFAULT_MAX_IN_FLIGHT,
+    private val inFlight: InFlightCap = InFlightCap.of(rate, TransferApi.REQUEST_TIMEOUT, targets.size),
     private val onPhase: (String) -> Unit = {},
 ) {
     init {
@@ -103,7 +105,7 @@ class OpenLoop(
         val interval = NANOS_PER_SECOND / rate
         val total = ((warmUpSeconds + measureSeconds) * rate).toLong()
         val warmUpEnd = warmUpSeconds * NANOS_PER_SECOND
-        val inFlight = AtomicInteger()
+        val outgoing = AtomicInteger()
         val done = CountDownLatch(1)
         val outstanding = AtomicLong(1)
         val start = System.nanoTime() + START_DELAY_NANOS
@@ -125,8 +127,8 @@ class OpenLoop(
             val scenario = mix.pick(i)
             val account = keys.next()
             val other = if (scenario.transfers) keys.nextOtherThan(account) else account
-            if (inFlight.incrementAndGet() > maxInFlight) {
-                inFlight.decrementAndGet()
+            if (outgoing.incrementAndGet() > inFlight.cap) {
+                outgoing.decrementAndGet()
                 if (inMeasure) measured.error(OVERLOAD)
                 continue
             }
@@ -134,7 +136,7 @@ class OpenLoop(
             val second = ((offset - warmUpEnd) / NANOS_PER_SECOND).toInt()
             nodes.run(scenario, client, i, account, other).handle { error, failure ->
                 if (inMeasure) measured.complete(second, scheduled, error, failure, scenario.takeIf { mix.mixed })
-                inFlight.decrementAndGet()
+                outgoing.decrementAndGet()
                 if (outstanding.decrementAndGet() == 0L) done.countDown()
             }
         }
@@ -155,7 +157,6 @@ class OpenLoop(
 
     companion object {
         const val OVERLOAD = "generator-overload"
-        const val DEFAULT_MAX_IN_FLIGHT = 20_000
         const val NANOS_PER_SECOND = 1_000_000_000L
         const val NANOS_PER_MICRO = 1_000L
         private const val START_DELAY_NANOS = 100_000_000L
@@ -166,6 +167,37 @@ class OpenLoop(
             var cause = failure
             while (cause.cause != null && cause.cause !== cause) cause = cause.cause!!
             return cause
+        }
+    }
+}
+
+/**
+ * How many operations of an open-loop run may be outstanding: as many as its rate sends within one request's timeout
+ * (one sent beyond that could only time out), at most [InFlightCap.PER_TARGET] per target. Each one outstanding holds
+ * a connection, so the ceiling keeps an overloaded server's answer `generator-overload` or 429, never a storm of
+ * connections it refuses. [boundBy] names the bound that applied, which the run's result records.
+ */
+class InFlightCap private constructor(val cap: Int, val boundBy: String) {
+    override fun toString(): String = "InFlightCap(cap=$cap, boundBy=$boundBy)"
+
+    companion object {
+        /** The most operations outstanding per target: a few thousand connections a node accepts at once. */
+        const val PER_TARGET: Int = 2_000
+        const val BY_RATE: String = "rate x request timeout"
+        const val BY_CEILING: String = "per-target ceiling"
+
+        /** The cap of a run at [rate] a second, of requests timing out after [timeout], over [targets] targets. */
+        fun of(rate: Double, timeout: Duration, targets: Int, perTarget: Int = PER_TARGET): InFlightCap {
+            require(rate > 0) { "The rate is positive." }
+            require(targets >= 1) { "A run has a target." }
+            require(perTarget >= 1) { "A target takes at least one operation at a time." }
+            val derived = ceil(rate * timeout.toNanos() / OpenLoop.NANOS_PER_SECOND).toLong().coerceAtLeast(1)
+            val ceiling = perTarget.toLong() * targets
+            return if (derived <= ceiling) {
+                InFlightCap(derived.toInt(), BY_RATE)
+            } else {
+                InFlightCap(ceiling.toInt(), BY_CEILING)
+            }
         }
     }
 }
