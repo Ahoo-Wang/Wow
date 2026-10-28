@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -127,7 +128,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * sizes [codec] measures, each eviction observed.
      */
     private fun stateCacheOf(context: String, codec: EventCodec): StateCache {
-        val evicted = { observer.stateCache(context, StateCacheOutcome.EVICTED) }
+        val evicted = { observer.observed(ObservedEvent.StateCache(context, StateCacheOutcome.EVICTED)) }
         return when (val capacity = stateCacheCapacity) {
             null -> LruStateCache(
                 maxBytes = checkNotNull(stateCacheBytes),

@@ -36,6 +36,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
@@ -157,8 +158,11 @@ class PostgresHandoffTest {
     private class Reads : Observer {
         val reasons = CopyOnWriteArrayList<String>()
 
-        override fun tailRead(context: String, partition: Int, reason: String) {
-            reasons += reason
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.TailRead -> reasons += event.reason
+                else -> Unit
+            }
         }
     }
 

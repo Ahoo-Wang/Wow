@@ -23,6 +23,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -124,9 +125,9 @@ class MetricsTest {
     @Test
     fun `each undecodable message should be counted by topic and whether it parked its aggregate`() {
         // Review A3-14.
-        telemetry.observer.undecodable("orders", 0, 7, parked = true)
-        telemetry.observer.undecodable("orders", 1, 8, parked = false)
-        telemetry.observer.undecodable("orders", 1, 9, parked = false)
+        telemetry.observer.observed(ObservedEvent.Undecodable("orders", 0, 7, parked = true))
+        telemetry.observer.observed(ObservedEvent.Undecodable("orders", 1, 8, parked = false))
+        telemetry.observer.observed(ObservedEvent.Undecodable("orders", 1, 9, parked = false))
         fun count(outcome: String) = telemetry.meters.find(WowMetrics.UNDECODABLE_MESSAGES)
             .tags(WowMetrics.TOPIC, "orders", WowMetrics.OUTCOME, outcome).counter()!!.count()
         count(WowMetrics.PARKED_OUTCOME).assert().isEqualTo(1.0)

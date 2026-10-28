@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -564,8 +565,11 @@ private class HoldFirst(private val delegate: EventLog) : EventLog by delegate {
 private class ReadsObserver : Observer {
     val reasons = CopyOnWriteArrayList<String>()
 
-    override fun tailRead(context: String, partition: Int, reason: String) {
-        reasons += reason
+    override fun observed(event: ObservedEvent) {
+        when (event) {
+            is ObservedEvent.TailRead -> reasons += event.reason
+            else -> Unit
+        }
     }
 }
 

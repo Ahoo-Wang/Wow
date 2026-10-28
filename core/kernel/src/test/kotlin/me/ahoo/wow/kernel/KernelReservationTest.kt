@@ -30,6 +30,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
@@ -131,8 +132,11 @@ class KernelReservationTest {
         }
         val lost = mutableListOf<String>()
         val observer = object : Observer {
-            override fun reservationLost(context: String) {
-                lost += context
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.ReservationLost -> lost += event.context
+                    else -> Unit
+                }
             }
         }
         val kernel = Kernel(log, reservations = taking, observer = observer)

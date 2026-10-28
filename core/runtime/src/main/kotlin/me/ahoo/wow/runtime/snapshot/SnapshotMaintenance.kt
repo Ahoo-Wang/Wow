@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
@@ -404,7 +405,9 @@ class SnapshotMaintenance(
     private fun rebuildsOf(name: String): SnapshotRebuildStore = checkNotNull(storeOf(name).rebuilds)
 
     private fun fellBack() =
-        observer.storeFellBack(context, StoreFallbacks.SNAPSHOT_REBUILD, StoreFallbacks.UNSUPPORTED)
+        observer.observed(
+            ObservedEvent.StoreFellBack(context, StoreFallbacks.SNAPSHOT_REBUILD, StoreFallbacks.UNSUPPORTED)
+        )
 
     private fun revisionOf(type: AggregateType): Int = models.getValue(type).stateRevision
 

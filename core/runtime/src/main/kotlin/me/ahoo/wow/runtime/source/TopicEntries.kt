@@ -28,6 +28,7 @@ import me.ahoo.wow.runtime.subscription.parkedAt
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.transport.EnvelopeCodec
@@ -133,7 +134,7 @@ internal class TopicEntries(
     /** The entry of an undecodable [message] when its key names an aggregate; null when it is passed over. */
     private fun undecodable(partition: Int, message: SourceMessage, failure: Exception): SourcedEntry? {
         val ref = UndecodableMessage.refOf(message.key)
-        observer.undecodable(topic, partition, message.offset, parked = ref != null)
+        observer.observed(ObservedEvent.Undecodable(topic, partition, message.offset, parked = ref != null))
         val at = "offset ${message.offset} of partition $partition of $topic"
         if (ref == null) {
             logger.error(failure) { "Passing over $at: it holds no state event this version reads, nor a key." }

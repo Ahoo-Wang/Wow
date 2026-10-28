@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import java.util.TreeMap
 import java.util.concurrent.ConcurrentSkipListSet
@@ -103,7 +104,7 @@ class HandoffOptions @InternalWowApi constructor(
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
  *
- * Each read of the store is reported to [observer] ([Observer.tailRead]) with its reason. A node that does not own a
+ * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason. A node that does not own a
  * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
  */
 @InternalWowApi
@@ -262,7 +263,7 @@ class HandoffLog(
             }
             if (head > cursor) {
                 reads.incrementAndGet()
-                observer.tailRead(context, partition, reason)
+                observer.observed(ObservedEvent.TailRead(context, partition, reason))
                 log.tail(partition, cursor.takeIf { it > 0 })
                     .transformWhile {
                         emit(it)

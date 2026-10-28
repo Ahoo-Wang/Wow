@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.observe
@@ -87,14 +88,14 @@ class OtelObserverTest {
     @Test
     fun `an execution should time the commit by its outcome, and its decision and append be its children`(): Unit =
         runBlocking {
-            val executing = observer.executing(command)
+            val executing = observer.executing(command, PLACE_ORDER)
             executing.observe {
                 observer.deciding(command).observe { }
                 val appending = observer.appending(stream)
                 appending.observe { appending.trace["traceparent"].assert().isNotNull() }
                 executing.outcome("committed")
             }
-            observer.executing(command).observe { }
+            observer.executing(command, PLACE_ORDER).observe { }
             val execute = telemetry.named("execute $ORDER").first()
             execute.attr(WowAttributes.COMMAND_ID).assert().isEqualTo("c-1")
             execute.attr(WowAttributes.COMMAND).assert().isEqualTo("$ORDER.PlaceOrder")
@@ -128,16 +129,16 @@ class OtelObserverTest {
 
     @Test
     fun `refusals, wait timeouts, dropped signals, failed forwards, tail reads and store fallbacks should be counted`() {
-        observer.refused(ORDER, "wow.command.busy")
-        observer.refused(ORDER, "wow.command.busy")
-        observer.waitTimedOut(ORDER, Stage.COMMITTED)
-        observer.signalDropped("node-2", "queue-full")
-        observer.forwardFailed(ORDER, "unknown")
-        observer.tailRead(SALES, 3, "gap")
-        observer.stateCache(SALES, "miss")
-        observer.stateCache(SALES, "evicted")
-        observer.reservationLost(SALES)
-        observer.storeFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED)
+        observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
+        observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
+        observer.observed(ObservedEvent.WaitTimedOut(ORDER, Stage.COMMITTED))
+        observer.observed(ObservedEvent.SignalDropped("node-2", "queue-full"))
+        observer.observed(ObservedEvent.ForwardFailed(ORDER, "unknown"))
+        observer.observed(ObservedEvent.TailRead(SALES, 3, "gap"))
+        observer.observed(ObservedEvent.StateCache(SALES, "miss"))
+        observer.observed(ObservedEvent.StateCache(SALES, "evicted"))
+        observer.observed(ObservedEvent.ReservationLost(SALES))
+        observer.observed(ObservedEvent.StoreFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED))
         val meters = telemetry.meters
         meters.get(WowMetrics.STORE_FALLBACKS).tags(
             WowMetrics.CONTEXT,
@@ -169,11 +170,59 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `every stage and every observed event should record under the metric names a dashboard reads`(): Unit =
+        runBlocking {
+            observer.admitting(SALES, "order", "PlaceOrder", emptyMap()).observe { }
+            observer.executing(command, PLACE_ORDER).observe { }
+            observer.deciding(command).observe { }
+            observer.appending(stream).observe { }
+            observer.handling("Board.onOrder", SALES, stream, emptyMap(), null).observe { }
+            observer.firing(
+                Timer("t", ref, "expire", 2, 0, ScheduleRule.At(9_000), 9_000, ref, "$ORDER.CancelOrder", "{}"),
+            ).observe { }
+            listOf(
+                ObservedEvent.Refused(ORDER, "wow.command.busy"),
+                ObservedEvent.WaitTimedOut(ORDER, Stage.COMMITTED),
+                ObservedEvent.SignalDropped("node-2", "queue-full"),
+                ObservedEvent.ForwardFailed(ORDER, "unknown"),
+                ObservedEvent.StateCache(SALES, "miss"),
+                ObservedEvent.StateCache(SALES, "evicted"),
+                ObservedEvent.ReservationLost(SALES),
+                ObservedEvent.StoreFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
+                ObservedEvent.PartitionPaused("sales", "Board.onEvent", 3, "down"),
+                ObservedEvent.PartitionResumed("sales", "Board.onEvent", 3, 1_500),
+                ObservedEvent.PartitionThrottled("sales", "Board.onEvent", 3, true),
+                ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.command.busy"),
+                ObservedEvent.TailRead(SALES, 3, "gap"),
+                ObservedEvent.Undecodable("orders", 0, 7, parked = true),
+            ).forEach(observer::observed)
+            // The names dashboards and alerts are built on: a change here is a breaking change for operators.
+            telemetry.meters.meters.map { it.id.name }.toSortedSet().assert().containsExactly(
+                "wow.command.duration",
+                "wow.command.forward.failures",
+                "wow.command.refusals",
+                "wow.log.tail.reads",
+                "wow.reservation.losses",
+                "wow.state_cache.evictions",
+                "wow.state_cache.lookups",
+                "wow.store.fallbacks",
+                "wow.subscription.backpressure.refusals",
+                "wow.subscription.lag",
+                "wow.subscription.paused.notices",
+                "wow.subscription.throttled.notices",
+                "wow.subscription.undecodable.messages",
+                "wow.timer.delay",
+                "wow.wait.signal.drops",
+                "wow.wait.timeouts",
+            )
+        }
+
+    @Test
     fun `the throttles of a partition and its backpressured attempts should be counted`() {
-        observer.partitionThrottled("sales", "Board.onEvent", 3, true)
-        observer.partitionThrottled("sales", "Board.onEvent", 3, false)
-        observer.backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout")
-        observer.backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout")
+        observer.observed(ObservedEvent.PartitionThrottled("sales", "Board.onEvent", 3, true))
+        observer.observed(ObservedEvent.PartitionThrottled("sales", "Board.onEvent", 3, false))
+        observer.observed(ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout"))
+        observer.observed(ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout"))
         val board = arrayOf(WowMetrics.GROUP, "sales", WowMetrics.SUBSCRIPTION, "Board.onEvent")
         listOf(WowMetrics.THROTTLED_KIND, WowMetrics.UNTHROTTLED_KIND).forEach {
             telemetry.meters.get(WowMetrics.THROTTLED_NOTICES)
@@ -187,9 +236,9 @@ class OtelObserverTest {
 
     @Test
     fun `the pauses of a partition and its resumes should be counted`() {
-        observer.partitionPaused("sales", "Board.onEvent", 3, "a systemic failure")
-        observer.partitionResumed("sales", "Board.onEvent", 3, 1_500)
-        observer.partitionPaused("sales", "Board.onEvent", 3, "a systemic failure")
+        observer.observed(ObservedEvent.PartitionPaused("sales", "Board.onEvent", 3, "a systemic failure"))
+        observer.observed(ObservedEvent.PartitionResumed("sales", "Board.onEvent", 3, 1_500))
+        observer.observed(ObservedEvent.PartitionPaused("sales", "Board.onEvent", 3, "a systemic failure"))
         val board = arrayOf(
             WowMetrics.GROUP,
             "sales",
@@ -205,10 +254,10 @@ class OtelObserverTest {
     @Test
     fun `a failure should be recorded on the span, a cancellation only named`(): Unit = runBlocking {
         assertThrows<IllegalStateException> {
-            observer.executing(command).observe { error("The store is down.") }
+            observer.executing(command, PLACE_ORDER).observe { error("The store is down.") }
         }
         assertThrows<CancellationException> {
-            observer.executing(command).observe { throw CancellationException("The caller left.") }
+            observer.executing(command, PLACE_ORDER).observe { throw CancellationException("The caller left.") }
         }
         val (failed, cancelled) = telemetry.named("execute $ORDER")
         failed.status.statusCode.assert().isEqualTo(StatusCode.ERROR)
@@ -287,4 +336,9 @@ class OtelObserverTest {
             Span.current().spanContext.isValid.assert().isFalse()
             resumed.toString().assert().startsWith("OtelTraceContext(")
         }
+
+    private companion object {
+        /** The kernel's resolved type name of [PlaceOrder]. */
+        val PLACE_ORDER = "$ORDER.PlaceOrder"
+    }
 }

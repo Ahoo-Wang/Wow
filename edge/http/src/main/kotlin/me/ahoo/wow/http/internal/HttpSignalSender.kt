@@ -30,6 +30,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import java.net.ConnectException
@@ -74,7 +75,7 @@ import kotlin.time.toJavaDuration
  * A signal is dropped when its queue is full, when its wait is over before it is sent ([EXPIRED]), when its request
  * fails otherwise, or after its last attempt, or outlives its waits, or when the origin answers other than 2xx: a lost
  * signal costs its waiter a timeout, never a fact. Every drop is counted ([dropped], and [observer]'s
- * [Observer.signalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
+ * [ObservedEvent.SignalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
  * after, at DEBUG otherwise: never silent, never a log line per signal of a burst.
  *
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
@@ -144,7 +145,7 @@ class HttpSignalSender(
 
     private fun drop(address: String, signal: WaitSignal, reason: String, detail: String = reason) {
         val count = drops.incrementAndGet()
-        observer.signalDropped(address, reason)
+        observer.observed(ObservedEvent.SignalDropped(address, reason))
         val message = { "Dropped the signal of wait ${signal.waitId} to $address ($detail); $count dropped so far." }
         if (count == 1L || count % WARN_EVERY == 0L) logger.warn(message) else logger.debug(message)
     }
@@ -318,7 +319,7 @@ class HttpSignalSender(
         /** A drop is logged at WARN the first time and every this many times after. */
         const val WARN_EVERY: Long = 100
 
-        /** The reasons of [Observer.signalDropped]. */
+        /** The reasons of [ObservedEvent.SignalDropped]. */
         const val QUEUE_FULL: String = "queue-full"
         const val CLOSED: String = "closed"
         const val EXPIRED: String = "expired"

@@ -21,6 +21,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -56,7 +57,7 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
  * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the reader
  * [readers] gives its type, the one of a store holding both ([me.ahoo.wow.spi.store.Store.snapshotTails]), else apart
  * ([readSnapshotTailApart]). When the reader fails, the read is done apart: the first time logged as a warning,
- * every time counted with [Observer.storeFellBack].
+ * every time counted with [ObservedEvent.StoreFellBack].
  */
 internal class SnapshotTailReads(
     private val log: EventLog,
@@ -89,7 +90,7 @@ internal class SnapshotTailReads(
     }
 
     private fun fellBack(ref: AggregateRef, reason: String) =
-        observer.storeFellBack(ref.type.context, StoreFallbacks.SNAPSHOT_TAIL_READ, reason)
+        observer.observed(ObservedEvent.StoreFellBack(ref.type.context, StoreFallbacks.SNAPSHOT_TAIL_READ, reason))
 }
 
 /**

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 
@@ -81,8 +82,11 @@ class KernelFirstCommitTest {
     fun `each lookup of the state cache is reported as a hit or a miss`(): Unit = runTest {
         val outcomes = mutableListOf<Pair<String, String>>()
         val observer = object : Observer {
-            override fun stateCache(context: String, outcome: String) {
-                outcomes += context to outcome
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.StateCache -> outcomes += event.context to event.outcome
+                    else -> Unit
+                }
             }
         }
         val kernel = Kernel(log, states = MapCache(), observer = observer)

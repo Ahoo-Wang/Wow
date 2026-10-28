@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -193,9 +194,10 @@ class Kernel(
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id." }
-        val executing = model.findCommandType(admitted.body.javaClass)
-            ?.let { observer.executing(admitted, it.name) }
-            ?: observer.executing(admitted)
+        val type = admitted.ref.type
+        val commandType = model.findCommandType(admitted.body.javaClass)?.name
+            ?: "${type.context}.${type.name}.${admitted.body.javaClass.simpleName}"
+        val executing = observer.executing(admitted, commandType)
         var committed: CommandOutcome.Committed? = null
         return try {
             executing.observe {
@@ -761,10 +763,10 @@ class Kernel(
     private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
         val ref = requests.ref
         requests.cached()?.let {
-            observer.stateCache(ref.type.context, StateCacheOutcome.HIT)
+            observer.observed(ObservedEvent.StateCache(ref.type.context, StateCacheOutcome.HIT))
             return it to true
         }
-        observer.stateCache(ref.type.context, StateCacheOutcome.MISS)
+        observer.observed(ObservedEvent.StateCache(ref.type.context, StateCacheOutcome.MISS))
         val read = loading?.let { snapshotTails.read(ref, it, requests.earlier) }
         read?.snapshot?.let { snapshot ->
             codec.fitting(model, snapshot)?.let { state ->

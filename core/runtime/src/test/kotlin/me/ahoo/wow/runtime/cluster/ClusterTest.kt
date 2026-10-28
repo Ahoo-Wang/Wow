@@ -19,13 +19,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -412,8 +412,11 @@ class ClusterTest {
         )
         val failed = mutableListOf<String>()
         val observer = object : Observer {
-            override fun forwardFailed(type: AggregateType, outcome: String) {
-                failed += outcome
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.ForwardFailed -> failed += event.outcome
+                    else -> Unit
+                }
             }
         }
         val outcomes = answers.map { answer ->
@@ -454,8 +457,11 @@ class ClusterTest {
             }
             val failed = CopyOnWriteArrayList<String>()
             val observer = object : Observer {
-                override fun forwardFailed(type: AggregateType, outcome: String) {
-                    failed += outcome
+                override fun observed(event: ObservedEvent) {
+                    when (event) {
+                        is ObservedEvent.ForwardFailed -> failed += event.outcome
+                        else -> Unit
+                    }
                 }
             }
             val router = PartitionedRouter(

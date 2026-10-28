@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.soak
 
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -67,22 +66,19 @@ class SoakSignals : Observer, AutoCloseable {
         append('}')
     }
 
-    override fun tailRead(context: String, partition: Int, reason: String) = count("tailRead", reason)
-
-    override fun refused(type: AggregateType, code: String) = count("refused", code)
-
-    override fun waitTimedOut(type: AggregateType, stage: Stage) = count("waitTimedOut", stage.toString())
-
-    override fun signalDropped(origin: String, reason: String) = count("signalDropped", reason)
-
-    override fun forwardFailed(type: AggregateType, outcome: String) = count("forwardFailed", outcome)
-
-    // The reason names the failing aggregate and its exception, so the key is the subscription alone.
-    override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) =
-        count("partitionPaused", subscription)
-
-    override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) =
-        count("partitionResumed", subscription)
+    override fun observed(event: ObservedEvent) {
+        when (event) {
+            is ObservedEvent.TailRead -> count("tailRead", event.reason)
+            is ObservedEvent.Refused -> count("refused", event.code)
+            is ObservedEvent.WaitTimedOut -> count("waitTimedOut", event.stage.toString())
+            is ObservedEvent.SignalDropped -> count("signalDropped", event.reason)
+            is ObservedEvent.ForwardFailed -> count("forwardFailed", event.outcome)
+            // The reason names the failing aggregate and its exception, so the key is the subscription alone.
+            is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
+            is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)
+            else -> Unit
+        }
+    }
 
     private companion object {
         private val log = LoggerFactory.getLogger(SoakSignals::class.java)

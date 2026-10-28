@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
@@ -159,7 +160,10 @@ private class HeadsLog(private val delegate: EventLog) : EventLog by delegate {
 private class TailReads : Observer {
     val reasons = CopyOnWriteArrayList<String>()
 
-    override fun tailRead(context: String, partition: Int, reason: String) {
-        reasons += reason
+    override fun observed(event: ObservedEvent) {
+        when (event) {
+            is ObservedEvent.TailRead -> reasons += event.reason
+            else -> Unit
+        }
     }
 }

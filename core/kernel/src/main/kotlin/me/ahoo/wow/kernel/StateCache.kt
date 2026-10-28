@@ -131,7 +131,7 @@ data class FirstCommit(val eventTime: Long, val operator: Operator?) {
     }
 }
 
-/** The outcomes of [me.ahoo.wow.spi.observation.Observer.stateCache]. */
+/** The outcomes of [me.ahoo.wow.spi.observation.ObservedEvent.StateCache]. */
 @InternalWowApi
 object StateCacheOutcome {
     const val HIT: String = "hit"

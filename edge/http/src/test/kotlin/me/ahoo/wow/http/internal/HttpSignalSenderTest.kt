@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
@@ -195,8 +196,11 @@ class HttpSignalSenderTest {
     fun `every dropped signal is observed by its reason`(): Unit = runBlocking {
         val reasons = CopyOnWriteArrayList<String>()
         val observer = object : Observer {
-            override fun signalDropped(origin: String, reason: String) {
-                reasons += reason
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.SignalDropped -> reasons += event.reason
+                    else -> Unit
+                }
             }
         }
         withRefusingPort { gone ->
@@ -252,8 +256,11 @@ class HttpSignalSenderTest {
         val reasons = CopyOnWriteArrayList<String>()
         val sender = HttpSignalSender(
             observer = object : Observer {
-                override fun signalDropped(origin: String, reason: String) {
-                    reasons += reason
+                override fun observed(event: ObservedEvent) {
+                    when (event) {
+                        is ObservedEvent.SignalDropped -> reasons += event.reason
+                        else -> Unit
+                    }
                 }
             },
         ).also { senders += it }
@@ -337,8 +344,11 @@ class HttpSignalSenderTest {
     fun `a request is sent at most its attempts, and a definite answer once`(): Unit = runBlocking {
         val reasons = CopyOnWriteArrayList<String>()
         val observer = object : Observer {
-            override fun signalDropped(origin: String, reason: String) {
-                reasons += reason
+            override fun observed(event: ObservedEvent) {
+                when (event) {
+                    is ObservedEvent.SignalDropped -> reasons += event.reason
+                    else -> Unit
+                }
             }
         }
         val requests = AtomicInteger()

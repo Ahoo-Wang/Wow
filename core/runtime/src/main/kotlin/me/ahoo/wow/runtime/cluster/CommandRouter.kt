@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.runtime.wait.reachedResult
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
@@ -141,7 +142,7 @@ class PartitionedRouter(
         if (permits.incrementAndGet() > options.maxInFlightPerPeer) {
             permits.decrementAndGet()
             logger.debug { "${peer.node} has ${options.maxInFlightPerPeer} forwards in flight; ${command.id} runs here." }
-            observer.forwardFailed(command.ref.type, FORWARD_BUSY)
+            observer.observed(ObservedEvent.ForwardFailed(command.ref.type, FORWARD_BUSY))
             return null
         }
         try {
@@ -228,7 +229,7 @@ class PartitionedRouter(
     /** The forward surely did not reach [peer], or [peer] refused it: the command runs here. */
     private fun unsent(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
         logger.debug { "Forwarding ${command.id} to ${peer.node} at ${peer.address} failed ($why); it runs here." }
-        observer.forwardFailed(command.ref.type, FORWARD_LOCAL)
+        observer.observed(ObservedEvent.ForwardFailed(command.ref.type, FORWARD_LOCAL))
         ownership.refreshSoon()
         return null
     }
@@ -270,7 +271,7 @@ class PartitionedRouter(
         logger.info {
             "Forwarding ${command.id} to ${peer.node} at ${peer.address} got no reply ($why); its outcome is unknown."
         }
-        observer.forwardFailed(command.ref.type, FORWARD_UNKNOWN)
+        observer.observed(ObservedEvent.ForwardFailed(command.ref.type, FORWARD_UNKNOWN))
         ownership.refreshSoon()
         val committed = reachedResult(
             command,
@@ -291,7 +292,7 @@ class PartitionedRouter(
     private companion object {
         val logger = KotlinLogging.logger {}
 
-        /** The outcomes of [Observer.forwardFailed]. */
+        /** The outcomes of [ObservedEvent.ForwardFailed]. */
         const val FORWARD_BUSY = "busy"
         const val FORWARD_LOCAL = "local"
         const val FORWARD_UNKNOWN = "unknown"

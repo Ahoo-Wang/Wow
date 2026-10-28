@@ -672,30 +672,99 @@ public abstract interface class me/ahoo/wow/spi/observation/Observation {
 public final class me/ahoo/wow/spi/observation/Observation$Companion {
 }
 
+public abstract class me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun equals (Ljava/lang/Object;)Z
+	public final fun hashCode ()I
+	public final fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Backpressured : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getSubscription ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionPaused : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getSubscription ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionResumed : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getPausedMillis ()J
+	public final fun getSubscription ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionThrottled : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getSubscription ()Ljava/lang/String;
+	public final fun getThrottled ()Z
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Refused : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$ReservationLost : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getContext ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$SignalDropped : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getOrigin ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$StateCache : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getOutcome ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$StoreFellBack : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getCapability ()Ljava/lang/String;
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$TailRead : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getReason ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Undecodable : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getOffset ()J
+	public final fun getParked ()Z
+	public final fun getPartition ()I
+	public final fun getTopic ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$WaitTimedOut : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getStage ()Lme/ahoo/wow/api/result/Stage;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
 public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public static final field Companion Lme/ahoo/wow/spi/observation/Observer$Companion;
 	public static final field NONE Lme/ahoo/wow/spi/observation/Observer;
 	public fun admitting (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun appending (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/observation/Observation;
-	public fun backpressured (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V
 	public fun deciding (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
-	public fun executing (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun executing (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
-	public fun forwardFailed (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
 	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
-	public fun partitionPaused (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V
-	public fun partitionResumed (Ljava/lang/String;Ljava/lang/String;IJ)V
-	public fun partitionThrottled (Ljava/lang/String;Ljava/lang/String;IZ)V
-	public fun refused (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
-	public fun reservationLost (Ljava/lang/String;)V
+	public fun observed (Lme/ahoo/wow/spi/observation/ObservedEvent;)V
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
-	public fun signalDropped (Ljava/lang/String;Ljava/lang/String;)V
-	public fun stateCache (Ljava/lang/String;Ljava/lang/String;)V
-	public fun storeFellBack (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public fun tailRead (Ljava/lang/String;ILjava/lang/String;)V
-	public fun undecodable (Ljava/lang/String;IJZ)V
-	public fun waitTimedOut (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/result/Stage;)V
 }
 
 public final class me/ahoo/wow/spi/observation/Observer$Companion {

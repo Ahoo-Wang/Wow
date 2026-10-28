@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import org.junit.jupiter.api.Test
@@ -42,8 +43,11 @@ class SnapshotTailReadsTest {
     private val snapshots = InMemorySnapshotStore()
     private val fallbacks = ArrayList<Triple<String, String, String>>()
     private val observer = object : Observer {
-        override fun storeFellBack(context: String, capability: String, reason: String) {
-            fallbacks += Triple(context, capability, reason)
+        override fun observed(event: ObservedEvent) {
+            when (event) {
+                is ObservedEvent.StoreFellBack -> fallbacks += Triple(event.context, event.capability, event.reason)
+                else -> Unit
+            }
         }
     }
     private val served = SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList()))
