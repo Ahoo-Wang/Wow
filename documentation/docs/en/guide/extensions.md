@@ -25,15 +25,15 @@ The compiler generates the code that awaits the publisher, through `wow-reactor`
 
 A node generates two kinds of ids: the global ones, command ids, request ids, wait ids and `scope.ids.next()` in domain code; and an aggregate type's ids, given to a creating command that names none and returned by `scope.ids.next(type)`. By default both are version 7 UUIDs: time-ordered, and unique without coordination.
 
-With `wow-cosid` and [CosId](https://github.com/Ahoo-Wang/CosId) 5's starter on the class path, the Spring Boot host takes its ids from CosId's runtime instead:
+With `wow-cosid` and [CosId](https://github.com/Ahoo-Wang/CosId) 5's starter on the class path, the Spring Boot host takes an aggregate type's ids from CosId's runtime. The node's own ids stay version 7 UUIDs: a CosId id is unique within its namespace, by default its service's, while request ids from several services meet in one context's idempotency key; an aggregate id needs no more than its service's namespace, since only the context that owns an aggregate type creates its aggregates.
 
-- the global ids are the text ids of CosId's generator named `wow.cosid.global-generator`, `default` unless set. CosId has no generator of its own: configure it. A node whose CosId has no generator of that name does not start, and the error names the key;
-- an aggregate type's ids: Wow builds no generator. CosId's configuration decides which exist, and Wow finds a type's by name, in this order:
-  1. the CosId generator `wow.aggregates.[<context>.<aggregate>].id-generator` names, which must exist, or the node does not start, the error naming the key;
-  2. else the generator named after the aggregate's qualified name, `<context>.<aggregate>`;
-  3. else the global ids.
+Wow builds no generator: CosId's configuration decides which exist, and Wow finds a type's by name, in this order:
 
-  Ids from the global generator are as unique and time-ordered as a type's own; only a per-type sequence is gone, which nothing stored depends on. Each type's generator is logged at INFO when it takes its first id.
+1. the CosId generator `wow.aggregates.[<context>.<aggregate>].id-generator` names, which must exist, or the node does not start, the error naming the key;
+2. else the generator named after the aggregate's qualified name, `<context>.<aggregate>`;
+3. else CosId's generator `wow.cosid.aggregate-generator`, `default` unless set. CosId has no generator of its own: configure it, or the node does not start, the error naming the key.
+
+Each type's generator is logged at INFO when it takes its first id.
 
 A `cosid80` generator with a radix-62 codec gives ids of 15 characters that sort like the time they were issued, the shape of CosId's 4.x `CosIdGenerator`. An aggregate type gets a sequence space or a layout of its own by one more generator, named after it, with nothing in Wow (a dotted name goes in brackets):
 
@@ -56,7 +56,7 @@ cosid:
 
 A time-based generator needs a machine slot, from a store (`cosid.machine.leased`) or fixed (`cosid.machine.static.slot`); without one, CosId does not start. For a local or development run, `cosid.machine.static.slot: 0` needs no store. Every instance of an application uses the same `cosid.namespace` (by default `spring.application.name`), `bits` and `tolerance`, and an instance of another configuration is refused. CosId 5 is a pre-release: see its [migration guide](https://github.com/Ahoo-Wang/CosId/blob/main/documentation/docs/en/guide/migration/from-4x.md) to move ids that 4.x issued.
 
-An application that defines its own `GlobalIdGenerator`, or a `wowAggregateIdGenerator` bean, keeps it: the module gives way, and an aggregate type without a CosId generator of its own then takes the application's global ids. An id taken in a decide function is taken again when the decision is decided again after a version conflict, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit.
+An application that defines its own `wowAggregateIdGenerator` bean keeps it: the module gives way. An id taken in a decide function is taken again when the decision is decided again after a version conflict, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit.
 
 ## Models: `wow-models`
 

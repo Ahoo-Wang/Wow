@@ -69,7 +69,7 @@ wow-cosid's settings, `wow.cosid.*`: the one default of each key, and the class 
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.cosid.global-generator` | `String` | `default` | The CosId generator of the node's global ids (command ids, wait ids), by its name in `cosid.generators`: CosId's `default` generator when not set. It must be one of CosId's generators, or the node does not start; a `cosid80` generator with a radix-62 codec gives 15-character ids that sort like their time. |
+| `wow.cosid.aggregate-generator` | `String` | `default` | The CosId generator, by its name in `cosid.generators`, of the aggregate types that `wow.aggregates.[<context>.<aggregate>].id-generator` does not name and that have no CosId generator named after them (`<context>.<aggregate>`): CosId's `default` generator when not set. It must be one of CosId's generators, or the node does not start. The node's own ids (request, command, wait ids) are never CosId's. |
 
 ## CoCache
 

@@ -36,57 +36,46 @@ class WowCosIdAutoConfigurationTest {
         )
 
     @Configuration(proxyBeanMethods = false)
-    class OwnGenerators {
-        @Bean
-        fun globalIds(): GlobalIdGenerator = GlobalIdGenerator { "own" }
-
+    class OwnAggregateIds {
         @Bean(WowCosIdAutoConfiguration.AGGREGATE_ID_GENERATOR)
         fun aggregateIds(): AggregateIdGenerator = AggregateIdGenerator { "own" }
     }
 
-    @Configuration(proxyBeanMethods = false)
-    class OwnGlobalIds {
-        @Bean
-        fun globalIds(): GlobalIdGenerator = GlobalIdGenerator { "own" }
-    }
-
     @Test
-    fun `CosId's generators should be the host's when the application runs CosId`() {
+    fun `CosId's generators should be the host's aggregate ids, and the node's own ids never CosId's`() {
         runner().run { context ->
             context.startupFailure.assert().isNull()
-            val global = context.getBean(GlobalIdGenerator::class.java) as CosIdGlobalIdGenerator
-            global.name.assert().isEqualTo("default")
-            global.next().length.assert().isEqualTo(RADIX62_LENGTH)
+            // The node's own ids (request, command, wait ids) stay the host's UUIDv7: wow-cosid gives none.
+            context.getBeansOfType(GlobalIdGenerator::class.java).assert().isEmpty()
             val aggregates = context.getBean(WowCosIdAutoConfiguration.AGGREGATE_ID_GENERATOR)
             aggregates.assert().isInstanceOf(CosIdAggregateIdGenerator::class.java)
             (aggregates as AggregateIdGenerator).next(AggregateType("shop", "order")).length.assert()
                 .isEqualTo(RADIX62_LENGTH)
-            // Step 1: `wow.aggregates.[..].id-generator` names any of CosId's generators, a dotted one too.
+            aggregates.next(AggregateType("shop", "ledger")).toLong().assert().isPositive()
             val source = context.getBean(AggregateIdGeneratorSource::class.java)
-            source.find("counter").assert().isNotNull()
-            source.find("shop.ledger")!!.next(AggregateType("shop", "order")).toLong().assert().isPositive()
+            source.find("shop.ledger").assert().isNotNull()
             source.find("missing").assert().isNull()
         }
     }
 
     @Test
-    fun `wow-cosid-global-generator should name CosId's generator of the global ids`() {
-        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.GLOBAL_GENERATOR}=counter").run { context ->
-            val global = context.getBean(GlobalIdGenerator::class.java) as CosIdGlobalIdGenerator
-            global.name.assert().isEqualTo("counter")
-            global.next().toLong().assert().isPositive()
+    fun `wow-cosid-aggregate-generator should name CosId's generator of the types without their own`() {
+        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.AGGREGATE_GENERATOR}=counter").run { context ->
+            val aggregates = context.getBean(CosIdAggregateIdGenerator::class.java)
+            aggregates.fallback.assert().isEqualTo("counter")
+            aggregates.next(AggregateType("shop", "cart")).toLong().assert().isPositive()
         }
-        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.GLOBAL_GENERATOR}= ").run { context ->
-            context.getBean(CosIdGlobalIdGenerator::class.java).name.assert().isEqualTo("default")
+        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.AGGREGATE_GENERATOR}= ").run { context ->
+            context.getBean(CosIdAggregateIdGenerator::class.java).fallback.assert().isEqualTo("default")
         }
     }
 
     @Test
-    fun `a global generator CosId does not have should fail the start, naming the key`() {
-        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.GLOBAL_GENERATOR}=missing").run { context ->
+    fun `a fallback CosId does not have should fail the start, naming the key`() {
+        runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.AGGREGATE_GENERATOR}=missing").run { context ->
             val failure = generateSequence(context.startupFailure) { it.cause }
                 .filterIsInstance<WowConfigurationException>().first()
-            failure.key.assert().isEqualTo(CosIdProperties.GLOBAL_GENERATOR)
+            failure.key.assert().isEqualTo(CosIdProperties.AGGREGATE_GENERATOR)
         }
         // No generator at all, so no default one: the start fails, naming the key and what to configure.
         runner("spring.application.name=wow-cosid-test").run { context ->
@@ -105,23 +94,11 @@ class WowCosIdAutoConfigurationTest {
     }
 
     @Test
-    fun `the aggregate ids should fall back on the application's global ids when it has its own`() {
-        runner().withUserConfiguration(OwnGlobalIds::class.java).run { context ->
-            context.getBeansOfType(CosIdGlobalIdGenerator::class.java).assert().isEmpty()
-            val aggregates = context.getBean(CosIdAggregateIdGenerator::class.java)
-            aggregates.next(AggregateType("shop", "cart")).assert().isEqualTo("own")
-            aggregates.next(AggregateType("shop", "ledger")).toLong().assert().isPositive()
-        }
-    }
-
-    @Test
-    fun `the application's own generators should win, and nothing is given without CosId`() {
-        runner().withUserConfiguration(OwnGenerators::class.java).run { context ->
-            context.getBeansOfType(CosIdGlobalIdGenerator::class.java).assert().isEmpty()
+    fun `the application's own aggregate ids should win, and nothing is given without CosId`() {
+        runner().withUserConfiguration(OwnAggregateIds::class.java).run { context ->
             context.getBeansOfType(CosIdAggregateIdGenerator::class.java).assert().isEmpty()
         }
         runner("cosid.enabled=false").run { context ->
-            context.getBeansOfType(GlobalIdGenerator::class.java).assert().isEmpty()
             context.getBeansOfType(AggregateIdGenerator::class.java).assert().isEmpty()
         }
     }

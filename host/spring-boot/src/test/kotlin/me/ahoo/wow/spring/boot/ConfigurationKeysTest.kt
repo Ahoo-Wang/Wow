@@ -252,9 +252,9 @@ class ConfigurationKeysTest {
     @Test
     fun `a WOW_ environment variable of an absent module names the module`() {
         val failure = assertThrows<WowConfigurationException> {
-            ConfigurationKeys(emptyList()).check(variables("WOW_COSID_GLOBALGENERATOR" to "cosid"))
+            ConfigurationKeys(emptyList()).check(variables("WOW_COSID_AGGREGATEGENERATOR" to "cosid"))
         }
-        failure.message.assert().contains("WOW_COSID_GLOBALGENERATOR (needs wow-cosid on the class path)")
+        failure.message.assert().contains("WOW_COSID_AGGREGATEGENERATOR (needs wow-cosid on the class path)")
     }
 
     @Test

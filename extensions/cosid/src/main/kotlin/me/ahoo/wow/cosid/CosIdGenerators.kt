@@ -19,35 +19,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
-import me.ahoo.wow.spi.id.GlobalIdGenerator
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Supplier
 
 private val logger = KotlinLogging.logger {}
-
-/**
- * The global ids of CosId: the text ids of [runtime]'s generator [name] (`default` unless
- * `wow.cosid.global-generator` names another), whatever its strategy. The generator is looked up when this is
- * built, so a node whose CosId has no generator of that name does not start.
- *
- * @throws WowConfigurationException naming `wow.cosid.global-generator` when [runtime] has no generator [name].
- */
-class CosIdGlobalIdGenerator(
-    runtime: CosIdRuntime,
-    val name: String = CosIdProperties().globalGenerator,
-) : GlobalIdGenerator {
-    private val ids: Supplier<String> = textOf(runtime, name) ?: throw WowConfigurationException(
-        CosIdProperties.GLOBAL_GENERATOR,
-        name,
-        "CosId has no generator named $name for the node's global ids (${runtime.describe().keys.sorted()}).",
-        "Configure cosid.generators.$name (a cosid80 with a radix-62 codec, say), or name one of CosId's " +
-            "generators in ${CosIdProperties.GLOBAL_GENERATOR}.",
-    )
-
-    override fun next(): String = ids.get()
-
-    override fun toString(): String = "CosIdGlobalIdGenerator($name)"
-}
 
 /**
  * The aggregate ids of CosId (as 9.x `CosIdAggregateIdGeneratorFactory`). Wow builds no generator: CosId's
@@ -57,15 +32,27 @@ class CosIdGlobalIdGenerator(
  *    through this [AggregateIdGeneratorSource] ([find]) and does not start when CosId has none of that name;
  * 2. else the generator named after the aggregate's qualified name, `<context>.<aggregate>` (configured as
  *    `cosid.generators."[<context>.<aggregate>]"`), which gives a type a sequence space or a layout of its own;
- * 3. else the [global] ids (`wow.cosid.global-generator`).
+ * 3. else CosId's generator [fallback], `wow.cosid.aggregate-generator` (`default` by default).
  *
- * Ids of the global generator are as unique and time-ordered as a type's own; only a per-type sequence is gone,
- * which nothing stored depends on. Each type's generator is resolved once, at its first id, and logged at INFO.
+ * Each type's generator is resolved once, at its first id, and logged at INFO. A CosId id is unique within its
+ * namespace, by default the service's; an aggregate id needs no more, since only the context that owns an aggregate
+ * type creates its aggregates. The node's own ids, which other services' requests meet in one context's
+ * idempotency key, stay Wow's UUIDv7: this module does not replace them.
+ *
+ * @throws WowConfigurationException naming `wow.cosid.aggregate-generator` when [runtime] has no generator [fallback].
  */
 class CosIdAggregateIdGenerator(
     private val runtime: CosIdRuntime,
-    private val global: GlobalIdGenerator,
+    val fallback: String = CosIdProperties().aggregateGenerator,
 ) : AggregateIdGenerator, AggregateIdGeneratorSource {
+    private val fallbackIds: Supplier<String> = textOf(runtime, fallback) ?: throw WowConfigurationException(
+        CosIdProperties.AGGREGATE_GENERATOR,
+        fallback,
+        "CosId has no generator named $fallback for the aggregate types that have none of their own " +
+            "(${runtime.describe().keys.sorted()}).",
+        "Configure cosid.generators.$fallback (a cosid80 with a radix-62 codec, say), or name one of CosId's " +
+            "generators in ${CosIdProperties.AGGREGATE_GENERATOR}.",
+    )
     private val generators = ConcurrentHashMap<AggregateType, Supplier<String>>()
 
     override fun next(type: AggregateType): String = generators.computeIfAbsent(type, ::generatorOf).get()
@@ -79,11 +66,13 @@ class CosIdAggregateIdGenerator(
             if (own != null) {
                 "The ids of $type come from CosId's generator ${nameOf(type)}, named after it."
             } else {
-                "The ids of $type come from the global ids ($global): CosId has no generator ${nameOf(type)}."
+                "The ids of $type come from CosId's generator $fallback: CosId has no generator ${nameOf(type)}."
             }
         }
-        return own ?: Supplier(global::next)
+        return own ?: fallbackIds
     }
+
+    override fun toString(): String = "CosIdAggregateIdGenerator($fallback)"
 
     companion object {
         /** The name of the CosId generator of [type]'s own ids, by convention: `<context>.<aggregate>`. */
