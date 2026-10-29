@@ -32,6 +32,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observer
@@ -146,7 +147,7 @@ class SubscriptionRuntime internal constructor(
         val run = Running(root, CoroutineScope(context + root))
         var started = false
         try {
-            val parked = subscriptions.values.associate { it.name to parkedByPartition(it) }
+            val parked = subscriptions.values.associate { it.name to parkedIn(it, partitions) }
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
             // beginning only when none did, whichever partition or subscription starts first.
             run.joined = joinedSubscriptions()
@@ -177,7 +178,7 @@ class SubscriptionRuntime internal constructor(
     private suspend fun scanQuietly(run: Running) {
         try {
             // A paused partition's entries wait: their resumes would fail the same way, and the ledger may be down.
-            retries.scan(run.scope, directory.keys.sorted()) { subscription, ref ->
+            retries.scan(run.scope, directory.keys.sorted(), run.partitions.keys.toSet()) { subscription, ref ->
                 run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
             }
         } catch (cancelled: CancellationException) {
@@ -195,7 +196,7 @@ class SubscriptionRuntime internal constructor(
         requirePartition(partition)
         val run = checkNotNull(running) { "Subscription group $group is not running." }
         if (!run.partitions.containsKey(partition)) {
-            open(run, partition, subscriptions.values.associate { it.name to parkedByPartition(it) })
+            open(run, partition, subscriptions.values.associate { it.name to parkedIn(it, listOf(partition)) })
         }
     }
 
@@ -230,7 +231,7 @@ class SubscriptionRuntime internal constructor(
     suspend fun add(subscription: Subscription): Unit = lifecycle.withLock {
         register(subscription)
         val run = running ?: return@withLock
-        val parked = parkedByPartition(subscription)
+        val parked = parkedIn(subscription, run.partitions.keys)
         val joined = joinedSubscriptions()
         for (part in run.partitions.values) {
             part.runner.attach(worker(run, part, subscription, parked, joined))
@@ -419,15 +420,19 @@ class SubscriptionRuntime internal constructor(
         }
     }
 
-    /** [subscription]'s parked aggregates by partition, with the version each is parked from. */
-    private suspend fun parkedByPartition(subscription: Subscription): Map<Int, Map<AggregateRef, Long>> {
+    /**
+     * [subscription]'s parked aggregates in [partitions], by partition, with the version each is parked from: the
+     * ledger's entries of those partitions alone ([FailureLedger.due] at [ParkedAggregate.NEVER]).
+     */
+    private suspend fun parkedIn(
+        subscription: Subscription,
+        partitions: Collection<Int>,
+    ): Map<Int, Map<AggregateRef, Long>> {
         val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
         var after: AggregateRef? = null
         do {
-            val page = ledger.list(subscription.name, after)
-            page.forEach {
-                parked.getOrPut(source.partitionOf(it.ref)) { HashMap() }[it.ref] = source.ordinalOf(it)
-            }
+            val page = ledger.due(subscription.name, partitions, ParkedAggregate.NEVER, after)
+            page.forEach { parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it) }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
         return parked

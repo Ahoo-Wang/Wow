@@ -701,7 +701,9 @@ class NodeHealthTest {
             ).also { nodes += it }
             channel.bind(node.address, node.forwardHandler)
             ledgers.forEach { (context, ledger) ->
-                ledger.park(ParkedAggregate("snapshot", AggregateType(context, "account").ref("t", "a-1"), 1, "x", 0))
+                ledger.park(
+                    ParkedAggregate("snapshot", AggregateType(context, "account").ref("t", "a-1"), 0, 1, "x", 0)
+                )
             }
             val health = health(node)
             node.start()

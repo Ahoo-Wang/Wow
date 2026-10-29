@@ -118,7 +118,7 @@ class PlainValuesTest {
             SnapshotPlacement.of(listOf("a", "b"), "b"),
             "SnapshotPlacement("
         )
-        val entry = ParkedAggregate("s", ref, 1, "failed", 1L)
+        val entry = ParkedAggregate("s", ref, 0, 1, "failed", 1L)
         val notice = ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 1L)
         checks(
             notice,

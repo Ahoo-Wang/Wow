@@ -106,7 +106,7 @@ class MongoWriteConcernTest {
                 heartbeat(context, "node-1", "127.0.0.1:1", 1.minutes, setOf(context))
             }
             MongoFailureLedger(client, database).also { it.createSchema() }
-                .park(ParkedAggregate("s", ref, 1, "failed", 1L))
+                .park(ParkedAggregate("s", ref, 0, 1, "failed", 1L))
         }
         val targets = writes.map { it.getFirstKey() to it.getString(it.getFirstKey()).value }.toSet()
         // The log, its counters and registry, the snapshots, timers, reservations, checkpoints, leases and members,

@@ -34,9 +34,15 @@ import kotlin.time.Duration.Companion.minutes
  * duplicated park never moves the resume point past an entry that was not handled.
  *
  * An entry also carries its long-horizon retry state: the automatic retries made so far
- * and when the last one started, the retry spec an operator applied to it, whether it is recoverable, and the request
- * an operator left for the owner of its partition. [park] and [repark] write only where the aggregate
- * is parked and why (a new entry's retry state comes with it); the retry state changes only through [amend].
+ * and when the last one started, the retry spec an operator applied to it, whether it is recoverable, the request
+ * an operator left for the owner of its partition, and when that owner next looks at it ([ParkedAggregate.nextAttemptAt]).
+ * [park] and [repark] write only where the aggregate is parked and why (a new entry's retry state comes with it); the
+ * retry state changes only through [amend].
+ *
+ * The owner of a partition reads only what is due there ([due]), and the gauges count the entries without reading
+ * them ([count]): a ledger answers both from an index, on (subscription, partition, next attempt), so neither grows
+ * with the entries that are not due, nor with the nodes of the service. A listing of one tenant's entries
+ * ([list] with a tenant) is answered from an index too.
  */
 @WowSpi
 interface FailureLedger {
@@ -69,14 +75,33 @@ interface FailureLedger {
 
     /**
      * Up to [limit] aggregates [subscription] has parked, ordered by aggregate (context, aggregate name, tenant, id,
-     * each compared by code point), starting after [after] (exclusive; null from the start). Pass the last entry's
-     * ref as [after] to read the next page.
+     * each compared by code point), starting after [after] (exclusive; null from the start), only [tenantId]'s when
+     * given. Pass the last entry's ref as [after] to read the next page.
      */
     suspend fun list(
         subscription: String,
         after: AggregateRef? = null,
-        limit: Int = DEFAULT_PAGE
+        limit: Int = DEFAULT_PAGE,
+        tenantId: String? = null,
     ): List<ParkedAggregate>
+
+    /**
+     * Up to [limit] of [subscription]'s entries in [partitions] that the owner of their partition looks at by [now]
+     * (epoch milliseconds): those whose [ParkedAggregate.nextAttemptAt] is null (new, retried, or changed by an
+     * operator since the owner last looked) or not after [now]; at [ParkedAggregate.NEVER], every entry of
+     * [partitions], as a node that acquires a partition reads them. Ordered as [list] orders them, after [after]
+     * (exclusive; null from the start): pass the last entry's ref as [after] to read the next page.
+     */
+    suspend fun due(
+        subscription: String,
+        partitions: Collection<Int>,
+        now: Long,
+        after: AggregateRef? = null,
+        limit: Int = DEFAULT_PAGE,
+    ): List<ParkedAggregate>
+
+    /** How many aggregates [subscription] has parked, counted up to [max]: [max] when there are more. */
+    suspend fun count(subscription: String, max: Int): Int
 
     /**
      * Resolves the entry parking [ref] for [subscription] by removing it, after the aggregate was retried
@@ -104,8 +129,8 @@ interface FailureLedger {
 }
 
 /**
- * One parked aggregate: [subscription] stopped handling [ref] at its stream [fromVersion], at [failedAt] (epoch
- * milliseconds), because of [reason].
+ * One parked aggregate: [subscription] stopped handling [ref], in its source's [partition], at its stream
+ * [fromVersion], at [failedAt] (epoch milliseconds), because of [reason]. The owner of [partition] retries it.
  *
  * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate:
  * the offset of its record in another context's topic, whose partition the ref's key always maps to.
@@ -122,11 +147,18 @@ interface FailureLedger {
  * [Recoverable.UNRECOVERABLE] is not retried automatically, though it can still be resumed by hand. [request] is an
  * operator's resume or skip that the partition's owner has not taken yet.
  *
+ * [nextAttemptAt] (epoch milliseconds) is when the owner next looks at the entry: the next automatic retry it
+ * computed by the spec, [NEVER] for one that is not retried automatically, null until it has looked. Only the owner
+ * sets it ([ParkedAmendment.Schedule]); a retry claimed, and an operator's change of the entry, clear it, so the
+ * owner looks at the entry again on its next scan ([FailureLedger.due]). A retry spec changed in the host's
+ * configuration applies to an entry from the retry after the one it is scheduled for.
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ParkedAggregate @InternalWowApi constructor(
     val subscription: String,
     val ref: AggregateRef,
+    val partition: Int,
     val fromVersion: Int,
     val reason: String,
     val failedAt: Long,
@@ -136,9 +168,11 @@ class ParkedAggregate @InternalWowApi constructor(
     val retrySpec: ParkedRetrySpec? = null,
     val recoverable: Recoverable = Recoverable.UNKNOWN,
     val request: LedgerRequest? = null,
+    val nextAttemptAt: Long? = null,
 ) {
     init {
         require(subscription.isNotBlank()) { "A parked aggregate needs a subscription." }
+        require(partition >= 0) { "A partition is never negative." }
         require(fromVersion >= 1) { "An event stream's version starts at 1." }
         require(fromPosition == null || fromPosition >= 0) { "A source position is never negative." }
         require(retries >= 0) { "The retries of a parked aggregate are never negative." }
@@ -177,6 +211,7 @@ class ParkedAggregate @InternalWowApi constructor(
     fun copyWith(
         subscription: String = this.subscription,
         ref: AggregateRef = this.ref,
+        partition: Int = this.partition,
         fromVersion: Int = this.fromVersion,
         reason: String = this.reason,
         failedAt: Long = this.failedAt,
@@ -186,10 +221,12 @@ class ParkedAggregate @InternalWowApi constructor(
         retrySpec: ParkedRetrySpec? = this.retrySpec,
         recoverable: Recoverable = this.recoverable,
         request: LedgerRequest? = this.request,
+        nextAttemptAt: Long? = this.nextAttemptAt,
     ): ParkedAggregate =
         ParkedAggregate(
             subscription,
             ref,
+            partition,
             fromVersion,
             reason,
             failedAt,
@@ -199,6 +236,7 @@ class ParkedAggregate @InternalWowApi constructor(
             retrySpec,
             recoverable,
             request,
+            nextAttemptAt,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -207,13 +245,14 @@ class ParkedAggregate @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ParkedAggregate(subscription=$subscription, ref=$ref, fromVersion=$fromVersion, reason=$reason, " +
-            "failedAt=$failedAt, fromPosition=$fromPosition, retries=$retries, retryAt=$retryAt, " +
-            "retrySpec=$retrySpec, recoverable=$recoverable, request=$request)"
+        "ParkedAggregate(subscription=$subscription, ref=$ref, partition=$partition, fromVersion=$fromVersion, " +
+            "reason=$reason, failedAt=$failedAt, fromPosition=$fromPosition, retries=$retries, retryAt=$retryAt, " +
+            "retrySpec=$retrySpec, recoverable=$recoverable, request=$request, nextAttemptAt=$nextAttemptAt)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
         ref,
+        partition,
         fromVersion,
         reason,
         failedAt,
@@ -223,11 +262,15 @@ class ParkedAggregate @InternalWowApi constructor(
         retrySpec,
         recoverable,
         request,
+        nextAttemptAt,
     )
 
     companion object {
         /** The start of the [reason] of an entry that can no longer be resumed, only skipped. */
         const val UNRECOVERABLE: String = "wow.subscription.unrecoverable"
+
+        /** The [nextAttemptAt] of an entry that is not retried automatically: never due until it changes. */
+        const val NEVER: Long = Long.MAX_VALUE
 
         /** [at] plus [duration] in epoch milliseconds, [Long.MAX_VALUE] when it overflows. */
         private fun plus(at: Long, duration: Duration): Long {
@@ -241,6 +284,7 @@ class ParkedAggregate @InternalWowApi constructor(
         fun of(
             subscription: String,
             ref: AggregateRef,
+            partition: Int,
             fromVersion: Int,
             reason: String,
             failedAt: Long,
@@ -250,10 +294,12 @@ class ParkedAggregate @InternalWowApi constructor(
             retrySpec: ParkedRetrySpec? = null,
             recoverable: Recoverable = Recoverable.UNKNOWN,
             request: LedgerRequest? = null,
+            nextAttemptAt: Long? = null,
         ): ParkedAggregate =
             ParkedAggregate(
                 subscription,
                 ref,
+                partition,
                 fromVersion,
                 reason,
                 failedAt,
@@ -263,6 +309,7 @@ class ParkedAggregate @InternalWowApi constructor(
                 retrySpec,
                 recoverable,
                 request,
+                nextAttemptAt,
             )
     }
 }
@@ -453,6 +500,35 @@ sealed interface ParkedAmendment {
     }
 
     /**
+     * Records when the owner of the entry's partition next looks at it: when the entry has still made [retries]
+     * retries and is still scheduled at [from] (null when it was not), it is scheduled [at] (epoch milliseconds,
+     * [ParkedAggregate.NEVER] for an entry that is not retried automatically). Conditional on both, so a claim or an
+     * operator's change made since the owner read the entry is never covered by a schedule computed before it.
+     *
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+     */
+    class Schedule @InternalWowApi constructor(val retries: Int, val from: Long?, val at: Long) : ParkedAmendment {
+        init {
+            require(retries >= 0) { "The retries of a parked aggregate are never negative." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Schedule && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Schedule(retries=$retries, from=$from, at=$at)"
+
+        private fun valueFields(): List<Any?> = listOf(retries, from, at)
+
+        companion object {
+            /** A Schedule of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(retries: Int, from: Long?, at: Long): Schedule = Schedule(retries, from, at)
+        }
+    }
+
+    /**
      * Takes [request]: when the entry holds it, it no longer does.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -477,14 +553,32 @@ sealed interface ParkedAmendment {
 
 /**
  * This entry with [amendment] applied, or null when its condition does not hold: the reference
- * semantics of [FailureLedger.amend], for a backend that changes the entry in memory.
+ * semantics of [FailureLedger.amend], for a backend that changes the entry in memory. Every amendment but a
+ * [ParkedAmendment.Schedule] and a [ParkedAmendment.TakeRequest] clears [ParkedAggregate.nextAttemptAt], so the
+ * owner looks at the entry again on its next scan.
  */
 fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? = when (amendment) {
-    is ParkedAmendment.ClaimRetry ->
-        if (retries == amendment.retries) copyWith(retries = retries + 1, retryAt = amendment.at) else null
+    is ParkedAmendment.ClaimRetry -> if (retries == amendment.retries) {
+        copyWith(retries = retries + 1, retryAt = amendment.at, nextAttemptAt = null)
+    } else {
+        null
+    }
 
-    is ParkedAmendment.MarkRecoverable -> copyWith(recoverable = amendment.recoverable)
-    is ParkedAmendment.ApplyRetrySpec -> copyWith(retrySpec = amendment.spec)
-    is ParkedAmendment.Request -> copyWith(request = amendment.request)
+    is ParkedAmendment.MarkRecoverable -> copyWith(recoverable = amendment.recoverable, nextAttemptAt = null)
+    is ParkedAmendment.ApplyRetrySpec -> copyWith(retrySpec = amendment.spec, nextAttemptAt = null)
+    is ParkedAmendment.Request -> copyWith(request = amendment.request, nextAttemptAt = null)
+    is ParkedAmendment.Schedule -> if (retries == amendment.retries && nextAttemptAt == amendment.from) {
+        copyWith(nextAttemptAt = amendment.at)
+    } else {
+        null
+    }
+
     is ParkedAmendment.TakeRequest -> if (request == amendment.request) copyWith(request = null) else null
 }
+
+/**
+ * Whether this entry is due at [now] in one of [partitions] ([FailureLedger.due]): the reference semantics, for a
+ * backend that filters in memory.
+ */
+fun ParkedAggregate.dueIn(partitions: Collection<Int>, now: Long): Boolean =
+    partition in partitions && (nextAttemptAt == null || nextAttemptAt <= now)

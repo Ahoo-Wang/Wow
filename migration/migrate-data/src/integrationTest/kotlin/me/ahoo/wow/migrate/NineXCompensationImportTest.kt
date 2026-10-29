@@ -40,6 +40,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -145,6 +146,7 @@ class NineXCompensationImportTest {
                 ParkedAggregate.of(
                     ORDER_CREATED,
                     ref,
+                    Partitioner.partitionOf(ref, PARTITIONS),
                     1,
                     "Conflict: stock reserved twice [9.x execution 0VYC0mp1nA0002]",
                     FAILED_AT + 181_000,

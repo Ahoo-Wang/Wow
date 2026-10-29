@@ -56,10 +56,16 @@ class NodeMetricsTest {
                 override suspend fun list(
                     subscription: String,
                     after: AggregateRef?,
-                    limit: Int
+                    limit: Int,
+                    tenantId: String?,
                 ): List<ParkedAggregate> {
                     check(!broken) { "The ledger is unreachable." }
-                    return ledger.list(subscription, after, limit)
+                    return ledger.list(subscription, after, limit, tenantId)
+                }
+
+                override suspend fun count(subscription: String, max: Int): Int {
+                    check(!broken) { "The ledger is unreachable." }
+                    return ledger.count(subscription, max)
                 }
             },
         )

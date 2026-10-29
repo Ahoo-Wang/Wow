@@ -21,6 +21,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.amended
+import me.ahoo.wow.spi.ledger.dueIn
 import java.util.TreeMap
 
 /** A [FailureLedger] in memory, for tests and samples. Every operation is serialized by one lock. */
@@ -68,12 +69,38 @@ class InMemoryFailureLedger : FailureLedger {
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.get(ref) }
 
-    override suspend fun list(subscription: String, after: AggregateRef?, limit: Int): List<ParkedAggregate> {
+    override suspend fun list(
+        subscription: String,
+        after: AggregateRef?,
+        limit: Int,
+        tenantId: String?,
+    ): List<ParkedAggregate> = page(subscription, after, limit) { tenantId == null || it.ref.tenantId == tenantId }
+
+    override suspend fun due(
+        subscription: String,
+        partitions: Collection<Int>,
+        now: Long,
+        after: AggregateRef?,
+        limit: Int,
+    ): List<ParkedAggregate> = page(subscription, after, limit) { it.dueIn(partitions, now) }
+
+    override suspend fun count(subscription: String, max: Int): Int {
+        require(max >= 1) { "At least one parked entry is counted." }
+        return lock.withLock { minOf(subscriptions[subscription]?.size ?: 0, max) }
+    }
+
+    /** Up to [limit] of [subscription]'s entries after [after] that [admits], in the ledger's order. */
+    private suspend fun page(
+        subscription: String,
+        after: AggregateRef?,
+        limit: Int,
+        admits: (ParkedAggregate) -> Boolean,
+    ): List<ParkedAggregate> {
         require(limit >= 1) { "A page holds at least one entry." }
         return lock.withLock {
             val parked = subscriptions[subscription] ?: return emptyList()
             val page = if (after == null) parked else parked.tailMap(after, false)
-            page.values.take(limit)
+            page.values.asSequence().filter(admits).take(limit).toList()
         }
     }
 

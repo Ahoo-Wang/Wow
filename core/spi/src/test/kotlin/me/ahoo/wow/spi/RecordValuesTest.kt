@@ -116,6 +116,7 @@ class RecordValuesTest {
     private fun parked(retries: Int = 0) = ParkedAggregate.of(
         subscription = "OrderSaga.onPlaced",
         ref = ref,
+        partition = 0,
         fromVersion = 1,
         reason = "down",
         failedAt = 1L,

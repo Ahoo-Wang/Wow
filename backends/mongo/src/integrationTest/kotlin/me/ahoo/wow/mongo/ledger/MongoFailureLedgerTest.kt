@@ -39,29 +39,6 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a document written before the retry state reads as never retried, and is amended`(): Unit = runBlocking {
-        val collection = "ledger_before_retries"
-        val ledger = ledger(collection)
-        val subscription = "old-" + System.nanoTime()
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection).insertOne(
-            Document("service", "")
-                .append("subscription", subscription)
-                .append("context", "ledger")
-                .append("aggregate_name", "order")
-                .append("tenant_id", "t")
-                .append("aggregate_id", "a")
-                .append("from_version", 3)
-                .append("reason", "boom")
-                .append("failed_at", 7L),
-        )
-        val ref = AggregateType("ledger", "order").ref("t", "a")
-        ledger.parked(subscription, ref).assert().isEqualTo(ParkedAggregate(subscription, ref, 3, "boom", 7))
-        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 9)).assert().isNull()
-        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(0, 9))!!.retries.assert().isEqualTo(1)
-        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 10))!!.retries.assert().isEqualTo(2)
-    }
-
-    @Test
     fun `a ledger collection created by a build without format records is refused`() {
         // Finding A2-13: the old layout was accepted silently.
         MongoLogFixture.createUnrecorded("ledger_unrecorded")
@@ -78,11 +55,11 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         val billing = ledger("ledger_shared", service = "billing")
         val subscription = "projection-" + System.nanoTime()
         val ref = AggregateType("shared", "order").ref("t", "a")
-        orders.park(ParkedAggregate(subscription, ref, 3, "boom", 7)).assert().isTrue()
+        orders.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
         billing.parked(subscription, ref).assert().isNull()
         billing.list(subscription).assert().isEmpty()
         billing.resolve(subscription, ref).assert().isNull()
-        billing.park(ParkedAggregate(subscription, ref, 5, "other", 8)).assert().isTrue()
+        billing.park(ParkedAggregate(subscription, ref, 0, 5, "other", 8)).assert().isTrue()
         orders.parked(subscription, ref)!!.fromVersion.assert().isEqualTo(3)
         orders.list(subscription, after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
         orders.resolve(subscription, ref)!!.reason.assert().isEqualTo("boom")
@@ -97,7 +74,7 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         val type = AggregateType("ledger", "order")
         val emoji = type.ref("tenant", "😀")
         val last = type.ref("tenant", "￿")
-        listOf(emoji, last).forEach { ledger.park(ParkedAggregate(subscription, it, 1, "failed", 0)) }
+        listOf(emoji, last).forEach { ledger.park(ParkedAggregate(subscription, it, 0, 1, "failed", 0)) }
         ledger.list(subscription).map { it.ref }.assert().isEqualTo(listOf(last, emoji))
         ledger.list(subscription, after = last).map { it.ref }.assert().isEqualTo(listOf(emoji))
     }

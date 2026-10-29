@@ -109,7 +109,7 @@ class ParkedRoutesTest {
         }.let { if (body == null) it else it.bodyValue(body) }.answer()
 
     private suspend fun park(id: String, version: Int = 1) {
-        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), version, "$id failed", FAILED_AT))
+        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), 0, version, "$id failed", FAILED_AT))
     }
 
     private suspend fun append(id: String) {
@@ -221,6 +221,24 @@ class ParkedRoutesTest {
     }
 
     @Test
+    fun `a resume or a skip naming another parking than the entry's is refused as stale`(): Unit = runBlocking {
+        park("a")
+        val client = client(other)
+        val failedAt = ledger.parked(NAME, type.ref(TENANT, "a"))!!.failedAt
+        listOf(OpsPaths.RESUME, OpsPaths.SKIP).forEach { action ->
+            val stale = client.post("${entry("a")}/$action", """{"failedAt":${failedAt - 1}}""")
+            stale.status.assert().isEqualTo(409)
+            stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
+            client.post("${entry("a")}/$action", """{"failedAt":"yesterday"}""").assertMalformed()
+        }
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
+        // The parking the operator saw: acted on, here a request to the owner.
+        val requested = client.post("${entry("a")}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
+        requested.status.assert().isEqualTo(202)
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+    }
+
+    @Test
     fun `parked timers are listed, resumed and skipped by an operator`(): Unit = runBlocking {
         val timers = InMemoryTimerStore()
         val loop = TimerLoop(TimerOptions(), Clock.systemUTC())
@@ -286,7 +304,7 @@ class ParkedRoutesTest {
         timers.put(timer).assert().isTrue()
         val parked = timer.copyWith(status = TimerStatus.PARKED, attempts = 10, outcome = "down")
         timers.settle(listOf(TimerChange(timer, parked))).assert().isEqualTo(1)
-        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 1, "$key: down", FAILED_AT))
+        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 0, 1, "$key: down", FAILED_AT))
     }
 
     @Test
@@ -386,8 +404,8 @@ class ParkedRoutesTest {
     fun `a caller sees and acts on its own tenant's entries alone, a cross-scope caller on every tenant's`(): Unit =
         runBlocking {
             park("a")
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 1, "b failed", FAILED_AT))
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 1, "c failed", FAILED_AT))
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 0, 1, "b failed", FAILED_AT))
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 0, 1, "c failed", FAILED_AT))
             val client = client(other)
             val foreign = "${OpsPaths.PARKED}/$NAME/shop/cart/other/b"
 

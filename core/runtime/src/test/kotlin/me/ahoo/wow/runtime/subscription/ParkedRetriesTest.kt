@@ -102,8 +102,9 @@ class ParkedRetriesTest {
             val runtime = runtime()
             parkX(runtime)
             parked()!!.retries.assert().isEqualTo(0)
-            // The first retry is due a second after the failure.
+            // The first retry is due a second after the failure: the scans schedule it, and pass it over until then.
             attemptedAfterScans(1)
+            parked()!!.let { it.nextAttemptAt.assert().isEqualTo(it.failedAt + 1_000) }
 
             clock.advance(1.seconds)
             eventually { attempts.get() == 2 && parked()?.retries == 1 }
@@ -114,6 +115,7 @@ class ParkedRetriesTest {
             // The second is due two seconds after the first started, not one.
             clock.advance(1.seconds)
             attemptedAfterScans(2)
+            parked()!!.nextAttemptAt.assert().isEqualTo(first.retryAt!! + 2_000)
             clock.advance(1.seconds)
             eventually { attempts.get() == 3 && parked()?.retries == 2 }
 
@@ -152,6 +154,8 @@ class ParkedRetriesTest {
 
         clock.advance(1_000.seconds)
         attemptedAfterScans(3)
+        // Spent: scheduled never, so the scans no longer read it until an operator changes it.
+        parked()!!.nextAttemptAt.assert().isEqualTo(ParkedAggregate.NEVER)
 
         // A spec with more retries an operator applies takes it up again.
         ledger.amend(NAME, cart("x"), ParkedAmendment.ApplyRetrySpec(spec.copyWith(maxRetries = 4)))
@@ -171,6 +175,20 @@ class ParkedRetriesTest {
         ledger.amend(NAME, cart("x"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
         eventually { parked() == null }
         attempts.get().assert().isEqualTo(2)
+        runtime.stop()
+    }
+
+    @Test
+    fun `a scan reads only the entries due in the partitions it runs`(): Unit = runBlocking {
+        val runtime = runtime()
+        parkX(runtime)
+        attemptedAfterScans(1)
+        val scheduled = parked()!!
+        scheduled.nextAttemptAt.assert().isEqualTo(scheduled.failedAt + 1_000)
+        // Not due yet: no scan reads it, so none rewrites it.
+        ledger.due(NAME, all, clock.millis()).assert().isEmpty()
+        clock.advance(1.seconds)
+        eventually { attempts.get() == 2 }
         runtime.stop()
     }
 

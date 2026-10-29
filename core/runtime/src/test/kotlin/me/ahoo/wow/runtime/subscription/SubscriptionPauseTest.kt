@@ -300,7 +300,7 @@ class SubscriptionPauseTest {
         )
         val runtime = runtime(projection, options = scanning)
         appender.append("p")
-        ledger.park(ParkedAggregate("projection", cart("p"), 1, "IllegalStateException: p was broken", 0L))
+        ledger.park(ParkedAggregate("projection", cart("p"), 0, 1, "IllegalStateException: p was broken", 0L))
         ledger.parks.clear()
         appender.append("x")
         runtime.start(setOf(0))
