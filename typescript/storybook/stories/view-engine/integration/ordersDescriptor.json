@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:b2423168db187fc67444402fd8e2278075a4bf2ddd94206a892eda53f9a3357f",
+  "version" : "sha256:a55b9a688d61d7cb9677ee471f9cd2eb47b2ad99aef0922bfca89ab062abbe19",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -610,15 +610,19 @@
     "types" : [ "integer" ],
     "kind" : "scalar",
     "nullable" : false,
+    "semantic" : {
+      "type" : "temporal-epoch",
+      "timeUnit" : "MILLISECONDS"
+    },
     "filter" : {
-      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
+      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists", "today", "before-today", "tomorrow", "this-week", "next-week", "last-week", "this-month", "last-month", "recent-days", "earlier-days", "yesterday", "next-month", "last-year", "this-year", "next-year", "before-now", "after-now" ]
     },
     "sort" : {
       "paged" : true,
       "cursor" : true
     },
     "aggregate" : {
-      "groups" : [ "terms", "histogram" ],
+      "groups" : [ "terms", "histogram", "date-histogram", "date-part" ],
       "missingKey" : false,
       "functions" : [ "sum", "avg", "min", "max", "stddev", "variance" ],
       "distinctCount" : true,
@@ -656,6 +660,10 @@
     "types" : [ "integer" ],
     "kind" : "scalar",
     "nullable" : false,
+    "semantic" : {
+      "type" : "duration",
+      "timeUnit" : "MILLISECONDS"
+    },
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
     },

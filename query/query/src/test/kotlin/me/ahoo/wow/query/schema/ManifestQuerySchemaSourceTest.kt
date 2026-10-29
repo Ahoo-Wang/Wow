@@ -23,7 +23,10 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.annotation.QueryDuration
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.schema.ManifestFixtures.ITEM_STATE_DEFS
@@ -62,6 +65,38 @@ class ManifestQuerySchemaSourceTest {
             schema.value("state.placedAt").semanticType.assert().isEqualTo(Temporal.Date)
             schema.value("state.lines").kind.assert().isEqualTo(QueryValueKind.ARRAY)
             schema.value("state.lines.sku").valueTypes.assert().containsExactly(QueryValueType.STRING)
+        }
+    }
+
+    @Test
+    fun `a schedule rule's instant and delay mean what ScheduleRule declares them to`() {
+        runTest {
+            val schema = orderSchema()
+            // The profile declares the schedules field by hand: it holds the semantics ScheduleRule's annotations say.
+            val at = checkNotNull(
+                ScheduleRule.At::class.java.getMethod("getEpochMillis").getAnnotation(QueryTemporal::class.java),
+            ) { "ScheduleRule.At.epochMillis declares no @QueryTemporal." }
+            val after = checkNotNull(
+                ScheduleRule.After::class.java.getMethod("getMillis").getAnnotation(QueryDuration::class.java),
+            ) { "ScheduleRule.After.millis declares no @QueryDuration." }
+            at.pattern.assert().isEmpty()
+            schema.value("schedules.k1.epochMillis").semanticType.assert().isEqualTo(Temporal.Epoch(at.unit))
+            schema.value("schedules.k1.millis").semanticType.assert().isEqualTo(TimeSpan(after.unit))
+            val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+            val relative = listOf(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+            descriptor.dynamic.single { it.pattern == "schedules.{key}.epochMillis" }.run {
+                semantic.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                filter.operators.assert().containsAll(relative)
+            }
+            descriptor.dynamic.single { it.pattern == "schedules.{key}.millis" }.run {
+                semantic.assert().isEqualTo(TimeSpan(TimeUnit.MILLISECONDS))
+                filter.operators.assert().doesNotContainAnyElementsOf(relative)
+            }
+            val due = QueryField("schedules.k1.epochMillis")
+            listOf(TodayFilter(due), RecentDaysFilter(due, 7)).forEach { filter ->
+                // Admitted, or admission throws.
+                QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+            }
         }
     }
 

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -210,6 +211,18 @@ class QueryKeywordsTest {
                 mapOf("type" to "object", "additionalProperties" to values, keyword.first to keyword.second),
             )
         }
+    }
+
+    data class ScheduleRulesState(val at: ScheduleRule.At, val after: ScheduleRule.After)
+
+    @Test
+    fun `a schedule rule's instant and delay should carry their keywords`() {
+        val properties = state(ScheduleRulesState::class.java)["properties"] as Map<*, *>
+
+        fun part(rule: String, name: String) =
+            ((properties[rule] as Map<*, *>)["properties"] as Map<*, *>)[name] as Map<*, *>
+        part("at", "epochMillis")["x-wow-temporal"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
+        part("after", "millis")["x-wow-duration"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
     }
 
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)
