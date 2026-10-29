@@ -21,9 +21,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -128,8 +129,8 @@ class SagaCallTest {
         failed.result!!.status.assert().isEqualTo(CommandResult.Status.FAILED)
         failed.code.assert().isEqualTo("inventory.stock.short")
         failed.status.assert().isEqualTo(CommandCalls.FAILED_STATUS)
-        failed.retryHint.retryable.assert().isTrue()
-        failed.retryHint.sameRequestId.assert().isTrue()
+        failed.retryable.assert().isTrue()
+        failed.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         // A newer target's status this node does not know is not known to have succeeded: a failure, retried.
         val newer = ExecutionSagaContext(
             execution,
@@ -143,7 +144,7 @@ class SagaCallTest {
         }
         unknown.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
         unknown.message!!.assert().contains("a status this node does not know")
-        unknown.retryHint.sameRequestId.assert().isTrue()
+        unknown.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         // Without a client, a call names the configuration it lacks.
         val unconfigured = ExecutionSagaContext(execution, event)
         val missing = thrown<WowProblemException> {

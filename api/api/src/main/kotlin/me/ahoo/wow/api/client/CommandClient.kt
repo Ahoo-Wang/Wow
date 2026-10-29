@@ -15,8 +15,8 @@ package me.ahoo.wow.api.client
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.CommandResult
 
 /**
  * Sends command objects to aggregates, wherever they are served: the same calls reach an

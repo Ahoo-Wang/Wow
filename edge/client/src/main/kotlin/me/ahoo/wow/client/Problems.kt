@@ -16,8 +16,8 @@ package me.ahoo.wow.client
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.FrameworkErrors
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
@@ -63,8 +63,13 @@ internal class PeerProblem(
     val refusedBeforeHandling: Boolean
         get() = status == UNAVAILABLE && code in REFUSED_BEFORE_HANDLING
 
-    /** Whether a query answered so may be run again: a retry may get past it, a query repeating nothing. */
-    val retriesQuery: Boolean get() = retry != Retry.NONE
+    /**
+     * Whether a query answered so is run again: a retry may get past it, a query repeating nothing; but a state read
+     * below its minimum version, which the peer already waited for, is the caller's to wait for again
+     * ([me.ahoo.wow.api.read.MinVersionNotReachedException]).
+     */
+    val retriesQuery: Boolean
+        get() = retry != Retry.NONE && code != FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
 
     /**
      * The exception of this problem for [what] was asked: a [CommandRejectedException] for a command's rejection,
@@ -97,8 +102,9 @@ internal class PeerProblem(
 
 /**
  * Reads problems as a Wow server writes them: what a retry may do is the problem's `retry` member, which every problem
- * carries, its wait the `Retry-After` it came with, else the error catalog's for its code. A body that is no Wow
- * problem (a proxy's, a gateway's) may be retried when it is a 503 or a 429, with the same request id.
+ * carries (the error catalog's for its code when it lacks one), its wait the `Retry-After` it came with, else the
+ * catalog's. A body that is no Wow problem (a proxy's, a gateway's) may be retried when it is a 503 or a 429, with the
+ * same request id.
  */
 internal object Problems {
     private const val MAX_DETAIL = 512
@@ -113,6 +119,7 @@ internal object Problems {
         val result = node?.get("result")?.takeUnless { it.isNull }?.let(::resultOf)
         val code = node?.text("code")
         val retry = node?.text(RETRY)?.let { WireNames.entryOf<Retry>(it) }
+            ?: code?.let { FrameworkErrors.BY_CODE[it]?.retry }
             ?: Retry.SAME_REQUEST.takeIf { code == null && (status == UNAVAILABLE || status == TOO_MANY_REQUESTS) }
             ?: Retry.NONE
         val retryAfter = headers.firstValue("Retry-After").orElse(null)?.let(::retryAfterOf)

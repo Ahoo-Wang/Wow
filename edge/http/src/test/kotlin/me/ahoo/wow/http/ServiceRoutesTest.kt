@@ -126,7 +126,7 @@ class ServiceRoutesTest {
         handler("relay") { call, _ -> call.commands.of(call.caller).toString() },
         handler("peer") { _, request ->
             when (request.path("answer", String::class)) {
-                "gone" -> throw WowProblemException("crm.member.gone", 410, RetryHint(false, false), "Gone.")
+                "gone" -> throw WowProblemException("crm.member.gone", 410, Retry.NONE, null, "Gone.")
                 else -> throw RouteRefusal(FrameworkErrors.COMMAND_UNHANDLED, "Not offered.")
             }
         },

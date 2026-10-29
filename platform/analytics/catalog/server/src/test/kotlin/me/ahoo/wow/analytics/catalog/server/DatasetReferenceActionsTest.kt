@@ -129,7 +129,7 @@ class DatasetReferenceActionsTest {
         val commands = mockk<CommandClient> {
             every { of(any()) } returns this
             coEvery { wait(any()) } throws
-                WowProblemException("wow.command.busy", 503, RetryHint.NONE, "Busy.")
+                WowProblemException("wow.command.busy", 503, Retry.NONE, null, "Busy.")
         }
         val refusal = assertThrownBy<WowProblemException> {
             runBlocking {

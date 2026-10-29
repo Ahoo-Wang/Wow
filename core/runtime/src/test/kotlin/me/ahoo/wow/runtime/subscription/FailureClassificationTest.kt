@@ -123,7 +123,7 @@ class FailureClassificationTest {
     @Test
     fun `a downstream that pushes back is backpressure, one that is down systemic`() {
         fun problem(code: String, status: Int, retryAfter: kotlin.time.Duration? = null) =
-            WowProblemException(code, status, RetryHint(true, true, retryAfter), "$code failed")
+            WowProblemException(code, status, Retry.SAME_REQUEST, retryAfter, "$code failed")
         listOf(
             CommandBusyException(cart("x"), "c-1", "busy"),
             IllegalStateException("The query was not admitted.", StorageBusyException("The store is busy.")),

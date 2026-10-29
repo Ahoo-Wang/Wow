@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -23,10 +24,11 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
@@ -253,7 +255,7 @@ class HttpCommandClientTest {
             }
         problem.code.assert().isEqualTo("wow.command.failed")
         problem.status.assert().isEqualTo(500)
-        problem.retryHint.retryable.assert().isFalse()
+        problem.retryable.assert().isFalse()
         problem.result.assert().isEqualTo(failed)
         problem.message.assert().contains("Boom.")
         peer.taken.assert().hasSize(1)
@@ -299,7 +301,7 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.retryAfter.assert().isEqualTo(60.seconds)
+        problem.retryAfter.assert().isEqualTo(60.seconds)
         peer.taken.assert().hasSize(1)
     }
 
@@ -314,8 +316,8 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.sameRequestId.assert().isTrue()
-        peer.taken.assert().hasSize(3)
+        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
         peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.distinct().assert().hasSize(1)
     }
 
@@ -334,19 +336,24 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.sameRequestId.assert().isTrue()
+        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         peer.taken.assert().hasSize(1)
     }
 
     @Test
-    fun `a peer that is down should be tried as often as the policy says, then its failure thrown`() {
+    fun `a peer that is down should be tried as often as the policy says, then be wow-peer-unavailable`() {
         withRefusingPort { closed ->
             val down = EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://127.0.0.1:$closed")))
             val client = WowClient.builder().endpoints(down).connectTimeout(200.milliseconds)
                 .retry(RetryPolicy.of(maxAttempts = 2, backoff = 1.milliseconds))
                 .contracts(contractOf(BOX, DeliverItems::class.java)).build().commands
             // Refused, or never answered, as the platform has it: either way the connection was not made.
-            caught<IOException> { runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) } }
+            val unreachable = caught<WowProblemException> {
+                runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
+            }
+            unreachable.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            unreachable.retry.assert().isEqualTo(Retry.NEW_REQUEST)
+            unreachable.cause.assert().isInstanceOf(IOException::class.java)
         }
     }
 
@@ -400,7 +407,7 @@ class HttpCommandClientTest {
         newerPeer.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
         newerPeer.result!!.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
         newerPeer.message!!.assert().contains("the peer is newer than this client")
-        newerPeer.retryHint.retryable.assert().isFalse()
+        newerPeer.retryable.assert().isFalse()
         // A stream emits it as read, for the caller to see.
         peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n"))
         client(ClientMode.User(UserCredential.NONE)).stream(CommandRequest.to(ref, DeliverItems(emptyList())))

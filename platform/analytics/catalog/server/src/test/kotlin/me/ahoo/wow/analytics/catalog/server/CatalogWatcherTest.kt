@@ -54,7 +54,7 @@ class CatalogWatcherTest {
             return when (sync.table) {
                 "bad" -> throw CommandRejectedException(result(ref, CommandResult.Status.REJECTED))
                 "down" -> if (down) {
-                    throw WowProblemException("wow.storage.unavailable", 503, RetryHint(true, true), "Down.")
+                    throw WowProblemException("wow.storage.unavailable", 503, Retry.SAME_REQUEST, null, "Down.")
                 } else {
                     result(ref, CommandResult.Status.SUCCEEDED)
                 }

@@ -30,8 +30,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.problem.WowProblemException
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
 

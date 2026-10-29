@@ -64,7 +64,7 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
         val problem = problemOf(ex)
         response.statusCode = HttpStatus.valueOf(problem.status)
         response.headers.contentType = MediaType.APPLICATION_PROBLEM_JSON
-        problem.retryAfter?.let { response.headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
+        problem.retryAfterHeader?.let { response.headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
         return response.writeWith(
             Mono.fromSupplier { response.bufferFactory().wrap(HttpJson.write(problem.members())) }
         )

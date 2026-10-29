@@ -91,6 +91,18 @@ object FrameworkErrors {
      */
     const val RETRY_AFTER_SECONDS: Int = 1
 
+    /**
+     * How often a client sends a request at most, the first time included, by default, when a retry may get past its
+     * error: the Kotlin client's `RetryPolicy.DEFAULT` and the TypeScript client's resumes alike.
+     */
+    const val RETRY_ATTEMPTS: Int = 5
+
+    /** The wait before a client's first retry without a `Retry-After`, doubled at each attempt, by default. */
+    const val RETRY_BACKOFF_MILLIS: Int = 200
+
+    /** The longest wait before a retry, by default: a backoff stops doubling there, a longer `Retry-After` fails. */
+    const val RETRY_MAX_WAIT_SECONDS: Int = 5
+
     /** Every framework code, in the order of the status table, each with what a retry may do. */
     val ALL: List<ErrorManifest> = listOf(
         ErrorManifest(AUTH_UNAUTHENTICATED, 401, "The request carries no valid credentials."),

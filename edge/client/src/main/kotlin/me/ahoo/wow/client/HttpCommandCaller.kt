@@ -18,9 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
@@ -125,8 +125,9 @@ class HttpCommandCaller internal constructor(
                 null
             }
             // A problem without a result (a call the target refuses, a peer no node of which answered) is its own.
-            is Answer.Problem -> answer.problem.result
-                ?: throw answer.problem.exception("The call of ${command.id} to ${command.ref.type.context}")
+            is Answer.Problem ->
+                answer.problem.result
+                    ?: throw answer.problem.exception("The call of ${command.id} to ${command.ref.type.context}")
         } ?: throw failed("The call of ${command.id} to ${command.ref.type.context} was answered without a result.")
     }
 
@@ -155,7 +156,14 @@ class HttpCommandCaller internal constructor(
 
     /** A call that reached no result it could read: [FrameworkCodes.COMMAND_FAILED], a bad gateway. */
     private fun failed(message: String, cause: Throwable? = null): WowProblemException =
-        WowProblemException(FrameworkCodes.COMMAND_FAILED, BAD_GATEWAY, Retry.SAME_REQUEST, null, message, cause = cause)
+        WowProblemException(
+            FrameworkCodes.COMMAND_FAILED,
+            BAD_GATEWAY,
+            Retry.SAME_REQUEST,
+            null,
+            message,
+            cause = cause
+        )
 
     @InternalWowApi
     companion object {

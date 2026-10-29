@@ -14,11 +14,11 @@
 package me.ahoo.wow.http.problem
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
-import me.ahoo.wow.http.HttpJson
-import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.wire.WireNames
+import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.core.io.buffer.DataBufferLimitException
@@ -64,11 +64,14 @@ class Problem @InternalWowApi constructor(
 
     /**
      * The seconds after which the request may be retried, written as `Retry-After` (not a member of the body) when a
-     * [retry] may get past it: as given, else the catalog's for [code].
+     * [retry] may get past it ([retryAfterHeader]): as given, else the catalog's for [code].
      */
-    val retryAfter: Long? = retryAfter.takeIf { this.retry != Retry.NONE }
+    val retryAfter: Long? = retryAfter
         ?: (code?.let { FrameworkErrors.BY_CODE[it]?.retryAfter } ?: FrameworkErrors.RETRY_AFTER_SECONDS)
             .toLong().takeIf { this.retry != Retry.NONE }
+
+    /** The `Retry-After` the response carries: [retryAfter], when a [retry] may get past the problem. */
+    val retryAfterHeader: Long? get() = retryAfter.takeIf { retry != Retry.NONE }
 
     /** `urn:wow:error:<code>`, or `about:blank` without a code. */
     val type: String get() = code?.let { TYPE_PREFIX + it } ?: ABOUT_BLANK
@@ -93,10 +96,10 @@ class Problem @InternalWowApi constructor(
         }
     }
 
-    /** This problem as a response, with `Retry-After` when it has [retryAfter]. */
+    /** This problem as a response, with `Retry-After` when a retry may get past it ([retryAfterHeader]). */
     suspend fun respond(): ServerResponse {
         val response = ServerResponse.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        retryAfter?.let { response.header(HttpHeaders.RETRY_AFTER, it.toString()) }
+        retryAfterHeader?.let { response.header(HttpHeaders.RETRY_AFTER, it.toString()) }
         return response.bodyValueAndAwait(HttpJson.write(members()))
     }
 

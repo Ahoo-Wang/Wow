@@ -42,6 +42,7 @@ import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -398,7 +399,8 @@ class HostQueryTest {
                 events.map { it.events.single().body }.assert().containsExactly(AccountOpened("mona"), Deposited(3))
                 // wow.query.budgets.in-process.*: the in-process budget, trusted code's too.
                 runCatching { api.trusted().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList() }
-                    .exceptionOrNull().assert().isInstanceOf(QueryRequestException::class.java)
+                    .exceptionOrNull().assert().isInstanceOf(WowProblemException::class.java)
+                    .hasCauseInstanceOf(QueryRequestException::class.java)
                 api.trusted().unbounded().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList()
                     .assert().hasSize(1)
             }

@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.client
 
-import java.net.http.HttpTimeoutException
-import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +22,7 @@ import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.wire.CallWires
 import java.io.ByteArrayOutputStream
@@ -35,6 +34,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.net.http.HttpTimeoutException
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow.Publisher

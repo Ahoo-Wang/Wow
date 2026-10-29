@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.read
 
+import me.ahoo.wow.api.problem.WowProblemException
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -191,8 +192,10 @@ class InProcessQueryApiTest {
             .assert().containsExactly(CartState(1), CartState(1))
         val tooMany = ListQuery(MatchAllFilter, limit = 1001)
         val refused = runCatching { api.trusted().snapshots<CartState>().list(tooMany).toList() }
-            .exceptionOrNull() as QueryError
-        refused.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            .exceptionOrNull() as WowProblemException
+        refused.code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        refused.status.assert().isEqualTo(400)
+        refused.cause.assert().isInstanceOf(QueryError::class.java)
         api.trusted().unbounded().snapshots<CartState>().list(tooMany).toList().assert().hasSize(2)
         api.trusted().unbounded().snapshots<CartState>()
             .paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT)).exact.assert().isTrue()
@@ -210,7 +213,7 @@ class InProcessQueryApiTest {
                 defaultListSize = 0
             ).of(alice).snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList()
         }
-        (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        (refused.exceptionOrNull() as WowProblemException).code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
         api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().list(ListQuery(MatchAllFilter))
             .toList().assert().hasSize(3)
     }

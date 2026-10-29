@@ -140,7 +140,8 @@ class SubscriptionBackpressureTest {
                 throw WowProblemException(
                     FrameworkErrors.COMMAND_BUSY,
                     TOO_MANY_REQUESTS,
-                    RetryHint(retryable = true, sameRequestId = true),
+                    Retry.SAME_REQUEST,
+                    null,
                     "The node already has its commands in flight.",
                 )
             }
@@ -170,7 +171,8 @@ class SubscriptionBackpressureTest {
                 throw WowProblemException(
                     "shop.quota.exceeded",
                     TOO_MANY_REQUESTS,
-                    RetryHint(retryable = true, sameRequestId = true, retryAfter = RETRY_AFTER),
+                    Retry.SAME_REQUEST,
+                    RETRY_AFTER,
                     "Too many requests.",
                 )
             }
@@ -242,7 +244,8 @@ class SubscriptionBackpressureTest {
         WowProblemException(
             FrameworkErrors.WAIT_TIMEOUT,
             GATEWAY_TIMEOUT,
-            RetryHint(retryable = true, sameRequestId = true),
+            Retry.SAME_REQUEST,
+            null,
             "The derived command on $id failed: ${FrameworkErrors.WAIT_TIMEOUT} The wait timed out.",
         ),
     )

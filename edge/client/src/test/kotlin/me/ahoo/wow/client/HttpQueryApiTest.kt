@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -88,22 +89,26 @@ class HttpQueryApiTest {
     @Test
     fun `a stream cut after rows without positions should fail, since it cannot be asked for again`() {
         peer.reply(Reply.events("event: row\ndata: ${record("b-1")}\n\n"))
-        caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
-            .message.assert().contains("cut off")
+        caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
+            .apply {
+                code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+                message.assert().contains("cut off")
+            }
         peer.taken.assert().hasSize(1)
     }
 
     @Test
     fun `a stream that keeps failing without rows should stop after the retry policy's attempts`() {
-        // Cut before any row: asked for again from its start, as often as the policy allows (3 attempts).
+        // Cut before any row: asked for again from its start, as often as the policy allows.
         peer.reply(Reply.cut(": opening\n"))
-        caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
-        peer.taken.assert().hasSize(3)
+        caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+            .cause.assert().isInstanceOf(IOException::class.java)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
         peer.taken.clear()
         peer.reply(Reply.events(end))
         caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), "p-0").toList() } }
             .message.assert().contains("ended: hold-expired")
-        peer.taken.assert().hasSize(3)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
     }
 
     @Test
@@ -176,7 +181,7 @@ class HttpQueryApiTest {
     }
 
     @Test
-    fun `only a 429 should be retried`(): Unit = runBlocking {
+    fun `a query should be run again whenever a retry may get past its problem, and only then`(): Unit = runBlocking {
         peer.reply(
             Reply.problem(429, mapOf("code" to "wow.query.busy"), retryAfter = "0"),
             Reply.json(emptyList<Any>())
@@ -184,7 +189,12 @@ class HttpQueryApiTest {
         boxes.list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
         peer.taken.assert().hasSize(2)
         peer.taken.clear()
-        peer.reply(Reply.problem(503, mapOf("code" to "wow.storage.unavailable")))
+        // A store that stays down: retried as often as the policy allows, then its problem.
+        peer.reply(Reply.problem(503, mapOf("code" to "wow.storage.unavailable"), retryAfter = "0"))
+        caught<WowProblemException> { runBlocking { boxes.list(ListQuery(MatchAllFilter)).toList() } }
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
+        peer.taken.clear()
+        peer.reply(Reply.problem(400, mapOf("code" to "wow.query.invalid")))
         caught<WowProblemException> { runBlocking { boxes.list(ListQuery(MatchAllFilter)).toList() } }
         peer.taken.assert().hasSize(1)
         caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
@@ -230,7 +240,6 @@ class HttpQueryApiTest {
             caught<IllegalArgumentException> { runBlocking { boxes.state("b-1", 0) } }
             val other = AggregateType("mail", "other").ref("t1", "x")
             caught<IllegalArgumentException> { runBlocking { boxes.state(other, 1) } }
-            Problems.hintOf("wow.query.min-version-not-reached", 409, null).retryable.assert().isTrue()
         }
     }
 

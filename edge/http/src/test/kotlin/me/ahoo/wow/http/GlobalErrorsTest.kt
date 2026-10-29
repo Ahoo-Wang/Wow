@@ -58,18 +58,19 @@ class GlobalErrorsTest {
     private val routes = coRouter {
         GET("/app/rejected") { throw CommandRejectedException(result(CART_EMPTY, CommandResult.Status.REJECTED)) }
         GET("/app/busy") {
-            throw WowProblemException("wow.command.busy", 429, RetryHint(true, true, 1500.milliseconds), "Busy.")
+            throw WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1500.milliseconds, "Busy.")
         }
         GET("/app/failed") {
             throw WowProblemException(
                 "wow.command.failed",
                 500,
-                RetryHint.NONE,
+                Retry.NONE,
+                null,
                 "Failed.",
                 result("wow.command.failed", CommandResult.Status.FAILED),
             )
         }
-        GET("/app/plain") { throw WowProblemException("wow.node.closing", 503, RetryHint.NONE, "Closing.") }
+        GET("/app/plain") { throw WowProblemException("wow.node.closing", 503, Retry.NONE, null, "Closing.") }
         GET("/app/unavailable") { throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "secret upstream") }
         GET("/app/unknown") { throw ResponseStatusException(HttpStatusCode.valueOf(599), "odd") }
         GET("/app/large") { throw DataBufferLimitException("Exceeded limit on max bytes to buffer") }

@@ -14,6 +14,11 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.wire.WireNames
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.module.kotlin.jacksonObjectMapper
+import kotlin.time.Duration.Companion.seconds
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import kotlin.io.path.readText
@@ -63,6 +68,7 @@ class FrameworkErrorsTest {
                 "wow.query.min-version-not-reached" to 409,
                 "wow.query.dataset-unavailable" to 409,
                 "wow.call.command-forbidden" to 403,
+                "wow.peer.unavailable" to 503,
             ),
         )
         FrameworkErrors.DOMAIN_REJECTION_STATUS.assert().isEqualTo(422)
@@ -89,23 +95,91 @@ class FrameworkErrorsTest {
     }
 
     @Test
-    fun `the snapshot the TypeScript client checks its code table against should be this table`() {
-        val expected = FrameworkErrors.ALL.joinToString(",\n", "[\n", "\n]\n") {
-            """  { "code": "${it.code}", "status": ${it.status} }"""
+    fun `a code a retry may get past should say with which request, and wait a second`() {
+        FrameworkErrors.ALL.filter { it.retry != Retry.NONE }.map { it.code }.assert().containsExactlyInAnyOrder(
+            "wow.command.contended",
+            "wow.command.busy",
+            "wow.command.unknown",
+            "wow.node.closing",
+            "wow.node.standby",
+            "wow.storage.unavailable",
+            "wow.schedule.not-due",
+            "wow.wait.timeout",
+            "wow.query.min-version-not-reached",
+            "wow.query.busy",
+            "wow.peer.unavailable",
+        )
+        FrameworkErrors.ALL.filter { it.retry == Retry.NEW_REQUEST }.map { it.code }.assert()
+            .containsExactlyInAnyOrder("wow.query.min-version-not-reached", "wow.query.busy", "wow.peer.unavailable")
+        FrameworkErrors.ALL.forEach { error ->
+            error.retryAfter.assert().describedAs(error.code)
+                .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.takeIf { error.retry != Retry.NONE })
         }
+        // A query that ran out of time would run as long again (D254 ③).
+        FrameworkErrors.BY_CODE.getValue("wow.query.timeout").retry.assert().isEqualTo(Retry.NONE)
+    }
+
+    @Test
+    fun `a boundary's problem should be the catalog's of its code`() {
+        FrameworkErrors.problemOf("wow.command.busy", "Busy.").apply {
+            status.assert().isEqualTo(429)
+            retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            retryAfter.assert().isEqualTo(1.seconds)
+            message.assert().isEqualTo("Busy.")
+        }
+        FrameworkErrors.problemOf("wow.made.up", "Unknown.").apply {
+            status.assert().isEqualTo(FrameworkErrors.INTERNAL_ERROR_STATUS)
+            retry.assert().isEqualTo(Retry.NONE)
+            retryAfter.assert().isNull()
+        }
+    }
+
+    @Test
+    fun `an error's retry and Retry-After should be given together`() {
+        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 503, retry = Retry.SAME_REQUEST) }
+        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 400, retryAfter = 1) }
+        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 503, retry = Retry.NEW_REQUEST, retryAfter = 0) }
+    }
+
+    @Test
+    fun `the snapshot the TypeScript client and the reference generate from should be this catalog`() {
+        val json = jacksonObjectMapper()
+        fun text(value: String) = json.writeValueAsString(value)
+        val constants = FrameworkErrors::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+            .associate { it.isAccessible = true; it.get(null) as String to it.name }
+        val errors = FrameworkErrors.ALL.joinToString(",\n", "[\n", "\n  ]") { error ->
+            listOfNotNull(
+                "\"name\": ${text(constants.getValue(error.code))}",
+                "\"code\": ${text(error.code)}",
+                "\"status\": ${error.status}",
+                "\"retry\": ${text(WireNames.of(error.retry))}",
+                error.retryAfter?.let { "\"retryAfter\": $it" },
+                "\"title\": ${text(FrameworkErrors.TITLES.getValue(error.code))}",
+                error.description?.let { "\"description\": ${text(it)}" },
+            ).joinToString(", ", "    { ", " }")
+        }
+        val expected = "{\n" +
+            "  \"retry\": { \"attempts\": ${FrameworkErrors.RETRY_ATTEMPTS}, " +
+            "\"backoffMillis\": ${FrameworkErrors.RETRY_BACKOFF_MILLIS}, " +
+            "\"maxWaitSeconds\": ${FrameworkErrors.RETRY_MAX_WAIT_SECONDS} },\n" +
+            "  \"errors\": $errors\n}\n"
         val snapshot = Path.of(SNAPSHOT)
         if (System.getenv(UPDATE) != null) {
             snapshot.writeText(expected)
         }
         snapshot.readText().assert()
-            .describedAs("Run with $UPDATE=1 to rewrite $SNAPSHOT, then align the client's FrameworkErrorCodes.")
+            .describedAs(
+                "Run with $UPDATE=1 to rewrite $SNAPSHOT, then node typescript/wow-client/scripts/framework-errors.mjs " +
+                    "and pnpm docs:reference.",
+            )
             .isEqualTo(expected)
     }
 
     private companion object {
         const val MAX_TITLE = 32
 
-        /** Read by typescript/wow-client/test/frameworkErrors.test.ts. */
+        /** Read by typescript/wow-client/scripts/framework-errors.mjs and .github/scripts/docs-reference.mjs. */
         const val SNAPSHOT = "src/test/resources/framework-errors.json"
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"
     }

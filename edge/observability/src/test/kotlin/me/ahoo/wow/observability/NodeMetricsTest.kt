@@ -84,7 +84,8 @@ class NodeMetricsTest {
                     throw WowProblemException(
                         "wow.wait.timeout",
                         504,
-                        RetryHint(retryable = true, sameRequestId = true),
+                        Retry.SAME_REQUEST,
+                        null,
                         "The board's downstream timed out.",
                     )
                 }

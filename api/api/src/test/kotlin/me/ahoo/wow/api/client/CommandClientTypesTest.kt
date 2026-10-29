@@ -23,6 +23,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -30,6 +32,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.seconds
@@ -186,23 +189,18 @@ class CommandClientTypesTest {
         rejected.code.assert().isEqualTo("shop.cart.full")
         rejected.message.assert().contains("shop.cart/t/c-1").contains("Full.")
         assertThrows<IllegalArgumentException> { CommandRejectedException(result(CommandResult.Status.FAILED)) }
-        val problem = WowProblemException("wow.command.busy", 429, RetryHint(true, true, 1.seconds), "Busy.")
+        val problem = WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1.seconds, "Busy.")
         problem.result.assert().isNull()
         problem.cause.assert().isNull()
         problem.message.assert().isEqualTo("Busy.")
-        problem.retryHint.retryAfter.assert().isEqualTo(1.seconds)
+        problem.retryAfter.assert().isEqualTo(1.seconds)
     }
 
     @Test
-    fun `a retry hint is a value`() {
-        val hint = RetryHint(retryable = true, sameRequestId = true)
-        hint.assert().isEqualTo(RetryHint(true, true, null))
-        hint.hashCode().assert().isEqualTo(RetryHint(true, true).hashCode())
-        hint.assert().isEqualTo(hint)
-        hint.assert().isNotEqualTo(RetryHint.NONE)
-        hint.assert().isNotEqualTo("hint")
-        hint.toString().assert().isEqualTo("RetryHint(retryable=true, sameRequestId=true, retryAfter=null)")
-        RetryHint.NONE.retryable.assert().isFalse()
-        RetryHint.NONE.sameRequestId.assert().isFalse()
+    fun `a problem says what a retry may do`() {
+        WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1.seconds, "Busy.").retryable.assert().isTrue()
+        WowProblemException("wow.query.busy", 429, Retry.NEW_REQUEST, 1.seconds, "Busy.").retryable.assert().isTrue()
+        WowProblemException("wow.command.failed", 500, Retry.NONE, null, "Failed.").retryable.assert().isFalse()
+        WireNames.namesOf<Retry>().assert().containsExactly("none", "same-request", "new-request")
     }
 }

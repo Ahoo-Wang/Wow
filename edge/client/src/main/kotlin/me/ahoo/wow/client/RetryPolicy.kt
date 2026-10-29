@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import me.ahoo.wow.manifest.FrameworkErrors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -66,9 +67,17 @@ class RetryPolicy private constructor(
     companion object {
         private const val MAX_SHIFT = 10
 
-        /** Three attempts, a `Retry-After` of up to 5 seconds honored, 200 milliseconds doubled without one. */
+        /**
+         * The error catalog's defaults, which the TypeScript client's resumes share: five attempts, a `Retry-After` of
+         * up to 5 seconds honored, 200 milliseconds doubled without one ([FrameworkErrors.RETRY_ATTEMPTS],
+         * [FrameworkErrors.RETRY_MAX_WAIT_SECONDS], [FrameworkErrors.RETRY_BACKOFF_MILLIS]).
+         */
         @JvmField
-        val DEFAULT: RetryPolicy = RetryPolicy(3, 5.seconds, 200.milliseconds)
+        val DEFAULT: RetryPolicy = RetryPolicy(
+            FrameworkErrors.RETRY_ATTEMPTS,
+            FrameworkErrors.RETRY_MAX_WAIT_SECONDS.seconds,
+            FrameworkErrors.RETRY_BACKOFF_MILLIS.milliseconds,
+        )
 
         /** One attempt: every problem is the caller's. */
         @JvmField
