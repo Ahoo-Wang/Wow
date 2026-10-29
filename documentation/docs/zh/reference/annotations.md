@@ -21,7 +21,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.
 
 - 目标: `CLASS`, `ANNOTATION_CLASS`
-- 参数: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class, ApplyTags::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
+- 参数: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class, ApplyTags::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `idSource: AggregateIdSource = AggregateIdSource.ASSIGNED`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
 
 ## `@Alias`
 

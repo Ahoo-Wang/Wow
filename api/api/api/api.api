@@ -1,3 +1,11 @@
+public final class me/ahoo/wow/api/aggregate/AggregateIdSource : java/lang/Enum {
+	public static final field ASSIGNED Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+	public static final field OWNER Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+	public static fun values ()[Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+}
+
 public final class me/ahoo/wow/api/aggregate/AggregateRef {
 	public static final field Companion Lme/ahoo/wow/api/aggregate/AggregateRef$Companion;
 	public static final field UNASSIGNED Ljava/lang/String;
@@ -78,6 +86,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/AfterComma
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateRoot : java/lang/annotation/Annotation {
+	public abstract fun idSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public abstract fun lifecycle ()[Ljava/lang/Class;
 	public abstract fun ownership ()Lme/ahoo/wow/api/aggregate/Ownership;
 	public abstract fun publishState ()Z

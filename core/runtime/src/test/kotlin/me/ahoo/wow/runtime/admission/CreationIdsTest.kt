@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.admission
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
@@ -93,6 +94,27 @@ class CreationIdsTest {
         runCatching { creations.assign(model, Command("c-4", "r-4", type.unassigned("t"), "unknown")) }
             .exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
     }
+
+    @Test
+    fun `a command to an aggregate whose id is its owner's takes its scope's owner, and fails without one`(): Unit =
+        runBlocking {
+            val basket = aggregate<Any>(type.context, "basket") {
+                id(AggregateIdSource.OWNER)
+                initial { Any() }
+                decide<Open>(Creation.REQUIRED) { _, body -> Decision.events(Opened(body.note)) }
+                decide<Touch> { _, _ -> Decision.NoOp }
+                evolve<Opened> { }
+            }
+            val unnamed = Command("c-1", "r-1", basket.type.unassigned("t"), Touch(), scope = Scope("alice", "s-1"))
+            creations.assign(basket, unnamed).ref.assert().isEqualTo(basket.type.ref("t", "alice"))
+            val opening = Command("c-2", "r-2", basket.type.unassigned("t"), Open(), scope = Scope(ownerId = "bob"))
+            creations.assign(basket, opening).ref.assert().isEqualTo(basket.type.ref("t", "bob"))
+            drawn.assert().isEqualTo(0)
+            val named = Command("c-3", "r-3", basket.type.ref("t", "carol"), Touch(), scope = Scope(ownerId = "alice"))
+            creations.assign(basket, named).assert().isSameAs(named)
+            runCatching { creations.assign(basket, Command("c-4", "r-4", basket.type.unassigned("t"), Touch())) }
+                .exceptionOrNull()!!.message.assert().contains("has no owner to take it from")
+        }
 
     @Test
     fun `without committed requests every creation draws a new id`(): Unit = runBlocking {

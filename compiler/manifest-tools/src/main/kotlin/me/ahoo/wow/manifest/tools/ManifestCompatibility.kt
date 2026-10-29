@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
@@ -97,6 +99,10 @@ data class CompatibilityReport(val changes: List<ManifestChange>) {
  *   code added or removed is additive.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
+ * - Changing an aggregate's id source (`@AggregateRoot(idSource)`) either way breaks: a route by no id, the caller's own
+ *   aggregate's for one whose id is its owner's, means another aggregate, and the ids its clients send or keep change
+ *   meaning. The routes by no id the change adds or removes are part of it, reported once with it; any other route
+ *   follows the rules above.
  * - Disabling snapshots, changing the ownership, a published stream's topic, or dropping its state breaks; so does a
  *   subscription changing its kind, function or source stream, no longer deriving a command, or an `@OnRejected` /
  *   `@OnCommitted` handler no longer taking a command's receipts; a removed `@OnCommitted` handler is a removed
@@ -287,13 +293,21 @@ private class Changes(val schemas: SchemaCompatibility) {
         if (baseline.ownership != current.ownership) {
             breaking("$path.ownership", "ownership changed from ${baseline.ownership} to ${current.ownership}")
         }
+        val owned = when {
+            baseline.idSource == current.idSource -> null
+            current.idSource == AggregateIdSource.OWNER -> Side.CURRENT
+            else -> Side.BASELINE
+        }
+        if (owned != null) {
+            breaking("$path.idSource", "id source changed from ${baseline.idSource} to ${current.idSource}")
+        }
         compareNamed(
             "$path.commands",
             baseline.commands,
             current.commands,
             { it.name },
             "command",
-            ::compareCommand,
+            { entry, old, new -> compareCommand(entry, old, new, owned) },
             { it.aliases },
         )
         compareNamed(
@@ -395,7 +409,11 @@ private class Changes(val schemas: SchemaCompatibility) {
         list += breaks.map { it.copy(description = "${it.description}: ${readers.joinToString(" and ")} read it") }
     }
 
-    fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest) {
+    /**
+     * A command; [owned] is the side whose aggregate's id is its owner's when the id source changed: its routes by no
+     * id that the other side lacks are that change's, already reported.
+     */
+    fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         list += schemas.compare("$path.schema", baseline.schema, current.schema)
         if (baseline.creation != current.creation) {
@@ -416,7 +434,12 @@ private class Changes(val schemas: SchemaCompatibility) {
                 if (newProduces == null) "produced events no longer declared" else "produced events declared"
             )
         }
-        compareRoutes("$path.routes", baseline.routes, current.routes)
+        fun RouteManifest.isOwn(others: List<RouteManifest>) = CommandRoutes.ID !in path && this !in others
+        compareRoutes(
+            "$path.routes",
+            if (owned == Side.BASELINE) baseline.routes.filterNot { it.isOwn(current.routes) } else baseline.routes,
+            if (owned == Side.CURRENT) current.routes.filterNot { it.isOwn(baseline.routes) } else current.routes,
+        )
     }
 
     /**
@@ -613,3 +636,6 @@ private class Changes(val schemas: SchemaCompatibility) {
         }
     }
 }
+
+/** One side of a comparison. */
+private enum class Side { BASELINE, CURRENT }

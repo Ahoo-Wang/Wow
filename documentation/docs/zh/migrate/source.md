@@ -45,7 +45,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`；上下文名是每个命令、事件和路由名的一部分，所以要有意地选择 |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand` |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand` |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`，只有返回 `Decision` 的函数才需要 |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`；迁移来的 9.x 形状是修订号 1 |
 | `EventUpgrader` | 在从 `ObjectNode` 到 `ObjectNode` 的函数上标注 `@Upgrade(event, from)` |
@@ -58,7 +58,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |
 | `@StaticTenantId`、`@StaticAggregateId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
-| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方 |
+| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Tags` |
 
@@ -153,7 +153,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 ## 路由、租户与所有权 {#routes-tenancy-and-ownership}
 
-路由由 Manifest 推导：`POST /<context>/<aggregate>/<id>/<command>`，没有租户或所有者前缀，没有自定义动作或方法。固定的租户是宿主配置，9.x 中整个租户共用一个所有者的资源是 `Ownership.TENANT`。只有 `wow.lifecycle.TransferOwner` 能移动所有者：实现了 `OwnerTransferred` 的 9.x 事件，变成一个领域事件和一个推导出转移命令的 Saga。9.x starter 自带的路由按它们所做的事改写，用转换器、快照查询和 `Decision.NoOp`（[HTTP 与 TypeScript 客户端](./http-and-clients)列出了每个路由和请求头）。
+路由由 Manifest 推导：`POST /<context>/<aggregate>/<id>/<command>`，没有租户或所有者前缀，没有自定义动作或方法。固定的租户是宿主配置，9.x 中整个租户共用一个所有者的资源是 `Ownership.TENANT`，ID 即所有者 ID 的资源（`OwnerPolicy.AGGREGATE_ID`，例如用户的购物车）是 `idSource = AggregateIdSource.OWNER`：它不带 ID 地作为调用方自己的聚合提供，命令函数中不再留所有权检查（[每个所有者一个聚合](../guide/ownership#one-aggregate-per-owner)）。只有 `wow.lifecycle.TransferOwner` 能移动所有者：实现了 `OwnerTransferred` 的 9.x 事件，变成一个领域事件和一个推导出转移命令的 Saga。9.x starter 自带的路由按它们所做的事改写，用转换器、快照查询和 `Decision.NoOp`（[HTTP 与 TypeScript 客户端](./http-and-clients)列出了每个路由和请求头）。
 
 ## 迁移映射 {#the-migration-map}
 

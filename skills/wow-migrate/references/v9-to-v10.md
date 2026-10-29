@@ -105,7 +105,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | 9.x | V10 | Rewrite |
 |---|---|---|
 | `@BoundedContext(name, alias, description, scopes, packageScopes, aggregates)` | `@BoundedContext(name, description)` | The aggregate list comes from `@AggregateRoot`; a fixed tenant moves to host configuration. The context name is part of every command, event and route name, so decide it explicitly (the port chose the 9.x alias `example` over `example-service`; the eShop names its contexts `eshop-<context>`) and record it in the map. |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic, ownership, retiredEvents)` | A 9.x mounted command becomes a class annotated `@MountedCommand(aggregate = "<aggregate>", transformsTo = [...])` (decision D182): served under the aggregate's routes, decided by no aggregate, and turned into a command an aggregate decides by exactly one `CommandTransformer` of the service (the service does not start with none or two). `retiredEvents` lists deleted events (see [Retired events](#retired-events-9x-droppedevent)). `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic, ownership, idSource, retiredEvents)` | A 9.x mounted command becomes a class annotated `@MountedCommand(aggregate = "<aggregate>", transformsTo = [...])` (decision D182): served under the aggregate's routes, decided by no aggregate, and turned into a command an aggregate decides by exactly one `CommandTransformer` of the service (the service does not start with none or two). `retiredEvents` lists deleted events (see [Retired events](#retired-events-9x-droppedevent)). `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])` | Needed only when the function returns `Decision`; a concrete or sealed return type is inferred. |
 | `@OnSourcing`, `@CreateAggregate`, `@AllowCreate`, `@AfterCommand(include, exclude)`, `@Description`, `@Summary`, `@WowSpi` | Same | Unchanged. |
 | `@Blocking` | Same | Keep it on a function that blocks its thread (JDBC, a blocking client): a command function (`@OnCommand`), an after hook, a subscription handler (`@OnEvent`, `@OnRejected`, `@OnCommitted`) or a job (decision D227 ①). Its call then runs on a virtual thread; an unmarked synchronous function runs inline as pure computation, so a blocking one left unmarked stalls the worker. It is a compile error on `@OnSourcing`, `@Upgrade` and `@Tags` functions, and a warning on a function returning a Reactor publisher. |
@@ -129,7 +129,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@StaticTenantId`, `@StaticAggregateId` | Removed | Fixed tenant is host configuration. |
 | `@AggregateName` | `@Name` on the aggregate root | |
 | `@AggregateRoute`, `@CommandRoute` (`PathVariable`, `HeaderVariable`) | Removed | Routes come from the Manifest. |
-| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | Removed; `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)` | Owner and space come from the principal. `OwnerPolicy.ALWAYS` (and no policy) is `Ownership.OWNER`, the default: an owner-level caller reads and writes only its own. A resource 9.x kept under one reserved owner for the whole tenant (such as `(shared)`) is `Ownership.TENANT`: no owner recorded, every caller of the tenant reads it, writes guarded by the host's `CommandAuthorizer`. See [Ownership and owner moves](#ownership-and-owner-moves). |
+| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | Removed; `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)` | Owner and space come from the principal. `OwnerPolicy.ALWAYS` (and no policy) is `Ownership.OWNER`, the default: an owner-level caller reads and writes only its own. `OwnerPolicy.AGGREGATE_ID`, an aggregate whose id is its owner's id (a user's cart), is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` (`me.ahoo.wow.api.aggregate.AggregateIdSource`) with the default `Ownership.OWNER`. A resource 9.x kept under one reserved owner for the whole tenant (such as `(shared)`) is `Ownership.TENANT`: no owner recorded, every caller of the tenant reads it, writes guarded by the host's `CommandAuthorizer`. See [Ownership and owner moves](#ownership-and-owner-moves). |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject`, `@Generated` | Removed | No counterpart; drop them. |
 | `@QueryReference`, `@QueryAlias`, `@Sensitive` (with `Mask`), `@QueryTemporal`, `@QueryDuration`, `@QueryDecimal`, `@QueryMoney` | Same names and package, `me.ahoo.wow.api.query.annotation`, in `wow-query-api` | Keep them; add `implementation("me.ahoo.wow:wow-query-api")` to the module that declares them (the kernel does not bring it). The Gradle plugin writes them into the state's schema as `x-wow-*` keywords, which the query admission, masking and descriptors read. They target fields and getters; their KDoc writes `@field:QueryAlias(...)` on Kotlin properties. |
 | none | `@QueryIndex(name, on, with)` | New in V10: declares a query index on a state property, or on the state class with `on`; the backend creates it as the `ddl` of its store (`wow.ddl`: `auto`, `validate`, `none`) says. Add one where a 9.x deployment had a hand-made index on the snapshot collection, and report it. |
@@ -304,18 +304,25 @@ fun onCommand(command: ChangeAddress): Decision =
 
 Keep a domain outcome an event when 9.x recorded it as one: `PayOrder` on a non-payable order still produces `OrderPayDuplicated` because the payment service must refund. Its V10 return type is the sealed `List<OrderPayment>`, so `produces` is inferred.
 
-Ownership checks: `@AggregateOwner(OwnerPolicy.AGGREGATE_ID)` becomes an explicit check on the creating command, after which the kernel's scope guard refuses other owners (`wow.aggregate.forbidden`):
+Ownership checks: `@AggregateOwner(OwnerPolicy.AGGREGATE_ID)` becomes `@AggregateRoot(idSource = AggregateIdSource.OWNER)`, and the command functions check no owner. Delete a 9.x check that compared the caller with the aggregate id, and its rejection code:
 
 ```kotlin
-@OnCommand(produces = [CartItemAdded::class, CartQuantityChanged::class])
-fun onCommand(command: Command<AddCartItem>): Decision {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        return Decision.reject(CartRejections.NOT_OWNER, "The cart ${command.ref.id} is not $owner's.")
+@AggregateRoot(idSource = AggregateIdSource.OWNER)
+class Cart(private val state: CartState) {
+    @OnCommand(produces = [CartItemAdded::class, CartQuantityChanged::class])
+    fun onCommand(command: AddCartItem): Decision {
+        // ...
     }
-    // ...
 }
 ```
+
+Such an aggregate exists once per owner in its tenant, and its id is the owner's:
+
+- an owner-level caller addresses its own by no id, on the routes without `{id}` ([Routing](#routing)); naming another owner's id is 403 `wow.aggregate.forbidden`;
+- a caller with no owner (a tenant-level caller, a service, a saga) names the id, else 400 `wow.command.malformed` (`wow.query.malformed` on the state read; 401 `wow.auth.unauthenticated` for an unauthenticated caller);
+- a derived or scheduled command without an id takes the owner of its scope;
+- the kernel records the id as the owner, whoever creates the aggregate, and refuses another owner, on creation too;
+- no route generates an id, and `TransferOwner` is left out of the default lifecycle; the compiler refuses it when listed in `lifecycle`, a command producing `OwnerTransferred`, and `ownership = TENANT`.
 
 ## Events
 
@@ -525,7 +532,9 @@ suspend fun onCommand(command: Register, scope: DecideScope): Decision =
 - command on an existing aggregate: `POST /{context}/{aggregate}/{id}/{command-kebab}`;
 - creating command: also `POST /{context}/{aggregate}/{command-kebab}`, the server generating the id;
 - state: `GET /{context}/{aggregate}/{id}/state`, with `?version=`;
-- lifecycle: `DELETE /{context}/{aggregate}/{id}` and `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>`.
+- lifecycle: `DELETE /{context}/{aggregate}/{id}` and `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>`;
+- an aggregate whose id is its owner's (`idSource = AggregateIdSource.OWNER`, 9.x `OwnerPolicy.AGGREGATE_ID`): beside every route by id, the caller's own by no id, `POST /{context}/{aggregate}/{command-kebab}` for every command and lifecycle command, `DELETE /{context}/{aggregate}`, and `GET /{context}/{aggregate}/state` and `GET /{context}/{aggregate}/state/trace`; none generates an id.
+  A 9.x client that put the user id in both the owner segment and the id (`POST /owner/{ownerId}/cart/{ownerId}/add_cart_item`) sends `POST /example/cart/add-cart-item`.
 
 There are no tenant or owner route variants, no `PUT`/`PATCH`, no custom action segments, and no path or header variables bound into bodies. The aggregate segment is the aggregate's name; renaming it with `@Name` renames the aggregate.
 
@@ -571,7 +580,7 @@ Read the 9.x paths from the application's generated 9.x OpenAPI, not from annota
 
 - Tenant, owner and space come from the authenticated principal. A principal without a tenant gets `wow.tenant.default` (`(0)`). An administrator acting in another scope sends the `Wow-Scope` header (an RFC 8941 dictionary of `tenant`, `owner`, `space`); a caller without permission gets 403 `wow.auth.forbidden`, never a silent fallback.
 - **Development callers** (decision D334). In a development profile (a profile of `wow.dev-profiles`), with CoSec off (`cosec.enabled=false`) and no `CallerResolver` bean of the application's, the host reads the caller from `Wow-User` (the subject), `Wow-Owner` (the owner of its scope; without it, a tenant-level caller, never the user by default), `Wow-Roles` (comma-separated, the `roles` attribute), `Wow-Tenant` (`wow.tenant.default` without it) and `Wow-App` (the application, `Caller.app`); without `Wow-User` the request is the anonymous caller. Drop a 9.x local-run filter or resolver that faked identities from its own headers. Outside a development profile the host never reads these headers: a node in development by its loopback internal port alone serves every request as the anonymous caller, and any other node without a resolver refuses to start.
-- `@AggregateOwner(OwnerPolicy.ALWAYS)` and `@Spaced` disappear: the scope is always recorded from the principal. `OwnerPolicy.AGGREGATE_ID` becomes the creating-command check shown above.
+- `@AggregateOwner(OwnerPolicy.ALWAYS)` and `@Spaced` disappear: the scope is always recorded from the principal. `OwnerPolicy.AGGREGATE_ID` becomes `@AggregateRoot(idSource = AggregateIdSource.OWNER)`, as shown above.
 - Ids are unique per tenant only; the data import reports ids that collide across tenants.
 
 ## Ownership and owner moves
@@ -580,8 +589,10 @@ Read this when the 9.x domain uses the owner segment of its paths as data: an au
 
 - **Who owns what** (decision D189). Choose `Ownership` per aggregate as the annotation mapping says. A creation without an owner (an anonymous or tenant-level caller) records none; when the domain needs one, reject it with a code of its own rather than inventing an owner.
 - **Reserved owners.** A V10 caller acts as another owner only by naming it in `Wow-Scope`, which admission accepts only from a caller with `crossScope`. To keep 9.x paths such as `owner/(shared)` open to everyone while other owners stay closed, the host's `CallerResolver` grants `crossScope` only when `Wow-Scope` names exactly a reserved scope, and returns the caller with that scope already as its own: a `CommandTransformer` sees only `CommandInput.caller`, not the scope `Wow-Scope` names. Who may write under a reserved owner is the `CommandAuthorizer`'s decision (`CommandAction.scope`), which replaces the 9.x gateway's path rules. This is a security decision: record it for the user, never infer it.
-- **Moving an owner.** No 9.x marker interface moves the owner in V10: a command changes its aggregate's lifecycle by producing the lifecycle event beside its own event, in one commit (decision D336). Rewrite a 9.x command whose event implemented `OwnerTransferred` as a command of the aggregate that produces its domain event and `OwnerTransferred(ownerId)`: `ClaimView(toOwnerId)` produces `ViewClaimed(toOwnerId)` and `OwnerTransferred(toOwnerId)`, listed in `@OnCommand(produces = [ViewClaimed::class, OwnerTransferred::class])`; the stream records the new owner, and the move is one version. An aggregate of its tenant (`Ownership.TENANT`) has no owner: the compiler refuses a command that produces `OwnerTransferred` there. An annotated model's decide function never takes `wow.lifecycle.TransferOwner` or any other lifecycle command, which the kernel decides: the compiler refuses it (a model of the kernel's DSL may override one, deciding that command's own lifecycle event beside its own events). Who may move an owner is the `CommandAuthorizer`'s decision on the command. A move that must run apart from the domain change (another authorization, after a confirmation) is a `@Saga` that derives `TransferOwner` from the domain event instead (derived commands keep the commit's scope, decision D199), as the V10 view store does; a caller that must see it waits for it: `Wow-Wait: handled(<Saga>.<function>)>snapshot`.
+- **Moving an owner.** No 9.x marker interface moves the owner in V10: a command changes its aggregate's lifecycle by producing the lifecycle event beside its own event, in one commit (decision D336). Rewrite a 9.x command whose event implemented `OwnerTransferred` as a command of the aggregate that produces its domain event and `OwnerTransferred(ownerId)`: `ClaimView(toOwnerId)` produces `ViewClaimed(toOwnerId)` and `OwnerTransferred(toOwnerId)`, listed in `@OnCommand(produces = [ViewClaimed::class, OwnerTransferred::class])`; the stream records the new owner, and the move is one version. An aggregate of its tenant (`Ownership.TENANT`) has no owner, and one whose id is its owner's (`idSource = AggregateIdSource.OWNER`) keeps it: the compiler refuses a command that produces `OwnerTransferred` on either. An annotated model's decide function never takes `wow.lifecycle.TransferOwner` or any other lifecycle command, which the kernel decides: the compiler refuses it (a model of the kernel's DSL may override one, deciding that command's own lifecycle event beside its own events). Who may move an owner is the `CommandAuthorizer`'s decision on the command. A move that must run apart from the domain change (another authorization, after a confirmation) is a `@Saga` that derives `TransferOwner` from the domain event instead (derived commands keep the commit's scope, decision D199), as the V10 view store does; a caller that must see it waits for it: `Wow-Wait: handled(<Saga>.<function>)>snapshot`.
 - **The user a command is for.** A 9.x route that took the target owner from the caller's own path (a claim sent to `owner/{me}`) reads it from `command.operator?.id` instead; never from the body, which anyone can fill.
+
+A target pinned to an earlier V10 pre-release that copied the eShop's basket changes with it: the basket declares `@AggregateRoot(idSource = AggregateIdSource.OWNER)`, its `eshop-basket.basket.not-owner` rejection code is removed (the kernel answers another owner with `wow.aggregate.forbidden`), and `POST /eshop-basket/basket/add-basket-item` no longer creates a basket under a generated id: it is the buyer's own basket, whose id is the buyer's user id. A client that sent `POST /eshop-basket/basket/{id}/…` with the buyer's id still works; one that stored a generated basket id reads the buyer's basket by no id instead.
 
 ## Routes and handlers of a 9.x starter
 
@@ -750,7 +761,7 @@ class CartSpec {
 
     @Test
     fun `a customer should not add to another customer's cart`() = aggregateSpec(model, id = CUSTOMER) {
-        whenCommand(AddCartItem("apple"), scope = Scope("mallory")) { expectRejected(CartRejections.NOT_OWNER) }
+        whenCommand(AddCartItem("apple"), scope = Scope("mallory")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
     }
 }
 ```
@@ -872,7 +883,7 @@ A domain written in Java migrates like a Kotlin one, within these limits (decisi
 |---|---|
 | `@AggregateRoute(resourceName)`, custom `@CommandRoute` actions, methods, path and header variables | No equivalent; routes are fixed. Clients and gateway rules change. |
 | `@VoidCommand` | No equivalent; dropped. |
-| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `Ownership.OWNER` or `TENANT` per aggregate; scope from the principal plus explicit checks. |
+| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `Ownership.OWNER` or `TENANT` per aggregate, `idSource = AggregateIdSource.OWNER` for `AGGREGATE_ID`; scope from the principal plus explicit checks. |
 | An event implementing `OwnerTransferred`, `AggregateDeleted`, `AggregateRecovered`, `SpaceTransferred` or `ResourceTagsApplied`; a decide function for a lifecycle command | A command of the aggregate that produces the domain event and the lifecycle event in one commit; a decide function never takes a lifecycle command, which the kernel decides ([Ownership and owner moves](#ownership-and-owner-moves)). |
 | A starter's own routes (derived ids, replay, "unchanged" answers, path-scoped reserved owners) | Transformers, snapshot queries, `NoOp`, request-id deduplication and a `CallerResolver` ([Routes and handlers of a 9.x starter](#routes-and-handlers-of-a-9x-starter)). |
 | `bindingErrors` of a domain exception | No place in a rejection; said in its message. |

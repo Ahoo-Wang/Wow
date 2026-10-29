@@ -45,7 +45,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`; the context name is part of every command, event and route name, so choose it on purpose |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer` |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer` |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`, needed only for a function returning `Decision` |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`; a migrated 9.x shape is revision 1 |
 | `EventUpgrader` | `@Upgrade(event, from)` on a function from `ObjectNode` to `ObjectNode` |
@@ -58,7 +58,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
 | `@StaticTenantId`, `@StaticAggregateId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
-| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller |
+| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |
 
@@ -153,7 +153,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 ## Routes, tenancy and ownership
 
-Routes are derived from the Manifest: `POST /<context>/<aggregate>/<id>/<command>`, no tenant or owner prefixes, no custom actions or methods. A fixed tenant is host configuration, and a 9.x resource kept under one shared owner for a whole tenant is `Ownership.TENANT`. Only `wow.lifecycle.TransferOwner` moves an owner: a 9.x event that implemented `OwnerTransferred` becomes a domain event and a saga that derives the transfer. A 9.x starter's own routes are rewritten by what they did, with transformers, snapshot queries and `Decision.NoOp` ([HTTP and TypeScript Clients](./http-and-clients) lists every route and header).
+Routes are derived from the Manifest: `POST /<context>/<aggregate>/<id>/<command>`, no tenant or owner prefixes, no custom actions or methods. A fixed tenant is host configuration, and a 9.x resource kept under one shared owner for a whole tenant is `Ownership.TENANT`, and one whose id is its owner's id (`OwnerPolicy.AGGREGATE_ID`, a user's cart) is `idSource = AggregateIdSource.OWNER`, served by no id as the caller's own, with no ownership check left in its command functions ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)). Only `wow.lifecycle.TransferOwner` moves an owner: a 9.x event that implemented `OwnerTransferred` becomes a domain event and a saga that derives the transfer. A 9.x starter's own routes are rewritten by what they did, with transformers, snapshot queries and `Decision.NoOp` ([HTTP and TypeScript Clients](./http-and-clients) lists every route and header).
 
 ## The migration map
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.admission
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
@@ -82,11 +83,18 @@ class CreationIds(
     /**
      * [command], a command of [model], with its aggregate id assigned when it names none
      * ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]); fails for a command that does not create its aggregate.
+     * An aggregate whose id is its owner's takes the command's owner, and fails for a command with none.
      */
     suspend fun <C : Any> assign(model: AggregateModel<*>, command: Command<C>): Command<C> {
         val ref = command.ref
         if (ref.isAssigned) {
             return command
+        }
+        if (model.idSource == AggregateIdSource.OWNER) {
+            val owner = checkNotNull(command.scope.ownerId) {
+                "The command ${command.id} names no ${ref.type}, whose id is its owner's, and has no owner to take it from."
+            }
+            return command.copyWith(ref = ref.type.ref(ref.tenantId, owner))
         }
         val creation = model.decider(command.body.javaClass)?.creation
         check(creation != null && creation != Creation.NONE) {

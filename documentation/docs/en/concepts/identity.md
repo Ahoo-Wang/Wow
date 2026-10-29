@@ -30,6 +30,8 @@ An aggregate type declares its **ownership**:
 | Owner (default) | its tenant, and the owner and space of the command that created it | data that belongs to a person or an account: an order, a cart, a saved view |
 | Tenant | its tenant, and a space if it has one | data every caller of the tenant reads: a product, a price list |
 
+An owner's aggregate may also take its owner's id as its own, one per owner, such as a basket: its routes without an id mean the caller's own, and its owner never changes ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)).
+
 ## Who the caller is
 
 For each request, the host's caller resolver turns the authenticated principal into a **caller**:

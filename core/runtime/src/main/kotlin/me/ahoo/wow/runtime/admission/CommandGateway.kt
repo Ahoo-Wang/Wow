@@ -25,10 +25,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -405,7 +408,8 @@ class CommandGateway @InternalWowApi constructor(
         facts.function = functionOf(facts.type, commandType)
         // 2. The identity.
         val creation = decider?.creation ?: Creation.NONE
-        identityConflict(request, creation, transformed = transformer != null)?.let {
+        val owned = model.idSource == AggregateIdSource.OWNER
+        identityConflict(request, creation, transformed = transformer != null || owned)?.let {
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }
         val call = request.call
@@ -422,10 +426,21 @@ class CommandGateway @InternalWowApi constructor(
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
-        val inputId = request.aggregateId ?: if (transformer == null) {
-            creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
+        val inputId = if (owned) {
+            when (val id = ownId(request.aggregateId, scope, request.caller)) {
+                is OwnId.Refused -> {
+                    facts.ref = facts.type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
+                    return facts.refuse(id.code, id.message)
+                }
+
+                is OwnId.Of -> id.id
+            }
         } else {
-            UNADDRESSED
+            request.aggregateId ?: if (transformer == null) {
+                creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
+            } else {
+                UNADDRESSED
+            }
         }
         facts.ref = facts.type.ref(tenantId, inputId)
         AdmissionLimits.oversized(facts.requestId, inputId, tenantId, scope)
@@ -463,7 +478,11 @@ class CommandGateway @InternalWowApi constructor(
             } catch (conflict: TenantConflictException) {
                 return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
             }
-            val aggregateId = result.aggregateId ?: if (targetDecider.creation != Creation.NONE) {
+            val ownTarget = targetModel.idSource == AggregateIdSource.OWNER
+            val owner = scope.ownerId
+            val aggregateId = result.aggregateId ?: if (ownTarget && owner != null) {
+                owner
+            } else if (!ownTarget && targetDecider.creation != Creation.NONE) {
                 creations.idOf(targetType, targetTenant, facts.requestId, scope, targetModel.ownership)
             } else {
                 facts.ref = targetType.ref(targetTenant, UNADDRESSED)
@@ -668,6 +687,40 @@ class CommandGateway @InternalWowApi constructor(
         val (model, _) = deciders[type.type].orEmpty().singleOrNull { (_, commandType) -> commandType.name == type.name }
             ?: return null
         return model.decider(type.type)?.let { model to it }
+    }
+
+    /**
+     * The id of an aggregate whose id is its owner's, for a request of [caller] naming [requested] (null for none) in
+     * [scope]: an owner-level caller's own, which it may name or not, while naming another is forbidden; a caller with
+     * no owner names it, having no aggregate of its own: unauthenticated, it is answered as such.
+     */
+    private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
+        val owner = scope.ownerId
+        return when {
+            owner != null && requested != null && requested != owner -> OwnId.Refused(
+                FrameworkCodes.AGGREGATE_FORBIDDEN,
+                "The aggregate's id is its owner's: the caller's is $owner, not $requested.",
+            )
+
+            owner != null -> OwnId.Of(owner)
+            requested != null -> OwnId.Of(requested)
+            caller.subject == null -> OwnId.Refused(
+                FrameworkCodes.AUTH_UNAUTHENTICATED,
+                "An unauthenticated caller has no aggregate of its own.",
+            )
+
+            else -> OwnId.Refused(
+                FrameworkCodes.COMMAND_MALFORMED,
+                "This caller has no owner; address the aggregate by its id.",
+            )
+        }
+    }
+
+    /** The id [ownId] resolves, or why it refuses the request. */
+    private sealed interface OwnId {
+        class Of(val id: String) : OwnId
+
+        class Refused(val code: String, val message: String) : OwnId
     }
 
     /** Why [request]'s identity facts cannot be decided, or null when they can. */

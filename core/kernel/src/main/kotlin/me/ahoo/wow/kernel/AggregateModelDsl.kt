@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -67,6 +68,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
     private val mounted = LinkedHashMap<Class<*>, String>()
     private var ownership: Ownership = Ownership.OWNER
+    private var idSource: AggregateIdSource = AggregateIdSource.ASSIGNED
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
     private var tags: ((S) -> Map<String, Collection<String>>)? = null
@@ -253,6 +255,14 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * Where the aggregate's id comes from: [AggregateIdSource.ASSIGNED] unless this is called. `@AggregateRoot(idSource)`
+     * calls it in a generated model.
+     */
+    fun id(source: AggregateIdSource) {
+        idSource = source
+    }
+
+    /**
      * The revision of the state's structure its snapshots are written at: 1 unless this is called.
      * `@AggregateRoot(stateRevision)` calls it in a generated model.
      */
@@ -379,6 +389,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         stateRevision = stateRevision,
         retiredEvents = retired.toList(),
         tags = tags,
+        idSource = idSource,
     )
 
     /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */

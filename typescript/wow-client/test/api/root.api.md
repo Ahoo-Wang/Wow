@@ -15,6 +15,7 @@ export interface AggregateManifest {
     readonly description?: string;
     // (undocumented)
     readonly events: readonly EventManifest[];
+    readonly idSource?: 'assigned' | 'owner' | (string & {});
     // (undocumented)
     readonly name: string;
     readonly ownership?: 'owner' | 'tenant' | (string & {});
@@ -1380,6 +1381,14 @@ export interface OwnerTransferred {
 }
 
 // @public
+export class OwnStateClient<S = unknown, E extends EventView = EventView> extends StateClient<S, E> {
+    findOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S> | undefined>;
+    getOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
+    readOwn(options?: StateReadOptions): Promise<StateReadResult<S>>;
+    traceOwn(options?: StateTraceOptions): Promise<StateTrace<S, E>>;
+}
+
+// @public
 interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
     total?: TotalMode;
 }
@@ -1930,9 +1939,13 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     // (undocumented)
     readonly client: WowClientOptions;
     find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S> | undefined>;
+    protected findAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S> | undefined>;
     get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
+    protected getAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
     read(id: string, options?: StateReadOptions): Promise<StateReadResult<S>>;
+    protected readAt(id: string | undefined, options: StateReadOptions): Promise<StateReadResult<S>>;
     trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E>>;
+    protected traceAt(id: string | undefined, options: StateTraceOptions): Promise<StateTrace<S, E>>;
     // (undocumented)
     readonly type: AggregateType;
 }

@@ -47,7 +47,7 @@ class ClusterProbes(
             "eshop-basket-service",
             80,
             "POST",
-            "/eshop-basket/basket/ivy-direct/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             body,
             "Content-Type" to "application/json",
             "Authorization" to "Bearer ${tokens.of(Who.buyer("ivy-direct"))}",

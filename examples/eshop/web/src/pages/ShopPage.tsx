@@ -113,14 +113,11 @@ export function ShopPage() {
     setNotice(undefined);
     setAdded(undefined);
     try {
-      await clients.basket.basket.commands.addBasketItem(
-        {
-          productId: record.aggregateId,
-          unitPrice: record.state.price,
-          quantity: 1,
-        },
-        { id: user.id },
-      );
+      await clients.basket.basket.commands.addBasketItemOwn({
+        productId: record.aggregateId,
+        unitPrice: record.state.price,
+        quantity: 1,
+      });
       setAdded(record.state.name);
     } catch (error) {
       setNotice(error);

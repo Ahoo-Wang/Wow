@@ -137,7 +137,8 @@ internal object ModelSource {
     }
 
     /**
-     * The aggregate's ownership when it is not the default, its state revision when it is not 1,
+     * The aggregate's ownership when it is not the default, its id source when its id is its owner's, its state
+     * revision when it is not 1,
      * the events it retired, the state member deriving its tags,
      * then its lifecycle commands when
      * `@AggregateRoot(lifecycle)` narrows them.
@@ -145,6 +146,9 @@ internal object ModelSource {
     private fun StringBuilder.renderOwnershipAndLifecycle(binding: AggregateBinding) {
         if (binding.ownership != "OWNER") {
             appendLine("        ownership(me.ahoo.wow.api.aggregate.Ownership.${binding.ownership})")
+        }
+        if (binding.ownsById) {
+            appendLine("        id(me.ahoo.wow.api.aggregate.AggregateIdSource.OWNER)")
         }
         if (binding.stateRevision != 1) {
             appendLine("        stateRevision(${binding.stateRevision})")

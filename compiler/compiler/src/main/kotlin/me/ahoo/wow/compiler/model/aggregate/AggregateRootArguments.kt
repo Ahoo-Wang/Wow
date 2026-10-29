@@ -18,6 +18,7 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -28,6 +29,7 @@ internal object AggregateRootArguments {
     private val AGGREGATE_ROOT = AggregateRoot::class.java.name
     private const val LIFECYCLE = "lifecycle"
     private const val OWNERSHIP = "ownership"
+    private const val ID_SOURCE = "idSource"
     private const val PUBLISHED = "published"
     private const val PUBLISH_STATE = "publishState"
     private const val TOPIC = "topic"
@@ -79,14 +81,31 @@ internal object AggregateRootArguments {
      * The aggregate's ownership as `@AggregateRoot(ownership)` declares it: the name of the
      * `Ownership` entry, `OWNER` by default.
      */
-    fun ownership(root: KSClassDeclaration): String {
+    fun ownership(root: KSClassDeclaration): String = enumArgument(root, OWNERSHIP) ?: Ownership.OWNER.name
+
+    /**
+     * Where the aggregate's id comes from as `@AggregateRoot(idSource)` declares it: the name of the
+     * `AggregateIdSource` entry, `ASSIGNED` by default. An id that is its owner's needs an aggregate of its owner: one
+     * of its tenant ([ownership] `TENANT`) is a problem.
+     */
+    fun idSource(root: KSClassDeclaration, ownership: String, problems: MutableList<String>): String {
+        val source = enumArgument(root, ID_SOURCE) ?: AggregateIdSource.ASSIGNED.name
+        if (source == AggregateIdSource.OWNER.name && ownership == Ownership.TENANT.name) {
+            problems += "@AggregateRoot(idSource = OWNER) needs an aggregate that belongs to its owner, but it belongs to " +
+                "its tenant (ownership = TENANT): it has no owner to take its id from"
+        }
+        return source
+    }
+
+    /** The name of the enum entry `@AggregateRoot`'s argument [name] holds, null when it is not given. */
+    private fun enumArgument(root: KSClassDeclaration, name: String): String? {
         val value = root.annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }?.arguments?.firstOrNull { it.name?.asString() == OWNERSHIP }?.value
+        }?.arguments?.firstOrNull { it.name?.asString() == name }?.value
         return when (value) {
             is KSType -> value.declaration.simpleName.asString()
             is KSDeclaration -> value.simpleName.asString()
-            null -> Ownership.OWNER.name
+            null -> null
             else -> value.toString().substringAfterLast('.')
         }
     }
@@ -94,16 +113,23 @@ internal object AggregateRootArguments {
     /**
      * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists, sorted; a class
      * that is not a lifecycle command is a problem. Without the argument, every one. An aggregate of its tenant
-     * has no owner to transfer: TransferOwner is left out of every one, and a problem when listed with
-     * fewer.
+     * has no owner to transfer, and one whose id is its owner's ([idSource] `OWNER`) cannot transfer it:
+     * TransferOwner is left out of every one, and a problem when listed with fewer.
      */
-    fun lifecycle(root: KSClassDeclaration, ownership: String, problems: MutableList<String>): List<String> {
+    fun lifecycle(
+        root: KSClassDeclaration,
+        ownership: String,
+        idSource: String,
+        problems: MutableList<String>,
+    ): List<String> {
         val annotation = root.annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
         }
         val tenant = ownership == Ownership.TENANT.name
+        val owned = idSource == AggregateIdSource.OWNER.name
+        val fixed = tenant || owned
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == LIFECYCLE }?.value as? List<*>
-            ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS.filterNot { tenant && it == TRANSFER_OWNER }
+            ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS.filterNot { fixed && it == TRANSFER_OWNER }
         val commands = LIFECYCLE_COMMANDS
         val names = listed.filterIsInstance<KSType>().mapNotNull { type ->
             val name = type.declaration.qualifiedName?.asString()
@@ -114,13 +140,18 @@ internal object AggregateRootArguments {
                 }
             }
         }.distinct().sorted()
-        if (!tenant || TRANSFER_OWNER !in names) {
+        if (!fixed || TRANSFER_OWNER !in names) {
             return names
         }
-        // Every one, as by default: a tenant's aggregate has no owner to transfer, so it drops TransferOwner.
+        // Every one, as by default: an aggregate whose owner is fixed drops TransferOwner.
         if (names != AggregateBinding.ALL_LIFECYCLE_COMMANDS) {
-            problems += "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
-                "(ownership = TENANT): it has no owner to transfer"
+            problems += if (tenant) {
+                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
+                    "(ownership = TENANT): it has no owner to transfer"
+            } else {
+                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's " +
+                    "(idSource = OWNER): its owner cannot be transferred"
+            }
         }
         return names - TRANSFER_OWNER
     }

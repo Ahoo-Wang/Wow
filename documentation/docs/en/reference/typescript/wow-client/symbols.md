@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -65,6 +65,7 @@ Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the fir
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest, or a module's fragment (without service), format 1. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
+| `OwnStateClient` | class | Reads the states of an aggregate type whose id is its owner's (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`): by id as `StateClient` does, for a caller with no owner, and the caller's own by no id, `GET /{context}/{aggregate}/state` and`…/state/trace`, its id the owner the caller reads as. | — |
 | `OwnerTransferred` | interface | The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. | — |
 | `Ownership` | type | How an aggregate belongs to its callers. | — |
 | `PROBLEM_TYPE_PREFIX` | const | The prefix of a problem's `type` that carries a Wow code. | — |
@@ -95,7 +96,7 @@ Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the fir
 | `SourceManifest` | interface | What a subscription reads: a context, aggregate types and events. | — |
 | `SpaceTransferred` | interface | The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. | — |
 | `Stage` | type, const | A `Stage` value. | — |
-| `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`. | — |
+| `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
 | `StateManifest` | interface | An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. | — |
 | `StateReadOptions` | interface | Which state a read asks for: the latest, at a version or as of a time. | — |
 | `StateReadResult` | type | A state read: the view and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |

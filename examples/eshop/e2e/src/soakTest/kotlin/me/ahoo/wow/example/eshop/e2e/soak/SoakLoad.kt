@@ -162,7 +162,7 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             "${order.buyer}:add",
             "add",
             "basket",
-            "/eshop-basket/basket/${order.buyer}/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             """{"productId":"${order.scenario.product}","unitPrice":${order.scenario.unitPrice},"quantity":${order.quantity}}""",
             buyer + (WAIT to "committed"),
         )
@@ -172,7 +172,7 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             "${order.buyer}:checkout",
             "checkout",
             "basket",
-            "/eshop-basket/basket/${order.buyer}/checkout-basket",
+            "/eshop-basket/basket/checkout-basket",
             "{}",
             buyer + mapOf(WAIT to order.scenario.wait, WAIT_TIMEOUT to "${config.waitTimeout.toSeconds()}s"),
         )

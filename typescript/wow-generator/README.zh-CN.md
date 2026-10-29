@@ -36,10 +36,12 @@ import { EshopBasketClient } from './generated/index.js';
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
 const { basket } = new EshopBasketClient({ fetcher });
 
-await basket.commands.addBasketItem(
-  { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
-  { id: 'buyer-1' },
-);
+// 购物车的 id 就是买家的 id：调用方自己的，不带 id。
+await basket.commands.addBasketItemOwn({
+  productId: 'p-1',
+  quantity: 2,
+  unitPrice: '10.00',
+});
 const page = await basket.snapshots.paged({ filter: filter.matchAll() });
 console.log(page.total);
 ```

@@ -40,6 +40,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/change-basket-item-quantity"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/change-basket-item-quantity"
         } ],
         "description" : "Change an item's quantity"
       }, {
@@ -51,6 +54,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/checkout-basket"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/checkout-basket"
         } ],
         "description" : "Check the basket out"
       }, {
@@ -62,6 +68,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/clear-basket"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/clear-basket"
         } ],
         "description" : "Clear the basket"
       }, {
@@ -73,6 +82,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/remove-basket-item"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/remove-basket-item"
         } ],
         "description" : "Remove an item from the basket"
       }, {
@@ -83,6 +95,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.apply-tags"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/wow.lifecycle.apply-tags"
         } ],
         "system" : true
       }, {
@@ -93,6 +108,9 @@
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-basket/basket/{id}"
+        }, {
+          "method" : "DELETE",
+          "path" : "/eshop-basket/basket"
         } ],
         "system" : true
       }, {
@@ -103,16 +121,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate"
-        } ],
-        "system" : true
-      }, {
-        "name" : "wow.lifecycle.TransferOwner",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
-        "creation" : "none",
-        "routes" : [ {
+        }, {
           "method" : "POST",
-          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner"
+          "path" : "/eshop-basket/basket/wow.lifecycle.restore-aggregate"
         } ],
         "system" : true
       }, {
@@ -123,6 +134,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-space"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/wow.lifecycle.transfer-space"
         } ],
         "system" : true
       }, {
@@ -185,7 +199,8 @@
           "method" : "GET",
           "path" : "/eshop-basket/basket/events/query"
         } ]
-      } ]
+      } ],
+      "idSource" : "owner"
     } ],
     "subscriptions" : [ {
       "name" : "BasketCheckoutSaga.onBasketCheckedOut",
@@ -218,10 +233,6 @@
       "code" : "eshop-basket.basket.item-not-found",
       "status" : 404,
       "description" : "The basket does not hold the product."
-    }, {
-      "code" : "eshop-basket.basket.not-owner",
-      "status" : 403,
-      "description" : "A basket belongs to the buyer whose id it has."
     } ]
   } ],
   "errors" : [ {
@@ -620,17 +631,6 @@
       "type" : "object",
       "description" : "Takes back the deletion of a deleted aggregate.",
       "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
-    },
-    "wow.lifecycle.TransferOwner" : {
-      "type" : "object",
-      "properties" : {
-        "ownerId" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "ownerId" ],
-      "description" : "Gives the aggregate to the owner ownerId.",
-      "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferOwner"
     },
     "wow.lifecycle.TransferSpace" : {
       "type" : "object",

@@ -13,7 +13,7 @@ export const EshopBasketContract = {
 } as const;
 
 /** An error code of `eshop-basket`, of the context or of one of its aggregates. */
-export type EshopBasketErrorCode = 'eshop-basket.basket.empty' | 'eshop-basket.basket.invalid-item' | 'eshop-basket.basket.item-not-found' | 'eshop-basket.basket.not-owner';
+export type EshopBasketErrorCode = 'eshop-basket.basket.empty' | 'eshop-basket.basket.invalid-item' | 'eshop-basket.basket.item-not-found';
 
 /** The subscriptions of `eshop-basket` a `handled` hop names. */
 export type EshopBasketSubscription = 'BasketCheckoutSaga.onBasketCheckedOut';
