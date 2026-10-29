@@ -15,6 +15,7 @@ package me.ahoo.wow.compiler.model.symbol
 
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnCommand
@@ -81,6 +82,34 @@ internal fun blocking(function: KSFunctionDeclaration, reactor: Boolean, warning
 /** The Reactor publisher type [function] returns, or null when it returns none. */
 internal fun reactorReturn(function: KSFunctionDeclaration): String? =
     function.returnType?.resolve()?.declaration?.qualifiedName?.asString()?.takeIf { it in ModelNames.REACTOR_TYPES }
+
+/**
+ * The Kotlin expression of this type's full Java type, built without reflection by the kernel's `Types`: null for a
+ * type without type arguments, which is found by its class alone. A type argument is its class
+ * (`X::class.javaObjectType`), or its own full type when it has arguments; `out T` is `? extends T`, `in T`
+ * `? super T`, and a star projection `?`.
+ */
+internal fun KSType.javaTypeOf(): String? {
+    if (arguments.isEmpty()) {
+        return null
+    }
+    val raw = "${declaration.qualifiedName!!.asString()}::class.java"
+    val arguments = arguments.joinToString(", ") { argument ->
+        val type = argument.type?.resolve()
+        when {
+            type == null || argument.variance == Variance.STAR -> "$TYPES.unbounded()"
+            argument.variance == Variance.COVARIANT -> "$TYPES.subtypeOf(${type.argumentOf()})"
+            argument.variance == Variance.CONTRAVARIANT -> "$TYPES.supertypeOf(${type.argumentOf()})"
+            else -> type.argumentOf()
+        }
+    }
+    return "$TYPES.parameterized($raw, $arguments)"
+}
+
+/** This type as a type argument: its full type, or its class. */
+private fun KSType.argumentOf(): String = javaTypeOf() ?: "${declaration.qualifiedName!!.asString()}::class.javaObjectType"
+
+private const val TYPES = "me.ahoo.wow.kernel.Types"
 
 /** This type's qualified name, with its type arguments (`*` for a star projection). */
 internal fun KSType.render(): String {

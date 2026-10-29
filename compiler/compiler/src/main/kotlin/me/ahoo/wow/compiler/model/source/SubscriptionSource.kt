@@ -264,13 +264,16 @@ internal object SubscriptionSource {
 
     /**
      * The lookup of [dependency] in the `dependencies` of a generated function that builds [building] with it: by its
-     * class and qualifier, cast to its type when it is generic.
+     * class and qualifier; a parameterized one by its full type too, naming the parameter, and cast to its type.
      */
     fun lookup(dependency: Dependency, building: String): String {
         val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType, $qualifier, \"${escape(
-            building
-        )}\")"
+        val raw = "${dependency.erasure}::class.javaObjectType"
+        val lookup = when (val fullType = dependency.fullType) {
+            null -> "dependencies.get($raw, $qualifier, \"${escape(building)}\")"
+            else -> "dependencies.get($raw, $fullType, $qualifier, \"${escape(building)}\", " +
+                "\"${escape(dependency.name)}\")"
+        }
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
     }
 

@@ -50,6 +50,7 @@ import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
 import me.ahoo.wow.compiler.model.symbol.handlerName
+import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 
 /**
  * Reads a subscription processor and checks its shape:
@@ -358,7 +359,7 @@ internal object SubscriptionResolver {
                 "qualifier names the dependency"
         }
         val name = parameter.name?.asString() ?: "dependency$index"
-        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier)
+        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
     }
 
     @Suppress("LongParameterList")

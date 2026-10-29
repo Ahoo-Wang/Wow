@@ -46,6 +46,7 @@ import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
+import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.toName
@@ -407,7 +408,7 @@ internal class AggregateAnalyzer(
             val simple = type.declaration.simpleName.asString().withFirst(Char::lowercaseChar) +
                 qualifier?.let(::identifierSuffix).orEmpty()
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
-            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString(), qualifier)
+            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString(), qualifier, type.javaTypeOf())
         }.name
     }
 

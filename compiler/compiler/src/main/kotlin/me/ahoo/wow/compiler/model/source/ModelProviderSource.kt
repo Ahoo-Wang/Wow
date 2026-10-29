@@ -36,7 +36,7 @@ internal object ModelProviderSource {
      * kernel refuses at startup a module generated for another, instead of failing on its first command. The
      * compiler's tests hold it equal to the kernel's.
      */
-    const val BINDING: Int = 3
+    const val BINDING: Int = 4
 
     /** `shop-domain` gives `ShopDomainModelProvider`. */
     fun className(module: String): String {
