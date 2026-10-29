@@ -66,6 +66,7 @@ public final class me/ahoo/wow/http/ops/WebhookNotifier$Format : java/lang/Enum 
 public final class me/ahoo/wow/http/problem/Problem {
 	public static final field ABOUT_BLANK Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/http/problem/Problem$Companion;
+	public static final field RETRY Ljava/lang/String;
 	public static final field TYPE_PREFIX Ljava/lang/String;
 	public static final field VERSION Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
@@ -73,7 +74,9 @@ public final class me/ahoo/wow/http/problem/Problem {
 	public final fun getDetail ()Ljava/lang/String;
 	public final fun getExtensions ()Ljava/util/Map;
 	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getRetry ()Lme/ahoo/wow/api/problem/Retry;
 	public final fun getRetryAfter ()Ljava/lang/Long;
+	public final fun getRetryAfterHeader ()Ljava/lang/Long;
 	public final fun getStatus ()I
 	public final fun getTitle ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/String;

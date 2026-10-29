@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery

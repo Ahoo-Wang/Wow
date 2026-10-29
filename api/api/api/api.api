@@ -388,34 +388,6 @@ public final class me/ahoo/wow/api/client/CommandRequest$Companion {
 	public final fun to (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/client/CommandRequest;
 }
 
-public final class me/ahoo/wow/api/client/RetryHint {
-	public static final field Companion Lme/ahoo/wow/api/client/RetryHint$Companion;
-	public static final field NONE Lme/ahoo/wow/api/client/RetryHint;
-	public fun <init> (ZZ)V
-	public synthetic fun <init> (ZZLkotlin/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (ZZLkotlin/time/Duration;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getRetryAfter-FghU774 ()Lkotlin/time/Duration;
-	public final fun getRetryable ()Z
-	public final fun getSameRequestId ()Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/client/RetryHint$Companion {
-}
-
-public final class me/ahoo/wow/api/client/WowProblemException : java/lang/RuntimeException {
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;)V
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;)V
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;)V
-	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getCode ()Ljava/lang/String;
-	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
-	public final fun getRetryHint ()Lme/ahoo/wow/api/client/RetryHint;
-	public final fun getStatus ()I
-}
-
 public final class me/ahoo/wow/api/decide/Causation {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -831,6 +803,28 @@ public final class me/ahoo/wow/api/lifecycle/TransferSpace$Companion {
 	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/TransferSpace;
 }
 
+public final class me/ahoo/wow/api/problem/Retry : java/lang/Enum {
+	public static final field NEW_REQUEST Lme/ahoo/wow/api/problem/Retry;
+	public static final field NONE Lme/ahoo/wow/api/problem/Retry;
+	public static final field SAME_REQUEST Lme/ahoo/wow/api/problem/Retry;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/problem/Retry;
+	public static fun values ()[Lme/ahoo/wow/api/problem/Retry;
+}
+
+public final class me/ahoo/wow/api/problem/WowProblemException : java/lang/RuntimeException {
+	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/problem/Retry;Lkotlin/time/Duration;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/problem/Retry;Lkotlin/time/Duration;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/problem/Retry;Lkotlin/time/Duration;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/problem/Retry;Lkotlin/time/Duration;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getRetry ()Lme/ahoo/wow/api/problem/Retry;
+	public final fun getRetryAfter-FghU774 ()Lkotlin/time/Duration;
+	public final fun getRetryable ()Z
+	public final fun getStatus ()I
+}
+
 public final class me/ahoo/wow/api/read/AggregateState {
 	public static final field Companion Lme/ahoo/wow/api/read/AggregateState$Companion;
 	public fun equals (Ljava/lang/Object;)Z
@@ -1096,6 +1090,7 @@ public final class me/ahoo/wow/api/result/FrameworkCodes {
 	public static final field LEDGER_STALE Ljava/lang/String;
 	public static final field NODE_CLOSING Ljava/lang/String;
 	public static final field NODE_STANDBY Ljava/lang/String;
+	public static final field PEER_UNAVAILABLE Ljava/lang/String;
 	public static final field PREFIX Ljava/lang/String;
 	public static final field QUERY_BUSY Ljava/lang/String;
 	public static final field QUERY_DATASET_NOT_FOUND Ljava/lang/String;

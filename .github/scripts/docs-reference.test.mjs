@@ -71,31 +71,42 @@ test('a property belongs to the group of its source type, else to the longest gr
   );
 });
 
-test('the framework codes are read from the ALL table, concatenated descriptions included, with their titles', () => {
-  const source = `object FrameworkErrors {
-    const val A: String = "wow.a"
-    const val B: String = "wow.b"
-    val ALL: List<ErrorManifest> = listOf(
-        ErrorManifest(A, 401, "Short."),
-        ErrorManifest(
-            B,
-            503,
-            "Long " +
-                "and \\"quoted\\".",
-        ),
-    )
-    val TITLES: Map<String, String> = mapOf(
-        A to "A title",
-        B to "B title",
-    )
-}`;
-  assert.deepEqual(frameworkErrors(source), [
-    { code: 'wow.a', status: 401, title: 'A title', description: 'Short.' },
+test('the framework codes are read from the error catalog snapshot, with their retry and titles', () => {
+  const snapshot = {
+    retry: { attempts: 5, backoffMillis: 200, maxWaitSeconds: 5 },
+    errors: [
+      {
+        name: 'A',
+        code: 'wow.a',
+        status: 401,
+        retry: 'none',
+        title: 'A title',
+        description: 'Short.',
+      },
+      {
+        name: 'B',
+        code: 'wow.b',
+        status: 503,
+        retry: 'same-request',
+        retryAfter: 1,
+        title: 'B title',
+      },
+    ],
+  };
+  assert.deepEqual(frameworkErrors(snapshot), [
+    {
+      code: 'wow.a',
+      status: 401,
+      retry: 'none',
+      title: 'A title',
+      description: 'Short.',
+    },
     {
       code: 'wow.b',
       status: 503,
+      retry: 'same-request',
       title: 'B title',
-      description: 'Long and "quoted".',
+      description: '',
     },
   ]);
 });

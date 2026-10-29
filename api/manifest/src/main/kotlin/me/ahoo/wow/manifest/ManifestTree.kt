@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.problem.Retry
+
 /**
  * The JSON shape of a [Manifest], as a tree of plain values: a JSON object is a `Map<String, Any?>` (insertion
  * ordered when written), an array a `List<Any?>`, and a scalar a `String`, `Number`, `Boolean` or null. Any JSON
@@ -81,7 +83,13 @@ object ManifestTree {
     )
 
     private fun writeError(error: ErrorManifest): Map<String, Any?> =
-        obj("code" to error.code, "status" to error.status, "description" to error.description)
+        obj(
+            "code" to error.code,
+            "status" to error.status,
+            "description" to error.description,
+            "retry" to error.retry.takeUnless { it == Retry.NONE }?.let(::wire),
+            "retryAfter" to error.retryAfter,
+        )
 
     private fun writeAggregate(aggregate: AggregateManifest): Map<String, Any?> = obj(
         "name" to aggregate.name,
@@ -263,7 +271,16 @@ object ManifestTree {
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
 
     private fun readError(node: Node): ErrorManifest =
-        ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
+        node.enumOrNull("retry", Retry.entries).let { retry ->
+            // A retry this reader does not know is none: it never retries what it cannot tell is safe to.
+            ErrorManifest(
+                node.string("code"),
+                node.int("status"),
+                node.stringOrNull("description"),
+                retry ?: Retry.NONE,
+                node.intOrNull("retryAfter").takeIf { retry != null },
+            )
+        }
 
     /** The aggregate of [node], or null, told, when its ownership is unknown to this reader. */
     private fun readAggregate(node: Node): AggregateManifest? {

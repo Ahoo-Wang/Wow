@@ -13,6 +13,11 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.CommandResult
+import kotlin.time.Duration.Companion.seconds
+
 /**
  * The framework's error codes and the HTTP status each is answered with: the
  * one table the Manifest's top-level `errors` ([Manifest.errors]) and the edge's problem+json answers both read.
@@ -71,6 +76,7 @@ object FrameworkErrors {
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
     const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
+    const val PEER_UNAVAILABLE: String = "wow.peer.unavailable"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
     const val DOMAIN_REJECTION_STATUS: Int = 422
@@ -78,7 +84,26 @@ object FrameworkErrors {
     /** The status of [AGGREGATE_VERSION_MISMATCH] when the request carried `If-Match`. */
     const val PRECONDITION_FAILED_STATUS: Int = 412
 
-    /** Every framework code, in the order of the status table. */
+    /**
+     * The `Retry-After` of every framework code a retry may get past: a store restarting or failing over, a busy lane or
+     * a closing node is back within seconds, and a client that waits a second spreads its retries rather than repeating
+     * them at once.
+     */
+    const val RETRY_AFTER_SECONDS: Int = 1
+
+    /**
+     * How often a client sends a request at most, the first time included, by default, when a retry may get past its
+     * error: the Kotlin client's `RetryPolicy.DEFAULT` and the TypeScript client's resumes alike.
+     */
+    const val RETRY_ATTEMPTS: Int = 5
+
+    /** The wait before a client's first retry without a `Retry-After`, doubled at each attempt, by default. */
+    const val RETRY_BACKOFF_MILLIS: Int = 200
+
+    /** The longest wait before a retry, by default: a backoff stops doubling there, a longer `Retry-After` fails. */
+    const val RETRY_MAX_WAIT_SECONDS: Int = 5
+
+    /** Every framework code, in the order of the status table, each with what a retry may do. */
     val ALL: List<ErrorManifest> = listOf(
         ErrorManifest(AUTH_UNAUTHENTICATED, 401, "The request carries no valid credentials."),
         ErrorManifest(AUTH_FORBIDDEN, 403, "The caller may not send this command."),
@@ -104,6 +129,8 @@ object FrameworkErrors {
             COMMAND_CONTENDED,
             409,
             "Concurrent writers kept winning the version; retrying with the same request id is safe.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(AGGREGATE_DELETED, 410, "The aggregate is deleted; only RestoreAggregate applies."),
         ErrorManifest(
@@ -111,11 +138,15 @@ object FrameworkErrors {
             429,
             "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; " +
                 "retry later.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             COMMAND_UNKNOWN,
             503,
             "Whether the command committed is unknown; retrying with the same request id is safe.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             COMMAND_FAILED,
@@ -133,17 +164,33 @@ object FrameworkErrors {
             "The command's handling produced an event its decide function or after hooks do not declare: a bug in " +
                 "the model, which the message names; it committed nothing.",
         ),
-        ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
-        ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
+        ErrorManifest(
+            NODE_CLOSING,
+            503,
+            "The node is shutting down; retry on another node.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS
+        ),
+        ErrorManifest(
+            NODE_STANDBY,
+            503,
+            "The node is on standby until the cut-over: it serves reads only.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS
+        ),
         ErrorManifest(
             STORAGE_UNAVAILABLE,
             503,
             "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             SCHEDULE_NOT_DUE,
             503,
             "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             SCHEDULE_JOB_INVALID,
@@ -165,6 +212,8 @@ object FrameworkErrors {
             WAIT_TIMEOUT,
             504,
             "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+            retry = Retry.SAME_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             ROUTE_MALFORMED,
@@ -200,11 +249,15 @@ object FrameworkErrors {
             409,
             "The state read asked for a version the aggregate has not reached within the wait; the problem carries " +
                 "its current version: retry later.",
+            retry = Retry.NEW_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             QUERY_BUSY,
             429,
             "The query was not run: its store has as many queries running as it allows; retry later.",
+            retry = Retry.NEW_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             QUERY_DATASET_UNAVAILABLE,
@@ -215,6 +268,14 @@ object FrameworkErrors {
             CALL_COMMAND_FORBIDDEN,
             403,
             "The calling service may not call this command: its wow.callers.<service>.commands do not list it.",
+        ),
+        ErrorManifest(
+            PEER_UNAVAILABLE,
+            503,
+            "A client reached no node of the peer, or lost the connection before a query's answer; nothing was " +
+                "changed, so the request may be sent again.",
+            retry = Retry.NEW_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
     )
 
@@ -262,10 +323,39 @@ object FrameworkErrors {
         QUERY_BUSY to "Query busy",
         QUERY_DATASET_UNAVAILABLE to "Dataset unavailable",
         CALL_COMMAND_FORBIDDEN to "Call forbidden",
+        PEER_UNAVAILABLE to "Peer unavailable",
     )
 
     /** [ALL] by code. */
     val BY_CODE: Map<String, ErrorManifest> = ALL.associateBy { it.code }
+
+    /**
+     * The exception of a request a boundary did not carry out for the framework [code], said as [message]: its status,
+     * retry and `Retry-After` as [ALL] declares them, a code it does not list a 500 no retry gets past. Each boundary
+     * (the in-process clients and queries, a client's transport) maps its own failures with it, once.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun problemOf(
+        code: String,
+        message: String,
+        result: CommandResult? = null,
+        cause: Throwable? = null,
+    ): WowProblemException {
+        val error = BY_CODE[code]
+        return WowProblemException(
+            code,
+            error?.status ?: INTERNAL_ERROR_STATUS,
+            error?.retry ?: Retry.NONE,
+            error?.retryAfter?.seconds,
+            message,
+            result,
+            cause,
+        )
+    }
+
+    /** The status of a framework code [ALL] does not list. */
+    const val INTERNAL_ERROR_STATUS: Int = 500
 
     /** The prefix every framework code, and no domain code, starts with. */
     const val PREFIX: String = "wow."

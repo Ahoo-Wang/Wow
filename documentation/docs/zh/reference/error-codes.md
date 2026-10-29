@@ -7,51 +7,52 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 
 # 错误码
 
-框架应答请求时使用的每个代码，即 `application/problem+json` 正文与命令结果中的 `code`，由 [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt) 生成；说明取自源码，为英文。领域拒绝的代码由领域自己定义，以 422 应答，除非宿主为它配置了别的状态（`wow.http.errors.[<code>].status`）。请求带 `If-Match` 时，`wow.aggregate.version-mismatch` 以 412 应答。
+框架应答请求时使用的每个代码，即 `application/problem+json` 正文与命令结果中的 `code`，由 [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt) 生成；说明取自源码，为英文。领域拒绝的代码由领域自己定义，以 422 应答，除非宿主为它配置了别的状态（`wow.http.errors.[<code>].status`）。请求带 `If-Match` 时，`wow.aggregate.version-mismatch` 以 412 应答。每个 problem 都以 `retry` 成员说明重试能做什么：`none`，重试同样失败；`same-request`，以同一个 `Wow-Request-Id` 再发；`new-request`，原样再发；只要重试可能成功，就带 `Retry-After`。领域自己的代码为 `none`。
 
 ## 框架错误码
 
-| 代码 | 状态 | 标题 | 含义 |
-| --- | --- | --- | --- |
-| `wow.auth.unauthenticated` | 401 | Unauthenticated | The request carries no valid credentials. |
-| `wow.auth.forbidden` | 403 | Command forbidden | The caller may not send this command. |
-| `wow.aggregate.forbidden` | 403 | Aggregate out of scope | The aggregate is outside the caller's scope. |
-| `wow.request.malformed` | 400 | Malformed request | A request header or parameter does not parse, or names what Wow does not take. |
-| `wow.command.malformed` | 400 | Malformed command | The command body cannot be read as the command type. |
-| `wow.command.invalid` | 400 | Invalid command | The command failed validation; the problem lists the violations. |
-| `wow.wait.invalid` | 400 | Invalid wait | The wait is not a chain the runtime can follow; the command was not run. |
-| `wow.command.unhandled` | 400 | Command not handled | The aggregate does not handle this command. |
-| `wow.aggregate.not-found` | 404 | Aggregate not found | The aggregate does not exist. |
-| `wow.aggregate.exists` | 409 | Aggregate exists | The aggregate already exists. |
-| `wow.aggregate.version-mismatch` | 409 | Version mismatch | The aggregate is not at the expected version (412 when the request carried If-Match). |
-| `wow.command.request-id-reused` | 409 | Request id reused | The request id was used by another command. |
-| `wow.command.contended` | 409 | Command contended | Concurrent writers kept winning the version; retrying with the same request id is safe. |
-| `wow.aggregate.deleted` | 410 | Aggregate deleted | The aggregate is deleted; only RestoreAggregate applies. |
-| `wow.command.busy` | 429 | Command busy | The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later. |
-| `wow.command.unknown` | 503 | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
-| `wow.command.failed` | 500 | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
-| `wow.command.refused` | 409 | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
-| `wow.command.undeclared-event` | 500 | Undeclared event | The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing. |
-| `wow.node.closing` | 503 | Node closing | The node is shutting down; retry on another node. |
-| `wow.node.standby` | 503 | Node on standby | The node is on standby until the cut-over: it serves reads only. |
-| `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
-| `wow.schedule.not-due` | 503 | Schedule not due | A scheduled command arrived too long before its due time on this node's clock; it is sent again later. |
-| `wow.schedule.job-invalid` | 400 | Invalid schedule job | The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled. |
-| `wow.ledger.stale` | 409 | Stale ledger action | The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. |
-| `wow.subscription.parked` | 500 | Subscription parked | A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes. |
-| `wow.wait.timeout` | 504 | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
-| `wow.route.malformed` | 400 | Malformed route request | A service route's parameter or body cannot be read as its type; the violation names the parameter. |
-| `wow.query.malformed` | 400 | Malformed query | The query body cannot be read as a query. |
-| `wow.query.invalid` | 400 | Invalid query | The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...). |
-| `wow.query.failed` | 500 | Query failed | The query backend failed to run the query. |
-| `wow.query.not-found` | 404 | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
-| `wow.query.dataset-not-found` | 404 | Dataset not found | No dataset of that name is served to the caller. |
-| `wow.query.too-many-groups` | 400 | Too many groups | An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. |
-| `wow.query.timeout` | 504 | Query timed out | The query ran longer than its budget allows; narrow it rather than run it again. |
-| `wow.query.min-version-not-reached` | 409 | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
-| `wow.query.busy` | 429 | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
-| `wow.query.dataset-unavailable` | 409 | Dataset unavailable | The dataset is served but cannot be queried now, for the reason the problem names (it needs revision). |
-| `wow.call.command-forbidden` | 403 | Call forbidden | The calling service may not call this command: its wow.callers.&lt;service&gt;.commands do not list it. |
+| 代码 | 状态 | 重试 | 标题 | 含义 |
+| --- | --- | --- | --- | --- |
+| `wow.auth.unauthenticated` | 401 | `none` | Unauthenticated | The request carries no valid credentials. |
+| `wow.auth.forbidden` | 403 | `none` | Command forbidden | The caller may not send this command. |
+| `wow.aggregate.forbidden` | 403 | `none` | Aggregate out of scope | The aggregate is outside the caller's scope. |
+| `wow.request.malformed` | 400 | `none` | Malformed request | A request header or parameter does not parse, or names what Wow does not take. |
+| `wow.command.malformed` | 400 | `none` | Malformed command | The command body cannot be read as the command type. |
+| `wow.command.invalid` | 400 | `none` | Invalid command | The command failed validation; the problem lists the violations. |
+| `wow.wait.invalid` | 400 | `none` | Invalid wait | The wait is not a chain the runtime can follow; the command was not run. |
+| `wow.command.unhandled` | 400 | `none` | Command not handled | The aggregate does not handle this command. |
+| `wow.aggregate.not-found` | 404 | `none` | Aggregate not found | The aggregate does not exist. |
+| `wow.aggregate.exists` | 409 | `none` | Aggregate exists | The aggregate already exists. |
+| `wow.aggregate.version-mismatch` | 409 | `none` | Version mismatch | The aggregate is not at the expected version (412 when the request carried If-Match). |
+| `wow.command.request-id-reused` | 409 | `none` | Request id reused | The request id was used by another command. |
+| `wow.command.contended` | 409 | `same-request` | Command contended | Concurrent writers kept winning the version; retrying with the same request id is safe. |
+| `wow.aggregate.deleted` | 410 | `none` | Aggregate deleted | The aggregate is deleted; only RestoreAggregate applies. |
+| `wow.command.busy` | 429 | `same-request` | Command busy | The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later. |
+| `wow.command.unknown` | 503 | `same-request` | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
+| `wow.command.failed` | 500 | `none` | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
+| `wow.command.refused` | 409 | `none` | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
+| `wow.command.undeclared-event` | 500 | `none` | Undeclared event | The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing. |
+| `wow.node.closing` | 503 | `same-request` | Node closing | The node is shutting down; retry on another node. |
+| `wow.node.standby` | 503 | `same-request` | Node on standby | The node is on standby until the cut-over: it serves reads only. |
+| `wow.storage.unavailable` | 503 | `same-request` | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
+| `wow.schedule.not-due` | 503 | `same-request` | Schedule not due | A scheduled command arrived too long before its due time on this node's clock; it is sent again later. |
+| `wow.schedule.job-invalid` | 400 | `none` | Invalid schedule job | The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled. |
+| `wow.ledger.stale` | 409 | `none` | Stale ledger action | The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. |
+| `wow.subscription.parked` | 500 | `none` | Subscription parked | A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes. |
+| `wow.wait.timeout` | 504 | `same-request` | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
+| `wow.route.malformed` | 400 | `none` | Malformed route request | A service route's parameter or body cannot be read as its type; the violation names the parameter. |
+| `wow.query.malformed` | 400 | `none` | Malformed query | The query body cannot be read as a query. |
+| `wow.query.invalid` | 400 | `none` | Invalid query | The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...). |
+| `wow.query.failed` | 500 | `none` | Query failed | The query backend failed to run the query. |
+| `wow.query.not-found` | 404 | `none` | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
+| `wow.query.dataset-not-found` | 404 | `none` | Dataset not found | No dataset of that name is served to the caller. |
+| `wow.query.too-many-groups` | 400 | `none` | Too many groups | An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. |
+| `wow.query.timeout` | 504 | `none` | Query timed out | The query ran longer than its budget allows; narrow it rather than run it again. |
+| `wow.query.min-version-not-reached` | 409 | `new-request` | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
+| `wow.query.busy` | 429 | `new-request` | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
+| `wow.query.dataset-unavailable` | 409 | `none` | Dataset unavailable | The dataset is served but cannot be queried now, for the reason the problem names (it needs revision). |
+| `wow.call.command-forbidden` | 403 | `none` | Call forbidden | The calling service may not call this command: its wow.callers.&lt;service&gt;.commands do not list it. |
+| `wow.peer.unavailable` | 503 | `new-request` | Peer unavailable | A client reached no node of the peer, or lost the connection before a query's answer; nothing was changed, so the request may be sent again. |
 
 ## 查询请求的代码
 

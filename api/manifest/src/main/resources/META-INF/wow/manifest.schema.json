@@ -372,7 +372,7 @@
     },
     "Error" : {
       "type" : "object",
-      "description" : "An error code and the HTTP status it is answered with.",
+      "description" : "An error code, the HTTP status it is answered with, and what a retry may do.",
       "required" : [ "code", "status" ],
       "properties" : {
         "code" : {
@@ -383,6 +383,16 @@
         },
         "description" : {
           "type" : "string"
+        },
+        "retry" : {
+          "type" : "string",
+          "enum" : [ "none", "same-request", "new-request" ],
+          "description" : "What a retry may do, as a problem of the code says: none when left out."
+        },
+        "retryAfter" : {
+          "type" : "integer",
+          "minimum" : 1,
+          "description" : "The seconds to wait before a retry, the problem's Retry-After; given with retry."
         }
       }
     },

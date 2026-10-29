@@ -34,7 +34,7 @@ import java.util.stream.Stream
  * ```
  *
  * A rejection is a [me.ahoo.wow.api.client.CommandRejectedException], a technical failure a
- * [me.ahoo.wow.api.client.WowProblemException], both unchecked; an asynchronous call's future completes with them.
+ * [me.ahoo.wow.api.problem.WowProblemException], both unchecked; an asynchronous call's future completes with them.
  */
 @JvmSuppressWildcards
 class JavaCommandClient private constructor(private val delegate: CommandClient) {

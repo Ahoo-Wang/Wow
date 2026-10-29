@@ -905,7 +905,7 @@
     "type" : "java.lang.Integer",
     "description" : "The most attempts of a request in all; 1 never retries.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
-    "defaultValue" : 3
+    "defaultValue" : 5
   }, {
     "name" : "wow.peer.retry.max-retry-after",
     "type" : "java.time.Duration",

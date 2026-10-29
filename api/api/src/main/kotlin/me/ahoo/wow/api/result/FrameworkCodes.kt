@@ -62,6 +62,9 @@ object FrameworkCodes {
     const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
+    /** A client reached no node of the peer, or lost a query's connection before its answer; it may be sent again. */
+    const val PEER_UNAVAILABLE: String = "wow.peer.unavailable"
+
     /** The prefix every framework code starts with, which a domain's own codes do not. */
     const val PREFIX: String = "wow."
 
@@ -107,5 +110,6 @@ object FrameworkCodes {
         QUERY_DATASET_NOT_FOUND,
         QUERY_TOO_MANY_GROUPS,
         CALL_COMMAND_FORBIDDEN,
+        PEER_UNAVAILABLE,
     )
 }

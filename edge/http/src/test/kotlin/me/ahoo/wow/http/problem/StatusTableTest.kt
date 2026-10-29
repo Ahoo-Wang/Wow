@@ -116,7 +116,7 @@ class StatusTableTest {
     fun `a problem without a code is about blank and leaves out what it does not have`() {
         val problem = Problem.ofStatus(org.springframework.http.HttpStatus.NOT_FOUND)
         problem.type.assert().isEqualTo(Problem.ABOUT_BLANK)
-        problem.members().keys.assert().containsExactly("type", "title", "status")
+        problem.members().keys.assert().containsExactly("type", "title", "status", "retry")
     }
 
     companion object {

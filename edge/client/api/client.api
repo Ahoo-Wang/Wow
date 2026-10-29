@@ -52,7 +52,6 @@ public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client
 
 public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
 	public static final field Companion Lme/ahoo/wow/client/HttpQueryApi$Companion;
-	public static final field MAX_RESUMES_WITHOUT_ROWS I
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
 	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
 }

@@ -19,6 +19,7 @@ import {
 } from '@ahoo-wang/fetcher-eventstream';
 import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
 import type { CommandResult } from './wire.js';
+import { DEFAULT_RETRY } from './frameworkErrors.js';
 import { isProblem, WowProblemError } from './problem.js';
 
 /** The event of each record of a streamed query list. */
@@ -99,13 +100,17 @@ export interface StreamResumeOptions {
   readonly lastEventId?: string;
   /**
    * How many times in a row the stream may be resumed without a record in
-   * between before it fails with what stopped it; 5 by default, 0 never
-   * resumes.
+   * between before it fails with what stopped it; by default one fewer than
+   * the catalog's attempts ({@link DEFAULT_RETRY}, as the Kotlin client), 0
+   * never resumes.
    */
   readonly maxRetries?: number;
-  /** The wait before the first such retry, doubled for each next; 200 ms by default. */
+  /**
+   * The wait before the first such retry, doubled for each next; the
+   * catalog's backoff by default ({@link DEFAULT_RETRY}).
+   */
   readonly initialDelayMs?: number;
-  /** The longest wait between retries; 10 s by default. */
+  /** The longest wait between retries; the catalog's by default ({@link DEFAULT_RETRY}). */
   readonly maxDelayMs?: number;
 }
 
@@ -161,9 +166,9 @@ export function resumableQueryRows<T>(
   } = {},
 ): ReadableStream<StreamedRow<T>> {
   const {
-    maxRetries = 5,
-    initialDelayMs = 200,
-    maxDelayMs = 10_000,
+    maxRetries = DEFAULT_RETRY.attempts - 1,
+    initialDelayMs = DEFAULT_RETRY.backoffMs,
+    maxDelayMs = DEFAULT_RETRY.maxWaitMs,
     signal,
   } = options;
   const numbers = options.numbers;
@@ -206,11 +211,11 @@ export function resumableQueryRows<T>(
       } catch (error) {
         if (
           signal?.aborted ||
-          (error instanceof WowProblemError && !error.retry.retryable)
+          (error instanceof WowProblemError && error.retry === 'none')
         ) {
           throw error;
         }
-        delayMs = (error as WowProblemError).retry?.afterMs;
+        delayMs = (error as WowProblemError).retryAfterMs;
         cause = error;
       }
     }
@@ -250,9 +255,9 @@ export function resumableQueryRows<T>(
               if (end.reason === HOLD_EXPIRED) delayMs = 0;
             } else if (event === ERROR_EVENT) {
               const error = problemOf(data);
-              if (!error.retry.retryable) throw error;
+              if (error.retry === 'none') throw error;
               stop = error;
-              delayMs = error.retry.afterMs;
+              delayMs = error.retryAfterMs;
             } else {
               continue;
             }
