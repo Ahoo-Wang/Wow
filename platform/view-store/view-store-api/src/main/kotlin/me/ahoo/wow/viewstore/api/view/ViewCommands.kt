@@ -19,8 +19,8 @@ import me.ahoo.wow.api.annotation.Summary
 /**
  * Saves a new view under the caller's owner, which is its audience: a user's, `(shared)` or, under the tenant
  * `(platform)`, `(system)`. The server generates its id unless the route names one, and takes its application from
- * the request's authenticated application, the request fact `app_id` (the request's `CoSec-App-Id` as CoSec
- * authorized it). The [config] is the view engine's `ViewConfig`, whole: the server checks only its
+ * the request's authenticated application, the request fact `app_id` (the app of the request's CoSec scope). The
+ * [config] is the view engine's `ViewConfig`, whole: the server checks only its
  * shape and size.
  */
 @CreateAggregate

@@ -51,7 +51,7 @@ dependencies {
     implementation("me.ahoo.wow:wow-mongo")
     // The `postgres` profile: the sources' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation("me.ahoo.wow:wow-postgres")
-    // The `cosec` profile (roadmap P.15): CoSec verifies each request's token, and the edge reads the caller from it.
+    // The `cosec` profile (roadmap P.15): CoSec reads the identity the CoSec gateway forwards, and the edge the caller.
     implementation("me.ahoo.wow:wow-cosec")
     implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)

@@ -13,9 +13,16 @@
 
 package me.ahoo.wow.ops.server
 
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.api.authorization.AuthorizeResult
+import kotlinx.coroutines.withContext
+import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.SecurityScope
 import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -33,9 +40,8 @@ import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource
-import reactor.core.publisher.Mono
+import reactor.util.context.Context
 import java.util.function.Supplier
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 @OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
 class OpsConfigurationTest {
@@ -56,30 +62,48 @@ class OpsConfigurationTest {
         Creation.NONE,
     )
 
-    /** The node's decision on [action] by [caller]: every authorizer the ops service and the host register, all asked. */
+    /** CoSec deciding here (enforce mode, its checker), permitting what [permits] says. */
+    private fun checker(permits: Boolean): AuthorizationChecker = mockk {
+        coEvery { check(any<SecurityContext>(), any<String>(), any<String>()) } returns permits
+    }
+
+    /** The security context CoSec's pipeline permitted [subject]'s request in, in CoSec's default tenant. */
+    private fun request(subject: String): SecurityContext = mockk(relaxed = true) {
+        every { scope } returns mockk<SecurityScope>(relaxed = true)
+        every { principal.id } returns subject
+        every { principal.anonymous } returns false
+        every { tenant.tenantId } returns Tenant.DEFAULT_TENANT_ID
+    }
+
+    /**
+     * The node's decision on [action] by [caller], within the request [security] when there is one: every authorizer
+     * the ops service and the host register, all asked.
+     */
     private fun authorize(
-        policies: CoSecAuthorization?,
+        checker: AuthorizationChecker?,
         authorizerEnabled: Boolean,
         caller: Caller = granted,
-        defaultTenant: String? = null,
         action: CommandAction = resume,
+        security: SecurityContext? = request(caller.subject!!),
     ): Authorization {
-        val properties = mutableMapOf<String, Any>("wow.cosec.authorizer.enabled" to authorizerEnabled)
-        defaultTenant?.let { properties["wow.tenant.default"] = it }
+        val properties = mapOf<String, Any>("wow.cosec.authorizer.enabled" to authorizerEnabled)
         return AnnotationConfigApplicationContext().use { context ->
             context.environment.propertySources.addFirst(MapPropertySource("test", properties))
             context.registerBean(Manifest::class.java, Supplier { Manifest() })
-            policies?.let { context.registerBean(CoSecAuthorization::class.java, Supplier { it }) }
+            checker?.let { context.registerBean(AuthorizationChecker::class.java, Supplier { it }) }
             context.register(CoSecAutoConfiguration::class.java, OpsConfiguration::class.java)
             context.refresh()
             val authorizers = context.getBeanProvider(CommandAuthorizer::class.java).orderedStream().toList()
-            runBlocking { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
+            runBlocking {
+                val reactor = security?.let { Context.of(SecurityContext.KEY, it) } ?: Context.empty()
+                withContext(ReactorContext(reactor)) { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
+            }
         }
     }
 
     @Test
     fun `a record should be refused whoever decides who the operators are, CoSec allowing all`() {
-        authorize({ _, _ -> Mono.just(AuthorizeResult.ALLOW) }, authorizerEnabled = true, action = record).assert()
+        authorize(checker(permits = true), authorizerEnabled = true, action = record).assert()
             .isInstanceOf(Authorization.Denied::class.java)
         val operator = Caller.of(
             subject = "alice",
@@ -91,30 +115,21 @@ class OpsConfigurationTest {
     }
 
     @Test
-    fun `CoSec's policies should decide who is an operator when its authorizer is on`() {
-        authorize({ _, _ -> Mono.just(AuthorizeResult.ALLOW) }, authorizerEnabled = true).assert()
-            .isEqualTo(Authorization.Allowed)
-        authorize({ _, _ -> Mono.just(AuthorizeResult.IMPLICIT_DENY) }, authorizerEnabled = true).assert()
+    fun `CoSec's policies should decide who is an operator where CoSec decides and its authorizer is on`() {
+        authorize(checker(permits = true), authorizerEnabled = true).assert().isEqualTo(Authorization.Allowed)
+        authorize(checker(permits = false), authorizerEnabled = true).assert()
             .isInstanceOf(Authorization.Denied::class.java)
+        // A command without a request of its own, a saga's, carries what admission authorized at its root.
+        authorize(checker(permits = false), authorizerEnabled = true, security = null).assert()
+            .isEqualTo(Authorization.Allowed)
     }
 
     @Test
-    fun `the operator's role should decide without CoSec's authorization or with its authorizer off`() {
-        authorize({ _, _ -> Mono.just(AuthorizeResult.ALLOW) }, authorizerEnabled = false).assert()
+    fun `the operator's role should decide behind the gateway, where CoSec decides nothing, or with it off`() {
+        authorize(checker(permits = true), authorizerEnabled = false).assert()
             .isInstanceOf(Authorization.Denied::class.java)
         authorize(null, authorizerEnabled = true).assert().isInstanceOf(Authorization.Denied::class.java)
-    }
-
-    @Test
-    fun `CoSec's policies should see Wow's default tenant, as configured, as CoSec's default one`() {
-        val tenants = mutableListOf<String>()
-        val policies = CoSecAuthorization { _, context ->
-            tenants += context.tenant.tenantId
-            Mono.just(AuthorizeResult.ALLOW)
-        }
-        authorize(policies, authorizerEnabled = true, caller = Caller.of(tenantId = "platform", subject = "grace"))
-        authorize(policies, true, Caller.of(tenantId = "platform", subject = "grace"), defaultTenant = "platform")
-        authorize(policies, true, Caller.of(subject = "grace"), defaultTenant = " ")
-        tenants.assert().containsExactly("platform", Tenant.DEFAULT_TENANT_ID, Tenant.DEFAULT_TENANT_ID)
+        authorize(null, authorizerEnabled = true, security = null).assert()
+            .isInstanceOf(Authorization.Denied::class.java)
     }
 }

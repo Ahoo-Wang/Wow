@@ -55,12 +55,14 @@ import kotlin.time.toKotlinDuration
 /**
  * The analytics catalog's beans: who calls it and what each caller may send or read, and the catalog's ports.
  *
- * - Who calls it: CoSec's callers, from the token the gateway verified and forwarded (the `cosec` profile, CoSec's
- *   inject mode); in development without CoSec, the host's, from the `Wow-*` identity headers any client sets
- *   (`DevelopmentCallerResolver`), of which a request without a user is no caller here ([requireSignedInCaller]): it is
- *   answered 401, as behind the gateway. A node outside development without CoSec does not start.
- * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
- *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
+ * - Who calls it: CoSec's callers, from the identity the CoSec gateway verified and forwarded (the `cosec` profile,
+ *   CoSec's gateway mode reading `CoSec-Identity`); in development without CoSec, the host's, from the `Wow-*`
+ *   identity headers any client sets (`DevelopmentCallerResolver`), of which a request without a user is no caller
+ *   here ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without
+ *   CoSec does not start.
+ * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec decides the requests
+ *   itself (its `AuthorizationChecker`) and `wow.cosec.authorizer.enabled` is on; what each may read:
+ *   [AnalyticsCatalogQueryPolicy].
  * - The ClickHouse client: one client of `wow.clickhouse.endpoint` and its credentials ([ClickHouseClients]) the
  *   catalog, its datasets' warehouse, and the host's Sink and dataset backend share, closed with the context.
  * - The catalog: the [WarehouseCatalog] of the ClickHouse server that client reaches, over

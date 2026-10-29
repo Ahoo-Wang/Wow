@@ -1,9 +1,10 @@
 # The ops service image (R.1): `./gradlew :ops-server:installDist` after
 # `pnpm --filter wow-ops-console... build`, which puts the console in the distribution's ui/. image-deploy.yml
 # builds it and tags only the release version: a pre-release never moves `latest`.
-# Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
-# (SPRING_PROFILES_ACTIVE=cosec), CoSec's inject mode behind the CoSec gateway: the gateway verifies each request's
-# CoSec token and the service parses it, with no secret (decision D296). Without CoSec it starts in a development
+# Callers: the image trusts no Wow-* identity header, and runs CoSec only in its `cosec` profile
+# (SPRING_PROFILES_ACTIVE=cosec), CoSec's gateway mode behind the CoSec gateway: the gateway verifies each request's
+# credential and forwards the identity it verified in CoSec-Identity, which the service reads, with no secret (decision
+# D296), so only the gateway may reach it. Without CoSec it starts in a development
 # profile alone (SPRING_PROFILES_ACTIVE=dev, of wow.dev-profiles), for a local run, which takes the callers from the
 # Wow-User, Wow-Tenant and Wow-Roles headers any client sets: elsewhere the service refuses to start. deploy runs it on Kubernetes.
 ARG APP_NAME=ops-server

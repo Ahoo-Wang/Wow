@@ -26,15 +26,16 @@ import org.springframework.context.annotation.Configuration
  * The ops service's beans: who calls it, and what each caller may send.
  *
  * Who calls it: CoSec's callers, the operator the edge's resolver reads from the security context CoSec put on the
- * request, which the `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded
- * (only the gateway reaches the service). In development without CoSec, the host's, from the `Wow-*` identity headers
- * any client sets (`DevelopmentCallerResolver`), of which a request without a user is no caller here
- * ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without CoSec does not
- * start.
+ * request, which the `cosec` profile has CoSec's gateway mode read from the identity the CoSec gateway verified and
+ * forwarded (`CoSec-Identity`; only the gateway reaches the service). In development without CoSec, the host's, from
+ * the `Wow-*` identity headers any client sets (`DevelopmentCallerResolver`), of which a request without a user is no
+ * caller here ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without
+ * CoSec does not start.
  *
  * What each caller may send: no caller may forge a record ([OpsAuthorizer]); whether a caller is an operator, CoSec's
- * policies of each action's own route when CoSec authorizes the commands and `wow.cosec.authorizer.enabled` is on
- * ([CoSecCommandAuthorizer]), else the operator's role among its CoSec roles ([OperatorRole]). An operator's
+ * policies of each action when CoSec decides the requests itself (its `AuthorizationChecker`, which a service behind
+ * the gateway has none of) and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else the operator's
+ * role among its CoSec roles ([OperatorRole]). An operator's
  * action is authorized here, as `ops.parked.Resume` and the others: the owning service runs the ledger command
  * the saga sends it through its command topic, and guards its own operator routes (`/wow/ops/parked`) itself.
  */

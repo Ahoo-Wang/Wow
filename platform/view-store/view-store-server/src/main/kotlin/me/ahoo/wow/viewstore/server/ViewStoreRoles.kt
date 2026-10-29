@@ -19,9 +19,9 @@ import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
- * The view store's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE] (from CoSec's token behind the
- * gateway, or the `Wow-Roles` header in development), and its reserved owners, which a caller acts as by naming them in
- * `Wow-Scope` ([ReservedScopeCallers]).
+ * The view store's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE] (from the identity the CoSec gateway
+ * forwards, or the `Wow-Roles` header in development), and its reserved owners, which a caller acts as by naming them
+ * in `Wow-Scope` ([ReservedScopeCallers]).
  */
 object ViewStoreRoles {
     /** The caller attribute listing its roles, as CoSec's resolver names it. */
