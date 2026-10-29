@@ -1,23 +1,22 @@
-public abstract class me/ahoo/wow/gradle/WowContract {
+public final class me/ahoo/wow/gradle/WowApiPlugin : org/gradle/api/Plugin {
 	public fun <init> ()V
-	public abstract fun getService ()Lorg/gradle/api/provider/Property;
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/Project;)V
 }
 
 public abstract class me/ahoo/wow/gradle/WowExtension {
 	public fun <init> ()V
-	public final fun contract (Lorg/gradle/api/Action;)V
 	public abstract fun getContext ()Lorg/gradle/api/provider/Property;
-	public abstract fun getContract ()Lme/ahoo/wow/gradle/WowContract;
-	public abstract fun getManifestBaseline ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getSchemaOverrides ()Lorg/gradle/api/provider/MapProperty;
-	public abstract fun getServiceName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getServiceVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getService ()Lorg/gradle/api/provider/Property;
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
+	public static final field API_ID Ljava/lang/String;
 	public static final field ASSEMBLE_CONTRACT_TASK Ljava/lang/String;
 	public static final field BASELINE_FILE Ljava/lang/String;
-	public static final field CHECK_COMPATIBILITY_TASK Ljava/lang/String;
+	public static final field CHECK_TASK Ljava/lang/String;
+	public static final field CONTRACTS_CONFIGURATION Ljava/lang/String;
 	public static final field CONTRACT_CONFIGURATION Ljava/lang/String;
 	public static final field CONTRACT_DOCS_TYPE Ljava/lang/String;
 	public static final field CONTRACT_ELEMENTS Ljava/lang/String;
@@ -28,11 +27,14 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;
 	public static final field GENERATE_CONTRACT_TASK Ljava/lang/String;
 	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
+	public static final field ID Ljava/lang/String;
+	public static final field INTEGRATION_TEST Ljava/lang/String;
 	public static final field MANIFEST_CLASSIFIER Ljava/lang/String;
 	public static final field MANIFEST_DOCS_TYPE Ljava/lang/String;
 	public static final field MANIFEST_ELEMENTS Ljava/lang/String;
 	public static final field MERGE_TASK Ljava/lang/String;
 	public static final field OPENAPI_TASK Ljava/lang/String;
+	public static final field SERVICE_ID Ljava/lang/String;
 	public static final field TOOLS_CONFIGURATION Ljava/lang/String;
 	public static final field UPDATE_BASELINE_TASK Ljava/lang/String;
 	public fun <init> ()V
@@ -44,5 +46,16 @@ public final class me/ahoo/wow/gradle/WowPlugin$Companion {
 	public final fun coreView (Ljava/lang/String;)Ljava/lang/String;
 	public final fun getAPI_VIEW ()Lorg/gradle/api/attributes/Attribute;
 	public final fun getVersion ()Ljava/lang/String;
+}
+
+public abstract class me/ahoo/wow/gradle/WowServiceExtension : me/ahoo/wow/gradle/WowExtension {
+	public fun <init> ()V
+	public abstract fun getManifestBaseline ()Lorg/gradle/api/file/RegularFileProperty;
+}
+
+public final class me/ahoo/wow/gradle/WowServicePlugin : org/gradle/api/Plugin {
+	public fun <init> ()V
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/Project;)V
 }
 

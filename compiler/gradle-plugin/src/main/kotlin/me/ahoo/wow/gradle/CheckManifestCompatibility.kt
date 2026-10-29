@@ -33,7 +33,7 @@ import javax.inject.Inject
  * Manifest of its last published version, and fails when a change breaks the contract within the baseline's major
  * version, listing each breaking change with its path (`contexts[shop].aggregates[cart].commands[AddItem]`). Every
  * change, additive or breaking, goes to [report]. A new major version resets the baseline: its breaking changes are
- * reported, not failed, and `updateManifestBaseline` records the new one. Without a baseline file there is nothing
+ * reported, not failed, and `updateWowManifestBaseline` records the new one. Without a baseline file there is nothing
  * to compare yet, and the report says so. It runs in an isolated worker with the tools, like [MergeManifest].
  */
 @CacheableTask
@@ -50,7 +50,7 @@ internal abstract class CheckManifestCompatibility @Inject constructor(
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val manifest: RegularFileProperty
 
-    /** The tools that compare the Manifests: the `wowManifestTools` configuration. */
+    /** The tools that compare the Manifests: the `wowTools` configuration. */
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 

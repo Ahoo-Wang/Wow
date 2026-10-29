@@ -34,7 +34,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-query` (protocol, DSL and engine) | `wow-query-api` (query types, the Kotlin DSL `me.ahoo.wow.api.query.dsl`, the field annotations) for domain and client code; `wow-query` (the engine, `QueryGateway`), which `wow-http` brings to a server; see [Queries](#queries) |
 | `wow-bom` 9.x | `wow-bom` of the V10 version, which constrains the V10 modules only |
 | `wow-models` (`EnumText`, `StatusCapable`, the `*Capable` interfaces, the `Tree` aggregate) | `wow-models` of the V10 version (the project `:models`, `extensions/models`, decision D187): the same packages (`me.ahoo.wow.models.common`, `me.ahoo.wow.models.tree`), so imports stay; a `Tree` subclass binds through the compiler (annotate its concrete create command `@AllowCreate`) |
-| `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
+| `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugins by role, of one version, each adding `platform("me.ahoo.wow:wow-bom:<its version>")`: `id("me.ahoo.wow")` on the domain module (KSP with `wow-compiler`, `wow-kernel`, `generateWowManifestFragment`, the `integrationTest` suite), `id("me.ahoo.wow.api")` on the api module, which declares `wowContract(project(":<x>-domain"))`, and `id("me.ahoo.wow.service")` on the server (`mergeWowManifest`, `checkWowManifest`); a single-module service applies `me.ahoo.wow.service` alone |
 | `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
 | In-memory stores and buses (`InMemoryEventStore`, `InMemorySnapshotStore`, ..., `wow-mock`) | No public in-memory store class: domain tests use `wow-test` (`aggregateSpec`, `sagaSpec` run on in-memory stores), a host uses `wow.backend: memory`, and a test without Kafka gives an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`). The kernel's other `InMemory*` stores are `@InternalWowApi` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
@@ -74,16 +74,28 @@ After, a downstream V10 domain module:
 ```kotlin
 plugins {
     kotlin("jvm")
+    // Brings wow-kernel and the BOM of its version.
     id("me.ahoo.wow") version "<pinned V10 version>"
 }
 dependencies {
     api(project(":ordering-api"))
-    // The generated models and the binding index return kernel types.
-    api("me.ahoo.wow:wow-kernel:<pinned V10 version>")
 }
 ```
 
-The eShop's domain modules apply KSP by hand with the plugin's options (`wow.model=generate`, `wow.manifest.module=<project>`), only because the plugin cannot be applied inside the build that produces it. A downstream module uses the plugin. The KSP option `wow.context` is needed only when the module has no single `@BoundedContext`.
+and its api module, which declares the domain module whose contract it carries:
+
+```kotlin
+plugins {
+    kotlin("jvm")
+    // Brings wow-api and the BOM of its version.
+    id("me.ahoo.wow.api") version "<pinned V10 version>"
+}
+dependencies {
+    wowContract(project(":ordering-domain"))
+}
+```
+
+The eShop's domain modules apply KSP by hand with the plugin's options (`wow.model=generate`, `wow.manifest.module=<project path>`), only because the plugins cannot be applied inside the build that produces them yet. A downstream module uses the plugins. The KSP option `wow.context` is needed only when the module has no single `@BoundedContext`.
 
 ## Annotation mapping
 
@@ -648,7 +660,7 @@ The client runs the gateway's admission in process: the caller is authorized, th
 A target pinned to an earlier V10 pre-release spelled Wow's own enumerations in upper snake case on the wire. They are lower-kebab now, and readers accept nothing else:
 
 - A command result's `status` (`succeeded`, `rejected`, `failed`), `hop.stage` (`accepted`, `committed`, `handled`) and `function.kind` (`command`, `saga`, …). Compare against these in client code, and regenerate TypeScript clients.
-- The Manifest's `creation` (`none`, `required`, `allowed`), `ownership` (`owner`, `tenant`), a subscription's `kind` and `start`, and a job's `scope` (`system`, `tenant`) and `misfire` (`coalesce`, `catch-up`). Re-record each Manifest baseline (`./gradlew updateManifestBaseline`) and regenerate TypeScript clients from it. A hand-written Manifest or contract fixture must use the new spelling: an entry with an unknown value is left out when read.
+- The Manifest's `creation` (`none`, `required`, `allowed`), `ownership` (`owner`, `tenant`), a subscription's `kind` and `start`, and a job's `scope` (`system`, `tenant`) and `misfire` (`coalesce`, `catch-up`). Re-record each Manifest baseline (`./gradlew updateWowManifestBaseline`) and regenerate TypeScript clients from it. A hand-written Manifest or contract fixture must use the new spelling: an entry with an unknown value is left out when read.
 - A command constraint violation's `code` is the constraint's name in lower-kebab: `NotBlank` is `not-blank`, `PositiveOrZero` is `positive-or-zero`.
 - CoSec's `wow.creation` attribute is lower-kebab too, so update a policy condition that matches it.
 - The failure ledger's values on the ops routes, in the ops service and console, and in the generic ops webhook are lower-kebab: an entry's `status` (`scheduled`, `exhausted`, `unrecoverable`, `resolved`), `recoverable` (`recoverable`, `unrecoverable`, `unknown`), `request` and `requested`, an action's or a resolution's `outcome` (`resumed`, `skipped`, `resolved`, `not-parked`), and the webhook's `event` (`parked`, `exhausted`). A webhook receiver that matches on `event` must change. The ledger's storage columns keep their spelling.

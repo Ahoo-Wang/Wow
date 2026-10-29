@@ -73,7 +73,7 @@ From that, Wow gives you an HTTP route for every command, a state read and queri
 
 ## Quickstart
 
-1. Apply the Gradle plugin `me.ahoo.wow` and the BOM `me.ahoo.wow:wow-bom`.
+1. Apply the Gradle plugin `me.ahoo.wow.service`, which brings the BOM `me.ahoo.wow:wow-bom` of its version.
 2. Write a command, an event, a state and an aggregate.
 3. `./gradlew run`, then send a command with `curl`.
 

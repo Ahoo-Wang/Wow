@@ -54,9 +54,9 @@ fun AttributeContainer.wowContract(objects: ObjectFactory) {
     attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
 }
 
-/** The `wowManifestTools` configuration of [project]: `:manifest-tools` and its runtime class path. */
-fun toolsOf(project: Project): Configuration = project.configurations.findByName("wowManifestTools")
-    ?: project.configurations.create("wowManifestTools") {
+/** The `wowTools` configuration of [project]: `:manifest-tools` and its runtime class path. */
+fun toolsOf(project: Project): Configuration = project.configurations.findByName("wowTools")
+    ?: project.configurations.create("wowTools") {
         description = "The tools the Manifest tasks run: :manifest-tools and its runtime class path."
         isCanBeConsumed = false
         isCanBeResolved = true
@@ -79,7 +79,7 @@ val generateWowContract = tasks.register("generateWowContract") {
     val fragments = completedFragments
     val tools: FileCollection = files(domainTools)
     val output = contractFile
-    // The service that hosts the module's contexts (decision D330), as the plugin's `wow { contract { service } }`.
+    // The service that hosts the module's contexts (decision D330), as the plugin's `wow { service }`.
     val service = findProperty("wowContractService")?.toString()
     inputs.property("service", service.orEmpty())
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")

@@ -732,7 +732,7 @@ class ManifestCompatibilityTest {
         ManifestJson.write(BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }, current)
 
         ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
-        report.readText().assert().contains("No Manifest baseline at $baseline: run updateManifestBaseline")
+        report.readText().assert().contains("No Manifest baseline at $baseline: run updateWowManifestBaseline")
 
         ManifestJson.write(BASELINE, baseline)
         val failure =
@@ -740,7 +740,7 @@ class ManifestCompatibilityTest {
         failure.message.assert().contains(
             "The Manifest has 1 breaking change(s) against its baseline $baseline:\n" +
                 "  - $CART.commands[AddItem]: command removed\n",
-            "run updateManifestBaseline",
+            "run updateWowManifestBaseline",
         )
         report.readText().assert().contains("BREAKING $CART.commands[AddItem]: command removed")
 

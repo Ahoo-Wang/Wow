@@ -26,7 +26,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | --- | --- |
 | `wow-spring-boot-starter` with capability variants | `wow-spring-boot` plus one module per technology: `wow-postgres`, `wow-mongo`, `wow-kafka`, `wow-http`, `wow-cosec` |
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-metadata`, `wow-schema` | `wow-kernel` and `wow-runtime`, `wow-http`, `wow-manifest` |
-| `ksp("me.ahoo.wow:wow-compiler")` by hand | The Gradle plugin `id("me.ahoo.wow")`, which applies KSP and the Manifest tasks |
+| `ksp("me.ahoo.wow:wow-compiler")` by hand | The Gradle plugins by role: `id("me.ahoo.wow")` on a domain module (KSP), `id("me.ahoo.wow.api")` on its api module, `id("me.ahoo.wow.service")` on the server (the Manifest tasks) |
 | `wow-query` in domain code | `wow-query-api`: the query types, the Kotlin DSL and the field annotations |
 | `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList`, built with their `of` factories or the DSL; code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>` |
 | `ListQuery(limit = 0)`, every match on the query gateway | `limit` left out takes the entry's default list size, and `0` is refused; every match is `queryApi.trusted().unbounded()` or `stream` |

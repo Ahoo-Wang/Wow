@@ -46,17 +46,20 @@ internal abstract class MergeManifest @Inject constructor(private val workers: W
     @get:Internal
     abstract val owners: MapProperty<String, String>
 
-    /** The tools that read and merge the fragments: the `wowManifestTools` configuration. */
+    /** The tools that read and merge the fragments: the `wowTools` configuration. */
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 
-    /** The service's name (`wow { serviceName }`); unset, the merge derives it ([defaultServiceName]). */
+    /**
+     * The service the module's own contexts name (`wow { service }`), which the contracts on the [classpath] must agree
+     * with; unset, the merge derives it from them, else [defaultServiceName].
+     */
     @get:Input
     @get:Optional
     abstract val serviceName: Property<String>
 
     /**
-     * The name of a service whose contexts' contracts name none, when [serviceName] is unset: the project's. The
+     * The name of a service whose contexts' contracts name none, when [serviceName] is unset: the project path's. The
      * contracts on the [classpath] that name one give it instead.
      */
     @get:Input

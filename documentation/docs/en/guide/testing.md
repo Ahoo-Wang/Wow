@@ -372,4 +372,4 @@ Domain tests cover the model. A service test starts the application and calls it
 - Give the test a caller resolver of its own that reads a test header, so each request has a tenant and an owner.
 - On the memory backend, snapshot queries answer only with `wow.query.memory.enabled: true`.
 - A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.transport=memory`.
-- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the module's `integrationTest` source set, which `check` does not run.
+- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the module's `integrationTest` test suite, which the Gradle plugins `me.ahoo.wow` and `me.ahoo.wow.service` register (JUnit Jupiter, the module's classes and everything `testImplementation` gives) and `check` does not run: put the sources under `src/integrationTest/kotlin` and run `./gradlew integrationTest`.

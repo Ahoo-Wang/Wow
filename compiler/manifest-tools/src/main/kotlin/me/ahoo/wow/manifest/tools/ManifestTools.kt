@@ -44,7 +44,7 @@ object ManifestTools {
      * Assembles the fragments found in the [classpath] entries into [output] as the node does at startup
      * ([ManifestAssembly]), each named after its entry's owner in [owners] (a project or a module, by the entry's
      * path), describing the service
-     * [serviceName] names, or else the one [serviceOf] derives; fails on a conflict, on
+     * [serviceOf] names: the one the contracts of its contexts and its own [serviceName] agree on; fails on a conflict, on
      * a schema reference no fragment resolves, on another context's event a handler takes whose aggregate the peer
      * contracts on the [classpath] do not say ([PeerSources]), or on a command a saga derives by its class that neither a context of
      * the service nor a peer contract on the [classpath] decides ([undecidedCommands]), or on two fragments of one
@@ -60,8 +60,10 @@ object ManifestTools {
         output: File,
     ): Int {
         val fragments = fragmentsOf(classpath, owners)
-        val contracts = classpath.mapNotNull(ManifestJson::contract)
-        val service = serviceName ?: serviceOf(fragments, contracts, defaultServiceName)
+        val contracts = classpath.mapNotNull { entry ->
+            ManifestJson.contract(entry)?.let { ManifestFragment(owners[entry.path] ?: entry.name, it.manifest) }
+        }
+        val service = serviceOf(fragments, contracts, serviceName, defaultServiceName)
         val manifest = ManifestAssembly.assemble(
             fragments,
             ServiceInfo(service, serviceVersion),
@@ -111,24 +113,27 @@ object ManifestTools {
 
     /**
      * The service that hosts the contexts of [fragments]: the one service the [contracts] of those contexts name
-     * (`wow { contract { service } }` of their domain modules), [defaultName] when none names one. A peer's contract,
-     * whose contexts have no fragment here, names its own service and is not counted.
+     * (`wow { service }` of their domain modules) and the module's own [own] (`wow { service }` of the service module,
+     * for its own contexts), [defaultName] when none names one. A peer's contract, whose contexts have no fragment
+     * here, names its own service and is not counted.
      *
-     * @throws IllegalStateException when the contracts name several services.
+     * @throws IllegalStateException when they name several services.
      */
     internal fun serviceOf(
         fragments: List<ManifestFragment>,
         contracts: List<ManifestFragment>,
+        own: String?,
         defaultName: String,
     ): String {
         val hosted = fragments.flatMap { it.manifest.contexts }.map { it.name }.toSet()
         val services = contracts.filter { contract -> contract.manifest.contexts.any { it.name in hosted } }
-            .mapNotNull { contract -> contract.manifest.service?.name?.let { it to contract.source } }
+            .mapNotNull { contract -> contract.manifest.service?.name?.let { it to contract.source } } +
+            listOfNotNull(own?.let { it to "the service module's wow { service }" })
         val names = services.map { it.first }.distinct()
         check(names.size <= 1) {
             "The contracts of the service's contexts name different services: " +
                 services.joinToString { (service, source) -> "$service ($source)" } +
-                "; name the service with wow { serviceName = \"…\" }."
+                "; the contexts a service hosts name one service, in their modules' wow { service = \"…\" }."
         }
         return names.singleOrNull() ?: defaultName
     }
@@ -232,5 +237,5 @@ object ManifestTools {
     /** The class of `wow-query-api` whose constants the generated query fields are. */
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
 
-    private const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
+    private const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
 }

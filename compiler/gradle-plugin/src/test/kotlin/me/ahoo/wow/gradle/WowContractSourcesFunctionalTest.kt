@@ -36,11 +36,12 @@ import java.util.zip.ZipFile
  * The code generated from the peer contract in the api jar (decisions D256 ①, D259; spike CG-0), built with the
  * plugin (Gradle TestKit):
  *
- * - `shop-domain` (context `shop`, aggregate `cart`) declares `api(project(":shop-api"))`: `shop-api` compiles
- *   `shopapi.ShopContract` from the contract it carries, and `shop-domain`'s tests use it;
- * - `shop-server` (Kotlin and Java sources) depends on `shop-domain`, `orders` (another Wow domain module, context
- *   `orders`), `client` (no Wow plugin) and `java-client` (Java only) on `shop-api`: each compiles against
- *   `ShopContract`;
+ * - `shop-api` (`me.ahoo.wow.api`) declares `wowContract(project(":shop-domain"))` (context `shop`, aggregate
+ *   `cart`), which depends on it in `api(...)`: `shop-api` compiles `shopapi.ShopContract` from the contract it
+ *   carries, and `shop-domain`'s tests use it;
+ * - `shop-server` (`me.ahoo.wow.service`, Kotlin and Java sources) depends on `shop-domain`, `orders` (a
+ *   single-module service, context `orders`), `client` (no Wow plugin) and `java-client` (Java only) on `shop-api`:
+ *   each compiles against `ShopContract`;
  * - `external`, a build of its own, compiles against the published `shop-api`.
  *
  * `wow-query-api` is on every class path, so the compiler writes `shopdomain.CartStateProperties` and the contract
@@ -64,7 +65,8 @@ class WowContractSourcesFunctionalTest {
     }
 
     private fun module(name: String, plugins: String, dependencies: String, extra: String = "") {
-        val wow = plugins.contains("me.ahoo.wow")
+        // A domain or service module runs the compiler; an api module does not.
+        val wow = plugins.contains("""id("${WowPlugin.ID}")""") || plugins.contains(WowPlugin.SERVICE_ID)
         val tools = if (wow) {
             """
             ksp(files(${classpath("wow.fixture.processorClasspath")}))
@@ -83,15 +85,18 @@ class WowContractSourcesFunctionalTest {
             group = "sample"
             version = "1.0.0"
 
-            repositories { mavenCentral() }
+            repositories {
+                mavenCentral()
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+            }
 
             dependencies {
                 implementation(files(${classpath("wow.fixture.compileClasspath")}))
                 $tools
                 $dependencies
             }
-            // An api module paired with a domain module runs the contract code generator of the tools too.
-            configurations.matching { it.name == "wowManifestTools" }.configureEach {
+            // An api module runs the contract code generator of the tools too.
+            configurations.matching { it.name == "wowTools" }.configureEach {
                 project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
             }
             $extra
@@ -289,7 +294,10 @@ class WowContractSourcesFunctionalTest {
             """
             plugins { `java-library` }
 
-            repositories { mavenCentral() }
+            repositories {
+                mavenCentral()
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+            }
 
             dependencies {
                 implementation(project(":shop-api"))
@@ -303,8 +311,8 @@ class WowContractSourcesFunctionalTest {
     /** `shop-api`, published with its sources into `repo`. */
     private fun shopApi() = module(
         "shop-api",
-        plugins = "`maven-publish`",
-        dependencies = "",
+        plugins = """id("${WowPlugin.API_ID}"); `maven-publish`""",
+        dependencies = """wowContract(project(":shop-domain"))""",
         extra = """
             java { withSourcesJar() }
             publishing {
@@ -326,7 +334,7 @@ class WowContractSourcesFunctionalTest {
         )
         write("gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
         shopApi()
-        module("shop-domain", plugins = """id("me.ahoo.wow")""", dependencies = """api(project(":shop-api"))""")
+        module("shop-domain", plugins = """id("${WowPlugin.ID}")""", dependencies = """api(project(":shop-api"))""")
         write(
             "shop-domain/src/main/kotlin/shopdomain/ShopContext.kt",
             """
@@ -342,12 +350,16 @@ class WowContractSourcesFunctionalTest {
         usage("shop-domain", sourceSet = "test")
         module(
             "shop-server",
-            plugins = """id("me.ahoo.wow")""",
+            plugins = """id("${WowPlugin.SERVICE_ID}")""",
             dependencies = """implementation(project(":shop-domain"))"""
         )
         usage("shop-server")
         viewUsage("shop-server")
-        module("orders", plugins = """id("me.ahoo.wow")""", dependencies = """implementation(project(":shop-api"))""")
+        module(
+            "orders",
+            plugins = """id("${WowPlugin.SERVICE_ID}")""",
+            dependencies = """implementation(project(":shop-api"))""",
+        )
         orders()
         usage("orders")
         module("client", plugins = "", dependencies = """implementation(project(":shop-api"))""")
@@ -508,6 +520,7 @@ class WowContractSourcesFunctionalTest {
 
             repositories {
                 maven { url = uri("${File(projectDir, "repo").path.replace("\\", "/")}") }
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
                 mavenCentral()
             }
 

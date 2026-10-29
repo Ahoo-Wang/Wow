@@ -16,7 +16,7 @@ body when none exists, replacing VERSION; edit the "What is in it" section after
 
 - **Maven Central**, by its explicit version: `me.ahoo.wow:wow-bom:VERSION`
   constrains every published module (`wow-api`, `wow-kernel`, `wow-runtime`, `wow-spring-boot`, `wow-postgres`,
-  `wow-mongo`, `wow-kafka`, `wow-test`, `wow-tck`, …); the Gradle plugin is `id("me.ahoo.wow") version "VERSION"`,
+  `wow-mongo`, `wow-kafka`, `wow-test`, `wow-tck`, …); the Gradle plugins are `id("me.ahoo.wow")`, `id("me.ahoo.wow.api")` and `id("me.ahoo.wow.service")` of `version "VERSION"`,
   resolved from Maven Central (add `mavenCentral()` to `pluginManagement.repositories`).
 - **npm**, under the `alpha` (or `beta`) dist-tag, never `latest`: `npm install @ahoo-wang/wow-client@VERSION`,
   `@ahoo-wang/wow-generator`, `@ahoo-wang/wow-view-engine`, `@ahoo-wang/wow-view-store`, `@ahoo-wang/wow-react`; the

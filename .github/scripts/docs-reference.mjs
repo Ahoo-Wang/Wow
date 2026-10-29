@@ -96,7 +96,7 @@ const WORDS = {
       description:
         'Every artifact a Wow release publishes to Maven Central, and what it holds.',
       intro: `Every artifact a release publishes to Maven Central under the group \`${GROUP}\`, generated from the build (\`abiProjects\` and \`publishedLibraries\` in [\`${BUILD}\`](${SOURCE}${BUILD})) and each module's own description. Import the BOM and leave the versions out:`,
-      bom: `\`implementation(platform("${GROUP}:wow-bom:<version>"))\`, then \`implementation("${GROUP}:wow-spring-boot")\` and the rest without a version. The Gradle plugin \`${GROUP}\` applies the compiler (KSP) and assembles the service's Manifest.`,
+      bom: `The Gradle plugins add \`platform("${GROUP}:wow-bom:<their version>")\`, so \`implementation("${GROUP}:wow-spring-boot")\` and the rest take no version (a build without them imports the BOM itself): \`${GROUP}\` applies the compiler (KSP) to a domain module, \`${GROUP}.api\` packages the contract into an api module, and \`${GROUP}.service\` assembles the service's Manifest.`,
       head: '| Artifact | Directory | Holds |',
       bomRow:
         'The BOM: the versions of every artifact below, which a build imports as a platform.',
@@ -172,7 +172,7 @@ const WORDS = {
       title: '模块与制品',
       description: 'Wow 每次发布到 Maven Central 的每个制品，以及它包含什么。',
       intro: `每次发布以 \`${GROUP}\` 为 group 发布到 Maven Central 的每个制品，由构建（[\`${BUILD}\`](${SOURCE}${BUILD}) 里的 \`abiProjects\` 与 \`publishedLibraries\`）与每个模块自己的 description 生成；说明取自源码，为英文。导入 BOM，其余制品不写版本：`,
-      bom: `\`implementation(platform("${GROUP}:wow-bom:<version>"))\`，然后 \`implementation("${GROUP}:wow-spring-boot")\` 等都不带版本。Gradle 插件 \`${GROUP}\` 接好编译器（KSP）并汇总服务的 Manifest。`,
+      bom: `Gradle 插件会加上 \`platform("${GROUP}:wow-bom:<其版本>")\`，所以 \`implementation("${GROUP}:wow-spring-boot")\` 等都不带版本（不用插件的构建自行导入 BOM）：\`${GROUP}\` 为领域模块接好编译器（KSP），\`${GROUP}.api\` 把契约打进 api 模块，\`${GROUP}.service\` 汇总服务的 Manifest。`,
       head: '| 制品 | 目录 | 内容 |',
       bomRow: 'BOM：下列每个制品的版本，构建以 platform 导入。',
       dependenciesRow:

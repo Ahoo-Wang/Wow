@@ -3,15 +3,15 @@
  * to an application: the plugin cannot be applied to a project of the build that produces it, so a server of the
  * example applies this script instead. Its service's name is derived as the plugin derives it: the one service the
  * contracts of the contexts it hosts name (their domain modules' `wowContractService`, the plugin's
- * `wow { contract { service } }`), the project's name when none does; `extra["wowService"]` names it explicitly, the
- * plugin's `wow { serviceName }`.
+ * `wow { service }`), the project path's when none does; `extra["wowService"]` names the server's own contexts' service,
+ * the service plugin's `wow { service }`, which must agree with them.
  *
  * - `mergeWowManifestWithSchemas` merges the Manifest fragments of the server's runtime class path, with their schemas,
  *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`).
- * - `checkManifestCompatibility`, part of `check`, compares it with the committed baseline `manifest/baseline.json`
+ * - `checkWowManifest`, part of `check`, compares it with the committed baseline `manifest/baseline.json`
  *   (`ManifestTools.checkCompatibility`): a change that breaks the contract within the baseline's major version fails
  *   the build with each breaking change and its path; `build/wow/manifest-compatibility.txt` lists every change.
- * - `updateManifestBaseline` records the merged Manifest as the baseline; commit it.
+ * - `updateWowManifestBaseline` records the merged Manifest as the baseline; commit it.
  * - `checkManifestBaseline`, part of `check`, fails when the merged Manifest is not byte for byte the committed
  *   baseline, so a change the compatibility check only reports (an additive one, a dropped `derives`) cannot leave
  *   the baseline, and the clients generated from it, behind.
@@ -25,7 +25,7 @@ import java.net.URLClassLoader
 // The project's own extra only, as the plugin's `wow { serviceName }`: no -P, gradle.properties or parent value.
 val wowService: String? = if (extra.has("wowService")) extra["wowService"].toString() else null
 
-val wowManifestTools: Configuration = configurations.maybeCreate("wowManifestTools").apply {
+val wowTools: Configuration = configurations.maybeCreate("wowTools").apply {
     description = "The tools the Manifest tasks run: :manifest-tools and its runtime class path."
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -37,7 +37,7 @@ val wowManifestTools: Configuration = configurations.maybeCreate("wowManifestToo
     }
 }
 dependencies {
-    add(wowManifestTools.name, project(":manifest-tools"))
+    add(wowTools.name, project(":manifest-tools"))
 }
 
 /** Calls [method] of `ManifestTools` in a class loader over [tools], rethrowing what it throws. */
@@ -62,7 +62,7 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
     group = "wow"
     description = "Merges the Manifest fragments of the runtime class path, with their schemas, into the service's Manifest."
     val classpath = files(configurations.named("runtimeClasspath"), serverOutput)
-    val tools = wowManifestTools
+    val tools = wowTools
     val service = wowService
     // The project path, as the plugin names a service (D363 ②).
     val defaultService = path.removePrefix(":").replace(':', '-')
@@ -89,9 +89,9 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
     }
 }
 
-val updateManifestBaseline = tasks.register("updateManifestBaseline") {
+val updateWowManifestBaseline = tasks.register("updateWowManifestBaseline") {
     group = "wow"
-    description = "Records the merged Manifest as the baseline checkManifestCompatibility compares with."
+    description = "Records the merged Manifest as the baseline checkWowManifest compares with."
     val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
     val baseline = baselineFile
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
@@ -101,12 +101,12 @@ val updateManifestBaseline = tasks.register("updateManifestBaseline") {
     }
 }
 
-val checkManifestCompatibility = tasks.register("checkManifestCompatibility") {
+val checkWowManifest = tasks.register("checkWowManifest") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Fails on a change of the merged Manifest that breaks its baseline within the major version."
     val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
     val baseline = baselineFile
-    val tools = wowManifestTools
+    val tools = wowTools
     val report = layout.buildDirectory.file("wow/manifest-compatibility.txt")
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
     inputs.files(baseline).withPathSensitivity(PathSensitivity.NONE).withPropertyName("baseline")
@@ -114,7 +114,7 @@ val checkManifestCompatibility = tasks.register("checkManifestCompatibility") {
     outputs.file(report)
     outputs.cacheIf { true }
     // Recording the baseline and checking against it in one build checks the new baseline.
-    mustRunAfter(updateManifestBaseline)
+    mustRunAfter(updateWowManifestBaseline)
     doLast {
         manifestTools(tools.files, "checkCompatibility", baseline.asFile, manifest.get().asFile, report.get().asFile)
     }
@@ -122,14 +122,14 @@ val checkManifestCompatibility = tasks.register("checkManifestCompatibility") {
 
 val checkManifestBaseline = tasks.register("checkManifestBaseline") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Fails when the merged Manifest differs from the committed baseline: run updateManifestBaseline."
+    description = "Fails when the merged Manifest differs from the committed baseline: run updateWowManifestBaseline."
     val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
     val baseline = baselineFile
     val path = rootDir.toPath().relativize(baselineFile.asFile.toPath()).toString()
-    val update = "${project.path}:updateManifestBaseline"
+    val update = "${project.path}:updateWowManifestBaseline"
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
     inputs.files(baseline).withPathSensitivity(PathSensitivity.NONE).withPropertyName("baseline")
-    mustRunAfter(updateManifestBaseline)
+    mustRunAfter(updateWowManifestBaseline)
     doLast {
         val recorded = baseline.asFile
         if (!recorded.isFile || !recorded.readBytes().contentEquals(manifest.get().asFile.readBytes())) {
@@ -142,6 +142,6 @@ val checkManifestBaseline = tasks.register("checkManifestBaseline") {
 }
 
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
-    dependsOn(checkManifestCompatibility)
+    dependsOn(checkWowManifest)
     dependsOn(checkManifestBaseline)
 }

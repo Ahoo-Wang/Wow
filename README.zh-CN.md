@@ -73,7 +73,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 
 ## 快速开始
 
-1. 应用 Gradle 插件 `me.ahoo.wow` 和 BOM `me.ahoo.wow:wow-bom`。
+1. 应用 Gradle 插件 `me.ahoo.wow.service`，它带来同版本的 BOM `me.ahoo.wow:wow-bom`。
 2. 编写一条命令、一个事件、一个状态和一个聚合。
 3. `./gradlew run`，然后用 `curl` 发送一条命令。
 

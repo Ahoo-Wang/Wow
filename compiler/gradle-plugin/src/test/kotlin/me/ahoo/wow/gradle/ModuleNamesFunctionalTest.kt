@@ -26,7 +26,7 @@ import java.util.zip.ZipFile
 /**
  * Modules are named by their project paths (decision D363 ②, finding G1): two domain modules both named `domain`, of
  * the contexts `orders` and `billing`, keep a fragment each, and the service merges both contexts under the name of
- * its own path. Named by `project.name`, both fragments were `domain.json`, and the node read one of them alone.
+ * its own path. The service module has no model of its own, so it contributes no fragment (D363 ①). Named by `project.name`, both fragments were `domain.json`, and the node read one of them alone.
  */
 class ModuleNamesFunctionalTest {
     private fun classpath(property: String): String =
@@ -38,22 +38,25 @@ class ModuleNamesFunctionalTest {
         File(root, path).apply { parentFile.mkdirs() }.writeText(content.trimIndent())
     }
 
-    private fun module(root: File, path: String, dependencies: String = "") {
+    private fun module(root: File, path: String, dependencies: String = "", id: String = WowPlugin.ID) {
         write(
             root,
             "$path/build.gradle.kts",
             """
             plugins {
                 id("org.jetbrains.kotlin.jvm")
-                id("me.ahoo.wow")
+                id("$id")
             }
 
-            repositories { mavenCentral() }
+            repositories {
+                mavenCentral()
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+            }
 
             dependencies {
                 implementation(files(${classpath("wow.fixture.compileClasspath")}))
                 ksp(files(${classpath("wow.fixture.processorClasspath")}))
-                wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
+                wowTools(files(${classpath("wow.fixture.toolsClasspath")}))
                 $dependencies
             }
             """,
@@ -106,17 +109,26 @@ class ModuleNamesFunctionalTest {
         module(
             root,
             "app/server",
+            id = WowPlugin.SERVICE_ID,
             dependencies = """
                 implementation(project(":orders:domain"))
                 implementation(project(":billing:domain"))
             """,
         )
         GradleRunner.create().withProjectDir(root).withPluginClasspath().forwardOutput()
-            .withArguments(":app:server:${WowPlugin.MERGE_TASK}", ":orders:domain:jar", ":billing:domain:jar")
+            .withArguments(
+                ":app:server:${WowPlugin.MERGE_TASK}",
+                ":app:server:${WowPlugin.GENERATE_CONTRACT_TASK}",
+                ":orders:domain:jar",
+                ":billing:domain:jar",
+            )
             .build()
         val manifest = ManifestJson.read(File(root, "app/server/build/wow/manifest.json"))
         manifest.contexts.map { it.name }.assert().containsExactly("billing", "orders")
         manifest.service.assert().isEqualTo(ServiceInfo("app-server", "unspecified"))
+        // The server has no model or processor of its own: no fragment, and an empty contract.
+        File(root, "app/server/build/wow/manifest-fragment/${Manifest.FRAGMENT_DIRECTORY}").exists().assert().isFalse()
+        ManifestJson.read(File(root, "app/server/build/wow/contract.json")).contexts.assert().isEmpty()
         mapOf("orders" to "orders-domain", "billing" to "billing-domain").forEach { (context, module) ->
             ZipFile(File(root, "$context/domain/build/libs/domain.jar")).use { jar ->
                 jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/$module.json").assert().isNotNull()

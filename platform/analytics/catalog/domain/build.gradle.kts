@@ -16,7 +16,7 @@ ksp {
 // The plugin's completion of the fragment with the schemas of the types (decision D73): the source's state schema is
 // what a query of the sources reads.
 // The service that hosts the contexts, which a peer of the api module finds by this name (decision D330); the
-// plugin's `wow { contract { service = "analytics-catalog-service" } }`.
+// plugin's `wow { service = "analytics-catalog-service" }`.
 extra["wowContractService"] = "analytics-catalog-service"
 apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 

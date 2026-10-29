@@ -86,7 +86,7 @@ api/api/                    :api            The programming model: annotations, 
 api/manifest/               :manifest       The Manifest every projection reads; plain data
 api/query-api/              :query-api      Query protocol: filters, aggregation, windows
 compiler/compiler/          :compiler       KSP: aggregate models and Manifest fragments from the annotations
-compiler/gradle-plugin/     :gradle-plugin  Gradle plugin `me.ahoo.wow`: applies KSP and the compiler, assembles the Manifest
+compiler/gradle-plugin/     :gradle-plugin  Gradle plugins `me.ahoo.wow` (domain), `me.ahoo.wow.api`, `me.ahoo.wow.service` (Manifest)
 compiler/manifest-tools/    :manifest-tools Completes Manifest fragments with schemas and merges them
 core/spi/                   :spi            Ports a backend implements: log, snapshots, checkpoints, leases, ledger
 core/kernel/                :kernel         Aggregate model and the decide, evolve, append loop
@@ -150,7 +150,7 @@ The project version is the `version` property in `gradle.properties`. Maven and 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 
 1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `platform/ops/console/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
-2. Update the ones that track the release by hand: the services' `manifest/baseline.json` (`./gradlew updateManifestBaseline`), and `documentation/docs/{en,zh}/start/quickstart.md`, `existing-project.md` and any other docs page that pins the version. The docs are the Wow 10 docs, so they move with every 10.x release, pre-releases included; the 9.x docs live on `v9`. The README shows no Wow version, the OpenAPI snapshots (`edge/openapi/src/test/resources/openapi/`) record none, and the design records under `documentation/designs/` keep the versions they name.
+2. Update the ones that track the release by hand: the services' `manifest/baseline.json` (`./gradlew updateWowManifestBaseline`), and `documentation/docs/{en,zh}/start/quickstart.md`, `existing-project.md` and any other docs page that pins the version. The docs are the Wow 10 docs, so they move with every 10.x release, pre-releases included; the 9.x docs live on `v9`. The README shows no Wow version, the OpenAPI snapshots (`edge/openapi/src/test/resources/openapi/`) record none, and the design records under `documentation/designs/` keep the versions they name.
 3. `pnpm check:versions` confirms every `package.json` matches; the `quality` job of `ci.yml` runs the same check.
 
 Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A change breaks when it changes public API (Kotlin, or a published npm package), REST behaviour, configuration, storage or wire formats; mark it with `!` in the conventional commit, or tick the PR template's **Breaking** box (it labels the PR `breaking-change`), and give the description a `## Breaking` section saying who is affected and how to migrate. A `## Behaviour changes` section is for user-visible changes that are not breaking; it adds no label. Release admission enforces this, and requires the x.Y.0 release notes to name each such PR. Wow keeps no compatibility code (decision D1): a replaced API goes in the same release instead of being deprecated, and `:architecture` rejects `@Deprecated` declarations and `compat(...)` markers.

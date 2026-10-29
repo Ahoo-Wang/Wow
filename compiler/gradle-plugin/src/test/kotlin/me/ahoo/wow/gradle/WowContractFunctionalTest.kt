@@ -30,12 +30,14 @@ import java.util.zip.ZipFile
 /**
  * The peer contract in the api jar (decision D234), built with the plugin (Gradle TestKit):
  *
- * - `shop-domain` (context `shop`) and `audit-domain` (context `audit`) both declare `api(project(":shop-api"))`,
- *   which holds the commands and events of both: its jar carries both contexts, and is published;
- * - `billing-domain` (context `billing`) declares `shop-api` and `billing-api`, which holds its classes: only
- *   `billing-api` carries `billing`;
+ * - `shop-api` (`me.ahoo.wow.api`) declares `wowContract(project(":shop-domain"))` (context `shop`) and
+ *   `wowContract(project(":audit-domain"))` (context `audit`), which depend on it: it holds the commands and events of
+ *   both, so its jar carries both contexts, and is published;
+ * - `billing-domain` (context `billing`) depends on `shop-api` and on `billing-api`, which declares it and holds its
+ *   classes: only `billing-api` carries `billing`;
  * - `broken-domain` keeps an event of its context outside `broken-api`: assembling `broken-api`'s contract fails;
- * - `orders` (context `orders`) depends on `shop-api` alone, and merges its own Manifest.
+ * - `orders` (context `orders`), a single-module service (`me.ahoo.wow.service`), depends on `shop-api` alone, and
+ *   merges its own Manifest; the servers (`me.ahoo.wow.service`) host the contexts of the domain modules.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WowContractFunctionalTest {
@@ -52,10 +54,10 @@ class WowContractFunctionalTest {
         File(projectDir, path).apply { parentFile.mkdirs() }.writeText(content.trimIndent())
     }
 
-    /** A domain module (the Kotlin and Wow plugins) or, with [wow] false, an api module (Kotlin alone). */
-    private fun module(name: String, wow: Boolean, dependencies: String = "", extra: String = "") {
-        val plugins = if (wow) """id("me.ahoo.wow")""" else "`maven-publish`"
-        val tools = if (wow) {
+    /** A module of the Kotlin plugin and the Wow plugin [id]: a domain, a service, or a published api module. */
+    private fun module(name: String, id: String, dependencies: String = "", extra: String = "") {
+        val plugins = if (id == WowPlugin.API_ID) """id("$id"); `maven-publish`""" else """id("$id")"""
+        val tools = if (id != WowPlugin.API_ID) {
             """
             ksp(files(${classpath("wow.fixture.processorClasspath")}))
             """
@@ -73,15 +75,18 @@ class WowContractFunctionalTest {
             group = "sample"
             version = "1.0.0"
 
-            repositories { mavenCentral() }
+            repositories {
+                mavenCentral()
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+            }
 
             dependencies {
                 implementation(files(${classpath("wow.fixture.compileClasspath")}))
                 $tools
                 $dependencies
             }
-            // An api module paired with a domain module runs the contract code generator of the tools too.
-            configurations.matching { it.name == "wowManifestTools" }.configureEach {
+            // An api module runs the contract code generator of the tools too.
+            configurations.matching { it.name == "wowTools" }.configureEach {
                 project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
             }
             $extra
@@ -153,7 +158,7 @@ class WowContractFunctionalTest {
             rootProject.name = "services"
             include("shop-api", "shop-domain", "audit-domain", "billing-api", "billing-domain", "orders")
             include("broken-api", "broken-domain")
-            include("shop-server", "mixed-server", "named-server")
+            include("shop-server", "mixed-server")
             """,
         )
         write(
@@ -165,7 +170,8 @@ class WowContractFunctionalTest {
         )
         module(
             "shop-api",
-            wow = false,
+            WowPlugin.API_ID,
+            dependencies = """wowContract(project(":shop-domain")); wowContract(project(":audit-domain"))""",
             extra = """
                 publishing {
                     publications { create<MavenPublication>("api") { from(components["java"]) } }
@@ -175,20 +181,20 @@ class WowContractFunctionalTest {
         )
         messages("shop-api", "shopapi", "Cart")
         messages("shop-api", "shopapi.audit", "Record")
-        module("shop-domain", wow = true, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
+        module("shop-domain", WowPlugin.ID, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
         aggregate("shop-domain", "shop", "Cart", "shopapi")
-        module("audit-domain", wow = true, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
+        module("audit-domain", WowPlugin.ID, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
         aggregate("audit-domain", "audit", "Record", "shopapi.audit")
-        module("billing-api", wow = false)
+        module("billing-api", WowPlugin.API_ID, dependencies = """wowContract(project(":billing-domain"))""")
         messages("billing-api", "billingapi", "Invoice")
         module(
             "billing-domain",
-            wow = true,
+            WowPlugin.ID,
             dependencies = """api(project(":billing-api")); api(project(":shop-api"))""",
-            extra = """wow { contract { service = "billing-service" } }""",
+            extra = """wow { service = "billing-service" }""",
         )
         aggregate("billing-domain", "billing", "Invoice", "billingapi")
-        module("orders", wow = true, dependencies = """implementation(project(":shop-api"))""")
+        module("orders", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":shop-api"))""")
         messages("orders", "orders.api", "Order")
         aggregate("orders", "orders", "Order", "orders.api")
         broken()
@@ -198,7 +204,6 @@ class WowContractFunctionalTest {
             ":billing-api:jar",
             ":orders:${WowPlugin.MERGE_TASK}",
             ":shop-server:${WowPlugin.MERGE_TASK}",
-            ":named-server:${WowPlugin.MERGE_TASK}",
             ":shop-domain:jar",
             "--configuration-cache",
         ).build()
@@ -207,15 +212,14 @@ class WowContractFunctionalTest {
     /** Servers that host the contexts of other modules, with no code of their own. */
     private fun servers() {
         val shopAndAudit = """implementation(project(":shop-domain")); implementation(project(":audit-domain"))"""
-        module("shop-server", wow = true, dependencies = shopAndAudit)
+        module("shop-server", WowPlugin.SERVICE_ID, dependencies = shopAndAudit)
         val shopAndBilling = """implementation(project(":shop-domain")); implementation(project(":billing-domain"))"""
-        module("mixed-server", wow = true, dependencies = shopAndBilling)
-        module("named-server", wow = true, dependencies = shopAndBilling, extra = """wow { serviceName = "edge" }""")
+        module("mixed-server", WowPlugin.SERVICE_ID, dependencies = shopAndBilling)
     }
 
     /** `broken-domain`, whose event is not in `broken-api`. */
     private fun broken() {
-        module("broken-api", wow = false)
+        module("broken-api", WowPlugin.API_ID, dependencies = """wowContract(project(":broken-domain"))""")
         write(
             "broken-api/src/main/kotlin/brokenapi/CreateThing.kt",
             """
@@ -227,7 +231,7 @@ class WowContractFunctionalTest {
             data class CreateThing(val name: String)
             """,
         )
-        module("broken-domain", wow = true, dependencies = """api(project(":broken-api"))""")
+        module("broken-domain", WowPlugin.ID, dependencies = """api(project(":broken-api"))""")
         write(
             "broken-domain/src/main/kotlin/brokenapi/ThingCreated.kt",
             """
@@ -256,7 +260,7 @@ class WowContractFunctionalTest {
         // The contract keeps the commands' routes, which the clients send them by.
         contract.contexts.flatMap { it.aggregates }.flatMap { it.domainCommands }.flatMap { it.routes }.assert()
             .isNotEmpty()
-        // The domain modules are evaluated before it, so the plugin configures it once it is (decision D259).
+        // The api module declares its domain modules and generates the code of their contexts (decision D363 ①).
         ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/audit/AuditContract.class")
                 .forEach { jar.getEntry(it).assert().isNotNull() }
@@ -309,13 +313,8 @@ class WowContractFunctionalTest {
             "The contracts of the service's contexts name different services",
             "shop-service",
             "billing-service",
-            "wow { serviceName",
+            "wow { service",
         )
-    }
-
-    @Test
-    fun `a service's explicit name should win over its contexts' contracts`() {
-        serviceOf("named-server").assert().isEqualTo("edge")
     }
 
     @Test
@@ -339,6 +338,6 @@ class WowContractFunctionalTest {
 
     private companion object {
         /** The service that hosts the shop's contexts, which its contract names (decision D330). */
-        const val HOSTED = """wow { contract { service = "shop-service" } }"""
+        const val HOSTED = """wow { service = "shop-service" }"""
     }
 }

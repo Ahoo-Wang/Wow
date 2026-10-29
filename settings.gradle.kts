@@ -32,7 +32,15 @@ rootProject.name = "Wow"
  * request, not a release.
  */
 val prebuiltPublicationTasks = listOf("jar", "sourcesJar", "javadocJar") +
-    listOf("MavenLibrary", "MavenBom", "PluginMaven", "WowPluginMarkerMaven").flatMap { publication ->
+    // One plugin marker per plugin id of :gradle-plugin (`wow`, `wowApi`, `wowService`).
+    listOf(
+        "MavenLibrary",
+        "MavenBom",
+        "PluginMaven",
+        "WowPluginMarkerMaven",
+        "WowApiPluginMarkerMaven",
+        "WowServicePluginMarkerMaven",
+    ).flatMap { publication ->
         listOf(
             "generatePomFileFor${publication}Publication",
             "generateMetadataFileFor${publication}Publication",

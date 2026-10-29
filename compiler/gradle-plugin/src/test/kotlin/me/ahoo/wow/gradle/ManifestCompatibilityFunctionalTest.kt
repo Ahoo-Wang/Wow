@@ -91,19 +91,20 @@ class ManifestCompatibilityFunctionalTest {
             """
             plugins {
                 id("org.jetbrains.kotlin.jvm")
-                id("me.ahoo.wow")
+                id("me.ahoo.wow.service")
             }
 
             version = "1.0.0"
 
             repositories {
                 mavenCentral()
+                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
             }
 
             dependencies {
                 implementation(files(${classpath("wow.fixture.compileClasspath")}))
                 ksp(files(${classpath("wow.fixture.processorClasspath")}))
-                wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
+                wowTools(files(${classpath("wow.fixture.toolsClasspath")}))
             }
             """,
         )
@@ -111,8 +112,8 @@ class ManifestCompatibilityFunctionalTest {
         val baseline = File(projectDir, WowPlugin.BASELINE_FILE)
         val report = File(projectDir, "build/wow/manifest-compatibility.txt")
 
-        val first = runner(WowPlugin.CHECK_COMPATIBILITY_TASK, WowPlugin.UPDATE_BASELINE_TASK).build()
-        first.task(":${WowPlugin.CHECK_COMPATIBILITY_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        val first = runner(WowPlugin.CHECK_TASK, WowPlugin.UPDATE_BASELINE_TASK).build()
+        first.task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         baseline.readText().assert().contains("\"name\" : \"AddItem\"")
 
         // An optional field of the command and a new field of the event, with the version moved on.
@@ -122,7 +123,7 @@ class ManifestCompatibilityFunctionalTest {
             itemAdded = "val productId: String, val at: Long = 0",
         )
         val additive = runner("check").build()
-        additive.task(":${WowPlugin.CHECK_COMPATIBILITY_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        additive.task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         report.readText().assert().contains(
             "Manifest 1.1.0 against the baseline 1.0.0: 0 breaking, 2 additive",
             "ADDITIVE contexts[shop].aggregates[cart].commands[AddItem].schema.note: optional field added",
@@ -132,7 +133,7 @@ class ManifestCompatibilityFunctionalTest {
         // The command loses its quantity: a client that sends it is refused.
         writeCart(addItem = "val productId: String", itemAdded = "val productId: String")
         val breaking = runner("check").buildAndFail()
-        breaking.task(":${WowPlugin.CHECK_COMPATIBILITY_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.FAILED)
+        breaking.task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.FAILED)
         breaking.output.assert().contains(
             "The Manifest has 1 breaking change(s) against its baseline",
             "  - contexts[shop].aggregates[cart].commands[AddItem].schema.quantity: field removed",
@@ -140,7 +141,7 @@ class ManifestCompatibilityFunctionalTest {
 
         // A new major version resets the baseline.
         File(projectDir, "build.gradle.kts").apply { writeText(readText().replace("1.1.0", "2.0.0")) }
-        runner(WowPlugin.CHECK_COMPATIBILITY_TASK).build()
+        runner(WowPlugin.CHECK_TASK).build()
         report.readText().assert().contains("(a new major version: breaking changes are allowed)")
     }
 }

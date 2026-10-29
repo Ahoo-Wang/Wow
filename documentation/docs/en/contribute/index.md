@@ -12,7 +12,7 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 | Directory | Holds |
 | --- | --- |
 | `api/` | `:annotations`, the stability markers (`@InternalWowApi`, `@ExperimentalWowApi`, `@WowSpi`); `:api`, the programming model (annotations, `Decision`, `DecideScope`, `StateEvent`); `:manifest`, the contract as plain data; `:query-api`, the query protocol and its Kotlin DSL |
-| `compiler/` | `:compiler`, the KSP processor that writes the models and Manifest fragments; `:gradle-plugin`, the plugin `me.ahoo.wow`; `:manifest-tools`, which completes and merges fragments |
+| `compiler/` | `:compiler`, the KSP processor that writes the models and Manifest fragments; `:gradle-plugin`, the plugins `me.ahoo.wow`, `me.ahoo.wow.api` and `me.ahoo.wow.service`; `:manifest-tools`, which completes and merges fragments |
 | `core/` | `:spi`, the ports a backend implements; `:kernel`, the decide, evolve and append loop; `:runtime`, the node (admission, routing, the cluster channel, the executor, subscriptions, waits); `:reactor`, the Reactor adapter |
 | `query/` | `:query`, the query engine; `:query-tck`, the contract every query backend passes |
 | `backends/` | One module per technology: `:postgres`, `:mongo`, `:elasticsearch`, `:clickhouse`, `:kafka` |

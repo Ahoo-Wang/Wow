@@ -9,8 +9,23 @@ gradlePlugin {
         create("wow") {
             id = "me.ahoo.wow"
             implementationClass = "me.ahoo.wow.gradle.WowPlugin"
-            displayName = "Wow"
-            description = project.description
+            displayName = "Wow domain module"
+            description = "Builds a Wow domain module: its models with KSP and wow-compiler, its Manifest fragment and " +
+                "its peer contract"
+        }
+        create("wowApi") {
+            id = "me.ahoo.wow.api"
+            implementationClass = "me.ahoo.wow.gradle.WowApiPlugin"
+            displayName = "Wow api module"
+            description = "Builds a Wow api module: the peer contract of the domain modules it declares and the " +
+                "<Context>Contract and <State>View code generated from it"
+        }
+        create("wowService") {
+            id = "me.ahoo.wow.service"
+            implementationClass = "me.ahoo.wow.gradle.WowServicePlugin"
+            displayName = "Wow service module"
+            description = "Builds a Wow service module: a domain module's role on its own sources, the service's " +
+                "Manifest, its OpenAPI document and the Manifest compatibility gate"
         }
     }
 }
@@ -82,14 +97,34 @@ val fixtureQueryApi: FileCollection = fixtureToolsClasspath.incoming.artifactVie
     componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":query-api" }
 }.files
 
+// The Maven repository the TestKit fixtures resolve the BOM the plugin adds from: wow-bom of the plugin's version,
+// constraining nothing, since the fixtures take the Wow modules as files.
+val fixtureRepository = tasks.register("fixtureRepository") {
+    val version = project.version.toString()
+    val repository = layout.buildDirectory.dir("fixture-repository")
+    inputs.property("version", version)
+    outputs.dir(repository)
+    doLast {
+        val pom = repository.get().file("me/ahoo/wow/wow-bom/$version/wow-bom-$version.pom").asFile
+        pom.parentFile.mkdirs()
+        pom.writeText(
+            "<project><modelVersion>4.0.0</modelVersion><groupId>me.ahoo.wow</groupId>" +
+                "<artifactId>wow-bom</artifactId><version>$version</version><packaging>pom</packaging></project>\n",
+        )
+    }
+}
+
 tasks.test {
+    dependsOn(fixtureRepository)
     inputs.files(fixtureCompileClasspath, fixtureProcessorClasspath, fixtureToolsClasspath)
         .withPropertyName("fixtureClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
     val compileClasspath = fixtureCompileClasspath + fixtureQueryApi
     val processorClasspath = fixtureProcessorClasspath
     val toolsClasspath = fixtureToolsClasspath
+    val repository = layout.buildDirectory.dir("fixture-repository")
     doFirst {
+        systemProperty("wow.fixture.repository", repository.get().asFile.toURI().toString())
         systemProperty("wow.fixture.compileClasspath", compileClasspath.asPath)
         systemProperty("wow.fixture.processorClasspath", processorClasspath.asPath)
         systemProperty("wow.fixture.toolsClasspath", toolsClasspath.asPath)
