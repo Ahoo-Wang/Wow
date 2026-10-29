@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import me.ahoo.wow.example.eshop.e2e.json
 import java.io.File
 import java.time.Duration
 import java.time.Instant
@@ -36,10 +37,14 @@ private fun inFault(
 
 /**
  * The probes' view of the platform's pods while the scenarios run (G.3 ⑤): every few seconds, which ones Kubernetes
- * does not count as ready. A pod not ready outside every fault (and the minute after it) is a failed check.
+ * does not count as ready. A pod not ready outside every fault (and the minute after it) is a failed check. Such a pod,
+ * and one whose liveness probe failed since the last sample, has its threads dumped ([dumps]).
  */
-class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
+class HealthWatch(private val kube: Kube, private val report: ClusterReport, private val dumps: ThreadDumps) {
     private val unready = mutableListOf<Pair<Instant, String>>()
+
+    /** The liveness failures seen, by event and count; null before the first sample, which only records them. */
+    private var livenessSeen: MutableSet<String>? = null
 
     @Volatile
     private var running = false
@@ -65,8 +70,14 @@ class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
             while (running) {
                 runCatching {
                     val now = Instant.now()
-                    kube.allPods().filter { platform(it.name) && !it.ready && !it.deleting }
-                        .forEach { synchronized(unready) { unready += now to it.name } }
+                    val faults = synchronized(report) { report.faults.toList() }
+                    kube.allPods().filter { platform(it.name) && !it.ready && !it.deleting }.forEach {
+                        synchronized(unready) { unready += now to it.name }
+                        if (!inFault(now, faults, Duration.ZERO, SETTLE)) {
+                            dumps.dump(it.name, "unready")
+                        }
+                    }
+                    livenessFailures().forEach { dumps.dump(it, "liveness") }
                     samples++
                     File("/proc/loadavg").takeIf { it.exists() }?.readText()?.substringBefore(' ')?.toDoubleOrNull()
                         ?.let { synchronized(loads) { loads += it } }
@@ -79,6 +90,29 @@ class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
     fun stop() {
         running = false
         worker?.join(SAMPLE.multipliedBy(2).toMillis())
+    }
+
+    /**
+     * The platform's pods with a liveness probe failure Kubernetes reported since the last sample; none on the first,
+     * which takes the failures before the watch as seen.
+     */
+    private fun livenessFailures(): List<String> {
+        val events = kube.run("get", "events", "--field-selector", "reason=Unhealthy", "-o", "json")
+        if (!events.ok) {
+            return emptyList()
+        }
+        val failures = json.readTree(events.out).path("items").filter {
+            it.path("message").asString("").startsWith("Liveness probe failed") &&
+                platform(it.path("involvedObject").path("name").asString(""))
+        }.map { it.path("metadata").path("uid").asString("") + "#" + it.path("count").asInt(1) to it }
+        val seen = livenessSeen
+        livenessSeen = failures.mapTo(HashSet()) { it.first }
+        return if (seen == null) {
+            emptyList()
+        } else {
+            failures.filter { it.first !in seen }.map { it.second.path("involvedObject").path("name").asString("") }
+                .distinct()
+        }
     }
 
     /** The samples of a pod not ready outside every fault. */
