@@ -1041,9 +1041,11 @@ function orFilter<FIELDS extends string>(operands: readonly FilterExpression<FIE
 // @public
 export interface PagedList<T> {
     // (undocumented)
-    list: T[];
+    readonly exact: boolean;
     // (undocumented)
-    total: number;
+    readonly list: readonly T[];
+    // (undocumented)
+    readonly total: number | null;
 }
 
 // @public
@@ -1058,16 +1060,6 @@ export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQ
 export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     pagination?: Pagination;
 }): FilterPagedQuery<FIELDS>;
-
-// @public
-export interface PagedResult<T> {
-    // (undocumented)
-    readonly exact: boolean;
-    // (undocumented)
-    readonly list: readonly T[];
-    // (undocumented)
-    readonly total: number | null;
-}
 
 // @public
 export interface Pagination {

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -43,7 +44,46 @@ fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): S
     firstEventTime = present(SnapshotFields.FIRST_EVENT_TIME).asLong(),
     lastEventTime = present(SnapshotFields.LAST_EVENT_TIME).asLong(),
     state = decode(present(SnapshotFields.STATE), stateType),
+    firstOperator = operator(SnapshotFields.FIRST_OPERATOR),
+    schedules = schedules(),
 )
+
+/**
+ * This snapshot as the record a snapshot query returns and a state read answers: the
+ * [SnapshotFields] in their order, an absent owner, space or operator as `null`, and the state tree under
+ * [SnapshotFields.STATE]; [toSnapshot] reads it back.
+ */
+@InternalWowApi
+fun Snapshot<JsonNode>.toRecord(): ObjectNode = WowJson.mapper.createObjectNode().apply {
+    put(SnapshotFields.TENANT_ID, ref.tenantId)
+    put(SnapshotFields.AGGREGATE_ID, ref.id)
+    put(SnapshotFields.VERSION, version)
+    put(SnapshotFields.OWNER_ID, scope.ownerId)
+    put(SnapshotFields.SPACE_ID, scope.spaceId)
+    put(SnapshotFields.DELETED, deleted)
+    putObject(SnapshotFields.TAGS).also { node ->
+        tags.forEach { (name, values) -> node.putArray(name).also { array -> values.forEach(array::add) } }
+    }
+    put(SnapshotFields.FIRST_EVENT_TIME, firstEventTime)
+    put(SnapshotFields.LAST_EVENT_TIME, lastEventTime)
+    set(SnapshotFields.OPERATOR, operator.toRecordValue())
+    set(SnapshotFields.FIRST_OPERATOR, firstOperator.toRecordValue())
+    putObject(SnapshotFields.SCHEDULES).also { rules ->
+        schedules.forEach { (key, rule) -> rules.set(key, WowJson.mapper.valueToTree<JsonNode>(rule)) }
+    }
+    set(SnapshotFields.STATE, state)
+}
+
+/** This operator as a record's operator field: `{id, tenantId, crossScope}`, or JSON null when absent. */
+@InternalWowApi
+fun Operator?.toRecordValue(): JsonNode = if (this == null) {
+    WowJson.mapper.nullNode()
+} else {
+    WowJson.mapper.createObjectNode()
+        .put(OperatorFields.ID, id)
+        .put(OperatorFields.TENANT_ID, tenantId)
+        .put(OperatorFields.CROSS_SCOPE, crossScope)
+}
 
 /**
  * This events query record (`EventQueryGateways.kt`) of [type], each event's body decoded as the
@@ -85,6 +125,11 @@ private fun JsonNode.scope(owner: String, space: String): Scope = Scope(optional
 private fun JsonNode.tags(): Map<String, List<String>> {
     val tags = get(SnapshotFields.TAGS)?.takeUnless { it.isNull } ?: return emptyMap()
     return tags.properties().associate { (name, values) -> name to values.elements().map { it.asString() } }
+}
+
+private fun JsonNode.schedules(): Map<String, ScheduleRule> {
+    val rules = get(SnapshotFields.SCHEDULES)?.takeUnless { it.isNull } ?: return emptyMap()
+    return rules.properties().associate { (key, rule) -> key to WowJson.mapper.treeToValue(rule, ScheduleRule::class.java) }
 }
 
 private fun JsonNode.operator(field: String): Operator? {

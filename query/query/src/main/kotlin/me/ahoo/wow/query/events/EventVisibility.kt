@@ -16,12 +16,13 @@ package me.ahoo.wow.query.events
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.isolated
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateVisibility
+import tools.jackson.databind.JsonNode
 
 /**
  * Which aggregates' event streams a caller sees in the events model ([EventQueryGateways]) while a
@@ -94,7 +95,7 @@ fun interface EventVisibility {
             hides: Boolean = true,
             batched: (AggregateType) -> Boolean = { true },
             observer: QueryObserver = QueryObserver.NONE,
-            latest: suspend (AggregateRef) -> CommittedState?,
+            latest: suspend (AggregateRef) -> Snapshot<JsonNode>?,
         ): EventVisibility = object : EventVisibility {
             override suspend fun visible(
                 type: AggregateType,

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
 import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-/** The configuration gaps of review A5-10: the stores' DDL, the state views, the forward timeout, the per-type keys. */
+/** The configuration gaps of review A5-10: the stores' DDL, the shared states, the forward timeout, the per-type keys. */
 class HostOptionsTest {
     private fun <T : Any> bind(prefix: String, type: Class<T>, vararg properties: Pair<String, String>): T =
         Binder(MapConfigurationPropertySource(properties.toMap())).bind(prefix, type).orElse(null)
@@ -52,14 +52,14 @@ class HostOptionsTest {
     }
 
     @Test
-    fun `the state views should be configurable, by count, age and bytes`() {
-        WowProperties().stateViews.options().assert().isEqualTo(StateViewOptions())
+    fun `the shared states should be configurable, by count, age and bytes`() {
+        WowProperties().sharedStates.options().assert().isEqualTo(SharedStateOptions())
         val options = wow(
-            "wow.state-views.capacity" to "128",
-            "wow.state-views.max-age" to "5m",
-            "wow.state-views.max-bytes" to "1048576",
-        ).stateViews.options()
-        options.assert().isEqualTo(StateViewOptions(128, 5.minutes, 1_048_576))
+            "wow.shared-states.capacity" to "128",
+            "wow.shared-states.max-age" to "5m",
+            "wow.shared-states.max-bytes" to "1048576",
+        ).sharedStates.options()
+        options.assert().isEqualTo(SharedStateOptions(128, 5.minutes, 1_048_576))
     }
 
     @Test

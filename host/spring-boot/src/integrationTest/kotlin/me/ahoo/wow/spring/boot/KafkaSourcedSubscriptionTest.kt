@@ -35,7 +35,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.tck.containers.WowContainers
@@ -249,7 +249,7 @@ class KafkaSourcedSubscriptionTest {
             commandType = "sales.order.Place",
             commitTime = version.toLong(),
             events = listOf(StateEventPayload("sales.order.Placed", 1, WowJson.mapper.readTree("""{"n":$version}"""))),
-            state = StateView(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")),
+            state = PublishedState(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")),
         )
     }
 }

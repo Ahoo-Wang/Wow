@@ -26,7 +26,7 @@ import me.ahoo.wow.openapi.Json.type
 
 /**
  * The schemas of the framework's own bodies, as the public port writes them: the command result (`CommandResult`),
- * the problem, the state views, the query bodies and records
+ * the problem, the snapshot, the state trace, the query bodies and records
  * and the lifecycle commands. Their names start with `wow.`; a Manifest's
  * schema is named after its class ([SchemaComponents]), so the two never meet.
  */
@@ -34,10 +34,9 @@ internal object WowSchemas {
     const val PREFIX: String = "wow."
     const val COMMAND_RESULT: String = "wow.CommandResult"
     const val PROBLEM: String = "wow.Problem"
-    const val STATE_VIEW: String = "wow.StateView"
     const val STATE_TRACE: String = "wow.StateTrace"
-    const val SNAPSHOT_RECORD: String = "wow.SnapshotRecord"
-    const val EVENT_STREAM_RECORD: String = "wow.EventStreamRecord"
+    const val SNAPSHOT: String = "wow.Snapshot"
+    const val EVENT_STREAM: String = "wow.EventStream"
     const val QUERY_REQUEST: String = "wow.QueryRequest"
     const val PAGED_LIST: String = "wow.PagedList"
     const val CURSOR_PAGE: String = "wow.CursorPage"
@@ -55,7 +54,7 @@ internal object WowSchemas {
     private const val SCOPE = "wow.Scope"
     private const val OPERATOR = "wow.Operator"
     private const val COMMIT_VIEW = "wow.CommitView"
-    private const val EVENT_VIEW = "wow.EventView"
+    private const val COMMITTED_EVENT = "wow.CommittedEvent"
 
     /** The lifecycle commands' bodies, by their full names; any other is an object. */
     val LIFECYCLE: Map<String, Map<String, Any?>> = linkedMapOf(
@@ -163,13 +162,12 @@ internal object WowSchemas {
             listOf("id", "tenantId"),
             "Who sent a command.",
         ),
-        STATE_VIEW to stateView(),
         STATE_TRACE to objectSchema(
             mapOf("ref" to schemaRef(AGGREGATE_REF), "commits" to array(schemaRef(COMMIT_VIEW))),
             listOf("ref", "commits"),
         ),
         COMMIT_VIEW to commitView(),
-        EVENT_VIEW to objectSchema(
+        COMMITTED_EVENT to objectSchema(
             mapOf("name" to STRING, "revision" to INTEGER, "body" to obj("description" to "The event as the log stores it.")),
             listOf("name", "revision", "body"),
         ),
@@ -217,8 +215,8 @@ internal object WowSchemas {
 
     /** The query bodies and answers. */
     private fun querySchemas(): Map<String, Any?> = linkedMapOf(
-        SNAPSHOT_RECORD to snapshotRecord(),
-        EVENT_STREAM_RECORD to eventStreamRecord(),
+        SNAPSHOT to snapshotRecord(),
+        EVENT_STREAM to eventStreamRecord(),
         QUERY_REQUEST to queryRequest(),
         PAGED_LIST to objectSchema(
             mapOf("total" to type("integer", nullable = true), "exact" to BOOLEAN, "list" to array(obj())),
@@ -314,18 +312,6 @@ internal object WowSchemas {
             "extensions are members of their own names.",
     )
 
-    private fun stateView(): Map<String, Any?> = objectSchema(
-        linkedMapOf(
-            "ref" to schemaRef(AGGREGATE_REF),
-            "version" to INTEGER,
-            "scope" to schemaRef(SCOPE),
-            "deleted" to BOOLEAN,
-            "tags" to TAGS,
-            "state" to obj("description" to "The aggregate's state."),
-        ),
-        listOf("ref", "version", "scope", "deleted", "tags", "state"),
-    )
-
     private fun commitView(): Map<String, Any?> = objectSchema(
         linkedMapOf(
             "version" to INTEGER,
@@ -333,7 +319,7 @@ internal object WowSchemas {
             "commandId" to STRING,
             "requestId" to STRING,
             "commandType" to STRING,
-            "events" to array(schemaRef(EVENT_VIEW)),
+            "events" to array(schemaRef(COMMITTED_EVENT)),
             "scope" to schemaRef(SCOPE),
             "deleted" to BOOLEAN,
             "tags" to TAGS,
@@ -356,9 +342,14 @@ internal object WowSchemas {
             "lastEventTime" to INTEGER,
             "operator" to nullable(schemaRef(OPERATOR)),
             "firstOperator" to nullable(schemaRef(OPERATOR)),
+            "schedules" to obj(
+                "type" to "object",
+                "additionalProperties" to type("object"),
+                "description" to "The schedules the aggregate keeps, each rule by its key.",
+            ),
             "state" to obj("description" to "The aggregate's state."),
         ),
-        description = "An aggregate's snapshot as a query returns it; a projection leaves fields out.",
+        description = "An aggregate's snapshot as a query and a state read return it; a projection leaves fields out.",
     )
 
     private fun eventStreamRecord(): Map<String, Any?> = objectSchema(
@@ -373,7 +364,7 @@ internal object WowSchemas {
             "ownerId" to NULLABLE_STRING,
             "spaceId" to NULLABLE_STRING,
             "operator" to nullable(schemaRef(OPERATOR)),
-            "events" to array(schemaRef(EVENT_VIEW)),
+            "events" to array(schemaRef(COMMITTED_EVENT)),
         ),
         description = "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` " +
             "are null when unset; a projection leaves fields out.",

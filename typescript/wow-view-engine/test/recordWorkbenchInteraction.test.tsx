@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { conditionsDrifted } from '../src/runtime/savedConditions.js';
 import type {
@@ -442,7 +442,7 @@ describe('DataWorkbench interaction', () => {
   });
 
   it('keeps the filter editable while a query is still running', async () => {
-    const pending = deferred<PagedResult<RecordData>>();
+    const pending = deferred<PagedList<RecordData>>();
     const { engine } = setup(testSource({ paged: () => pending.promise }));
     render(
       <DataWorkbench

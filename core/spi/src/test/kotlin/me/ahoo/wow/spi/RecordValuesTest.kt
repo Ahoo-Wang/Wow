@@ -42,9 +42,9 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.Member
@@ -132,7 +132,7 @@ class RecordValuesTest {
         commandType = "sales.order.Place",
         commitTime = 7L,
         events = listOf(StateEventPayload.of("sales.order.Placed", 1, json.objectNode())),
-        state = StateView.of(version, "f", json.objectNode()),
+        state = PublishedState.of(version, "f", json.objectNode()),
         transport = Transport.of(wait),
     )
 
@@ -174,9 +174,9 @@ class RecordValuesTest {
         valueSemantics({ SnapshotTable.of(1) }, SnapshotTable.of(1, rebuilding = true))
         SnapshotTable.of(1).copyWith(revision = 2).assert().isEqualTo(SnapshotTable.of(2))
         valueSemantics({ stateEvent() }, stateEvent(2))
-        stateEvent().copyWith(version = 2, state = StateView.of(2, "f", json.objectNode())).assert()
+        stateEvent().copyWith(version = 2, state = PublishedState.of(2, "f", json.objectNode())).assert()
             .isEqualTo(stateEvent(2))
-        valueSemantics({ StateView.of(1, "f", json.objectNode()) }, StateView.of(1, "f", json.arrayNode()))
+        valueSemantics({ PublishedState.of(1, "f", json.objectNode()) }, PublishedState.of(1, "f", json.arrayNode()))
         valueSemantics(
             { StateEventPayload.of("a.b.C", 1, json.objectNode()) },
             StateEventPayload.of("a.b.C", 2, json.objectNode()),

@@ -31,10 +31,7 @@
 
 ```ts
 export interface ViewSource {
-  paged(
-    query: PagedQuery,
-    options?: SourceOptions,
-  ): Promise<PagedResult<object>>;
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
   cursor(
     query: CursorQuery,
     options?: SourceOptions,

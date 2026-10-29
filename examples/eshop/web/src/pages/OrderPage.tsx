@@ -75,7 +75,7 @@ export function OrderPage() {
         <CardHeader>
           <CardTitle>Order {id}</CardTitle>
           <CardDescription>
-            Bought by {view.scope.ownerId ?? "anonymous"}, version{" "}
+            Bought by {view.ownerId ?? "anonymous"}, version{" "}
             {view.version}
           </CardDescription>
           <CardAction className="flex items-center gap-2">

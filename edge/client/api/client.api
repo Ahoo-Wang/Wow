@@ -227,12 +227,12 @@ public class me/ahoo/wow/client/java/JavaRowQueries {
 }
 
 public class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {
-	public final fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/read/AggregateState;
+	public final fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/read/Snapshot;
 	public final fun stateAsync (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/concurrent/CompletableFuture;
 }
 
 public final class me/ahoo/wow/client/java/JavaTenantSnapshotQueries : me/ahoo/wow/client/java/JavaSnapshotQueries {
-	public final fun state (Ljava/lang/String;)Lme/ahoo/wow/api/read/AggregateState;
+	public final fun state (Ljava/lang/String;)Lme/ahoo/wow/api/read/Snapshot;
 	public final fun stateAsync (Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
 }
 

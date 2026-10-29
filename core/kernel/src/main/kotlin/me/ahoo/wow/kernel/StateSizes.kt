@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The measured size of the states of each class, for a state cache bounded by bytes: the mean length
- * of their JSON as the [EventCodec] that measures them writes it (the state views and snapshots) and reads it (the
+ * of their JSON as the [EventCodec] that measures them writes it (the shared states and snapshots) and reads it (the
  * snapshots loaded), over about its last [WINDOW] states.
  *
  * A cached state weighs [ENTRY_BYTES] (its entry, reference, metadata and the cache's node), [TEXT_FACTOR] bytes for

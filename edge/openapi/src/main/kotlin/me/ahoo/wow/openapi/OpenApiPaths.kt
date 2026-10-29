@@ -351,7 +351,7 @@ internal class OpenApiPaths(
      * aggregate of one whose id is its owner's, by no id.
      */
     private fun stateRoutes(tag: String, path: String, state: Map<String, Any?>, byId: Boolean) {
-        val view = refined(WowSchemas.STATE_VIEW, "state" to state)
+        val view = refined(WowSchemas.SNAPSHOT, "state" to state)
         val suffix = if (byId) "" else ".$WITHOUT_ID"
         val own = if (byId) "" else " $OWN_READ"
         val readParameters = listOfNotNull(
@@ -410,8 +410,8 @@ internal class OpenApiPaths(
 
     private fun queryRoutes(tag: String, query: QueryManifest, state: Map<String, Any?>) {
         val record = when (query.model) {
-            QueryRoutes.SNAPSHOT -> refined(WowSchemas.SNAPSHOT_RECORD, "state" to state)
-            QueryRoutes.EVENTS -> schemaRef(WowSchemas.EVENT_STREAM_RECORD)
+            QueryRoutes.SNAPSHOT -> refined(WowSchemas.SNAPSHOT, "state" to state)
+            QueryRoutes.EVENTS -> schemaRef(WowSchemas.EVENT_STREAM)
             // A model the edge does not know is not served.
             else -> null
         } ?: return

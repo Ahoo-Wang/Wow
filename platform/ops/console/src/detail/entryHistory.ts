@@ -13,7 +13,7 @@
 
 import type { Fetcher } from "@ahoo-wang/fetcher";
 import { filter } from "@ahoo-wang/wow-client/dsl";
-import type { EventStreamRecord, EventView } from "@ahoo-wang/wow-client";
+import type { EventStream, CommittedEvent } from "@ahoo-wang/wow-client";
 import {
   ParkedEventQueryClient,
   type ParkedEvent,
@@ -24,7 +24,7 @@ import {
 export const HISTORY_LIMIT = 1000;
 
 /** An entry's event streams, oldest first. */
-export type HistorySource = (id: string) => Promise<EventStreamRecord[]>;
+export type HistorySource = (id: string) => Promise<EventStream[]>;
 
 /**
  * The event streams of parked entry `id`, from the ops service's `events`
@@ -37,7 +37,7 @@ export function historySource(fetcher: Fetcher): HistorySource {
     (await events.list({
       filter: filter.eq("aggregateId", id),
       limit: HISTORY_LIMIT,
-    })) as EventStreamRecord[];
+    })) as EventStream[];
 }
 
 /** What happened to an entry, as its timeline says it. */
@@ -111,7 +111,7 @@ function recorded(
  * console does not know, from a newer service, is an `unknown` step.
  */
 function step(
-  view: EventView,
+  view: CommittedEvent,
   last: ParkedRecorded["entry"] | undefined,
 ): Pick<HistoryItem, "kind" | "facts"> {
   const event = view as ParkedEvent;
@@ -164,7 +164,7 @@ function step(
  * of an operator (with who asked), and how it was resolved.
  */
 export function historyOf(
-  streams: readonly EventStreamRecord[],
+  streams: readonly EventStream[],
 ): HistoryItem[] {
   const items: HistoryItem[] = [];
   let last: ParkedRecorded["entry"] | undefined;

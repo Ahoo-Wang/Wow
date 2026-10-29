@@ -575,7 +575,7 @@ export class WowViewStore implements ViewStore {
             ...(signal === undefined ? {} : { signal }),
           }),
         );
-        if (!write.moves || ownedAt(view.scope.ownerId) === landsAt)
+        if (!write.moves || ownedAt(view.ownerId) === landsAt)
           return toInstance({ id, version: view.version, state: view.state });
       } catch {
         // Moved on since (another tab moved it): answered as it is.

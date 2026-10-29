@@ -13,35 +13,18 @@
 
 package me.ahoo.wow.query.state
 
-import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
+import me.ahoo.wow.spi.json.query.toRecord
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.ObjectNode
-
-/**
- * One aggregate's committed state as the query policies read it: [ref]'s [state] at [version], of [scope], [deleted]
- * and [tags], the facts a snapshot record holds. Every entry that reads a state (a state read by id, a version or a
- * trace, the events model) hands it to [StateVisibility] in this form.
- */
-@InternalWowApi
-data class CommittedState(
-    val ref: AggregateRef,
-    val version: Int,
-    val scope: Scope,
-    val deleted: Boolean,
-    val tags: Map<String, List<String>>,
-    val state: JsonNode,
-)
 
 /**
  * Whether a caller sees one aggregate's state as the snapshot queries of its type show it: the state,
@@ -59,7 +42,7 @@ data class CommittedState(
 @InternalWowApi
 object StateVisibility {
     /** Whether [caller] may see [state], whose tree may be masked in place ([admitted]). */
-    suspend fun visible(gateway: QueryGateway?, caller: QueryCaller, state: CommittedState): Boolean =
+    suspend fun visible(gateway: QueryGateway?, caller: QueryCaller, state: Snapshot<JsonNode>): Boolean =
         gateway == null || admitted(gateway, caller, state) != null
 
     /**
@@ -71,28 +54,15 @@ object StateVisibility {
     suspend fun admitted(
         gateway: QueryGateway?,
         caller: QueryCaller,
-        state: CommittedState,
+        state: Snapshot<JsonNode>,
         masks: PayloadMasks = PayloadMasks.NONE,
     ): JsonNode? {
         val ref = state.ref
         gateway ?: return masks.state(ref.type, state.state)
-        val record = WowJson.mapper.createObjectNode().apply {
-            put(SnapshotFields.TENANT_ID, ref.tenantId)
-            put(SnapshotFields.AGGREGATE_ID, ref.id)
-            put(SnapshotFields.VERSION, state.version)
-            put(SnapshotFields.OWNER_ID, state.scope.ownerId)
-            put(SnapshotFields.SPACE_ID, state.scope.spaceId)
-            put(SnapshotFields.DELETED, state.deleted)
-            set(SnapshotFields.TAGS, tagsOf(state.tags))
-            set(SnapshotFields.STATE, state.state)
-        }
+        val record = state.toRecord()
         return gateway.admitRecord(selection(ref.id), record, caller)?.get(SnapshotFields.STATE)
     }
 
     /** A point read by [id], of every deletion state. */
     private fun selection(id: String) = AndFilter(listOf(IdFilter(id), DeletionFilter(DeletionState.ALL)))
-
-    private fun tagsOf(tags: Map<String, List<String>>): ObjectNode = WowJson.mapper.createObjectNode().also { node ->
-        tags.forEach { (name, values) -> node.putArray(name).also { array -> values.forEach(array::add) } }
-    }
 }

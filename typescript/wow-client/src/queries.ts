@@ -25,7 +25,7 @@ import type {
   FilterListQuery,
   FilterSingleQuery,
   PagedQuery,
-  PagedResult,
+  PagedList,
 } from './dsl/queryable.js';
 import {
   entityTag,
@@ -39,14 +39,14 @@ import type {
   AggregateType,
   DatasetEntry,
   EventStreamField,
-  EventStreamRecord,
-  EventView,
-  SnapshotRecord,
+  EventStream,
+  CommittedEvent,
+  Snapshot,
   SnapshotSystemField,
 } from './wire.js';
 import {
   resumableQueryRows,
-  type StreamedRow,
+  type Positioned,
   type StreamResumeOptions,
 } from './streams.js';
 
@@ -139,9 +139,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     options?: StreamOptions,
   ): Promise<unknown> {
     return (await this.streamRows(query, options)).pipeThrough(
-      new TransformStream<StreamedRow<R>, R>({
-        transform(row, controller) {
-          controller.enqueue(row.record);
+      new TransformStream<Positioned<R>, R>({
+        transform(positioned, controller) {
+          controller.enqueue(positioned.row);
         },
       }),
     );
@@ -156,15 +156,15 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   streamRows<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
     options?: StreamOptions,
-  ): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+  ): Promise<ReadableStream<Positioned<Projected<R, INCLUDE>>>>;
   streamRows(
     query: FilterListQuery<FIELDS>,
     options?: StreamOptions,
-  ): Promise<ReadableStream<StreamedRow<R>>>;
+  ): Promise<ReadableStream<Positioned<R>>>;
   async streamRows(
     query: FilterListQuery<FIELDS>,
     options: StreamOptions = {},
-  ): Promise<ReadableStream<StreamedRow<R>>> {
+  ): Promise<ReadableStream<Positioned<R>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
     const limit = query.limit;
@@ -196,16 +196,16 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   paged<const INCLUDE extends FIELDS>(
     query: Including<PagedQuery<FIELDS>, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<PagedResult<Projected<R, INCLUDE>>>;
+  ): Promise<PagedList<Projected<R, INCLUDE>>>;
   paged(
     query: PagedQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<PagedResult<R>>;
+  ): Promise<PagedList<R>>;
   async paged(
     query: PagedQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<PagedResult<R>>(
+    return json<PagedList<R>>(
       await this.post('paged', query, options),
       this.pageNumbers,
     );
@@ -355,10 +355,7 @@ export function queryPath(type: AggregateType, model: string): string {
 export class SnapshotQueryClient<
   S = unknown,
   STATE_FIELDS extends string = `state.${string}`,
-> extends QueryModelClient<
-  SnapshotRecord<S>,
-  SnapshotSystemField | STATE_FIELDS
-> {
+> extends QueryModelClient<Snapshot<S>, SnapshotSystemField | STATE_FIELDS> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached
@@ -388,8 +385,8 @@ export class SnapshotQueryClient<
  * @typeParam E - The events' type.
  */
 export class EventQueryClient<
-  E extends EventView = EventView,
-> extends QueryModelClient<EventStreamRecord<E>, EventStreamField> {
+  E extends CommittedEvent = CommittedEvent,
+> extends QueryModelClient<EventStream<E>, EventStreamField> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached

@@ -12,7 +12,7 @@
  */
 
 import type { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
-import type { CursorPage, PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
   columnHidden,
@@ -437,7 +437,7 @@ function columnOrder<T extends ColumnPlacement>(
 }
 
 function isCursorPage(
-  page: PagedResult<RecordData> | CursorPage<RecordData>,
+  page: PagedList<RecordData> | CursorPage<RecordData>,
 ): page is CursorPage<RecordData> {
   return 'nextCursor' in page;
 }
@@ -532,7 +532,7 @@ export function restyleRecord(
 export function projectRecord(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-  page: PagedResult<RecordData> | CursorPage<RecordData>,
+  page: PagedList<RecordData> | CursorPage<RecordData>,
   pageIndex = 1,
   limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
 ): RecordProjection {

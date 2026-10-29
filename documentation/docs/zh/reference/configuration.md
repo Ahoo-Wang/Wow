@@ -576,6 +576,16 @@ Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's 
 | `wow.schedules.<name>.misfire` | `Misfire` |  | What a firing missed while no node ran it does, over its annotation's. |
 | `wow.schedules.<name>.zone` | `String` |  | The time zone its expression is read in, over its annotation's. |
 
+## `wow.shared-states`
+
+The bounds of each context's shared states: `wow.shared-states.*`.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.shared-states.capacity` | `Integer` | `4096` | The most shared states a context keeps. |
+| `wow.shared-states.max-age` | `Duration` | `PT1M` | How long a shared state is kept at most. |
+| `wow.shared-states.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
+
 ## `wow.snapshot`
 
 Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.
@@ -604,16 +614,6 @@ The cache of aggregate states each context keeps between commands.
 | --- | --- | --- | --- |
 | `wow.state-cache.capacity` | `Integer` |  | The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit. |
 | `wow.state-cache.recent-requests` | `Integer` | `32` | The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up. |
-
-## `wow.state-views`
-
-The bounds of each context's state views: `wow.state-views.*`.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.state-views.capacity` | `Integer` | `4096` | The most state views a context keeps. |
-| `wow.state-views.max-age` | `Duration` | `PT1M` | How long a state view is kept at most. |
-| `wow.state-views.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
 
 ## `wow.stores.<name>`
 

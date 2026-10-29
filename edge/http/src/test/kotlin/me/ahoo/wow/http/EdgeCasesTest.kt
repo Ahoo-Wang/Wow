@@ -118,7 +118,7 @@ class EdgeCasesTest {
             node.snapshots.save(EventCodec().snapshotOf(cartModel, ref, Cart(), 2, Scope("alice", "home"), 1L, 2L))
         }
         node.get("/shop/cart/c-1/state", headers = mapOf("X-Spaces" to "home", WowHeaders.SPACE to "home"))
-            .assertStatus(200).body!!["scope"]["spaceId"].asString().assert().isEqualTo("home")
+            .assertStatus(200).body!!["spaceId"].asString().assert().isEqualTo("home")
         // A reader that names no space reads it too: Scope.NONE fields are not checked.
         node.get("/shop/cart/c-1/state").assertStatus(200)
         node.get("/shop/cart/c-1/state", user = "bob").assertStatus(404, FrameworkCodes.AGGREGATE_NOT_FOUND)

@@ -44,4 +44,5 @@ export const fixtureUsers: FixtureUser[] = [
 export const fixturePagedUsers: PagedList<FixtureUser> = {
   list: fixtureUsers,
   total: fixtureUsers.length,
+  exact: true,
 };

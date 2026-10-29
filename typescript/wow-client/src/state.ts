@@ -23,9 +23,9 @@ import { eventNumbers, type TextNumbers } from './exactJson.js';
 import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   AggregateType,
-  EventView,
+  CommittedEvent,
   StateTrace,
-  StateView,
+  Snapshot,
 } from './wire.js';
 
 /** Which state a read asks for: the latest, at a version or as of a time. */
@@ -52,13 +52,13 @@ export interface StateReadOptions extends RequestOptions {
 }
 
 /**
- * A state read: the view and its entity tag, or `notModified` when the state
- * held is current, with its tag and the version the tag names.
+ * A state read: the snapshot and its entity tag, or `notModified` when the
+ * state held is current, with its tag and the version the tag names.
  */
 export type StateReadResult<S> =
   | {
       readonly notModified: false;
-      readonly view: StateView<S>;
+      readonly snapshot: Snapshot<S>;
       readonly etag?: string;
     }
   | {
@@ -88,7 +88,10 @@ export interface StateTraceOptions extends RequestOptions {
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
  */
-export class StateClient<S = unknown, E extends EventView = EventView> {
+export class StateClient<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached
@@ -110,7 +113,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
   get(
     id: string,
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S>> {
+  ): Promise<Snapshot<S>> {
     return this.getAt(id, options);
   }
 
@@ -123,7 +126,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
   find(
     id: string,
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S> | undefined> {
+  ): Promise<Snapshot<S> | undefined> {
     return this.findAt(id, options);
   }
 
@@ -168,7 +171,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     }
     return {
       notModified: false,
-      view: await json<StateView<S>>(response, this.stateNumbers),
+      snapshot: await json<Snapshot<S>>(response, this.stateNumbers),
       etag: entityTag(response),
     };
   }
@@ -177,19 +180,19 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
   protected async getAt(
     id: string | undefined,
     options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<StateView<S>> {
+  ): Promise<Snapshot<S>> {
     const result = await this.readAt(id, options);
     if (result.notModified) {
       throw new Error('A read without If-None-Match was answered 304.');
     }
-    return result.view;
+    return result.snapshot;
   }
 
   /** {@link StateClient.find} of the aggregate `id`, or of the caller's own. */
   protected async findAt(
     id: string | undefined,
     options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<StateView<S> | undefined> {
+  ): Promise<Snapshot<S> | undefined> {
     try {
       return await this.getAt(id, options);
     } catch (error) {
@@ -220,7 +223,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     );
   }
 
-  /** The exact numbers of a state view: its state's. */
+  /** The exact numbers of a state read: its state's. */
   private get stateNumbers(): TextNumbers | undefined {
     const state = this.type.textNumbers?.state;
     return state === undefined ? undefined : { state };
@@ -263,7 +266,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
  */
 export class OwnStateClient<
   S = unknown,
-  E extends EventView = EventView,
+  E extends CommittedEvent = CommittedEvent,
 > extends StateClient<S, E> {
   /** {@link StateClient.read} of the caller's own aggregate. */
   readOwn(options: StateReadOptions = {}): Promise<StateReadResult<S>> {
@@ -273,7 +276,7 @@ export class OwnStateClient<
   /** {@link StateClient.get} of the caller's own aggregate. */
   getOwn(
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S>> {
+  ): Promise<Snapshot<S>> {
     return this.getAt(undefined, options);
   }
 
@@ -283,7 +286,7 @@ export class OwnStateClient<
    */
   findOwn(
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S> | undefined> {
+  ): Promise<Snapshot<S> | undefined> {
     return this.findAt(undefined, options);
   }
 

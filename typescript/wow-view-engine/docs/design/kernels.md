@@ -24,7 +24,7 @@ defaultRecordConfig(def): RecordViewConfig                      // 按 RecordCap
 validateRecord(def, cfg: RecordViewConfig, kinds): Issue[]   // 见下方规则
 compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）；两种都带 recordProjection 的 projection；排序末尾总是行键升序（见「Record 内核的规则」）
 recordProjection(def, cfg): Projection                         // { include }：这一页要向数据源要的字段，见「一页要哪些字段」
-projectRecord(def, cfg, page: PagedResult<RecordData> | CursorPage<RecordData>, index?): RecordProjection   // 列语义、卡片布局（card，与列读同一份字段事实）、行、行键；paging 为 pagedPaging(...) | cursorPaging(...)
+projectRecord(def, cfg, page: PagedList<RecordData> | CursorPage<RecordData>, index?): RecordProjection   // 列语义、卡片布局（card，与列读同一份字段事实）、行、行键；paging 为 pagedPaging(...) | cursorPaging(...)
 pagedPaging({ index, size, total?, maxWindow? }): PagedPaging   // 分页条读的全部事实，出自**跑过的**那一页与那个每页条数（不是草稿的）：pages（数得到时）= min(⌈total/size⌉, ⌊maxWindow/size⌋)——index × size 不越过窗口才够得到，所以窗口向下取整页；hasNext；reachable 仅在这些页够不到 total 时出现，等于 pages × size。无 total 时不给 pages，hasNext 只受窗口约束（见 test/recordPaging.test.ts）
 cursorPaging(nextCursor): CursorPaging                          // hasNext 即有无游标
 clampPage(paging, index): number                                // 跳页落点：至少 1，至多够得到的最后一页

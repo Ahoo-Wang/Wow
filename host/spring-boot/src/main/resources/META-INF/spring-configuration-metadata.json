@@ -246,6 +246,11 @@
     "description" : "How a `list` streamed as server-sent events reads its chunks and how long it runs.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
+    "name" : "wow.shared-states",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "description" : "The bounds of each context's shared states: `wow.shared-states.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
     "name" : "wow.snapshot",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "description" : "Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.",
@@ -259,11 +264,6 @@
     "name" : "wow.state-cache",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
     "description" : "The cache of aggregate states each context keeps between commands.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
-    "name" : "wow.state-views",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "description" : "The bounds of each context's state views: `wow.state-views.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.subscription",
@@ -1265,6 +1265,23 @@
     "description" : "The service's name; `spring.application.name` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
+    "name" : "wow.shared-states.capacity",
+    "type" : "java.lang.Integer",
+    "description" : "The most shared states a context keeps.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : 4096
+  }, {
+    "name" : "wow.shared-states.max-age",
+    "type" : "java.time.Duration",
+    "description" : "How long a shared state is kept at most.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : "PT1M"
+  }, {
+    "name" : "wow.shared-states.max-bytes",
+    "type" : "org.springframework.util.unit.DataSize",
+    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates"
+  }, {
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",
     "description" : "How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks.",
@@ -1309,23 +1326,6 @@
     "description" : "The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
     "defaultValue" : 32
-  }, {
-    "name" : "wow.state-views.capacity",
-    "type" : "java.lang.Integer",
-    "description" : "The most state views a context keeps.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "defaultValue" : 4096
-  }, {
-    "name" : "wow.state-views.max-age",
-    "type" : "java.time.Duration",
-    "description" : "How long a state view is kept at most.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "defaultValue" : "PT1M"
-  }, {
-    "name" : "wow.state-views.max-bytes",
-    "type" : "org.springframework.util.unit.DataSize",
-    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews"
   }, {
     "name" : "wow.stores",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Store>",

@@ -19,7 +19,7 @@ import {
   type Projected,
   projection,
 } from '../../src/dsl.js';
-import type { SnapshotQueryClient, SnapshotRecord } from '../../src/index.js';
+import type { SnapshotQueryClient, Snapshot } from '../../src/index.js';
 
 interface Line {
   sku: string;
@@ -96,16 +96,16 @@ describe('projected records (review R4-Q, Q-14)', () => {
         projection: { exclude: ['state.note'] },
       });
     expectTypeOf<Awaited<ReturnType<typeof excluded>>>().toEqualTypeOf<
-      SnapshotRecord<Cart> | undefined
+      Snapshot<Cart> | undefined
     >();
     const built = () =>
       client.list(
         listQuery({ projection: projection({ include: ['state.name'] }) }),
       );
     expectTypeOf<Awaited<ReturnType<typeof built>>[number]>().toEqualTypeOf<
-      SnapshotRecord<Cart>
+      Snapshot<Cart>
     >();
     type Whole = Awaited<ReturnType<typeof client.single>>;
-    expectTypeOf<Whole>().toEqualTypeOf<SnapshotRecord<Cart> | undefined>();
+    expectTypeOf<Whole>().toEqualTypeOf<Snapshot<Cart> | undefined>();
   });
 });

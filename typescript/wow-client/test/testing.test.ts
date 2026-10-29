@@ -26,7 +26,7 @@ import {
   developmentCallerHeaders,
   problemOf,
   problemResponse,
-  stateViewOf,
+  snapshotOf,
 } from '../src/testing.js';
 import { jsonResponse, stubFetch, testFetcher } from './fixtures/fetchStub.js';
 import { TEST_MANIFEST } from './fixtures/manifest';
@@ -77,7 +77,7 @@ describe('the development caller', () => {
 
   it('asks as its caller, or as whoever the function answers at each request', async () => {
     const { requests } = stubFetch(() =>
-      jsonResponse(stateViewOf(MUG, { stock: 1 })),
+      jsonResponse(snapshotOf(MUG, { stock: 1 })),
     );
     const fixed = testFetcher();
     fixed.interceptors.request.use(
@@ -172,17 +172,24 @@ describe('the wire builders', () => {
     });
   });
 
-  it('build a state view at version 1 unless told otherwise', () => {
-    expect(stateViewOf(MUG, { stock: 7 })).toEqual({
-      ref: MUG,
+  it('build a snapshot at version 1 unless told otherwise', () => {
+    expect(snapshotOf(MUG, { stock: 7 })).toEqual({
+      tenantId: MUG.tenantId,
+      aggregateId: MUG.id,
       version: 1,
-      scope: {},
+      ownerId: null,
+      spaceId: null,
       deleted: false,
       tags: {},
+      firstEventTime: 0,
+      lastEventTime: 0,
+      operator: null,
+      firstOperator: null,
+      schedules: {},
       state: { stock: 7 },
     });
     expect(
-      stateViewOf(MUG, { stock: 7 }, { version: 4, scope: { ownerId: 'a' } }),
-    ).toMatchObject({ version: 4, scope: { ownerId: 'a' } });
+      snapshotOf(MUG, { stock: 7 }, { version: 4, ownerId: 'a' }),
+    ).toMatchObject({ version: 4, ownerId: 'a' });
   });
 });

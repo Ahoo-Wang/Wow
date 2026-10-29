@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -1296,7 +1296,7 @@ describe('DashboardGrid', () => {
   });
 
   it('shows a skeleton until a panel has data', async () => {
-    const waiting = deferred<PagedResult<object>>();
+    const waiting = deferred<PagedList<object>>();
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
       [pending],

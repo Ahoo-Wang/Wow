@@ -76,10 +76,10 @@ export interface StreamEnd {
   readonly resumable: boolean;
 }
 
-/** One record of a streamed list, with its position. */
-export interface StreamedRow<T> {
-  /** The record. */
-  readonly record: T;
+/** One row of a streamed list, with its position. Kotlin's `Positioned`. */
+export interface Positioned<T> {
+  /** The row. */
+  readonly row: T;
   /**
    * The record's position, its event's `id`: an opaque cursor token to
    * resume after it ({@link StreamResumeOptions.lastEventId}). Absent from a
@@ -96,7 +96,7 @@ export interface StreamedRow<T> {
  * after it.
  */
 export interface StreamResumeOptions {
-  /** Starts after this position: a {@link StreamedRow.position} read before. */
+  /** Starts after this position: a {@link Positioned.position} read before. */
   readonly lastEventId?: string;
   /**
    * How many times in a row the stream may be resumed without a record in
@@ -164,7 +164,7 @@ export function resumableQueryRows<T>(
     /** The numbers of each record read as their exact text (review R4-Q, Q-9). */
     readonly numbers?: TextNumbers;
   } = {},
-): ReadableStream<StreamedRow<T>> {
+): ReadableStream<Positioned<T>> {
   const {
     maxRetries = DEFAULT_RETRY.attempts - 1,
     initialDelayMs = DEFAULT_RETRY.backoffMs,
@@ -221,7 +221,7 @@ export function resumableQueryRows<T>(
     }
   }
 
-  return new ReadableStream<StreamedRow<T>>({
+  return new ReadableStream<Positioned<T>>({
     async pull(controller) {
       for (;;) {
         let stop: unknown;
@@ -238,9 +238,7 @@ export function resumableQueryRows<T>(
               received++;
               failures = 0;
               controller.enqueue(
-                id
-                  ? { record: data as T, position: id }
-                  : { record: data as T },
+                id ? { row: data as T, position: id } : { row: data as T },
               );
               return;
             }

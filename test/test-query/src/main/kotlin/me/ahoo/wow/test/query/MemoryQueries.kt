@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
@@ -37,7 +38,6 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.test.ProcessorSpec
@@ -70,7 +70,7 @@ class MemoryQueries @InternalWowApi constructor(
     private val filters: List<QueryFilter> = emptyList(),
 ) : TenantQueryApi {
     private val storage = InMemoryQueryStorage()
-    private val committed = ConcurrentHashMap<AggregateRef, CommittedState>()
+    private val committed = ConcurrentHashMap<AggregateRef, Snapshot<JsonNode>>()
     private val stateTypes = ConcurrentHashMap(stateTypes)
     private val states = CommittedStates { ref -> committed[ref] }
 
@@ -133,7 +133,7 @@ class MemoryQueries @InternalWowApi constructor(
                 tags = tags,
             ),
         )
-        committed[ref] = CommittedState(ref, version, owner, deleted, tags, tree)
+        committed[ref] = Snapshot.of(ref, version, owner, tags, deleted, null, 0, 0, tree)
     }
 
     /** Holds each of [states], an aggregate id to its state, as a snapshot of [type] in [tenantId]; see [snapshot]. */

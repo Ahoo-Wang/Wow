@@ -1019,7 +1019,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.StateView",
+                  "$ref" : "#/components/schemas/wow.Snapshot",
                   "properties" : {
                     "state" : {
                       "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1153,7 +1153,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                      "$ref" : "#/components/schemas/wow.Snapshot",
                       "properties" : {
                         "state" : {
                           "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1166,7 +1166,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1181,7 +1181,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1191,7 +1191,7 @@
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1215,7 +1215,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState"
@@ -1343,7 +1343,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                      "$ref" : "#/components/schemas/wow.EventStream"
                     }
                   }, {
                     "$ref" : "#/components/schemas/wow.PagedList",
@@ -1351,7 +1351,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
@@ -1361,12 +1361,12 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   }, {
                     "$ref" : "#/components/schemas/wow.CountResult"
                   }, {
@@ -1385,7 +1385,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   },
                   "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
                   "end" : {
@@ -2214,7 +2214,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.StateView",
+                  "$ref" : "#/components/schemas/wow.Snapshot",
                   "properties" : {
                     "state" : {
                       "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2348,7 +2348,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                      "$ref" : "#/components/schemas/wow.Snapshot",
                       "properties" : {
                         "state" : {
                           "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2361,7 +2361,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2376,7 +2376,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2386,7 +2386,7 @@
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2410,7 +2410,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState"
@@ -2538,7 +2538,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                      "$ref" : "#/components/schemas/wow.EventStream"
                     }
                   }, {
                     "$ref" : "#/components/schemas/wow.PagedList",
@@ -2546,7 +2546,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
@@ -2556,12 +2556,12 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   }, {
                     "$ref" : "#/components/schemas/wow.CountResult"
                   }, {
@@ -2580,7 +2580,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   },
                   "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
                   "end" : {
@@ -3789,7 +3789,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.StateView",
+                  "$ref" : "#/components/schemas/wow.Snapshot",
                   "properties" : {
                     "state" : {
                       "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -3923,7 +3923,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                      "$ref" : "#/components/schemas/wow.Snapshot",
                       "properties" : {
                         "state" : {
                           "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -3936,7 +3936,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -3951,7 +3951,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -3961,7 +3961,7 @@
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -3985,7 +3985,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.domain.product.ProductState"
@@ -4113,7 +4113,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                      "$ref" : "#/components/schemas/wow.EventStream"
                     }
                   }, {
                     "$ref" : "#/components/schemas/wow.PagedList",
@@ -4121,7 +4121,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
@@ -4131,12 +4131,12 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   }, {
                     "$ref" : "#/components/schemas/wow.CountResult"
                   }, {
@@ -4155,7 +4155,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   },
                   "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
                   "end" : {
@@ -4500,36 +4500,6 @@
         },
         "required" : [ "id", "tenantId" ]
       },
-      "wow.StateView" : {
-        "type" : "object",
-        "properties" : {
-          "ref" : {
-            "$ref" : "#/components/schemas/wow.AggregateRef"
-          },
-          "version" : {
-            "type" : "integer"
-          },
-          "scope" : {
-            "$ref" : "#/components/schemas/wow.Scope"
-          },
-          "deleted" : {
-            "type" : "boolean"
-          },
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          },
-          "state" : {
-            "description" : "The aggregate's state."
-          }
-        },
-        "required" : [ "ref", "version", "scope", "deleted", "tags", "state" ]
-      },
       "wow.StateTrace" : {
         "type" : "object",
         "properties" : {
@@ -4566,7 +4536,7 @@
           "events" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/wow.EventView"
+              "$ref" : "#/components/schemas/wow.CommittedEvent"
             }
           },
           "scope" : {
@@ -4597,7 +4567,7 @@
         },
         "required" : [ "version", "commitTime", "commandId", "requestId", "commandType", "events", "scope", "deleted", "state" ]
       },
-      "wow.EventView" : {
+      "wow.CommittedEvent" : {
         "type" : "object",
         "properties" : {
           "name" : {
@@ -5225,9 +5195,9 @@
           }
         }
       },
-      "wow.SnapshotRecord" : {
+      "wow.Snapshot" : {
         "type" : "object",
-        "description" : "An aggregate's snapshot as a query returns it; a projection leaves fields out.",
+        "description" : "An aggregate's snapshot as a query and a state read return it; a projection leaves fields out.",
         "properties" : {
           "tenantId" : {
             "type" : "string"
@@ -5276,12 +5246,19 @@
               "type" : "null"
             } ]
           },
+          "schedules" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object"
+            },
+            "description" : "The schedules the aggregate keeps, each rule by its key."
+          },
           "state" : {
             "description" : "The aggregate's state."
           }
         }
       },
-      "wow.EventStreamRecord" : {
+      "wow.EventStream" : {
         "type" : "object",
         "description" : "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
         "properties" : {
@@ -5322,7 +5299,7 @@
           "events" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/wow.EventView"
+              "$ref" : "#/components/schemas/wow.CommittedEvent"
             }
           }
         }

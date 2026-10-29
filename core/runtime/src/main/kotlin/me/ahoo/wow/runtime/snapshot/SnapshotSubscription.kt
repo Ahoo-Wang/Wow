@@ -23,9 +23,9 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.runtime.state.StateViewOptions
-import me.ahoo.wow.runtime.state.StateViewReader
-import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.state.SharedStateOptions
+import me.ahoo.wow.runtime.state.SharedStateReader
+import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -84,8 +84,8 @@ class SnapshotSubscription(
     kernel: Kernel,
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
-    views: StateViews? = null,
-    capacity: Int = StateViewOptions.DEFAULT_CAPACITY,
+    views: SharedStates? = null,
+    capacity: Int = SharedStateOptions.DEFAULT_CAPACITY,
     /** The subscription's name, and its reader's: `snapshot` unless it writes another target than the default. */
     val name: String = Hop.SNAPSHOT_SUBSCRIPTION,
     /** Whether the subscription answers the `snapshot` hop of an aggregate of a type: it writes the primary target. */
@@ -106,14 +106,14 @@ class SnapshotSubscription(
         require(models.all { it.type.context == context }) { "Every snapshotted aggregate type is of $context." }
     }
 
-    /** The state views the executor records for the snapshotted aggregate types, this subscription one of their readers. */
-    val views: StateViews = views ?: StateViews(
+    /** The shared states the executor records for the snapshotted aggregate types, this subscription one of their readers. */
+    val views: SharedStates = views ?: SharedStates(
         codec,
         mapOf(name to this.models.keys),
-        StateViewOptions(capacity),
+        SharedStateOptions(capacity),
     )
 
-    private val reader = StateViewReader(name, models, kernel, codec, this.views, store)
+    private val reader = SharedStateReader(name, models, kernel, codec, this.views, store)
 
     /** The subscription to register: [name]d, of the snapshotted aggregate types only. */
     val subscription: Subscription = Subscription.coalescing(

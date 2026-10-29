@@ -28,7 +28,7 @@ import type {
   CountQuery,
   CountResult,
   RequestOptions,
-  StreamedRow,
+  Positioned,
   StreamOptions,
   WowProblemError,
 } from '@ahoo-wang/wow-client';
@@ -39,7 +39,7 @@ import type {
   FilterListQuery,
   FilterSingleQuery,
   PagedQuery,
-  PagedResult,
+  PagedList,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   StreamExecutor,
@@ -113,7 +113,7 @@ it('hands every executor the query and the request options with a signal', () =>
     Promise<number>
   >();
   expectTypeOf<StreamExecutor<Item, string>>().toEqualTypeOf<
-    QueryExecutor<string, ReadableStream<StreamedRow<Item>>, StreamOptions>
+    QueryExecutor<string, ReadableStream<Positioned<Item>>, StreamOptions>
   >();
   expectTypeOf<StreamExecutor<Item, string>>().parameters.toEqualTypeOf<
     [string, StreamOptions & { readonly signal: AbortSignal }]
@@ -170,10 +170,10 @@ it('specializes the shared types for each request hook', () => {
     QueryHookReturn<FilterListQuery<Fields>, Item[]>
   >();
   expectTypeOf<UsePagedQueryOptions<Item, Fields>>().toEqualTypeOf<
-    QueryHookOptions<PagedQuery<Fields>, PagedResult<Item>>
+    QueryHookOptions<PagedQuery<Fields>, PagedList<Item>>
   >();
   expectTypeOf<UsePagedQueryReturn<Item, Fields>>().toEqualTypeOf<
-    QueryHookReturn<PagedQuery<Fields>, PagedResult<Item>>
+    QueryHookReturn<PagedQuery<Fields>, PagedList<Item>>
   >();
   expectTypeOf<UseCountQueryOptions<Fields>>().toEqualTypeOf<
     QueryHookOptions<CountQuery<Fields>, CountResult>

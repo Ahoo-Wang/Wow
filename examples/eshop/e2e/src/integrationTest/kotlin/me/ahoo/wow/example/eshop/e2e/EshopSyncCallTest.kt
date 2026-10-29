@@ -203,7 +203,7 @@ class EshopSyncCallTest {
             val view = get("/eshop-ordering/order/$id/state", EshopStack.EMPLOYEE)
             if (view.status == NOT_FOUND) return null
             check(view.status == OK) { "The state of $id answered $view" }
-            return view.body!!["scope"]["ownerId"]?.takeUnless { it.isNull }?.asString()
+            return view.body!!["ownerId"]?.takeUnless { it.isNull }?.asString()
         }
 
         /** The commits of the order [id] that submitted it. */

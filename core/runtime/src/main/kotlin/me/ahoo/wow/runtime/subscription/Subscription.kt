@@ -25,7 +25,7 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.state.SerializedState
-import me.ahoo.wow.runtime.state.StateViewReader
+import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
@@ -371,20 +371,20 @@ data class SubscribedEntry(
     val position: LogPosition?,
     val events: List<Any>,
     val transport: Transport? = null,
-    private val states: StateViewReader? = null,
+    private val states: SharedStateReader? = null,
     val published: StateEventRecord? = null,
     val message: Any? = null,
 ) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version
 
-    /** The state after the stream ([StateViewReader.read]): only an entry decoded by [EntryDecoder.stateEvents]. */
+    /** The state after the stream ([SharedStateReader.read]): only an entry decoded by [EntryDecoder.stateEvents]. */
     suspend fun state(): SerializedState = reader().read(stream)
 
     /** The state after the stream, from [snapshot], the aggregate's snapshot the handler already loaded, if any. */
     internal suspend fun state(snapshot: SnapshotRecord?): SerializedState = reader().read(stream, snapshot)
 
-    private fun reader(): StateViewReader =
+    private fun reader(): SharedStateReader =
         checkNotNull(states) { "The entry ${stream.ref}@${stream.version} was not decoded with its state." }
 }
 
@@ -394,7 +394,7 @@ data class SubscribedEntry(
  *
  * The post-commit state (`StateEvent`) comes with [stateEvents], the decoder every state consumer
  * of a context shares: the same code, not the same result. Each subscription decodes an entry's events
- * itself, as each reader decodes a state view afresh: the events are the application's classes, which may be mutable
+ * itself, as each reader decodes a shared state afresh: the events are the application's classes, which may be mutable
  * (a Java bean, a Kotlin class with a `var`), so one decoded instance handed to every processor would let one handler's
  * change reach the others. The snapshot subscription and the sinks take the stored records and decode
  * no event; what a processor's subscription decodes is that processor's alone.
@@ -432,7 +432,7 @@ fun interface EntryDecoder {
          * replayed. Each subscription decodes the events afresh, so no handler sees another's instances (see
          * [EntryDecoder]).
          */
-        fun stateEvents(states: StateViewReader, decodeEvents: Boolean = true): EntryDecoder =
+        fun stateEvents(states: SharedStateReader, decodeEvents: Boolean = true): EntryDecoder =
             EntryDecoder { stream, position, transport ->
                 val events = if (decodeEvents) {
                     val model = states.modelOf(stream.ref.type)

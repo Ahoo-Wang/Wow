@@ -66,7 +66,7 @@ class OrderingCoSecTest {
         submit("cosec-alice-1", alice).status.assert().isEqualTo(OK)
         val answer = read("cosec-alice-1", alice)
         answer.status.assert().describedAs(answer.text).isEqualTo(OK)
-        answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        answer.body!!["ownerId"].asString().assert().isEqualTo("alice")
         read("cosec-alice-1", signedIn("bob")).status.assert().isEqualTo(NOT_FOUND)
         read("cosec-alice-1", signedIn("erin", "employee")).status.assert().isEqualTo(OK)
     }

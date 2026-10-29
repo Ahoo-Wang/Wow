@@ -31,13 +31,13 @@ import tools.jackson.core.JacksonException
  * Reads the state after a committed stream for one state consumer, the [reader] of the context's [views],
  * in this order:
  *
- * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed (or
+ * 1. the view taken at the stream's version ([SharedStates.get]): what the executor recorded as it committed (or
  *    expected just before, when the log hands this node's commit over first), or what another reader rebuilt;
  * 2. otherwise the stream in hand evolved from the state right before it, reading no store:
  *    the view at the previous version, such as the one this reader handled last, or the initial state for the
  *    aggregate's first stream;
  * 3. otherwise the state rebuilt from the nearest base before the version: the latest view before it
- *    ([StateViews.floor], such as the one this reader rebuilt for the aggregate's previous commit) or the aggregate's
+ *    ([SharedStates.floor], such as the one this reader rebuilt for the aggregate's previous commit) or the aggregate's
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
  * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
@@ -50,12 +50,12 @@ import tools.jackson.core.JacksonException
  * state that cannot be read is retried, then parks the aggregate like a failing handler.
  */
 @InternalWowApi
-class StateViewReader(
+class SharedStateReader(
     val reader: String,
     models: Collection<AggregateModel<*>>,
     private val kernel: Kernel,
     val codec: EventCodec,
-    private val views: StateViews,
+    private val views: SharedStates,
     private val snapshots: SnapshotStore? = null,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
@@ -76,7 +76,7 @@ class StateViewReader(
             ?: inHand(stream)
             ?: rebuild(stream, snapshot)
 
-    /** This reader is done with [ref] up to [version] ([StateViews.pass]). */
+    /** This reader is done with [ref] up to [version] ([SharedStates.pass]). */
     fun pass(ref: AggregateRef, version: Int) {
         views.pass(reader, ref, version)
     }

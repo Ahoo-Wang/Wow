@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
@@ -38,7 +37,6 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
@@ -315,17 +313,17 @@ class HttpQueryApi internal constructor(
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
             Rows(context, path, caller) { decode(it, rowType) }
 
-        override suspend fun state(id: String): AggregateState<S>? = read(type.ref(caller.tenantId, id), null)
+        override suspend fun state(id: String): Snapshot<S>? = read(type.ref(caller.tenantId, id), null)
 
-        override suspend fun state(ref: AggregateRef): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef): Snapshot<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId)
         }
 
-        override suspend fun state(id: String, minVersion: Int): AggregateState<S>? =
+        override suspend fun state(id: String, minVersion: Int): Snapshot<S>? =
             read(type.ref(caller.tenantId, id), null, minVersion)
 
-        override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId, minVersion)
         }
@@ -335,7 +333,7 @@ class HttpQueryApi internal constructor(
          * see it, or it is in another tenant; a peer's 409 `wow.query.min-version-not-reached` is a
          * [MinVersionNotReachedException] with the version it names.
          */
-        private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): AggregateState<S>? {
+        private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): Snapshot<S>? {
             minVersion?.let { require(it >= 1) { "A committed state has a version from 1." } }
             val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
             val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
@@ -349,18 +347,9 @@ class HttpQueryApi internal constructor(
                     else -> throw answer.problem.exception("The state of $ref")
                 }
             }
-            val read = ClientJson.mapper.treeToValue(view.get(REF), AggregateRef::class.java)
-            if (tenantId != null && read.tenantId != tenantId) return null
-            return AggregateState.of(
-                read,
-                view.get(VERSION).asInt(),
-                ClientJson.mapper.treeToValue(view.get(SCOPE), Scope::class.java),
-                view.get(DELETED)?.asBoolean() ?: false,
-                view.get(TAGS)?.takeUnless { it.isNull }?.properties()?.associate { (name, values) ->
-                    name to values.elements().map { it.asString() }
-                }.orEmpty(),
-                decode(view.get(STATE), stateType),
-            )
+            // The snapshot record's shape, a snapshot query's row.
+            val snapshot = (view as ObjectNode).toSnapshot(type, stateType)
+            return snapshot.takeUnless { tenantId != null && it.ref.tenantId != tenantId }
         }
     }
 
@@ -418,13 +407,7 @@ class HttpQueryApi internal constructor(
         private const val LIST = "list"
         private const val EXACT = "exact"
         private const val NEXT_CURSOR = "nextCursor"
-        private const val REF = "ref"
-        private const val VERSION = "version"
         private const val MIN_VERSION = "minVersion"
-        private const val SCOPE = "scope"
-        private const val DELETED = "deleted"
-        private const val TAGS = "tags"
-        private const val STATE = "state"
 
         private fun queryPath(type: AggregateType, model: String) =
             "/${type.context}/${type.name}/$model/${QueryRoutes.SEGMENT}"

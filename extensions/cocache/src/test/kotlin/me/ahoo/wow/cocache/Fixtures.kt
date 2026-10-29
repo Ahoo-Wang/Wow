@@ -19,7 +19,6 @@ import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
@@ -43,8 +42,8 @@ fun queryApiOf(snapshots: TenantSnapshotQueries<OrderView>): TenantQueryApi = mo
     }
 }
 
-fun stateOf(id: String, version: Int, item: String, deleted: Boolean = false, tenantId: String = "t"): AggregateState<OrderView> =
-    AggregateState.of(ORDER.ref(tenantId, id), version, Scope.NONE, deleted, emptyMap(), OrderView(item))
+fun stateOf(id: String, version: Int, item: String, deleted: Boolean = false, tenantId: String = "t"): Snapshot<OrderView> =
+    Snapshot.of(ORDER.ref(tenantId, id), version, Scope.NONE, emptyMap(), deleted, null, 0, 0, OrderView(item))
 
 fun snapshotOf(id: String, version: Int, item: String, deleted: Boolean = false, tenantId: String = "t"): Snapshot<OrderView> =
     Snapshot.of(ORDER.ref(tenantId, id), version, Scope.NONE, emptyMap(), deleted, null, 0, 0, OrderView(item))

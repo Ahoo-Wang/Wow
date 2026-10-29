@@ -16,7 +16,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type CursorPage,
-  type PagedResult,
+  type PagedList,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -222,7 +222,7 @@ export function compileKanbanCounts(
 /** One lane's page, as the source answered it. */
 export interface LanePage {
   lane: KanbanLane;
-  page: PagedResult<RecordData> | CursorPage<RecordData>;
+  page: PagedList<RecordData> | CursorPage<RecordData>;
   /** The page's index, for a paged source; 1 for a cursor's. */
   index: number;
 }

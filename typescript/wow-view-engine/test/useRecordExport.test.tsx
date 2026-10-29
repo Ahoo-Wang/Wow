@@ -13,7 +13,7 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FilterPagedQuery, PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -68,7 +68,7 @@ function gatedSource(): { source: ViewSource; held: (() => void)[] } {
         opened = true;
         return Promise.resolve(answer);
       }
-      return new Promise<PagedResult<RecordData>>(resolve =>
+      return new Promise<PagedList<RecordData>>(resolve =>
         held.push(() => resolve(answer)),
       );
     }),

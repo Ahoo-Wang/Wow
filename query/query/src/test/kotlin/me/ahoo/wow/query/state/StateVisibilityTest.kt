@@ -24,22 +24,27 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /** [StateVisibility]: a state as the snapshot-shaped record the snapshot queries admit (review A3-11). */
 class StateVisibilityTest {
     private val ref = AggregateType("shop", "cart").ref("acme", "c-1")
-    private val state = CommittedState(
+    private val state = Snapshot.of<JsonNode>(
         ref = ref,
         version = 3,
         scope = Scope("alice", "s-1"),
         deleted = true,
         tags = mapOf("region" to listOf("east", "west")),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 2),
     )
 

@@ -67,9 +67,9 @@ export interface PagedQuery<
 
 /**
  * A page of a paged query: `total` is exact when `exact`, a lower bound
- * otherwise, and null for total `none`.
+ * otherwise, and null for total `none`. Kotlin's `PagedList`.
  */
-export interface PagedResult<T> {
+export interface PagedList<T> {
   readonly total: number | null;
   readonly exact: boolean;
   readonly list: readonly T[];
@@ -162,22 +162,18 @@ export function pagedQuery<FIELDS extends string = string>({
   return { filter: queryFilter(filter), projection, sort, pagination };
 }
 
-/** One page of a `paged` query: its rows, and how many match in total. */
-export interface PagedList<T> {
-  total: number;
-  list: T[];
-}
-
 /**
  * Builds a `PagedList`, for a placeholder page or a test double.
  *
  * @param options.total - How many rows match in total. Defaults to the length
  *   of `list`.
+ * @param options.exact - Whether `total` is exact. Defaults to true.
  * @param options.list - The rows of this page. Defaults to a new empty array.
  */
 export function pagedList<T>({
   total,
+  exact = true,
   list = [],
 }: Partial<PagedList<T>> = {}): PagedList<T> {
-  return { total: total ?? list.length, list };
+  return { total: total === undefined ? list.length : total, exact, list };
 }

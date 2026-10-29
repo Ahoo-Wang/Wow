@@ -6,7 +6,7 @@
     "ops/contract.ts": "a8c136ecc8d16bfd1fbf511d601fe541b6928101a5ac1046f46e81f5a52f20ab",
     "ops/index.ts": "f2121f9db18076911b430dae06a60a4663089682852422c1c4d5a1fdf240497d",
     "ops/manifest.ts": "18e1998a72d42eb96e083e95478fa39e0fb522268f71a7d61c4d179929f633db",
-    "ops/parked/aggregate.ts": "54f53088fd1ee32dfa92e0067311a6913fbac5cfa30d217ce591bab081677aac",
+    "ops/parked/aggregate.ts": "7d498b684f07b90eebacd7ce561de682a0de5c316012fe3a52f271019f5cfa16",
     "ops/parked/commandClient.ts": "d3e3958293614603f3766f555226a733d7364a739632148d30eb2f2b537cceb3",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",

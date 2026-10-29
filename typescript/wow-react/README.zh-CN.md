@@ -37,10 +37,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 最后两个参数恰好就是它们，于是路由、请求头和响应处理都由客户端负责，不用手写：
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 
@@ -58,7 +55,7 @@ export function PaidOrders({
   page: number;
 }) {
   const { result, loading, error } = usePagedQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: pagedQuery({
@@ -95,10 +92,7 @@ export function PaidOrders({
 开始，`execute` 收到的查询带着它要读的那一页的游标。
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCursorQuery } from '@ahoo-wang/wow-react';
 
@@ -113,7 +107,7 @@ export function PaidOrderPages({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
@@ -150,10 +144,7 @@ export function PaidOrderPages({
 会从断点续传，并为每条记录带上位置，hook 把它保存为 `position`。
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '@ahoo-wang/wow-react';
 
@@ -168,7 +159,7 @@ export function PaidOrderFeed({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, done, loading, error, abort } = useStreamQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     initialQuery: listQuery({

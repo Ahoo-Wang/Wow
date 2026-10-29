@@ -17,7 +17,7 @@
  * the page sizes a runtime's limits leave on offer.
  */
 
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -399,7 +399,7 @@ describe('useRecordTable', () => {
     let answer: (() => void) | undefined;
     const paged = vi.fn((query: { pagination?: { size: number } }) =>
       query.pagination?.size === 50
-        ? new Promise<PagedResult<object>>(resolve => {
+        ? new Promise<PagedList<object>>(resolve => {
             answer = () =>
               resolve({ total: 200, exact: true, list: [...ROWS] });
           })

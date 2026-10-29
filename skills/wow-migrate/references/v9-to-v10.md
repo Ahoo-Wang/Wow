@@ -630,7 +630,7 @@ A target pinned to an earlier V10 pre-release renames these host keys, with no a
 - `wow.health.sample-interval` and `wow.observability.sample-interval` are one `wow.node.sample-interval`. The node's one sampler counts parked entries up to `wow.node.max-parked` (it was `wow.observability.max-parked`), for its health and its gauges alike; `wow.health.subscriptions.parked-degraded-at` is at most it.
 - `wow.subscription.read-retry.max-attempts` is `read-retry.error-after`, and `read-retry.timeout` is gone.
 - `wow.cluster.max-in-flight-per-peer` is `max-in-flight-per-node`; `wow.query.cross-tenant.enabled` is `wow.query.allow-cross-tenant`; `wow.snapshot.interval`, `.batch` and `.pages` are `wow.snapshot.maintenance-interval`, `.rebuild.page-size` and `.rebuild.max-pages`; `wow.kafka.topic-prefix` is `wow.kafka.topics.prefix`.
-- `wow.state-views.max-bytes` is a size (`64MB`); a number is still read as bytes.
+- `wow.shared-states.max-bytes` is a size (`64MB`); a number is still read as bytes.
 - `wow.query.memory.enabled` is `true` by default, and an aggregate's `clickhouse.history.enabled` is `auto`, `true` or `false`.
 - The analytics catalog service drops `wow.analytics.catalog.engine` (ClickHouse is its one engine); `approval.sources` and `approval.publications` are `require-source-approval` and `require-publication-approval`, and `datasets.serve` is `datasets.serving.enabled`.
 

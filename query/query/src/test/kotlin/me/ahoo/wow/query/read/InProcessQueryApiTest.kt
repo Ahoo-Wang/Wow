@@ -40,6 +40,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.aggregate
 import me.ahoo.wow.api.read.datasets
@@ -69,7 +70,6 @@ import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.toSnapshot
 import me.ahoo.wow.spi.log.EventRecord
@@ -77,6 +77,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /** The node's typed NodeQueryApi (decisions D254 ②, D259): one engine, the caller's scope, the in-process budget. */
@@ -151,7 +152,7 @@ class InProcessQueryApiTest {
 
     private fun api(
         defaultListSize: Int = InProcessQueryApi.DEFAULT_LIST_SIZE,
-        latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> CommittedState? = { null },
+        latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> Snapshot<JsonNode>? = { null },
         policies: List<QueryPolicy> = emptyList(),
         snapshots: QueryBindings<AggregateType> = storage,
     ): InProcessQueryApi {
@@ -173,12 +174,15 @@ class InProcessQueryApiTest {
         )
     }
 
-    private fun committed(ref: me.ahoo.wow.api.aggregate.AggregateRef, owner: String) = CommittedState(
+    private fun committed(ref: me.ahoo.wow.api.aggregate.AggregateRef, owner: String) = Snapshot.of<JsonNode>(
         ref = ref,
         version = 3,
         scope = Scope(owner),
         deleted = false,
         tags = emptyMap(),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 7),
     )
 

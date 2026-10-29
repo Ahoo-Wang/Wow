@@ -156,6 +156,16 @@ interface Hop {
 }
 
 // @public
+interface Operator {
+    // (undocumented)
+    readonly crossScope: boolean;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly tenantId: string;
+}
+
+// @public
 interface Problem {
     readonly code?: string;
     // (undocumented)
@@ -189,12 +199,39 @@ interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<
 type Retry = 'none' | 'same-request' | 'new-request';
 
 // @public
-interface Scope {
+interface ScheduleRule {
     // (undocumented)
-    readonly ownerId?: string | null;
-    // (undocumented)
-    readonly spaceId?: string | null;
+    readonly [property: string]: unknown;
+    readonly type: string;
 }
+
+// @public
+interface Snapshot<S = unknown> {
+    // (undocumented)
+    readonly aggregateId: string;
+    // (undocumented)
+    readonly deleted: boolean;
+    readonly firstEventTime: number;
+    readonly firstOperator: Operator | null;
+    readonly lastEventTime: number;
+    readonly operator: Operator | null;
+    // (undocumented)
+    readonly ownerId: string | null;
+    readonly schedules: Readonly<Record<string, ScheduleRule>>;
+    // (undocumented)
+    readonly spaceId: string | null;
+    // (undocumented)
+    readonly state: S;
+    // (undocumented)
+    readonly tags: Tags;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly version: number;
+}
+
+// @public
+export function snapshotOf<S>(ref: AggregateRef, state: S, overrides?: Partial<Omit<Snapshot<S>, 'tenantId' | 'aggregateId' | 'state'>>): Snapshot<S>;
 
 // @public
 const Stage: {
@@ -205,25 +242,6 @@ const Stage: {
 
 // @public
 type Stage = (typeof Stage)[keyof typeof Stage];
-
-// @public
-interface StateView<S = unknown> {
-    // (undocumented)
-    readonly deleted: boolean;
-    // (undocumented)
-    readonly ref: AggregateRef;
-    // (undocumented)
-    readonly scope: Scope;
-    // (undocumented)
-    readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
-    // (undocumented)
-    readonly version: number;
-}
-
-// @public
-export function stateViewOf<S>(ref: AggregateRef, state: S, overrides?: Partial<Omit<StateView<S>, 'ref' | 'state'>>): StateView<S>;
 
 // @public
 type Tags = Readonly<Record<string, readonly string[]>>;

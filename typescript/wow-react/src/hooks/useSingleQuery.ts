@@ -66,12 +66,12 @@ export interface UseSingleQueryReturn<
  *
  * @example
  * ```tsx
- * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
  * import { filter, singleQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useSingleQuery } from '@ahoo-wang/wow-react';
  *
  * function OrderStatus({ client, id }: { client: SnapshotQueryClient<OrderState, OrderFields>; id: string }) {
- *   const { result, loading, error } = useSingleQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { result, loading, error } = useSingleQuery<Snapshot<OrderState>, OrderFields>({
  *     query: singleQuery({ filter: filter.id(id) }),
  *     execute: (query, options) =>
  *       client.single(query, options),
