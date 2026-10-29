@@ -14,6 +14,7 @@ interface AggregateManifest {
     readonly description?: string;
     // (undocumented)
     readonly events: readonly EventManifest[];
+    readonly idSource?: 'assigned' | 'owner' | (string & {});
     // (undocumented)
     readonly name: string;
     readonly ownership?: 'owner' | 'tenant' | (string & {});

@@ -30,8 +30,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -697,7 +697,7 @@ class CommandGateway @InternalWowApi constructor(
     private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
         val owner = scope.ownerId
         return when {
-            owner == null && requested == null && caller.subject == null && !caller.service -> OwnId.Refused(
+            owner == null && requested == null && caller.subject == null -> OwnId.Refused(
                 FrameworkCodes.AUTH_UNAUTHENTICATED,
                 "An unauthenticated caller has no aggregate of its own.",
             )

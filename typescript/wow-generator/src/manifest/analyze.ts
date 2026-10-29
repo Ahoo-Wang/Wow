@@ -85,6 +85,11 @@ export interface CommandModel {
   /** Its route by id, and its route without one. */
   readonly byIdPath?: { readonly path: string };
   readonly unaddressedPath?: { readonly path: string };
+  /**
+   * Of an aggregate whose id is its owner's, the method that sends it by no id
+   * to the caller's own aggregate (`addItemOwn`); `method` then sends it by id.
+   */
+  readonly ownMethod?: string;
   /** The body's type name, or undefined when its schema is unknown. */
   readonly bodyType: string;
   /** The body may be left out: its schema requires nothing. */
@@ -114,6 +119,11 @@ export interface LifecycleModel {
   /** Its routes, as the Manifest lists them. */
   readonly routes: readonly Route[];
   /**
+   * Of an aggregate whose id is its owner's, the method that sends it by no id
+   * to the caller's own aggregate (`deleteAggregateOwn`).
+   */
+  readonly ownMethod?: string;
+  /**
    * The body's type, or undefined for a command without one: the type
    * generated from the Manifest's `$defs` entry of the command's name when it
    * holds one (`bodyGenerated`), else `@ahoo-wang/wow-client`'s.
@@ -135,6 +145,11 @@ export interface AggregateModel {
   /** The directory of its modules, relative to the output directory. */
   readonly directory: string;
   readonly ownership: string;
+  /**
+   * Where its id comes from: `assigned`, or `owner` for one whose id is its
+   * owner's, whose commands and state read also go by no id to the caller's own.
+   */
+  readonly idSource: string;
   readonly snapshot: boolean;
   readonly stateType: string;
   readonly stateFields: readonly string[];
@@ -819,6 +834,8 @@ function aggregateModel(
 ): AggregateModel {
   const where = `${context.name}.${aggregate.name}`;
   const typeName = toTypeIdentifier(pascalCase(aggregate.name));
+  const idSource = aggregate.idSource ?? 'assigned';
+  const owned = idSource === 'owner';
   const generated = new Set(lifecycleBodies(types, aggregate));
   const lifecycle: LifecycleModel[] = lifecycleCommands(aggregate)
     .filter(command => LIFECYCLE_COMMANDS.has(command.name))
@@ -826,11 +843,15 @@ function aggregateModel(
       const name = command.name;
       const simple = name.split('.').pop()!;
       const description = types.schemaOf(name)?.description;
+      const method = toIdentifier(camelCase(simple));
+      const own =
+        owned && (command.routes ?? []).some(r => !r.path.includes('{id}'));
       return {
         name,
         member: upperSnakeCase(simple),
-        method: toIdentifier(camelCase(simple)),
+        method,
         routes: routesOf(command),
+        ...(own ? { ownMethod: `${method}Own` } : {}),
         ...(generated.has(name)
           ? { bodyType: types.refType(name, where), bodyGenerated: true }
           : LIFECYCLE_BODIES[name]
@@ -839,7 +860,9 @@ function aggregateModel(
         ...(typeof description === 'string' ? { description } : {}),
       };
     });
-  const taken = new Set(lifecycle.map(item => item.method));
+  const taken = new Set(
+    lifecycle.flatMap(item => [item.method, item.ownMethod ?? item.method]),
+  );
   const commands: CommandModel[] = domainCommands(aggregate).map(command => {
     let method = toIdentifier(camelCase(command.name));
     if (taken.has(method) || method === 'gateway') method = `${method}Command`;
@@ -849,6 +872,14 @@ function aggregateModel(
     );
     const byId = routes.find(route => route.path.includes('{id}'));
     const unaddressed = routes.find(route => !route.path.includes('{id}'));
+    // Of an aggregate whose id is its owner's, the route by no id is the caller's own, but a mounted command's,
+    // whose aggregate a transformer finds.
+    let ownMethod: string | undefined;
+    if (owned && byId && unaddressed && !(command.mounted ?? false)) {
+      ownMethod = `${method}Own`;
+      if (taken.has(ownMethod)) ownMethod = `${ownMethod}Command`;
+      taken.add(ownMethod);
+    }
     const key = schemaKey(command.schema);
     return {
       name: command.name,
@@ -856,6 +887,7 @@ function aggregateModel(
       routes: routesOf(command),
       ...(byId ? { byIdPath: { path: byId.path } } : {}),
       ...(unaddressed ? { unaddressedPath: { path: unaddressed.path } } : {}),
+      ...(ownMethod === undefined ? {} : { ownMethod }),
       bodyType: typeOfRef(types, command.schema, `${where}.${command.name}`),
       bodyOptional: emptyBody(
         types,
@@ -902,6 +934,7 @@ function aggregateModel(
     typeName,
     directory: `${context.name}/${aggregate.name}`,
     ownership: aggregate.ownership ?? 'owner',
+    idSource,
     snapshot: aggregate.snapshot?.enabled ?? true,
     stateType: typeOfRef(types, aggregate.state.schema, `${where} state`),
     stateFields:

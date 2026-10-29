@@ -68,6 +68,43 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `every command of an aggregate whose id is its owner's should also have a route without an id`() {
+        listOf(Creation.NONE, Creation.REQUIRED, Creation.ALLOWED).forEach { creation ->
+            CommandRoutes.of("shop", "basket", "PutItem", creation, unaddressed = true).assert().containsExactly(
+                RouteManifest("POST", "/shop/basket/{id}/put-item"),
+                RouteManifest("POST", "/shop/basket/put-item"),
+            )
+        }
+    }
+
+    @Test
+    fun `the delete of the caller's own aggregate should name no id`() {
+        CommandRoutes.ownDeleteRoute("shop", "basket").assert().isEqualTo(RouteManifest("DELETE", "/shop/basket"))
+        CommandRoutes.deleteRoute("shop", "basket").assert().isEqualTo(RouteManifest("DELETE", "/shop/basket/{id}"))
+    }
+
+    @Test
+    fun `an owned lifecycle command should have its route by id and the caller's own`() {
+        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.ApplyTags", owned = true).routes.assert()
+            .containsExactly(
+                RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.apply-tags"),
+                RouteManifest("POST", "/shop/basket/wow.lifecycle.apply-tags"),
+            )
+        val delete = SystemCommands.lifecycle("shop", "basket", SystemCommands.DELETE_AGGREGATE, owned = true)
+        delete.system.assert().isTrue()
+        delete.schema.assert().isEqualTo(Manifest.schemaRef(SystemCommands.DELETE_AGGREGATE))
+        delete.routes.assert().containsExactly(
+            RouteManifest("DELETE", "/shop/basket/{id}"),
+            RouteManifest("DELETE", "/shop/basket"),
+        )
+        // Not owned, a lifecycle command keeps its route by id alone.
+        SystemCommands.lifecycle("shop", "basket", SystemCommands.DELETE_AGGREGATE).routes.assert()
+            .containsExactly(RouteManifest("DELETE", "/shop/basket/{id}"))
+        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.ApplyTags").routes.assert()
+            .containsExactly(RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.apply-tags"))
+    }
+
+    @Test
     fun `the framework's segments should be reserved`() {
         CommandRoutes.isReserved("query").assert().isTrue()
         CommandRoutes.isReserved("state").assert().isTrue()

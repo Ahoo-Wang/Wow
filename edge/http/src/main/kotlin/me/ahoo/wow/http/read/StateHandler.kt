@@ -183,7 +183,7 @@ internal class StateHandler(
         val tenant = acting.tenantId
         // By no id, the caller's own aggregate of a type whose id is its owner's.
         val id = request.pathVariables()[CommandHandler.ID] ?: acting.scope.ownerId ?: throw ProblemException(
-            if (acting.subject == null && !acting.service) {
+            if (acting.subject == null) {
                 statuses.problemOf(FrameworkCodes.AUTH_UNAUTHENTICATED, "An unauthenticated caller has no ${type.name}.")
             } else {
                 statuses.problemOf(

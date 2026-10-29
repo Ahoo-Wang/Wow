@@ -34,7 +34,11 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.AggregateIdSource
+import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wire.CallWires
@@ -130,6 +134,46 @@ class HttpCommandClientTest {
                 .message.assert().contains("decided by no aggregate")
             caught<IllegalArgumentException> { runBlocking { client().wait(DeleteAggregate, "a b") } }
                 .message.assert().contains("lifecycle command")
+        }
+
+    @Test
+    fun `a command by no id to an aggregate whose id is its owner's should go to the caller's own`(): Unit =
+        runBlocking {
+            peer.reply(Reply.json(committed()), Reply.json(committed()))
+            val owned = contractOf(BOX, DeliverItems::class.java).map { fragment ->
+                fragment.copyWith(
+                    manifest = fragment.manifest.copyWith(
+                        contexts = fragment.manifest.contexts.map { context ->
+                            context.copyWith(
+                                aggregates = context.aggregates.map { aggregate ->
+                                    aggregate.copyWith(
+                                        idSource = AggregateIdSource.OWNER,
+                                        commands = aggregate.commands.map {
+                                            it.copyWith(
+                                                creation = Creation.NONE,
+                                                routes = CommandRoutes.of("mail", "box", it.name, Creation.NONE, true),
+                                            )
+                                        },
+                                    )
+                                },
+                            )
+                        },
+                    ),
+                )
+            }
+            val client = WowClient.builder()
+                .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .service(SERVICE)
+                .contracts(owned)
+                .build()
+                .commands
+                .of(alice)
+            client.wait(DeliverItems(listOf("mug")))
+            // A trusted caller still names the id.
+            client.wait(DeliverItems(listOf("cup")), "alice")
+            peer.taken.map { it.path }.assert().containsExactly("/mail/box/deliver-items", "/mail/box/alice/deliver-items")
+            val root = CallWires.decode(peer.taken.first().headers.getValue(WowHeaders.CALL))
+            root.ownerId.assert().isEqualTo("alice")
         }
 
     @Test

@@ -2,8 +2,8 @@
   "$comment": "Regression ceilings in gzipped bytes, checked by scripts/verify-package.mjs through .github/scripts/size-budget.mjs. Size is not a target: each ceiling sits about 15-20% above what was measured when it was set, to catch an accidental blow-up. Raise one on purpose, in the pull request that needs it, and update its reason.",
   "ceilings": {
     ".": {
-      "gzip": 11400,
-      "reason": "Set 2026-10-28 at 11,400 B, about 2% over the 11,147 B measured then, closer than the 15-20% the other ceilings keep: the root entry is what every browser host loads, so growth past D356's CommandClient, WaitPlan with its Wow-Wait grammar, CommandRejectedError and the result's status and function-kind tables (9,007 B in October) is a decision, not drift."
+      "gzip": 11600,
+      "reason": "Raised 2026-10-29 to 11,600 B, about 1% over the 11,477 B measured then, for OwnStateClient, the state read of the caller's own aggregate of one whose id is its owner's; set 2026-10-28 at 11,400 B, about 2% over the 11,147 B measured then, closer than the 15-20% the other ceilings keep: the root entry is what every browser host loads, so growth past D356's CommandClient, WaitPlan with its Wow-Wait grammar, CommandRejectedError and the result's status and function-kind tables (9,007 B in October) is a decision, not drift."
     },
     "./dsl": {
       "gzip": 11888,

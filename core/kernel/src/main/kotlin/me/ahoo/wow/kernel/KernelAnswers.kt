@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  * The scope comes right after existence, so a caller outside the aggregate's scope learns only that it exists,
  * which a colliding creation would tell it anyway: not whether it is deleted, nor its version.
  */
+@Suppress("CyclomaticComplexMethod") // One branch per refusal, in their order.
 internal fun admissible(
     decider: DecideFunction<*>,
     command: Command<*>,

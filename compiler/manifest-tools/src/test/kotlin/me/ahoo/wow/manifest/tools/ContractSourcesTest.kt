@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -176,6 +177,7 @@ class ContractSourcesTest {
             "public const val NAME: String = \"order\"",
             "public val TYPE: AggregateType = AggregateType(CONTEXT, NAME)",
             "public val OWNERSHIP: Ownership = Ownership.TENANT",
+            "public val ID_SOURCE: AggregateIdSource = AggregateIdSource.ASSIGNED",
             "public const val SNAPSHOT: Boolean = true",
             "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
@@ -184,6 +186,15 @@ class ContractSourcesTest {
             "public object Commands {",
             "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
+        )
+    }
+
+    @Test
+    fun `an aggregate whose id is its owner's should say so`() {
+        val owned = aggregate().copyWith(ownership = Ownership.OWNER, idSource = AggregateIdSource.OWNER)
+        contractOf(contract(owned), queryFields = false).text.assert().contains(
+            "import me.ahoo.wow.api.aggregate.AggregateIdSource\n",
+            "public val ID_SOURCE: AggregateIdSource = AggregateIdSource.OWNER",
         )
     }
 

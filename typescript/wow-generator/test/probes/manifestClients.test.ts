@@ -179,6 +179,92 @@ describe('Manifest clients', () => {
     );
   });
 
+  it("sends an owner-id aggregate's commands and reads its state by id and by no id, the caller's own", async () => {
+    const both = (segment: string) => [
+      { method: 'POST', path: `/probe/thing/{id}/${segment}` },
+      { method: 'POST', path: `/probe/thing/${segment}` },
+    ];
+    const { read } = await generateCompiling(
+      manifest(
+        {
+          ownership: 'owner',
+          idSource: 'owner',
+          commands: [
+            {
+              name: 'Put',
+              schema: schema('a.Put'),
+              creation: 'allowed',
+              routes: both('put'),
+            },
+            { name: 'Clear', schema: schema('a.Clear'), routes: both('clear') },
+            {
+              name: 'Import',
+              schema: schema('a.Clear'),
+              mounted: true,
+              routes: both('import'),
+            },
+            {
+              name: 'wow.lifecycle.DeleteAggregate',
+              schema: schema('wow.lifecycle.DeleteAggregate'),
+              system: true,
+              routes: [
+                { method: 'DELETE', path: '/probe/thing/{id}' },
+                { method: 'DELETE', path: '/probe/thing' },
+              ],
+            },
+            ...lifecycle('wow.lifecycle.RestoreAggregate'),
+          ],
+        },
+        {
+          'a.Put': {
+            type: 'object',
+            required: ['n'],
+            properties: { n: { type: 'integer' } },
+          },
+          'a.Clear': { type: 'object' },
+        },
+      ),
+      `import { ThingAggregate, ThingCommandClient, ThingStateClient } from './out/index.js';
+       const commands = new ThingCommandClient();
+       const states = new ThingStateClient();
+       const source: 'owner' = ThingAggregate.idSource;
+       void [
+         commands.putOwn({ n: 1 }), commands.put('u1', { n: 1 }), commands.putOwnStream({ n: 1 }),
+         commands.clearOwn(), commands.clear('u1'), commands.clearStream('u1'), commands.clearOwnStream(),
+         commands.import(), commands.import({}, { id: 'u1' }),
+         commands.deleteAggregateOwn(), commands.deleteAggregate('u1'), commands.restoreAggregate('u1'),
+         states.getOwn(), states.findOwn(), states.readOwn(), states.traceOwn(), states.get('u1'), source,
+       ];`,
+    );
+    const client = read('probe/thing/commandClient.ts');
+    expect(client).toContain(
+      'clearOwn(body: AClear = {}, options?: CommandOptions): Promise<CommandResult> {',
+    );
+    expect(client).toContain(
+      "return this.client.wait({ ...options, command: 'probe.thing.Clear', body });",
+    );
+    expect(client).toContain(
+      "return this.client.wait({ ...options, command: 'probe.thing.Clear', body, id });",
+    );
+    expect(client).toContain(
+      "`Clear`, to the caller's own aggregate, whose id is the caller's owner: `POST /probe/thing/clear`.",
+    );
+    expect(client).toContain(
+      "By id, for a caller with no owner; `clearOwn` sends it to the caller's own.",
+    );
+    expect(client).toContain('put(id: string, body: APut, options?: CommandOptions)');
+    // A mounted command's route by no id is the transformer's, not the caller's own.
+    expect(client).not.toContain('importOwn');
+    expect(client).toContain(
+      'import(body: AClear = {}, options?: CreateCommandOptions)',
+    );
+    expect(client).not.toContain('restoreAggregateOwn');
+    expect(read('probe/thing/queryClient.ts')).toContain(
+      'export class ThingStateClient extends OwnStateClient<AThingState, ThingEvent> {',
+    );
+    expect(read('probe/thing/aggregate.ts')).toContain("idSource: 'owner',");
+  });
+
   it('warns of a schema $defs does not hold', async () => {
     const result = await generateCold(
       manifest({

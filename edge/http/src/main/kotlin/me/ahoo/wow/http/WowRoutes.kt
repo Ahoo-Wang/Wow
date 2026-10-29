@@ -428,7 +428,12 @@ private fun CoRouterFunctionDsl.route(
  * built-in job aggregate the path's id names. Each is sent through the gateway like any command, so its authorizer
  * (CoSec's, by the action of the route) decides who may send it in their tenant.
  */
-private fun systemTarget(context: String, aggregate: String?, name: String, byId: Boolean = true): CommandTarget = when {
+private fun systemTarget(
+    context: String,
+    aggregate: String?,
+    name: String,
+    byId: Boolean = true
+): CommandTarget = when {
     name == SnapshotRebuilds.REBUILD ->
         CommandTarget(context, SnapshotRebuilds.AGGREGATE, name, byId = false, id = checkNotNull(aggregate))
 

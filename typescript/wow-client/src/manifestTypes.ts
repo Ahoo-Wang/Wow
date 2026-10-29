@@ -79,6 +79,8 @@ export interface AggregateManifest {
   readonly ownership?: 'owner' | 'tenant' | (string & {});
   /** The events the aggregate no longer produces. */
   readonly retired?: readonly string[];
+  /** Where an aggregate's id comes from; assigned when absent. */
+  readonly idSource?: 'assigned' | 'owner' | (string & {});
 }
 
 /** An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. */
