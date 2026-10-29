@@ -19,7 +19,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 /**
  * An application that runs CosId as its starter does, from `cosid.*`: a static machine slot (no store), a `default`
- * cosid80 generator with a radix-62 codec, as the guide recommends for the global ids, `order`, a cosid80 of its own,
+ * cosid80 generator with a radix-62 codec, as the guide recommends for the aggregate ids, `order`, a cosid80 of its own,
  * `counter`, a snowflake with decimal text, and `shop.ledger`, a snowflake named after the aggregate `shop.ledger`
  * (a dotted name, in brackets).
  */
