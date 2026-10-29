@@ -12,9 +12,10 @@ import { BasketCommandClient } from './generated/index.js';
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com', timeout: 30_000 });
 const basket = new BasketCommandClient({ fetcher });
 
-const result = await basket.addBasketItem(
+// The basket's id is its buyer's: the caller's own, by no id (addBasketItem('buyer-1', body) addresses it by id).
+const result = await basket.addBasketItemOwn(
   { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
-  { id: 'buyer-1', wait: WaitPlan.SNAPSHOT, timeout: 10_000 },
+  { wait: WaitPlan.SNAPSHOT, timeout: 10_000 },
 );
 // result.version: the aggregate's version after the commit.
 ```
