@@ -119,8 +119,9 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 @Test
 fun `the same commit handled again should save the same summary`() = projectionSpec(handlers) {
     submitted()
-    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
-    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class)
+    // A subscription hands a commit at least once: the same commit again saves the same summary, at its version.
+    whenRedelivered()
     saved.distinct().size.assert().isEqualTo(1)
 }
 ```

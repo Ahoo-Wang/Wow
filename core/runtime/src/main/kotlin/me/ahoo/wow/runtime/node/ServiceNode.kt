@@ -36,8 +36,8 @@ import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.source.TopicSubscriptions
-import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitRegistry
@@ -148,7 +148,7 @@ class ServiceNode @InternalWowApi constructor(
     caller: CommandCaller? = null,
     /**
      * The application's classifiers of its handlers' failures, asked before the backends'
-     * and the runtime's own ([FailureClassification.of]); none by default.
+     * and the runtime's own ([RuntimeFailures.of]); none by default.
      */
     failureClassifiers: List<FailureClassifier> = emptyList(),
     /**

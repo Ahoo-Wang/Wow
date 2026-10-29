@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.minutes
 
 /**
  * The order-process saga: validation, reservations in the inventory, and the compensation of a refusal. Every
- * handler of the saga reads the order, so each commit goes to all of them, as their subscriptions would hand it.
+ * handler of the saga reads the order, and each takes the commits that hold its own event, as their subscriptions do.
  */
 class OrderProcessSagaTest {
     private val handlers = orderProcessSagaHandlers()
@@ -57,7 +57,7 @@ class OrderProcessSagaTest {
     fun `a submitted order should await its stock validation`() = sagaSpec(handlers) {
         val order = givenAggregate(model, ORDER)
         whenEvent(OrderSubmitted(items), by = SubmitOrder::class) {
-            expectHandledBy("onOrderSubmitted", "onOrderAwaitingValidation", "onOrderCancelled", "onOrderShipped")
+            expectHandledBy("onOrderSubmitted")
             expectCommand(AwaitStockValidation, to = order.ref)
         }
     }

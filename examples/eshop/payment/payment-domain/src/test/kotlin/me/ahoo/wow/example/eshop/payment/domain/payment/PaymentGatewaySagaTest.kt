@@ -85,7 +85,7 @@ class PaymentGatewaySagaTest {
     @Test
     fun `an amount over the limit should fail the payment`() = sagaSpec(handlers) {
         requested("100.01") {
-            expectCommand<FailPayment> {
+            expectCommandEnvelope<FailPayment> {
                 ref.assert().isEqualTo(EshopPaymentContract.Payment.ref(DEFAULT_TENANT, ORDER))
                 // The charge says what it is for: the order's items, read from the ordering's cache.
                 body.reason.assert().contains("declined 100.01").contains("(2 × mug)").contains("limit of 100.00")
@@ -97,7 +97,7 @@ class PaymentGatewaySagaTest {
     fun `an order the cache cannot serve should be charged by its id`() = sagaSpec(handlers) {
         givenAggregate(paymentModel(), OTHER)
         whenEvent(PaymentRequested(OTHER, BigDecimal("200.00")), by = RequestPayment::class) {
-            expectCommand<FailPayment> { body.reason.assert().contains("(order $OTHER)") }
+            expectCommand<FailPayment> { reason.assert().contains("(order $OTHER)") }
         }
     }
 

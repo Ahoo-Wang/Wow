@@ -24,9 +24,12 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import java.net.URLClassLoader
 import kotlin.time.Duration.Companion.minutes
@@ -112,21 +115,23 @@ class ProcessorDslTest {
             whenEvent(OrderPaid(4), by = PlaceOrder::class) {
                 expectCommands(stock.ref(DEFAULT_TENANT, "mug") to ReserveStock("order-1", 6))
             }
-            // Each commit follows the history, not the commit before it.
-            whenEvent(OrderPaid(1)) { expectCommand(ReserveStock("order-1", 9), to = stock.ref(DEFAULT_TENANT, "mug")) }
+            // Each commit follows the one before it: the aggregate is at it.
+            whenEvent(OrderPaid(1)) { expectCommand(ReserveStock("order-1", 5), to = stock.ref(DEFAULT_TENANT, "mug")) }
+            order.version.assert().isEqualTo(3)
+            order.state.paid.assert().isEqualTo(5)
         }
 
     @Test
     fun `the commit of a given aggregate should be numbered and named after its history and command`() {
         val order =
             GivenAggregate(orderModel, orderModel.type.ref("acme", "order-1"), listOf(OrderPlaced(10)), Scope.NONE)
-        val commit = order.commit(listOf(OrderPaid(4)), ReserveStock::class, null, mapOf("app_id" to "console"))
+        val commit = order.commit(listOf(OrderPaid(4)), ReserveStock::class, mapOf("app_id" to "console"), null)
         commit.version.assert().isEqualTo(2)
         commit.state.paid.assert().isEqualTo(4)
         commit.commandType.assert().isEqualTo("shop.order.Reserve")
         commit.headers.assert().containsEntry("app_id", "console")
-        order.commit(listOf(OrderPaid(1)), null, null, emptyMap()).commandType.assert().isEqualTo("shop.order.Command")
-        assertThrownBy<IllegalArgumentException> { order.commit(emptyList(), null, null, emptyMap()) }
+        order.commit(listOf(OrderPaid(1)), null, emptyMap(), null).commandType.assert().isEqualTo("shop.order.Command")
+        assertThrownBy<IllegalArgumentException> { order.commit(emptyList(), null, emptyMap(), null) }
         assertThrownBy<IllegalArgumentException> {
             GivenAggregate(orderModel, stock.ref("acme", "mug"), emptyList(), Scope.NONE)
         }.hasMessageContaining("shop.order")
@@ -250,6 +255,105 @@ class ProcessorDslTest {
             }
         }
     }
+
+    @Test
+    fun `a failure should be classified by the runtime's built-in rules after the handler's own`() {
+        // A downstream that is down is retried without spending the handler's budget, at any attempt.
+        sagaSpec(sagaHandlers { throw StorageUnavailableException("The store is unavailable; retry later.") }) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                expectRetried(attempt = 100)
+                assertThrownBy<AssertionError> { expectParked(attempt = 100) }
+                    .hasMessageContaining("retried without spending the handler's budget")
+            }
+        }
+        // A value a store refused for good parks at once.
+        sagaSpec(sagaHandlers { throw StorageRefusedException("The store refuses the value.") }) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("is unrecoverable")
+                expectParked()
+            }
+        }
+    }
+
+    @Test
+    fun `a rejection no OnRejected handler takes should park at once`() = sagaSpec(sagaHandlers()) {
+        givenAggregate(orderModel, "order-1", OrderPlaced(10))
+        whenEvent(OrderPaid(1)) {
+            // The saga takes ReserveStock's rejections: it compensates, and nothing parks.
+            whenRejected(commands.single(), FrameworkCodes.AGGREGATE_NOT_FOUND) {
+                val cancel = expectCommandEnvelope<Cancel>()
+                // It takes no rejection of its compensation: that one parks the order at once.
+                whenRejected(cancel, FrameworkCodes.AGGREGATE_NOT_FOUND) {
+                    expectHandledBy()
+                    val parked = expectParked() as HandlingRejectedException
+                    parked.error.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+                    assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("a rejection parks at once")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a commit handed again should be the same commit, an older one late out of order`() =
+        projectionSpec(projectionHandlers()) {
+            val order = givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            assertThrownBy<IllegalArgumentException> { whenRedelivered() }.hasMessageContaining("No commit of")
+            whenEvent(OrderPaid(1))
+            whenEvent(OrderPaid(2))
+            whenRedelivered { expectHandledBy("onOrder") }
+            whenDeliveredLate(2, on = order)
+            handed.map { it.version to it.state.paid }.assert().containsExactly(2 to 1, 3 to 3, 3 to 3, 2 to 1)
+            assertThrownBy<IllegalArgumentException> { whenDeliveredLate(3) }.hasMessageContaining("an older one")
+            assertThrownBy<IllegalArgumentException> { whenDeliveredLate(1) }
+                .hasMessageContaining("those handed over are at [2, 3]")
+            val other =
+                GivenAggregate(orderModel, orderModel.type.ref(DEFAULT_TENANT, "order-9"), emptyList(), Scope.NONE)
+            assertThrownBy<IllegalArgumentException> { whenEvent(OrderPaid(1), on = other) }
+                .hasMessageContaining("is not an aggregate this specification gave")
+        }
+
+    @Test
+    fun `a fork should advance a copy of the given aggregate, the specification its own`() = sagaSpec(sagaHandlers()) {
+        val order = givenAggregate(orderModel, "order-1", OrderPlaced(10))
+        fork("paid in full") {
+            whenEvent(OrderPaid(10), on = order) { expectCommand(ReserveStock("order-1", 0)) }
+            whenEvent(OrderPaid(1), on = order) { expectCommand(ReserveStock("order-1", -1)) }
+        }
+        // The fork's commits stay in the fork: the specification goes on from version 1.
+        order.version.assert().isEqualTo(1)
+        whenEvent(OrderPaid(1)) { expectCommand(ReserveStock("order-1", 9)) }
+    }
+
+    @Test
+    fun `a projection's handling should not be checked for determinism`() = projectionSpec(projectionHandlers()) {
+        givenAggregate(orderModel, "order-1", OrderPlaced(10))
+        whenEvent(OrderPaid(1)) {
+            assertThrownBy<IllegalStateException> { expectDeterministic() }.hasMessageContaining("PROJECT")
+        }
+        handed.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a command's body and its envelope should be checked apart`() = sagaSpec(sagaHandlers()) {
+        givenAggregate(orderModel, "order-1", OrderPlaced(10))
+        whenEvent(OrderPaid(1)) {
+            expectCommand<ReserveStock> { quantity.assert().isEqualTo(9) }.orderId.assert().isEqualTo("order-1")
+            expectCommandEnvelope<ReserveStock> { ref.assert().isEqualTo(stock.ref(DEFAULT_TENANT, "mug")) }
+                .body.quantity.assert().isEqualTo(9)
+            assertThrownBy<AssertionError> { expectCommand<Cancel>() }.hasMessageContaining("Expected a Cancel")
+        }
+    }
+
+    /** The commits a projection of the order was handed, in order. */
+    private val handed = mutableListOf<StateEvent<Order>>()
+
+    private fun projectionHandlers(): List<ProcessorBinding<*>> = listOf(
+        ProcessorBinding.project("OrderView", "onOrder", Order::class.java) { event: StateEvent<Order>, _ ->
+            handed += event
+        },
+    )
 
     @Test
     fun `a handling that ended should be neither retried nor parked`() = sagaSpec(sagaHandlers()) {

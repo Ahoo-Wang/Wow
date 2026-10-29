@@ -75,8 +75,10 @@ class OrderPaymentSagaTest {
             expectCommand(RequestPayment(ORDER, TOTAL), to = payment)
             expectDeterministic()
         }
-        // An event the payment has no class of at its revision is a PublishedEvent: no OrderStockConfirmed.
+        // An event the payment has no class of at its revision is a PublishedEvent: no OrderStockConfirmed, so no
+        // handler takes the commit.
         whenEvent(orderEvent(publishedEvent("eshop-ordering.order.OrderStockConfirmed", revision = 2))) {
+            expectHandledBy()
             expectNoCommand()
         }
     }
@@ -85,7 +87,7 @@ class OrderPaymentSagaTest {
     fun `a payment that succeeded should pay its order`() = sagaSpec(handlers) {
         requested()
         whenEvent(PaymentSucceeded("transaction-1"), by = ConfirmPayment::class) {
-            expectHandledBy("onPaymentSucceeded", "onPaymentFailed")
+            expectHandledBy("onPaymentSucceeded")
             expectCommand(PayOrder(ORDER, TOTAL), to = order)
         }
     }
@@ -104,11 +106,24 @@ class OrderPaymentSagaTest {
     }
 
     @Test
+    fun `an order that refused its cancellation should park the payment`() = sagaSpec(handlers) {
+        requested()
+        whenEvent(PaymentFailed("declined"), by = FailPayment::class) {
+            // No handler takes CancelOrder's rejections: only a paid order rejects it, and a failed payment paid
+            // nothing, so the payment parks, to be looked at.
+            whenRejected(commands.single(), code = EshopOrderingContract.Order.Errors.WRONG_STATUS) {
+                expectHandledBy()
+                expectParked()
+            }
+        }
+    }
+
+    @Test
     fun `an order that refused its payment should have the payment refunded`() = sagaSpec(handlers) {
         requested()
         whenEvent(PaymentSucceeded("transaction-1"), by = ConfirmPayment::class) {
             whenRejected(
-                expectCommand<PayOrder>(),
+                expectCommandEnvelope<PayOrder>(),
                 code = EshopOrderingContract.Order.Errors.WRONG_STATUS,
                 message = "The order is CANCELLED: only a STOCK_CONFIRMED order can be paid.",
             ) {

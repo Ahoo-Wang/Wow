@@ -88,6 +88,12 @@ class ProcessorBinding<S> private constructor(
      * the only ones its calls take. Empty for any other handler.
      */
     val calls: List<Class<*>> = emptyList(),
+    /**
+     * The bounded context whose job aggregate an `@OnSchedule` handler's [job] runs in, as the compiler that generated
+     * the binding knew it (`wow.context`, else the module's `@BoundedContext`); null when it knew none, and for an
+     * `@OnEvent` handler, which the runtime binds in its context.
+     */
+    val context: String? = null,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<CommandRequest<*>>,
 ) {
     init {
@@ -142,7 +148,7 @@ class ProcessorBinding<S> private constructor(
     @InternalWowApi
     fun reading(aggregates: List<String>): ProcessorBinding<S> = ProcessorBinding(
         processor, function, kind, stateType, startFrom, blocking, rejections, aggregates, nullableState, retry,
-        commits, job, eventType, calls, call,
+        commits, job, eventType, calls, context, call,
     )
 
     /** The subscription the handler is compiled into: `processor.function`. */
@@ -295,7 +301,8 @@ class ProcessorBinding<S> private constructor(
         /**
          * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job]: a saga handler of
          * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
-         * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips.
+         * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips. [context] is the
+         * bounded context its job runs in, as the compiler knew it.
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -307,6 +314,7 @@ class ProcessorBinding<S> private constructor(
             rejections: List<RejectionBinding<*>> = emptyList(),
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
+            context: String? = null,
             handle: suspend (ScheduleTick, JobContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<JobState> =
             ProcessorBinding(
@@ -322,7 +330,8 @@ class ProcessorBinding<S> private constructor(
                 retry,
                 commits,
                 job,
-            ) { event, context ->
+                context = context,
+            ) { event, subscription ->
                 val state = event.state
                 if (state.job != job.name) {
                     emptyList()
@@ -336,7 +345,7 @@ class ProcessorBinding<S> private constructor(
                             due = ticked.due,
                             partition = state.partition,
                         )
-                        handle(tick, ExecutionJobContext(context as SagaContext, tick))
+                        handle(tick, ExecutionJobContext(subscription as SagaContext, tick))
                     }
                 }
             }

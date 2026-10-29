@@ -43,7 +43,6 @@ class SupplierDeliverySagaTest {
     @Test
     fun `the morning job should receive yesterday's deliveries`() = scheduleSpec(
         handlers,
-        context = "eshop-inventory",
         start = Instant.parse("2026-10-20T00:00:00Z"),
     ) {
         enable("receive-deliveries")
@@ -60,7 +59,6 @@ class SupplierDeliverySagaTest {
     @Test
     fun `a tick after missed mornings should receive each missed day's deliveries`() = scheduleSpec(
         handlers,
-        context = "eshop-inventory",
         start = Instant.parse("2026-10-20T00:00:00Z"),
     ) {
         enable("receive-deliveries")

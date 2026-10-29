@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -56,7 +57,7 @@ class SubscriptionPauseTest {
 
     private fun runtime(
         subscription: Subscription,
-        classification: FailureClassification = FailureClassification.DEFAULT,
+        classification: FailureClassification = RuntimeFailures.DEFAULT,
         options: SubscriptionOptions = this.options,
     ) = SubscriptionRuntime(
         "group",
@@ -269,7 +270,7 @@ class SubscriptionPauseTest {
             handled.record(entry)
         }
         val classifier = FailureClassifier { if (it is CarrierDownException) FailureClass.SYSTEMIC else null }
-        val runtime = runtime(reactor, FailureClassification.of(listOf(classifier)))
+        val runtime = runtime(reactor, RuntimeFailures.of(listOf(classifier)))
         appender.append("x")
         runtime.start(setOf(0))
         eventually { runtime.paused().isNotEmpty() }
