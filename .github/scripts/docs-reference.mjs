@@ -379,11 +379,6 @@ export function moduleConfigurationPage(locale, modules) {
 
 // Error codes
 
-const kotlinString = literal =>
-  [...literal.matchAll(/"((?:[^"\\]|\\.)*)"/g)]
-    .map(match => match[1].replace(/\\(.)/g, '$1'))
-    .join('');
-
 /**
  * The framework's codes from the error catalog's snapshot, which
  * FrameworkErrorsTest holds to FrameworkErrors.kt:
