@@ -33,8 +33,6 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.error.QueryExecutionException
-import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
@@ -145,8 +143,11 @@ class QueryAdmission(
      * step 1 do not apply. The resulting filter is then admitted as trusted code's query of a record ([Trusted.single]
      * against [schema]'s in-memory form, [recordSchema]): aliases replaced, validated, normalized, relative time
      * resolved to its range, and evaluated on [record] by the same code the in-memory backend runs ([InMemoryFilters]),
-     * so a policy admits the same rows on a point read as on a query. What cannot be evaluated here (a full-text
-     * search, a field the schema does not know, a value the evaluation refuses) fails closed: the record is hidden.
+     * so a policy admits the same rows on a point read as on a query. Resolution refuses everything the evaluation
+     * cannot run (a full-text search, which the in-memory facts do not grant; a field the schema does not know; a value
+     * its type refuses; an element's field outside its `ELEMENT_MATCH`), and relative time is lowered to a range
+     * first: a refused restriction fails closed, the record hidden, and a failure past resolution is a defect, not a
+     * policy's answer.
      *
      * Returns [record], or `null` when the caller may not read it. The record returned is masked by [schema]'s response
      * masks ([maskRecord]).
@@ -178,19 +179,11 @@ class QueryAdmission(
         val filter = restricted.withDefaultScope(profile, appended).filter
         val admitted = try {
             Trusted.single(SingleQuery(filter), recordSchema(schema), entry, appended)
-        } catch (_: QueryRequestException) {
-            return { false }
         } catch (_: QuerySchemaValidationException) {
             return { false }
         }
         val evaluation = InMemoryFilters(admitted)
-        return { record ->
-            try {
-                evaluation.matches(admitted.query.filter, RecordScope(record))
-            } catch (_: QueryExecutionException) {
-                false
-            }
-        }
+        return { record -> evaluation.matches(admitted.query.filter, RecordScope(record)) }
     }
 
     /**
