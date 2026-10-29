@@ -7,9 +7,10 @@
 # coverage: never expire it.
 #
 # Codecov holds every notification of a commit (its statuses and its pull
-# request comment) until ci.yml's coverage-notify job triggers them, once every
-# job of the run that uploads coverage has finished, so it judges the run on
-# all of its uploads and posts once, never from a partial report.
+# request comment) until ci.yml's coverage job triggers them. That job uploads
+# every report of the run itself, once every test job has finished, so Codecov
+# judges the run on all of its uploads and posts once, never from a partial
+# report.
 codecov:
   max_report_age: off
   notify:
@@ -58,8 +59,8 @@ coverage:
 # A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (4) and `integration` once per shard of its
 # `integration` matrix (4). Codecov judges a status that reads a flag (the components', and patch and project above)
 # only once the flag has `after_n_builds` sessions of this commit; carried-forward sessions count until the flag's
-# first real upload replaces them. The notifications wait for ci.yml's coverage-notify job (`manual_trigger` above),
-# which runs after every upload job, so a run that uploads the JVM flags is judged on its own shards, and a pull
+# first real upload replaces them. The notifications wait for ci.yml's coverage job (`manual_trigger` above),
+# which uploads after every test job, so a run that uploads the JVM flags is judged on its own shards, and a pull
 # request that skips the JVM jobs on the base's carried-forward JVM sessions (its JVM code is the base's). ci.yml's
 # ci-gate takes the newest codecov/patch (.github/scripts/codecov-patch.mjs). A run whose shard fails or uploads
 # nothing leaves its flag short of `after_n_builds`, and Codecov posts none of the statuses that read it. The
@@ -68,24 +69,28 @@ coverage:
 # AFTER_N_BUILDS, to them).
 #
 # The race manual triggering leaves: Codecov fixes a commit's carried-forward sessions when it creates the commit's report, so a
-# main commit pushed while its parent's JVM shards are still uploading carries forward only the shards already in
+# main commit pushed while its parent's JVM shards were still uploading carried forward only the shards already in
 # (96dadfe, 2026-10-28: 2 of `integration`'s 4), and every commit built on it, a TypeScript-only pull request's head
-# among them, inherits the gap. A flag short of after_n_builds is never satisfied, so Codecov posts none of the
-# statuses that read it, patch included. ci-gate reads the head's sessions from Codecov's uploads API and fails at
-# once, naming the newest complete main commit and the first-parent merge that inherits from it; it waits as before
-# when that API cannot be read.
+# among them, inherited the gap. A flag short of after_n_builds is never satisfied, so Codecov posts none of the
+# statuses that read it, patch included. Two things close it. A push to main runs every coverage suite, whatever it
+# changed (ci-scope.mjs), so every main commit holds a real session of every flag. And the coverage job uploads only
+# once no ci.yml run of the commit's first parent is still running (at most 20 minutes, .github/scripts/
+# coverage-notify.mjs), so the report is created from a complete parent. A gap that still happens (a parent run that
+# failed or was cancelled, or the wait's deadline) is named by the coverage job's verdict, and ci-gate fails at once
+# with the first-parent merge that repairs it. Codecov also sometimes posts nothing for a trigger it accepted
+# (#5172, 2026-10-29): the coverage job checks for its statuses and sends the trigger again, twice at most.
 #
 # Each TypeScript package uploads under its own flag alone, `typescript-<package>` (ci.yml's unit matrix and
 # view-engine job), never a flag it shares with another package. Codecov carries a session forward only when none of
 # its flags has an upload of the commit's own, so a shared flag on every package's upload (the retired `typescript`)
 # dropped every package a run did not test from the commit's report: a pull request that tested only view-engine
 # reported the other packages at no coverage. The statuses above and the components below read the package flags by
-# name, and each package flag's after_n_builds is 1, its one upload. The race above holds for them too: a main commit
-# pushed before its parent's view-engine upload (the slowest) is in carries none of view-engine forward (ebbde37,
-# 2026-10-29), and every commit built on it inherits the gap; the flag short of its after_n_builds keeps Codecov from
-# judging on it, and ci-gate fails at once with the merge that repairs it, as for the JVM flags.
+# name, and each package flag's after_n_builds is 1, its one upload. The race above held for them too: a main commit
+# pushed before its parent's view-engine upload (the slowest) was in carried none of view-engine forward (ebbde37,
+# 2026-10-29), and a main commit that skipped a package carried whatever its parent had; a push to main now tests
+# every package on Node 24 with coverage, and the parent wait above covers them as it does the JVM flags.
 #
-# ci.yml drops the closing-brace lines from the JVM reports before it uploads them (.github/scripts/jacoco-braces.mjs).
+# ci.yml drops the closing-brace lines from the JVM reports before it keeps them for the coverage job (.github/scripts/jacoco-braces.mjs).
 # Kotlin gives a function that returns Unit an instruction on its `}`, so JaCoCo reports about 4,600 such lines, which
 # Codecov's processing usually strips but once kept (6c90687f34, 2026-10-29), moving every module's coverage by up to 10
 # points against a base that had none: the reports Codecov stores mean the same whether or not it adjusts them.

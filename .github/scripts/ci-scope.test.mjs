@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { scopes, unitPackages } from './ci-scope.mjs';
+import { coverageScopes, scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
@@ -633,7 +633,12 @@ test('the command reads the diff and runs everything without a base', () => {
     const output = join(directory, `output-${Math.random()}`);
     execFileSync(process.execPath, [script], {
       cwd: directory,
-      env: { ...process.env, ...env, GITHUB_OUTPUT: output },
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: 'pull_request',
+        ...env,
+        GITHUB_OUTPUT: output,
+      },
       stdio: 'pipe',
     });
     return readFileSync(output, 'utf8');
@@ -670,7 +675,8 @@ test('the command reads the diff and runs everything without a base', () => {
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
-      `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
+      `unitMatrix=${value ? '[{"package":"wow-client","node-version":24},{"package":"wow-react","node-version":24},{"package":"wow-generator","node-version":24},{"package":"wow-view-store","node-version":24}]' : '[]'}\n` +
+      `viewEngineCoverage=${value}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
       run({ BASE_SHA: '0'.repeat(40), HEAD_SHA: head }),
@@ -906,4 +912,37 @@ test('every source a TypeScript test reads selects its job', () => {
   }
   assert.ok(reads >= 5, `only ${reads} reads found; the scan broke`);
   assert.deepEqual(problems, []);
+});
+
+test('a push to main runs every coverage suite; Node 22 keeps the scope', () => {
+  const every = ['wow-client', 'wow-react', 'wow-generator', 'wow-view-store'];
+  const entries = (versions, names) =>
+    names.map(name => ({ package: name, 'node-version': versions }));
+  const kotlin = ['core/kernel/src/main/kotlin/A.kt'];
+  assert.deepEqual(coverageScopes(kotlin, 'push'), {
+    unitMatrix: entries(24, every),
+    viewEngineCoverage: true,
+  });
+  assert.deepEqual(coverageScopes(kotlin, 'pull_request'), {
+    unitMatrix: [],
+    viewEngineCoverage: false,
+  });
+  const react = ['typescript/wow-react/src/index.ts'];
+  assert.deepEqual(coverageScopes(react, 'push').unitMatrix, [
+    ...entries(24, every),
+    ...entries(22, ['wow-react']),
+  ]);
+  assert.deepEqual(coverageScopes(react, 'pull_request').unitMatrix, [
+    ...entries(24, ['wow-react']),
+  ]);
+  // A manual run has no base and runs everything, on both versions.
+  assert.deepEqual(coverageScopes(['*'], 'workflow_dispatch'), {
+    unitMatrix: [...entries(24, every), ...entries(22, every)],
+    viewEngineCoverage: true,
+  });
+  const viewEngine = ['typescript/wow-view-engine/src/index.ts'];
+  assert.equal(
+    coverageScopes(viewEngine, 'pull_request').viewEngineCoverage,
+    true,
+  );
 });

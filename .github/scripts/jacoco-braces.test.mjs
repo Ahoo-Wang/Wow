@@ -94,7 +94,7 @@ test('a source file it cannot read keeps its lines', () => {
   assert.equal(xml, REPORT);
 });
 
-test('ci.yml drops the brace lines from each JVM report right before it uploads it', () => {
+test('ci.yml drops the brace lines from each JVM report right before it keeps it for the coverage job', () => {
   const workflow = readFileSync(
     new URL('../workflows/ci.yml', import.meta.url),
     'utf8',
@@ -104,9 +104,9 @@ test('ci.yml drops the brace lines from each JVM report right before it uploads 
     const drop = workflow.indexOf(
       `node .github/scripts/jacoco-braces.mjs ${path}`,
     );
-    const upload = workflow.indexOf(`files: ${path}`);
+    const keep = workflow.indexOf(`path: ${path}`);
     assert.ok(drop > 0, `${report} is normalized`);
-    assert.ok(drop < upload, `${report} is normalized before its upload`);
+    assert.ok(drop < keep, `${report} is normalized before it is kept`);
   }
   // Every Codecov upload names its files and searches for no other.
   const uploads = workflow.split('uses: codecov/codecov-action@').slice(1);

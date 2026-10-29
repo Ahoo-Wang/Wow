@@ -15,7 +15,11 @@ import {
   staleBase,
   waitForPatch,
 } from './codecov-patch.mjs';
-import { codecovBuilds } from './integration-shards.mjs';
+import {
+  codecovBuilds,
+  workflowCheckShards,
+  workflowShards,
+} from './integration-shards.mjs';
 
 const run = (id, status, conclusion, title = '', slug = 'codecov') => ({
   id,
@@ -151,33 +155,104 @@ test('each TypeScript package uploads under its own flag alone, which the status
   assert.match(codecov, /- name: typescript\n\s+carryforward: false\n/);
 });
 
-test("Codecov notifies once, when ci.yml's coverage-notify triggers it after every upload", () => {
+test("Codecov notifies once, when ci.yml's coverage job triggers it after every upload", () => {
   const codecov = readFileSync(
     new URL('../../codecov.yml', import.meta.url),
     'utf8',
   );
   assert.match(codecov, /\n {2}notify:\n {4}manual_trigger: true\n/);
+  // Only the coverage job talks to Codecov; the test jobs keep their reports.
   const uploaders = [
     ...workflow.matchAll(
-      /\n {2}([a-z0-9-]+):\n(?:(?!\n {2}[a-z0-9-]+:\n)[\s\S])*?uses: codecov\/codecov-action@/g,
+      /\n {2}([a-z0-9-]+):\n(?:(?!\n {2}[a-z0-9-]+:\n)[\s\S])*?name: coverage-/g,
     ),
-  ]
-    .map(match => match[1])
-    .filter(name => name !== 'coverage-notify');
-  assert.ok(uploaders.length > 0);
-  assert.deepEqual(needs('coverage-notify').sort(), uploaders.sort());
-  const notify = job('coverage-notify');
-  assert.match(notify, /run_command: send-notifications/);
-  for (const uploader of uploaders)
+  ].map(match => match[1]);
+  assert.deepEqual(
+    [
+      ...workflow.matchAll(
+        /\n {2}([a-z0-9-]+):\n(?:(?!\n {2}[a-z0-9-]+:\n)[\s\S])*?uses: codecov\/codecov-action@/g,
+      ),
+    ].map(match => match[1]),
+    ['coverage'],
+  );
+  assert.deepEqual(needs('coverage').sort(), [...new Set(uploaders)].sort());
+  const coverage = job('coverage');
+  for (const uploader of new Set(uploaders))
     assert.match(
-      notify,
+      coverage,
       new RegExp(`needs\\.${uploader}\\.result != 'skipped'`),
     );
-  assert.ok(needs('ci-gate').includes('coverage-notify'));
+  // The parent wait comes before the first upload, each send before its check.
+  const steps = [
+    'coverage-notify.mjs parent',
+    'uses: codecov/codecov-action@',
+    'run_command: send-notifications',
+    'coverage-notify.mjs confirm\n',
+    'run_command: send-notifications',
+    'coverage-notify.mjs confirm\n',
+    'run_command: send-notifications',
+    'coverage-notify.mjs confirm --last',
+  ];
+  let at = 0;
+  for (const step of steps) {
+    const found = coverage.indexOf(step, at);
+    assert.ok(found > at, step);
+    at = found + 1;
+  }
+  assert.match(coverage, /if: steps\.confirm\.outputs\.verdict == 'pending'/);
   assert.match(
-    job('ci-gate'),
-    /if: github\.event_name == 'pull_request' && needs\.coverage-notify\.result == 'success'\n\s+env:/,
+    coverage,
+    /if: steps\.confirm-again\.outputs\.verdict == 'pending'/,
   );
+  assert.ok(needs('ci-gate').includes('coverage'));
+  const gate = job('ci-gate');
+  assert.match(
+    gate,
+    /if: github\.event_name == 'pull_request' && needs\.coverage\.result == 'success'\n\s+env:/,
+  );
+  assert.match(
+    gate,
+    /COVERAGE_VERDICT: \$\{\{ needs\.coverage\.outputs\.verdict \}\}/,
+  );
+});
+
+test('the coverage job uploads each check shard, integration shard and package as a session of its own', () => {
+  const coverage = job('coverage');
+  const sessions = [
+    ...coverage.matchAll(
+      /if: hashFiles\('coverage\/coverage-([\w-]+)\/[\w.-]+'\) != ''\n[\s\S]*?flags: ([\w-]+)\n\s+name: ([\w-]+)\n[\s\S]*?files: \.\/coverage\/coverage-([\w-]+)\//g,
+    ),
+  ].map(([, artifact, flag, name, file]) => {
+    assert.equal(artifact, name);
+    assert.equal(file, name);
+    return { flag, name };
+  });
+  const expected = [
+    ...workflowCheckShards(workflow).map(shard => ({
+      flag: 'jvm-unit',
+      name: `jvm-unit-${shard}`,
+    })),
+    ...workflowShards(workflow).map(({ shard }) => ({
+      flag: 'integration',
+      name: `integration-${shard}`,
+    })),
+    ...[
+      'wow-client',
+      'wow-react',
+      'wow-generator',
+      'wow-view-store',
+      'wow-view-engine',
+    ].map(name => ({ flag: `typescript-${name}`, name: `typescript-${name}` })),
+  ];
+  assert.deepEqual(sessions, expected);
+  // Each test job keeps its report under the name the coverage job reads.
+  for (const artifact of [
+    'coverage-jvm-unit-${{ matrix.shard }}',
+    'coverage-integration-${{ matrix.shard }}',
+    'coverage-typescript-${{ matrix.package }}',
+    'coverage-typescript-wow-view-engine',
+  ])
+    assert.ok(workflow.includes(`name: ${artifact}\n`), artifact);
 });
 
 // #5093's head, 2026-10-28: its main commit (96dadfe) was pushed while

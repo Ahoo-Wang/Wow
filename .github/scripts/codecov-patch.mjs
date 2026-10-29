@@ -10,7 +10,14 @@ import { pathToFileURL } from 'node:url';
 // coverage and triggered Codecov's notifications):
 //
 //   HEAD_SHA=<sha> GITHUB_REPOSITORY=<owner/repo> GITHUB_TOKEN=<token> \
+//     COVERAGE_VERDICT=<verdict> COVERAGE_MESSAGE=<message> \
 //     node .github/scripts/codecov-patch.mjs
+//
+// The coverage job has already looked (coverage-notify.mjs): `gap` (a flag
+// carried forward short, which Codecov never notifies) and `silent` (nothing
+// posted after three sends) fail at once with its message; `posted` waits at
+// most five minutes for the patch status, which then arrives within one or
+// two.
 //
 // Codecov posts `codecov/patch` as a check run of its app on the head commit.
 // It holds every notification until ci.yml's coverage-notify job triggers it,
@@ -258,19 +265,17 @@ export async function waitForPatch({
   }
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
-  const { HEAD_SHA, HEAD_REF, PR_NUMBER, GITHUB_REPOSITORY, GITHUB_TOKEN } =
-    process.env;
-  if (!/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '') || !GITHUB_REPOSITORY)
-    throw new Error('HEAD_SHA and GITHUB_REPOSITORY are required');
+/**
+ * The GitHub and Codecov readers the gate and ci.yml's coverage job share:
+ * `api(url)` reads GitHub's REST API, `uploadsOf(sha)` a commit's uploads from
+ * Codecov's public API, and `mainCommits()` main's newest commits.
+ */
+export function codecovClients({ repository, token }) {
   const api = async url => {
     const response = await fetch(url, {
       headers: {
         accept: 'application/vnd.github+json',
-        authorization: `Bearer ${GITHUB_TOKEN}`,
+        authorization: `Bearer ${token}`,
         'x-github-api-version': '2022-11-28',
       },
     });
@@ -278,8 +283,7 @@ if (
       throw new Error(`${url}: ${response.status} ${await response.text()}`);
     return response.json();
   };
-  const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=${encodeURIComponent(CHECK)}&filter=all&per_page=100`;
-  const [owner, repo] = GITHUB_REPOSITORY.split('/');
+  const [owner, repo] = repository.split('/');
   const uploadsOf = async sha => {
     const uploads = [];
     let next = `https://api.codecov.io/api/v2/github/${owner}/repos/${repo}/commits/${sha}/uploads/?page_size=100`;
@@ -297,11 +301,35 @@ if (
   const mainCommits = async () =>
     (
       await api(
-        `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?sha=main&per_page=20`,
+        `https://api.github.com/repos/${repository}/commits?sha=main&per_page=20`,
       )
     ).map(commit => commit.sha);
+  return { api, uploadsOf, mainCommits };
+}
+
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  const { HEAD_SHA, HEAD_REF, PR_NUMBER, GITHUB_REPOSITORY, GITHUB_TOKEN } =
+    process.env;
+  if (!/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '') || !GITHUB_REPOSITORY)
+    throw new Error('HEAD_SHA and GITHUB_REPOSITORY are required');
+  const coverage = process.env.COVERAGE_VERDICT;
+  if (coverage === 'gap' || coverage === 'silent') {
+    console.error(`::error::${process.env.COVERAGE_MESSAGE}`);
+    process.exit(1);
+  }
+  const { api, uploadsOf, mainCommits } = codecovClients({
+    repository: GITHUB_REPOSITORY,
+    token: GITHUB_TOKEN,
+  });
+  const url = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=${encodeURIComponent(CHECK)}&filter=all&per_page=100`;
+  const [owner, repo] = GITHUB_REPOSITORY.split('/');
   const verdict = await waitForPatch({
     fetchRuns: async () => (await api(url)).check_runs,
+    // The coverage job saw Codecov post on this commit: patch follows within minutes.
+    timeoutMs: 5 * 60_000,
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     log: message => console.log(message),
     explain: async () =>

@@ -308,6 +308,27 @@ export function unitPackages(paths) {
   return UNIT_PACKAGES.filter(name => packages.has(name));
 }
 
+// The coverage jobs of an event: the unit matrix as `include` entries and
+// whether view-engine's coverage suite runs. A push to main tests every
+// package on Node 24 with coverage, whatever it changed, so every main commit
+// holds a real session of each TypeScript flag and no later commit carries
+// forward from a hole (codecov.yml). Node 22, which uploads nothing, keeps
+// the scope on a push and runs on every non-pull-request event as before;
+// a pull request runs Node 24 for the packages it changed.
+export function coverageScopes(paths, event) {
+  const scoped = unitPackages(paths);
+  const push = event === 'push';
+  const node24 = push ? UNIT_PACKAGES : scoped;
+  const node22 = event === 'pull_request' ? [] : scoped;
+  return {
+    unitMatrix: [
+      ...node24.map(name => ({ package: name, 'node-version': 24 })),
+      ...node22.map(name => ({ package: name, 'node-version': 22 })),
+    ],
+    viewEngineCoverage: push || scopes(paths)[VIEW_ENGINE],
+  };
+}
+
 export function scopes(paths) {
   const keys = [
     TYPESCRIPT,
@@ -364,7 +385,7 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const { BASE_SHA, HEAD_SHA, GITHUB_OUTPUT } = process.env;
+  const { BASE_SHA, HEAD_SHA, GITHUB_OUTPUT, GITHUB_EVENT_NAME } = process.env;
   // No base (manual dispatch, a new branch's first push) runs everything.
   const paths =
     BASE_SHA && HEAD_SHA && !/^0+$/.test(BASE_SHA)
@@ -385,8 +406,10 @@ if (
       : ['*'];
   for (const [key, value] of Object.entries(scopes(paths)))
     appendFileSync(GITHUB_OUTPUT, `${key}=${value}\n`);
+  const coverage = coverageScopes(paths, GITHUB_EVENT_NAME);
   appendFileSync(
     GITHUB_OUTPUT,
-    `unitPackages=${JSON.stringify(unitPackages(paths))}\n`,
+    `unitMatrix=${JSON.stringify(coverage.unitMatrix)}\n` +
+      `viewEngineCoverage=${coverage.viewEngineCoverage}\n`,
   );
 }
