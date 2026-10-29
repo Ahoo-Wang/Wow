@@ -34,6 +34,17 @@ internal fun mapFixture(
     values: QueryValueSchema
 ) = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = values)
 
+/** A snapshot record's schema: the system fields a point read's scope names, and [state] under `state`. */
+internal fun snapshotFixture(state: QueryValueSchema) = objectFixture(
+    "tenantId" to scalarFixture(),
+    "aggregateId" to scalarFixture(),
+    "version" to scalarFixture(QueryValueType.INTEGER),
+    "ownerId" to scalarFixture(),
+    "spaceId" to scalarFixture(),
+    "deleted" to scalarFixture(QueryValueType.BOOLEAN),
+    "state" to state,
+)
+
 internal fun boundSchemaFixture(
     root: QueryValueSchema,
     model: QueryModel = QueryModel.SNAPSHOT,
