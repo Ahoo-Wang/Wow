@@ -31,6 +31,24 @@ class QueryFieldTest {
     }
 
     @Test
+    fun `a field should be its path whatever it is typed as, and keep its type through its paths`() {
+        val typed: QueryField<Int> = QueryField.of("state.count")
+        val untyped: QueryField<Any?> = QueryField("state.count")
+        typed.assert().isEqualTo(untyped)
+        typed.hashCode().assert().isEqualTo(untyped.hashCode())
+        setOf<QueryField<*>>(typed, untyped).assert().hasSize(1)
+        QueryField.isPath("state.count").assert().isTrue()
+        QueryField.isPath("state.*").assert().isFalse()
+        assertThrows<IllegalArgumentException> { QueryField.of<String>("state..name") }
+        // A relative field keeps its type, under its parent or out of it.
+        val relative: QueryField<Int>? = typed.relativeTo(QueryField("state"))
+        relative.assert().isEqualTo(QueryField("count"))
+        val absolute: QueryField<Int> = QueryField.of<Int>("count").absoluteTo(QueryField("state"))
+        absolute.assert().isEqualTo(typed)
+        typed.absoluteTo(null).assert().isSameAs(typed)
+    }
+
+    @Test
     fun `should print as its path and reject backend patterns`() {
         QueryField("state.name").toString().assert().isEqualTo("state.name")
         assertThrows<IllegalArgumentException> { QueryField("field.*") }

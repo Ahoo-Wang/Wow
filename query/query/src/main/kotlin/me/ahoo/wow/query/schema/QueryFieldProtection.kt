@@ -24,7 +24,7 @@ import me.ahoo.wow.query.backend.single
  */
 internal fun fieldProtection(
     schema: QueryModelSchema,
-    logical: QueryField,
+    logical: QueryField<*>,
     field: QueryFieldSchema
 ): SensitivityLevel? {
     if (!schema.hasMaskedFields) return null

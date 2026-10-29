@@ -35,11 +35,11 @@ import tools.jackson.databind.node.ObjectNode
  */
 @ExperimentalWowApi
 class QueryDatasetScope @InternalWowApi constructor(
-    val tenant: QueryField? = null,
-    val owner: QueryField? = null,
-    val space: QueryField? = null,
+    val tenant: QueryField<*>? = null,
+    val owner: QueryField<*>? = null,
+    val space: QueryField<*>? = null,
     /** The column of each ABAC tag key: a string column holds one tag value per record, a string-array one several. */
-    val tags: Map<String, QueryField> = emptyMap(),
+    val tags: Map<String, QueryField<*>> = emptyMap(),
     /** The dataset has no tenant column: every record belongs to [PLATFORM_TENANT]. */
     val platform: Boolean = false,
 ) {
@@ -55,7 +55,7 @@ class QueryDatasetScope @InternalWowApi constructor(
         get() = if (platform) PLATFORM_TENANT else null
 
     /** Every column this scope names. */
-    val fields: List<QueryField>
+    val fields: List<QueryField<*>>
         get() = listOfNotNull(tenant, owner, space) + tags.values
 
     companion object {
@@ -66,10 +66,10 @@ class QueryDatasetScope @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            tenant: QueryField? = null,
-            owner: QueryField? = null,
-            space: QueryField? = null,
-            tags: Map<String, QueryField> = emptyMap(),
+            tenant: QueryField<*>? = null,
+            owner: QueryField<*>? = null,
+            space: QueryField<*>? = null,
+            tags: Map<String, QueryField<*>> = emptyMap(),
             platform: Boolean = false,
         ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, tags, platform)
     }
@@ -104,9 +104,9 @@ class QueryDataset @InternalWowApi constructor(
     val scope: QueryDatasetScope,
     val declaration: QuerySchemaDeclaration,
     /** The column that identifies one record: the target of id filters and the tie-breaker of every cursor. */
-    val identity: QueryField? = null,
+    val identity: QueryField<*>? = null,
     /** When the record last changed: the default `orderBy` of FIRST and LAST metrics. */
-    val eventTime: QueryField? = null,
+    val eventTime: QueryField<*>? = null,
     val title: String? = null,
     val storage: ObjectNode = WowJson.mapper.createObjectNode(),
     /** Why the dataset cannot be queried now, or `null` when it can. */
@@ -177,17 +177,17 @@ class QueryDataset @InternalWowApi constructor(
 /** Declares a [QueryDataset] in code: its profile columns, its fields and their sensitivity. */
 @ExperimentalWowApi
 class QueryDatasetBuilder(private val name: AggregateType) {
-    private var tenant: QueryField? = null
+    private var tenant: QueryField<*>? = null
     private var platform: Boolean = false
-    private var owner: QueryField? = null
-    private var space: QueryField? = null
-    private val tags = linkedMapOf<String, QueryField>()
-    private var identity: QueryField? = null
-    private var eventTime: QueryField? = null
+    private var owner: QueryField<*>? = null
+    private var space: QueryField<*>? = null
+    private val tags = linkedMapOf<String, QueryField<*>>()
+    private var identity: QueryField<*>? = null
+    private var eventTime: QueryField<*>? = null
     private var title: String? = null
     private var storage: ObjectNode = WowJson.mapper.createObjectNode()
     private val fields = QuerySchemaDeclarationBuilder()
-    private val sensitive = linkedMapOf<QueryField, MaskRule>()
+    private val sensitive = linkedMapOf<QueryField<*>, MaskRule>()
 
     fun tenant(field: String) {
         tenant = QueryField(field)

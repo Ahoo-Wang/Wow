@@ -61,14 +61,14 @@ class AggregationQueryDsl {
 
     fun expand(path: String) = expand(QueryField(path))
 
-    fun expand(path: QueryField) {
+    fun expand(path: QueryField<*>) {
         elements += AggregationElement(path)
     }
 
     /** Expands [path] into its elements, keeping those that match [block] (fields relative to the element). */
     fun expand(path: String, block: FilterDsl.() -> Unit) = expand(QueryField(path), block)
 
-    fun expand(path: QueryField, block: FilterDsl.() -> Unit) {
+    fun expand(path: QueryField<*>, block: FilterDsl.() -> Unit) {
         elements += AggregationElement(path, FilterDsl(element = path).apply(block).build())
     }
 
@@ -76,7 +76,7 @@ class AggregationQueryDsl {
     fun terms(field: String, alias: String, missingKey: String? = null, scope: AggregationGroupScope? = null) =
         terms(QueryField(field), alias, missingKey, scope)
 
-    fun terms(field: QueryField, alias: String, missingKey: String? = null, scope: AggregationGroupScope? = null) {
+    fun terms(field: QueryField<*>, alias: String, missingKey: String? = null, scope: AggregationGroupScope? = null) {
         groups += AggregationGroup.Terms(field, alias, missingKey, scope = scope)
     }
 
@@ -88,7 +88,7 @@ class AggregationQueryDsl {
     fun histogram(field: String, interval: Double, alias: String, scope: AggregationGroupScope? = null) =
         histogram(QueryField(field), interval, alias, scope)
 
-    fun histogram(field: QueryField, interval: Double, alias: String, scope: AggregationGroupScope? = null) {
+    fun histogram(field: QueryField<*>, interval: Double, alias: String, scope: AggregationGroupScope? = null) {
         groups += AggregationGroup.Histogram(field, alias, interval, scope = scope)
     }
 
@@ -112,7 +112,7 @@ class AggregationQueryDsl {
     ) = dateHistogram(QueryField(field), unit, alias, timeZone, dense, scope)
 
     fun dateHistogram(
-        field: QueryField,
+        field: QueryField<*>,
         unit: AggregationDateUnit,
         alias: String,
         timeZone: ZoneId = UTC,
@@ -132,7 +132,7 @@ class AggregationQueryDsl {
     ) = datePart(QueryField(field), part, alias, timeZone, dense, scope)
 
     fun datePart(
-        field: QueryField,
+        field: QueryField<*>,
         part: AggregationDatePart,
         alias: String,
         timeZone: ZoneId = UTC,
@@ -153,13 +153,13 @@ class AggregationQueryDsl {
 
     fun any(field: String, alias: String) = any(QueryField(field), alias)
 
-    fun any(field: QueryField, alias: String) {
+    fun any(field: QueryField<*>, alias: String) {
         metrics += AggregationMetric.Any(field, alias)
     }
 
     fun any(field: String, alias: String, init: FilterDsl.() -> Unit) = any(QueryField(field), alias, init)
 
-    fun any(field: QueryField, alias: String, init: FilterDsl.() -> Unit) {
+    fun any(field: QueryField<*>, alias: String, init: FilterDsl.() -> Unit) {
         metrics += AggregationMetric.Any(field, alias, filterOf(init))
     }
 
@@ -167,14 +167,14 @@ class AggregationQueryDsl {
     fun first(field: String, alias: String, orderBy: String? = null) =
         first(QueryField(field), alias, orderBy?.let(::QueryField))
 
-    fun first(field: QueryField, alias: String, orderBy: QueryField? = null) {
+    fun first(field: QueryField<*>, alias: String, orderBy: QueryField<*>? = null) {
         metrics += AggregationMetric.First(field, alias, orderBy)
     }
 
     fun first(field: String, alias: String, orderBy: String? = null, init: FilterDsl.() -> Unit) =
         first(QueryField(field), alias, orderBy?.let(::QueryField), init)
 
-    fun first(field: QueryField, alias: String, orderBy: QueryField? = null, init: FilterDsl.() -> Unit) {
+    fun first(field: QueryField<*>, alias: String, orderBy: QueryField<*>? = null, init: FilterDsl.() -> Unit) {
         metrics += AggregationMetric.First(field, alias, orderBy, filterOf(init))
     }
 
@@ -182,20 +182,20 @@ class AggregationQueryDsl {
     fun last(field: String, alias: String, orderBy: String? = null) =
         last(QueryField(field), alias, orderBy?.let(::QueryField))
 
-    fun last(field: QueryField, alias: String, orderBy: QueryField? = null) {
+    fun last(field: QueryField<*>, alias: String, orderBy: QueryField<*>? = null) {
         metrics += AggregationMetric.Last(field, alias, orderBy)
     }
 
     fun last(field: String, alias: String, orderBy: String? = null, init: FilterDsl.() -> Unit) =
         last(QueryField(field), alias, orderBy?.let(::QueryField), init)
 
-    fun last(field: QueryField, alias: String, orderBy: QueryField? = null, init: FilterDsl.() -> Unit) {
+    fun last(field: QueryField<*>, alias: String, orderBy: QueryField<*>? = null, init: FilterDsl.() -> Unit) {
         metrics += AggregationMetric.Last(field, alias, orderBy, filterOf(init))
     }
 
     fun field(name: String): AggregationExpression = field(QueryField(name))
 
-    fun field(name: QueryField): AggregationExpression = AggregationExpression.Field(name)
+    fun field(name: QueryField<*>): AggregationExpression = AggregationExpression.Field(name)
 
     fun constant(value: Double): AggregationExpression = AggregationExpression.Constant(value)
 
@@ -203,7 +203,7 @@ class AggregationQueryDsl {
     fun dateDiff(from: String, to: String, unit: DateDiffUnit): AggregationExpression =
         dateDiff(QueryField(from), QueryField(to), unit)
 
-    fun dateDiff(from: QueryField, to: QueryField, unit: DateDiffUnit): AggregationExpression =
+    fun dateDiff(from: QueryField<*>, to: QueryField<*>, unit: DateDiffUnit): AggregationExpression =
         AggregationExpression.DateDiff(from, to, unit)
 
     operator fun AggregationExpression.plus(other: AggregationExpression): AggregationExpression =

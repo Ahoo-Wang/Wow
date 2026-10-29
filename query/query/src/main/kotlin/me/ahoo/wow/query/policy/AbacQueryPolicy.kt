@@ -194,7 +194,7 @@ class AbacQueryPolicy(
         @JvmStatic
         @InternalWowApi
         fun Map<String, List<String>>.toFilterExpression(
-            columns: Map<String, QueryField>,
+            columns: Map<String, QueryField<*>>,
             schema: QueryModelSchema,
             matchMissingTagKey: Boolean = true,
         ): FilterExpression {
@@ -215,7 +215,7 @@ class AbacQueryPolicy(
 
         /** One tag over its dataset column: a string column, or a string-array one. */
         private fun columnCondition(
-            column: QueryField,
+            column: QueryField<*>,
             values: List<String>,
             schema: QueryModelSchema,
             matchMissingTagKey: Boolean,

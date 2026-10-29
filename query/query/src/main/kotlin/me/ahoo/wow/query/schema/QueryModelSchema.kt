@@ -59,9 +59,9 @@ class QueryStorageType @InternalWowApi constructor(val value: String) {
  */
 @InternalWowApi
 class QueryFieldBinding(
-    val physicalField: QueryField,
+    val physicalField: QueryField<*>,
     storageTypes: Set<QueryStorageType>?,
-    val physicalScope: QueryField? = null,
+    val physicalScope: QueryField<*>? = null,
     val indexed: Boolean? = null,
 ) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let { Collections.unmodifiableSet(LinkedHashSet(it)) }
@@ -92,13 +92,13 @@ class LogicalQuerySchema @InternalWowApi constructor(
 
     /** Every masked value, by its logical path template. */
     internal val maskedValues: List<Pair<QueryPathTemplate, QueryValueSchema>>
-    internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
+    internal val staticMatches: Map<QueryField<*>, List<QueryValueMatch>>
 
     /** Each alias and the canonical logical field it names. */
-    val aliases: Map<QueryField, QueryField>
+    val aliases: Map<QueryField<*>, QueryField<*>>
 
     /** The deprecated logical fields. */
-    val deprecations: Map<QueryField, QueryDeprecation>
+    val deprecations: Map<QueryField<*>, QueryDeprecation>
 
     init {
         root.requireSemanticTypes()
@@ -150,7 +150,7 @@ class LogicalQuerySchema @InternalWowApi constructor(
     fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
 
     /** The canonical form of [field], which is relative to [parent] (an absolute canonical field) when given. */
-    internal fun canonical(field: QueryField, parent: QueryField?): QueryField {
+    internal fun canonical(field: QueryField<*>, parent: QueryField<*>?): QueryField<*> {
         if (parent == null) return canonical(field)
         return canonical(parent.append(field)).relativeTo(parent) ?: field
     }
@@ -159,7 +159,7 @@ class LogicalQuerySchema @InternalWowApi constructor(
      * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
      * starts with (`state.oldName.city` → `state.newName.city`).
      */
-    fun canonical(field: QueryField): QueryField {
+    fun canonical(field: QueryField<*>): QueryField<*> {
         if (aliases.isEmpty()) return field
         aliases[field]?.let { return it }
         var end = field.path.lastIndexOf('.')
@@ -204,9 +204,9 @@ class QueryModelSchema(
         },
     )
     private val bindingIndex = QueryBindingIndex(this.bindings)
-    private val dynamicFields = ConcurrentHashMap<QueryField, QueryFieldSchema>()
+    private val dynamicFields = ConcurrentHashMap<QueryField<*>, QueryFieldSchema>()
     private val descriptors = ConcurrentHashMap<DescriptorKey, QueryModelDescriptor>()
-    private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
+    private val staticFields: Map<QueryField<*>, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
         resolveField(field, matches)
     }
 
@@ -281,7 +281,7 @@ class QueryModelSchema(
         get() = definition.aliases.isNotEmpty()
 
     @InternalWowApi
-    fun field(field: QueryField): QueryFieldSchema? =
+    fun field(field: QueryField<*>): QueryFieldSchema? =
         if (staticFields.containsKey(field)) staticFields[field] else dynamicField(field)
 
     /**
@@ -290,19 +290,19 @@ class QueryModelSchema(
      * lock. Keys come from callers, so only fields that resolve are kept, and the cache starts over once it holds
      * [MAX_CACHED_DYNAMIC_FIELDS]: unknown paths cannot fill it, and no run of distinct keys can pin it.
      */
-    private fun dynamicField(field: QueryField): QueryFieldSchema? {
+    private fun dynamicField(field: QueryField<*>): QueryFieldSchema? {
         dynamicFields[field]?.let { return it }
         val resolved = resolveField(field) ?: return null
         if (dynamicFields.size >= MAX_CACHED_DYNAMIC_FIELDS) dynamicFields.clear()
         return dynamicFields.putIfAbsent(field, resolved) ?: resolved
     }
 
-    private fun resolveField(field: QueryField): QueryFieldSchema? = resolveField(
+    private fun resolveField(field: QueryField<*>): QueryFieldSchema? = resolveField(
         field,
         root.lookup(field.toPathTemplate())
     )
 
-    private fun resolveField(field: QueryField, matches: List<QueryValueMatch>): QueryFieldSchema? {
+    private fun resolveField(field: QueryField<*>, matches: List<QueryValueMatch>): QueryFieldSchema? {
         if (matches.size == 1) return resolveSingleField(field, matches.single())
         val value = mergeQueryValues(matches) ?: return null
         val locations = matches.map { match ->
@@ -348,7 +348,7 @@ class QueryModelSchema(
         )
     }
 
-    private fun resolveSingleField(field: QueryField, match: QueryValueMatch): QueryFieldSchema? {
+    private fun resolveSingleField(field: QueryField<*>, match: QueryValueMatch): QueryFieldSchema? {
         if (!match.complete) return null
         val location = bindingIndex.locate(match.path)
         val native = location?.first
@@ -383,14 +383,14 @@ class QueryModelSchema(
 @InternalWowApi
 class QueryFieldSchema internal constructor(
     private val schema: QueryModelSchema,
-    val logicalField: QueryField,
+    val logicalField: QueryField<*>,
     val value: QueryValueSchema,
-    elementAncestors: List<QueryField>?,
+    elementAncestors: List<QueryField<*>>?,
     bindings: Map<QueryCapability, QueryFieldBinding>,
-    val projectionField: QueryField?,
-    val responseField: QueryField?,
+    val projectionField: QueryField<*>?,
+    val responseField: QueryField<*>?,
 ) {
-    val elementAncestors: List<QueryField>? = elementAncestors?.let { java.util.List.copyOf(it) }
+    val elementAncestors: List<QueryField<*>>? = elementAncestors?.let { java.util.List.copyOf(it) }
     val bindings: Map<QueryCapability, QueryFieldBinding> = Collections.unmodifiableMap(LinkedHashMap(bindings))
     val capabilities: Set<QueryCapability>
         get() = bindings.keys

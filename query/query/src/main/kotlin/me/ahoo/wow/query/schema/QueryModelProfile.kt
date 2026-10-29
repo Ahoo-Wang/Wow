@@ -44,33 +44,33 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
      * Unique record identity: the target of id filters and the tie-breaker of every cursor; `null` when the model
      * declares none, which rejects both.
      */
-    abstract val identityField: QueryField?
+    abstract val identityField: QueryField<*>?
 
     /**
      * Logical field that holds the user payload; schema extensions must live below it. `null` when the whole record is
      * payload, as in a dataset.
      */
-    abstract val payloadField: QueryField?
+    abstract val payloadField: QueryField<*>?
 
     /**
      * The fields that identify one record across the whole model, in the order a cursor appends them as its
      * tie-breakers: the [identityField] alone by default, or nothing when the model has none.
      */
-    open val cursorUniqueKey: List<QueryField>
+    open val cursorUniqueKey: List<QueryField<*>>
         get() = listOfNotNull(identityField)
 
     /** When the record last changed: the default `orderBy` of FIRST and LAST metrics; `null` when there is none. */
-    abstract val eventTimeField: QueryField?
+    abstract val eventTimeField: QueryField<*>?
 
     /** When the record's aggregate got its first event, or `null` when a record does not say. */
-    open val firstEventTimeField: QueryField? = null
+    open val firstEventTimeField: QueryField<*>? = null
 
     /**
      * The field an authenticated caller scope must pin when
      * [requireAuthenticatedScope][me.ahoo.wow.query.policy.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
      * the isolation boundary of every built-in model.
      */
-    abstract val requiredScope: QueryField
+    abstract val requiredScope: QueryField<*>
 
     /**
      * The one tenant every record belongs to, for a model with no tenant field (a platform-level dataset); `null`
@@ -84,7 +84,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
      * identity; `null` when the model does not carry [field].
      */
     @InternalWowApi
-    abstract fun systemField(field: SystemField): QueryField?
+    abstract fun systemField(field: SystemField): QueryField<*>?
 
     /** Fields that every record of this model carries, independent of the aggregate. */
     abstract val systemDeclaration: QuerySchemaDeclaration
@@ -109,7 +109,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     @InternalWowApi
     companion object {
         /** The record metadata field of [field], common to every model; the identity is the model's own. */
-        internal fun metadataField(field: SystemField): QueryField = when (field) {
+        internal fun metadataField(field: SystemField): QueryField<*> = when (field) {
             SystemField.IDENTITY -> error("The record identity is defined by each model.")
             SystemField.AGGREGATE_ID -> AGGREGATE_ID
             SystemField.TENANT_ID -> TENANT_ID
@@ -139,15 +139,15 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
  */
 @InternalWowApi
 sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(model) {
-    abstract override val identityField: QueryField
-    abstract override val payloadField: QueryField
-    abstract override val eventTimeField: QueryField
+    abstract override val identityField: QueryField<*>
+    abstract override val payloadField: QueryField<*>
+    abstract override val eventTimeField: QueryField<*>
 
-    final override val requiredScope: QueryField
+    final override val requiredScope: QueryField<*>
         get() = metadataField(SystemField.TENANT_ID)
 
     @InternalWowApi
-    final override fun systemField(field: SystemField): QueryField = when (field) {
+    final override fun systemField(field: SystemField): QueryField<*> = when (field) {
         SystemField.IDENTITY -> identityField
         else -> metadataField(field)
     }
@@ -155,17 +155,17 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
 
 /** Aggregate snapshots: one record per aggregate, the payload under `state`. */
 internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAPSHOT) {
-    override val identityField: QueryField = QueryField(SnapshotFields.AGGREGATE_ID)
-    override val payloadField: QueryField = QueryField(SnapshotFields.STATE)
-    override val eventTimeField: QueryField = QueryField(SnapshotFields.LAST_EVENT_TIME)
-    override val firstEventTimeField: QueryField = QueryField(SnapshotFields.FIRST_EVENT_TIME)
+    override val identityField: QueryField<*> = QueryField(SnapshotFields.AGGREGATE_ID)
+    override val payloadField: QueryField<*> = QueryField(SnapshotFields.STATE)
+    override val eventTimeField: QueryField<*> = QueryField(SnapshotFields.LAST_EVENT_TIME)
+    override val firstEventTimeField: QueryField<*> = QueryField(SnapshotFields.FIRST_EVENT_TIME)
 
     /**
      * An aggregate id is unique only within its tenant (the snapshot's key is `(tenantId, aggregateId)`), so a cursor
      * orders by the tenant before the id: a cross-tenant cursor (in-process or trusted) cannot skip a record that
      * shares an id with one in another tenant.
      */
-    override val cursorUniqueKey: List<QueryField> =
+    override val cursorUniqueKey: List<QueryField<*>> =
         listOf(QueryField(SnapshotFields.TENANT_ID), QueryField(SnapshotFields.AGGREGATE_ID))
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
@@ -202,7 +202,7 @@ internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryM
  * The ordering field of a FIRST / LAST [metric]: its own `orderBy`, or the model's event time when the metric sits at
  * the record level ([scope] is `null`). Inside an element, and on a custom model, `orderBy` must be named.
  */
-internal fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
+internal fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField<*>?): QueryField<*> =
     metric.orderBy ?: profile?.eventTimeField?.takeIf { scope == null }
         ?: throw QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)).rejection()
 
@@ -211,7 +211,7 @@ internal fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, s
  * without an identity rejects an identity filter; a profile that does not carry another system field rejects its
  * filter as naming an unknown field. A custom model without a profile shares the record metadata fields.
  */
-internal fun QueryModelSchema.systemField(field: SystemField): QueryField {
+internal fun QueryModelSchema.systemField(field: SystemField): QueryField<*> {
     if (field == SystemField.IDENTITY) return requireIdentityField()
     val profile = profile ?: return QueryModelProfile.metadataField(field)
     return profile.systemField(field)
@@ -224,14 +224,14 @@ internal fun QueryModelSchema.systemField(field: SystemField): QueryField {
  * snapshot schema the Catalog compiles carries the tenant (a system field); a schema built without it, as tests and
  * tools may build one, orders by the identity alone.
  */
-internal fun QueryModelSchema.cursorUniqueKey(): List<QueryField> {
+internal fun QueryModelSchema.cursorUniqueKey(): List<QueryField<*>> {
     val identity = requireIdentityField()
     val key = profile?.cursorUniqueKey ?: return listOf(identity)
     return key.filter { it == identity || field(it) != null }
 }
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
-internal fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField
+internal fun QueryModelSchema.requireIdentityField(): QueryField<*> = profile?.identityField
     ?: throw QueryViolation.IdentityUndefined(model).rejection()
 
 internal fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
@@ -342,7 +342,7 @@ internal fun String.field(
     valueType: QueryValueType,
     semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
     nullable: Boolean = false,
-): Pair<QueryField, QueryFieldDeclaration> = QueryField(this) to QueryFieldDeclaration(
+): Pair<QueryField<*>, QueryFieldDeclaration> = QueryField(this) to QueryFieldDeclaration(
     valueTypes = DeclarationValue.Set(setOf(valueType)),
     nullable = DeclarationValue.Set(nullable),
     required = DeclarationValue.Set(true),

@@ -157,15 +157,15 @@ internal class ClickHouseFilterCompiler(
         QueryViolation.StorageUnsupported("filter [${filter.operator}]").rejection()
 
     /** The quoted column [field] resolved to. */
-    fun column(field: QueryField): String = quoteIdentifier(admitted.physicalPath(field))
+    fun column(field: QueryField<*>): String = quoteIdentifier(admitted.physicalPath(field))
 
-    fun columnOf(field: QueryField): TypedColumn = table.column(admitted.physicalPath(field))
+    fun columnOf(field: QueryField<*>): TypedColumn = table.column(admitted.physicalPath(field))
 
     /**
      * [field] as a `DateTime64`: a native date column itself, an epoch column converted from its unit. Admission
      * admits a date group or date difference only on a field with one of these encodings.
      */
-    fun instant(field: QueryField): String {
+    fun instant(field: QueryField<*>): String {
         val column = column(field)
         if (columnOf(field).temporal) return "toDateTime64($column, 3, 'UTC')"
         val epoch = admitted.field(field).temporal as? Temporal.Epoch
@@ -185,10 +185,10 @@ internal class ClickHouseFilterCompiler(
         return "${quoteIdentifier(column.name)} = ${bind(column, value)}"
     }
 
-    private fun orNull(field: QueryField, predicate: String): String =
+    private fun orNull(field: QueryField<*>, predicate: String): String =
         if (columnOf(field).nullable) "($predicate OR isNull(${column(field)}))" else predicate
 
-    private fun folded(field: QueryField, ignoreCase: Boolean): String =
+    private fun folded(field: QueryField<*>, ignoreCase: Boolean): String =
         if (ignoreCase) "lowerUTF8(${column(field)})" else column(field)
 
     private fun foldedText(value: String, ignoreCase: Boolean): String =
@@ -196,10 +196,10 @@ internal class ClickHouseFilterCompiler(
 
     private fun text(value: String): String = parameters.bind(value, "String")
 
-    private fun bind(field: QueryField, value: Any?): String = bind(columnOf(field), value, field)
+    private fun bind(field: QueryField<*>, value: Any?): String = bind(columnOf(field), value, field)
 
     /** An operand of [column], bound as its parameter type; a date operand as epoch milliseconds. */
-    fun bind(column: TypedColumn, value: Any?, field: QueryField = QueryField(column.name)): String {
+    fun bind(column: TypedColumn, value: Any?, field: QueryField<*> = QueryField(column.name)): String {
         val operand = value.operandValue() ?: throw QueryExecutionException("A null operand cannot be bound.")
         if (operand is List<*>) {
             throw QueryViolation.StorageUnsupported("an array operand", field).rejection()
@@ -214,14 +214,14 @@ internal class ClickHouseFilterCompiler(
         return parameters.bind(text, column.parameterType)
     }
 
-    private fun Any.epochMillis(field: QueryField): Long = when (this) {
+    private fun Any.epochMillis(field: QueryField<*>): Long = when (this) {
         is Number -> toLong()
         is String -> parseInstant(field).toEpochMilli()
         else -> throw QueryViolation.StorageUnsupported("a [${javaClass.simpleName}] operand for a date field", field)
             .rejection()
     }
 
-    private fun String.parseInstant(field: QueryField): Instant = try {
+    private fun String.parseInstant(field: QueryField<*>): Instant = try {
         when (val parsed = DateTimeFormatter.ISO_DATE_TIME.parseBest(this, ZonedDateTime::from, LocalDateTime::from)) {
             is ZonedDateTime -> parsed.toInstant()
             else -> (parsed as LocalDateTime).toInstant(ZoneOffset.UTC)

@@ -13,29 +13,52 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-data class QueryField(
-    val path: String,
-) {
-    init {
-        require(isValidPath(path)) { "Query field is invalid: [$path]." }
-    }
+/**
+ * A logical field of a query model, by its [path] (`state.price`, `aggregateId`, `items.0.sku`), typed by the
+ * values [T] it holds: the DSL's comparisons take a value of that type, checked at compile time
+ * (`STATE__PRICE gte BigDecimal("5.00")`). The generated `<State>Properties` and `<Context>Contract` constants are
+ * typed by their state's fields; a dynamic key, named only at run time, is a `QueryField<Any?>` ([QueryField] of a
+ * path) and takes any value.
+ *
+ * Two fields are equal when their paths are, whatever they are typed as: the type only checks code at compile time
+ * and never reaches the wire, where a field is its path. [T] is invariant, so a `QueryField<String>` takes no `Int`.
+ * Fields are built by [QueryField] and [of]; an application does not implement this interface.
+ */
+sealed interface QueryField<T> {
+    val path: String
 
-    fun append(relative: QueryField): QueryField = QueryField("$path.${relative.path}")
+    /** The field at [relative] under this one. */
+    fun append(relative: QueryField<*>): QueryField<Any?> = PathField("$path.${relative.path}")
 
-    fun absoluteTo(parent: QueryField?): QueryField =
-        if (parent == null || this == parent || path.startsWith("${parent.path}.")) this else parent.append(this)
+    /** This field, absolute: under [parent] unless it already is. */
+    fun absoluteTo(parent: QueryField<*>?): QueryField<T> =
+        if (parent == null || this == parent || path.startsWith("${parent.path}.")) {
+            this
+        } else {
+            of(
+                parent.append(this).path
+            )
+        }
 
-    fun relativeTo(parent: QueryField): QueryField? =
+    /** This field relative to [parent], or null when it is not under it. */
+    fun relativeTo(parent: QueryField<*>): QueryField<T>? =
         path.removePrefix("${parent.path}.")
             .takeIf { it != path && it.isNotEmpty() }
-            ?.let(::QueryField)
-
-    override fun toString(): String = path
+            ?.let { of(it) }
 
     companion object {
         const val PATTERN = "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+
+        /** The field of [path], typed as holding [T]: what a generated constant is. */
+        @JvmStatic
+        fun <T> of(path: String): QueryField<T> = PathField(path)
+
+        /** Whether [path] is the path of a field ([PATTERN]). */
+        @JvmStatic
+        fun isPath(path: String): Boolean = isValidPath(path)
 
         /**
          * Matches [PATTERN] without a regex: admission builds a field per reference on every request,
@@ -73,6 +96,23 @@ data class QueryField(
         private fun Char.isNamePart(): Boolean =
             this == '_' || this == '-' || this in 'A'..'Z' || this in 'a'..'z' || this in '0'..'9'
     }
+}
+
+/** The field of [path], untyped: a dynamic key, which takes any value. */
+@Suppress("FunctionName") // Named as the type it builds, as a constructor would be.
+fun QueryField(path: String): QueryField<Any?> = PathField(path)
+
+/** The one [QueryField]: a path, equal to every field of the same path. */
+private class PathField<T>(override val path: String) : QueryField<T> {
+    init {
+        require(QueryField.isPath(path)) { "Query field is invalid: [$path]." }
+    }
+
+    override fun equals(other: Any?): Boolean = this === other || other is QueryField<*> && path == other.path
+
+    override fun hashCode(): Int = path.hashCode()
+
+    override fun toString(): String = path
 }
 
 enum class FilterOperator {
@@ -128,6 +168,9 @@ enum class FilterOperator {
     NEXT_YEAR,
     BEFORE_NOW,
     AFTER_NOW,
+
+    /** [ExpressionFilter], experimental with it. */
+    @ExperimentalWowApi
     EXPRESSION,
 }
 
@@ -159,10 +202,10 @@ sealed interface FilterExpression : RewritableFilter<FilterExpression> {
  * search and expression filters name no single field and are not field predicates.
  */
 sealed interface FieldPredicate : FilterExpression {
-    val field: QueryField
+    val field: QueryField<*>
 
     /** This predicate naming [field] instead; everything else it carries is kept. */
-    fun withField(field: QueryField): FilterExpression
+    fun withField(field: QueryField<*>): FilterExpression
 }
 
 data object MatchAllFilter : FilterExpression {
@@ -271,12 +314,12 @@ class DeletionFilter @InternalWowApi constructor(
 }
 
 class ElementMatchFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val predicate: FilterExpression,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.ELEMENT_MATCH
 
-    override fun withField(field: QueryField): ElementMatchFilter = ElementMatchFilter(field, predicate)
+    override fun withField(field: QueryField<*>): ElementMatchFilter = ElementMatchFilter(field, predicate)
 
     init {
         require(predicate.containsElementUnsupportedFilter().not()) {
@@ -297,7 +340,7 @@ class ElementMatchFilter @InternalWowApi constructor(
         /** A [ElementMatchFilter] of the given values. */
         @JvmStatic
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             predicate: FilterExpression,
         ): ElementMatchFilter = ElementMatchFilter(field, predicate)
     }
@@ -305,7 +348,7 @@ class ElementMatchFilter @InternalWowApi constructor(
 
 class SearchFilter @InternalWowApi constructor(
     val query: String,
-    val fields: Set<QueryField> = emptySet(),
+    val fields: Set<QueryField<*>> = emptySet(),
     val mode: SearchMode = SearchMode.TERMS,
 ) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.SEARCH
@@ -318,7 +361,7 @@ class SearchFilter @InternalWowApi constructor(
     @InternalWowApi
     fun copy(
         query: String = this.query,
-        fields: Set<QueryField> = this.fields,
+        fields: Set<QueryField<*>> = this.fields,
         mode: SearchMode = this.mode,
     ): SearchFilter = SearchFilter(query, fields, mode)
 
@@ -337,7 +380,7 @@ class SearchFilter @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             query: String,
-            fields: Set<QueryField> = emptySet(),
+            fields: Set<QueryField<*>> = emptySet(),
             mode: SearchMode = SearchMode.TERMS,
         ): SearchFilter = SearchFilter(query, fields, mode)
     }

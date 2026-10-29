@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
  */
 @InternalWowApi
 class QuerySchemaDeclarationBuilder {
-    private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
+    private val fields = linkedMapOf<QueryField<*>, QueryFieldDeclaration>()
 
     fun field(field: String, block: QueryFieldDeclarationBuilder.() -> Unit) {
         val logicalField = QueryField(field)
@@ -56,7 +56,7 @@ class QueryFieldDeclarationBuilder {
     private var values: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset
     private var title: DeclarationValue<String?> = DeclarationValue.Unset
     private var required: DeclarationValue<Boolean> = DeclarationValue.Unset
-    private var aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset
+    private var aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset
     private var deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset
 
     /**

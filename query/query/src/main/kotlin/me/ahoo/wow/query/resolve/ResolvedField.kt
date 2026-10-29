@@ -30,22 +30,22 @@ import me.ahoo.wow.query.schema.Temporal
  */
 class ResolvedField internal constructor(
     /** The absolute logical path: the reference appended to its enclosing element scopes. */
-    val logicalField: QueryField,
+    val logicalField: QueryField<*>,
     /** The model's record of the field, which admission checked the reference against. */
     internal val definition: QueryFieldSchema,
     /** The absolute physical container of the enclosing element scope, or `null` at the root. */
-    val physicalParent: QueryField?,
+    val physicalParent: QueryField<*>?,
     /** The capability the reference was admitted with, or `null` for a projected field. */
     val capability: QueryCapability?,
     /** The absolute physical field bound for [capability], or the projection field of a projected field. */
-    val physicalField: QueryField,
+    val physicalField: QueryField<*>,
 ) {
     /** The element scopes the field lies in, outermost first. */
-    val elementAncestors: List<QueryField>
+    val elementAncestors: List<QueryField<*>>
         get() = definition.elementAncestors.orEmpty()
 
     /** Where the field sits in a stored record as storage returns it, when storage names that location. */
-    val responseField: QueryField?
+    val responseField: QueryField<*>?
         get() = definition.responseField
 
     /** How many values one record holds for the field; `null` when its value is unknown or mixes both. */
@@ -64,7 +64,7 @@ class ResolvedField internal constructor(
      * admitted for [capability] ([me.ahoo.wow.query.schema.QueryFieldBinding.physicalScope]); `null` when there is
      * none or the field is projected.
      */
-    val physicalScope: QueryField?
+    val physicalScope: QueryField<*>?
         get() = capability?.let(definition::binding)?.physicalScope
 
     /**
@@ -84,7 +84,7 @@ class ResolvedField internal constructor(
         get() = capability?.let(definition::binding)?.indexed
 
     /** [physicalField] relative to [physicalParent]; the physical field itself at the root. */
-    val relativePhysicalField: QueryField
+    val relativePhysicalField: QueryField<*>
         get() = physicalParent?.let(physicalField::relativeTo) ?: physicalField
 
     override fun toString(): String = "ResolvedField(logical=$logicalField, physical=$physicalField, capability=$capability)"

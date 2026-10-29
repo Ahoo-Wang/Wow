@@ -30,9 +30,9 @@ import org.junit.jupiter.api.Test
  * state, and nothing the model would refuse.
  */
 class SnapshotPropertiesTest {
-    private val properties: List<QueryField> = SnapshotProperties::class.java.declaredFields
+    private val properties: List<QueryField<*>> = SnapshotProperties::class.java.declaredFields
         .filter { it.type == QueryField::class.java }
-        .map { it.apply { isAccessible = true }.get(SnapshotProperties) as QueryField }
+        .map { it.apply { isAccessible = true }.get(SnapshotProperties) as QueryField<*> }
 
     @Test
     fun `the top-level properties are the model's system fields`() {

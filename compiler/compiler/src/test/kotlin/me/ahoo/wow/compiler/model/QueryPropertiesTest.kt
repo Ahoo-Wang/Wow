@@ -105,6 +105,50 @@ class QueryPropertiesTest {
     }
 
     @Test
+    fun `each constant should be typed by its property, so a comparison of another type does not compile`() {
+        val typed = SourceFile.kotlin(
+            "Queries.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.query.dsl.listQuery
+
+            val query = listQuery {
+                filter {
+                    OrderStateProperties.STATE__TOTAL_URL_COUNT gte 3
+                    OrderStateProperties.STATE__STATUS eq Status.PAID
+                    OrderStateProperties.STATE__CUSTOMER_ID eq null
+                    OrderStateProperties.STATE__LINES__QUANTITY isIn listOf(1, 2)
+                    OrderStateProperties.VERSION between 1..3
+                }
+            }
+            """.trimIndent(),
+        )
+        val (_, compiled) = compileModel("generate", order, typed)
+        compiled.exitCode.assert().withFailMessage { compiled.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        listOf(
+            "OrderStateProperties.STATE__TOTAL_URL_COUNT eq \"three\"",
+            "OrderStateProperties.STATE__STATUS eq \"PAID\"",
+            // A field the state never leaves null is not compared with null.
+            "OrderStateProperties.STATE__ID eq null",
+        ).forEach { condition ->
+            val mistyped = SourceFile.kotlin(
+                "Mistyped.kt",
+                """
+                package sample
+
+                import me.ahoo.wow.api.query.dsl.listQuery
+
+                val query = listQuery { filter { $condition } }
+                """.trimIndent(),
+            )
+            val (_, refused) = compileModel("generate", order, mistyped)
+            refused.exitCode.assert().describedAs(condition).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            refused.messages.assert().contains("Mistyped.kt")
+        }
+    }
+
+    @Test
     fun `a root that is its own state gets them too`() {
         val (_, result) = compileModel("generate", order)
         result.properties("sample.LedgerProperties").assert().isEqualTo(

@@ -50,7 +50,7 @@ class SystemQuerySchemaSourceTest {
         val original = declaration.fields.getValue(state)
 
         @Suppress("UNCHECKED_CAST")
-        val mutableFields = declaration.fields as MutableMap<QueryField, QueryFieldDeclaration>
+        val mutableFields = declaration.fields as MutableMap<QueryField<*>, QueryFieldDeclaration>
 
         try {
             assertThrows<UnsupportedOperationException> {
@@ -82,7 +82,7 @@ class SystemQuerySchemaSourceTest {
     fun `snapshot system declaration should match the snapshot record`() {
         val fields = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields
 
-        fields.keys.map(QueryField::path).assert().containsExactly(
+        fields.keys.map(QueryField<*>::path).assert().containsExactly(
             SnapshotFields.TENANT_ID,
             SnapshotFields.AGGREGATE_ID,
             SnapshotFields.VERSION,

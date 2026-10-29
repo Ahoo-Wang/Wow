@@ -239,8 +239,8 @@ class WowContractSourcesFunctionalTest {
                 public static final Ownership OWNERSHIP = ShopContract.Cart.OWNERSHIP;
                 public static final AggregateIdSource ID_SOURCE = ShopContract.Cart.ID_SOURCE;
                 public static final List<String> MODELS = ShopContract.Cart.QUERY_MODELS;
-                public static final QueryField PRODUCT = ShopContract.Cart.STATE__LINES__PRODUCT_ID;
-                public static final QueryField VERSION = ShopContract.Cart.INSTANCE.VERSION;
+                public static final QueryField<?> PRODUCT = ShopContract.Cart.STATE__LINES__PRODUCT_ID;
+                public static final QueryField<?> VERSION = ShopContract.Cart.INSTANCE.VERSION;
 
                 private JavaUsage() {
                 }
@@ -461,10 +461,11 @@ class WowContractSourcesFunctionalTest {
             .doesNotContainKey("STATE__COMPUTED")
     }
 
-    /** The `QueryField` constants of a generated source, name to path. */
+    /** The `QueryField` constants of a generated source, name to path, whatever each is typed as. */
     private fun queryFields(source: String): Map<String, String> =
         Regex(
-            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField = (?:me\.ahoo\.wow\.api\.query\.)?QueryField\("([^"]+)"\)"""
+            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField<.+?> = """ +
+                """(?:me\.ahoo\.wow\.api\.query\.)?QueryField\.of\("([^"]+)"\)"""
         )
             .findAll(source).associate { it.groupValues[1] to it.groupValues[2] }
 

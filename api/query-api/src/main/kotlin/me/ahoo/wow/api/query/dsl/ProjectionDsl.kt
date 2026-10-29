@@ -28,14 +28,14 @@ import me.ahoo.wow.api.query.QueryField
  */
 @QueryDslMarker
 class ProjectionDsl : NestedFieldDsl() {
-    private val include = mutableListOf<QueryField>()
-    private val exclude = mutableListOf<QueryField>()
+    private val include = mutableListOf<QueryField<*>>()
+    private val exclude = mutableListOf<QueryField<*>>()
 
     fun include(vararg fields: String) {
         fields.mapTo(include) { QueryField(it.withNestedField()) }
     }
 
-    fun include(vararg fields: QueryField) {
+    fun include(vararg fields: QueryField<*>) {
         fields.mapTo(include) { QueryField(it.path.withNestedField()) }
     }
 
@@ -43,7 +43,7 @@ class ProjectionDsl : NestedFieldDsl() {
         fields.mapTo(exclude) { QueryField(it.withNestedField()) }
     }
 
-    fun exclude(vararg fields: QueryField) {
+    fun exclude(vararg fields: QueryField<*>) {
         fields.mapTo(exclude) { QueryField(it.path.withNestedField()) }
     }
 

@@ -136,7 +136,7 @@ class AggregationQuery @InternalWowApi constructor(
 
 @ExperimentalWowApi
 class AggregationElement @InternalWowApi constructor(
-    val path: QueryField,
+    val path: QueryField<*>,
     val filter: FilterExpression = MatchAllFilter,
 ) {
     init {
@@ -159,7 +159,7 @@ class AggregationElement @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            path: QueryField,
+            path: QueryField<*>,
             filter: FilterExpression = MatchAllFilter,
         ): AggregationElement = AggregationElement(path, filter)
     }
@@ -168,7 +168,7 @@ class AggregationElement @InternalWowApi constructor(
 @ExperimentalWowApi
 sealed interface AggregationGroup {
     /** The grouped field; `null` only for a TERMS or HISTOGRAM group whose input is an expression. */
-    val field: QueryField?
+    val field: QueryField<*>?
     val alias: String
 
     /**
@@ -180,7 +180,7 @@ sealed interface AggregationGroup {
 
     /** Groups by the value of [field], or of [expression] when the group names one instead. */
     class Terms @InternalWowApi constructor(
-        override val field: QueryField? = null,
+        override val field: QueryField<*>? = null,
         override val alias: String,
         val missingKey: String? = null,
         val expression: AggregationExpression? = null,
@@ -199,7 +199,7 @@ sealed interface AggregationGroup {
         /** This Terms with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField? = this.field,
+            field: QueryField<*>? = this.field,
             alias: String = this.alias,
             missingKey: String? = this.missingKey,
             expression: AggregationExpression? = this.expression,
@@ -220,7 +220,7 @@ sealed interface AggregationGroup {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField? = null,
+                field: QueryField<*>? = null,
                 alias: String,
                 missingKey: String? = null,
                 expression: AggregationExpression? = null,
@@ -231,7 +231,7 @@ sealed interface AggregationGroup {
 
     /** Buckets the numeric value of [field], or of [expression] when the group names one instead. */
     class Histogram @InternalWowApi constructor(
-        override val field: QueryField? = null,
+        override val field: QueryField<*>? = null,
         override val alias: String,
         val interval: Double,
         val expression: AggregationExpression? = null,
@@ -249,7 +249,7 @@ sealed interface AggregationGroup {
         /** This Histogram with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField? = this.field,
+            field: QueryField<*>? = this.field,
             alias: String = this.alias,
             interval: Double = this.interval,
             expression: AggregationExpression? = this.expression,
@@ -270,7 +270,7 @@ sealed interface AggregationGroup {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField? = null,
+                field: QueryField<*>? = null,
                 alias: String,
                 interval: Double,
                 expression: AggregationExpression? = null,
@@ -280,7 +280,7 @@ sealed interface AggregationGroup {
     }
 
     class DateHistogram @InternalWowApi constructor(
-        override val field: QueryField,
+        override val field: QueryField<*>,
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
@@ -295,7 +295,7 @@ sealed interface AggregationGroup {
         /** This DateHistogram with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField = this.field,
+            field: QueryField<*> = this.field,
             alias: String = this.alias,
             unit: AggregationDateUnit = this.unit,
             timeZone: String = this.timeZone,
@@ -317,7 +317,7 @@ sealed interface AggregationGroup {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 alias: String,
                 unit: AggregationDateUnit,
                 timeZone: String = "UTC",
@@ -333,7 +333,7 @@ sealed interface AggregationGroup {
      * fills every key of that domain that has no records with the empty value of each metric.
      */
     class DatePart @InternalWowApi constructor(
-        override val field: QueryField,
+        override val field: QueryField<*>,
         override val alias: String,
         val part: AggregationDatePart,
         val timeZone: String = "UTC",
@@ -348,7 +348,7 @@ sealed interface AggregationGroup {
         /** This DatePart with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField = this.field,
+            field: QueryField<*> = this.field,
             alias: String = this.alias,
             part: AggregationDatePart = this.part,
             timeZone: String = this.timeZone,
@@ -370,7 +370,7 @@ sealed interface AggregationGroup {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 alias: String,
                 part: AggregationDatePart,
                 timeZone: String = "UTC",
@@ -431,7 +431,7 @@ enum class AggregationDateUnit {
  */
 @ExperimentalWowApi
 sealed interface AggregationExpression {
-    class Field @InternalWowApi constructor(val field: QueryField) : AggregationExpression {
+    class Field @InternalWowApi constructor(val field: QueryField<*>) : AggregationExpression {
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is Field && valueFields() == other.valueFields()
 
@@ -444,7 +444,7 @@ sealed interface AggregationExpression {
         companion object {
             /** A [Field] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): Field = Field(field)
+            fun of(field: QueryField<*>): Field = Field(field)
         }
     }
 
@@ -508,15 +508,15 @@ sealed interface AggregationExpression {
      * temporal fields; each is read in its own temporal encoding.
      */
     class DateDiff @InternalWowApi constructor(
-        val from: QueryField,
-        val to: QueryField,
+        val from: QueryField<*>,
+        val to: QueryField<*>,
         val unit: DateDiffUnit,
     ) : AggregationExpression {
         /** This DateDiff with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            from: QueryField = this.from,
-            to: QueryField = this.to,
+            from: QueryField<*> = this.from,
+            to: QueryField<*> = this.to,
             unit: DateDiffUnit = this.unit,
         ): DateDiff = DateDiff(from, to, unit)
 
@@ -532,7 +532,7 @@ sealed interface AggregationExpression {
         companion object {
             /** A [DateDiff] of the given values. */
             @JvmStatic
-            fun of(from: QueryField, to: QueryField, unit: DateDiffUnit): DateDiff = DateDiff(from, to, unit)
+            fun of(from: QueryField<*>, to: QueryField<*>, unit: DateDiffUnit): DateDiff = DateDiff(from, to, unit)
         }
     }
 }
@@ -551,7 +551,7 @@ enum class DateDiffUnit(val millis: Long) {
 
 /** The fields an expression reads, in tree order. */
 @ExperimentalWowApi
-val AggregationExpression.fields: List<QueryField>
+val AggregationExpression.fields: List<QueryField<*>>
     get() = when (this) {
         is AggregationExpression.Field -> listOf(field)
         is AggregationExpression.Constant -> emptyList()
@@ -647,7 +647,7 @@ sealed interface AggregationMetric {
     }
 
     class Any @InternalWowApi constructor(
-        val field: QueryField,
+        val field: QueryField<*>,
         override val alias: String,
         override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
@@ -658,7 +658,7 @@ sealed interface AggregationMetric {
         /** This Any with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField = this.field,
+            field: QueryField<*> = this.field,
             alias: String = this.alias,
             filter: FilterExpression = this.filter,
         ): Any = Any(field, alias, filter)
@@ -677,7 +677,7 @@ sealed interface AggregationMetric {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 alias: String,
                 filter: FilterExpression = MatchAllFilter,
             ): Any = Any(field, alias, filter)
@@ -798,16 +798,16 @@ sealed interface AggregationMetric {
      * model's event time. Records tied on [orderBy] may yield any one of their values.
      */
     sealed interface Edge : AggregationMetric {
-        val field: QueryField
+        val field: QueryField<*>
 
         /** The ordering field; `null` for the model's event time. */
-        val orderBy: QueryField?
+        val orderBy: QueryField<*>?
     }
 
     class First @InternalWowApi constructor(
-        override val field: QueryField,
+        override val field: QueryField<*>,
         override val alias: String,
-        override val orderBy: QueryField? = null,
+        override val orderBy: QueryField<*>? = null,
         override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric, Edge {
         init {
@@ -817,9 +817,9 @@ sealed interface AggregationMetric {
         /** This First with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField = this.field,
+            field: QueryField<*> = this.field,
             alias: String = this.alias,
-            orderBy: QueryField? = this.orderBy,
+            orderBy: QueryField<*>? = this.orderBy,
             filter: FilterExpression = this.filter,
         ): First = First(field, alias, orderBy, filter)
 
@@ -837,18 +837,18 @@ sealed interface AggregationMetric {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 alias: String,
-                orderBy: QueryField? = null,
+                orderBy: QueryField<*>? = null,
                 filter: FilterExpression = MatchAllFilter,
             ): First = First(field, alias, orderBy, filter)
         }
     }
 
     class Last @InternalWowApi constructor(
-        override val field: QueryField,
+        override val field: QueryField<*>,
         override val alias: String,
-        override val orderBy: QueryField? = null,
+        override val orderBy: QueryField<*>? = null,
         override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric, Edge {
         init {
@@ -858,9 +858,9 @@ sealed interface AggregationMetric {
         /** This Last with the given values replaced; for Wow's own query rewriting. */
         @InternalWowApi
         fun copy(
-            field: QueryField = this.field,
+            field: QueryField<*> = this.field,
             alias: String = this.alias,
-            orderBy: QueryField? = this.orderBy,
+            orderBy: QueryField<*>? = this.orderBy,
             filter: FilterExpression = this.filter,
         ): Last = Last(field, alias, orderBy, filter)
 
@@ -878,9 +878,9 @@ sealed interface AggregationMetric {
             @JvmStatic
             @JvmOverloads
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 alias: String,
-                orderBy: QueryField? = null,
+                orderBy: QueryField<*>? = null,
                 filter: FilterExpression = MatchAllFilter,
             ): Last = Last(field, alias, orderBy, filter)
         }
@@ -1295,7 +1295,7 @@ private fun requireGroupScope(scope: AggregationGroupScope?, expression: Aggrega
     }
 }
 
-private fun requireGroupInput(field: QueryField?, expression: AggregationExpression?, type: String) {
+private fun requireGroupInput(field: QueryField<*>?, expression: AggregationExpression?, type: String) {
     require((field == null) != (expression == null)) { "$type group requires exactly one of field and expression." }
     expression?.let { listOf(it).requireValidExpressionTrees() }
 }

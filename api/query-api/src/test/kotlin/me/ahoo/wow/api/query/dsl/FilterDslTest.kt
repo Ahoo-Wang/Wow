@@ -459,7 +459,10 @@ class FilterDslTest {
                 field.afterNow()
             }
 
-            is QueryField -> {
+            is QueryField<*> -> {
+                // A dynamic key: untyped, it takes any value.
+                @Suppress("NAME_SHADOWING")
+                val field: QueryField<Any?> = QueryField(field.path)
                 field eq "a"
                 field ne "a"
                 field gt 1

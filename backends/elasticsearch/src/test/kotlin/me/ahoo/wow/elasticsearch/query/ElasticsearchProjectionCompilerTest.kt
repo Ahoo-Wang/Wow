@@ -56,5 +56,5 @@ class ElasticsearchProjectionCompilerTest {
         )
     }
 
-    private fun projectionFieldSchema(field: QueryField) = nativeBindings(field)
+    private fun projectionFieldSchema(field: QueryField<*>) = nativeBindings(field)
 }

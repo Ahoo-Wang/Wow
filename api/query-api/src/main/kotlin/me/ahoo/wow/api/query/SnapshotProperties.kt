@@ -27,7 +27,7 @@ package me.ahoo.wow.api.query
  * ```kotlin
  * val query = listQuery {
  *     filter {
- *         OrderStateProperties.STATE__STATUS eq "PAID"
+ *         OrderStateProperties.STATE__STATUS eq OrderStatus.PAID
  *         OrderStateProperties.OPERATOR__ID eq "user-1"
  *     }
  *     sort { OrderStateProperties.LAST_EVENT_TIME.desc() }
@@ -38,82 +38,82 @@ package me.ahoo.wow.api.query
 open class SnapshotProperties protected constructor() {
     /** The aggregate's tenant. */
     @JvmField
-    val TENANT_ID: QueryField = QueryField("tenantId")
+    val TENANT_ID: QueryField<String> = QueryField.of("tenantId")
 
     /** The aggregate's id, unique within its tenant. */
     @JvmField
-    val AGGREGATE_ID: QueryField = QueryField("aggregateId")
+    val AGGREGATE_ID: QueryField<String> = QueryField.of("aggregateId")
 
     /** The aggregate's version: the number of its events. */
     @JvmField
-    val VERSION: QueryField = QueryField("version")
+    val VERSION: QueryField<Int> = QueryField.of("version")
 
     /** The aggregate's owner, `null` when it has none. */
     @JvmField
-    val OWNER_ID: QueryField = QueryField("ownerId")
+    val OWNER_ID: QueryField<String?> = QueryField.of("ownerId")
 
     /** The aggregate's space, `null` when it has none. */
     @JvmField
-    val SPACE_ID: QueryField = QueryField("spaceId")
+    val SPACE_ID: QueryField<String?> = QueryField.of("spaceId")
 
     /** Whether the aggregate is deleted; a query sees only the others unless it filters on the deletion state. */
     @JvmField
-    val DELETED: QueryField = QueryField("deleted")
+    val DELETED: QueryField<Boolean> = QueryField.of("deleted")
 
     /** The aggregate's tags, a map of string lists; [tag] names one of them. */
     @JvmField
-    val TAGS: QueryField = QueryField("tags")
+    val TAGS: QueryField<Any?> = QueryField.of("tags")
 
     /** When the aggregate got its first event, in epoch milliseconds. */
     @JvmField
-    val FIRST_EVENT_TIME: QueryField = QueryField("firstEventTime")
+    val FIRST_EVENT_TIME: QueryField<Long> = QueryField.of("firstEventTime")
 
     /** When the aggregate got its last event, in epoch milliseconds. */
     @JvmField
-    val LAST_EVENT_TIME: QueryField = QueryField("lastEventTime")
+    val LAST_EVENT_TIME: QueryField<Long> = QueryField.of("lastEventTime")
 
     /** Who sent the last command: `{id, tenantId, crossScope}`, or `null` for an anonymous caller. */
     @JvmField
-    val OPERATOR: QueryField = QueryField("operator")
+    val OPERATOR: QueryField<Any?> = QueryField.of("operator")
 
     @JvmField
-    val OPERATOR__ID: QueryField = QueryField("operator.id")
+    val OPERATOR__ID: QueryField<String?> = QueryField.of("operator.id")
 
     @JvmField
-    val OPERATOR__TENANT_ID: QueryField = QueryField("operator.tenantId")
+    val OPERATOR__TENANT_ID: QueryField<String?> = QueryField.of("operator.tenantId")
 
     @JvmField
-    val OPERATOR__CROSS_SCOPE: QueryField = QueryField("operator.crossScope")
+    val OPERATOR__CROSS_SCOPE: QueryField<Boolean?> = QueryField.of("operator.crossScope")
 
     /** Who sent the command that created the aggregate, as [OPERATOR]. */
     @JvmField
-    val FIRST_OPERATOR: QueryField = QueryField("firstOperator")
+    val FIRST_OPERATOR: QueryField<Any?> = QueryField.of("firstOperator")
 
     @JvmField
-    val FIRST_OPERATOR__ID: QueryField = QueryField("firstOperator.id")
+    val FIRST_OPERATOR__ID: QueryField<String?> = QueryField.of("firstOperator.id")
 
     @JvmField
-    val FIRST_OPERATOR__TENANT_ID: QueryField = QueryField("firstOperator.tenantId")
+    val FIRST_OPERATOR__TENANT_ID: QueryField<String?> = QueryField.of("firstOperator.tenantId")
 
     @JvmField
-    val FIRST_OPERATOR__CROSS_SCOPE: QueryField = QueryField("firstOperator.crossScope")
+    val FIRST_OPERATOR__CROSS_SCOPE: QueryField<Boolean?> = QueryField.of("firstOperator.crossScope")
 
     /**
      * The schedules the aggregate keeps: each rule by its key, `{type, ...}` as Wow's JSON writes it
      * (`{type: "cron", expression, zone, misfire}`); [schedule] names one.
      */
     @JvmField
-    val SCHEDULES: QueryField = QueryField("schedules")
+    val SCHEDULES: QueryField<Any?> = QueryField.of("schedules")
 
     /** The aggregate's state. */
     @JvmField
-    val STATE: QueryField = QueryField("state")
+    val STATE: QueryField<Any?> = QueryField.of("state")
 
     /** The tag [name] of [TAGS]: `tags.<name>`. */
-    fun tag(name: String): QueryField = TAGS.append(QueryField(name))
+    fun tag(name: String): QueryField<*> = TAGS.append(QueryField(name))
 
     /** The schedule [key] of [SCHEDULES]: `schedules.<key>`, its rule. */
-    fun schedule(key: String): QueryField = SCHEDULES.append(QueryField(key))
+    fun schedule(key: String): QueryField<*> = SCHEDULES.append(QueryField(key))
 
     /** The system fields alone. */
     companion object : SnapshotProperties()

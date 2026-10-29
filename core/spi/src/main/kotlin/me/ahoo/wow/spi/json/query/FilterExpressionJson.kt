@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spi.json.query
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -157,14 +156,10 @@ internal fun FilterOperator.filterType(): Class<out FilterExpression> = when (th
 internal fun filterSubtypes(): List<NamedType> =
     FilterOperator.entries.map { NamedType(it.filterType(), WireNames.of(it)) }
 
-/** A bare JSON string: the path. */
-internal abstract class QueryFieldMixin
-@JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-constructor(
-    @Suppress("UNUSED_PARAMETER", "unused") path: String,
-) {
+/** A bare JSON string: the path, which `QueryFieldReader` reads back. */
+internal interface QueryFieldMixin {
     @get:JsonValue
-    abstract val path: String
+    val path: String
 }
 
 /**

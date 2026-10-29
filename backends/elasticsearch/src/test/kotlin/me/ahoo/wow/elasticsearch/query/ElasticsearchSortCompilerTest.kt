@@ -163,14 +163,14 @@ class ElasticsearchSortCompilerTest {
         val IDENTITY = QueryField(SnapshotFields.AGGREGATE_ID)
     }
 
-    private fun sortFieldSchema(physical: QueryField, scope: QueryField? = null) = nativeBindings(
+    private fun sortFieldSchema(physical: QueryField<*>, scope: QueryField<*>? = null) = nativeBindings(
         physical,
         QueryCapability.SORT,
         QueryCapability.CURSOR_SORT,
         scope = scope,
     )
 
-    private fun fieldSchema(vararg bindings: Pair<QueryCapability, QueryField>) =
+    private fun fieldSchema(vararg bindings: Pair<QueryCapability, QueryField<*>>) =
         me.ahoo.wow.query.schema.QueryValueBindings(
             bindings.associate { (capability, physical) ->
                 capability to me.ahoo.wow.query.schema.QueryFieldBindingTemplate(physical.path.testPath(), null)

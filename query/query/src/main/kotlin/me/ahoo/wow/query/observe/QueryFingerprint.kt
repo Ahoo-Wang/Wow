@@ -110,7 +110,7 @@ private class QueryShapeWriter {
         shape.append(name).append('=').append(count).append(' ')
     }
 
-    private fun field(field: QueryField?) {
+    private fun field(field: QueryField<*>?) {
         token(field?.path ?: "-")
     }
 
@@ -131,7 +131,7 @@ private class QueryShapeWriter {
         group("exclude") { projection.exclude.forEach(::field) }
     }
 
-    private inline fun sort(sort: List<Sort>, crossinline field: (QueryField) -> Unit) = group("sort") {
+    private inline fun sort(sort: List<Sort>, crossinline field: (QueryField<*>) -> Unit) = group("sort") {
         sort.forEach {
             field(it.field)
             token(it.direction.name)

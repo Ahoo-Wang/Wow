@@ -72,7 +72,7 @@ class StatePropertiesTest {
     private fun constants(properties: SnapshotProperties): Map<String, String> =
         properties.javaClass.declaredFields
             .filter { it.type == QueryField::class.java }
-            .associate { it.name to (it.apply { isAccessible = true }.get(properties) as QueryField).path }
+            .associate { it.name to (it.apply { isAccessible = true }.get(properties) as QueryField<*>).path }
 
     @Test
     fun `the query DSL should take them`() {
@@ -104,7 +104,7 @@ class StatePropertiesTest {
     private fun stateFields(properties: SnapshotProperties): List<String> =
         properties.javaClass.declaredFields
             .filter { it.type == QueryField::class.java }
-            .map { (it.apply { isAccessible = true }.get(properties) as QueryField).path }
+            .map { (it.apply { isAccessible = true }.get(properties) as QueryField<*>).path }
 
     private fun definition(name: String): JsonNode = fragment.path("\$defs").path(name)
 

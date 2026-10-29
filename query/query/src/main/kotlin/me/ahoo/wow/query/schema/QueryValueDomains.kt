@@ -93,7 +93,7 @@ private fun JsonNode.matches(type: QueryValueType): Boolean = when (type) {
  * The encoding this relative-time filter resolves against: the field's [temporal] encoding (its compiled
  * [QueryFieldCapabilities.temporal]), which the filter's own configuration must not contradict.
  */
-internal fun RelativeTimeFilter.temporal(temporal: Temporal?, logical: QueryField = field): Temporal {
+internal fun RelativeTimeFilter.temporal(temporal: Temporal?, logical: QueryField<*> = field): Temporal {
     requireValid(dateFormatter == null && temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
     requireValid(
         when (temporal) {
@@ -114,7 +114,7 @@ internal fun RelativeTimeFilter.withTemporal(temporal: Temporal): RelativeTimeFi
 
 @Suppress("CyclomaticComplexMethod")
 private fun RelativeTimeFilter.copyTemporal(
-    field: QueryField,
+    field: QueryField<*>,
     datePattern: String? = this.datePattern,
     timeUnit: TimeUnit = this.timeUnit,
 ): RelativeTimeFilter {

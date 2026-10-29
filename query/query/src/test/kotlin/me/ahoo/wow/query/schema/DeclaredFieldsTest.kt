@@ -69,7 +69,7 @@ class DeclaredFieldsTest {
                 QueryField("state.config.labels"),
             )
             // Map entries are named by the caller's keys, so no fixed path names them.
-            fields.map(QueryField::path).filter { it.startsWith("state.config.labels.") }.assert().isEmpty()
+            fields.map(QueryField<*>::path).filter { it.startsWith("state.config.labels.") }.assert().isEmpty()
             // The system fields come first, whatever the sources declare.
             fields.assert().contains(QueryField("aggregateId"), QueryField("state"))
         }
@@ -93,7 +93,7 @@ class DeclaredFieldsTest {
             fields.assert().contains(QueryField("tenantId"), QueryField("lastEventTime"), QueryField("state"))
             fields.assert().doesNotContain(QueryField("state.name"))
             // Tags are a map: their keys are the caller's.
-            fields.map(QueryField::path).filter { it.startsWith("tags.") }.assert().isEmpty()
+            fields.map(QueryField<*>::path).filter { it.startsWith("tags.") }.assert().isEmpty()
         }
     }
 }

@@ -37,7 +37,7 @@ import org.bson.conversions.Bson
 import java.time.ZoneId
 
 /** The physical path of [field], [checked][MongoSnapshotDocuments.checked] before it enters a pipeline. */
-internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDocuments.checked(physicalPath(field))
+internal fun AdmittedQuery<*>.path(field: QueryField<*>): String = MongoSnapshotDocuments.checked(physicalPath(field))
 
 /**
  * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler

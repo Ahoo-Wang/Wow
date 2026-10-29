@@ -617,7 +617,7 @@ abstract class DatasetQueryBackendSpec {
         }
     }
 
-    private fun numeric(function: AggregationFunction, field: QueryField, alias: String) =
+    private fun numeric(function: AggregationFunction, field: QueryField<*>, alias: String) =
         AggregationMetric.Numeric(function, AggregationExpression.Field(field), alias)
 
     companion object {

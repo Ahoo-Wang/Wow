@@ -236,7 +236,7 @@ internal object MongoMatchCompiler {
         )
     }
 
-    private fun QueryField.resolve(admitted: AdmittedQuery<*>, scope: String?): String {
+    private fun QueryField<*>.resolve(admitted: AdmittedQuery<*>, scope: String?): String {
         val field = admitted.field(this)
         val path = when (scope) {
             null -> admitted.physicalPath(this)

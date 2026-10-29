@@ -81,7 +81,7 @@ internal interface AggregationQueryMixin {
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = TYPE)
 internal interface AggregationGroupMixin {
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val field: QueryField?
+    val field: QueryField<*>?
 
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val scope: AggregationGroupScope?
@@ -117,7 +117,7 @@ internal interface AggregationMetricMixin {
 
 internal interface EdgeMetricMixin {
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val orderBy: QueryField?
+    val orderBy: QueryField<*>?
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = TYPE)

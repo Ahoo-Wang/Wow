@@ -45,11 +45,11 @@ class EventsQueryModelProfile internal constructor(
     val retired: Set<String> = emptySet(),
     val revisions: Map<String, Int> = emptyMap(),
 ) : BuiltInQueryModelProfile(QueryModel.EVENTS) {
-    override val identityField: QueryField = QueryField(EventStreamFields.AGGREGATE_ID)
-    override val payloadField: QueryField = QueryField(EventStreamFields.EVENTS)
-    override val eventTimeField: QueryField = QueryField(EventStreamFields.COMMIT_TIME)
+    override val identityField: QueryField<*> = QueryField(EventStreamFields.AGGREGATE_ID)
+    override val payloadField: QueryField<*> = QueryField(EventStreamFields.EVENTS)
+    override val eventTimeField: QueryField<*> = QueryField(EventStreamFields.COMMIT_TIME)
 
-    override val cursorUniqueKey: List<QueryField> = listOf(
+    override val cursorUniqueKey: List<QueryField<*>> = listOf(
         QueryField(EventStreamFields.TENANT_ID),
         QueryField(EventStreamFields.AGGREGATE_ID),
         QueryField(EventStreamFields.VERSION),
@@ -59,11 +59,11 @@ class EventsQueryModelProfile internal constructor(
         get() = SYSTEM_DECLARATION
 
     /** The element array of the events, the container [storedNames] and [retired] apply to. */
-    val eventsField: QueryField
+    val eventsField: QueryField<*>
         get() = payloadField
 
     /** The name field of an event, relative to [eventsField]. */
-    val nameField: QueryField = QueryField(EventFields.NAME)
+    val nameField: QueryField<*> = QueryField(EventFields.NAME)
 
     /** The names [name] is stored under: itself and its aliases. */
     fun storedNamesOf(name: String): Set<String> = storedNames[name] ?: setOf(name)

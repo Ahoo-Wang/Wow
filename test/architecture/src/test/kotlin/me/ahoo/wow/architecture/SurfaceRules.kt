@@ -84,7 +84,6 @@ object SurfaceRules {
         "me/ahoo/wow/api/decide/Causation" to "the causal link of a command: its correlation and causation ids",
         "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
         "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
-        "me/ahoo/wow/api/query/QueryField" to "a field path, its identity; generated code builds it (`<State>Properties`)",
     ) + PLATFORM_MESSAGES.associateWith { "a platform context's message type, governed by its Manifest" }
 
     private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")

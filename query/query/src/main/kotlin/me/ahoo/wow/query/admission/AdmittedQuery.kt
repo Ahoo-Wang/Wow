@@ -59,20 +59,23 @@ class AdmittedQuery<out Q : Any> internal constructor(
         get() = schema.provisional
 
     /** The resolution of one field reference of [query], by the identity of its [QueryField] instance. */
-    fun field(reference: QueryField): ResolvedField = resolved(reference)
+    fun field(reference: QueryField<*>): ResolvedField = resolved(reference)
 
     /** The resolution of the system field a system-field filter of [query] (ID, TENANT_ID, DELETION, ...) targets. */
     fun systemField(filter: FilterExpression): ResolvedField = resolved(filter)
 
     /** The absolute physical path [reference] resolved to: where a backend reads the field. */
-    fun physicalPath(reference: QueryField): String = field(reference).physicalField.path
+    fun physicalPath(reference: QueryField<*>): String = field(reference).physicalField.path
 
     /** The physical path of the system field a system-field filter of [query] targets. */
     fun systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path
 
     /** A node admission did not resolve is a backend defect; the node carries caller values, so it is not named. */
     private fun resolved(node: Any): ResolvedField = fields[node]
-        ?: throw QueryExecutionException("A [${node.javaClass.simpleName}] node is not a node of this admitted query.")
+        ?: throw QueryExecutionException("A [${nodeName(node)}] node is not a node of this admitted query.")
+
+    /** The name of [node]'s kind: a field is a [QueryField], whatever class implements it. */
+    private fun nodeName(node: Any): String = if (node is QueryField<*>) "QueryField" else node.javaClass.simpleName
 
     /**
      * The same admission for a query the core derived from [query], such as the aggregation it sends a backend
