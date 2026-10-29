@@ -45,7 +45,7 @@ Spring ignores a key no property binds, so a misspelled key would leave its defa
 - An unknown key stops the start, naming it, and naming the key that took its place when it is one of an earlier version, or the module that declares it when that module is not on the class path.
 - Under a map of settings (`wow.aggregates`, `wow.stores`, `wow.subscriptions`, `wow.schedules`, `wow.callers`, `wow.peers`, `wow.http.errors`), each entry's own keys are checked to their leaves: a mistyped `commands` would otherwise leave a service allowed to call every command.
 
-An environment variable named after a Wow group (`WOW_KAFKA_…`, `WOW_CLUSTER_…`: the first word of a key) is checked as Spring maps it, with underscores as dots and dashes left out (`WOW_COSEC_TRUSTINJECTEDAPP`) or, Spring's legacy form, written as underscores too (`WOW_COSEC_TRUST_INJECTED_APP`), so a stale `WOW_KAFKA_TOPICS_DDL` refuses the start like `wow.kafka.topics.ddl`; give a variable of your own a name outside these groups.
+An environment variable named after a Wow group (`WOW_KAFKA_…`, `WOW_CLUSTER_…`: the first word of a key) is checked as Spring maps it, with underscores as dots and dashes left out (`WOW_COSEC_TENANTLEVEL_ROLES`) or, Spring's legacy form, written as underscores too (`WOW_COSEC_TENANT_LEVEL_ROLES`), so a stale `WOW_KAFKA_TOPICS_DDL` refuses the start like `wow.kafka.topics.ddl`; give a variable of your own a name outside these groups.
 
 ## What must match across nodes
 

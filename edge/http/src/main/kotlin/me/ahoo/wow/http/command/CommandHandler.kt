@@ -16,10 +16,12 @@ package me.ahoo.wow.http.command
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.withIndex
+import kotlinx.coroutines.reactor.ReactorContext
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WireNames
@@ -44,6 +46,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId], or
@@ -80,7 +83,9 @@ internal data class CommandTarget(
  *   which is also the result answered without the event stream.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
- * client that goes away, or a response that is never written, cancels the collection.
+ * client that goes away, or a response that is never written, cancels the collection. The collection keeps the
+ * request's Reactor context, which the request's filters wrote (CoSec's security context among them), so the
+ * command is admitted with the same context as one answered without the event stream.
  */
 internal class CommandHandler(
     private val gateway: CommandGateway,
@@ -144,7 +149,8 @@ internal class CommandHandler(
 
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the results of one collection, handed to the response.
     private suspend fun stream(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
-        val results = scope.produce { gateway.send(command).collect { send(it) } }
+        val request = currentCoroutineContext()[ReactorContext] ?: EmptyCoroutineContext
+        val results = scope.produce(request) { gateway.send(command).collect { send(it) } }
         // A wait's results end with a final one: a stream never ends without a first result.
         val first = checkNotNull(results.receiveFirst()) { "The command's results ended without one." }
         if (first.isAdmissionRefusal) {

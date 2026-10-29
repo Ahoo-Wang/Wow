@@ -12,7 +12,7 @@ import { ViewPreferencesAggregate } from './view_preferences/aggregate.js';
 export const ViewStoreContract = {
   NAME: 'view-store',
   Errors: {
-    /** 400: The request carries no CoSec-App-Id. */
+    /** 400: The request's CoSec scope has no application (behind the CoSec gateway, the one it forwarded). */
     APP_REQUIRED: 'view-store.app-required',
     /** 400: The request is not a valid write: its config, title, preferences or wording. */
     INVALID: 'view-store.invalid',

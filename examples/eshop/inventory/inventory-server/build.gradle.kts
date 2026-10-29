@@ -38,12 +38,11 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
     implementation("me.ahoo.wow:wow-mongo")
-    // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
-    // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
+    // The `cosec` profile, behind the CoSec gateway: CoSec's gateway mode reads the principal the gateway verified
+    // from its CoSec-Identity header, and wow-cosec's resolver makes it the caller.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
 }
 

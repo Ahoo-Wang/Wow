@@ -30,7 +30,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * service's refusal: none may be forged. Every other command it has no objection to, as one of the node's authorizers
  * (each must allow a command): an operator's action on an entry (`ops.parked.Resume`, `Skip`, `MarkRecoverable`,
  * `ApplyRetrySpec`) and the framework's own system commands (`wow.*`) are decided by who the operators are, CoSec's
- * policies of their own routes when CoSec authorizes the commands, else [OperatorRole].
+ * policies of their actions where CoSec decides the commands, else [OperatorRole].
  */
 class OpsAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
@@ -63,7 +63,7 @@ class OpsAuthorizer : CommandAuthorizer {
 }
 
 /**
- * Who the operators are: it steps aside when CoSec decides (its policies of the actions' own routes); otherwise the
+ * Who the operators are: it steps aside when CoSec decides (its policies of the actions); otherwise the
  * operator role decides: a caller with the role [OpsRoles.OPERATOR] may act on an entry and send the framework's
  * system commands, and no other caller may.
  */

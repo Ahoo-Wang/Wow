@@ -3,7 +3,7 @@
 spring-boot = "4.1.2"
 cosid = "3.4.1"
 cocache = "6.8.0"
-cosec = "6.1.2"
+cosec = "8.0.0-alpha.2"
 testcontainers = "2.0.5"
 opentelemetry = "1.67.0"
 opentelemetry-instrumentation = "2.33.1"
@@ -35,8 +35,7 @@ cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 cocache-spring-boot-starter = { module = "me.ahoo.cocache:cocache-spring-boot-starter", version.ref = "cocache" }
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
-cosec-jwt = { module = "me.ahoo.cosec:cosec-jwt", version.ref = "cosec" }
-cosec-spring-boot-starter = { module = "me.ahoo.cosec:cosec-spring-boot-starter", version.ref = "cosec" }
+cosec-spring-boot = { module = "me.ahoo.cosec:cosec-spring-boot", version.ref = "cosec" }
 jsonschema-generator-bom = { module = "com.github.victools:jsonschema-generator-bom", version.ref = "jsonschema-generator" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }

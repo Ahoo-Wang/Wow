@@ -44,12 +44,11 @@ dependencies {
     implementation("me.ahoo.wow:wow-mongo")
     // The `postgres` profile: the entries' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation("me.ahoo.wow:wow-postgres")
-    // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads
-    // the operator from CoSec's security context; CoSec itself is the application's to bring.
+    // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec reads the identity the CoSec gateway forwards, and
+    // the edge reads the operator from CoSec's security context; CoSec itself is the application's to bring.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
     // deployment attaches one, a no-op otherwise.
     implementation("me.ahoo.wow:wow-observability")
@@ -57,6 +56,8 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
+    // A command within a request CoSec permitted: CoSec's filter writes its security context into the Reactor context.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("me.ahoo.wow:wow-tck-containers")

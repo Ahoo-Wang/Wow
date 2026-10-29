@@ -50,13 +50,13 @@ export function onSignedIn(
 }
 ```
 
-`applyTo` adds `Authorization: Bearer <access token>`, refreshes the token before it expires (once for concurrent requests), retries a request answered 401 after a refresh, and calls `onUnauthorized` on a 401 the refresh could not fix and `onForbidden` on a 403. It also sends `CoSec-App-Id`, a `CoSec-Device-Id` and a `CoSec-Request-Id`. The service records the application as the commit's `app_id` only when CoSec authorized the request through that application's roles: the header on its own is not trusted.
+`applyTo` adds `Authorization: Bearer <access token>`, refreshes the token before it expires (once for concurrent requests), retries a request answered 401 after a refresh, and calls `onUnauthorized` on a 401 the refresh could not fix and `onForbidden` on a 403. It also sends `CoSec-App-Id`, a `CoSec-Device-Id` and a `CoSec-Request-Id`. The service records as the commit's `app_id` the app CoSec decided the request in: the host's own, or the `CoSec-App-Id` CoSec accepted, or behind a CoSec gateway the app the gateway forwarded.
 
 A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.unauthenticated`, 403 `wow.auth.forbidden`, or 403 `wow.aggregate.forbidden` for an aggregate outside the caller's scope.
 
 ## Spaces and scopes
 
-A caller that belongs to several spaces picks one per request with `space` (`Wow-Space`); without it, it acts in its only space, or in none. A caller allowed to act across scopes names another tenant, owner or space with `scope` (`Wow-Scope`); a command names it with `targetTenant` and `targetScope` ([Send Commands](./commands#lifecycle-commands-scope-and-space)). Both are request options of every client method:
+A caller that belongs to several spaces picks one per request with `space` (`Wow-Space`); without it, it acts in its only space, or in none. A CoSec service reads the space from `CoSec-Space-Id` instead, which the `CoSecConfigurer`'s `spaceIdProvider` sends. A caller allowed to act across scopes names another tenant, owner or space with `scope` (`Wow-Scope`); a command names it with `targetTenant` and `targetScope` ([Send Commands](./commands#lifecycle-commands-scope-and-space)). Both are request options of every client method:
 
 <!-- typecheck-generated: examples/eshop/web/src/generated -->
 

@@ -40,7 +40,7 @@ class ViewState {
     var audience: ViewAudience = ViewAudience.PERSONAL
         private set
 
-    /** The application it was created under: its creation's request fact `app_id` (`CoSec-App-Id`). */
+    /** The application it was created under: its creation's request fact `app_id`. */
     var appId: String = ""
         private set
 

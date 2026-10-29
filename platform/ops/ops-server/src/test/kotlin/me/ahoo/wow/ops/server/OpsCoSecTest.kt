@@ -13,14 +13,8 @@
 
 package me.ahoo.wow.ops.server
 
-import com.auth0.jwt.algorithms.Algorithm
-import me.ahoo.cosec.api.principal.CoSecPrincipal
-import me.ahoo.cosec.jwt.JwtTokenConverter
-import me.ahoo.cosec.principal.SimplePrincipal
-import me.ahoo.cosec.principal.SimpleTenantPrincipal
-import me.ahoo.cosec.tenant.SimpleTenant
-import me.ahoo.cosec.token.TokenConverter
-import me.ahoo.cosid.jvm.UuidGenerator
+import me.ahoo.cosec.runtime.identity.IdentityCodec
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
@@ -34,12 +28,14 @@ import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.time.Duration
+import java.time.Instant
 
 /**
  * The ops service in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: behind the CoSec
- * gateway, which verified each request's token (decision D296), CoSec's inject mode parses it and the operator is the
- * token's principal. A request without a token is answered 401; a viewer reads the entries and may not act on them;
- * an operator's resume goes to the owning context under the operator's name.
+ * gateway, which verified each request's credential and forwards the identity it verified in `CoSec-Identity`, CoSec's
+ * gateway mode reads it and the operator is its principal. A request without an identity is answered 401; a viewer
+ * reads the entries and may not act on them; an operator's resume goes to the owning context under the operator's name.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
@@ -47,23 +43,29 @@ class OpsCoSecTest {
         profiles = listOf("cosec"),
     )
 
-    /** The gateway's tokens: the service holds no secret, and verifies none (decision D296). */
-    private val tokens: TokenConverter = JwtTokenConverter(UuidGenerator.INSTANCE, Algorithm.HMAC256(GATEWAY_SECRET))
-
     @AfterAll
     fun closeOps() {
         ops.close()
     }
 
+    /**
+     * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
+     * service holds no secret and verifies nothing, it believes the header.
+     */
     private fun signedIn(id: String, vararg roles: String): Who {
-        val principal: CoSecPrincipal = SimpleTenantPrincipal(
-            SimplePrincipal(id, roles = roles.toSet()),
-            SimpleTenant(DEFAULT_TENANT),
+        val now = Instant.now()
+        val identity = Identity(
+            tenant = DEFAULT_TENANT,
+            subject = id,
+            app = "",
+            space = "",
+            roles = roles.toSet(),
+            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
+            issuedAt = now,
+            requestId = "request-of-$id",
         )
-        return bearer(tokens.toToken(principal).accessToken)
+        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
     }
-
-    private fun bearer(token: String): Who = Who(mapOf(AUTHORIZATION to "Bearer $token"))
 
     private fun entry(context: String, id: String): ParkedEntry = WowJson.mapper.convertValue(
         // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.
@@ -90,7 +92,7 @@ class OpsCoSecTest {
     }
 
     @Test
-    fun `the deployment's probes should answer without a token (R3-H)`() {
+    fun `the deployment's probes should answer without an identity (R3-H)`() {
         eventually("ready") { ops.get("/actuator/health/readiness", Who.NOBODY).status == OK }
         ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
     }
@@ -119,7 +121,7 @@ class OpsCoSecTest {
     }
 
     @Test
-    fun `a request without a token should be answered 401`() {
+    fun `a request without an identity should be answered 401`() {
         val id = ops.publish(entry("shop-anonymous", "p-1"))
         val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
@@ -131,8 +133,6 @@ class OpsCoSecTest {
     }
 
     private companion object {
-        const val GATEWAY_SECRET = "the-gateway-test-secret-of-32-characters"
-        const val AUTHORIZATION = "Authorization"
         const val DEFAULT_TENANT = "(0)"
         const val SAGA = "PaymentSaga.onOrderPlaced"
         const val FAILED_AT = 1_700_000_000_000L

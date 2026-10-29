@@ -8,8 +8,9 @@ metadata:
     app.kubernetes.io/name: analytics-catalog-service
 data:
   # The mongo profile keeps the catalog's sources on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), and
-  # serves their snapshot queries; the cosec profile parses each request's CoSec token, which the CoSec gateway verified
-  # (CoSec's inject mode, decision D296: no secret here).
+  # serves their snapshot queries; the cosec profile reads the identity the CoSec gateway verified and forwards
+  # (CoSec-Identity, decision D296: no secret here), trusted only because nothing but the gateway reaches the HTTP port
+  # (networkpolicy.yaml).
   SPRING_PROFILES_ACTIVE: mongo,cosec
   # The ClickHouse warehouse whose datasets the catalog describes and queries, the one the services' Sinks write to;
   # its password is in secret.yaml. The catalog writes no table of its own there.

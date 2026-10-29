@@ -571,7 +571,7 @@ export function fakeViewStore(
       reject(
         400,
         'view-store.app-required',
-        'The request carries no CoSec-App-Id.',
+        "The request's CoSec scope has no application.",
         ref,
         requestId,
       );
@@ -818,7 +818,7 @@ export function fakeViewStore(
       reject(
         400,
         'view-store.app-required',
-        'The request carries no CoSec-App-Id.',
+        "The request's CoSec scope has no application.",
         ref,
         requestId,
       );
@@ -878,7 +878,7 @@ export function fakeViewStore(
       reject(
         400,
         'view-store.app-required',
-        'The request carries no CoSec-App-Id.',
+        "The request's CoSec scope has no application.",
         ref,
         requestId,
       );
@@ -920,15 +920,20 @@ export function fakeViewStore(
     body: State,
   ): Response {
     if (!caller.app)
-      fail(400, 'wow.query.malformed', 'The request carries no CoSec-App-Id.', {
-        violations: [
-          {
-            path: 'body',
-            code: 'APP_REQUIRED',
-            message: 'The request carries no CoSec-App-Id.',
-          },
-        ],
-      });
+      fail(
+        400,
+        'wow.query.malformed',
+        "The request's CoSec scope has no application.",
+        {
+          violations: [
+            {
+              path: 'body',
+              code: 'APP_REQUIRED',
+              message: "The request's CoSec scope has no application.",
+            },
+          ],
+        },
+      );
     const filter = (body.filter as Filter | undefined) ?? {
       op: FilterOperator.MATCH_ALL,
     };
@@ -1076,7 +1081,7 @@ export function fakeViewStore(
       fail(
         400,
         'view-store.app-required',
-        'The request carries no CoSec-App-Id.',
+        "The request's CoSec scope has no application.",
       );
     const configured = (options.systemViews ?? [])
       .filter(
@@ -1142,7 +1147,7 @@ export function fakeViewStore(
       fail(
         400,
         'view-store.app-required',
-        'The request carries no CoSec-App-Id.',
+        "The request's CoSec scope has no application.",
       );
     const owners = [caller.reserved ? null : caller.ownerId, SHARED];
     const saved = aggregates.get(keyOf('view', caller.tenantId, id));
