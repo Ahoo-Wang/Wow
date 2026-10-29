@@ -110,7 +110,7 @@ class QueryKeywordsTest {
 
     @Test
     fun `the state schema should carry each query keyword`() {
-        val snapshot = javaClass.getResourceAsStream("/query-keywords/order-state.schema.json")!!.use {
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/order-state.defs.json")!!.use {
             mapper.readValue(it, Map::class.java)
         }
         complete(OrderState::class.java).defs.assert().isEqualTo(snapshot)

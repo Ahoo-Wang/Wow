@@ -13,3 +13,15 @@ dependencies {
     // (main code, decision D209).
     testImplementation(project(":query-tck"))
 }
+
+// The manifest-tools snapshots the Manifest fixtures copy, which ManifestFixturesTest holds them to.
+val manifestToolsSnapshots = rootProject.layout.projectDirectory.dir("compiler/manifest-tools/src/test/resources/query-keywords")
+tasks.named<Test>("test") {
+    systemProperty(
+        "wow.manifest-tools.snapshots",
+        projectDir.toPath().relativize(manifestToolsSnapshots.asFile.toPath()).toString(),
+    )
+    inputs.dir(manifestToolsSnapshots)
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("manifestToolsSnapshots")
+}

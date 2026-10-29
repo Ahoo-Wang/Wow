@@ -25,8 +25,9 @@ import me.ahoo.wow.spi.json.WowJson
 
 /**
  * The Manifest of a `shop.order` aggregate whose state is the `manifest-tools` snapshot of every query keyword
- * (`compiler/manifest-tools/src/test/resources/query-keywords/order-state.schema.json`, #4332), copied byte for byte
- * to `manifest/order-state.defs.json`.
+ * (`compiler/manifest-tools/src/test/resources/query-keywords/order-state.defs.json`, #4332), copied byte for byte
+ * to `manifest/order-state.defs.json`. Every fixture of `manifest/` is such a copy, under its snapshot's name, and
+ * [ManifestFixturesTest] holds it to the snapshot.
  */
 internal object ManifestFixtures {
     val ORDER = AggregateType("shop", "order")
