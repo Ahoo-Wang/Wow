@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
@@ -36,15 +37,15 @@ import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.InvalidStateReadException
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.runtime.state.CommitView
-import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.runtime.state.StateReplayLimitException
+import me.ahoo.wow.spi.json.query.SnapshotFields
+import me.ahoo.wow.spi.json.query.toRecord
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -58,7 +59,8 @@ import java.time.format.DateTimeParseException
 /**
  * The state reads of the public port, over the node's [StateReads] (`:runtime`):
  *
- * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
+ * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the snapshot [reads] give, as the
+ *   record a snapshot query answers (decision D348 ⑦), with
  *   `ETag: "<version>-<digest>"` ([EntityTags]), the digest a hash of the body as the caller reads it, so a state
  *   whose version stays while what is read of it changes (a state revision rebuilt; an upcaster; the
  *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
@@ -126,7 +128,8 @@ internal class StateHandler(
                 }
             }
         }
-        val body = HttpJson.write(view.copy(state = state))
+        // The snapshot record's shape, as a snapshot query answers it (decision D348 ⑦).
+        val body = HttpJson.write(view.toRecord().set(SnapshotFields.STATE, state))
         val tag = EntityTags.state(view.version, body)
         val notModified = request.headers().header(HttpHeaders.IF_NONE_MATCH)
             .mapNotNull(EntityTags::parse).any { EntityTags.matchesWeakly(it, tag) }
@@ -144,17 +147,17 @@ internal class StateHandler(
                 val from = request.number(WowPaths.FROM, min = 1) ?: 1
                 val to = request.number(WowPaths.TO, min = from) ?: Int.MAX_VALUE
                 val limit = request.number(WowPaths.LIMIT, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
-                val commits = replaying(WowPaths.FROM) {
+                val (latest, commits) = replaying(WowPaths.FROM) {
                     // The caller is checked on the latest state before the log is replayed.
-                    reader.visible { reads.latest(ref) }
-                    reads.trace(ref, from, to, limit)
+                    val (latest, _) = reader.visible { reads.latest(ref) }
+                    latest to reads.trace(ref, from, to, limit)
                 }
                 if (commits.isEmpty()) {
                     throw StateNotFoundException(ref, Reason.MISSING, "No commit of $ref from version $from.")
                 }
                 commits.forEach { reader.checkScope(it.scope) }
                 commits.map { commit ->
-                    val state = facade.admitted(reader.caller, commit.committed(ref))
+                    val state = facade.admitted(reader.caller, commit.committed(ref, latest))
                         ?: throw StateNotFoundException(ref, Reason.HIDDEN, "No commit of $ref from version $from.")
                     commit.copy(
                         state = state,
@@ -185,8 +188,8 @@ internal class StateHandler(
          * The state [load] reads, as [caller] sees it: [StateNotFoundException] when there is none, when it is
          * outside the caller's [scope] or when the query policies of its type hide it, each answered alike.
          */
-        suspend fun visible(load: suspend () -> StateReadView?): Pair<StateReadView, JsonNode> =
-            when (val read = facade.read(caller, load, { it.committed() }) { checkScope(it.scope) }) {
+        suspend fun visible(load: suspend () -> Snapshot<JsonNode>?): Pair<Snapshot<JsonNode>, JsonNode> =
+            when (val read = facade.read(caller, load, { it }) { checkScope(it.scope) }) {
                 is ReadFacade.Read.Visible -> read.view to read.state
                 ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
                 ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
@@ -196,7 +199,7 @@ internal class StateHandler(
          * The latest state at [minVersion] or later, as [caller] sees it; only a state it may see answers that it is
          * below [minVersion]: a hidden one, and one with no commit, are not found.
          */
-        suspend fun reached(minVersion: Int): Pair<StateReadView, JsonNode> {
+        suspend fun reached(minVersion: Int): Pair<Snapshot<JsonNode>, JsonNode> {
             var notReached: MinVersionNotReachedException? = null
             val read = visible {
                 try {
@@ -239,7 +242,7 @@ internal class StateHandler(
                 else -> ""
             }
 
-        suspend fun read(reads: StateReads, ref: AggregateRef): StateReadView? = when {
+        suspend fun read(reads: StateReads, ref: AggregateRef): Snapshot<JsonNode>? = when {
             version != null -> reads.at(ref, version)
             at != null -> reads.at(ref, at)
             else -> reads.latest(ref)
@@ -318,9 +321,22 @@ internal class StateHandler(
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
 
-        private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
-
-        private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
+        /**
+         * This commit of a trace of [ref] as its snapshot after it, for its policies to read: its first commit's time
+         * and operator are the [latest] snapshot's, and a trace reads no schedules.
+         */
+        private fun CommitView.committed(ref: AggregateRef, latest: Snapshot<JsonNode>) = Snapshot.of(
+            ref = ref,
+            version = version,
+            scope = scope,
+            tags = tags,
+            deleted = deleted,
+            operator = operator,
+            firstEventTime = latest.firstEventTime,
+            lastEventTime = commitTime,
+            state = state,
+            firstOperator = latest.firstOperator,
+        )
 
         /** The ISO-8601 instant of query parameter [name]; null when the request has none. */
         private fun ServerRequest.instant(name: String): Instant? {

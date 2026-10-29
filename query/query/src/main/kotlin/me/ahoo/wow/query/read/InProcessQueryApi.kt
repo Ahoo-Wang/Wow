@@ -36,7 +36,6 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
@@ -68,7 +67,6 @@ import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
@@ -227,16 +225,16 @@ class InProcessQueryApi @InternalWowApi constructor(
         TenantSnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> = Rows(gateway, caller) { decode(it, rowType) }
 
-        override suspend fun state(id: String): AggregateState<S>? {
+        override suspend fun state(id: String): Snapshot<S>? {
             val tenant = checkNotNull(tenantOf()) {
                 "Trusted queries name no tenant: read the state of $type by its ref."
             }
             return state(type.ref(tenant, id))
         }
 
-        override suspend fun state(ref: AggregateRef): AggregateState<S>? = read(ref) { latest.committed(ref) }
+        override suspend fun state(ref: AggregateRef): Snapshot<S>? = read(ref) { latest.committed(ref) }
 
-        override suspend fun state(id: String, minVersion: Int): AggregateState<S>? {
+        override suspend fun state(id: String, minVersion: Int): Snapshot<S>? {
             val tenant = checkNotNull(tenantOf()) {
                 "Trusted queries name no tenant: read the state of $type by its ref."
             }
@@ -247,7 +245,7 @@ class InProcessQueryApi @InternalWowApi constructor(
          * Only a state the caller may see answers that it is below [minVersion]: a hidden one, and
          * one with no commit, are not found, as they are without a minimum version.
          */
-        override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? {
             require(minVersion >= 1) { "A committed state has a version from 1." }
             var notReached: MinVersionNotReachedException? = null
             val state = read(ref) {
@@ -263,7 +261,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         }
 
         /** The state of [ref] [load] reads, as the public port's state read answers it. */
-        private suspend fun read(ref: AggregateRef, load: suspend () -> CommittedState?): AggregateState<S>? {
+        private suspend fun read(ref: AggregateRef, load: suspend () -> Snapshot<JsonNode>?): Snapshot<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             val reads = engine.reads
             return try {
@@ -271,13 +269,18 @@ class InProcessQueryApi @InternalWowApi constructor(
                     reads.observed(type, StateRead.LATEST, caller) {
                         when (val read = reads.read(caller, load, { it }) { checkScope(ref, it) }) {
                             is ReadFacade.Read.Visible -> read.view.let {
-                                AggregateState.of(
+                                Snapshot.of(
                                     it.ref,
                                     it.version,
                                     it.scope,
-                                    it.deleted,
                                     it.tags,
-                                    stateOf(read.state)
+                                    it.deleted,
+                                    it.operator,
+                                    it.firstEventTime,
+                                    it.lastEventTime,
+                                    stateOf(read.state),
+                                    it.firstOperator,
+                                    it.schedules,
                                 )
                             }
                             ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
@@ -295,7 +298,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         private fun tenantOf(): String? = tenantId ?: engine.tenants.queryTenantOf(type, caller)
 
         /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
-        private fun checkScope(ref: AggregateRef, state: CommittedState) {
+        private fun checkScope(ref: AggregateRef, state: Snapshot<JsonNode>) {
             val tenant = tenantOf()
             val scope = caller.caller?.let { engine.ownerships.ownershipOf(type).scopeOf(it.scope) } ?: Scope.NONE
             if (tenant != null && tenant != ref.tenantId || !scope.covers(state.scope)) {

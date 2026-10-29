@@ -821,6 +821,15 @@ class Kernel(
         history.stateAt(model, ref, version, snapshot, maxReplay)
 
     /**
+     * The stream of [ref] at [version] as the log holds it, or null when it holds none: what a state read tells
+     * beside a replayed state, the time and the operator of a commit. The state cache is not touched.
+     */
+    suspend fun streamAt(ref: AggregateRef, version: Int): EventStreamRecord? {
+        require(version >= 1) { "A stream has a version from 1." }
+        return log.read(ref, version, version).firstOrNull()
+    }
+
+    /**
      * The committed state of [ref] after [streams], its streams from version 1 in version order as the log holds them,
      * replayed without a snapshot (a snapshot rebuilt from the log, in place of one that does not fit).
      * The state cache is not touched.

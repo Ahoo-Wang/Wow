@@ -31,13 +31,13 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
@@ -115,7 +115,7 @@ class JavaFacadeTest {
 
     @Test
     fun `a caller's snapshots should read by id and ref, and trusted ones by ref alone`() {
-        val state = mockk<AggregateState<ObjectNode>>()
+        val state = mockk<Snapshot<ObjectNode>>()
         val ref = type.ref("t1", "p-1")
         val tenantSnapshots = mockk<TenantSnapshotQueries<ObjectNode>> {
             every { type } returns this@JavaFacadeTest.type

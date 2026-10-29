@@ -223,7 +223,7 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
      *
      * @throws IllegalArgumentException when [ref] is not an aggregate of [type].
      */
-    suspend fun state(ref: AggregateRef): AggregateState<S>?
+    suspend fun state(ref: AggregateRef): Snapshot<S>?
 
     /**
      * The committed state of the aggregate [ref] at version [minVersion] or later (read your writes,
@@ -233,7 +233,7 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
      * @throws MinVersionNotReachedException when the aggregate stays below [minVersion] through the read's wait
      * (`wow.query.state.min-version-wait`): the command has not committed yet.
      */
-    suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>?
+    suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>?
 }
 
 /**
@@ -242,10 +242,10 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
  */
 interface TenantSnapshotQueries<S : Any> : SnapshotQueries<S> {
     /** The latest committed state of the aggregate [id] in the queries' tenant, as [state] of a ref reads it. */
-    suspend fun state(id: String): AggregateState<S>?
+    suspend fun state(id: String): Snapshot<S>?
 
     /** The committed state of the aggregate [id] at version [minVersion] or later, as [state] of a ref reads it. */
-    suspend fun state(id: String, minVersion: Int): AggregateState<S>?
+    suspend fun state(id: String, minVersion: Int): Snapshot<S>?
 }
 
 /** The events queries of an aggregate type: one row per commit, an [EventStream]. */

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -36,13 +37,13 @@ import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import tools.jackson.databind.JsonNode
 
 /**
  * The engine checks an HTTP caller again, however it was built (review R5.C-1): a `QueryCaller` an edge, a platform
@@ -84,12 +85,15 @@ class QueryEngineRecheckTest {
         }
     }
 
-    private fun state(type: AggregateType) = CommittedState(
+    private fun state(type: AggregateType) = Snapshot.of<JsonNode>(
         ref = type.ref("acme", "x-1"),
         version = 1,
         scope = Scope.NONE,
         deleted = false,
         tags = emptyMap(),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode(),
     )
 

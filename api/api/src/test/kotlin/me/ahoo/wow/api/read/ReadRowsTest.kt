@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import org.junit.jupiter.api.Test
@@ -37,9 +38,12 @@ class ReadRowsTest {
             { Snapshot.of(ref, 1, Scope("alice"), mapOf("t" to listOf("a")), false, operator, 1, 2, "s") },
             Snapshot.of(ref, 2, Scope.NONE, emptyMap(), true, null, 1, 2, "s"),
         )
+        val due = mapOf("remind" to ScheduleRule.At.of(5))
+        val firstOperated = { Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", operator, due) }
+        valueSemantics(firstOperated, Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", null, due))
         valueSemantics(
-            { AggregateState.of(ref, 1, Scope("alice"), false, emptyMap(), "s") },
-            AggregateState.of(ref, 2, Scope("alice"), false, emptyMap(), "s"),
+            firstOperated,
+            Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", operator, emptyMap()),
         )
         val event = CommittedEvent.of("placed", 1, mapOf("a" to 1))
         valueSemantics({ CommittedEvent.of("placed", 1, mapOf("a" to 1)) }, CommittedEvent.of("placed", 2, "b"))
