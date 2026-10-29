@@ -627,6 +627,20 @@ A target pinned to an earlier V10 pre-release changes in how its authorizers com
 
 A target pinned to an earlier V10 pre-release with `wow.cosec.authorizer.enabled` decides differently now: CoSec's authorizers evaluate each command and service-route call from the caller's application and in its space, as the web filter does, so a permission of the application's roles allows it. Before, they named no application, so no app-role permission applied and every command that only an app role allows was implicitly denied. Review what the application's roles allow before upgrading such a deployment.
 
+## Ids (CosId)
+
+9.x took CosId 3.x through its own provider (`IdGeneratorProvider`, the `cosid` generator, the share). V10's `wow-cosid` runs on CosId 5, whose model is new: no compatibility code, not the API, not the configuration, not the store formats. Report each item below and what replaces it.
+
+| 9.x | V10 (`wow-cosid` on CosId 5) |
+|---|---|
+| The `cosid` generator (Radix62 `CosIdGenerator`) as the global ids, else the share | `wow.cosid.global-generator`, `default` unless set: configure `cosid.generators.default` as a `cosid80` with `codec: [ { radix: { radix: 62 } } ]` for the same 15-character sortable shape. A name CosId does not have fails the start |
+| An aggregate type's own `ClockSync(Radix62CosIdGenerator(machineId))` when no generator is named after it | In order: the generator `wow.aggregates.[<context>.<aggregate>].id-generator` names (it must exist); else the generator named `<context>.<aggregate>` (`cosid.generators."[<context>.<aggregate>]"`, the qualified name, not 9.x's simple aggregate name); else the global ids |
+| CosId machine distributors, the guarder, the machine-state file in the user's home | `cosid.machine.leased` (a store) or `cosid.machine.static.slot`; every instance of an application shares `cosid.namespace`, `bits` and `tolerance` |
+| The `cosid.*` 3.x/4.x keys | CosId 5's model (`cosid.stores`, `cosid.machine`, `cosid.generators`); an unknown `cosid.*` key fails the start. `cosid-migration config` converts a 4.x configuration |
+| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE` in the service's own code | The `CosIdRuntime` bean or the `IdGenerator` beans (`@Qualifier("<name>")`); there is no global singleton |
+
+Persisted ids: a 9.x service whose aggregates hold CosId ids moves its CosId data with CosId's offline `cosid-migration` tool (plan, apply, verify) **before** the V10 service starts, so that new ids never meet the ones CosId issued before. CosId never runs 4.x and 5 in one namespace at once. A service that took 9.x's UUIDv7 default has nothing to move.
+
 ## REST clients
 
 | 9.x | V10 |

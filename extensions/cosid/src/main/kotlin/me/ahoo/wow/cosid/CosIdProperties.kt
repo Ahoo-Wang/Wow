@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.CosId
+import me.ahoo.cosid.runtime.RuntimeSpec
 
 /**
  * wow-cosid's settings, `wow.cosid.*`: the one default of each key, and the class its configuration metadata comes
@@ -22,10 +22,11 @@ import me.ahoo.cosid.CosId
  */
 class CosIdProperties {
     /**
-     * The CosId generator of the node's global ids (command ids, wait ids): CosId's shared generator, `cosid`, when
-     * not set.
+     * The CosId generator of the node's global ids (command ids, wait ids), by its name in `cosid.generators`: CosId's
+     * `default` generator when not set. It must be one of CosId's generators, or the node does not start; a `cosid80`
+     * generator with a radix-62 codec gives 15-character ids that sort like their time.
      */
-    var globalGenerator: String = CosId.COSID
+    var globalGenerator: String = RuntimeSpec.DEFAULT_GENERATOR
 
     companion object {
         const val PREFIX: String = "wow.cosid"

@@ -7,8 +7,8 @@
   "properties" : [ {
     "name" : "wow.cosid.global-generator",
     "type" : "java.lang.String",
-    "description" : "The CosId generator of the node's global ids (command ids, wait ids): CosId's shared generator, `cosid`, when not set.",
+    "description" : "The CosId generator of the node's global ids (command ids, wait ids), by its name in `cosid.generators`: CosId's `default` generator when not set. It must be one of CosId's generators, or the node does not start; a `cosid80` generator with a radix-62 codec gives 15-character ids that sort like their time.",
     "sourceType" : "me.ahoo.wow.cosid.CosIdProperties",
-    "defaultValue" : "cosid"
+    "defaultValue" : "default"
   } ]
 }

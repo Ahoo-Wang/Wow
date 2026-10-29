@@ -13,8 +13,9 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.provider.IdGeneratorProvider
+import me.ahoo.cosid.runtime.CosIdRuntime
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Condition
 import org.springframework.context.annotation.ConditionContext
@@ -25,33 +26,36 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
  * Gives the Wow host CosId's id generators when the application runs CosId (it has CosId's
- * [IdGeneratorProvider] bean). This module lists it in
+ * [CosIdRuntime] bean, which CosId's starter starts from `cosid.*`). This module lists it in
  * `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`; its ordering (after CosId's
  * auto-configuration, before the host's `WowAutoConfiguration`) is in
  * `META-INF/spring-autoconfigure-metadata.properties`, so that it imports no Spring Boot type.
  *
- * - [CosIdGlobalIdGenerator] is the host's global generator, of CosId's generator named `wow.cosid.global-generator`
- *   (`cosid` by default), unless the application has a [GlobalIdGenerator] of its own.
+ * - [CosIdGlobalIdGenerator] is the host's global generator, the text ids of CosId's generator named
+ *   `wow.cosid.global-generator` (`default` by default), unless the application has a [GlobalIdGenerator] of its own;
+ *   a node whose CosId has no such generator does not start, the failure naming the key.
  * - [CosIdAggregateIdGenerator] is the host's `wowAggregateIdGenerator`, the generator of every aggregate type that
- *   `wow.aggregates.*.id-generator` does not name, unless the application has a bean of that name; as an
- *   [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] it lets `id-generator` name CosId's generators. Its machine id is
- *   that of CosId's global generator, or of its shared one.
+ *   `wow.aggregates.*.id-generator` does not name, unless the application has a bean of that name: CosId's generator
+ *   named after the aggregate, else the global ids. As an [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] it lets
+ *   `id-generator` name CosId's generators.
  */
 @Configuration(proxyBeanMethods = false)
 class WowCosIdAutoConfiguration {
     @Bean
     @Conditional(NoGlobalIdGenerator::class)
-    fun wowCosIdGlobalIdGenerator(provider: IdGeneratorProvider, environment: Environment): CosIdGlobalIdGenerator =
-        CosIdGlobalIdGenerator(provider, globalName(environment))
+    fun wowCosIdGlobalIdGenerator(runtime: CosIdRuntime, environment: Environment): CosIdGlobalIdGenerator =
+        CosIdGlobalIdGenerator(runtime, globalName(environment))
 
     @Bean(AGGREGATE_ID_GENERATOR)
     @Conditional(NoAggregateIdGenerator::class)
     fun wowCosIdAggregateIdGenerator(
-        provider: IdGeneratorProvider,
+        runtime: CosIdRuntime,
+        globals: ObjectProvider<GlobalIdGenerator>,
         environment: Environment,
     ): CosIdAggregateIdGenerator {
-        val global = CosIdGlobalIdGenerator(provider, globalName(environment))
-        return CosIdAggregateIdGenerator(provider) { CosIdAggregateIdGenerator.machineIdOf(global.generator) }
+        // The node's global ids, CosId's unless the application has its own.
+        val global = globals.getIfUnique { CosIdGlobalIdGenerator(runtime, globalName(environment)) }
+        return CosIdAggregateIdGenerator(runtime, global)
     }
 
     /** The application runs CosId, and has no [GlobalIdGenerator] of its own. */
@@ -86,7 +90,7 @@ class WowCosIdAutoConfiguration {
                 ?: CosIdProperties().globalGenerator
 
         private fun runsCosId(context: ConditionContext): Boolean =
-            context.beanFactory?.getBeanNamesForType(IdGeneratorProvider::class.java, true, false)
+            context.beanFactory?.getBeanNamesForType(CosIdRuntime::class.java, true, false)
                 .orEmpty().isNotEmpty()
     }
 }
