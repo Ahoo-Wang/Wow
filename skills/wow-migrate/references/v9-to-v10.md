@@ -533,7 +533,8 @@ suspend fun onCommand(command: Register, scope: DecideScope): Decision =
 - creating command: also `POST /{context}/{aggregate}/{command-kebab}`, the server generating the id;
 - state: `GET /{context}/{aggregate}/{id}/state`, with `?version=`;
 - lifecycle: `DELETE /{context}/{aggregate}/{id}` and `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>`;
-- an aggregate whose id is its owner's (`idSource = AggregateIdSource.OWNER`, 9.x `OwnerPolicy.AGGREGATE_ID`): beside every route by id, the caller's own by no id, `POST /{context}/{aggregate}/{command-kebab}` for every command and lifecycle command, `DELETE /{context}/{aggregate}`, and `GET /{context}/{aggregate}/state` and `…/state/trace`; none generates an id. A 9.x client that put the user id in both the owner segment and the id (`/owner/{ownerId}/cart/{ownerId}/add_cart_item`) sends `POST /example/cart/add-cart-item`.
+- an aggregate whose id is its owner's (`idSource = AggregateIdSource.OWNER`, 9.x `OwnerPolicy.AGGREGATE_ID`): beside every route by id, the caller's own by no id, `POST /{context}/{aggregate}/{command-kebab}` for every command and lifecycle command, `DELETE /{context}/{aggregate}`, and `GET /{context}/{aggregate}/state` and `GET /{context}/{aggregate}/state/trace`; none generates an id.
+  A 9.x client that put the user id in both the owner segment and the id (`POST /owner/{ownerId}/cart/{ownerId}/add_cart_item`) sends `POST /example/cart/add-cart-item`.
 
 There are no tenant or owner route variants, no `PUT`/`PATCH`, no custom action segments, and no path or header variables bound into bodies. The aggregate segment is the aggregate's name; renaming it with `@Name` renames the aggregate.
 
