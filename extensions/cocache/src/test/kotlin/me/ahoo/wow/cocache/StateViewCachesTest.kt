@@ -17,7 +17,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.flowOf
@@ -25,10 +24,17 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
+import me.ahoo.wow.manifest.QueryManifest
+import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.test.query.MemoryQueries
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
@@ -89,27 +95,57 @@ class StateViewCachesTest {
         coVerify(exactly = 1) { snapshots.state("o-1") }
     }
 
-    @Test
-    fun `a batch of misses should be one query per tenant, of its ids`() = runBlocking<Unit> {
-        val queries = mutableListOf<ListQuery>()
-        every { snapshots.list(capture(queries)) } answers {
-            val ids = (queries.last().filter as IdsFilter).values
-            flowOf(
-                *ids.filter { it != "absent" }
-                    .map { snapshotOf(it, 1, "item-$it", deleted = it == "deleted") }
-                    .toTypedArray(),
-            )
-        }
-        val keys = listOf(key, StateKey("t", "deleted"), StateKey("t", "absent"), StateKey("u", "o-9"))
-        readers.of<OrderView>().getAll(keys).assert().isEqualTo(
-            mapOf(key to OrderView("item-o-1"), StateKey("u", "o-9") to OrderView("item-o-9")),
-        )
-        verify(exactly = 2) { snapshots.list(any()) }
-        queries.map { (it.filter as IdsFilter).values to it.limit }.assert().containsExactlyInAnyOrder(
-            listOf("o-1", "deleted", "absent") to 3,
-            listOf("o-9") to 1,
+    /** The owner's queries as a node serves them: the real query engine over snapshots in memory. */
+    private fun ownerQueries(): MemoryQueries {
+        val manifest = shopManifest()
+        val shop = manifest.contexts.single()
+        // The order's snapshots are queried, as a context that serves its state views lists them.
+        val order = shop.aggregates.single().copyWith(queries = listOf(QueryManifest(QueryRoutes.SNAPSHOT)))
+        return MemoryQueries(
+            manifest.copyWith(contexts = listOf(shop.copyWith(aggregates = listOf(order)))),
+            mapOf(ORDER to OrderView::class.java),
         )
     }
+
+    @Test
+    fun `a batch of misses should read deleted aggregates as tombstones, as the owner's gateway answers`() =
+        runBlocking<Unit> {
+            val gateway = ownerQueries()
+                .snapshot(ORDER, "o-1", OrderView("book"), tenantId = "t", version = 2)
+                .snapshot(ORDER, "deleted", OrderView("gone"), tenantId = "t", version = 4, deleted = true)
+                .snapshot(ORDER, "o-9", OrderView("pen"), tenantId = "u", version = 1)
+            val cache = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) { gateway }.of<OrderView>()
+            val deleted = StateKey("t", "deleted")
+            val keys = listOf(key, deleted, StateKey("t", "absent"), StateKey("u", "o-9"))
+            cache.getAll(keys).assert().isEqualTo(
+                mapOf(key to OrderView("book"), StateKey("u", "o-9") to OrderView("pen")),
+            )
+            // The deleted aggregate is a tombstone at its version: a replayed older write does not resurrect it.
+            writer.write(deleted, OrderView("replayed"), 3).assert().isFalse()
+            cache.get(deleted).assert().isNull()
+            writer.write(deleted, OrderView("recreated"), 5).assert().isTrue()
+            cache.get(deleted).assert().isEqualTo(OrderView("recreated"))
+        }
+
+    @Test
+    fun `a batch of misses past the query budget should be read in several queries, deleted ones included`() =
+        runBlocking<Unit> {
+            val queries = mutableListOf<ListQuery>()
+            every { snapshots.list(capture(queries)) } returns flowOf()
+            val ids = (1..StateViewLoader.MAX_BATCH + 1).map { "o-$it" }
+            readers.of<OrderView>().getAll(ids.map { StateKey("t", it) }).assert().isEmpty()
+            queries.map { query ->
+                val filters = (query.filter as AndFilter).operands
+                Triple(
+                    filters.filterIsInstance<IdsFilter>().single().values.size,
+                    filters.filterIsInstance<DeletionFilter>().single().deletionState,
+                    query.limit,
+                )
+            }.assert().containsExactly(
+                Triple(StateViewLoader.MAX_BATCH, DeletionState.ALL, StateViewLoader.MAX_BATCH),
+                Triple(1, DeletionState.ALL, 1),
+            )
+        }
 
     @Test
     fun `the owner's write should be read by every reader, with no read of the owner`() = runBlocking<Unit> {
