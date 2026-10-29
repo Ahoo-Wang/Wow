@@ -216,11 +216,13 @@ internal object WowRoles {
             ksp.arg(MODULE_OPTION, moduleName(project.path, project.rootProject.name))
             ksp.arg(ContextArgument(extension.context))
         }
+        // Added at once, not when `ksp` resolves: KSP wires a compilation's processors only when it sees a declared
+        // one. A wow-compiler the module declares itself takes its place.
         project.configurations.named(KSP_CONFIGURATION) { configuration ->
+            val compiler = project.dependencies.create("$GROUP:$COMPILER:$version")
+            configuration.dependencies.add(compiler)
             configuration.withDependencies { dependencies ->
-                if (dependencies.none { declares(it, COMPILER) }) {
-                    dependencies.add(project.dependencies.create("$GROUP:$COMPILER:$version"))
-                }
+                if (dependencies.any { it !== compiler && declares(it, COMPILER) }) dependencies.remove(compiler)
             }
         }
     }

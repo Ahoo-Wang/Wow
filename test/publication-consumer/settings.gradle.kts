@@ -22,6 +22,9 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    // The scratch repository first, whatever a machine's init scripts add to the projects: the version it holds may
+    // also be on Maven Central, an earlier build of the same version.
+    repositoriesMode = RepositoriesMode.PREFER_SETTINGS
     repositories {
         maven(providers.gradleProperty("wow.consumer.repository").get())
         mavenCentral()

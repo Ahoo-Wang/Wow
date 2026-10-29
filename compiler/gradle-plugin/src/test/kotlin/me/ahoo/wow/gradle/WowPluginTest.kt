@@ -130,7 +130,7 @@ class WowPluginTest {
         other.dependencies.add("ksp", "sample:processor:1.0.0")
         other.dependencies.add("ksp", "me.ahoo.wow:wow-models:1.0.0")
         other.configurations.getByName("ksp").incoming.dependencies.map { it.name }.assert()
-            .containsExactly("processor", "wow-models", "wow-compiler")
+            .containsExactlyInAnyOrder("processor", "wow-models", "wow-compiler")
     }
 
     @Test

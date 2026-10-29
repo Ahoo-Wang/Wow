@@ -275,12 +275,13 @@ object ArchitectureRules {
         MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "elasticsearch", "runtime"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
-        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests; openapi for
-        // generateWowOpenApi.
-        GRADLE_PLUGIN to setOf("manifest", "openapi", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
+        // Only for the TestKit fixture and the tests: the plugin's own code depends on no Wow module, its tools run in
+        // workers over wowTools (D363 ⑤), so the build can include it (build-logic/wow-gradle-plugin).
+        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // spi for the state fingerprint (StateJson); kernel only for the tests, which check that the fingerprint it writes
         // is the one the kernel checks a snapshot against (finding R5.A-19).
-        MANIFEST_TOOLS to setOf("manifest", "spi", "query-api", "kernel"),
+        // openapi for generateWowOpenApi's document.
+        MANIFEST_TOOLS to setOf("manifest", "spi", "query-api", "kernel", "openapi"),
         // The test DSL runs a domain on the kernel, and only on it (06 §1).
         TEST_DSL to setOf("kernel"),
         // The test DSL's specs over the query engine: the test DSL stays on the kernel, and this module bridges them.
@@ -597,6 +598,25 @@ object ArchitectureRules {
 
     private val PROJECT_DEPENDENCY = Regex("""project\(\s*":([\w-]+)"\s*\)""")
 
+    /** A Wow module declared by its coordinates, as a user's build does (D363 ⑤): `"me.ahoo.wow:wow-kernel"`. */
+    private val WOW_COORDINATES = Regex(""""me\.ahoo\.wow:wow-([\w-]+)"""")
+
+    /** The projects whose artifactId is not `wow-<name>` (the root build's `artifactIds`), by artifact. */
+    private val PROJECT_OF_ARTIFACT = mapOf("test" to "test-dsl")
+
+    /** An api module's pairing with a domain module, whose contract it carries: no dependency of its code. */
+    private val CONTRACT_PAIRING = Regex("""\bwowContract\(\s*project\(\s*":[\w-]+"\s*\)\s*\)""")
+
+    /**
+     * The dependencies of a build script as the rules read them: a Wow module declared by its coordinates as the
+     * project the root build substitutes for it, and an api module's [CONTRACT_PAIRING] left out.
+     */
+    private fun dependenciesOf(buildScript: File): String =
+        buildScript.readText().replace(CONTRACT_PAIRING, "").replace(WOW_COORDINATES) { coordinates ->
+            val artifact = coordinates.groupValues[1]
+            "project(\":${PROJECT_OF_ARTIFACT[artifact] ?: artifact}\")"
+        }
+
     /** A test module declared in a test configuration (`testImplementation`, `integrationTestImplementation`, ...). */
     private val TEST_SCOPED_TEST_MODULE = Regex(
         """\b(?:test\w*|\w+Test\w*)\(\s*project\(\s*":(?:${TEST_MODULES.joinToString("|") { it.name }})"\s*\)\s*\)""",
@@ -617,6 +637,8 @@ object ArchitectureRules {
      */
     val ALLOWED_MAIN_PROJECT_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
         HTTP to setOf("runtime", "query", "openapi"),
+        // The TestKit fixture's class paths alone: no Wow module reaches the plugin's own class path.
+        GRADLE_PLUGIN to setOf("kernel", "compiler", "manifest-tools", "wow-dependencies"),
     )
 
     private val CONFIGURED_PROJECT_DEPENDENCY =
@@ -625,7 +647,7 @@ object ArchitectureRules {
 
     /** The projects [module]'s build script depends on in a configuration of its main code, not of its tests. */
     fun mainProjectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
-        CONFIGURED_PROJECT_DEPENDENCY.findAll(File(repositoryRoot, "${module.dir}/build.gradle.kts").readText())
+        CONFIGURED_PROJECT_DEPENDENCY.findAll(dependenciesOf(File(repositoryRoot, "${module.dir}/build.gradle.kts")))
             .filterNot { TEST_CONFIGURATION.matches(it.groupValues[1]) }
             .map { it.groupValues[2] }
             .toSet()
@@ -637,7 +659,7 @@ object ArchitectureRules {
      */
     fun projectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
         PROJECT_DEPENDENCY.findAll(
-            File(repositoryRoot, "${module.dir}/build.gradle.kts").readText()
+            dependenciesOf(File(repositoryRoot, "${module.dir}/build.gradle.kts"))
                 .replace(TEST_SCOPED_TEST_MODULE, "")
                 .replace(TEST_SCOPED_MANIFEST, ""),
         )
@@ -680,7 +702,7 @@ object ArchitectureRules {
         settingsProjects(repositoryRoot).mapValues { (_, dir) ->
             val buildScript = File(repositoryRoot, "$dir/build.gradle.kts")
             if (buildScript.isFile) {
-                PROJECT_DEPENDENCY.findAll(buildScript.readText()).map { it.groupValues[1] }.toSet()
+                PROJECT_DEPENDENCY.findAll(dependenciesOf(buildScript)).map { it.groupValues[1] }.toSet()
             } else {
                 emptySet()
             }

@@ -32,6 +32,7 @@ import org.w3c.dom.Element
 import java.io.IOException
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipFile
 import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
@@ -841,6 +842,8 @@ tasks.register("publicationCheck") {
     // platform (the build's test and lint platforms above all) reaches a POM.
     val dependenciesArtifactId = dependenciesProject.artifactName()
     val contractArtifactIds = coreContractProjects.map { it.artifactName() }.toSortedSet()
+    val apiPluginArtifactIds = publicationProjects.filter { it.pluginManager.hasPlugin("me.ahoo.wow.api") }
+        .map { it.artifactName() }.toSortedSet()
     val coroutinesBom = "org.jetbrains.kotlinx:kotlinx-coroutines-bom"
     val hostArtifactId = project(":spring-boot").artifactName()
     val springBootBom = "org.springframework.boot:spring-boot-dependencies"
@@ -989,6 +992,9 @@ tasks.register("publicationCheck") {
                 hostArtifactId -> setOf(springBootBom)
                 dependenciesArtifactId -> setOf(coroutinesBom)
                 in contractArtifactIds -> setOf(coroutinesBom)
+                // A published api module applies `me.ahoo.wow.api`, which imports wow-bom of its version, as it does
+                // in a user's api module (D363 ④).
+                in apiPluginArtifactIds -> setOf("$groupId:${bomProject.artifactName()}")
                 else -> emptySet()
             }
             val metadata = file(artifactId, ".module")
@@ -1013,6 +1019,50 @@ tasks.register("publicationCheck") {
             "The publications of $releaseVersion are not ready to release:\n" + problems.joinToString("\n")
         }
         logger.lifecycle("Checked the publications of $releaseVersion in $repository: ${expected.joinToString()}")
+    }
+}
+
+// The consumer of a release (D363, G10): the three-module layout of the docs (test/publication-consumer), built against
+// what `publicationCheck` published into its scratch repository, as a user's build resolves a release from Maven
+// Central: the plugins by their markers, the modules and the BOM by their coordinates. It records the service's
+// baseline, builds and checks it with the configuration cache, builds it again from that cache, and checks that the
+// api module's jar carries the contract and the service's Manifest holds the context.
+tasks.register("publicationConsumerCheck") {
+    description = "Builds the documented three-module layout against the release publicationCheck published."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn("publicationCheck")
+    val fixture = layout.projectDirectory.dir("test/publication-consumer").asFile
+    val consumer = layout.buildDirectory.dir("publication-check/consumer").get().asFile
+    val gradlew = rootDir.resolve("gradlew").path
+    val properties = listOf(
+        "-Pwow.consumer.repository=${publicationCheckRepository.get().asFile.toURI()}",
+        "-Pwow.consumer.version=$version",
+        "-Pwow.consumer.kotlin=${libs.versions.kotlin.asProvider().get()}",
+        "-Pwow.consumer.springBoot=${libs.versions.spring.boot.get()}",
+    )
+    inputs.dir(fixture).withPropertyName("fixture")
+    doLast {
+        consumer.deleteRecursively()
+        fixture.copyRecursively(consumer)
+        fun gradle(vararg tasks: String): String = runProcess(
+            listOf(gradlew, "-p", consumer.path, "--no-daemon", "--configuration-cache", "--stacktrace") +
+                properties + tasks,
+        )
+        gradle("updateWowManifestBaseline")
+        gradle("build")
+        val again = gradle("build")
+        if ("Configuration cache entry reused" !in again) {
+            throw GradleException("The consumer's second build did not reuse its configuration cache:\n$again")
+        }
+        val apiJar = consumer.resolve("catalog-api/build/libs").listFiles().orEmpty()
+            .single { it.name.endsWith(".jar") && !it.name.contains("wow-core") }
+        ZipFile(apiJar).use {
+            if (it.getEntry("META-INF/wow/contract.json") == null) {
+                throw GradleException("${apiJar.name} carries no META-INF/wow/contract.json")
+            }
+        }
+        val manifest = consumer.resolve("catalog-server/build/wow/manifest.json").readText()
+        if ("\"catalog\"" !in manifest) throw GradleException("The consumer's Manifest holds no context catalog")
     }
 }
 

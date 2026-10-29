@@ -403,6 +403,8 @@ test('Wow modules skip the TypeScript workflow jobs', () => {
     'examples/eshop/README.md',
     'examples/quickstart/src/main/kotlin/A.kt',
     'examples/java-smoke/src/main/java/A.java',
+    'build-logic/wow-gradle-plugin/build.gradle.kts',
+    'test/publication-consumer/catalog-api/build.gradle.kts',
   ])
     assert.ok(none([path]), path);
 });

@@ -9,5 +9,6 @@ kotlin {
 
 dependencies {
     wowContract(project(":catalog-domain"))
-    api("jakarta.validation:jakarta.validation-api")
+    // The commands' constraints: wow-bom constrains Wow's modules alone, so the api module gives its version.
+    api("jakarta.validation:jakarta.validation-api:3.1.1")
 }

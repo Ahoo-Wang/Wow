@@ -12,9 +12,9 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.catalog.server.CatalogServerKt")
 }
 
-// region dependencies
 // The service module (decision D363 ①): `me.ahoo.wow.service` merges the service's Manifest from its class path,
 // writes its OpenAPI document and gates `check` on manifest/baseline.json (decision D76).
+// region dependencies
 dependencies {
     implementation(project(":eshop-catalog-domain"))
     implementation("me.ahoo.wow:wow-spring-boot")
