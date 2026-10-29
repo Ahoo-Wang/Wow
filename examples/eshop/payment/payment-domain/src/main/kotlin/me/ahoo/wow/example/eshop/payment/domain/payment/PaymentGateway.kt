@@ -21,10 +21,16 @@ import java.math.BigDecimal
  */
 fun interface PaymentGateway {
     /**
-     * Charges [amount] for the payment [paymentId]. A gateway charges once per [idempotencyKey]: the saga's execution,
-     * the same each time it handles the same commit, so a retried charge is not charged twice.
+     * Charges [amount] for the payment [paymentId], for what [description] says (the buyer's statement line). A
+     * gateway charges once per [idempotencyKey]: the saga's execution, the same each time it handles the same commit,
+     * so a retried charge is not charged twice.
      */
-    suspend fun charge(paymentId: String, amount: BigDecimal, idempotencyKey: String): GatewayOutcome
+    suspend fun charge(
+        paymentId: String,
+        amount: BigDecimal,
+        description: String,
+        idempotencyKey: String
+    ): GatewayOutcome
 }
 
 /** What the gateway answers a charge. */
@@ -49,12 +55,19 @@ class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boo
         require(limit.signum() >= 0) { "A gateway's limit is not negative, not $limit." }
     }
 
-    override suspend fun charge(paymentId: String, amount: BigDecimal, idempotencyKey: String): GatewayOutcome =
+    override suspend fun charge(
+        paymentId: String,
+        amount: BigDecimal,
+        description: String,
+        idempotencyKey: String,
+    ): GatewayOutcome =
         if (down()) {
             throw IllegalStateException("The payment gateway is unreachable: $paymentId is not charged.")
         } else if (amount <= limit) {
             GatewayOutcome.Approved("simulated-$idempotencyKey")
         } else {
-            GatewayOutcome.Declined("The gateway declined $amount for $paymentId: it is over the limit of $limit.")
+            GatewayOutcome.Declined(
+                "The gateway declined $amount for $paymentId ($description): it is over the limit of $limit.",
+            )
         }
 }

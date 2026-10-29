@@ -211,7 +211,11 @@ class EshopService private constructor(
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=$internalPort",
                 *arguments.toTypedArray(),
-            ).redirectErrorStream(true).redirectOutput(log).start()
+            ).redirectErrorStream(true).redirectOutput(log).apply {
+                // The service runs as the arguments configure it: Spring settings in the environment of the machine
+                // that runs the tests (a developer's SPRING_DATA_REDIS_*, say) would point it elsewhere.
+                environment().keys.removeIf { it.startsWith("SPRING_") }
+            }.start()
             val service = try {
                 val bound = awaitPorts(context, process, log)
                 EshopService(context, process, log, bound.first, bound.second)

@@ -254,6 +254,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '在 Spring Boot 上运行', link: 'spring-boot'},
                 {text: '用 Java 编写领域', link: 'java'},
                 {text: 'Reactor、ID 与模型', link: 'extensions'},
+                {text: '经 CoCache 共享状态', link: 'extensions/cocache'},
                 {text: '不用 Spring 运行', link: 'without-spring'},
             ],
         },

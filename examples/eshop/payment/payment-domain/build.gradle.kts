@@ -13,8 +13,10 @@ wow {
 
 dependencies {
     api(project(":eshop-payment-api"))
-    // The ordering's commands, which the order-payment saga sends to the ordering context.
+    // The ordering's commands, which the order-payment saga sends to the ordering context, and its order view.
     implementation(project(":eshop-ordering-api"))
+    // The ordering's shared cache of its orders, which the gateway saga reads: the interface alone, no dependency.
+    implementation("me.ahoo.wow:wow-cocache-api")
     testImplementation("me.ahoo.wow:wow-test")
     // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
     testImplementation("me.ahoo.wow:wow-manifest")

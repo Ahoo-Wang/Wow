@@ -19,6 +19,12 @@ eshop:
 # one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
 # node does not start (decision D301).
 wow.cosec.mode: disabled
+# The ordering's orders, which the gateway saga reads through CoCache to describe a charge: in this JVM by default, so
+# the payment runs alone, where it describes a charge by the order's id; on Redis in the `redis` profile, where the
+# ordering service writes them. Without the profile, the node checks no Redis health.
+cocache:
+  backend: memory
+management.health.redis.enabled: false
 ---
 # On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
 # the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
@@ -79,4 +85,19 @@ wow:
     # other principal is a buyer, an owner-level caller that reaches its own.
     tenant-level:
       roles: employee
+# endregion
+---
+# region redis
+# The ordering's orders on Redis, where the ordering service (its `redis` profile) writes each after its commits.
+spring:
+  config:
+    activate:
+      on-profile: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+cocache:
+  backend: redis
+management.health.redis.enabled: true
 # endregion

@@ -102,11 +102,11 @@ class PaymentServerTest {
         val outage = File.createTempFile("gateway", ".down").apply { deleteOnExit() }
         val gateway = PaymentServer().paymentGateway(BigDecimal("100.00"), outage.path)
         assertThrows<IllegalStateException> {
-            runBlocking { gateway.charge("p-1", BigDecimal.ONE, "k-1") }
+            runBlocking { gateway.charge("p-1", BigDecimal.ONE, "1 × mug", "k-1") }
         }
         outage.delete()
-        gateway.charge("p-1", BigDecimal.ONE, "k-1").toString().assert().contains("simulated-k-1")
-        PaymentServer().paymentGateway(BigDecimal.ONE, "").charge("p-2", BigDecimal.ONE, "k-2")
+        gateway.charge("p-1", BigDecimal.ONE, "1 × mug", "k-1").toString().assert().contains("simulated-k-1")
+        PaymentServer().paymentGateway(BigDecimal.ONE, "").charge("p-2", BigDecimal.ONE, "1 × mug", "k-2")
             .toString().assert().contains("simulated-k-2")
     }
 

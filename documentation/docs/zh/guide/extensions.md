@@ -5,7 +5,7 @@ description: 用 wow-reactor 继续以 Reactor 编写处理函数，用 wow-cosi
 
 # Reactor、ID 与模型
 
-三个可选模块扩展了领域能使用的东西。它们都不是必需的：不用它们的服务编写 `suspend` 函数，使用 UUIDv7 ID，并定义自己的模型。
+三个可选模块扩展了领域能使用的东西。它们都不是必需的：不用它们的服务编写 `suspend` 函数，使用 UUIDv7 ID，并定义自己的模型。第四个模块 `wow-cocache` 在服务之间共享聚合状态：[经 CoCache 共享状态](./extensions/cocache)。
 
 ## Reactor 处理函数：`wow-reactor` {#reactor-handlers-wow-reactor}
 

@@ -28,7 +28,8 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-spring-boot-starter` with capability variants (`mongo-support`, `kafka-support`, ...) | `wow-spring-boot` (wiring only) plus one module per technology the host uses: `wow-postgres`, `wow-mongo`, `wow-kafka`, `wow-http`, `wow-cosec` |
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
-| `wow-apiclient`, `wow-cocache` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
+| `wow-apiclient` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
+| `wow-cocache` | `wow-cocache` of the V10 version in a new shape (decision D364): the owner writes, readers inject `StateViewCache<V>`; see [State caches](#state-caches-9x-wow-cocache) |
 | `wow-compensation-*` (the 9.x compensation service) | Retired: each node's failure ledger and its operator routes, see [Compensation and failed executions](#compensation-and-failed-executions) |
 | `wow-opentelemetry` (the per-component instrumenters, the `wow.operation` meters) | `wow-observability`, settings under `wow.observability.*`: every metric and span is renamed, with no alias, so rebuild dashboards and alerts from the docs page Migrate › Metrics and Spans (`/migrate/metrics`) |
 | `wow-query` (protocol, DSL and engine) | `wow-query-api` (query types, the Kotlin DSL `me.ahoo.wow.api.query.dsl`, the field annotations) for domain and client code; `wow-query` (the engine, `QueryGateway`), which `wow-http` brings to a server; see [Queries](#queries) |
@@ -816,6 +817,25 @@ A context that sends commands to, or reads the published streams of, another con
 | `@EnableCoApi(clients = […])` | Nothing to declare: the host creates the clients; `wow.peer.mode` (`service`, default, or `user`) and `wow.peer.forwarded-headers` |
 
 Service mode, the default, calls the peer's internal port as this service (its `wow.calls.token`), asserting the caller; the peer must trust the service (`wow.callers.<service>.tokens`) and may narrow what it reads (`.reads`). User mode calls the peer's public routes with the end user's credential (the request's `Authorization` by default). A saga's synchronous call is `SagaContext.call` over the same service mode.
+
+## State caches (9.x `wow-cocache`)
+
+9.x `wow-cocache` gave each reader the parts to build its own cache of another context's state: a CoCache cache it declared, a refresher it registered on the state events, and a source it loaded misses from. V10's `wow-cocache` (decision D364) keeps one shared cache per aggregate type, written by the context that owns the aggregate and read by every service with nothing declared: the docs page Guide › Share State through CoCache (`/guide/extensions/cocache`). The cache of each reader is replaced, not ported; report each one and what replaces it.
+
+| 9.x `wow-cocache` | V10 |
+|---|---|
+| `SetStateCacheRefresher` / `EvictStateCacheRefresher` registered on an aggregate's state events, in the reader | The owner lists the aggregate: `wow.cocache.publish: [<context>.<aggregate>]`; its sink subscription writes each commit's state at its version, only over an older one. Delete the refreshers |
+| An evicted key on a deleted aggregate (`evict`) | A tombstone at the deletion's version, which no older state undoes |
+| `StateToCacheDataConverter` (state → cached data) | The generated `<State>View` of the owner's api is the cached value; there is no converter. A reader that needs fewer fields reads them off the view |
+| `QueryApiCacheSource`, `QueryGatewayCacheSource`, `StateCacheSource` (load on a miss) | Nothing to write: a miss reads the owner through the node's typed queries (`snapshots<V>()`), in process or over HTTP as this service, a batch as one `IN` query per tenant |
+| `LoadCacheSourceConfiguration.timeout` | CoCache's load policy: `cocache.caches.[wow.<context>.<aggregate>].load-async-timeout` |
+| `ttl` / `ttlAmplitude` (`TtlConfiguration`) | `cocache.caches.[wow.<context>.<aggregate>].ttl` and `ttl-jitter` on each side; `wow.cocache.ttl` for what the owner writes |
+| A `@CoCache` interface or `CacheSpec` per reader, often in a `<context>-cache` module | Inject `StateViewCache<OrderStateView>` (from `wow-cocache-api`, no dependency); delete the declaration and the module |
+| A cache keyed by the aggregate id (`String`) | `StateKey(tenantId, id)`: a key holds the tenant |
+| Cache names and Redis keys of the 9.x caches | New names, `wow.<context>.<aggregate>`: the V10 caches start empty and fill from the owner's writes and the readers' misses; nothing in Redis is migrated |
+| `refreshWindow` on a state cache | None: the caches are versioned, and CoCache refuses an early refresh on them |
+
+A reader that used the cached state to decide a command now asks the owner instead: the cache is a trusted read, and a check that must be consistent belongs to the aggregate it is about ([Peer contexts](#peer-contexts)).
 
 ## JSON
 

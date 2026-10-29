@@ -45,6 +45,10 @@ dependencies {
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
+    // The `redis` profile: the service shares its orders through CoCache (wow-cocache), writing each into the cache
+    // after its commits, for the payment to read.
+    implementation("me.ahoo.wow:wow-cocache")
+    implementation(libs.cocache.spring.boot.starter)
     // The `clickhouse` profile: the order stream is written to ClickHouse by the Sink, and the sales dataset of
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation("me.ahoo.wow:wow-clickhouse")
