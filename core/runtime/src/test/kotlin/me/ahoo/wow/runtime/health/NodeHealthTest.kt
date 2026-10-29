@@ -78,6 +78,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -485,56 +486,72 @@ class NodeHealthTest {
             health.sample()
             val liveness = health.liveness()
             liveness.status.assert().isEqualTo(HealthStatus.DOWN)
-            liveness.details["stalled"].assert().isEqualTo("kernel")
+            (liveness.details["stalls"] as List<*>).assert().contains(NodeHealth.STALLED_KERNEL)
             gate.complete(Unit)
             stuck.await()
         }
         health.liveness().status.assert().isEqualTo(HealthStatus.UP)
     }
 
-    @Test
-    fun `a dispatcher that does not tick should fail the liveness`(): Unit = runBlocking {
+    /**
+     * The liveness of a running node whose dispatcher and drivers are threads of their own, each held for 400 ms by
+     * [hold] (given the dispatcher's and the drivers' executors), against a stall timeout of 100 ms: the stalls it
+     * listed once down with stalls that satisfy [listed], before it was up again.
+     */
+    private suspend fun stallsWhile(
+        listed: (List<*>) -> Boolean = { true },
+        hold: (ExecutorService, ExecutorService) -> Unit,
+    ): List<*> {
         val node = node()
         node.start()
-        val single = Executors.newSingleThreadExecutor()
+        val dispatcher = Executors.newSingleThreadExecutor()
+        val drivers = Executors.newSingleThreadExecutor()
         try {
             val options = HealthOptions(stallTimeout = 100.milliseconds)
-            val health = healthOf(node, options) { NodeHealth(node, it, options, single.asCoroutineDispatcher()) }
+            val health = healthOf(node, options) {
+                NodeHealth(node, it, options, dispatcher.asCoroutineDispatcher(), drivers.asCoroutineDispatcher())
+            }
             start(health)
             delay(50)
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
-            single.execute { Thread.sleep(400) }
-            eventually { health.liveness().status == HealthStatus.DOWN }
-            health.liveness().details["stalled"].assert().isEqualTo("dispatcher")
+            hold(dispatcher, drivers)
+            var stalls: List<*> = emptyList<Any>()
+            eventually {
+                val liveness = health.liveness()
+                stalls = liveness.details["stalls"] as? List<*> ?: emptyList<Any>()
+                liveness.status == HealthStatus.DOWN && liveness.details["stalled"] == stalls.first() && listed(stalls)
+            }
             eventually { health.liveness().status == HealthStatus.UP }
+            health.liveness().details.containsKey("stalls").assert().isFalse()
+            return stalls
         } finally {
-            single.shutdownNow()
+            dispatcher.shutdownNow()
+            drivers.shutdownNow()
         }
+    }
+
+    @Test
+    fun `a dispatcher that does not tick should fail the liveness, the drivers ticking on`(): Unit = runBlocking {
+        stallsWhile { dispatcher, _ -> dispatcher.execute { Thread.sleep(HOLD_MILLIS) } }
+            .assert().containsExactly(NodeHealth.STALLED_DISPATCHER)
     }
 
     @Test
     fun `drivers that run nothing should fail the liveness, as a wedged virtual-thread executor does`(): Unit =
         runBlocking {
-            val node = node()
-            node.start()
-            val drivers = Executors.newSingleThreadExecutor()
-            try {
-                val options = HealthOptions(stallTimeout = 100.milliseconds)
-                val health = healthOf(node, options) {
-                    NodeHealth(node, it, options, drivers = drivers.asCoroutineDispatcher())
-                }
-                start(health)
-                delay(50)
-                health.liveness().status.assert().isEqualTo(HealthStatus.UP)
-                // The one driver thread runs nothing else: no store call of the node would return either.
-                drivers.execute { Thread.sleep(400) }
-                eventually { health.liveness().status == HealthStatus.DOWN }
-                health.liveness().details["stalled"].assert().isEqualTo("drivers")
-                eventually { health.liveness().status == HealthStatus.UP }
-            } finally {
-                drivers.shutdownNow()
-            }
+            // The one driver thread runs nothing else: no store call of the node would return either.
+            stallsWhile { _, drivers -> drivers.execute { Thread.sleep(HOLD_MILLIS) } }
+                .assert().containsExactly(NodeHealth.STALLED_DRIVERS)
         }
+
+    @Test
+    fun `a dispatcher and drivers stalled at once should both be listed, the dispatcher first`(): Unit = runBlocking {
+        // Each held for 400 ms against 100: a liveness while both are held lists both, in its fixed order.
+        stallsWhile({ it.size == 2 }) { dispatcher, drivers ->
+            dispatcher.execute { Thread.sleep(HOLD_MILLIS) }
+            drivers.execute { Thread.sleep(HOLD_MILLIS) }
+        }.assert().containsExactly(NodeHealth.STALLED_DISPATCHER, NodeHealth.STALLED_DRIVERS)
+    }
 
     @Test
     fun `a reconcile that does not end should fail the liveness, naming its group, until it ends`(): Unit =
@@ -552,9 +569,12 @@ class NodeHealthTest {
             eventually { ownership.reconcilingFor != null }
             leases.losing = false
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
-            eventually { health.liveness().status == HealthStatus.DOWN }
+            eventually {
+                val liveness = health.liveness()
+                liveness.status == HealthStatus.DOWN &&
+                    NodeHealth.STALLED_RECONCILE in liveness.details["stalls"] as List<*>
+            }
             val liveness = health.liveness()
-            liveness.details["stalled"].assert().isEqualTo("reconcile")
             liveness.details["group"].assert().isEqualTo(ownership.group.name)
             leases.acquiring = null
             gate.complete(Unit)
@@ -856,6 +876,9 @@ class NodeHealthTest {
         const val BANK = "bank"
         const val SHOP = "shop"
         const val PARTITIONS = 4
+
+        /** How long a test holds a dispatcher's or the drivers' only thread: four times its stall timeout. */
+        const val HOLD_MILLIS = 400L
 
         /** A store is down at its first failure, so a test need not wait. */
         val OPTIONS = HealthOptions(storeDownAfter = Duration.ZERO)

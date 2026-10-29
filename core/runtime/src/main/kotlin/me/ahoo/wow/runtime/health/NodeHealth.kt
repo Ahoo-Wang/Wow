@@ -21,7 +21,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
@@ -87,6 +86,9 @@ import kotlin.time.Duration.Companion.seconds
  * - `reconcile`: a reconcile of one of its lease groups has not ended. The node left the group's members after the
  *   group's `reconcileTimeout`, which is shorter, so the others run its partitions meanwhile;
  * - `kernel`: commands are in flight, every log answered within that time, and none finished in it.
+ *
+ * Each is measured on its own (the drivers tick on the drivers alone), so more than one may hold at once: the details
+ * list every one under `stalls`, in this order, and name the first as `stalled`.
  *
  * A storage outage never fails it: a store call that fails or times out returns, and a reconcile waiting on a slow
  * store ends once it answers, while a restart would not bring the stores back, and a restart storm would only add
@@ -164,10 +166,10 @@ class NodeHealth(
                 delay(tick)
             }
         }
-        scope.launch {
+        // On the drivers alone, so a stalled dispatcher does not stop it, nor stalled drivers the dispatcher's.
+        scope.launch(drivers) {
             while (true) {
-                // Never returns while the drivers run nothing: the tick's age is what the liveness reads.
-                withContext(drivers) { lastDriverTick = nanos() }
+                lastDriverTick = nanos()
                 delay(tick)
             }
         }
@@ -249,29 +251,31 @@ class NodeHealth(
             return ComponentHealth(LIVENESS, HealthStatus.UP, details)
         }
         val stall = options.stallTimeout
+        val stalls = mutableListOf<String>()
         if (tickAge != null && tickAge >= stall) {
-            details["stalled"] = "dispatcher"
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
+            stalls += STALLED_DISPATCHER
         }
         if (driverTickAge != null && driverTickAge >= stall) {
-            details["stalled"] = "drivers"
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
+            stalls += STALLED_DRIVERS
         }
         val reconciling = ownerships().mapNotNull { ownership ->
             ownership.reconcilingFor?.takeIf { it >= stall }?.let { ownership.group.name to it }
         }.maxByOrNull { it.second }
         if (reconciling != null) {
-            details["stalled"] = "reconcile"
+            stalls += STALLED_RECONCILE
             details["group"] = reconciling.first
             details["reconcilingMillis"] = reconciling.second.inWholeMilliseconds
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
         }
         val storesAnswer = stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
         if (inFlight > 0 && progressAge >= stall && storesAnswer) {
-            details["stalled"] = "kernel"
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
+            stalls += STALLED_KERNEL
         }
-        return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+        if (stalls.isEmpty()) {
+            return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+        }
+        details["stalled"] = stalls.first()
+        details["stalls"] = stalls
+        return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
     }
 
     private fun nodeState(): ComponentHealth = ComponentHealth(
@@ -536,6 +540,12 @@ class NodeHealth(
         const val SUBSCRIPTIONS: String = "subscriptions"
         const val EXECUTOR: String = "executor"
         const val LEASE_STORE: String = "leaseStore"
+
+        /** The liveness's stalls, in the order it lists them. */
+        const val STALLED_DISPATCHER: String = "dispatcher"
+        const val STALLED_DRIVERS: String = "drivers"
+        const val STALLED_RECONCILE: String = "reconcile"
+        const val STALLED_KERNEL: String = "kernel"
 
         /** The detail that marks a lease group or a topic a node on standby has not joined. */
         private const val STANDBY = "standby"
