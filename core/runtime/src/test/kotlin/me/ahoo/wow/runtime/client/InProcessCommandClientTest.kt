@@ -23,12 +23,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.client.send
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -275,7 +275,7 @@ class InProcessCommandClientTest {
         }
         problem.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNDECLARED_EVENT)
         problem.status.assert().isEqualTo(500)
-        problem.retryHint.assert().isEqualTo(RetryHint.NONE)
+        problem.retry.assert().isEqualTo(Retry.NONE)
         problem.message.assert().contains("shop.faulty's decide function of OpenCart produced OpenCart")
     }
 
@@ -295,18 +295,18 @@ class InProcessCommandClientTest {
         val busy = assertThrows<WowProblemException> { InProcessCommandClient.settled(failed(ResultCodes.BUSY)) }
         busy.code.assert().isEqualTo(ResultCodes.BUSY)
         busy.status.assert().isEqualTo(429)
-        busy.retryHint.assert().isEqualTo(RetryHint(retryable = true, sameRequestId = true, retryAfter = 1.seconds))
+        busy.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         busy.result!!.error!!.message.assert().isEqualTo("It failed.")
         val timedOut = InProcessCommandClient.problemOf(failed(ResultCodes.WAIT_TIMEOUT))
         timedOut.status.assert().isEqualTo(504)
-        timedOut.retryHint.assert().isEqualTo(RetryHint(retryable = true, sameRequestId = true))
+        timedOut.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         val crashed = InProcessCommandClient.problemOf(failed(ResultCodes.FAILED))
         crashed.status.assert().isEqualTo(500)
-        crashed.retryHint.assert().isEqualTo(RetryHint.NONE)
+        crashed.retry.assert().isEqualTo(Retry.NONE)
         InProcessCommandClient.problemOf(failed("wow.something.new")).status.assert().isEqualTo(500)
         val down = InProcessCommandClient.problemOf(failed(ResultCodes.STORAGE_UNAVAILABLE))
         down.status.assert().isEqualTo(503)
-        down.retryHint.retryAfter.assert().isEqualTo(1.seconds)
+        down.retryAfter.assert().isEqualTo(1.seconds)
         down.message.assert().contains(ResultCodes.STORAGE_UNAVAILABLE).endsWith("It failed.")
         assertThrows<IllegalArgumentException> { CommandRejectedException(failed(ResultCodes.BUSY)) }
     }

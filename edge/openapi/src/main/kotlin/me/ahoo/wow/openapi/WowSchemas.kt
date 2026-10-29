@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.ManifestSchema
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.map
@@ -298,10 +300,16 @@ internal object WowSchemas {
             "status" to INTEGER,
             "detail" to STRING,
             "code" to STRING,
+            "retry" to obj(
+                "type" to "string",
+                "enum" to WireNames.namesOf<Retry>(),
+                "description" to "What a retry may do, as the error catalog declares it for the code; with " +
+                    "`Retry-After` when a retry may get past the problem.",
+            ),
             "violations" to array(schemaRef(VIOLATION)),
             "result" to schemaRef(COMMAND_RESULT),
         ),
-        listOf("type", "title", "status"),
+        listOf("type", "title", "status", "retry"),
         "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's " +
             "extensions are members of their own names.",
     )

@@ -577,6 +577,13 @@ type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
 };
 
 // @public
+export const DEFAULT_RETRY: {
+    readonly attempts: 5;
+    readonly backoffMs: 200;
+    readonly maxWaitMs: 5000;
+};
+
+// @public
 type DeletionFilter = {
     op: FilterOperator.DELETION;
     state: DeletionState;
@@ -778,6 +785,8 @@ export interface ErrorManifest {
     readonly code: string;
     // (undocumented)
     readonly description?: string;
+    readonly retry?: 'none' | 'same-request' | 'new-request' | (string & {});
+    readonly retryAfter?: number;
     // (undocumented)
     readonly status: number;
 }
@@ -1068,6 +1077,9 @@ export function formatWaitTimeout(timeout: number): string;
 export const FRAMEWORK_ERROR_PREFIX = "wow.";
 
 // @public
+export const FRAMEWORK_RETRIES: ReadonlyMap<string, FrameworkRetry>;
+
+// @public
 export type FrameworkErrorCode = (typeof FrameworkErrorCodes)[keyof typeof FrameworkErrorCodes];
 
 // @public
@@ -1096,22 +1108,29 @@ export const FrameworkErrorCodes: {
     readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";
     readonly SCHEDULE_NOT_DUE: "wow.schedule.not-due";
     readonly SCHEDULE_JOB_INVALID: "wow.schedule.job-invalid";
-    readonly SUBSCRIPTION_PARKED: "wow.subscription.parked";
     readonly LEDGER_STALE: "wow.ledger.stale";
+    readonly SUBSCRIPTION_PARKED: "wow.subscription.parked";
     readonly WAIT_TIMEOUT: "wow.wait.timeout";
     readonly ROUTE_MALFORMED: "wow.route.malformed";
     readonly QUERY_MALFORMED: "wow.query.malformed";
     readonly QUERY_INVALID: "wow.query.invalid";
     readonly QUERY_FAILED: "wow.query.failed";
-    readonly QUERY_TIMEOUT: "wow.query.timeout";
-    readonly QUERY_BUSY: "wow.query.busy";
     readonly QUERY_NOT_FOUND: "wow.query.not-found";
     readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
     readonly QUERY_TOO_MANY_GROUPS: "wow.query.too-many-groups";
+    readonly QUERY_TIMEOUT: "wow.query.timeout";
     readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
+    readonly QUERY_BUSY: "wow.query.busy";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
+    readonly PEER_UNAVAILABLE: "wow.peer.unavailable";
 };
+
+// @public
+export interface FrameworkRetry {
+    readonly retry: Retry;
+    readonly retryAfterMs: number;
+}
 
 // @public
 export interface FunctionInfo {
@@ -1422,6 +1441,7 @@ export interface Problem {
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
     readonly result?: RefusedResult;
+    readonly retry?: Retry;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -1654,15 +1674,7 @@ export interface RequestOptions {
 }
 
 // @public
-export interface RetryHint {
-    readonly afterMs?: number;
-    // (undocumented)
-    readonly retryable: boolean;
-    readonly sameRequestId: boolean;
-}
-
-// @public
-export function retryHintOf(code: string | undefined, status: number, afterMs?: number): RetryHint;
+export type Retry = 'none' | 'same-request' | 'new-request';
 
 // @public
 export interface RetryManifest {
@@ -1681,6 +1693,9 @@ export interface RetryManifest {
     // (undocumented)
     readonly unrecoverable?: readonly string[];
 }
+
+// @public
+export function retryOf(problem: Problem): Retry;
 
 // @public
 export interface RouteManifest {
@@ -2251,7 +2266,8 @@ export class WowProblemError extends Error {
     readonly problem: Problem;
     get requestId(): string | undefined;
     readonly result?: RefusedResult;
-    readonly retry: RetryHint;
+    readonly retry: Retry;
+    readonly retryAfterMs?: number;
     readonly status: number;
     // (undocumented)
     readonly violations: readonly Violation[];

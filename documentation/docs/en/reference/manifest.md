@@ -71,6 +71,8 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `code`
 - `status`
 - `description`
+- `retry`: left out when absent or at its default
+- `retryAfter`
 
 ## `Aggregate`
 

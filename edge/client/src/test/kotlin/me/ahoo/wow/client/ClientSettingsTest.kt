@@ -115,7 +115,7 @@ class ClientSettingsTest {
         RetryPolicy.of().assert().isEqualTo(RetryPolicy.DEFAULT)
         RetryPolicy.of().hashCode().assert().isEqualTo(RetryPolicy.DEFAULT.hashCode())
         (RetryPolicy.DEFAULT == RetryPolicy.NONE).assert().isFalse()
-        RetryPolicy.DEFAULT.toString().assert().startsWith("RetryPolicy(maxAttempts=3")
+        RetryPolicy.DEFAULT.toString().assert().startsWith("RetryPolicy(maxAttempts=5")
         assertThrownBy<IllegalArgumentException> { RetryPolicy.of(maxAttempts = 0) }
         assertThrownBy<IllegalArgumentException> { RetryPolicy.of(maxRetryAfter = (-1).seconds) }
         assertThrownBy<IllegalArgumentException> { RetryPolicy.of(backoff = Duration.ZERO) }

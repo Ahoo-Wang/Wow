@@ -23,13 +23,13 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
@@ -63,9 +63,10 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Every command carries its request id (`Wow-Request-Id`, the request's or a new one, kept by every retry) and its
  * expected version (`If-Match`). A problem the peer answers is a [CommandRejectedException] when the command was
- * rejected, a [me.ahoo.wow.api.client.WowProblemException] otherwise, with the hint of its code; one a retry may get
- * past is retried first, as the transport's [RetryPolicy] says (never a 504). A connection that cannot be made is its
- * [java.io.IOException] once the retries are spent; a context the endpoints give no URL an [IllegalStateException].
+ * rejected, a [me.ahoo.wow.api.problem.WowProblemException] otherwise, with the retry of its code; one a retry with the
+ * same request id may get past is retried first, as the transport's [RetryPolicy] says (never a 504). A connection that
+ * cannot be made is `wow.peer.unavailable` once the retries are spent, one lost before the answer `wow.command.unknown`;
+ * a context the endpoints give no URL is an [IllegalStateException].
  *
  * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
  * type and checked against its Manifest before any request; a command object to it is a configuration error.
@@ -82,21 +83,21 @@ class HttpCommandClient internal constructor(
 
     override suspend fun send(request: CommandRequest<*>): CommandResult {
         val peer = peerRequestOf(sendable(request), WaitPlan.ACCEPTED.within(request.timeout ?: ACCEPT_TIMEOUT))
-        return settled(peer, transport.exchange(peer.http, PeerProblem::retriesCommand))
+        return settled(peer, transport.exchange(peer.http, Exchange.COMMAND))
     }
 
     override suspend fun wait(request: CommandRequest<*>): CommandResult {
         val peer = peerRequestOf(request, request.plan)
-        return settled(peer, transport.exchange(peer.http, PeerProblem::retriesCommand))
+        return settled(peer, transport.exchange(peer.http, Exchange.COMMAND))
     }
 
     override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow {
         val peer = peerRequestOf(request, request.plan)
         if (transport.mode is ClientMode.Service) {
-            emit(resultOf(peer, transport.exchange(peer.http, PeerProblem::retriesCommand)))
+            emit(resultOf(peer, transport.exchange(peer.http, Exchange.COMMAND)))
             return@flow
         }
-        when (val answer = transport.stream(peer.http, PeerProblem::retriesCommand)) {
+        when (val answer = transport.stream(peer.http, Exchange.COMMAND)) {
             is Answer.Ok -> answer.value.serverSentEvents().collect { event ->
                 emit(ClientJson.mapper.readValue(event.data, CommandResult::class.java))
             }
@@ -122,7 +123,8 @@ class HttpCommandClient internal constructor(
                 CommandResult.Status.UNKNOWN -> throw WowProblemException(
                     FrameworkCodes.COMMAND_FAILED,
                     NEWER_PEER_STATUS,
-                    RetryHint(retryable = false, sameRequestId = true),
+                    Retry.NONE,
+                    null,
                     "${peer.what} was answered with a status this client does not know: the peer is newer than " +
                         "this client, so upgrade it.",
                     result,

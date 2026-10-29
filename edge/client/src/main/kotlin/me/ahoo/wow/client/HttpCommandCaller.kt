@@ -18,9 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
@@ -58,8 +58,10 @@ import kotlin.time.toJavaDuration
  * - the trace the call runs in.
  *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
- * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a call the target
- * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [WowProblemException], retried with the same request id: the saga's handler
+ * REJECTED or FAILED result. Anything else is a [WowProblemException]: an error answered without a result (401 or 403
+ * for a call the target refuses, such as one of a service its lists do not name) as its own code, a connection that
+ * fails or no answer within the timeout as the transport's (`wow.command.unknown`, `wow.peer.unavailable`), and a
+ * success the client cannot read as `wow.command.failed`, retried with the same request id. The saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
  * subscription's retry budget is the one that counts.
  */
@@ -110,7 +112,7 @@ class HttpCommandCaller internal constructor(
     override suspend fun call(call: OutgoingCall): CommandResult {
         val command = call.command
         val answer = try {
-            transport.exchange(requestOf(call)) { false }
+            transport.exchange(requestOf(call), Exchange.CALL)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -122,12 +124,11 @@ class HttpCommandCaller internal constructor(
             } catch (_: JacksonException) {
                 null
             }
-            is Answer.Problem -> answer.problem.result
-        } ?: throw failed(
-            "The call of ${command.id} to ${command.ref.type.context} was answered without a result: " +
-                (answer as? Answer.Problem)?.problem?.let { "HTTP ${it.status} ${it.detail.orEmpty()}" }.orEmpty(),
-            status = (answer as? Answer.Problem)?.problem?.status,
-        )
+            // A problem without a result (a call the target refuses, a peer no node of which answered) is its own.
+            is Answer.Problem ->
+                answer.problem.result
+                    ?: throw answer.problem.exception("The call of ${command.id} to ${command.ref.type.context}")
+        } ?: throw failed("The call of ${command.id} to ${command.ref.type.context} was answered without a result.")
     }
 
     /** The request of [call]: its command's route, body, request id and expected version, and its root context. */
@@ -153,17 +154,15 @@ class HttpCommandCaller internal constructor(
         )
     }
 
-    /**
-     * A call that reached no result: [FrameworkCodes.COMMAND_FAILED] with the target's [status] when it answered one,
-     * else a bad gateway, retried with the same request id.
-     */
-    private fun failed(message: String, status: Int? = null, cause: Throwable? = null): WowProblemException =
+    /** A call that reached no result it could read: [FrameworkCodes.COMMAND_FAILED], a bad gateway. */
+    private fun failed(message: String, cause: Throwable? = null): WowProblemException =
         WowProblemException(
             FrameworkCodes.COMMAND_FAILED,
-            status ?: BAD_GATEWAY,
-            RetryHint(retryable = true, sameRequestId = true),
+            BAD_GATEWAY,
+            Retry.SAME_REQUEST,
+            null,
             message,
-            cause = cause,
+            cause = cause
         )
 
     @InternalWowApi

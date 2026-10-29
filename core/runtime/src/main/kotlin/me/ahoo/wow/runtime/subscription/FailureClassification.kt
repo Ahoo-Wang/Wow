@@ -14,7 +14,7 @@
 package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -68,11 +68,11 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
             if (application.isEmpty()) DEFAULT else FailureClassification(application + DEFAULT.classifiers)
 
         /**
-         * The wait [failure] asks for before a retry, the server's `Retry-After` ([WowProblemException.retryHint]),
+         * The wait [failure] asks for before a retry, the server's `Retry-After` ([WowProblemException.retryAfter]),
          * from it or the first of its causes that gives one; null when none does.
          */
         fun retryAfterOf(failure: Throwable): Duration? =
-            causes(failure).firstNotNullOfOrNull { (it as? WowProblemException)?.retryHint?.retryAfter }
+            causes(failure).firstNotNullOfOrNull { (it as? WowProblemException)?.retryAfter }
 
         private fun causes(failure: Throwable): Sequence<Throwable> {
             val seen = HashSet<Throwable>()
@@ -85,7 +85,8 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  * The failures the runtime classifies itself, whatever the backends:
  *
  * - [FailureClass.SYSTEMIC], a downstream that is down: a store a port could not reach ([StorageUnavailableException],
- *   or a command or call answered `wow.storage.unavailable`), a transport it could not reach
+ *   or a command or call answered `wow.storage.unavailable`), a peer a client reached no node of
+ *   (`wow.peer.unavailable`), a transport it could not reach
  *   ([TransportUnavailableException]), a socket that could not connect or was reset
  *   ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve, an HTTP connection
  *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
@@ -114,8 +115,9 @@ internal object BuiltInFailures : FailureClassifier {
         is CommandBusyException, is StorageBusyException -> FailureClass.BACKPRESSURE
         is WowProblemException -> when {
             failure.code in BACKPRESSURE_CODES -> FailureClass.BACKPRESSURE
-            failure.status == TOO_MANY_REQUESTS && failure.retryHint.retryAfter != null -> FailureClass.BACKPRESSURE
+            failure.status == TOO_MANY_REQUESTS && failure.retryAfter != null -> FailureClass.BACKPRESSURE
             failure.code == FrameworkErrors.STORAGE_UNAVAILABLE -> FailureClass.SYSTEMIC
+            failure.code == FrameworkErrors.PEER_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
         is StorageRefusedException, is TransportRefusedException -> FailureClass.UNRECOVERABLE

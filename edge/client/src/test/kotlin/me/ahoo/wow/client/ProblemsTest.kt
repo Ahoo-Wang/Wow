@@ -14,41 +14,65 @@
 package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import java.net.http.HttpHeaders
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
-/** The problems a peer answers with, and their retry hints (decision D254 ③). */
+/** The problems a peer answers with, and what a retry may do (decisions D254 ③, D366 ②). */
 class ProblemsTest {
     private val none = HttpHeaders.of(emptyMap()) { _, _ -> true }
 
-    @Test
-    fun `the hint of a code should say whether a retry may get past it, and with which request id`() {
-        Problems.hintOf(FrameworkErrors.COMMAND_UNKNOWN, 503, 1.seconds).assert()
-            .isEqualTo(RetryHint(true, true, 1.seconds))
-        Problems.hintOf(FrameworkErrors.QUERY_BUSY, 429, null).assert().isEqualTo(RetryHint(true, false))
-        Problems.hintOf(FrameworkErrors.QUERY_TIMEOUT, 504, null).retryable.assert().isFalse()
-        Problems.hintOf(FrameworkErrors.AUTH_FORBIDDEN, 403, null).retryable.assert().isFalse()
-        Problems.hintOf(null, 503, null).assert().isEqualTo(RetryHint(true, true))
-        Problems.hintOf(null, 429, null).retryable.assert().isTrue()
-        Problems.hintOf(null, 500, null).retryable.assert().isFalse()
+    private fun read(status: Int, body: String, retryAfter: String? = null): PeerProblem {
+        val headers = HttpHeaders.of(retryAfter?.let { mapOf("Retry-After" to listOf(it)) }.orEmpty()) { _, _ -> true }
+        return Problems.read(status, headers, body.toByteArray())
     }
 
     @Test
-    fun `a command is retried only with its request id and never at 504, a query only at 429`() {
-        PeerProblem(503, FrameworkErrors.STORAGE_UNAVAILABLE, null, null, null).retriesCommand.assert().isTrue()
-        // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
-        PeerProblem(504, FrameworkErrors.WAIT_TIMEOUT, null, null, null).apply {
-            hint.retryable.assert().isTrue()
-            hint.sameRequestId.assert().isTrue()
-            retriesCommand.assert().isFalse()
+    fun `what a retry may do should be the problem's retry member, else the catalog's of its code`() {
+        read(503, """{"code":"wow.command.unknown","retry":"same-request"}""", "2").apply {
+            retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            retryAfter.assert().isEqualTo(2.seconds)
         }
-        PeerProblem(429, FrameworkErrors.QUERY_BUSY, null, null, null).retriesCommand.assert().isFalse()
-        PeerProblem(429, FrameworkErrors.QUERY_BUSY, null, null, null).retriesQuery.assert().isTrue()
-        PeerProblem(503, FrameworkErrors.STORAGE_UNAVAILABLE, null, null, null).retriesQuery.assert().isFalse()
+        // The member wins over the catalog; its wait is the catalog's without a Retry-After.
+        read(503, """{"code":"wow.command.unknown","retry":"none"}""").retry.assert().isEqualTo(Retry.NONE)
+        read(429, """{"code":"wow.query.busy","retry":"new-request"}""").retryAfter.assert().isEqualTo(1.seconds)
+        read(429, """{"code":"wow.query.busy"}""").retry.assert().isEqualTo(Retry.NEW_REQUEST)
+        read(403, """{"code":"wow.auth.forbidden"}""").apply {
+            retry.assert().isEqualTo(Retry.NONE)
+            retryAfter.assert().isNull()
+        }
+        // A body that is no Wow problem: a proxy's 503 or 429 may be retried with the same request id.
+        read(503, "Unavailable").retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        read(429, "Slow down").retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        read(500, "Oops").retry.assert().isEqualTo(Retry.NONE)
+    }
+
+    @Test
+    fun `a command is retried with its request id and never at 504, a query whenever a retry may get past it`() {
+        fun problem(status: Int, code: String, retry: Retry) = PeerProblem(status, code, null, null, retry, null)
+        problem(503, FrameworkErrors.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
+        // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
+        problem(504, FrameworkErrors.WAIT_TIMEOUT, Retry.SAME_REQUEST).retriesCommand.assert().isFalse()
+        problem(429, FrameworkErrors.QUERY_BUSY, Retry.NEW_REQUEST).retriesCommand.assert().isFalse()
+        problem(429, FrameworkErrors.QUERY_BUSY, Retry.NEW_REQUEST).retriesQuery.assert().isTrue()
+        problem(503, FrameworkErrors.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesQuery.assert().isTrue()
+        problem(400, FrameworkErrors.QUERY_INVALID, Retry.NONE).retriesQuery.assert().isFalse()
+        // A state read below its minimum version is the caller's to wait for.
+        problem(409, FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED, Retry.NEW_REQUEST).retriesQuery.assert().isFalse()
+    }
+
+    @Test
+    fun `a failure of the transport should be the problem of its catalog code`() {
+        val failure = java.io.IOException("refused")
+        PeerProblem.of(FrameworkErrors.PEER_UNAVAILABLE, "No node.", failure).apply {
+            status.assert().isEqualTo(503)
+            retry.assert().isEqualTo(Retry.NEW_REQUEST)
+            retryAfter.assert().isEqualTo(1.seconds)
+            (exception("The query") as me.ahoo.wow.api.problem.WowProblemException).cause.assert().isSameAs(failure)
+        }
     }
 
     @Test

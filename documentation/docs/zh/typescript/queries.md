@@ -198,6 +198,6 @@ console.log(rows.length);
 
 ## 查询失败时 {#when-a-query-fails}
 
-被拒绝的查询以 `WowProblemError` reject。400 `wow.query.invalid` 为它违反的每条规则列出一个 violation：它的 `code` 是 `QueryErrorCodes`（来自 `/dsl`）之一，以及它的 `path` 和一个 `message`。这份列表只会增加，所以对你不处理的错误码，退回到 problem 的 `detail`。429 `wow.query.busy` 表示存储正在运行它所允许的最多查询：`error.retry.afterMs` 说明何时再试。每个方法的最后一个参数都是请求选项，其中的 `signal` 用于取消查询。
+被拒绝的查询以 `WowProblemError` reject。400 `wow.query.invalid` 为它违反的每条规则列出一个 violation：它的 `code` 是 `QueryErrorCodes`（来自 `/dsl`）之一，以及它的 `path` 和一个 `message`。这份列表只会增加，所以对你不处理的错误码，退回到 problem 的 `detail`。429 `wow.query.busy` 表示存储正在运行它所允许的最多查询：`error.retryAfterMs` 说明何时再试。每个方法的最后一个参数都是请求选项，其中的 `signal` 用于取消查询。
 
 React 组件通过 `@ahoo-wang/wow-react` 的 hooks 运行这些查询，hooks 保存查询、它的结果和加载状态。

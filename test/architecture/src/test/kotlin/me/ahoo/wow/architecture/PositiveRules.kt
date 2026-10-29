@@ -55,11 +55,13 @@ object PositiveRules {
             listOf(QUERY_API.dir),
             listOf("$WOW.api.query", "$WOW.api.annotation"),
         ),
-        // And the stability markers of wow-annotations (D282), its one dependency.
+        // And the stability markers of wow-annotations (D282); of wow-api, only the problem its error catalog declares
+        // and maps a code to (Retry, WowProblemException of a command's result, D366 ②), nothing of the programming
+        // model.
         ImportAllowList(
-            "wow-manifest imports only its own packages and the stability markers",
+            "wow-manifest imports only its own packages, the stability markers and the problem vocabulary",
             listOf(MANIFEST.dir),
-            listOf("$WOW.manifest", "$WOW.api.annotation"),
+            listOf("$WOW.manifest", "$WOW.api.annotation", "$WOW.api.problem", "$WOW.api.result.CommandResult"),
         ),
         ImportAllowList(
             "wow-spi imports only wow-api, coroutines and Jackson",

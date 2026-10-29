@@ -49,7 +49,7 @@ class PeerFailoverTest {
     )
 
     private fun HttpTransport.get() = runBlocking {
-        exchange(PeerRequest("mail", "/mail/box/x", Caller.ANONYMOUS, null)) { false }
+        exchange(PeerRequest("mail", "/mail/box/x", Caller.ANONYMOUS, null), Exchange.CALL)
     }
 
     @Test
@@ -73,7 +73,10 @@ class PeerFailoverTest {
                 live.taken.assert().hasSize(2)
                 unreachable.assert().isEmpty()
             }
-            assertThrows<IOException> { transport(URI.create("http://127.0.0.1:$port")).get() }
+            // No node reached: wow.peer.unavailable, its connection's failure the cause.
+            val down = transport(URI.create("http://127.0.0.1:$port")).get() as Answer.Problem
+            down.problem.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            down.problem.cause.assert().isInstanceOf(IOException::class.java)
             unreachable.assert().containsExactly("mail")
         }
         assertThrows<IllegalStateException> { transport().get() }.message.assert().contains("wow.peers.mail.url")

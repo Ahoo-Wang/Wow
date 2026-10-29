@@ -162,6 +162,7 @@ interface Problem {
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
     readonly result?: RefusedResult;
+    readonly retry?: Retry;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -183,6 +184,9 @@ interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<
     // (undocumented)
     readonly ref: CommandRef;
 }
+
+// @public
+type Retry = 'none' | 'same-request' | 'new-request';
 
 // @public
 interface Scope {
