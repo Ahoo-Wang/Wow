@@ -46,6 +46,7 @@ import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -83,7 +84,7 @@ class HostClientsTest {
                 "\"" + defs + "me.ahoo.wow.spring.boot." + it.groupValues[1] + "\""
             }
         val manifest = ManifestTree.read(WowJson.mapper.readValue(text, Map::class.java))
-        ContractDirectory(Manifest(), listOf(ManifestFragment("bank-api", manifest)))
+        ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), listOf(ManifestFragment("bank-api", manifest)))
     }
 
     private val endpoints = EndpointResolver.of(
@@ -107,6 +108,7 @@ class HostClientsTest {
         client(ClientMode.Service(SERVICE)),
         client(ClientMode.User(UserCredential.FORWARDED)),
         mode,
+        SERVICE,
     )
 
     private val dave = Caller.of(scope = Scope("dave"), subject = "dave")
@@ -176,7 +178,8 @@ class HostClientsTest {
                 contracts.peerContexts,
                 lazy { error("") },
                 lazy { error("") },
-                PeerMode.SERVICE
+                PeerMode.SERVICE,
+                SERVICE,
             ),
             emptySet()
         )
@@ -190,31 +193,51 @@ class HostClientsTest {
                     error("")
                 },
                 lazy { error("") },
-                PeerMode.SERVICE
+                PeerMode.SERVICE,
+                SERVICE,
             )
         }.message.assert().contains("[ledger]")
     }
 
     @Test
-    fun `a subscription should read a peer as the service it is, or as an anonymous caller of its tenant`() {
-        val localQueries = mockk<TenantQueryApi>(relaxed = true)
-        listOf(SERVICE, null).forEach { name ->
-            val callers = mutableListOf<Caller>()
-            val client = mockk<WowClient>(relaxed = true)
-            every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
-            val peers = PeerClients(
-                mapOf(BANK to PeerMode.SERVICE),
-                contracts.localContexts,
-                contracts.peerContexts,
-                lazy { client },
-                lazy { client },
-                PeerMode.SERVICE,
-                serviceName = name,
+    fun `a subscription should read a peer as the service its Manifest names`() {
+        val callers = mutableListOf<Caller>()
+        val client = mockk<WowClient>(relaxed = true)
+        every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
+        val named = ContractDirectory(Manifest(service = ServiceInfo("basket-service")), contracts.peers)
+        val peers = WowAutoConfiguration().wowPeerClients(
+            WowProperties().apply { peers[BANK] = WowProperties.PeerTarget() },
+            EndpointResolver.of(emptyMap(), emptyMap()),
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+            named,
+            GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
+        )
+        peers.serviceName.assert().isEqualTo("basket-service")
+        // The peer clients are lazy: hand the routed queries a client that records its caller.
+        val routed = PeerClients(
+            mapOf(BANK to PeerMode.SERVICE),
+            named.localContexts,
+            named.peerContexts,
+            lazy { client },
+            lazy { client },
+            PeerMode.SERVICE,
+            peers.serviceName,
+        )
+        RoutedQueryApi(mockk<TenantQueryApi>(relaxed = true), routed, emptySet()).tenant("t1").events(account)
+        callers.single().assert().isEqualTo(Caller.ofService("basket-service", "t1"))
+        callers.single().subject.assert().isEqualTo("service:basket-service")
+        // A Manifest that names no service has no identity to read a peer as.
+        assertThrows<IllegalStateException> {
+            WowAutoConfiguration().wowPeerClients(
+                WowProperties(),
+                EndpointResolver.of(emptyMap(), emptyMap()),
+                NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+                ContractDirectory(Manifest(), contracts.peers),
+                GlobalIdGenerator.UUID_V7,
+                HttpCommandCaller.client(),
             )
-            RoutedQueryApi(localQueries, peers, emptySet()).tenant("t1").events(account)
-            val expected = name?.let { Caller.ofService(it, "t1") } ?: Caller.of(tenantId = "t1")
-            callers.single().assert().isEqualTo(expected)
-        }
+        }.message.assert().contains("names no service")
     }
 
     @Test
@@ -237,6 +260,7 @@ class HostClientsTest {
                 client(ClientMode.Service(SERVICE)),
                 client(ClientMode.User(UserCredential.FORWARDED)),
                 mode,
+                SERVICE,
                 described = setOf(BANK),
             )
             val commands = RoutedCommandClient(mockk(), peers, types).of(dave)
@@ -281,6 +305,7 @@ class HostClientsTest {
             },
             lazy { error("") },
             service,
+            SERVICE,
             setOf("mail")
         )
             .described.assert().containsExactly("mail")
@@ -294,6 +319,7 @@ class HostClientsTest {
                 },
                 lazy { error("") },
                 service,
+                SERVICE,
                 setOf("mail")
             )
         }.message.assert().contains("not in wow.peers")
@@ -307,6 +333,7 @@ class HostClientsTest {
                 },
                 lazy { error("") },
                 service,
+                SERVICE,
                 setOf(BANK)
             )
         }.message.assert().contains("whose contract is on the class path")
@@ -318,7 +345,7 @@ class HostClientsTest {
             },
             endpoints,
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
-            none,
+            ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), emptyList()),
             GlobalIdGenerator.UUID_V7,
             HttpCommandCaller.client(),
         )

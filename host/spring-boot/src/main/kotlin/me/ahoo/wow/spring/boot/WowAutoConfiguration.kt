@@ -436,8 +436,9 @@ class WowAutoConfiguration {
             client(ClientMode.Service(identity.service)),
             client(ClientMode.User(UserCredential.FORWARDED)),
             peer.mode,
+            // The node's service as its Manifest names it, which a subscription reads a peer as.
+            checkNotNull(contracts.local.service) { "The node's Manifest names no service." }.name,
             described,
-            identity.service,
         )
     }
 

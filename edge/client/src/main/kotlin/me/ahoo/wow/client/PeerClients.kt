@@ -61,13 +61,13 @@ class PeerClients(
     private val user: Lazy<WowClient>,
     /** The mode of [client], the one the application uses directly. */
     private val defaultMode: PeerMode,
+    /**
+     * The service's own name, its Manifest's: the identity a subscription handler reads a peer as
+     * ([RoutedQueryApi.tenant]).
+     */
+    val serviceName: String,
     /** The contexts of [modes] described by their Manifest alone. */
     val described: Set<String> = emptySet(),
-    /**
-     * The service's own name (`spring.application.name`): its identity on a peer's internal port, which a subscription
-     * handler reads a peer as ([RoutedQueryApi.tenant]); none, an anonymous caller of the commit's tenant.
-     */
-    val serviceName: String? = null,
 ) {
     init {
         val unknown = modes.keys.filterNot { it in described || it in contracts && it !in local }
@@ -180,7 +180,7 @@ class RoutedQueryApi(
      */
     override fun tenant(tenantId: String): SubscriptionQueries {
         val pinned = checkNotNull(local as? TenantQueryApi) { "The local queries pin no tenant." }.tenant(tenantId)
-        val service = peers.serviceName?.let { Caller.ofService(it, tenantId) } ?: Caller.of(tenantId = tenantId)
+        val service = Caller.ofService(peers.serviceName, tenantId)
         return object : SubscriptionQueries, Queries by Routed(pinned, service) {
             override val tenantId: String = tenantId
 
