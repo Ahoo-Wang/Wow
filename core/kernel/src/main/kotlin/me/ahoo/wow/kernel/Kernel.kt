@@ -1321,3 +1321,4 @@ internal val AppendOutcome.observedName: ObservedOutcome
         is AppendOutcome.Unknown -> ObservedOutcome.UNKNOWN
         is AppendOutcome.Rejected -> ObservedOutcome.REJECTED
     }
+// X-27 proof: a Kotlin-only change (throwaway).
