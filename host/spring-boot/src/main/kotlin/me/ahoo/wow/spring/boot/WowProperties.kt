@@ -325,6 +325,7 @@ class WowProperties {
      */
     @InternalWowApi
     class Store {
+        /** The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. */
         var type: String? = null
 
         /** How this store manages the framework's schema, over `wow.ddl`. */
@@ -348,8 +349,13 @@ class WowProperties {
      */
     @InternalWowApi
     class StoreQuery {
+        /** How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound. */
         var maxConcurrent: Int? = null
+
+        /** How long a query beyond the bound waits for a permit, over `wow.query.max-wait`. */
         var maxWait: Duration? = null
+
+        /** How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. */
         var maxQueued: Int? = null
         var events: QueryEvents = QueryEvents()
         var adaptive: StoreAdaptive = StoreAdaptive()
@@ -361,7 +367,10 @@ class WowProperties {
      */
     @InternalWowApi
     class StoreAdaptive {
+        /** The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`. */
         var floor: Int? = null
+
+        /** The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`. */
         var ceiling: Int? = null
     }
 
@@ -371,6 +380,7 @@ class WowProperties {
      */
     @InternalWowApi
     class QueryEvents {
+        /** Whether an `events` query that names no aggregate runs, over `wow.query.events.unpinned`. */
         var unpinned: UnpinnedEvents? = null
     }
 
@@ -388,6 +398,7 @@ class WowProperties {
      */
     @InternalWowApi
     class AggregateQuerySnapshot {
+        /** The snapshot store the type's `snapshot` queries read, one of its `snapshot.stores`; its primary when not set. */
         var store: String? = null
     }
 
@@ -398,7 +409,10 @@ class WowProperties {
      */
     @InternalWowApi
     class AggregateQueryEvents {
+        /** Whether an `events` query of the type that names no aggregate runs, over its store's. */
         var unpinned: UnpinnedEvents? = null
+
+        /** The store of `wow.stores` the type's `events` queries read; its log store when not set. */
         var store: String? = null
     }
 
@@ -461,13 +475,17 @@ class WowProperties {
      */
     @InternalWowApi
     class AggregateSnapshot {
+        /** The stores of `wow.stores` the type's snapshots are written to, over `wow.snapshot.stores`. */
         var stores: MutableList<String> = ArrayList()
+
+        /** The one of them the type's write side and state reads read; the first when not set. */
         var primary: String? = null
     }
 
     /** One aggregate type's store of its log or of its snapshots: one of `wow.stores`. */
     @InternalWowApi
     class AggregateStore {
+        /** The store of `wow.stores` the type's log is on, over `wow.log.store`. */
         var store: String? = null
     }
 
@@ -802,8 +820,13 @@ class WowProperties {
      */
     @InternalWowApi
     class ParkedSpec {
+        /** How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s. */
         var maxRetries: Int? = null
+
+        /** The wait before the first automatic retry, over `wow.subscription.parked`'s. */
         var initialBackoff: Duration? = null
+
+        /** How long a retry may run, over `wow.subscription.parked`'s. */
         var timeout: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
@@ -829,6 +852,7 @@ class WowProperties {
      */
     @InternalWowApi
     class SubscriptionSettings {
+        /** Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant. */
         var start: String? = null
         var parked: ParkedSpec = ParkedSpec()
         var retry: RetrySpec = RetrySpec()
@@ -841,10 +865,19 @@ class WowProperties {
      */
     @InternalWowApi
     class RetrySpec {
+        /** The most attempts of the handler in all, before its aggregate parks. */
         var maxAttempts: Int? = null
+
+        /** The wait after the first failure. */
         var initialBackoff: Duration? = null
+
+        /** The longest wait between two attempts. */
         var maxBackoff: Duration? = null
+
+        /** How many times longer each wait is than the one before; at least 1. */
         var multiplier: Double? = null
+
+        /** How long one attempt may run before it is cancelled and counts as failed. */
         var timeout: Duration? = null
 
         /** The budget these settings give, null when none is given. */
@@ -984,9 +1017,16 @@ class WowProperties {
      */
     @InternalWowApi
     class Schedule {
+        /** The job's cron expression, over its annotation's. */
         var expression: String? = null
+
+        /** The time zone its expression is read in, over its annotation's. */
         var zone: String? = null
+
+        /** What a firing missed while no node ran it does, over its annotation's. */
         var misfire: Misfire? = null
+
+        /** Whether a SYSTEM job's instances run; false disables them at startup. */
         var enabled: Boolean = true
 
         fun options(): JobOptions = JobOptions(expression, zone, misfire, enabled)
@@ -1138,6 +1178,7 @@ class WowProperties {
 
         @InternalWowApi
         class Error {
+            /** The HTTP status the code is answered with. */
             var status: Int = 0
         }
 
@@ -1181,7 +1222,10 @@ class WowProperties {
      */
     @InternalWowApi
     class CallerPermits {
+        /** The commands the service may call, names or patterns; the domain commands alone when empty. */
         var commands: MutableList<String> = ArrayList()
+
+        /** The models the service may read on the internal port's read routes, patterns too; every one when empty. */
         var reads: MutableList<String> = ArrayList()
     }
 
@@ -1230,10 +1274,19 @@ class WowProperties {
      */
     @InternalWowApi
     class PeerTarget {
+        /** The base URL of the peer's internal port (service mode), never its public port; found when not set. */
         var url: URI? = null
+
+        /** The base URL of the peer's public routes (user mode). */
         var publicUrl: URI? = null
+
+        /** The mode the peer is called in: `service` or `user`, over `wow.peer.mode`. */
         var mode: PeerMode? = null
+
+        /** Where the peer's contract comes from: `jar`, its api jar, or `manifest`, its Manifest alone. */
         var contract: Contract = Contract.JAR
+
+        /** How long a call to the peer may take, over `wow.peer.timeout`. */
         var timeout: Duration? = null
 
         /** Where a peer's contract comes from. */
@@ -1276,7 +1329,10 @@ class WowProperties {
      */
     @InternalWowApi
     class Aggregate {
+        /** The tenant every aggregate of the type is in, whoever the caller is. */
         var tenant: String? = null
+
+        /** The id generator that gives the type's new ids, by name. */
         var idGenerator: String? = null
 
         /**
@@ -1314,7 +1370,10 @@ class WowProperties {
      */
     @InternalWowApi
     class AggregateHistory {
+        /** Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. */
         var enabled: Switch = Switch.AUTO
+
+        /** How long the type's history is kept; forever when not set. */
         var ttl: Duration? = null
     }
 

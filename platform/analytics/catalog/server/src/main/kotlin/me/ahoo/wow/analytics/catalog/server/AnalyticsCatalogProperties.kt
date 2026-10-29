@@ -25,8 +25,6 @@ import java.time.Duration
 class AnalyticsCatalogProperties(
     /** The name of the warehouse connection, the first part of each source's id. */
     var connection: String = DEFAULT_CONNECTION,
-    /** The engine type of that connection: `clickhouse`, the one 10.0 implements. */
-    var engine: String = DEFAULT_ENGINE,
     /** The databases whose tables and views are sources; `wow.clickhouse.database` when empty. */
     var databases: MutableList<String> = mutableListOf(),
     /**
@@ -43,24 +41,18 @@ class AnalyticsCatalogProperties(
     var watch: Watch = Watch(),
     /** The datasets: where their views are created, how long a retired one is kept, and whether this node serves them. */
     var datasets: Datasets = Datasets(),
-    /** Which sources and publications take an approver. */
-    var approval: Approval = Approval(),
+    /** Whether a dataset reads only the sources an approver approved (`ApproveSource`). */
+    var requireSourceApproval: Boolean = false,
+    /**
+     * Whether every publication takes an approver (`ApproveDatasetPublication`); a publication that computes from
+     * sensitive values or lowers a protection takes one either way.
+     */
+    var requirePublicationApproval: Boolean = false,
 ) {
     /** How the catalog watches the warehouse, `wow.analytics.catalog.watch.*`. */
     class Watch(
         /** Whether the catalog watches the warehouse for changed tables at all. */
         var enabled: Boolean = true,
-    )
-
-    /** The approval switches, `wow.analytics.catalog.approval.*`. */
-    class Approval(
-        /** Whether a dataset reads only the sources an approver approved (`ApproveSource`). */
-        var sources: Boolean = false,
-        /**
-         * Whether every publication takes an approver (`ApproveDatasetPublication`); a publication that computes from
-         * sensitive values or lowers a protection takes one either way.
-         */
-        var publications: Boolean = false,
     )
 
     /** The datasets' settings, `wow.analytics.catalog.datasets.*`. */
@@ -70,17 +62,22 @@ class AnalyticsCatalogProperties(
         /** How long a retired dataset's views are kept before they are dropped. */
         var retention: Duration = Duration.ofDays(DEFAULT_RETENTION_DAYS),
         /** Whether this node serves the published datasets' queries. */
-        var serve: Boolean = true,
+        var serving: Serving = Serving(),
         /** How often this node reads which published datasets changed. */
         var refreshInterval: Duration = Duration.ofSeconds(DEFAULT_REFRESH_SECONDS),
         /** How often this node reads every published dataset. */
         var reconcileInterval: Duration = Duration.ofMinutes(DEFAULT_RECONCILE_MINUTES),
     )
 
+    /** Whether a node serves the published datasets' queries, `wow.analytics.catalog.datasets.serving.*`. */
+    class Serving(
+        /** Whether this node serves the published datasets' queries. */
+        var enabled: Boolean = true,
+    )
+
     companion object {
         const val PREFIX: String = "wow.analytics.catalog"
         const val DEFAULT_CONNECTION: String = "default"
-        const val DEFAULT_ENGINE: String = ClickHouseWarehouseCatalog.ENGINE
 
         @JvmField
         val DEFAULT_REFRESH_INTERVAL: Duration = Duration.ofSeconds(30)

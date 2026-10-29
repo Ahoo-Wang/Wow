@@ -16,7 +16,7 @@ management:
   endpoint:
     health:
       group:
-        # Ready once the node serves the published datasets too (wow.analytics.catalog.datasets.serve).
+        # Ready once the node serves the published datasets too (wow.analytics.catalog.datasets.serving.enabled).
         readiness:
           include: readinessState,wowReadiness,datasetPublications
 wow:
@@ -35,9 +35,8 @@ wow:
   # its client starts no Sink, which only wow.clickhouse.sink.enabled switches on.
   analytics:
     catalog:
-      # The warehouse connection: its name, the first part of each source's id, and its engine type (decision D251).
+      # The warehouse connection's name, the first part of each source's id (decision D251).
       connection: default
-      engine: clickhouse
       # The databases whose tables and views are sources; wow.clickhouse.database when none is listed.
       databases: []
       # The warehouse accounts whose wow_catalog rows are trusted (decision D241 ③), each for the contexts its Sink
@@ -52,14 +51,14 @@ wow:
         # How long a retired dataset's views stay before they are dropped.
         retention: 7d
         # Whether this node serves the published datasets' queries, and how often it reads what changed.
-        serve: true
+        serving:
+          enabled: true
         refresh-interval: 5s
         reconcile-interval: 5m
-      approval:
-        # Whether a dataset reads only the sources an approver approved, and whether every publication takes an
-        # approver (one computing from sensitive values or lowering a protection always does): both off by default.
-        sources: false
-        publications: false
+      # Whether a dataset reads only the sources an approver approved, and whether every publication takes an
+      # approver (one computing from sensitive values or lowering a protection always does): both off by default.
+      require-source-approval: false
+      require-publication-approval: false
 ---
 # CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
 # (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the

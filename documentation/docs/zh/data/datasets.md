@@ -76,7 +76,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 | `RollbackDataset` | 重新提供一个较早的版本，如果它的视图已被删除，就重新创建 |
 | `RetireDataset` | 停止查询；视图在保留期（默认 7 天）之后删除，在此之前再次发布会让数据集恢复 |
 
-当发布由敏感值计算或降低了保护级别时，需要审批人；设置 `wow.analytics.catalog.approval.publications` 后，每次发布都需要审批人；`approval.sources` 让每个源都要等到 `ApproveSource` 之后，数据集才能读取它。两个开关默认都关闭。
+当发布由敏感值计算或降低了保护级别时，需要审批人；设置 `wow.analytics.catalog.require-publication-approval` 后，每次发布都需要审批人；`require-source-approval` 让每个源都要等到 `ApproveSource` 之后，数据集才能读取它。两个开关默认都关闭。
 
 ## 源改变时 {#when-a-source-changes}
 

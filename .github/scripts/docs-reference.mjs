@@ -29,6 +29,17 @@ const SELF = '.github/scripts/docs-reference.mjs';
 
 const METADATA =
   'host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json';
+/** The leaf keys under the host's maps of beans, which the metadata lists as one key each (ConfigurationMetadataTest). */
+const MAP_KEYS = 'host/spring-boot/src/test/resources/configuration-maps.json';
+/** The metadata of the modules that ship their own keys, each with its page section's title. */
+const MODULE_METADATA = [
+  ['Analytics catalog', 'platform/analytics/catalog/server'],
+  ['View store', 'platform/view-store/view-store-server'],
+  ['CosId', 'extensions/cosid'],
+].map(([title, dir]) => ({
+  title,
+  path: `${dir}/src/main/resources/META-INF/spring-configuration-metadata.json`,
+}));
 const FRAMEWORK_ERRORS =
   'api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt';
 const FRAMEWORK_ERRORS_SNAPSHOT =
@@ -51,8 +62,14 @@ const WORDS = {
       description:
         "Every key of the host's wow.* configuration, its type, default and meaning.",
       intro: count =>
-        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
+        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`; each map's own keys are listed below it, its entry written \`<name>\` or \`[<context>.<aggregate>]\`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services and of wow-cosid. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
       head: '| Key | Type | Default | Description |',
+    },
+    moduleConfig: {
+      title: 'Module Configuration Keys',
+      description:
+        "The wow.* keys of the platform services and wow-cosid, generated from each module's metadata.",
+      intro: `The keys of the modules that ship their own configuration metadata: the platform services, which are Spring Boot applications of their own, and wow-cosid, which a host reads only with the module on its class path. Each section is generated from its module's \`spring-configuration-metadata.json\`; the host's keys are on [Configuration Keys](./configuration).`,
     },
     errors: {
       title: 'Error Codes',
@@ -125,8 +142,13 @@ const WORDS = {
       title: '配置项',
       description: '宿主 wow.* 配置的每个键：类型、默认值与含义。',
       intro: count =>
-        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
+        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`；每个映射自己的键列在它下面，条目写作 \`<name>\` 或 \`[<context>.<aggregate>]\`。[模块配置项](./module-configuration)列出平台服务与 wow-cosid 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
       head: '| 键 | 类型 | 默认值 | 说明 |',
+    },
+    moduleConfig: {
+      title: '模块配置项',
+      description: '平台服务与 wow-cosid 的 wow.* 键，由各模块的元数据生成。',
+      intro: `自带配置元数据的模块的键：平台服务（各自是独立的 Spring Boot 应用），以及仅当 wow-cosid 在类路径上时宿主才读取的 CosId 键。每一节由对应模块的 \`spring-configuration-metadata.json\` 生成，说明取自源码，为英文；宿主的键见[配置项](./configuration)。`,
     },
     errors: {
       title: '错误码',
@@ -274,12 +296,34 @@ export function configurationGroups(metadata) {
     }));
 }
 
-export function configurationPage(locale, metadata) {
+/**
+ * [metadata] with the leaf keys under its maps ([maps]): each map of beans its own group, `wow.stores.<name>`,
+ * described as the map's key is.
+ */
+export function withMapKeys(metadata, maps) {
+  const entries = [
+    ...new Set(
+      maps.properties.map(p =>
+        p.name.replace(/^((?:[^.<[]+\.)+(?:<[^>]+>|\[[^\]]+\]))\..*$/, '$1'),
+      ),
+    ),
+  ];
+  const groups = entries.map(name => {
+    const map = metadata.properties.find(p => name.startsWith(`${p.name}.`));
+    return { name, type: map?.type, description: map?.description };
+  });
+  return {
+    groups: [...metadata.groups, ...groups],
+    properties: [...metadata.properties, ...maps.properties],
+  };
+}
+
+/** The sections of [metadata]'s groups, each a heading and a table of its keys, under [level]. */
+function configurationSections(locale, metadata, level = '##') {
   const words = WORDS[locale].config;
-  const groups = configurationGroups(metadata);
-  const body = [words.intro(metadata.properties.length), ''];
-  for (const group of groups) {
-    body.push(`## \`${group.name}\``, '');
+  const body = [];
+  for (const group of configurationGroups(metadata)) {
+    body.push(`${level} \`${group.name}\``, '');
     // The root group's description is an index of the others.
     if (group.description && group.name !== 'wow')
       body.push(literal(plain(group.description)), '');
@@ -291,7 +335,44 @@ export function configurationPage(locale, metadata) {
     }
     body.push('');
   }
-  return page(locale, words.title, words.description, METADATA, body);
+  return body;
+}
+
+export function configurationPage(locale, metadata, maps = { properties: [] }) {
+  const words = WORDS[locale].config;
+  const all = withMapKeys(metadata, maps);
+  const body = [
+    words.intro(all.properties.length),
+    '',
+    ...configurationSections(locale, all),
+  ];
+  return page(
+    locale,
+    words.title,
+    words.description,
+    `${METADATA}, ${MAP_KEYS}`,
+    body,
+  );
+}
+
+/** The keys of each module of [modules] (`{ title, path, metadata }`), a section each. */
+export function moduleConfigurationPage(locale, modules) {
+  const words = WORDS[locale].moduleConfig;
+  const body = [words.intro, ''];
+  for (const module of modules) {
+    body.push(
+      `## ${module.title}`,
+      '',
+      ...configurationSections(locale, module.metadata, '###'),
+    );
+  }
+  return page(
+    locale,
+    words.title,
+    words.description,
+    modules.map(m => m.path).join(', '),
+    body,
+  );
 }
 
 // Error codes
@@ -789,6 +870,11 @@ const omissionsOf = source => {
 export function referencePages(root = ROOT) {
   const read = path => readFileSync(join(root, path), 'utf8');
   const metadata = JSON.parse(read(METADATA));
+  const maps = JSON.parse(read(MAP_KEYS));
+  const moduleKeys = MODULE_METADATA.map(module => ({
+    ...module,
+    metadata: JSON.parse(read(module.path)),
+  }));
   const framework = frameworkErrors(read(FRAMEWORK_ERRORS));
   const snapshot = JSON.parse(read(FRAMEWORK_ERRORS_SNAPSHOT));
   const parsed = framework
@@ -818,7 +904,15 @@ export function referencePages(root = ROOT) {
   const pages = {};
   for (const locale of Object.keys(WORDS)) {
     const dir = `documentation/docs/${locale}/reference`;
-    pages[`${dir}/configuration.md`] = configurationPage(locale, metadata);
+    pages[`${dir}/configuration.md`] = configurationPage(
+      locale,
+      metadata,
+      maps,
+    );
+    pages[`${dir}/module-configuration.md`] = moduleConfigurationPage(
+      locale,
+      moduleKeys,
+    );
     pages[`${dir}/error-codes.md`] = errorCodesPage(locale, framework, query);
     pages[`${dir}/annotations.md`] = annotationsPage(locale, annotations);
     pages[`${dir}/modules.md`] = modulesPage(locale, modules);
@@ -834,7 +928,8 @@ export function referencePages(root = ROOT) {
 
 /** The sources each generated page is read from, by its file name. */
 export const SOURCES = {
-  'configuration.md': [METADATA],
+  'configuration.md': [METADATA, MAP_KEYS],
+  'module-configuration.md': MODULE_METADATA.map(module => module.path),
   'error-codes.md': [
     FRAMEWORK_ERRORS,
     FRAMEWORK_ERRORS_SNAPSHOT,

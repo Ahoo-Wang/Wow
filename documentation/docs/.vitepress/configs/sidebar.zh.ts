@@ -302,6 +302,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '线上协议', link: 'protocols'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},
+                {text: '模块配置项', link: 'module-configuration'},
                 {text: '错误码', link: 'error-codes'},
                 {text: '注解', link: 'annotations'},
                 {text: 'Manifest 格式', link: 'manifest'},

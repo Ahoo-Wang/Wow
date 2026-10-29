@@ -84,9 +84,6 @@ class AnalyticsCatalogConfigurationTest {
         )
         listed.connection.assert().isEqualTo("dw")
         listed.databases.assert().containsExactly("a", "b")
-        assertThrows<IllegalArgumentException> {
-            configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(engine = "trino"), clickhouse)
-        }.message.assert().contains("trino")
     }
 
     @Test
@@ -98,8 +95,8 @@ class AnalyticsCatalogConfigurationTest {
         val properties = AnalyticsCatalogProperties()
         properties.datasets.database = "bi"
         properties.datasets.retention = Duration.ofDays(1)
-        properties.approval.publications = true
-        properties.approval.sources = true
+        properties.requirePublicationApproval = true
+        properties.requireSourceApproval = true
         val policy = configuration.datasetPolicy(properties)
         policy.database.assert().isEqualTo("bi")
         policy.approvePublications.assert().isTrue()

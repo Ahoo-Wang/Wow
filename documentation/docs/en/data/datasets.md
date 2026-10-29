@@ -76,7 +76,7 @@ The catalog checks a definition against the catalog when it is drafted or revise
 | `RollbackDataset` | Serves an earlier version again, its view created again if it was dropped |
 | `RetireDataset` | Stops the queries; the views are dropped after the retention, 7 days by default, and publishing again before then brings the dataset back |
 
-A publication needs an approver when it computes from sensitive values or lowers a protection, and every publication does with `wow.analytics.catalog.approval.publications`; `approval.sources` makes every source wait for `ApproveSource` before a dataset reads it. Both switches are off by default.
+A publication needs an approver when it computes from sensitive values or lowers a protection, and every publication does with `wow.analytics.catalog.require-publication-approval`; `require-source-approval` makes every source wait for `ApproveSource` before a dataset reads it. Both switches are off by default.
 
 ## When a source changes
 

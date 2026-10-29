@@ -70,7 +70,7 @@ import kotlin.time.toKotlinDuration
  *   `wow.analytics.catalog.refresh-interval`, unless `wow.analytics.catalog.watch.enabled=false`.
  * - The datasets (-2): the [DatasetWarehouse] their versions' views are created in, on the same
  *   ClickHouse server ([DatasetWarehouse.NONE] without one), the [DatasetPolicy] of `wow.analytics.catalog.datasets.*`,
- *   and, unless `wow.analytics.catalog.datasets.serve=false`, the [DatasetPublicationWatcher] that serves the published
+ *   and, unless `wow.analytics.catalog.datasets.serving.enabled=false`, the [DatasetPublicationWatcher] that serves the published
  *   versions on this node, with its readiness (`datasetPublications`, out of service until its first read) and its
  *   metrics (`wow.analytics.catalog.datasets.sync.age`, `wow.analytics.catalog.datasets.publication.lag`, seconds).
  */
@@ -120,10 +120,6 @@ class AnalyticsCatalogConfiguration {
                     ?: ClickHouseClients.DATABASE.default,
             )
         }
-        require(properties.engine == ClickHouseWarehouseCatalog.ENGINE) {
-            "${AnalyticsCatalogProperties.PREFIX}.engine is ${ClickHouseWarehouseCatalog.ENGINE}, not ${properties.engine}: " +
-                "the one warehouse engine 10.0 implements."
-        }
         return ClickHouseWarehouseCatalog(warehouse, properties.connection, databases)
     }
 
@@ -171,13 +167,13 @@ class AnalyticsCatalogConfiguration {
         DatasetPolicy(
             database = properties.datasets.database,
             retention = properties.datasets.retention.toKotlinDuration(),
-            approvePublications = properties.approval.publications,
-            approveSources = properties.approval.sources,
+            approvePublications = properties.requirePublicationApproval,
+            approveSources = properties.requireSourceApproval,
         )
 
     @Bean
     @OptIn(ExperimentalWowApi::class)
-    @ConditionalOnProperty(prefix = DATASETS, name = ["serve"], matchIfMissing = true)
+    @ConditionalOnProperty(prefix = DATASETS, name = ["serving.enabled"], matchIfMissing = true)
     fun datasetPublicationWatcher(
         queries: ObjectProvider<QueryApi>,
         datasets: QueryDatasets,
@@ -205,7 +201,7 @@ class AnalyticsCatalogConfiguration {
 
     /** `datasetPublications`: out of service until the node read the datasets' publications once. */
     @Bean
-    @ConditionalOnProperty(prefix = DATASETS, name = ["serve"], matchIfMissing = true)
+    @ConditionalOnProperty(prefix = DATASETS, name = ["serving.enabled"], matchIfMissing = true)
     fun datasetPublicationsHealthIndicator(watcher: DatasetPublicationWatcher): HealthIndicator = HealthIndicator {
         if (watcher.synced) {
             Health.up().withDetail("lastSuccess", Instant.ofEpochMilli(watcher.lastSuccess).toString()).build()

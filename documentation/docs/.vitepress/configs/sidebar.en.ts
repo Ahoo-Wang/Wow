@@ -298,6 +298,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Wire Protocols', link: 'protocols'},
                 {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},
+                {text: 'Module Configuration Keys', link: 'module-configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},
                 {text: 'Manifest Format', link: 'manifest'},

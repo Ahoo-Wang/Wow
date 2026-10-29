@@ -144,6 +144,48 @@ class ConfigurationMetadata(
         return file.readText() to expected
     }
 
+    /**
+     * The leaf keys under each map of beans of [maps], which the metadata lists as one map key: each entry's settings
+     * (`wow.stores.<name>.type`), walked as the roots are, described by their KDoc; and under the map of the stores,
+     * [storesMap], each option a provider of [stores] declares, which a store sets beside the host's keys
+     * (`wow.stores.<name>.data-source`). The configuration reference lists them below their maps.
+     */
+    fun mapsDocument(maps: List<MapKeys>, storesMap: String? = null, stores: List<ProviderOptions> = emptyList()): String {
+        val docs = KDocIndex(sources)
+        val properties = ArrayList<Map<String, Any?>>()
+        maps.forEach { map ->
+            val prefix = "${map.name}.${map.entry}"
+            walk(map.type, map.type.getDeclaredConstructor().newInstance(), prefix, docs, ArrayList(), properties)
+            if (map.name == storesMap) {
+                // An option several store types declare (a `client`) is one key, described for each type.
+                val declared = stores.flatMap { provider -> provider.options.map { provider to it } }
+                declared.groupBy { (_, option) -> option.key }.forEach { (key, byType) ->
+                    val (provider, option) = byType.first()
+                    properties += entry(
+                        "$prefix.$key",
+                        OPTION_TYPES[option.type] ?: option.type.name,
+                        provider.source.name,
+                        byType.joinToString(" ") { (type, it) -> "On ${type.type}: ${it.description.removeSuffix(".")}." },
+                    ) + defaultEntry(option)
+                }
+            }
+        }
+        val document = linkedMapOf("properties" to properties.distinctBy { it["name"] })
+        return WowJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(document) + "\n"
+    }
+
+    /** What the committed [file] of the maps' keys should be: [mapsDocument], rewritten first with [UPDATE] set. */
+    fun committedMaps(file: Path, document: String): Pair<String, String> {
+        if (System.getenv(UPDATE) != null) {
+            file.parent?.createDirectories()
+            file.writeText(document)
+        }
+        return file.readText() to document
+    }
+
+    /** A map of beans: its [name], how one of its entries is written ([entry]), and its values' [type]. */
+    class MapKeys(val name: String, val entry: String, val type: Class<*>)
+
     /** The keys without a description. */
     fun undocumented(): List<String> = WowJson.mapper.readTree(document())["properties"]
         .filter { it["description"]?.asString().isNullOrBlank() }
@@ -200,12 +242,7 @@ class ConfigurationMetadata(
         val source = provider.source.name
         groups += entry(prefix, source, null, provider.description)
         typeOptions.forEach { option ->
-            val default = when (val value = option.default) {
-                null -> emptyMap()
-                is kotlin.time.Duration -> mapOf("defaultValue" to value.toIsoString())
-                is Enum<*> -> mapOf("defaultValue" to ProviderOption.valueOf(value))
-                else -> mapOf("defaultValue" to value)
-            }
+            val default = defaultEntry(option)
             if (option.values.isNotEmpty()) {
                 hints += linkedMapOf(
                     "name" to "$prefix.${option.key}",
@@ -219,6 +256,13 @@ class ConfigurationMetadata(
                 option.description.replaceFirstChar(Char::uppercase),
             ) + default
         }
+    }
+
+    private fun defaultEntry(option: ProviderOption<*>): Map<String, Any?> = when (val value = option.default) {
+        null -> emptyMap()
+        is kotlin.time.Duration -> mapOf("defaultValue" to value.toIsoString())
+        is Enum<*> -> mapOf("defaultValue" to ProviderOption.valueOf(value))
+        else -> mapOf("defaultValue" to value)
     }
 
     private fun entry(name: String, type: String, sourceType: String?, description: String?): Map<String, Any?> =

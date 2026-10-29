@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 import java.util.ServiceLoader
 
 /**
@@ -49,6 +50,28 @@ class ConfigurationMetadataTest {
             }.map { ConfigurationMetadata.ProviderOptions.of(it) } +
             ConfigurationMetadata.ProviderOptions.of(DnsPeerDiscovery()),
     )
+
+    @Test
+    fun `the committed keys under the maps should be what their value classes and the store providers give`() {
+        val stores = ServiceLoader.load(StoreProvider::class.java).filter { it.type in WOW_STORES }.sortedBy { it.type }
+            .map { ConfigurationMetadata.ProviderOptions.of(it) }
+        val document = metadata.mapsDocument(
+            ConfigurationKeys.MAPS.map { ConfigurationMetadata.MapKeys(it.name, it.entry, it.type) },
+            storesMap = "wow.stores",
+            stores = stores,
+        )
+        val (committed, expected) = metadata.committedMaps(MAPS, document)
+        committed.assert().describedAs(
+            "Run with ${ConfigurationMetadata.UPDATE}=1 to rewrite $MAPS."
+        ).isEqualTo(expected)
+        WowJson.mapper.readTree(expected)["properties"].toList().map { it["name"].asString() }.assert().contains(
+            "wow.stores.<name>.type",
+            "wow.stores.<name>.query.max-concurrent",
+            "wow.stores.<name>.data-source",
+            "wow.aggregates.[<context>.<aggregate>].routing",
+            "wow.callers.<service>.commands",
+        )
+    }
 
     @Test
     fun `the committed metadata should be what the properties classes give`() {
@@ -93,6 +116,9 @@ class ConfigurationMetadataTest {
     }
 
     private companion object {
+        /** The keys under the maps of beans, read by the configuration reference (.github/scripts/docs-reference.mjs). */
+        val MAPS: Path = Path.of("src/test/resources/configuration-maps.json")
+
         /** Wow's own store types, whose options the host's metadata lists; a third party's ship their own. */
         val WOW_STORES = setOf("postgres", "mongo", "elasticsearch")
 
