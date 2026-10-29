@@ -15,6 +15,7 @@ package me.ahoo.wow.cocache
 
 import me.ahoo.cocache.api.Codec
 import me.ahoo.wow.spi.json.WowJson
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 /**
@@ -25,6 +26,9 @@ internal class StateViewCodec<V : Any>(private val viewType: Class<V>) : Codec<V
     override fun encode(value: V): ByteArray = MAPPER.writeValueAsBytes(value)
 
     override fun decode(bytes: ByteArray): V = MAPPER.readValue(bytes, viewType)
+
+    /** The view of [state], a state's JSON as the owner publishes it. */
+    fun viewOf(state: JsonNode): V = MAPPER.treeToValue(state, viewType)
 
     override fun toString(): String = "StateViewCodec(${viewType.name})"
 

@@ -14,6 +14,8 @@ public final class me/ahoo/wow/cocache/StateViewCaches {
 	public fun <init> (Lme/ahoo/wow/cocache/StateViewCaches$CacheFactory;Lkotlin/jvm/functions/Function0;)V
 	public final fun declare (Ljava/util/Collection;)V
 	public final fun of (Ljava/lang/Class;)Lme/ahoo/wow/cocache/api/StateViewCache;
+	public final fun writerOf (Ljava/lang/Class;Ljava/time/Duration;)Lme/ahoo/wow/cocache/StateViewWriter;
+	public static synthetic fun writerOf$default (Lme/ahoo/wow/cocache/StateViewCaches;Ljava/lang/Class;Ljava/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/cocache/StateViewWriter;
 }
 
 public abstract interface class me/ahoo/wow/cocache/StateViewCaches$CacheFactory {
@@ -31,14 +33,37 @@ public final class me/ahoo/wow/cocache/StateViewCaches$Companion {
 	public final fun typeOf (Ljava/lang/Class;)Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
+public final class me/ahoo/wow/cocache/StateViewWriter {
+	public final fun delete (Lme/ahoo/wow/cocache/api/StateKey;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun toString ()Ljava/lang/String;
+	public final fun write (Lme/ahoo/wow/cocache/api/StateKey;Ljava/lang/Object;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class me/ahoo/wow/cocache/WowCoCacheAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/cocache/WowCoCacheAutoConfiguration$Companion;
+	public static final field PROCESSOR Ljava/lang/String;
 	public fun <init> ()V
+	public final fun wowCoCacheSinks (Lme/ahoo/wow/cocache/StateViewCaches;Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 	public static final fun wowStateViewCacheRegistrar ()Lme/ahoo/wow/cocache/StateViewCacheRegistrar;
 	public final fun wowStateViewCaches (Lme/ahoo/cocache/core/CacheRuntime;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/cocache/StateViewCaches;
 }
 
 public final class me/ahoo/wow/cocache/WowCoCacheAutoConfiguration$Companion {
 	public final fun wowStateViewCacheRegistrar ()Lme/ahoo/wow/cocache/StateViewCacheRegistrar;
+}
+
+public final class me/ahoo/wow/cocache/WowCoCacheProperties {
+	public static final field Companion Lme/ahoo/wow/cocache/WowCoCacheProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field PUBLISH Ljava/lang/String;
+	public static final field TTL Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getPublish ()Ljava/util/List;
+	public final fun getTtl ()Ljava/time/Duration;
+	public final fun setPublish (Ljava/util/List;)V
+	public final fun setTtl (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/cocache/WowCoCacheProperties$Companion {
 }
 

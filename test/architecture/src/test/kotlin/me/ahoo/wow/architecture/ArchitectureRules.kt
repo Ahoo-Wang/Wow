@@ -264,9 +264,10 @@ object ArchitectureRules {
         // The cache of the state views a domain injects (decision D364): no dependency, so a domain module that
         // depends on it pulls in neither CoCache nor Redis.
         COCACHE_API to emptySet(),
-        // The views' cache through CoCache: the misses read through the node's typed queries and the views' JSON
-        // (spi), the views found in the peer contracts (manifest).
-        COCACHE to setOf("cocache-api", "manifest", "spi"),
+        // The views' cache through CoCache: the owner's sink subscriptions run on the runtime, the misses read
+        // through the node's typed queries, the views are found in the peer contracts (manifest). The host only for
+        // the tests, which generate the module's configuration metadata and check the host accepts its keys.
+        COCACHE to setOf("cocache-api", "manifest", "runtime", "spring-boot"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the

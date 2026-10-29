@@ -1,10 +1,10 @@
-description = "Wow CoCache: another context's aggregate states shared through CoCache, read as their " +
-    "generated views (StateViewCache)"
+description = "Wow CoCache: another context's aggregate states shared through CoCache, kept by the context " +
+    "that owns them and read as their generated views (StateViewCache)"
 
 dependencies {
     api(project(":cocache-api"))
-    // The node's typed queries that read a miss, and Wow's JSON of the views.
-    api(project(":spi"))
+    // The sink subscriptions that write the states, the node's typed queries that read a miss, Wow's JSON.
+    api(project(":runtime"))
     // The views the peer contracts on the class path name.
     implementation(project(":manifest"))
     api("me.ahoo.cocache:cocache-core")
@@ -19,6 +19,8 @@ dependencies {
     // ApplicationContextRunner, and the import selector that reads this module's auto-configuration metadata.
     testImplementation("org.springframework.boot:spring-boot-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-test")
+    // The generator of this module's configuration metadata, and the host's check of the keys against it (D302).
+    testImplementation(testFixtures(project(":spring-boot")))
     integrationTestImplementation("me.ahoo.cocache:cocache-redis")
     integrationTestImplementation("org.testcontainers:testcontainers")
 }

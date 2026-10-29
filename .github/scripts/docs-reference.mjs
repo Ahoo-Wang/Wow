@@ -36,6 +36,7 @@ const MODULE_METADATA = [
   ['Analytics catalog', 'platform/analytics/catalog/server'],
   ['View store', 'platform/view-store/view-store-server'],
   ['CosId', 'extensions/cosid'],
+  ['CoCache', 'extensions/cocache'],
 ].map(([title, dir]) => ({
   title,
   path: `${dir}/src/main/resources/META-INF/spring-configuration-metadata.json`,
@@ -62,14 +63,14 @@ const WORDS = {
       description:
         "Every key of the host's wow.* configuration, its type, default and meaning.",
       intro: count =>
-        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`; each map's own keys are listed below it, its entry written \`<name>\` or \`[<context>.<aggregate>]\`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services and of wow-cosid. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
+        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`; each map's own keys are listed below it, its entry written \`<name>\` or \`[<context>.<aggregate>]\`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
       head: '| Key | Type | Default | Description |',
     },
     moduleConfig: {
       title: 'Module Configuration Keys',
       description:
-        "The wow.* keys of the platform services and wow-cosid, generated from each module's metadata.",
-      intro: `The keys of the modules that ship their own configuration metadata: the platform services, which are Spring Boot applications of their own, and wow-cosid, which a host reads only with the module on its class path. Each section is generated from its module's \`spring-configuration-metadata.json\`; the host's keys are on [Configuration Keys](./configuration).`,
+        "The wow.* keys of the platform services, wow-cosid and wow-cocache, generated from each module's metadata.",
+      intro: `The keys of the modules that ship their own configuration metadata: the platform services, which are Spring Boot applications of their own, and wow-cosid and wow-cocache, which a host reads only with the module on its class path. Each section is generated from its module's \`spring-configuration-metadata.json\`; the host's keys are on [Configuration Keys](./configuration).`,
     },
     errors: {
       title: 'Error Codes',
@@ -142,13 +143,14 @@ const WORDS = {
       title: '配置项',
       description: '宿主 wow.* 配置的每个键：类型、默认值与含义。',
       intro: count =>
-        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`；每个映射自己的键列在它下面，条目写作 \`<name>\` 或 \`[<context>.<aggregate>]\`。[模块配置项](./module-configuration)列出平台服务与 wow-cosid 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
+        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`；每个映射自己的键列在它下面，条目写作 \`<name>\` 或 \`[<context>.<aggregate>]\`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
       head: '| 键 | 类型 | 默认值 | 说明 |',
     },
     moduleConfig: {
       title: '模块配置项',
-      description: '平台服务与 wow-cosid 的 wow.* 键，由各模块的元数据生成。',
-      intro: `自带配置元数据的模块的键：平台服务（各自是独立的 Spring Boot 应用），以及仅当 wow-cosid 在类路径上时宿主才读取的 CosId 键。每一节由对应模块的 \`spring-configuration-metadata.json\` 生成，说明取自源码，为英文；宿主的键见[配置项](./configuration)。`,
+      description:
+        '平台服务、wow-cosid 与 wow-cocache 的 wow.* 键，由各模块的元数据生成。',
+      intro: `自带配置元数据的模块的键：平台服务（各自是独立的 Spring Boot 应用），以及仅当 wow-cosid、wow-cocache 在类路径上时宿主才读取的 CosId、CoCache 键。每一节由对应模块的 \`spring-configuration-metadata.json\` 生成，说明取自源码，为英文；宿主的键见[配置项](./configuration)。`,
     },
     errors: {
       title: '错误码',
