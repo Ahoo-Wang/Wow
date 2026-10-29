@@ -95,12 +95,13 @@ internal fun KSType.javaTypeOf(): String? {
     }
     val raw = "${declaration.qualifiedName!!.asString()}::class.java"
     val arguments = arguments.joinToString(", ") { argument ->
-        val type = argument.type?.resolve()
-        when {
-            type == null || argument.variance == Variance.STAR -> "$TYPES.unbounded()"
-            argument.variance == Variance.COVARIANT -> "$TYPES.subtypeOf(${type.argumentOf()})"
-            argument.variance == Variance.CONTRAVARIANT -> "$TYPES.supertypeOf(${type.argumentOf()})"
-            else -> type.argumentOf()
+        // Only a star projection has no type.
+        fun type(): String = argument.type!!.resolve().argumentOf()
+        when (argument.variance) {
+            Variance.STAR -> "$TYPES.unbounded()"
+            Variance.COVARIANT -> "$TYPES.subtypeOf(${type()})"
+            Variance.CONTRAVARIANT -> "$TYPES.supertypeOf(${type()})"
+            Variance.INVARIANT -> type()
         }
     }
     return "$TYPES.parameterized($raw, $arguments)"

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
 /** The full types the generated code builds without reflection, and the lookup of a dependency by one. */
@@ -36,6 +37,7 @@ class TypesTest {
         val contravariant: Catalog<in Number>,
         val star: Catalog<*>,
         val inner: Outer.Inner<String>,
+        val array: Array<Catalog<String>>,
     )
 
     private val catalogName: String = Catalog::class.java.typeName
@@ -65,6 +67,26 @@ class TypesTest {
         val inner = Types.parameterized(Outer.Inner::class.java, String::class.java)
         inner.assert().isEqualTo(declared("inner"))
         inner.ownerType.assert().isEqualTo(Outer::class.java)
+    }
+
+    @Test
+    fun `a built type should equal no other type`() {
+        val covariant = Types.subtypeOf(Number::class.java)
+        covariant.assert().isEqualTo((declared("covariant") as ParameterizedType).actualTypeArguments[0])
+        covariant.assert().isEqualTo(covariant).isNotEqualTo(Types.subtypeOf(Integer::class.java))
+            .isNotEqualTo(Types.supertypeOf(Number::class.java)).isNotEqualTo(Number::class.java)
+        prices.assert().isEqualTo(prices).isNotEqualTo(Catalog::class.java)
+            .isNotEqualTo(Types.parameterized(Catalog::class.java, Integer::class.java))
+            .isNotEqualTo(Types.parameterized(Outer.Inner::class.java, String::class.java))
+    }
+
+    @Test
+    fun `the class of an array, a type variable or another type should be found as well`() {
+        Types.rawOf(declared("array")).assert()
+            .isEqualTo(java.lang.reflect.Array.newInstance(Catalog::class.java, 0).javaClass)
+        Types.rawOf(Catalog::class.java.typeParameters.single()).assert().isEqualTo(Any::class.java)
+        Types.rawOf(object : Type {}).assert().isEqualTo(Any::class.java)
+        Types.nameOf(prices).assert().isEqualTo("$catalogName<java.lang.String>")
     }
 
     @Test

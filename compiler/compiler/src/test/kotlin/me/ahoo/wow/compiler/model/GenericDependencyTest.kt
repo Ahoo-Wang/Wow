@@ -69,7 +69,11 @@ class GenericDependencyTest {
         }
 
         @Saga
-        class QuoteSaga(private val prices: Catalog<out Price>, private val anything: Catalog<*>) {
+        class QuoteSaga(
+            private val prices: Catalog<out Price>,
+            private val anything: Catalog<*>,
+            private val sinks: Catalog<in Price>,
+        ) {
             @OnEvent
             fun onQuoted(event: StateTypedEvent<CartState, Quoted>) = Unit
         }
@@ -110,6 +114,7 @@ class GenericDependencyTest {
                 ) -> tiers
                 Types.parameterized(Catalog::class.java, Types.subtypeOf(Price::class.java)) -> prices
                 Types.parameterized(Catalog::class.java, Types.unbounded()) -> tiers
+                Types.parameterized(Catalog::class.java, Types.supertypeOf(Price::class.java)) -> prices
                 else -> null
             }
         }
@@ -150,6 +155,8 @@ class GenericDependencyTest {
                 "$types.subtypeOf(sample.shop.Price::class.javaObjectType)), null, \"QuoteSaga\", \"prices\")",
             "$types.parameterized(sample.shop.Catalog::class.java, $types.unbounded()), null, \"QuoteSaga\", " +
                 "\"anything\")",
+            "$types.parameterized(sample.shop.Catalog::class.java, " +
+                "$types.supertypeOf(sample.shop.Price::class.javaObjectType)), null, \"QuoteSaga\", \"sinks\")",
         )
 
         val resources = generated(compilation, ModelProviderSource.MODEL_PROVIDER).parentFile.parentFile.parentFile
