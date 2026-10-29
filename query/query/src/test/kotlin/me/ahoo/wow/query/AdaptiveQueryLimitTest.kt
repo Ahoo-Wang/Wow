@@ -38,9 +38,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The adaptive limit of a store's query bulkhead (decision D252): additive increase while the writes are calm and the
- * limit holds queries back, multiplicative decrease after consecutive pressing periods, between the floor and the
- * ceiling; evaluated period by period, so each test drives the clock by calling [AdaptiveQueryLimit.evaluate].
+ * The adaptive limit of a store's query bulkhead (decision D252): additive increase while the writes are calm (to the
+ * start, or to the ceiling while the limit holds queries back), multiplicative decrease after consecutive pressing
+ * periods in which the queries contend, down to the floor; evaluated period by period, so each test drives the clock
+ * by calling [AdaptiveQueryLimit.evaluate].
  */
 class AdaptiveQueryLimitTest {
     /** A write pressure whose next sample is [next]. */
@@ -65,25 +66,38 @@ class AdaptiveQueryLimitTest {
         runCatching { bulkhead.run { } }
     }
 
+    /** Queries up to the limit of [bulkhead], whose `maxWait` is zero, and one refused beyond it; then they end. */
+    private fun crowd(bulkhead: QueryBulkhead) = runBlocking {
+        var taken = 0
+        while (runCatching { bulkhead.acquire() }.isSuccess) taken++
+        repeat(taken) { bulkhead.release() }
+    }
+
+    /** One period of [limit] in which its queries contend. */
+    private fun AdaptiveQueryLimit.contended() {
+        crowd(bulkhead)
+        evaluate()
+    }
+
     @Test
-    fun `two pressing periods in a row should halve the limit, one should not, down to the floor`() {
+    fun `two pressing periods in a row with contending queries should halve the limit, one should not`() {
         val pressure = Pressure()
-        val bulkhead = QueryBulkhead("main", 8, ceiling = 16)
+        val bulkhead = QueryBulkhead("main", 8, maxWait = Duration.ZERO, ceiling = 16)
         val limit = AdaptiveQueryLimit(bulkhead, pressure, AdaptiveLimitOptions(floor = 2))
         pressure.next = slow()
-        limit.evaluate()
+        limit.contended()
         limit.pressed.assert().isTrue()
         bulkhead.limit.assert().isEqualTo(8)
-        limit.evaluate()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(4)
         limit.decreases.assert().isEqualTo(1)
         // The count starts over: the next halving needs two more pressing periods.
-        limit.evaluate()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(4)
-        limit.evaluate()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(2)
-        limit.evaluate()
-        limit.evaluate()
+        limit.contended()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(2)
         limit.decreases.assert().isEqualTo(2)
         limit.lastSample.assert().isSameAs(pressure.next)
@@ -92,18 +106,77 @@ class AdaptiveQueryLimitTest {
     @Test
     fun `a calm period between pressing ones should reset the count`() {
         val pressure = Pressure()
-        val bulkhead = QueryBulkhead("main", 8)
+        val bulkhead = QueryBulkhead("main", 8, maxWait = Duration.ZERO)
         val limit = AdaptiveQueryLimit(bulkhead, pressure)
         pressure.next = slow()
-        limit.evaluate()
+        limit.contended()
         pressure.next = CALM
-        limit.evaluate()
+        limit.contended()
         limit.pressed.assert().isFalse()
         pressure.next = slow()
-        limit.evaluate()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(8)
-        limit.evaluate()
+        limit.contended()
         bulkhead.limit.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `pressing periods in which no query contends should leave the limit`() {
+        // A store that only writes for a while, slower than its baseline: its queries have nothing to give way.
+        val pressure = Pressure().apply { next = slow() }
+        val bulkhead = QueryBulkhead("main", 25, maxWait = Duration.ZERO, ceiling = 50)
+        val limit = AdaptiveQueryLimit(bulkhead, pressure)
+        repeat(60) { limit.evaluate() }
+        limit.pressed.assert().isTrue()
+        bulkhead.limit.assert().isEqualTo(25)
+        limit.decreases.assert().isZero()
+        // A pressing period without contention starts the count over: one with it alone does not halve.
+        limit.contended()
+        bulkhead.limit.assert().isEqualTo(25)
+        limit.evaluate()
+        limit.contended()
+        bulkhead.limit.assert().isEqualTo(25)
+        limit.contended()
+        bulkhead.limit.assert().isEqualTo(12)
+    }
+
+    @Test
+    fun `a lowered limit should climb back to its start once the writes are calm, with no query, and above it on demand`() {
+        val pressure = Pressure()
+        val bulkhead = QueryBulkhead("main", 8, maxWait = Duration.ZERO, ceiling = 12)
+        val limit = AdaptiveQueryLimit(bulkhead, pressure)
+        pressure.next = slow()
+        repeat(6) { limit.contended() }
+        bulkhead.limit.assert().isEqualTo(1)
+        // The writes calm down and no query comes: one a period, back to the start and no further.
+        pressure.next = CALM
+        repeat(6) { limit.evaluate() }
+        bulkhead.limit.assert().isEqualTo(7)
+        repeat(10) { limit.evaluate() }
+        bulkhead.limit.assert().isEqualTo(8)
+        // Queries the limit holds back take it above its start, up to the ceiling.
+        repeat(10) { limit.contended() }
+        bulkhead.limit.assert().isEqualTo(12)
+        // A limit above its start that nothing holds back stays: it is lowered only under pressure.
+        repeat(5) { limit.evaluate() }
+        bulkhead.limit.assert().isEqualTo(12)
+    }
+
+    @Test
+    fun `contending queries at a steady latency over a quiet baseline should not saw the limit`() {
+        // The store's appends take 15 to 30 ms a period over a 6 ms baseline, with queries at the limit throughout:
+        // a busy store, but none of these periods is 20 ms slower than its normal latency.
+        val pressure = Pressure()
+        val bulkhead = QueryBulkhead("main", 4, maxWait = Duration.ZERO, ceiling = 16)
+        val limit = AdaptiveQueryLimit(bulkhead, pressure)
+        listOf(15L, 22L, 18L, 25L, 17L, 21L).let { millis ->
+            repeat(60) {
+                pressure.next = WritePressureSample(50, millis[it % millis.size].milliseconds, 6.milliseconds, 0)
+                limit.contended()
+            }
+        }
+        limit.decreases.assert().isZero()
+        bulkhead.limit.assert().isEqualTo(16)
     }
 
     @Test
@@ -164,7 +237,7 @@ class AdaptiveQueryLimitTest {
     }
 
     @Test
-    fun `latency should press only above the factor of its baseline and the least latency, with both known`() {
+    fun `latency should press only above the factor of its baseline and the least rise, with both known`() {
         val pressure = Pressure()
         val limit = AdaptiveQueryLimit(QueryBulkhead("main", 4), pressure)
         fun presses(sample: WritePressureSample): Boolean {
@@ -172,14 +245,29 @@ class AdaptiveQueryLimitTest {
             limit.evaluate()
             return limit.pressed
         }
-        presses(WritePressureSample(10, 16.milliseconds, 10.milliseconds, 0)).assert().isTrue()
-        presses(WritePressureSample(10, 15.milliseconds, 10.milliseconds, 0)).assert().isFalse()
-        // Sub-millisecond noise: three times the baseline, below the least pressing latency.
-        presses(WritePressureSample(10, 3.milliseconds, 1.milliseconds, 0)).assert().isFalse()
+        presses(WritePressureSample(10, 41.milliseconds, 20.milliseconds, 0)).assert().isTrue()
+        // Above the factor, but only 11 ms above the baseline.
+        presses(WritePressureSample(10, 31.milliseconds, 20.milliseconds, 0)).assert().isFalse()
+        // 20 ms above the baseline, but not above the factor.
+        presses(WritePressureSample(10, 60.milliseconds, 40.milliseconds, 0)).assert().isFalse()
+        presses(WritePressureSample(10, 28.milliseconds, 8.milliseconds, 0)).assert().isTrue()
+        presses(WritePressureSample(10, 27.milliseconds, 8.milliseconds, 0)).assert().isFalse()
         presses(WritePressureSample(10, null, 10.milliseconds, 0)).assert().isFalse()
         presses(WritePressureSample(10, 50.milliseconds, null, 0)).assert().isFalse()
         presses(WritePressureSample.NONE).assert().isFalse()
         presses(WritePressureSample(0, null, null, 2)).assert().isTrue()
+    }
+
+    @Test
+    fun `a store of millisecond appends should not press on a millisecond of noise`() {
+        // PostgreSQL on a near network: a 1 ms baseline, a 2 ms period; twice the baseline, far below the least rise.
+        val pressure = Pressure().apply { next = WritePressureSample(200, 2.milliseconds, 1.milliseconds, 0) }
+        val bulkhead = QueryBulkhead("main", 4, maxWait = Duration.ZERO)
+        val limit = AdaptiveQueryLimit(bulkhead, pressure)
+        repeat(10) { limit.contended() }
+        limit.pressed.assert().isFalse()
+        limit.decreases.assert().isZero()
+        bulkhead.limit.assert().isEqualTo(4)
     }
 
     @Test
@@ -266,11 +354,11 @@ class AdaptiveQueryLimitTest {
         assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(floor = 0) }
         assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(interval = Duration.ZERO) }
         assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(latencyFactor = 1.0) }
-        assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(minLatency = (-1).milliseconds) }
+        assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(minRise = (-1).milliseconds) }
         assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(connectionWaits = 0) }
         assertThrows<IllegalArgumentException> { AdaptiveLimitOptions(periods = 0) }
         AdaptiveLimitOptions.DEFAULT.toString().assert().isEqualTo(
-            "AdaptiveLimitOptions(floor=1, interval=1s, latencyFactor=1.5, minLatency=5ms, connectionWaits=1, periods=2)"
+            "AdaptiveLimitOptions(floor=1, interval=1s, latencyFactor=1.5, minRise=20ms, connectionWaits=1, periods=2)"
         )
         assertThrows<IllegalArgumentException> { AdaptiveQueryLimits(emptyList(), Duration.ZERO) }
     }
@@ -279,8 +367,12 @@ class AdaptiveQueryLimitTest {
     fun `the limits should be evaluated every interval from start to close, a failing one logged`() {
         val dispatcher = StandardTestDispatcher()
         val scope = TestScope(dispatcher)
-        val pressure = Pressure().apply { next = slow() }
-        val bulkhead = QueryBulkhead("main", 8)
+        val bulkhead = QueryBulkhead("main", 8, maxWait = Duration.ZERO)
+        // Each period's queries contend with the writes: the pressure crowds the bulkhead as it is sampled.
+        val pressure = WritePressure {
+            crowd(bulkhead)
+            slow()
+        }
         val failing = AdaptiveQueryLimit(QueryBulkhead("broken", 2), WritePressure { error("no sample") })
         val limits = AdaptiveQueryLimits(listOf(failing, AdaptiveQueryLimit(bulkhead, pressure)), 1.seconds, dispatcher)
         limits.start()

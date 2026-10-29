@@ -1050,6 +1050,39 @@ jobs:
           path: platform/analytics/catalog/console/test-results/
           retention-days: 7
 
+  # Codecov holds every notification of a commit, its statuses and its pull
+  # request comment, until this job triggers them (codecov.yml:
+  # codecov.notify.manual_trigger), once every job that uploads coverage has
+  # finished: Codecov judges the run on all of its uploads, never on a partial
+  # report. It runs when any of those jobs ran, after a failed one too (its
+  # flags then fall short of after_n_builds, and Codecov posts nothing that
+  # reads them), and is skipped when none ran or the run was cancelled.
+  coverage-notify:
+    name: Coverage notify
+    needs: [check, integration, unit, view-engine]
+    if: >-
+      !cancelled() &&
+      (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
+      needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Codecov through OIDC, as the uploads.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: codecov.yml
+      - name: Send Codecov's notifications
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          run_command: send-notifications
+          fail_ci_if_error: true
+          verbose: true
+
   # The merge signal: every job above passed, or the scope skipped it.
   ci-gate:
     name: ci-gate
@@ -1080,6 +1113,7 @@ jobs:
         ops-console-e2e,
         catalog-console,
         catalog-console-e2e,
+        coverage-notify,
       ]
     if: always()
     # The patch coverage wait below is bounded at 15 minutes.
@@ -1089,8 +1123,6 @@ jobs:
       contents: read
       # Codecov's check runs on the pull request's head commit.
       checks: read
-      # This run's jobs, for when its coverage uploads were done.
-      actions: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1104,33 +1136,25 @@ jobs:
             esac
           done
       # Patch coverage is part of the merge signal: on a pull request whose run
-      # uploaded coverage (the JVM check or shards, the TypeScript units or
-      # view-engine), Codecov's codecov/patch on the head commit must pass
-      # (codecov.yml: 90%, threshold 1%). The newest codecov/patch that Codecov
-      # started after this run's coverage uploads decides; without one, an
-      # earlier one counts only if it passed (an earlier failure may be judged
-      # on carried-forward coverage, and Codecov does not post an unchanged
-      # result again). A run without coverage leaves it out, so a required
-      # codecov/patch never blocks a change Codecov does not see. A head that
-      # carried forward fewer JVM sessions than codecov.yml's after_n_builds
-      # (its main commit was pushed while the parent's shards were uploading)
-      # is never judged; the script reads Codecov's uploads API and fails at
-      # once with the first-parent merge that repairs it, and waits as before
-      # when that API cannot be read.
+      # uploaded coverage and triggered Codecov's notifications
+      # (coverage-notify), Codecov's codecov/patch on the head commit must pass
+      # (codecov.yml: 90%, threshold 1%). Codecov posts it only after that
+      # trigger, judged on every upload of the run, and the newest one decides.
+      # A run without coverage leaves it out, so a required codecov/patch never
+      # blocks a change Codecov does not see. A head that carried forward fewer
+      # JVM sessions than codecov.yml's after_n_builds (its main commit was
+      # pushed while the parent's shards were uploading) is never judged; the
+      # script reads Codecov's uploads API and fails at once with the
+      # first-parent merge that repairs it, and waits as before when that API
+      # cannot be read.
       - name: Check out the gate script
-        if: >-
-          github.event_name == 'pull_request' &&
-          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
-          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        if: github.event_name == 'pull_request' && needs.coverage-notify.result == 'success'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: .github/scripts
       - name: Require Codecov's patch status to pass
-        if: >-
-          github.event_name == 'pull_request' &&
-          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
-          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        if: github.event_name == 'pull_request' && needs.coverage-notify.result == 'success'
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
