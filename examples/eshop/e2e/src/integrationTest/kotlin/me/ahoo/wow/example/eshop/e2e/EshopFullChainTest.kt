@@ -116,7 +116,7 @@ class EshopFullChainTest {
 
         // As server-sent events: one per hop reached, the last of them the chain's end, then the stream closes.
         val streamed = stack.basket.post(
-            "/eshop-basket/basket/frank/checkout-basket",
+            "/eshop-basket/basket/checkout-basket",
             "{}",
             mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s", "Accept" to "text/event-stream") +
                 EshopStack.buyer("frank"),
@@ -306,7 +306,7 @@ class EshopFullChainTest {
 
     private fun addItem(buyer: String, product: String, price: String, quantity: Int) {
         val added = stack.basket.post(
-            "/eshop-basket/basket/$buyer/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
             EshopStack.buyer(buyer),
         )
@@ -314,7 +314,7 @@ class EshopFullChainTest {
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = stack.basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers + EshopStack.buyer(buyer))
+        val checkedOut = stack.basket.post("/eshop-basket/basket/checkout-basket", "{}", headers + EshopStack.buyer(buyer))
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }

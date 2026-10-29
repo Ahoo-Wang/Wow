@@ -66,10 +66,10 @@ describe("the checkout", () => {
       ["POST", /checkout-basket$/, () => ({ events: hops(15) })],
     ]);
     const seen: CheckoutProgress[] = [];
-    const progress = await checkout(shopClients(ALICE, transport), "alice", (p) =>
+    const progress = await checkout(shopClients(ALICE, transport), (p) =>
       seen.push(p),
     );
-    expect(received[0].path).toBe("/eshop-basket/basket/alice/checkout-basket");
+    expect(received[0].path).toBe("/eshop-basket/basket/checkout-basket");
     expect(received[0].headers["wow-wait"]).toBe(README_CHAIN);
     expect(received[0].headers["wow-wait-timeout"]).toBe("30s");
     expect(received[0].headers.accept).toBe("text/event-stream");
@@ -92,7 +92,7 @@ describe("the checkout", () => {
     const { transport } = fakeServices([
       ["POST", /checkout-basket$/, () => ({ events: [...hops(6), rejected] })],
     ]);
-    const progress = await checkout(shopClients(ALICE, transport), "alice", () => {});
+    const progress = await checkout(shopClients(ALICE, transport), () => {});
     expect(progress.results).toHaveLength(7);
     expect(progress.failure).toBe(progress.results[6]);
     expect(progress.done).toBe(true);
@@ -108,7 +108,7 @@ describe("the checkout", () => {
     const { transport } = fakeServices([
       ["POST", /checkout-basket$/, () => ({ events: [...events.slice(0, 13), ended] })],
     ]);
-    const progress = await checkout(shopClients(ALICE, transport), "alice", () => {});
+    const progress = await checkout(shopClients(ALICE, transport), () => {});
     expect(progress.results).toHaveLength(14);
     expect(progress.ended).toEqual(ended);
     expect(progress.failure).toBeUndefined();
@@ -120,7 +120,7 @@ describe("the checkout", () => {
     const { transport } = fakeServices([
       ["POST", /checkout-basket$/, () => ({ events: hops(15) })],
     ]);
-    const progress = await checkout(shopClients(ALICE, transport), "alice", () => {});
+    const progress = await checkout(shopClients(ALICE, transport), () => {});
     expect(isPaid(progress)).toBe(true);
     expect(isPaid({ ...progress, done: false })).toBe(false);
     expect(isPaid({ results: [], done: true })).toBe(false);
@@ -134,7 +134,7 @@ describe("the checkout", () => {
         () => problemAnswer(422, "Unprocessable", "eshop-basket.basket.empty"),
       ],
     ]);
-    const failure = checkout(shopClients(ALICE, transport), "alice", () => {});
+    const failure = checkout(shopClients(ALICE, transport), () => {});
     await expect(failure).rejects.toBeInstanceOf(WowProblemError);
     await expect(failure).rejects.toMatchObject({
       code: "eshop-basket.basket.empty",

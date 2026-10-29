@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
@@ -51,15 +52,25 @@ class BasketSpec {
     }
 
     @Test
-    fun `another buyer should not create the basket`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
-            expectRejected(Basket.Rejections.NOT_OWNER)
+    fun `a caller with no owner should create the basket for the buyer whose id it has`() = basketSpec {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2)) {
+            expectEvents(BasketItemAdded(MUG, MUG_PRICE, 2))
+            expectScope(Scope(ownerId = BUYER))
         }
     }
 
     @Test
+    fun `another buyer should be forbidden the basket`() = basketSpec {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
+            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        }
+        givenCommands(AddBasketItem(MUG, MUG_PRICE, 2))
+        whenCommand(ClearBasket, scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+    }
+
+    @Test
     fun `adding a product again should add to its quantity at the new price`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2))
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), scope = OWNED)
         whenCommand(AddBasketItem(MUG, BigDecimal("9.00"), 1)) {
             expectEvents(BasketItemAdded(MUG, BigDecimal("9.00"), 1))
             expectState { items.assert().containsExactly(BasketItem(MUG, BigDecimal("9.00"), 3)) }
@@ -68,7 +79,7 @@ class BasketSpec {
 
     @Test
     fun `changing a quantity should replace it`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
         whenCommand(ChangeBasketItemQuantity(MUG, 5)) {
             expectEvents(BasketItemQuantityChanged(MUG, 5))
             expectState {
@@ -81,7 +92,7 @@ class BasketSpec {
 
     @Test
     fun `removing an item should take it out of the basket`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
         whenCommand(RemoveBasketItem(MUG)) {
             expectEvents(BasketItemRemoved(MUG))
             expectState { items.assert().containsExactly(BasketItem(CAP, CAP_PRICE, 1)) }
@@ -91,7 +102,7 @@ class BasketSpec {
 
     @Test
     fun `clearing should empty the basket`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2))
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), scope = OWNED)
         whenCommand(ClearBasket) {
             expectEvents(BasketCleared)
             expectState { items.assert().isEmpty() }
@@ -101,7 +112,7 @@ class BasketSpec {
 
     @Test
     fun `checking out should empty the basket into a numbered order`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
         val items = listOf(BasketItem(MUG, MUG_PRICE, 2), BasketItem(CAP, CAP_PRICE, 1))
         whenCommand(CheckoutBasket) {
             expectEvents(BasketCheckedOut("$BUYER-1", items))
@@ -119,12 +130,15 @@ class BasketSpec {
 
     @Test
     fun `an empty basket should not be checked out`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketCleared)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketCleared, scope = OWNED)
         whenCommand(CheckoutBasket) { expectRejected(Basket.Rejections.EMPTY) }
     }
 
     private companion object {
         const val BUYER = "alice"
+
+        /** The scope of the buyer's basket: its owner is the buyer whose id it has, as its history records it. */
+        val OWNED = Scope(ownerId = BUYER)
         const val MUG = "mug"
         const val CAP = "cap"
         val MUG_PRICE = BigDecimal("8.50")

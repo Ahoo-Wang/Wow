@@ -106,7 +106,7 @@ describe("the shop", () => {
       "Added Wow mug to your basket.",
     );
     const add = received.find((r) => r.path.endsWith("add-basket-item"));
-    expect(add?.path).toBe("/eshop-basket/basket/alice/add-basket-item");
+    expect(add?.path).toBe("/eshop-basket/basket/add-basket-item");
     expect(add?.body).toEqual({ productId: "mug", unitPrice: 8.5, quantity: 1 });
   });
 

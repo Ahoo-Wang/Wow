@@ -376,7 +376,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "AddBasketItem",
-        "description" : "Add an item to the basket. Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `BasketItemAdded`.",
+        "description" : "Add an item to the basket. Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id. Produces `BasketItemAdded`.",
         "operationId" : "eshop-basket.basket.AddBasketItem.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -555,6 +555,94 @@
         }
       }
     },
+    "/eshop-basket/basket/change-basket-item-quantity" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "ChangeBasketItemQuantity",
+        "description" : "Change an item's quantity. Sends `eshop-basket.basket.ChangeBasketItemQuantity`. Acts on an aggregate that exists. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id. Produces `BasketItemQuantityChanged`.",
+        "operationId" : "eshop-basket.basket.ChangeBasketItemQuantity.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-basket.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-basket.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-basket.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-basket.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-basket.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-basket.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-basket.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-basket.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-basket.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-basket.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-basket.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-basket.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-basket.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-basket.basket.ChangeBasketItemQuantity",
+          "creation" : "none",
+          "produces" : [ "BasketItemQuantityChanged" ]
+        }
+      }
+    },
     "/eshop-basket/basket/{id}/checkout-basket" : {
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
@@ -623,6 +711,94 @@
           },
           "412" : {
             "$ref" : "#/components/responses/eshop-basket.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-basket.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-basket.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-basket.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-basket.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-basket.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-basket.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-basket.basket.CheckoutBasket",
+          "creation" : "none",
+          "produces" : [ "BasketCheckedOut" ]
+        }
+      }
+    },
+    "/eshop-basket/basket/checkout-basket" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "CheckoutBasket",
+        "description" : "Check the basket out. Sends `eshop-basket.basket.CheckoutBasket`. Acts on an aggregate that exists. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id. Produces `BasketCheckedOut`.",
+        "operationId" : "eshop-basket.basket.CheckoutBasket.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-basket.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-basket.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-basket.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-basket.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-basket.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-basket.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-basket.command.410"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-basket.command.415"
@@ -745,6 +921,94 @@
         }
       }
     },
+    "/eshop-basket/basket/clear-basket" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "ClearBasket",
+        "description" : "Clear the basket. Sends `eshop-basket.basket.ClearBasket`. Acts on an aggregate that exists. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id. Produces `BasketCleared`.",
+        "operationId" : "eshop-basket.basket.ClearBasket.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-basket.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-basket.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-basket.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-basket.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-basket.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-basket.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-basket.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-basket.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-basket.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-basket.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-basket.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-basket.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-basket.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-basket.basket.ClearBasket",
+          "creation" : "none",
+          "produces" : [ "BasketCleared" ]
+        }
+      }
+    },
     "/eshop-basket/basket/{id}/remove-basket-item" : {
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
@@ -813,6 +1077,94 @@
           },
           "412" : {
             "$ref" : "#/components/responses/eshop-basket.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-basket.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-basket.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-basket.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-basket.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-basket.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-basket.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-basket.basket.RemoveBasketItem",
+          "creation" : "none",
+          "produces" : [ "BasketItemRemoved" ]
+        }
+      }
+    },
+    "/eshop-basket/basket/remove-basket-item" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "RemoveBasketItem",
+        "description" : "Remove an item from the basket. Sends `eshop-basket.basket.RemoveBasketItem`. Acts on an aggregate that exists. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id. Produces `BasketItemRemoved`.",
+        "operationId" : "eshop-basket.basket.RemoveBasketItem.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-basket.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-basket.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-basket.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-basket.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-basket.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-basket.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-basket.command.410"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-basket.command.415"
@@ -927,6 +1279,86 @@
         }
       }
     },
+    "/eshop-basket/basket/wow.lifecycle.apply-tags" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "ApplyTags",
+        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.wow.lifecycle.ApplyTags.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
     "/eshop-basket/basket/{id}" : {
       "delete" : {
         "tags" : [ "eshop-basket.basket" ],
@@ -995,6 +1427,86 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-basket/basket" : {
+      "delete" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "DeleteAggregate",
+        "description" : "Sends the lifecycle command `wow.lifecycle.DeleteAggregate`. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.wow.lifecycle.DeleteAggregate.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.DeleteAggregate"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -1101,15 +1613,13 @@
         }
       }
     },
-    "/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner" : {
+    "/eshop-basket/basket/wow.lifecycle.restore-aggregate" : {
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
-        "summary" : "TransferOwner",
-        "description" : "Sends the lifecycle command `wow.lifecycle.TransferOwner`.",
-        "operationId" : "eshop-basket.basket.wow.lifecycle.TransferOwner",
+        "summary" : "RestoreAggregate",
+        "description" : "Sends the lifecycle command `wow.lifecycle.RestoreAggregate`. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.wow.lifecycle.RestoreAggregate.withoutId",
         "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
           "$ref" : "#/components/parameters/Wow-Request-Id"
         }, {
           "$ref" : "#/components/parameters/Wow-Wait"
@@ -1125,8 +1635,6 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -1134,7 +1642,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/wow.lifecycle.TransferOwner"
+                "$ref" : "#/components/schemas/wow.lifecycle.RestoreAggregate"
               }
             }
           }
@@ -1166,9 +1674,6 @@
           },
           "410" : {
             "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -1256,6 +1761,86 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-basket/basket/wow.lifecycle.transfer-space" : {
+      "post" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "TransferSpace",
+        "description" : "Sends the lifecycle command `wow.lifecycle.TransferSpace`. The request names no aggregate id: it acts on the caller's own aggregate, whose id is the caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.command.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.wow.lifecycle.TransferSpace.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.TransferSpace"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -1434,6 +2019,136 @@
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
         }, {
+          "$ref" : "#/components/parameters/from"
+        }, {
+          "$ref" : "#/components/parameters/to"
+        }, {
+          "$ref" : "#/components/parameters/limit"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.StateTrace",
+                  "properties" : {
+                    "commits" : {
+                      "type" : "array",
+                      "items" : {
+                        "properties" : {
+                          "state" : {
+                            "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.domain.basket.BasketState"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.state.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.state.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.state.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.state.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.state.406"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.state.429"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.state.503"
+          }
+        }
+      }
+    },
+    "/eshop-basket/basket/state" : {
+      "get" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "The aggregate's state",
+        "description" : "The latest state, the state at `version`, the state as of `at`, or the latest state at `minVersion` or later (409 `wow.query.min-version-not-reached` with the current `version` when it is not committed within the wait). The path names no aggregate id: it reads the caller's own aggregate, whose id is the owner the caller reads as; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.query.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.state.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/version"
+        }, {
+          "$ref" : "#/components/parameters/at"
+        }, {
+          "$ref" : "#/components/parameters/minVersion"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/If-None-Match"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The state; its ETag is its version and a digest of the body (`\"3-<digest>\"`).",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.StateView",
+                  "properties" : {
+                    "state" : {
+                      "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.domain.basket.BasketState"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not Modified: the state is still the one If-None-Match names."
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.state.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.state.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.state.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.state.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.state.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.state.409"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.state.429"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.state.503"
+          }
+        }
+      }
+    },
+    "/eshop-basket/basket/state/trace" : {
+      "get" : {
+        "tags" : [ "eshop-basket.basket" ],
+        "summary" : "The aggregate's commits",
+        "description" : "The commits from `from` to `to`, at most `limit`, each with its events and the state after it; the next page starts after the last commit's version. The path names no aggregate id: it reads the caller's own aggregate, whose id is the owner the caller reads as; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 `wow.query.malformed`: it names the id.",
+        "operationId" : "eshop-basket.basket.state.trace.withoutId",
+        "parameters" : [ {
           "$ref" : "#/components/parameters/from"
         }, {
           "$ref" : "#/components/parameters/to"
@@ -3069,6 +3784,15 @@
         "type" : "object",
         "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
       },
+      "wow.lifecycle.TransferOwner" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "ownerId" ]
+      },
       "wow.schedule.Enable" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
@@ -3334,16 +4058,6 @@
       "wow.lifecycle.RestoreAggregate" : {
         "type" : "object",
         "description" : "Takes back the deletion of a deleted aggregate."
-      },
-      "wow.lifecycle.TransferOwner" : {
-        "type" : "object",
-        "properties" : {
-          "ownerId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "ownerId" ],
-        "description" : "Gives the aggregate to the owner ownerId."
       },
       "wow.lifecycle.TransferSpace" : {
         "type" : "object",
@@ -3648,7 +4362,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "eshop-basket.command.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.\n`eshop-basket.basket.not-owner`: A basket belongs to the buyer whose id it has.",
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3656,7 +4370,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden", "eshop-basket.basket.not-owner" ]
+        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
       },
       "eshop-basket.command.404" : {
         "description" : "`wow.aggregate.not-found`: The aggregate does not exist.\n`eshop-basket.basket.item-not-found`: The basket does not hold the product.",
