@@ -84,7 +84,7 @@ internal class ManifestPeers(
 
     private suspend fun fetch(context: String, caller: Caller, call: CallWire?): Manifest {
         val request = PeerRequest(context = context, path = MANIFEST_PATH, caller = caller, call = call)
-        return when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
+        return when (val answer = transport.exchange(request, Exchange.QUERY)) {
             is Answer.Ok -> ManifestTree.read(ClientJson.mapper.readValue(answer.value, Map::class.java)) {
                 peersLogger.warn { "The Manifest of $context: $it" }
             }

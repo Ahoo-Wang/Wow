@@ -15,8 +15,8 @@ package me.ahoo.wow.spring.boot
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.node.SubscriptionFactory

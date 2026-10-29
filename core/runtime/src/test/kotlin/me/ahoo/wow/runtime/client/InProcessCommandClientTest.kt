@@ -23,8 +23,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.client.send
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Command

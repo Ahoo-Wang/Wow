@@ -19,8 +19,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.manifest.FrameworkErrors

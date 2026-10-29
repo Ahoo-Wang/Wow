@@ -5,10 +5,11 @@ dependencies {
     testImplementation(project(":tck"))
     // The stability markers (decision D282), so the Manifest can hide what it promises nothing about.
     api(project(":annotations"))
+    // The error catalog's retry (D366 ②), the one Retry of the programming model's problems.
+    api(project(":api"))
     // Only to show that the plain tree of ManifestTree is what a JSON library writes and reads back.
     testImplementation("tools.jackson.module:jackson-module-kotlin")
     // Only to validate what ManifestTree writes against ManifestSchema.
     testImplementation(libs.json.schema.validator)
     // Only to hold the contract's vocabulary (error codes, Creation, Ownership) to the programming model's (D294).
-    testImplementation(project(":api"))
 }

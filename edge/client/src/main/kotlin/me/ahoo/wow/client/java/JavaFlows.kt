@@ -33,7 +33,7 @@ import java.util.stream.StreamSupport
  * How the Java facade runs the suspending API: a blocking call on the caller's thread, which
  * must not be a non-blocking event loop (a Netty or WebFlux thread); an asynchronous one on [Dispatchers.Default],
  * whose [CompletableFuture] completes with the call's result or its exception, the same [me.ahoo.wow.api.client.
- * CommandRejectedException] or [me.ahoo.wow.api.client.WowProblemException] the blocking call throws.
+ * CommandRejectedException] or [me.ahoo.wow.api.problem.WowProblemException] the blocking call throws.
  */
 internal object JavaFlows {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

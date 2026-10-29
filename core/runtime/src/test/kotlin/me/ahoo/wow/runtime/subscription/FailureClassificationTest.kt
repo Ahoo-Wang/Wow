@@ -14,8 +14,8 @@
 package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.client
 
+import java.net.http.HttpTimeoutException
+import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -64,11 +66,49 @@ internal sealed interface Answer<out T> {
 }
 
 /**
+ * The kind of a request, as the transport treats it: the problems it sends it again for ([retries]), and the catalog
+ * code of one it sent and got no answer to: a command's outcome is then unknown (`wow.command.unknown`, sent again with
+ * its request id), a query's repeats nothing (`wow.peer.unavailable`, or `wow.query.timeout` once its timeout passed).
+ * A request no node of the peer took, never sent, is `wow.peer.unavailable` whatever its kind.
+ */
+internal enum class Exchange(val retries: (PeerProblem) -> Boolean) {
+    /** A command of a [CommandClient][me.ahoo.wow.api.client.CommandClient], sent again with its request id. */
+    COMMAND(PeerProblem::retriesCommand),
+
+    /** A query, or a read of a peer's Manifest. */
+    QUERY(PeerProblem::retriesQuery),
+
+    /** A saga's synchronous call, never sent again here: its subscription's retries are the ones that count. */
+    CALL({ false });
+
+    /** The problem of [request], sent and [failure] before it was answered. */
+    fun unanswered(request: PeerRequest, failure: IOException): PeerProblem = when {
+        this != QUERY -> PeerProblem.of(
+            FrameworkErrors.COMMAND_UNKNOWN,
+            "The command sent to ${request.context} was not answered ($failure): whether it committed is unknown.",
+            failure,
+        )
+        failure is HttpTimeoutException -> PeerProblem.of(
+            FrameworkErrors.QUERY_TIMEOUT,
+            "The query sent to ${request.context} was not answered within its timeout.",
+            failure,
+        )
+        else -> PeerProblem.of(
+            FrameworkErrors.PEER_UNAVAILABLE,
+            "The connection to ${request.context} was lost before it answered ($failure).",
+            failure,
+        )
+    }
+}
+
+/**
  * The HTTP exchanges of the clients with the peers, on the JDK [client]: each request goes to the base
  * URL [endpoints] gives its context on the [mode]'s port, asked again for every attempt; it carries, in service mode,
  * the service's name (`Wow-Service`) and the root context (`Wow-Call`), in user mode the end user's
  * forwarded credential headers, and the trace the coroutine runs in; it is answered within its
  * context's timeout of [timeouts], else [timeout] (the response's head, for a stream), and retried as [retry] says.
+ * A failure of its own (no node reached, a connection lost, no answer in time) it answers as a problem of the error
+ * catalog, as its [Exchange] says, the failure its cause: a caller sees one kind of failure, whatever met it.
  */
 internal class HttpTransport(
     val endpoints: EndpointResolver,
@@ -86,9 +126,9 @@ internal class HttpTransport(
     /** How long a request to [context] may take until its peer answers it. */
     fun timeoutOf(context: String): Duration = timeouts[context] ?: timeout
 
-    /** [request] answered as bytes, retried while [retries] says so of its problem. */
-    suspend fun exchange(request: PeerRequest, retries: (PeerProblem) -> Boolean): Answer<ByteArray> =
-        withRetries(request, retries) { base ->
+    /** [request] answered as bytes, retried as its [kind] says of its problem. */
+    suspend fun exchange(request: PeerRequest, kind: Exchange): Answer<ByteArray> =
+        withRetries(request, kind) { base ->
             val response = client.sendAsync(
                 build(request, base, JSON_ACCEPT),
                 HttpResponse.BodyHandlers.ofByteArray()
@@ -102,12 +142,12 @@ internal class HttpTransport(
         }
 
     /**
-     * [request] answered as a `text/event-stream`, its lines once the response's head says it is one, retried while
-     * [retries] says so of its problem; a 2xx response of another type (a peer that answered with one JSON document)
+     * [request] answered as a `text/event-stream`, its lines once the response's head says it is one, retried as its
+     * [kind] says of its problem; a 2xx response of another type (a peer that answered with one JSON document)
      * is its body read whole, as the data of one event.
      */
-    suspend fun stream(request: PeerRequest, retries: (PeerProblem) -> Boolean): Answer<Flow<String>> =
-        withRetries(request, retries) { base ->
+    suspend fun stream(request: PeerRequest, kind: Exchange): Answer<Flow<String>> =
+        withRetries(request, kind) { base ->
             val response = client.sendAsync(
                 build(request, base, EVENT_STREAM),
                 HttpResponse.BodyHandlers.ofPublisher()
@@ -128,11 +168,12 @@ internal class HttpTransport(
      * ([EndpointResolver.resolveAll]) from the next one in turn, and fails over to the next target on a connection
      * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
      * most once, without spending a retry. When every target failed to connect, the resolver hears it
-     * ([EndpointResolver.unreachable]). What the last target answered is then retried while [retries] says so.
+     * ([EndpointResolver.unreachable]). What the last target answered is then retried while [kind] says so. A request no
+     * attempt could send is `wow.peer.unavailable`; one sent and not answered is what its [kind] says.
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
-        retries: (PeerProblem) -> Boolean,
+        kind: Exchange,
         attempt: suspend (base: String) -> Answer<T>,
     ): Answer<T> {
         var attempts = 1
@@ -140,13 +181,21 @@ internal class HttpTransport(
             val answer = try {
                 failover(request, attempt)
             } catch (failure: IOException) {
+                if (!failure.unsent()) return Answer.Problem(kind.unanswered(request, failure))
                 // A connection that was not made sent nothing: refused, or not answered in time.
-                if (!failure.unsent()) throw failure
-                delay(retry.delayBefore(attempts, null) ?: throw failure)
+                val wait = retry.delayBefore(attempts, null)
+                    ?: return Answer.Problem(
+                        PeerProblem.of(
+                            FrameworkErrors.PEER_UNAVAILABLE,
+                            "No node of ${request.context} could be reached ($failure).",
+                            failure,
+                        ),
+                    )
+                delay(wait)
                 attempts++
                 continue
             }
-            if (answer is Answer.Problem && retries(answer.problem)) {
+            if (answer is Answer.Problem && kind.retries(answer.problem)) {
                 val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return answer
                 delay(wait)
                 attempts++

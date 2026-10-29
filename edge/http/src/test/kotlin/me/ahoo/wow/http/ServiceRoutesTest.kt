@@ -18,8 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal

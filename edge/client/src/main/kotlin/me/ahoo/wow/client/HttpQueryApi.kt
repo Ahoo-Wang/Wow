@@ -85,9 +85,12 @@ import kotlin.time.Duration
  * retry may get past, or the connection drops, it is asked again with `Last-Event-ID`, the last row's position, for
  * what is left of its limit (the peer reads up to the limit again after the position), so it never answers more rows
  * than the limit. It waits between resumes as the transport's [RetryPolicy] says (at once after a hold expired, else the
- * peer's `Retry-After` or the backoff), and fails after the policy's attempts in a row without a row read. Only a 429
- * (`wow.query.busy`) is retried; any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
- * found, or that the caller may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
+ * peer's `Retry-After` or the backoff), and fails after the policy's attempts in a row without a row read.
+ *
+ * A query is sent again when its problem says a retry may get past it (its `retry` member); any other problem, and
+ * one the retries do not get past, is a [me.ahoo.wow.api.problem.WowProblemException], as is a failure of the
+ * transport (`wow.peer.unavailable`, `wow.query.timeout`). A single row or a state that is not found, or that the caller
+ * may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
  */
 class HttpQueryApi internal constructor(
     private val transport: HttpTransport,
@@ -151,7 +154,7 @@ class HttpQueryApi internal constructor(
             val stream = Streamed(query, after)
             while (true) {
                 val asked = stream.asked()
-                val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), PeerProblem::retriesQuery)
+                val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), Exchange.QUERY)
                 val events = when (answer) {
                     is Answer.Ok -> answer.value
                     is Answer.Problem -> throw answer.problem.exception(what())
@@ -207,10 +210,16 @@ class HttpQueryApi internal constructor(
                         }
                     }
                 } catch (dropped: IOException) {
-                    return Stop(dropped)
+                    return lost("The connection of the stream of $path was lost ($dropped).", dropped)
                 }
                 if (complete || limit != null && emitted >= limit) return null
-                return stop ?: Stop(IOException("The stream of $path was cut off."))
+                return stop ?: lost("The stream of $path was cut off.", IOException("No end event."))
+            }
+
+            /** A stream that lost its connection, [failure], as the transport answers one: `wow.peer.unavailable`. */
+            private fun lost(detail: String, failure: IOException): Stop {
+                val problem = PeerProblem.of(FrameworkErrors.PEER_UNAVAILABLE, detail, failure)
+                return Stop(problem.exception(what()), problem.retryAfter)
             }
 
             /** A resumable end, which a hold that expired asks to take again at once; another is thrown. */
@@ -225,7 +234,7 @@ class HttpQueryApi internal constructor(
             private fun failed(data: String): Stop {
                 val problem = Problems.ofMembers(data)
                 val failed = problem.exception(what())
-                if (!problem.hint.retryable) throw failed
+                if (!problem.retriesQuery) throw failed
                 return Stop(failed, problem.retryAfter)
             }
 
@@ -275,7 +284,7 @@ class HttpQueryApi internal constructor(
         }
 
         private suspend fun post(kind: String, query: Any): Answer<ByteArray> =
-            transport.exchange(request(kind, query), PeerProblem::retriesQuery)
+            transport.exchange(request(kind, query), Exchange.QUERY)
 
         private fun request(kind: String, query: Any, headers: Map<String, String> = emptyMap()): PeerRequest {
             val body = QueryProtocolJson.mapper.valueToTree<ObjectNode>(query).put(KIND, kind)
@@ -333,7 +342,7 @@ class HttpQueryApi internal constructor(
             val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
             val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
             val request = PeerRequest(type.context, path, caller, rootOf(caller))
-            val view = when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
+            val view = when (val answer = transport.exchange(request, Exchange.QUERY)) {
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
                     answer.problem.isNotFound(FrameworkErrors.AGGREGATE_NOT_FOUND) -> return null

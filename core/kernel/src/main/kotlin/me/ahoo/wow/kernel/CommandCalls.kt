@@ -14,8 +14,8 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -52,7 +52,8 @@ fun interface CommandCalls {
         ): WowProblemException = WowProblemException(
             result?.error?.code ?: FrameworkCodes.COMMAND_FAILED,
             status,
-            RetryHint(retryable = true, sameRequestId = true),
+            Retry.SAME_REQUEST,
+            null,
             message,
             result,
             cause,

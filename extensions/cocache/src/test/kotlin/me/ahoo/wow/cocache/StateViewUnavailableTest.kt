@@ -37,8 +37,8 @@ import me.ahoo.cocache.core.policy.CachePolicy
 import me.ahoo.cocache.core.policy.LoadPolicy
 import me.ahoo.cocache.core.policy.ReadFailureMode
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries

@@ -24,8 +24,8 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
@@ -37,7 +37,6 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.call.requestIdOf
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [CommandClient] of a service's own node: each command goes to [gateway] as the object
@@ -50,8 +49,8 @@ import kotlin.time.Duration.Companion.seconds
  * mounts it on, or one a peer context's contract lists it for ([CommandGateway.aggregatesOf]). Its tenant is the
  * caller's, unless it targets another ([targetTenantOf]).
  *
- * A failure's HTTP status is the one the edge would answer it with ([FrameworkErrors]), and its retry hint the one the
- * HTTP clients give (`retryHintOf` of `@ahoo-wang/wow-client`).
+ * A failure is the problem the edge would answer it with: its status, retry and `Retry-After` as the error catalog
+ * declares them for its code ([FrameworkErrors.problemOf]).
  */
 class InProcessCommandClient @InternalWowApi constructor(
     private val gateway: CommandGateway,
@@ -98,25 +97,6 @@ class InProcessCommandClient @InternalWowApi constructor(
 
     @InternalWowApi
     companion object {
-        /** The `Retry-After` of a problem a retry may get past, as the edge answers it (`ErrorStatuses`). */
-        private val RETRY_AFTER = 1.seconds
-
-        /**
-         * The codes a retry may get past, each with whether it keeps the request id: a command whose outcome is unknown,
-         * a closing or busy node, a store that is down, a schedule not due yet, a contended aggregate, a wait that timed
-         * out, whose command may have committed.
-         */
-        private val RETRYABLE: Set<String> = setOf(
-            ResultCodes.UNKNOWN,
-            ResultCodes.NODE_CLOSING,
-            ResultCodes.NODE_STANDBY,
-            ResultCodes.STORAGE_UNAVAILABLE,
-            ResultCodes.SCHEDULE_NOT_DUE,
-            ResultCodes.BUSY,
-            ResultCodes.CONTENDED,
-            ResultCodes.WAIT_TIMEOUT,
-        )
-
         /** [result] when it succeeded; else the exception that says why it did not. */
         @InternalWowApi
         fun settled(result: CommandResult): CommandResult = when (result.status) {
@@ -135,14 +115,7 @@ class InProcessCommandClient @InternalWowApi constructor(
         /** The problem of [result], a command that failed, said as [message], from [cause] when it is known. */
         internal fun problemOf(result: CommandResult, message: String, cause: Throwable? = null): WowProblemException {
             val code = checkNotNull(result.error) { "A result that did not succeed has an error." }.code
-            val status = FrameworkErrors.BY_CODE[code]?.status ?: INTERNAL_ERROR
-            val retryAfter = RETRY_AFTER.takeIf { status == UNAVAILABLE || status == TOO_MANY_REQUESTS }
-            val hint = if (code in RETRYABLE) RetryHint(true, true, retryAfter) else RetryHint.NONE
-            return WowProblemException(code, status, hint, message, result, cause)
+            return FrameworkErrors.problemOf(code, message, result, cause)
         }
-
-        private const val INTERNAL_ERROR = 500
-        private const val UNAVAILABLE = 503
-        private const val TOO_MANY_REQUESTS = 429
     }
 }

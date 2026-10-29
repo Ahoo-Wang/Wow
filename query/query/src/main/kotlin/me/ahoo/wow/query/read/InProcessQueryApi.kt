@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.read
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -48,6 +50,7 @@ import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
@@ -60,6 +63,7 @@ import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
@@ -162,42 +166,43 @@ class InProcessQueryApi @InternalWowApi constructor(
     ) : RowQueries<R> {
         override suspend fun single(query: SingleQuery): R? {
             check(query)
-            return gateway.single(query, caller)?.let(row)
+            return mapped { gateway.single(query, caller) }?.let(row)
         }
 
         override fun list(query: ListQuery): Flow<R> = flow {
             check(query)
-            emitAll(gateway.list(query.withListDefault(), caller).map(row))
+            emitAll(gateway.list(query.withListDefault(), caller).mapped().map(row))
         }
 
         override fun stream(query: ListQuery, after: String?): Flow<Positioned<R>> = flow {
             check(query)
             if (gateway.resumes(query)) {
                 emitAll(
-                    gateway.stream(query, caller, after, chunkSize).map { Positioned.of(row(it.record), it.position) },
+                    gateway.stream(query, caller, after, chunkSize).mapped()
+                        .map { Positioned.of(row(it.record), it.position) },
                 )
             } else {
-                if (after != null) throw QueryViolation.InvalidCursor.rejection()
-                emitAll(gateway.list(query.withListDefault(), caller).map { Positioned.of(row(it), null) })
+                if (after != null) throw problemOf(QueryViolation.InvalidCursor.rejection())
+                emitAll(gateway.list(query.withListDefault(), caller).mapped().map { Positioned.of(row(it), null) })
             }
         }
 
         override suspend fun paged(query: PagedQuery): PagedList<R> {
             check(query)
-            val page = gateway.paged(query, caller)
+            val page = mapped { gateway.paged(query, caller) }
             return PagedList(page.total, page.list.map(row), page.exact)
         }
 
         override suspend fun cursor(query: CursorQuery): CursorPage<R> {
             check(query)
-            val page = gateway.cursor(query, caller)
+            val page = mapped { gateway.cursor(query, caller) }
             return CursorPage(page.list.map(row), page.nextCursor)
         }
 
-        override suspend fun count(query: CountQuery): CountResult = gateway.count(query, caller)
+        override suspend fun count(query: CountQuery): CountResult = mapped { gateway.count(query, caller) }
 
         override fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> =
-            gateway.aggregate(query, caller).map { decode(it, groupType) }
+            gateway.aggregate(query, caller).mapped().map { decode(it, groupType) }
 
         /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
         private fun ListQuery.withListDefault(): ListQuery {
@@ -259,13 +264,22 @@ class InProcessQueryApi @InternalWowApi constructor(
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             val reads = engine.reads
             return try {
-                reads.observed(type, StateRead.LATEST, caller) {
-                    when (val read = reads.read(caller, load, { it }) { checkScope(ref, it) }) {
-                        is ReadFacade.Read.Visible -> read.view.let {
-                            AggregateState.of(it.ref, it.version, it.scope, it.deleted, it.tags, stateOf(read.state))
+                mapped {
+                    reads.observed(type, StateRead.LATEST, caller) {
+                        when (val read = reads.read(caller, load, { it }) { checkScope(ref, it) }) {
+                            is ReadFacade.Read.Visible -> read.view.let {
+                                AggregateState.of(
+                                    it.ref,
+                                    it.version,
+                                    it.scope,
+                                    it.deleted,
+                                    it.tags,
+                                    stateOf(read.state)
+                                )
+                            }
+                            ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
+                            ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
                         }
-                        ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
-                        ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
                     }
                 }
             } catch (_: StateNotFoundException) {
@@ -297,6 +311,25 @@ class InProcessQueryApi @InternalWowApi constructor(
         EventQueries {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> = Rows(gateway, caller) { decode(it, rowType) }
     }
+
+    /**
+     * The failure the public port would answer [failure] with: a [QueryError] of the query engine is the
+     * [WowProblemException] of its code, status, retry and `Retry-After` in the error catalog
+     * ([FrameworkErrors.problemOf]), so a caller handles one exception in process and over HTTP; any other is itself.
+     */
+    private fun problemOf(failure: Throwable): Throwable =
+        (failure as? QueryError)?.let { FrameworkErrors.problemOf(it.errorCode, it.errorMsg, cause = failure) } ?: failure
+
+    /** [read], its failures as [problemOf] maps them. */
+    @Suppress("TooGenericExceptionCaught") // Each failure is mapped once here, a QueryError to its problem.
+    private inline fun <T> mapped(read: () -> T): T = try {
+        read()
+    } catch (failure: RuntimeException) {
+        throw problemOf(failure)
+    }
+
+    /** This flow, its failures as [problemOf] maps them. */
+    private fun <T> Flow<T>.mapped(): Flow<T> = catch { throw problemOf(it) }
 
     private fun snapshotGateway(type: AggregateType): QueryGateway =
         engine.snapshots(type) ?: throw QueryNotServedException(type, QueryModel.SNAPSHOT)

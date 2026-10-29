@@ -14,7 +14,7 @@
 package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import java.net.http.HttpHeaders

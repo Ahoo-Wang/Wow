@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.problem.Retry
+
 /**
  * The JSON Schema 2020-12 of the Manifest format ([Manifest.FORMAT]): every object [ManifestTree] writes, with its keys,
  * which of them it always writes (`required`: a reader may rely on them; [ManifestTree.read] also takes a Manifest
@@ -140,11 +142,20 @@ object ManifestSchema {
                 listOf("method", "path"), "method" to string(), "path" to string()
             ),
             ERROR to objectOf(
-                "An error code and the HTTP status it is answered with.",
+                "An error code, the HTTP status it is answered with, and what a retry may do.",
                 listOf("code", "status"),
                 "code" to string(),
                 "status" to integer(),
                 "description" to string(),
+                "retry" to enumOf(
+                    Retry.entries,
+                    "What a retry may do, as a problem of the code says: none when left out.",
+                ),
+                "retryAfter" to obj(
+                    "type" to "integer",
+                    "minimum" to 1,
+                    "description" to "The seconds to wait before a retry, the problem's Retry-After; given with retry.",
+                ),
             ),
             PUBLISHED to objectOf(
                 "A stream a context publishes of an aggregate's events, and its topic.",

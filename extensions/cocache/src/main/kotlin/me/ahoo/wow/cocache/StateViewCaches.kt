@@ -31,7 +31,7 @@ import me.ahoo.cocache.coroutines.suspending
 import me.ahoo.cocache.coroutines.suspendingVersionedLoader
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
@@ -206,7 +206,7 @@ internal class StateViewLoader<V : Any>(
     } catch (unreachable: IOException) {
         throw unavailable(keys, "its owner is unreachable", unreachable)
     } catch (problem: WowProblemException) {
-        if (!problem.retryHint.retryable && problem.status < SERVER_ERROR) throw problem
+        if (!problem.retryable && problem.status < SERVER_ERROR) throw problem
         throw unavailable(keys, "its owner answered ${problem.status} ${problem.code}", problem)
     }
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.problem.Retry
 
 /**
  * The contract of a service: its bounded contexts, their aggregates with the
@@ -456,20 +457,36 @@ class RouteManifest @InternalWowApi constructor(val method: String, val path: St
 }
 
 /**
- * An error code a client may receive: its [code], the HTTP [status] it is answered with, and what it means. The
- * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`.
+ * An error code a client may receive: its [code], the HTTP [status] it is answered with, what it means, and what a retry
+ * may do ([retry]), after [retryAfter] seconds, the `Retry-After` of its problem: one when a retry may get past it, none
+ * otherwise. The code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is
+ * `urn:wow:error:<code>` and whose `retry` member is [retry]'s.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
-class ErrorManifest @InternalWowApi constructor(val code: String, val status: Int, val description: String? = null) {
+class ErrorManifest @InternalWowApi constructor(
+    val code: String,
+    val status: Int,
+    val description: String? = null,
+    val retry: Retry = Retry.NONE,
+    val retryAfter: Int? = null,
+) {
+    init {
+        require((retry == Retry.NONE) == (retryAfter == null)) {
+            "$code: a Retry-After is given exactly when a retry may get past the error ($retry, $retryAfter)."
+        }
+        require(retryAfter == null || retryAfter > 0) { "$code: a Retry-After is at least a second." }
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || other is ErrorManifest && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ErrorManifest(code=$code, status=$status, description=$description)"
+    override fun toString(): String =
+        "ErrorManifest(code=$code, status=$status, description=$description, retry=$retry, retryAfter=$retryAfter)"
 
-    private fun valueFields(): List<Any?> = listOf(code, status, description)
+    private fun valueFields(): List<Any?> = listOf(code, status, description, retry, retryAfter)
 }
 
 /** Whether a command creates its aggregate (`@CreateAggregate`, `@AllowCreate`). */

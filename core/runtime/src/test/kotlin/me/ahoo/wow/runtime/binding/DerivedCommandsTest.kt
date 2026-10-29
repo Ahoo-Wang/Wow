@@ -16,7 +16,7 @@ package me.ahoo.wow.runtime.binding
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
