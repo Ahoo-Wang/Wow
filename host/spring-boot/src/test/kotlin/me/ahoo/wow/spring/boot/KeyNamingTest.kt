@@ -100,12 +100,13 @@ class KeyNamingTest {
     }
 
     private companion object {
-        /** The host's metadata, then each module's: the analytics catalog's, the view store's and CosId's. */
+        /** The host's metadata, then each module's: the analytics catalog's, the view store's, CosId's and CoCache's. */
         val METADATA: List<Path> = listOf(
             ConfigurationMetadata.FILE,
             Path.of("../../platform/analytics/catalog/server").resolve(ConfigurationMetadata.FILE),
             Path.of("../../platform/view-store/view-store-server").resolve(ConfigurationMetadata.FILE),
             Path.of("../../extensions/cosid").resolve(ConfigurationMetadata.FILE),
+            Path.of("../../extensions/cocache").resolve(ConfigurationMetadata.FILE),
         )
         val YES_NO = setOf("on", "off", "yes", "no")
         val POLICY_VERBS = listOf("require-", "allow-", "trust-")

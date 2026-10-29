@@ -18,6 +18,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.core.memory.InMemoryBackend
@@ -30,17 +32,24 @@ import me.ahoo.wow.cocache.api.StateKey
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
-/** The state view caches on CoCache's memory backend: a reader's misses read from the owner, and its hits. */
+/**
+ * The state view caches on CoCache's memory backend, an owner and a reader on two nodes: the owner's writes at their
+ * versions, a reader's misses read from the owner at theirs, and the two meeting on one key.
+ */
 class StateViewCachesTest {
     private val backend = InMemoryBackend()
+    private val owner = runtimeOn(backend)
     private val reader = runtimeOn(backend)
     private val snapshots = mockk<SnapshotQueries<OrderView>>()
     private val api = queryApiOf(snapshots)
     private val readers = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) { api }
+    private val owners = StateViewCaches(StateViewCaches.CacheFactory.of(owner)) { api }
+    private val writer = owners.writerOf(OrderView::class.java)
     private val key = StateKey("t", "o-1")
 
     @AfterEach
     fun close() {
+        owner.close()
         reader.close()
     }
 
@@ -101,6 +110,78 @@ class StateViewCachesTest {
             listOf("o-9") to 1,
         )
     }
+
+    @Test
+    fun `the owner's write should be read by every reader, with no read of the owner`() = runBlocking<Unit> {
+        writer.write(key, OrderView("book"), 2).assert().isTrue()
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("book"))
+        coVerify(exactly = 0) { snapshots.state(any<String>()) }
+        writer.toString().assert().isEqualTo("StateViewWriter(wow.shop.order)")
+    }
+
+    @Test
+    fun `a replayed older or repeated version should be refused`() = runBlocking<Unit> {
+        writer.write(key, OrderView("v2"), 2).assert().isTrue()
+        writer.write(key, OrderView("v1"), 1).assert().isFalse()
+        writer.write(key, OrderView("again"), 2).assert().isFalse()
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("v2"))
+        writer.write(key, OrderView("v3"), 3).assert().isTrue()
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("v3"))
+    }
+
+    @Test
+    fun `a deletion should be a tombstone that no older version resurrects`() = runBlocking<Unit> {
+        writer.write(key, OrderView("v2"), 2).assert().isTrue()
+        writer.delete(key, 3).assert().isTrue()
+        readers.of<OrderView>().get(key).assert().isNull()
+        writer.write(key, OrderView("v2"), 2).assert().isFalse()
+        writer.delete(key, 3).assert().isFalse()
+        readers.of<OrderView>().get(key).assert().isNull()
+        coVerify(exactly = 0) { snapshots.state(any<String>()) }
+    }
+
+    @Test
+    fun `a deleted aggregate read on a miss should be a tombstone at its version`() = runBlocking<Unit> {
+        coEvery { snapshots.state("o-1") } returns stateOf("o-1", 4, "gone", deleted = true)
+        readers.of<OrderView>().get(key).assert().isNull()
+        writer.write(key, OrderView("replayed"), 3).assert().isFalse()
+        readers.of<OrderView>().get(key).assert().isNull()
+        writer.write(key, OrderView("recreated"), 5).assert().isTrue()
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("recreated"))
+    }
+
+    @Test
+    fun `a fill's version should be refused by no later write, and refuse an earlier one`() = runBlocking<Unit> {
+        coEvery { snapshots.state("o-1") } returns stateOf("o-1", 4, "filled")
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("filled"))
+        writer.write(key, OrderView("older"), 4).assert().isFalse()
+        writer.write(key, OrderView("newer"), 5).assert().isTrue()
+        readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("newer"))
+    }
+
+    @Test
+    fun `the owner's write should win over a reader's fill in flight, and the stale fill be refused`() =
+        runBlocking<Unit> {
+            val loading = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            coEvery { snapshots.state("o-1") } coAnswers {
+                loading.complete(Unit)
+                release.await()
+                stateOf("o-1", 1, "stale")
+            }
+            val fill = async { readers.of<OrderView>().get(key) }
+            // The reader holds the key's lease: the owner's versioned write takes it over.
+            loading.await()
+            writer.write(key, OrderView("fresh"), 5).assert().isTrue()
+            release.complete(Unit)
+            fill.await()
+            readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("fresh"))
+            runtimeOn(backend).use { other ->
+                StateViewCaches(StateViewCaches.CacheFactory.of(other)) { api }.of<OrderView>().get(key)
+                    .assert().isEqualTo(OrderView("fresh"))
+            }
+            coVerify(exactly = 1) { snapshots.state("o-1") }
+        }
 
     @Test
     fun `a view should be stored as its JSON, read past a field it does not know`() {

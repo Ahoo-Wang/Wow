@@ -1,0 +1,18 @@
+{
+  "groups" : [ {
+    "name" : "wow.cocache",
+    "type" : "me.ahoo.wow.cocache.WowCoCacheProperties",
+    "description" : "wow-cocache's settings, `wow.cocache.*`: the one default of each key, and the class its configuration metadata comes from. The module imports no Spring Boot, so WowCoCacheAutoConfiguration reads its keys from Spring's `Environment`, falling back to the defaults here; the host knows the keys from the metadata this module ships. A reader's settings of each cache (its local copies, its negative caching, the lifetime of what it fills) are CoCache's own, `cocache.caches.[wow.<context>.<aggregate>].*`."
+  } ],
+  "properties" : [ {
+    "name" : "wow.cocache.publish",
+    "type" : "java.util.List<java.lang.String>",
+    "description" : "The aggregate types, `<context>.<aggregate>`, whose states this service writes into their caches after each commit; each must be one of the service's own, with a state its contract publishes. None when not set: a state no one reads pays no write.",
+    "sourceType" : "me.ahoo.wow.cocache.WowCoCacheProperties"
+  }, {
+    "name" : "wow.cocache.ttl",
+    "type" : "java.time.Duration",
+    "description" : "How long a state this service writes lives in the cache, a deleted aggregate's tombstone too: the cache's own lifetime (`cocache.caches.[wow.<context>.<aggregate>].ttl`, else CoCache's default) when not set. A reader's fill lives by the reader's lifetime, so give both sides the same.",
+    "sourceType" : "me.ahoo.wow.cocache.WowCoCacheProperties"
+  } ]
+}

@@ -15,6 +15,7 @@ package me.ahoo.wow.cocache
 
 import kotlinx.coroutines.flow.toList
 import me.ahoo.cocache.api.Cache
+import me.ahoo.cocache.api.Versioned
 import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.core.CacheSpec
 import me.ahoo.cocache.core.KeyEncoder
@@ -22,7 +23,7 @@ import me.ahoo.cocache.core.cacheSpec
 import me.ahoo.cocache.coroutines.SuspendingCache
 import me.ahoo.cocache.coroutines.SuspendingCacheLoader
 import me.ahoo.cocache.coroutines.suspending
-import me.ahoo.cocache.coroutines.suspendingLoader
+import me.ahoo.cocache.coroutines.suspendingVersionedLoader
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.dsl.listQuery
@@ -33,20 +34,25 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The state view caches of a service, one CoCache cache per aggregate type, each holding that type's states as the
- * view [StateView] marks: what a [StateViewCache] reads.
+ * view [StateView] marks, each at the aggregate's version: what a [StateViewCache] reads, and what the owner's
+ * [StateViewWriter] writes after each commit.
  *
  * Everything about a cache follows from its view, the same on the owner and on every reader ([specOf]):
  * - its name is `wow.<context>.<aggregate>` ([nameOf]), the aggregate the view's `@StateView` names;
  * - its key is the aggregate's [StateKey], stored as `<tenantId>/<id>`;
- * - its value is the view, stored as its JSON ([StateViewCodec]);
+ * - its value is the view, stored as its JSON ([StateViewCodec]), at the aggregate's version: a versioned cache, so
+ *   a state is written only over an older one, and a deleted aggregate is a tombstone at its version that no older
+ *   state undoes;
  * - a miss is read from the owner through the node's typed queries ([queries]): in process when the node serves the
  *   aggregate, else over HTTP as this service, the queries pinned to the key's tenant; a batch read is one query per
- *   tenant, its ids in one `IN`. An aggregate the owner does not have, or has deleted, is cached as absent (CoCache's
- *   negative cache).
+ *   tenant, its ids in one `IN`. The fill holds CoCache's lease, which the owner's write takes over: a fill never puts
+ *   back a state older than the owner's. An aggregate never created is cached as absent (CoCache's negative cache).
+ * - no early refresh (`refreshWindow`): a versioned cache has none, and the owner's writes keep it fresh.
  *
  * Each cache is created once, by [factory], which applies the application's CoCache settings to it when it has
  * CoCache's starter (`cocache.caches.[wow.<context>.<aggregate>].*`).
@@ -59,6 +65,10 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
 
     /** The cache of the states [V] views, created on first use. */
     inline fun <reified V : Any> of(): StateViewCache<V> = of(V::class.java)
+
+    /** The writer of the states [viewType] views, each written for [ttl], else for the cache's lifetime. */
+    fun <V : Any> writerOf(viewType: Class<V>, ttl: Duration? = null): StateViewWriter<V> =
+        StateViewWriter(typed(viewType).cache, ttl)
 
     /** Creates the caches of [viewTypes] now: CoCache's starter checks its settings against the caches it knows. */
     fun declare(viewTypes: Collection<Class<*>>) {
@@ -77,7 +87,7 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         return typed as Typed<V>
     }
 
-    private class Typed<V : Any>(val viewType: Class<V>, cache: SuspendingCache<StateKey, V>) {
+    private class Typed<V : Any>(val viewType: Class<V>, val cache: SuspendingCache<StateKey, V>) {
         val reads: StateViewCache<V> = Reads(cache)
     }
 
@@ -117,33 +127,37 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
             cacheSpec(nameOf(typeOf(viewType))) {
                 keyEncoder = KeyEncoder { it.toString() }
                 codec = StateViewCodec(viewType)
-                suspendingLoader(StateViewLoader(viewType, queries))
+                suspendingVersionedLoader(StateViewLoader(viewType, queries))
             }
     }
 }
 
 /**
- * Reads the states of a cache's misses from the aggregate's owner: [load] its state read, [loadAll] one list query per
- * tenant, its ids in one `IN`. A deleted or absent aggregate is `null`, which the cache keeps as absent for a while.
+ * Reads the states of a cache's misses from the aggregate's owner, each at its version: [load] its state read,
+ * [loadAll] one list query per tenant, its ids in one `IN`. A deleted aggregate is no view at its version (a
+ * tombstone), one never created `null` (a negative cache).
  */
 internal class StateViewLoader<V : Any>(
     private val viewType: Class<V>,
     private val queries: () -> QueryApi,
-) : SuspendingCacheLoader<StateKey, V> {
-    override suspend fun load(key: StateKey): V? =
-        snapshots(key.tenantId).state(key.id)?.takeUnless { it.deleted }?.state
+) : SuspendingCacheLoader<StateKey, Versioned<V?>> {
+    override suspend fun load(key: StateKey): Versioned<V?>? =
+        snapshots(key.tenantId).state(key.id)?.let { versionedOf(it.state, it.version, it.deleted) }
 
-    override suspend fun loadAll(keys: Collection<StateKey>): Map<StateKey, V> =
+    override suspend fun loadAll(keys: Collection<StateKey>): Map<StateKey, Versioned<V?>> =
         keys.groupBy { it.tenantId }.flatMap { (tenantId, ofTenant) ->
             val ids = ofTenant.map { it.id }.distinct()
             val query = listQuery {
                 filter { ids(ids) }
                 limit(ids.size)
             }
-            snapshots(tenantId).list(query).toList().filterNot { it.deleted }.map { row ->
-                StateKey(tenantId, row.ref.id) to row.state
+            snapshots(tenantId).list(query).toList().map { row ->
+                StateKey(tenantId, row.ref.id) to versionedOf(row.state, row.version, row.deleted)
             }
         }.toMap()
+
+    private fun versionedOf(view: V, version: Int, deleted: Boolean): Versioned<V?> =
+        Versioned(view.takeUnless { deleted }, version.toLong())
 
     /** The snapshots of the views, as this service reads them for a commit of [tenantId]. */
     private fun snapshots(tenantId: String): SnapshotQueries<V> = queriesOf(tenantId).snapshots(viewType)

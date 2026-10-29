@@ -19,6 +19,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.core.CacheRuntime
@@ -45,8 +47,9 @@ import java.util.UUID
 data class RedisOrderView(val item: String)
 
 /**
- * Two readers of one aggregate type, each a node with its own CoCache runtime on one Redis: what one reads from the
- * owner on a miss, the other reads from Redis.
+ * The owner and two readers of one aggregate type, each a node with its own CoCache runtime on one Redis: what one
+ * reads from the owner on a miss, the other reads from Redis; the owner's writes at their versions, which no replay
+ * takes back and which win over a reader's fill in flight.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStateViewCachesTest {
@@ -59,8 +62,11 @@ class RedisStateViewCachesTest {
     }
     private val firstNode = runtime()
     private val secondNode = runtime()
+    private val ownerNode = runtime()
     private val first = StateViewCaches(StateViewCaches.CacheFactory.of(firstNode)) { api }
     private val second = StateViewCaches(StateViewCaches.CacheFactory.of(secondNode)) { api }
+    private val writer = StateViewCaches(StateViewCaches.CacheFactory.of(ownerNode)) { api }
+        .writerOf(RedisOrderView::class.java)
     private val order = AggregateType("shop", "order")
 
     private fun runtime(): CacheRuntime = CacheRuntime.builder().backend(
@@ -76,6 +82,7 @@ class RedisStateViewCachesTest {
     fun close() {
         firstNode.close()
         secondNode.close()
+        ownerNode.close()
         redis.stop()
     }
 
@@ -110,6 +117,55 @@ class RedisStateViewCachesTest {
         first.of<RedisOrderView>().getAll(keys).assert().isEqualTo(expected)
         second.of<RedisOrderView>().getAll(keys).assert().isEqualTo(expected)
         verify(exactly = 1) { snapshots.list(any()) }
+    }
+
+    @Test
+    fun `the owner's writes should reach the readers in version order, a replay refused`() = runBlocking<Unit> {
+        val key = keyOf()
+        writer.write(key, RedisOrderView("v1"), 1).assert().isTrue()
+        first.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("v1"))
+        writer.write(key, RedisOrderView("v2"), 2).assert().isTrue()
+        writer.write(key, RedisOrderView("v1"), 1).assert().isFalse()
+        writer.write(key, RedisOrderView("again"), 2).assert().isFalse()
+        first.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("v2"))
+        second.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("v2"))
+        coVerify(exactly = 0) { snapshots.state(key.id) }
+    }
+
+    @Test
+    fun `a deleted aggregate should not be resurrected by an older state`() = runBlocking<Unit> {
+        val deleted = keyOf()
+        writer.write(deleted, RedisOrderView("v1"), 1).assert().isTrue()
+        writer.delete(deleted, 2).assert().isTrue()
+        writer.write(deleted, RedisOrderView("v1"), 1).assert().isFalse()
+        first.of<RedisOrderView>().get(deleted).assert().isNull()
+        // A deletion a reader reads on a miss is a tombstone at its version too.
+        val read = keyOf()
+        coEvery { snapshots.state(read.id) } returns
+            AggregateState.of(order.ref("t", read.id), 4, Scope.NONE, true, emptyMap(), RedisOrderView("gone"))
+        first.of<RedisOrderView>().get(read).assert().isNull()
+        writer.write(read, RedisOrderView("replayed"), 3).assert().isFalse()
+        second.of<RedisOrderView>().get(read).assert().isNull()
+    }
+
+    @Test
+    fun `the owner's write should win over a reader's fill in flight`() = runBlocking<Unit> {
+        val key = keyOf()
+        val loading = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        coEvery { snapshots.state(key.id) } coAnswers {
+            loading.complete(Unit)
+            release.await()
+            AggregateState.of(order.ref("t", key.id), 1, Scope.NONE, false, emptyMap(), RedisOrderView("stale"))
+        }
+        val fill = async { first.of<RedisOrderView>().get(key) }
+        loading.await()
+        writer.write(key, RedisOrderView("fresh"), 4).assert().isTrue()
+        release.complete(Unit)
+        fill.await()
+        first.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("fresh"))
+        second.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("fresh"))
+        coVerify(exactly = 1) { snapshots.state(key.id) }
     }
 
     private companion object {
