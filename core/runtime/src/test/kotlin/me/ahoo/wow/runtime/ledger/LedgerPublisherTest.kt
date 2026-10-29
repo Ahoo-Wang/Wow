@@ -134,7 +134,11 @@ class LedgerPublisherTest {
         parkAll("x1", "x2")
         publisher.scan()
         sent.clear()
-        ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.skip(
+            NAME,
+            cart("x1"),
+            ledger.parked(NAME, cart("x1"))!!.failedAt
+        ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         publisher.scan()
         val resolved = sent.single { it.type == "ops.parked.RecordResolved" }
         val record = ClusterCodec.mapper.treeToValue(resolved.record, LedgerResolution::class.java)
@@ -156,7 +160,11 @@ class LedgerPublisherTest {
         parkAll("x1")
         publisher.scan()
         sent.clear()
-        ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.skip(
+            NAME,
+            cart("x1"),
+            ledger.parked(NAME, cart("x1"))!!.failedAt
+        ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         publisher.acting(NAME, cart("x1")) {
             publisher.acting(NAME, cart("x1")) { publisher.scan() }
             publisher.scan()

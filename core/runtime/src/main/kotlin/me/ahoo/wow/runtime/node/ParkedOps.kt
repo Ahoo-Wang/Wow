@@ -126,6 +126,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      * Handles [subscription]'s parked [ref] again from where it is parked, whatever its retry spec says: at once when
      * this node owns its partition, else by a request to the owner. With [failedAt], only the parking at that time
      * ([ParkedAggregate.failedAt], as the operator saw it): [Outcome.STALE] when the entry was parked at another.
+     * Without, the current parking: a resume only handles the parked streams again.
      */
     suspend fun resume(subscription: String, ref: AggregateRef, failedAt: Long? = null): Outcome {
         val (scope, entry) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
@@ -142,12 +143,13 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Resolves [subscription]'s parked [ref] without handling what was parked: at once when this node owns its
-     * partition and no resume of it runs, else by a request to the owner. With [failedAt], only the parking at that
-     * time, as [resume] takes it.
+     * partition and no resume of it runs, else by a request to the owner. Only the parking at [failedAt]
+     * ([ParkedAggregate.failedAt], as the operator saw it), which a skip must name since it discards what was parked:
+     * [Outcome.STALE] when the entry was parked at another time.
      */
-    suspend fun skip(subscription: String, ref: AggregateRef, failedAt: Long? = null): Outcome {
+    suspend fun skip(subscription: String, ref: AggregateRef, failedAt: Long): Outcome {
         val (scope, entry) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
-        if (failedAt != null && entry.failedAt != failedAt) {
+        if (entry.failedAt != failedAt) {
             return Outcome.STALE
         }
         val runtime = scope.runner()?.takeIf { it.acts(subscription, ref) }

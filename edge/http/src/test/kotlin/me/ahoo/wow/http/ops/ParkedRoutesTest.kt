@@ -198,19 +198,27 @@ class ParkedRoutesTest {
         requested.status.assert().isEqualTo(202)
         requested.body!!["outcome"].asString().assert().isEqualTo("requested")
         requested.body!!["entry"]["request"].asString().assert().isEqualTo("resume")
-        remote.post("${entry("x")}/${OpsPaths.SKIP}").body!!["entry"]["request"].asString().assert().isEqualTo("skip")
+        // A skip names the parking it discards; without it the skip is refused.
+        val x = """{"failedAt":${ledger.parked(NAME, type.ref(TENANT, "x"))!!.failedAt}}"""
+        remote.post("${entry("x")}/${OpsPaths.SKIP}").assertMalformed()
+        remote.post(
+            "${entry("x")}/${OpsPaths.SKIP}",
+            x
+        ).body!!["entry"]["request"].asString().assert().isEqualTo("skip")
         ledger.parked(NAME, type.ref(TENANT, "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
-        val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}")
+        val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}", x)
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
-        local.post("${entry("x")}/${OpsPaths.SKIP}").status.assert().isEqualTo(404)
+        local.post("${entry("x")}/${OpsPaths.SKIP}", x).status.assert().isEqualTo(404)
         local.post("${entry("x")}/${OpsPaths.RESUME}").status.assert().isEqualTo(404)
 
         actions.map { it.second.type.name }.assert().containsExactly(
             OpsCommands.RESUME,
             OpsCommands.RESUME,
             OpsCommands.RESUME,
+            // Authorized, then refused for naming no parking.
+            OpsCommands.SKIP,
             OpsCommands.SKIP,
             OpsCommands.SKIP,
             OpsCommands.SKIP,
@@ -271,7 +279,8 @@ class ParkedRoutesTest {
             resumed.status.assert().isEqualTo(200)
             resumed.body!!["outcome"].asString().assert().isEqualTo("resolved")
             timers.find(type.ref(TENANT, "o-1"), "pay")!!.status.assert().isEqualTo(TimerStatus.PENDING)
-            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}")
+            val parkedAt = client.get(timerEntry("t-2")).body!!["failedAt"].asLong()
+            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}", """{"failedAt":$parkedAt}""")
             skipped.status.assert().isEqualTo(200)
             skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
             val remind = timers.find(type.ref(TENANT, "o-1"), "remind")!!
@@ -440,7 +449,8 @@ class ParkedRoutesTest {
                 .headers {
                     it.set("X-User", "root")
                     it.set("X-Admin", "true")
-                }.answer().status.assert().isEqualTo(202)
+                    it.set("Content-Type", "application/json")
+                }.bodyValue("""{"failedAt":$FAILED_AT}""").answer().status.assert().isEqualTo(202)
         }
 
     @Test

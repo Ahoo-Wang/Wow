@@ -57,7 +57,15 @@ class ParkedOperationSaga {
         val command = when (val requested = event.events.lastOrNull()) {
             // The parking the operator acted on: the owning service refuses it when it holds another.
             is ResumeRequested -> ResumeParked.of(subscription, owner, name, tenantId, id, requested.failedAt)
-            is SkipRequested -> SkipParked.of(subscription, owner, name, tenantId, id, requested.failedAt)
+            // A skip always names the parking it discards: the one the entry records.
+            is SkipRequested -> SkipParked.of(
+                subscription,
+                owner,
+                name,
+                tenantId,
+                id,
+                requested.failedAt ?: state.failedAt
+            )
             is MarkRecoverableRequested ->
                 MarkParkedRecoverable.of(subscription, owner, name, tenantId, id, requested.recoverable)
             is ApplyRetrySpecRequested -> ApplyParkedRetrySpec.of(

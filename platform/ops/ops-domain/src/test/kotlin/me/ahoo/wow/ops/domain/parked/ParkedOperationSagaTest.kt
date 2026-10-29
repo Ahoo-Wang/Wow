@@ -53,8 +53,12 @@ class ParkedOperationSagaTest {
             expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
             expectDeterministic()
         }
+        // A skip always names a parking: without the one the operator saw, the one the entry records.
         whenEvent(SkipRequested("not needed"), by = Skip::class) {
-            expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
+            expectCommand(
+                SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), ParkedSpec.ENTRY.failedAt),
+                to = target,
+            )
         }
         // The parking the operator acted on goes with it, for the owning service to refuse another.
         whenEvent(SkipRequested(failedAt = 100), by = Skip::class) {

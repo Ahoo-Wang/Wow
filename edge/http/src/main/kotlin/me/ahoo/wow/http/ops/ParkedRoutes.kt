@@ -68,9 +68,11 @@ import kotlin.time.Duration.Companion.seconds
  *   cursor of the next page (`next`, passed back as `after`);
  * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry;
  * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry resolved or still
- *   parked), 202 when it was left for the owner of the entry's partition. An optional body `{"failedAt": <epoch ms>}`
- *   names the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and
- *   parked again, is refused as 409 `wow.ledger.stale`, as the ops context's `ResumeParked` and `SkipParked` are;
+ *   parked), 202 when it was left for the owner of the entry's partition. The body `{"failedAt": <epoch ms>}` names
+ *   the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and parked
+ *   again, is refused as 409 `wow.ledger.stale`, as the ops context's `ResumeParked` and `SkipParked` are. A skip
+ *   requires it (400 without), since it discards what was parked; a resume may leave it out and acts on the current
+ *   parking, since it only handles the parked streams again;
  * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
  *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration
  *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
@@ -219,7 +221,15 @@ private class ParkedHandler(
         act(request, OpsCommands.RESUME) { subscription, ref, failedAt -> ops.resume(subscription, ref, failedAt) }
 
     suspend fun skip(request: ServerRequest): ServerResponse =
-        act(request, OpsCommands.SKIP) { subscription, ref, failedAt -> ops.skip(subscription, ref, failedAt) }
+        act(request, OpsCommands.SKIP) { subscription, ref, failedAt ->
+            ops.skip(
+                subscription,
+                ref,
+                failedAt ?: throw badRequest(
+                    "A skip names the parking it discards: the body's $FAILED_AT, the entry's failedAt."
+                ),
+            )
+        }
 
     private suspend fun act(
         request: ServerRequest,

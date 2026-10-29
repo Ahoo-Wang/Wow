@@ -78,8 +78,10 @@ class ParkedOpsTest {
         failing.set(false)
         ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
-        ops.skip(NAME, cart("x2")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        ops.skip(NAME, cart("x2")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        val x2 = ledger.parked(NAME, cart("x2"))!!.failedAt
+        ops.skip(NAME, cart("x2"), x2 + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
+        ops.skip(NAME, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.skip(NAME, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
         handled.assert().containsExactly("x1@1")
         ops.get(NAME, cart("x1")).assert().isNull()
         ops.get("unknown", cart("x1")).assert().isNull()
@@ -91,10 +93,11 @@ class ParkedOpsTest {
         park("x1")
         ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
-        ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        ops.skip(NAME, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt).assert()
+            .isEqualTo(ParkedOps.Outcome.REQUESTED)
         ops.get(NAME, cart("x1"))!!.entry.request.assert().isEqualTo(LedgerRequest.SKIP)
         ops.resume(NAME, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
-        ops.skip(NAME, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.skip(NAME, cart("absent"), 0).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
     }
 
     @Test
@@ -167,7 +170,7 @@ class ParkedOpsTest {
         val both = ParkedOps { listOf(ParkedOps.Scope.of(shopRuntime), ParkedOps.Scope.of(stockRuntime)) }
         both.get("snapshot", item)!!.entry.reason.assert().isEqualTo("in the stock's")
         both.list("snapshot").entries.size.assert().isEqualTo(1)
-        both.skip("snapshot", item).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        both.skip("snapshot", item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
         stock.parked("snapshot", item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         shop.parked("snapshot", item)!!.request.assert().isNull()
         both.subscriptions.assert().containsExactly("snapshot")
