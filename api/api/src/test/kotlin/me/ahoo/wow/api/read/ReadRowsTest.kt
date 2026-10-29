@@ -53,7 +53,7 @@ class ReadRowsTest {
     @OptIn(ExperimentalWowApi::class)
     @Test
     fun `the reified entries should pass their type argument's class`() {
-        val snapshots = mockk<SnapshotQueries<String>>()
+        val snapshots = mockk<TenantSnapshotQueries<String>>()
         val rows = mockk<RowQueries<Map<*, *>>>()
         val queries = mockk<Queries> {
             every { snapshots(String::class.java) } returns snapshots

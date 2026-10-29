@@ -67,7 +67,7 @@ class JavaClientSmokeTest {
         .retry(RetryPolicy.of(1, Duration.ZERO, Duration.ofMillis(1)))
         .build();
     private final JavaCommandClient commands = JavaCommandClient.of(client.getCommands()).of(alice);
-    private final JavaSnapshotQueries<ParcelState> parcels =
+    private final JavaTenantSnapshotQueries<ParcelState> parcels =
         JavaQueryApi.of(client.getQueries()).of(alice).snapshots(ParcelState.class);
 
     @AfterEach

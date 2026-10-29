@@ -39,10 +39,10 @@ import me.ahoo.cocache.core.policy.ReadFailureMode
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import org.junit.jupiter.api.AfterEach
@@ -62,7 +62,7 @@ data class StrictOrderView(val item: String, val required: Int)
 class StateViewUnavailableTest {
     private val backend = InMemoryBackend()
     private val runtime = runtimeOn(backend)
-    private val snapshots = mockk<SnapshotQueries<OrderView>>()
+    private val snapshots = mockk<TenantSnapshotQueries<OrderView>>()
     private val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { queryApiOf(snapshots) }
     private val key = StateKey("t", "o-1")
 

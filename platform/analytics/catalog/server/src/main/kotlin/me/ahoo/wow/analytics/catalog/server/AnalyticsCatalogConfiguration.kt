@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
@@ -27,7 +28,6 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.clickhouse.ClickHouseClients
@@ -149,9 +149,11 @@ class AnalyticsCatalogConfiguration {
         client: ObjectProvider<WowClient>,
         wow: WowProperties,
     ): DatasetReferenceActions = DatasetReferenceActions(
-        datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().let {
-            it.state(it.type.ref(AnalyticsCatalogContext.TENANT_ID, id))?.state
-        } },
+        datasets = { id ->
+            queries.getObject().trusted().snapshots<DatasetState>().let {
+                it.state(it.type.ref(AnalyticsCatalogContext.TENANT_ID, id))?.state
+            }
+        },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
         described = manifestPeers(wow),
     )

@@ -25,18 +25,19 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.id.IdGenerators
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 
 /** Decision D259: every handler reads through its context's queries, in the tenant of the commit it handles. */
 @OptIn(ExperimentalWowApi::class)
@@ -54,8 +55,8 @@ class ContextQueriesTest {
         scope = Scope("alice"),
     )
 
-    private val snapshots = mockk<SnapshotQueries<Any>>()
-    private val typed = mockk<SnapshotQueries<String>>()
+    private val snapshots = mockk<TenantSnapshotQueries<ObjectNode>>()
+    private val typed = mockk<TenantSnapshotQueries<String>>()
     private val events = mockk<EventQueries>()
     private val rows = mockk<RowQueries<Map<*, *>>>()
     private val sales = DatasetName.of("shop", "sales")
@@ -67,7 +68,7 @@ class ContextQueriesTest {
         every { events(order) } returns events
         every { datasets(sales, Map::class.java) } returns rows
     }
-    private val api = mockk<QueryApi> {
+    private val api = mockk<NodeQueryApi> {
         every { of(capture(caller)) } returns tenantQueries
         every { trusted() } returns trusted
     }

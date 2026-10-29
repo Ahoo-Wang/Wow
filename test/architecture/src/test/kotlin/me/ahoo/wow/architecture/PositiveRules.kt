@@ -37,17 +37,21 @@ object PositiveRules {
     private const val LOGGING = "io.github.oshai.kotlinlogging"
     private const val WOW = "me.ahoo.wow"
 
+    /** Jackson's tree nodes: the free-form content of an api module (D362), an untyped read's rows (D366 ④). */
+    const val JACKSON_TREES = "tools.jackson.databind.node"
+
     /**
      * What each core module imports besides the Kotlin standard library and the JDK: the libraries 06 §3 grants it and
      * the packages of the modules it may depend on. The contracts carry no runtime dependency, the kernel and the
      * runtime only coroutines, Jackson and logging, and none of them Spring, Reactor, a driver or another edge.
      */
     val CORE_IMPORTS: List<ImportAllowList> = listOf(
-        // The programming model: the query protocol and the coroutines' Flow (decision D260).
+        // The programming model: the query protocol, the coroutines' Flow (decision D260) and Jackson's trees, the
+        // shape of an untyped read (D366 ④).
         ImportAllowList(
-            "wow-api imports only its own packages and Flow",
+            "wow-api imports only its own packages, Flow and Jackson's trees",
             listOf(API.dir),
-            listOf("$WOW.api", "$COROUTINES.flow")
+            listOf("$WOW.api", "$COROUTINES.flow", JACKSON_TREES)
         ),
         // The stability markers of wow-annotations (decision D282).
         ImportAllowList(

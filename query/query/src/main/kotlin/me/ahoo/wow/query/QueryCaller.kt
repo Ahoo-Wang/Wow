@@ -81,7 +81,7 @@ enum class QueryEntry {
     IN_PROCESS,
 
     /**
-     * Trusted in-process code that dropped the in-process budget (`QueryApi.trusted().unbounded()`): only the
+     * Trusted in-process code that dropped the in-process budget (`NodeQueryApi.trusted().unbounded()`): only the
      * in-process timeout applies.
      */
     UNBOUNDED,

@@ -36,9 +36,9 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
 import me.ahoo.wow.cocache.api.StateViewUnavailableException

@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContract
@@ -93,7 +93,7 @@ class SystemViewsTest {
 
     private fun storedViews(records: () -> Flow<ObjectNode>): StoredSystemViews {
         val rows = mockk<RowQueries<ObjectNode>> { every { list(any()) } answers { records() } }
-        val api = mockk<QueryApi> {
+        val api = mockk<NodeQueryApi> {
             every {
                 trusted().snapshots(ViewStoreContract.View.TYPE).dynamic(ObjectNode::class.java)
             } returns rows

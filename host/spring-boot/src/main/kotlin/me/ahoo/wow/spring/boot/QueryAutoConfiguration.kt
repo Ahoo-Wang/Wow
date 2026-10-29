@@ -18,7 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.NodeQueryApi
-import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries

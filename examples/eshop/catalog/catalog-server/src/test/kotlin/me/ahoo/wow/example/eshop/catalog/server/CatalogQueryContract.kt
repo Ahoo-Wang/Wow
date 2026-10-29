@@ -18,7 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
@@ -220,8 +220,8 @@ abstract class CatalogQueryContract {
             }
             sort { ProductStateProperties.STATE__PRICE.asc() }
         }
-        // In process, typed: the node's QueryApi, as trusted code.
-        val products = catalog.context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
+        // In process, typed: the node's NodeQueryApi, as trusted code.
+        val products = catalog.context.getBean(NodeQueryApi::class.java).trusted().snapshots<ProductState>()
         val rows = runBlocking { products.list(query).toList() }
         rows.map { it.ref.id }.assert().containsExactly(five, seven)
         rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))

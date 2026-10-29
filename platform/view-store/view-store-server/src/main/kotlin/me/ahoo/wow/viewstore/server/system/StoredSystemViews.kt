@@ -18,8 +18,8 @@ import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
-import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.api.read.dynamic
+import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource

@@ -29,13 +29,17 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
@@ -268,6 +272,74 @@ class HttpQueryApiTest {
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
     }
+
+    data class BoxDelivered(val items: Int)
+
+    data class BoxLabelled(val label: String)
+
+    @Test
+    fun `a peer's events should decode as the classes its contract names, and as trees otherwise`(): Unit =
+        runBlocking {
+            val delivered = "mail.BoxDelivered"
+            val labelled = BoxLabelled::class.java.name
+            val contract = Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "mail",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "box",
+                                state = StateManifest(Manifest.schemaRef("mail.BoxState")),
+                                events = listOf(
+                                    // Its class by the schema's x-wow-class.
+                                    EventManifest("delivered", schema = Manifest.schemaRef(delivered)),
+                                    // Its class by the schema's key, its binary name.
+                                    EventManifest("labelled", schema = Manifest.schemaRef(labelled)),
+                                    // A class this class path lacks.
+                                    EventManifest("lost", schema = Manifest.schemaRef("mail.BoxLost")),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                defs = mapOf(delivered to mapOf(CLASS_KEYWORD to BoxDelivered::class.java.name)),
+            )
+            val events = WowClient.builder()
+                .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .contracts(listOf(ManifestFragment("test", contract)))
+                .build()
+                .queries
+                .of(Caller.of(tenantId = "t1"))
+                .events(BOX)
+            val body = { name: String, value: Any -> mapOf("name" to name, "revision" to 1, "body" to value) }
+            peer.reply(
+                Reply.json(
+                    listOf(
+                        mapOf(
+                            "tenantId" to "t1",
+                            "aggregateId" to "b-1",
+                            "version" to 1,
+                            "commitTime" to 1,
+                            "commandId" to "c-1",
+                            "requestId" to "r-1",
+                            "commandType" to "mail.deliver",
+                            "events" to listOf(
+                                body("delivered", mapOf("items" to 2)),
+                                body("labelled", mapOf("label" to "a")),
+                                body("lost", mapOf("why" to "x")),
+                                body("unknown", mapOf("n" to 1)),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            val stream = events.list(ListQuery(MatchAllFilter)).toList().single()
+            val bodies = stream.events.map { it.body }
+            bodies[0].assert().isEqualTo(BoxDelivered(2))
+            bodies[1].assert().isEqualTo(BoxLabelled("a"))
+            (bodies[2] as ObjectNode)["why"].asString().assert().isEqualTo("x")
+            (bodies[3] as ObjectNode)["n"].asInt().assert().isEqualTo(1)
+        }
 
     /** A peer's state as its api generates the view of it (decision D362). */
     @StateView("mail.box")

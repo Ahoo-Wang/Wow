@@ -53,7 +53,6 @@ public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client
 public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
 	public static final field Companion Lme/ahoo/wow/client/HttpQueryApi$Companion;
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
-	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 
 public final class me/ahoo/wow/client/HttpQueryApi$Companion {
@@ -183,22 +182,30 @@ public class me/ahoo/wow/client/java/JavaModelQueries : me/ahoo/wow/client/java/
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
-public class me/ahoo/wow/client/java/JavaQueries {
-	public final fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaRowQueries;
-	public final fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaModelQueries;
-	public final fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
-	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
-}
-
-public final class me/ahoo/wow/client/java/JavaQueryApi {
-	public static final field Companion Lme/ahoo/wow/client/java/JavaQueryApi$Companion;
-	public final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/client/java/JavaQueries;
-	public static final fun of (Lme/ahoo/wow/api/read/QueryApi;)Lme/ahoo/wow/client/java/JavaQueryApi;
+public final class me/ahoo/wow/client/java/JavaNodeQueryApi : me/ahoo/wow/client/java/JavaQueryApi {
 	public final fun trusted ()Lme/ahoo/wow/client/java/JavaTrustedQueries;
 }
 
+public final class me/ahoo/wow/client/java/JavaQueries : me/ahoo/wow/client/java/JavaQueryModels {
+	public final fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaTenantSnapshotQueries;
+	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaTenantSnapshotQueries;
+}
+
+public class me/ahoo/wow/client/java/JavaQueryApi {
+	public static final field Companion Lme/ahoo/wow/client/java/JavaQueryApi$Companion;
+	public final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/client/java/JavaQueries;
+	public static final fun of (Lme/ahoo/wow/api/read/NodeQueryApi;)Lme/ahoo/wow/client/java/JavaNodeQueryApi;
+	public static final fun of (Lme/ahoo/wow/api/read/QueryApi;)Lme/ahoo/wow/client/java/JavaQueryApi;
+}
+
 public final class me/ahoo/wow/client/java/JavaQueryApi$Companion {
+	public final fun of (Lme/ahoo/wow/api/read/NodeQueryApi;)Lme/ahoo/wow/client/java/JavaNodeQueryApi;
 	public final fun of (Lme/ahoo/wow/api/read/QueryApi;)Lme/ahoo/wow/client/java/JavaQueryApi;
+}
+
+public class me/ahoo/wow/client/java/JavaQueryModels {
+	public final fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaRowQueries;
+	public final fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaModelQueries;
 }
 
 public class me/ahoo/wow/client/java/JavaRowQueries {
@@ -219,14 +226,19 @@ public class me/ahoo/wow/client/java/JavaRowQueries {
 	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaRowQueries;Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/stream/Stream;
 }
 
-public final class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {
-	public final fun state (Ljava/lang/String;)Lme/ahoo/wow/api/read/AggregateState;
+public class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {
 	public final fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/read/AggregateState;
-	public final fun stateAsync (Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
 	public final fun stateAsync (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/concurrent/CompletableFuture;
 }
 
-public final class me/ahoo/wow/client/java/JavaTrustedQueries : me/ahoo/wow/client/java/JavaQueries {
-	public final fun unbounded ()Lme/ahoo/wow/client/java/JavaQueries;
+public final class me/ahoo/wow/client/java/JavaTenantSnapshotQueries : me/ahoo/wow/client/java/JavaSnapshotQueries {
+	public final fun state (Ljava/lang/String;)Lme/ahoo/wow/api/read/AggregateState;
+	public final fun stateAsync (Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+}
+
+public final class me/ahoo/wow/client/java/JavaTrustedQueries : me/ahoo/wow/client/java/JavaQueryModels {
+	public final fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
+	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
+	public final fun unbounded ()Lme/ahoo/wow/client/java/JavaTrustedQueries;
 }
 

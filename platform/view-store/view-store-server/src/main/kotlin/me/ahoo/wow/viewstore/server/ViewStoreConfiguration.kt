@@ -64,7 +64,7 @@ class ViewStoreConfiguration {
 
     /** Looks the queries up on use: they are built with the node, which this binding is part of. */
     @Bean
-    fun sharedBoardReferences(queries: ObjectProvider<QueryApi>): SharedBoardReferences =
+    fun sharedBoardReferences(queries: ObjectProvider<NodeQueryApi>): SharedBoardReferences =
         QueriedBoardReferences { queries.getObject() }
 
     /** `wow.view-store.system-views`, checked at startup. */
@@ -73,11 +73,11 @@ class ViewStoreConfiguration {
         ConfiguredSystemViews(properties.systemViews)
 
     @Bean
-    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<QueryApi>): StoredSystemViews =
+    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<NodeQueryApi>): StoredSystemViews =
         StoredSystemViews(configured) { queries.ifAvailable }
 
     @Bean
-    fun viewReads(systemViews: StoredSystemViews, queries: ObjectProvider<QueryApi>): ViewReads =
+    fun viewReads(systemViews: StoredSystemViews, queries: ObjectProvider<NodeQueryApi>): ViewReads =
         QueriedViewReads(systemViews) { queries.ifAvailable }
 
     /** The handlers of the view store's service routes, which Wow's routes mount from the Manifest. */

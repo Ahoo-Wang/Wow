@@ -48,11 +48,11 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.wire.CallWire
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.CLASS_KEYWORD
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.spi.id.GlobalIdGenerator

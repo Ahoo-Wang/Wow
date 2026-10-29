@@ -26,7 +26,7 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.send
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.DatasetName
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
@@ -166,7 +166,7 @@ class HostClientsTest {
         // Without a peer listed, a state class is the node's.
         // A local API that pins no tenant serves no handler.
         assertThrows<IllegalStateException> {
-            RoutedQueryApi(mockk<QueryApi>(relaxed = true), peers(), emptySet()).tenant("t1")
+            RoutedQueryApi(mockk<NodeQueryApi>(relaxed = true), peers(), emptySet()).tenant("t1")
         }
         RoutedQueryApi(
             localQueries,
@@ -193,6 +193,28 @@ class HostClientsTest {
                 PeerMode.SERVICE
             )
         }.message.assert().contains("[ledger]")
+    }
+
+    @Test
+    fun `a subscription should read a peer as the service it is, or as an anonymous caller of its tenant`() {
+        val localQueries = mockk<TenantQueryApi>(relaxed = true)
+        listOf(SERVICE, null).forEach { name ->
+            val callers = mutableListOf<Caller>()
+            val client = mockk<WowClient>(relaxed = true)
+            every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
+            val peers = PeerClients(
+                mapOf(BANK to PeerMode.SERVICE),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy { client },
+                lazy { client },
+                PeerMode.SERVICE,
+                serviceName = name,
+            )
+            RoutedQueryApi(localQueries, peers, emptySet()).tenant("t1").events(account)
+            val expected = name?.let { Caller.ofService(it, "t1") } ?: Caller.of(tenantId = "t1")
+            callers.single().assert().isEqualTo(expected)
+        }
     }
 
     @Test

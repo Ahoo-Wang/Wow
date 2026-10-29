@@ -32,9 +32,8 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Positioned
-import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.WaitPlan
@@ -89,14 +88,14 @@ class JavaFacadeTest {
             every { type } returns parcel
             every { dynamic(String::class.java) } returns rows
         }
-        val unbounded = mockk<Queries>(relaxed = true)
+        val unbounded = mockk<TrustedQueries>(relaxed = true)
         val trusted = mockk<TrustedQueries> {
             every { events(type) } returns events
             every { unbounded() } returns unbounded
             @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
             every { datasets(DatasetName.of("shop", "sales"), String::class.java) } returns rows
         }
-        val api = JavaQueryApi.of(mockk<QueryApi> { every { trusted() } returns trusted })
+        val api = JavaQueryApi.of(mockk<NodeQueryApi> { every { trusted() } returns trusted })
         val queries = api.trusted()
         queries.events(type).type.assert().isEqualTo(type)
         queries.events(type).dynamic(String::class.java).list(ListQuery(all)).assert().containsExactly("a", "b")

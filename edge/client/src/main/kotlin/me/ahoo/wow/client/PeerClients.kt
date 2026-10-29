@@ -23,10 +23,9 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
-import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries

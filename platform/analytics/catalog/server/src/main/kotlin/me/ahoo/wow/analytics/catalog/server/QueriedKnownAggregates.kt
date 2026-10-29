@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
-import tools.jackson.databind.node.ObjectNode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
@@ -21,8 +20,9 @@ import me.ahoo.wow.analytics.catalog.api.source.SourceKind
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.api.query.dsl.singleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
-import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.api.read.dynamic
+import me.ahoo.wow.query.read.QueryNotServedException
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * The aggregates the catalog knows, from the sources' snapshots: an aggregate some Wow source of the catalog is of,
