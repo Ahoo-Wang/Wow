@@ -23,8 +23,8 @@ val query = listQuery {
     }
     sort { ProductStateProperties.STATE__PRICE.asc() }
 }
-// In process, typed: the node's QueryApi, as trusted code.
-val products = catalog.context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
+// In process, typed: the node's own queries (NodeQueryApi), as trusted code.
+val products = catalog.context.getBean(NodeQueryApi::class.java).trusted().snapshots<ProductState>()
 val rows = runBlocking { products.list(query).toList() }
 rows.map { it.ref.id }.assert().containsExactly(five, seven)
 rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))

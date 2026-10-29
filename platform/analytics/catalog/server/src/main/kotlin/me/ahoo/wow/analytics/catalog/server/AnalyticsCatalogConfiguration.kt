@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
@@ -27,7 +28,7 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
@@ -128,11 +129,11 @@ class AnalyticsCatalogConfiguration {
         TrustedWriters.of(properties.trustedWriters)
 
     @Bean
-    fun knownAggregates(queries: ObjectProvider<QueryApi>): KnownAggregates =
+    fun knownAggregates(queries: ObjectProvider<NodeQueryApi>): KnownAggregates =
         QueriedKnownAggregates { queries.getObject() }
 
     @Bean
-    fun datasetSources(queries: ObjectProvider<QueryApi>): DatasetSources =
+    fun datasetSources(queries: ObjectProvider<NodeQueryApi>): DatasetSources =
         QueriedDatasetSources { queries.getObject() }
 
     /**
@@ -144,11 +145,15 @@ class AnalyticsCatalogConfiguration {
     @Bean
     @OptIn(InternalWowApi::class)
     fun datasetReferenceActions(
-        queries: ObjectProvider<QueryApi>,
+        queries: ObjectProvider<NodeQueryApi>,
         client: ObjectProvider<WowClient>,
         wow: WowProperties,
     ): DatasetReferenceActions = DatasetReferenceActions(
-        datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
+        datasets = { id ->
+            queries.getObject().trusted().snapshots<DatasetState>().let {
+                it.state(it.type.ref(AnalyticsCatalogContext.TENANT_ID, id))?.state
+            }
+        },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
         described = manifestPeers(wow),
     )
@@ -175,7 +180,7 @@ class AnalyticsCatalogConfiguration {
     @OptIn(ExperimentalWowApi::class)
     @ConditionalOnProperty(prefix = DATASETS, name = ["serving.enabled"], matchIfMissing = true)
     fun datasetPublicationWatcher(
-        queries: ObjectProvider<QueryApi>,
+        queries: ObjectProvider<NodeQueryApi>,
         datasets: QueryDatasets,
         properties: AnalyticsCatalogProperties,
         meters: ObjectProvider<MeterRegistry>,

@@ -1245,7 +1245,7 @@
   }, {
     "name" : "wow.query.unbounded-timeout",
     "type" : "java.time.Duration",
-    "description" : "The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for none.",
+    "description" : "The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : "PT30S"
   }, {

@@ -21,10 +21,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 
 /** A generated view, as an api module holds one: of the aggregate `shop.order`. */
 @StateView("shop.order")
@@ -37,7 +37,7 @@ data class OtherOrderView(val item: String)
 val ORDER = AggregateType("shop", "order")
 
 /** The node's queries, as the owner answers them: [snapshots] for every tenant. */
-fun queryApiOf(snapshots: SnapshotQueries<OrderView>): TenantQueryApi = mockk {
+fun queryApiOf(snapshots: TenantSnapshotQueries<OrderView>): TenantQueryApi = mockk {
     every { tenant(any()) } answers {
         mockk<SubscriptionQueries> { every { snapshots(OrderView::class.java) } returns snapshots }
     }

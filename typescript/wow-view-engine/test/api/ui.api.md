@@ -3513,6 +3513,7 @@ export const en: {
     readonly "runtime.query.failed.first-last-requires-single-value": "“First value” and “Last value” need a field that holds a single value; {field} may hold several.";
     readonly "runtime.query.failed.first-last-requires-order-by": "“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.";
     readonly "runtime.query.failed.invalid-cursor": "This page can no longer be continued; start again from the first page.";
+    readonly "runtime.query.failed.stream-not-resumable": "This data cannot be read to its end in this order; sort it another way or read fewer records.";
     readonly "runtime.query.failed.size-out-of-range": "The service limits how many rows one request may read: {reason}";
     readonly "runtime.query.failed.filter-too-large": "The conditions are more than the service accepts in one query: {reason}";
     readonly "runtime.query.failed.expensive-operator-disabled": "The service does not allow this costly query here: {reason}";

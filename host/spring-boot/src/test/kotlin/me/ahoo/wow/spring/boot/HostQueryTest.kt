@@ -28,7 +28,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.http.query.HttpQueries
@@ -382,11 +382,11 @@ class HostQueryTest {
     }
 
     @Test
-    fun `the node's QueryApi should read the snapshots, events and states of its models as a caller`() {
+    fun `the node's NodeQueryApi should read the snapshots, events and states of its models as a caller`() {
         startHost("wow.query.budgets.in-process.max-list-size" to 5).use { host ->
             val id = host.openAccount("mona")
             host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
-            val api = host.context.getBean(QueryApi::class.java)
+            val api = host.context.getBean(NodeQueryApi::class.java)
             val accounts = api.of(Caller.ANONYMOUS).snapshots<Account>()
             accounts.type.assert().isEqualTo(ACCOUNT)
             eventually {
@@ -426,9 +426,9 @@ class HostQueryTest {
     }
 
     @Test
-    fun `an application's own QueryApi should serve the handlers as a caller of the commit's tenant`() {
+    fun `an application's own NodeQueryApi should serve the handlers as a caller of the commit's tenant`() {
         val trusted = mockk<TrustedQueries>()
-        val api = mockk<QueryApi> { every { trusted() } returns trusted }
+        val api = mockk<NodeQueryApi> { every { trusted() } returns trusted }
         QueryAutoConfiguration.NodeQueries().wowContextQueries(api).of("acme").trusted().assert().isSameAs(trusted)
     }
 

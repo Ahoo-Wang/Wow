@@ -231,6 +231,7 @@ public final class me/ahoo/wow/api/caller/Caller {
 	public static final field APP Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/api/caller/Caller$Companion;
 	public static final field DEFAULT_TENANT Ljava/lang/String;
+	public static final field SERVICE_SUBJECT_PREFIX Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getApp ()Ljava/lang/String;
 	public final fun getAttributes ()Ljava/util/Map;
@@ -247,6 +248,8 @@ public final class me/ahoo/wow/api/caller/Caller {
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;Z)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;Z)Lme/ahoo/wow/api/caller/Caller;
+	public static final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun toOperator (Z)Lme/ahoo/wow/api/caller/Operator;
 	public static synthetic fun toOperator$default (Lme/ahoo/wow/api/caller/Caller;ZILjava/lang/Object;)Lme/ahoo/wow/api/caller/Operator;
 	public fun toString ()Ljava/lang/String;
@@ -261,6 +264,9 @@ public final class me/ahoo/wow/api/caller/Caller$Companion {
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;Z)Lme/ahoo/wow/api/caller/Caller;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
+	public final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static synthetic fun ofService$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
 }
 
 public final class me/ahoo/wow/api/caller/Operator {
@@ -913,6 +919,10 @@ public abstract interface class me/ahoo/wow/api/read/ModelQueries : me/ahoo/wow/
 	public abstract fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
+public abstract interface class me/ahoo/wow/api/read/NodeQueryApi : me/ahoo/wow/api/read/QueryApi {
+	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
 public final class me/ahoo/wow/api/read/Positioned {
 	public static final field Companion Lme/ahoo/wow/api/read/Positioned$Companion;
 	public fun equals (Ljava/lang/Object;)Z
@@ -927,16 +937,22 @@ public final class me/ahoo/wow/api/read/Positioned$Companion {
 	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/api/read/Positioned;
 }
 
-public abstract interface class me/ahoo/wow/api/read/Queries {
-	public abstract fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
-	public abstract fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/EventQueries;
-	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
-	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;
+public abstract interface class me/ahoo/wow/api/read/Queries : me/ahoo/wow/api/read/QueryModels {
+	public synthetic fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
+	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/TenantSnapshotQueries;
+	public synthetic fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;
+	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/TenantSnapshotQueries;
 }
 
 public abstract interface class me/ahoo/wow/api/read/QueryApi {
 	public abstract fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
-	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public abstract interface class me/ahoo/wow/api/read/QueryModels {
+	public abstract fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
+	public abstract fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/EventQueries;
+	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
+	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;
 }
 
 public abstract interface class me/ahoo/wow/api/read/RowQueries {
@@ -972,8 +988,6 @@ public final class me/ahoo/wow/api/read/Snapshot$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/wow/api/read/ModelQueries {
-	public abstract fun state (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun state (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
@@ -993,12 +1007,17 @@ public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ah
 	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 
-public abstract interface class me/ahoo/wow/api/read/TenantQueryApi : me/ahoo/wow/api/read/QueryApi {
+public abstract interface class me/ahoo/wow/api/read/TenantQueryApi : me/ahoo/wow/api/read/NodeQueryApi {
 	public abstract fun tenant (Ljava/lang/String;)Lme/ahoo/wow/api/read/SubscriptionQueries;
 }
 
-public abstract interface class me/ahoo/wow/api/read/TrustedQueries : me/ahoo/wow/api/read/Queries {
-	public abstract fun unbounded ()Lme/ahoo/wow/api/read/Queries;
+public abstract interface class me/ahoo/wow/api/read/TenantSnapshotQueries : me/ahoo/wow/api/read/SnapshotQueries {
+	public abstract fun state (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun state (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class me/ahoo/wow/api/read/TrustedQueries : me/ahoo/wow/api/read/QueryModels {
+	public abstract fun unbounded ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 
 public final class me/ahoo/wow/api/result/CommandResult {

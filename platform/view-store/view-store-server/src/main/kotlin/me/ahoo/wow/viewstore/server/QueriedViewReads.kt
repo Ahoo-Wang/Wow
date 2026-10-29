@@ -15,10 +15,10 @@ package me.ahoo.wow.viewstore.server
 
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.query.read.QueryNotServedException
-import me.ahoo.wow.query.read.trees
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.ViewAudience
@@ -37,7 +37,7 @@ import tools.jackson.databind.node.ObjectNode
  */
 class QueriedViewReads(
     private val systemViews: StoredSystemViews,
-    private val queries: () -> QueryApi?,
+    private val queries: () -> NodeQueryApi?,
 ) : ViewReads {
     override suspend fun systemViews(tenantId: String, appId: String, definitionId: String?): List<SystemView> =
         systemViews.systemViews(tenantId, appId, definitionId)
@@ -61,7 +61,7 @@ class QueriedViewReads(
 
     /** The views' snapshots as stored, or null when there are no queries or no backend serves them. */
     private fun views(): RowQueries<ObjectNode>? = try {
-        queries()?.trusted()?.snapshots(VIEW)?.trees()
+        queries()?.trusted()?.snapshots(VIEW)?.dynamic<ObjectNode>()
     } catch (_: QueryNotServedException) {
         null
     }

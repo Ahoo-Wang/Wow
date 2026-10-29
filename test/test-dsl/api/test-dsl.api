@@ -159,7 +159,7 @@ public final class me/ahoo/wow/test/ProcessorSpec {
 	public final fun givenAggregate (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/test/GivenAggregate;
 	public static synthetic fun givenAggregate$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;[Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/test/GivenAggregate;
 	public static synthetic fun givenAggregate$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/test/GivenAggregate;
-	public final fun givenQueries (Lme/ahoo/wow/api/read/QueryApi;)V
+	public final fun givenQueries (Lme/ahoo/wow/api/read/NodeQueryApi;)V
 	public final fun whenCommitted (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun whenCommitted (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V

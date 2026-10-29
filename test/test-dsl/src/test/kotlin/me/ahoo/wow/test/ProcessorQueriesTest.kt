@@ -21,7 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.AggregateState
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
@@ -63,8 +63,8 @@ class ProcessorQueriesTest {
 
     private fun placed() = stateEvent(order, Order("apple"), Reserve("apple", 1))
 
-    private fun queries(available: Int): QueryApi {
-        val stocks = mockk<me.ahoo.wow.api.read.SnapshotQueries<Stock>> {
+    private fun queries(available: Int): NodeQueryApi {
+        val stocks = mockk<me.ahoo.wow.api.read.TenantSnapshotQueries<Stock>> {
             coEvery { state(any<String>()) } answers {
                 AggregateState.of(stock.ref("acme", firstArg()), 1, Scope.NONE, false, emptyMap(), Stock(available))
             }
@@ -99,7 +99,7 @@ class ProcessorQueriesTest {
 
     @Test
     fun `a node's API should serve the handlers the tenant it pins, as a node does`() = sagaSpec(handlers) {
-        val stocks = mockk<me.ahoo.wow.api.read.SnapshotQueries<Stock>> {
+        val stocks = mockk<me.ahoo.wow.api.read.TenantSnapshotQueries<Stock>> {
             coEvery { state(any<String>()) } answers {
                 AggregateState.of(stock.ref("acme", firstArg()), 1, Scope.NONE, false, emptyMap(), Stock(3))
             }

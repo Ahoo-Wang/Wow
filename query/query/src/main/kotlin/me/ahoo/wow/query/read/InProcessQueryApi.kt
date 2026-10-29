@@ -49,6 +49,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
@@ -121,14 +122,11 @@ class InProcessQueryApi @InternalWowApi constructor(
 
     /** The queries of [caller]; a state read by id reads in the [pinned] tenant when given, else in the caller's. */
     private open inner class Scoped(val caller: QueryCaller, val pinned: String? = null) : Queries {
-        override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> =
+        override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> =
             Snapshots(models.typeOf(stateType), stateType, caller, pinned)
 
-        override fun snapshots(type: AggregateType): SnapshotQueries<Any> {
-            @Suppress("UNCHECKED_CAST")
-            val stateType = (models.stateTypeOf(type) ?: Map::class.java) as Class<Any>
-            return Snapshots(type, stateType, caller, pinned)
-        }
+        override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> =
+            Snapshots(type, ObjectNode::class.java, caller, pinned)
 
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
@@ -142,10 +140,13 @@ class InProcessQueryApi @InternalWowApi constructor(
         }
     }
 
-    private inner class Trusted : Scoped(QueryCaller.IN_PROCESS), TrustedQueries {
-        private val unbounded = Scoped(QueryCaller(entry = QueryEntry.UNBOUNDED))
+    /** Trusted code's queries, of [caller]'s entry: the in-process budget's, or none ([unbounded]). */
+    private inner class Trusted(caller: QueryCaller = QueryCaller.IN_PROCESS) : Scoped(caller), TrustedQueries {
+        private val unbounded: TrustedQueries by lazy {
+            if (caller.entry == QueryEntry.UNBOUNDED) this else Trusted(QueryCaller(entry = QueryEntry.UNBOUNDED))
+        }
 
-        override fun unbounded(): Queries = unbounded
+        override fun unbounded(): TrustedQueries = unbounded
     }
 
     private inner class TenantScoped(override val tenantId: String) :
@@ -183,7 +184,9 @@ class InProcessQueryApi @InternalWowApi constructor(
                 )
             } else {
                 if (after != null) throw problemOf(QueryViolation.InvalidCursor.rejection())
-                emitAll(gateway.list(query.withListDefault(), caller).mapped().map { Positioned.of(row(it), null) })
+                // Without positions it cannot be resumed: it reads the limit it names, or is refused.
+                if (query.limit == null) throw problemOf(QueryViolation.StreamNotResumable.rejection())
+                emitAll(gateway.list(query, caller).mapped().map { Positioned.of(row(it), null) })
             }
         }
 
@@ -221,7 +224,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         caller: QueryCaller,
         private val tenantId: String?,
     ) : Rows<Snapshot<S>>(snapshotGateway(type), caller, ::wholeRecords, { it.toSnapshot(type, stateType) }),
-        SnapshotQueries<S> {
+        TenantSnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> = Rows(gateway, caller) { decode(it, rowType) }
 
         override suspend fun state(id: String): AggregateState<S>? {

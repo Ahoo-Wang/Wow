@@ -23,6 +23,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -278,9 +279,9 @@ class ProcessorSpec private constructor(
      * Serves the handlers' reads (`context.queries`) from [queries], the read side of the test, as a node serves them
      * ([ContextQueries.of]): a node's API (an engine over states the test gives) pins the tenant of the commit a handler
      * handles as trusted code, reading the whole tenant; a fake (a stub, a mock) serves the reads [QueryApi.of] a
-     * caller of that tenant, the trusted ones [QueryApi.trusted]. Without it, a handler that reads fails.
+     * caller of that tenant, the trusted ones [NodeQueryApi.trusted]. Without it, a handler that reads fails.
      */
-    fun givenQueries(queries: QueryApi) {
+    fun givenQueries(queries: NodeQueryApi) {
         this.queries = ContextQueries.of(queries)
     }
 
