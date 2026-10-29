@@ -17,6 +17,9 @@ import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.principal.SimplePrincipal
+import me.ahoo.cosec.api.principal.SimpleTenantPrincipal
+import me.ahoo.cosec.api.tenant.SimpleTenant
 import me.ahoo.cosec.runtime.http.CoSecParameters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -32,6 +35,7 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import reactor.util.context.Context
+import java.util.concurrent.ConcurrentHashMap
 
 /** [CoSecCommandAuthorizer]: CoSec's decision on a command as the caller of its request (decision D367). */
 class CoSecCommandAuthorizerTest {
@@ -116,6 +120,19 @@ class CoSecCommandAuthorizerTest {
         others.forEach { caller ->
             inRequest(security) { authorizer.authorize(caller, action) }.assert().isEqualTo(Authorization.Allowed)
         }
+        cosec.asked.assert().isEmpty()
+    }
+
+    @Test
+    fun `a security context CoSec's pipeline did not build is no request of the caller's`() = runTest {
+        val acme = SimpleTenant("acme")
+        val forged = object : SecurityContext {
+            override val tenant = acme
+            override val principal = SimpleTenantPrincipal(SimplePrincipal("alice", emptySet(), setOf("editor")), acme)
+            override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+        }
+        cosec.permits = { false }
+        inRequest(forged) { authorizer.authorize(editor(), action) }.assert().isEqualTo(Authorization.Allowed)
         cosec.asked.assert().isEmpty()
     }
 

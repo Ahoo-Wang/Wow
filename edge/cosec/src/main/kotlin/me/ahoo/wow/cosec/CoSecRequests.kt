@@ -37,7 +37,7 @@ internal object CoSecRequests {
         }
         val subject = caller.subject ?: return null
         val context = currentCoroutineContext()[ReactorContext]?.context?.getSecurityContextOrEmpty() ?: return null
-        if (context.scope == null || context.principal.anonymous || context.principal.id != subject) {
+        if (context.scope == null || context.principal.id != subject) {
             return null
         }
         return context.takeIf { CoSecCallerResolver.tenantOf(it, defaultTenant) == caller.tenantId }
