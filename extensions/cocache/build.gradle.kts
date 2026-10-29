@@ -1,5 +1,5 @@
 description = "Wow CoCache: another context's aggregate states shared through CoCache, kept by the context " +
-    "that owns them and read as their generated views (StateViewCache)"
+    "that owns them and read as their generated views (PublishedStateCache)"
 
 dependencies {
     api(project(":cocache-api"))

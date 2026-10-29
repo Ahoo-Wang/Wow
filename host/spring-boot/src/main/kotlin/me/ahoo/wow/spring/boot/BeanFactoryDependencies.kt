@@ -24,7 +24,7 @@ import java.lang.reflect.Type
  * named by a qualifier (`@Name("…")` on the parameter) is the bean of that name, when it is of the type; one without
  * is the only bean of its type, or its primary bean when there are several. Several without a primary are ambiguous:
  * the parameter needs a qualifier. A parameterized type is matched by every type argument, as Spring matches an
- * injection point: `StateViewCache<OrderStateView>` is not `StateViewCache<PaymentStateView>`.
+ * injection point: `PublishedStateCache<OrderStateView>` is not `PublishedStateCache<PaymentStateView>`.
  */
 internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {
     override fun find(type: Class<*>, qualifier: String?): Any? = find(ResolvableType.forClass(type), type, qualifier)

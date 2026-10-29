@@ -23,7 +23,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -47,7 +47,7 @@ class KafkaStateEventTest {
         commandType = "shop.order.Pay",
         commitTime = 1_000L + version,
         events = listOf(StateEventPayload("shop.order.Paid", 1, WowJson.mapper.readTree("""{"amount":2.50}"""))),
-        state = StateView(version, "fingerprint", WowJson.mapper.readTree(ExactJson.NUMBERS)),
+        state = PublishedState(version, "fingerprint", WowJson.mapper.readTree(ExactJson.NUMBERS)),
         scope = Scope(ownerId = "alice"),
     )
 

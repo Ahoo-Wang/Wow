@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.state.PublishedStates
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 /**
  * The snapshot parts of one bounded [context] on a node, as the node assembles them: the [snapshotted]
  * models written to the [targets], a [SnapshotSubscription] per target store, the [readers] they are of the context's
- * state views, and the context's [SnapshotMaintenance], each over the context's [kernel], [log] and [codec]. Nothing
+ * published states, and the context's [SnapshotMaintenance], each over the context's [kernel], [log] and [codec]. Nothing
  * when the context has no targets.
  */
 internal class SnapshotAssembly(
@@ -40,13 +40,13 @@ internal class SnapshotAssembly(
     /** The aggregate types each target store keeps. */
     private val stores: Map<String, Set<AggregateType>> = targets?.storesOf(snapshotted.map { it.type }).orEmpty()
 
-    /** The state view readers of the snapshot subscriptions: each target store's, of the types it keeps. */
+    /** The published state readers of the snapshot subscriptions: each target store's, of the types it keeps. */
     val readers: Map<String, Set<AggregateType>> =
         stores.entries.associate { (store, types) -> targets!!.subscriptionOf(store) to types }
 
     /** The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time. */
     fun subscriptions(
-        views: StateViews,
+        views: PublishedStates,
         writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
     ): List<SnapshotSubscription> =
         stores.map { (store, types) ->

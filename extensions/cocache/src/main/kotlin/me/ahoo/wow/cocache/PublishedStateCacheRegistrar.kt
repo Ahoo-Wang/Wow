@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cocache
 
-import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.PublishedStateCache
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor
@@ -21,21 +21,21 @@ import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.core.ResolvableType
 
 /**
- * Registers a `StateViewCache<V>` bean for each state view the peer contracts on the class path name
- * ([ContractViews]), so a service injects `StateViewCache<OrderStateView>` with nothing declared: one lazy bean per
- * view, typed by its generics, named `wow.cocache.<context>.<aggregate>`, which the service's [StateViewCaches] gives.
+ * Registers a `PublishedStateCache<V>` bean for each state view the peer contracts on the class path name
+ * ([ContractViews]), so a service injects `PublishedStateCache<OrderStateView>` with nothing declared: one lazy bean per
+ * view, typed by its generics, named `wow.cocache.<context>.<aggregate>`, which the service's [PublishedStateCaches] gives.
  */
-class StateViewCacheRegistrar : BeanDefinitionRegistryPostProcessor {
+class PublishedStateCacheRegistrar : BeanDefinitionRegistryPostProcessor {
     override fun postProcessBeanDefinitionRegistry(registry: BeanDefinitionRegistry) {
         val beans = registry as? ConfigurableListableBeanFactory ?: return
         val classLoader = beans.beanClassLoader ?: javaClass.classLoader
         ContractViews.onClassPath(classLoader).forEach { (type, view) ->
             val name = beanNameOf(type.toString())
             if (registry.containsBeanDefinition(name)) return@forEach
-            val definition = RootBeanDefinition(StateViewCache::class.java).apply {
-                setTargetType(ResolvableType.forClassWithGenerics(StateViewCache::class.java, view))
+            val definition = RootBeanDefinition(PublishedStateCache::class.java).apply {
+                setTargetType(ResolvableType.forClassWithGenerics(PublishedStateCache::class.java, view))
                 isLazyInit = true
-                setInstanceSupplier { beans.getBean(StateViewCaches::class.java).of(view) }
+                setInstanceSupplier { beans.getBean(PublishedStateCaches::class.java).of(view) }
             }
             registry.registerBeanDefinition(name, definition)
         }

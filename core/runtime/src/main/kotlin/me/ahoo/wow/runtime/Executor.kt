@@ -27,7 +27,7 @@ import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.QueuedCommand
-import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.state.PublishedStates
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Clock
@@ -63,10 +63,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
  * returns when the commands already taken have finished, or its timeout passed.
  *
- * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
+ * When [views] are given, each commit's published state is recorded in them before the lane moves on to the aggregate's
  * next batch, while nothing can change the state: the context's state consumers (the snapshot
  * subscription, the subscriptions of annotated processors) read it. It is taken just before the append
- * ([StateViews.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns,
+ * ([PublishedStates.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns,
  * and recorded once the append committed. A view is only an optimisation,
  * so failing to take one never fails the committed command: the failure is logged, and the consumers rebuild the
  * state instead.
@@ -77,7 +77,7 @@ class Executor(
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
     /** The most commands of one aggregate a batch takes (`wow.executor.max-batch`); 1 runs each alone. */
     private val maxBatch: Int = DEFAULT_MAX_BATCH,
-    private val views: StateViews? = null,
+    private val views: PublishedStates? = null,
     /** The node's bound on its commands in flight, shared by the executors of all its contexts. */
     private val limit: InFlightLimit = InFlightLimit(),
     private val clock: Clock = Clock.systemUTC(),
@@ -209,28 +209,28 @@ class Executor(
         }
     }
 
-    /** What the kernel calls before each append of [model]'s aggregate: [StateViews.expect] of its state. */
-    private fun expecting(views: StateViews, model: AggregateModel<*>): (EventStreamRecord, CachedState) -> Unit =
+    /** What the kernel calls before each append of [model]'s aggregate: [PublishedStates.expect] of its state. */
+    private fun expecting(views: PublishedStates, model: AggregateModel<*>): (EventStreamRecord, CachedState) -> Unit =
         { stream, state -> expectView(views, model, stream, state) }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails, the append goes on; the consumers rebuild the state.
-    private fun expectView(views: StateViews, model: AggregateModel<*>, stream: EventStreamRecord, state: CachedState) {
+    private fun expectView(views: PublishedStates, model: AggregateModel<*>, stream: EventStreamRecord, state: CachedState) {
         try {
             views.expect(model, stream, state)
         } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; skipping it." }
+            logger.warn(failure) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails, the command is committed; only cancellation propagates.
-    private fun recordView(views: StateViews, model: AggregateModel<*>, committed: CommandOutcome.Committed) {
+    private fun recordView(views: PublishedStates, model: AggregateModel<*>, committed: CommandOutcome.Committed) {
         try {
             views.record(model, committed)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
             val stream = committed.stream
-            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; skipping it." }
+            logger.warn(failure) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 

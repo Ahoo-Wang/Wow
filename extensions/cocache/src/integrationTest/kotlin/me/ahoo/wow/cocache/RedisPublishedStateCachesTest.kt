@@ -51,7 +51,7 @@ data class RedisOrderView(val item: String)
  * takes back and which win over a reader's fill in flight.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedisStateViewCachesTest {
+class RedisPublishedStateCachesTest {
     private val redis = GenericContainer(REDIS_IMAGE).withExposedPorts(REDIS_PORT).also { it.start() }
     private val snapshots = mockk<TenantSnapshotQueries<RedisOrderView>>()
     private val api: TenantQueryApi = mockk {
@@ -62,9 +62,9 @@ class RedisStateViewCachesTest {
     private val firstNode = runtime()
     private val secondNode = runtime()
     private val ownerNode = runtime()
-    private val first = StateViewCaches(StateViewCaches.CacheFactory.of(firstNode)) { api }
-    private val second = StateViewCaches(StateViewCaches.CacheFactory.of(secondNode)) { api }
-    private val writer = StateViewCaches(StateViewCaches.CacheFactory.of(ownerNode)) { api }
+    private val first = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(firstNode)) { api }
+    private val second = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(secondNode)) { api }
+    private val writer = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(ownerNode)) { api }
         .writerOf(RedisOrderView::class.java)
     private val order = AggregateType("shop", "order")
 

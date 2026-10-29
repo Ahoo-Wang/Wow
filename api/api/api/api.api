@@ -831,24 +831,6 @@ public final class me/ahoo/wow/api/problem/WowProblemException : java/lang/Runti
 	public final fun getStatus ()I
 }
 
-public final class me/ahoo/wow/api/read/AggregateState {
-	public static final field Companion Lme/ahoo/wow/api/read/AggregateState$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getDeleted ()Z
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getState ()Ljava/lang/Object;
-	public final fun getTags ()Ljava/util/Map;
-	public final fun getVersion ()I
-	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Ljava/lang/Object;)Lme/ahoo/wow/api/read/AggregateState;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/read/AggregateState$Companion {
-	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Ljava/lang/Object;)Lme/ahoo/wow/api/read/AggregateState;
-}
-
 public final class me/ahoo/wow/api/read/CommittedEvent {
 	public static final field Companion Lme/ahoo/wow/api/read/CommittedEvent$Companion;
 	public fun equals (Ljava/lang/Object;)Z
@@ -971,20 +953,27 @@ public final class me/ahoo/wow/api/read/Snapshot {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDeleted ()Z
 	public final fun getFirstEventTime ()J
+	public final fun getFirstOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getLastEventTime ()J
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getState ()Ljava/lang/Object;
 	public final fun getTags ()Ljava/util/Map;
 	public final fun getVersion ()I
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/api/read/Snapshot;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/api/read/Snapshot;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/read/Snapshot$Companion {
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/api/read/Snapshot;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/api/read/Snapshot;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/read/Snapshot$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;
 }
 
 public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/wow/api/read/ModelQueries {

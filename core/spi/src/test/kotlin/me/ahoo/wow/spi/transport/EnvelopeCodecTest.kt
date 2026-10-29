@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
@@ -43,7 +43,7 @@ class EnvelopeCodecTest {
 
     private fun tree(json: String) = WowJson.mapper.readTree(json)
 
-    private fun record(state: StateView? = StateView(2, "f1", tree(ExactJson.NUMBERS))) = StateEventRecord(
+    private fun record(state: PublishedState? = PublishedState(2, "f1", tree(ExactJson.NUMBERS))) = StateEventRecord(
         ref = ref,
         version = 2,
         commandId = "c-2",
@@ -130,7 +130,7 @@ class EnvelopeCodecTest {
             )
         }
         val texts = record(
-            state = StateView(
+            state = PublishedState(
                 2,
                 "f3",
                 tree(
@@ -187,13 +187,13 @@ class EnvelopeCodecTest {
 
     @Test
     fun `a record should hold a consistent commit`() {
-        assertThrows<IllegalArgumentException> { record(state = StateView(3, "f1", tree("{}"))) }
+        assertThrows<IllegalArgumentException> { record(state = PublishedState(3, "f1", tree("{}"))) }
         assertThrows<IllegalArgumentException> { record().copyWith(events = emptyList()) }
         assertThrows<IllegalArgumentException> { record().copyWith(version = 0) }
         assertThrows<IllegalArgumentException> { record().copyWith(commandId = " ") }
         assertThrows<IllegalArgumentException> { record().copyWith(commandType = "") }
-        assertThrows<IllegalArgumentException> { StateView(0, "f1", tree("{}")) }
-        assertThrows<IllegalArgumentException> { StateView(1, " ", tree("{}")) }
+        assertThrows<IllegalArgumentException> { PublishedState(0, "f1", tree("{}")) }
+        assertThrows<IllegalArgumentException> { PublishedState(1, " ", tree("{}")) }
         assertThrows<IllegalArgumentException> { StateEventPayload("", 1, tree("{}")) }
         assertThrows<IllegalArgumentException> { StateEventPayload("e", 0, tree("{}")) }
         assertThrows<IllegalArgumentException> { Envelope(EnvelopeKind.COMMAND, " ", "t", tree("{}")) }

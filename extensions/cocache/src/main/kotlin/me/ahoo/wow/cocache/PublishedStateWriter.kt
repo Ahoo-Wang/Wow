@@ -27,7 +27,7 @@ import java.time.Duration
  *
  * Each write lives for [ttl] when given, else for the cache's lifetime (its `ttl`), the tombstone too.
  */
-class StateViewWriter<V : Any> internal constructor(
+class PublishedStateWriter<V : Any> internal constructor(
     private val cache: SuspendingCache<StateKey, V>,
     private val ttl: Duration?,
 ) {
@@ -51,5 +51,5 @@ class StateViewWriter<V : Any> internal constructor(
         return put == VersionedPut.Written
     }
 
-    override fun toString(): String = "StateViewWriter(${cache.name})"
+    override fun toString(): String = "PublishedStateWriter(${cache.name})"
 }

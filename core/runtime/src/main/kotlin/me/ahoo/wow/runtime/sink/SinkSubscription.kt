@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
-import me.ahoo.wow.runtime.state.StateViewReader
+import me.ahoo.wow.runtime.state.PublishedStateReader
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -30,7 +30,7 @@ import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.state.PublishedState
 
 /**
  * The subscription that writes the commits of one aggregate [type] to a [sink]:
@@ -44,7 +44,7 @@ import me.ahoo.wow.spi.state.StateView
  * - **The state**: read through the context's shared decoder ([EntryDecoder.stateEvents]) by [reader], whose name
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
- *   the published form, a JSON tree with its schema's fingerprint ([StateView]).
+ *   the published form, a JSON tree with its schema's fingerprint ([PublishedState]).
  * - **Transport**: the entry's wait context and trace go with the record, the trace of the sink's
  *   handling instead when it is observed; its reservations stay in the context.
  * - **At least once**: an entry is done, and the checkpoint may pass it, only once [Sink.write]
@@ -55,7 +55,7 @@ internal class SinkSubscription(
     val name: String,
     val type: AggregateType,
     private val sink: Sink,
-    private val reader: StateViewReader,
+    private val reader: PublishedStateReader,
     private val includeState: Boolean = true,
     startFrom: StartFrom = StartFrom.BEGINNING,
 ) {
@@ -63,7 +63,7 @@ internal class SinkSubscription(
     private val codec = reader.codec
 
     init {
-        require(reader.reader == name) { "The sink $name reads the state views as ${reader.reader}, not as itself." }
+        require(reader.reader == name) { "The sink $name reads the published states as ${reader.reader}, not as itself." }
     }
 
     /** The subscription to register: of [type]'s streams only, every event of them. */
@@ -100,7 +100,7 @@ internal class SinkSubscription(
             commitTime = stream.commitTime,
             events = events.map(::payloadOf),
             state = if (includeState) {
-                StateView(view.version, codec.stateSchemaFingerprint(model), WowJson.mapper.readTree(view.state))
+                PublishedState(view.version, codec.stateSchemaFingerprint(model), WowJson.mapper.readTree(view.state))
             } else {
                 null
             },

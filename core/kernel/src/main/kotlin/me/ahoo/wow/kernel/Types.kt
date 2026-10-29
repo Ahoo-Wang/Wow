@@ -22,11 +22,11 @@ import java.lang.reflect.WildcardType
 /**
  * The full types of the generated factories' dependencies, built without reflection: the compiler writes a
  * parameterized parameter type as [parameterized] of its class and its type arguments, so [Dependencies] can tell
- * `StateViewCache<OrderStateView>` from `StateViewCache<PaymentStateView>`. The types equal the JDK's of the same
+ * `PublishedStateCache<OrderStateView>` from `PublishedStateCache<PaymentStateView>`. The types equal the JDK's of the same
  * declaration, as [ParameterizedType] and [WildcardType] specify, so a host's container matches them.
  */
 object Types {
-    /** [raw] of [arguments]: `StateViewCache<OrderStateView>`. */
+    /** [raw] of [arguments]: `PublishedStateCache<OrderStateView>`. */
     @JvmStatic
     fun parameterized(raw: Class<*>, vararg arguments: Type): ParameterizedType {
         require(arguments.isNotEmpty()) { "A parameterized ${raw.name} has type arguments." }
@@ -56,7 +56,7 @@ object Types {
         else -> Any::class.java
     }
 
-    /** [type] as Kotlin writes it: `me.ahoo.StateViewCache<me.ahoo.OrderStateView>`. */
+    /** [type] as Kotlin writes it: `me.ahoo.PublishedStateCache<me.ahoo.OrderStateView>`. */
     @JvmStatic
     fun nameOf(type: Type): String = when (type) {
         is Class<*> -> type.name

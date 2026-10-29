@@ -21,7 +21,7 @@ import java.lang.reflect.Type
  * at startup, so a missing one fails the start rather than a command. The port knows no DI framework: a host adapts
  * its own container (Spring's bean factory, for one), and [of] serves tests and hosts without one.
  *
- * A parameter of a parameterized type (`StateViewCache<OrderStateView>`) is looked up by its full type ([Types]), so
+ * A parameter of a parameterized type (`PublishedStateCache<OrderStateView>`) is looked up by its full type ([Types]), so
  * two dependencies of one class and different type arguments are told apart; a host that knows no generics finds it
  * by its class, the default.
  */

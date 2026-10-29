@@ -16,8 +16,8 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.cocache.api.StateKey
-import me.ahoo.wow.cocache.api.StateViewCache
-import me.ahoo.wow.cocache.api.StateViewUnavailableException
+import me.ahoo.wow.cocache.api.PublishedStateCache
+import me.ahoo.wow.cocache.api.PublishedStateUnavailableException
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
@@ -41,7 +41,7 @@ import java.math.BigDecimal
  */
 class PaymentGatewaySagaTest {
     /** The ordering's shared cache, as the ordering service writes it: the order [ORDER] of two mugs. */
-    private val orders = object : StateViewCache<OrderStateView> {
+    private val orders = object : PublishedStateCache<OrderStateView> {
         override val name: String = "wow.eshop-ordering.order"
 
         override suspend fun get(key: StateKey): OrderStateView? = when (key.id) {
@@ -52,7 +52,7 @@ class PaymentGatewaySagaTest {
                 totalAmount = BigDecimal("100.01"),
             )
             // The cache does not hold it, and the ordering service cannot be read.
-            else -> throw StateViewUnavailableException(listOf(key), "The ordering service is unreachable.")
+            else -> throw PublishedStateUnavailableException(listOf(key), "The ordering service is unreachable.")
         }
 
         override suspend fun getAll(keys: Collection<StateKey>): Map<StateKey, OrderStateView> =

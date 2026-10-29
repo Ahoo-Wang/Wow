@@ -177,7 +177,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     )
 
     /**
-     * The snapshot of a state this codec already serialized as [stateText]: the state view taken
+     * The snapshot of a state this codec already serialized as [stateText]: the published state taken
      * when the stream at [version] committed, so it is not serialized again. The rest is as for the
      * snapshot of a state object.
      */

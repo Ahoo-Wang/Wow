@@ -24,7 +24,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.state.PublishedState
 
 /** An order aggregate, its state schema and its state events, for the Sink's tests. */
 object SinkFixtures {
@@ -86,7 +86,7 @@ object SinkFixtures {
             ),
             StateEventPayload("order_noted", 2, WowJson.mapper.readTree("""{"note":"fast"}""")),
         ),
-        state = state?.let { StateView(version, "fingerprint-1", WowJson.mapper.readTree(it)) },
+        state = state?.let { PublishedState(version, "fingerprint-1", WowJson.mapper.readTree(it)) },
         scope = Scope("owner-1", null),
         deleted = false,
         tags = mapOf("color" to listOf("red", "blue")),

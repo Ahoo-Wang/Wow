@@ -44,7 +44,7 @@ import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
-import me.ahoo.wow.cocache.api.StateViewUnavailableException
+import me.ahoo.wow.cocache.api.PublishedStateUnavailableException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.ConnectException
@@ -55,15 +55,15 @@ import java.time.Duration
 data class StrictOrderView(val item: String, val required: Int)
 
 /**
- * What a read that cannot be served throws: a [StateViewUnavailableException] when the state's source cannot be read
+ * What a read that cannot be served throws: a [PublishedStateUnavailableException] when the state's source cannot be read
  * now, and anything else, a state that does not decode or an error, as it is, so a reader that falls back never hides a
  * defect.
  */
-class StateViewUnavailableTest {
+class PublishedStateUnavailableTest {
     private val backend = InMemoryBackend()
     private val runtime = runtimeOn(backend)
     private val snapshots = mockk<TenantSnapshotQueries<OrderView>>()
-    private val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { queryApiOf(snapshots) }
+    private val caches = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(runtime)) { queryApiOf(snapshots) }
     private val key = StateKey("t", "o-1")
 
     @AfterEach
@@ -76,7 +76,7 @@ class StateViewUnavailableTest {
     @Test
     fun `a miss whose owner is unreachable should be unavailable, naming the key`() {
         coEvery { snapshots.state("o-1") } throws ConnectException("Connection refused")
-        val failure = readFailure { caches.of<OrderView>().get(key) } as StateViewUnavailableException
+        val failure = readFailure { caches.of<OrderView>().get(key) } as PublishedStateUnavailableException
         failure.key.assert().isEqualTo(key)
         failure.message.assert().contains("unreachable")
         generateSequence(failure.cause) { it.cause }.any { it is ConnectException }.assert().isTrue()
@@ -87,7 +87,7 @@ class StateViewUnavailableTest {
         every { snapshots.list(any()) } throws
             WowProblemException("wow.unavailable", SERVICE_UNAVAILABLE, Retry.SAME_REQUEST, null, "Down for a moment.")
         val keys = listOf(key, StateKey("t", "o-2"))
-        val failure = readFailure { caches.of<OrderView>().getAll(keys) } as StateViewUnavailableException
+        val failure = readFailure { caches.of<OrderView>().getAll(keys) } as PublishedStateUnavailableException
         failure.keys.assert().containsExactlyInAnyOrderElementsOf(keys)
         failure.key.assert().isNull()
         failure.message.assert().contains("503")
@@ -104,19 +104,19 @@ class StateViewUnavailableTest {
             }
         }
         val failure = readFailure {
-            StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { noRoute }.of<OrderView>().get(key)
+            PublishedStateCaches(PublishedStateCaches.CacheFactory.of(runtime)) { noRoute }.of<OrderView>().get(key)
         }
-        (failure as StateViewUnavailableException).message.assert().contains("no route")
+        (failure as PublishedStateUnavailableException).message.assert().contains("no route")
     }
 
     @Test
     fun `an owner's refusal or an error of the reading code should be thrown as it is`() {
         coEvery { snapshots.state("o-1") } throws
             WowProblemException("wow.forbidden", FORBIDDEN, Retry.NONE, null, "Not yours.")
-        (readFailure { caches.of<OrderView>().get(key) } is StateViewUnavailableException).assert().isFalse()
+        (readFailure { caches.of<OrderView>().get(key) } is PublishedStateUnavailableException).assert().isFalse()
         coEvery { snapshots.state("o-2") } throws IllegalStateException("A defect.")
         val defect = readFailure { caches.of<OrderView>().get(StateKey("t", "o-2")) }
-        (defect is StateViewUnavailableException).assert().isFalse()
+        (defect is PublishedStateUnavailableException).assert().isFalse()
         generateSequence(defect) { it.cause }.any { it.message == "A defect." }.assert().isTrue()
     }
 
@@ -124,21 +124,21 @@ class StateViewUnavailableTest {
     fun `a state that does not decode as its view should be thrown as it is`() = runBlocking<Unit> {
         caches.writerOf(OrderView::class.java).write(key, OrderView("book"), 1).assert().isTrue()
         runtimeOn(backend).use { other ->
-            val strict = StateViewCaches(StateViewCaches.CacheFactory.of(other)) { mockk() }.of<StrictOrderView>()
+            val strict = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(other)) { mockk() }.of<StrictOrderView>()
             val failure = readFailure { strict.get(key) }
             failure.assert().isNotNull()
-            (failure is StateViewUnavailableException).assert().isFalse()
+            (failure is PublishedStateUnavailableException).assert().isFalse()
         }
     }
 
     /** The caches of [backend], each with its policy changed by [policy]: what CoCache's settings would make it. */
-    private fun cachesOf(backend: CoherenceBackend, policy: CachePolicy.Builder.() -> Unit): StateViewCaches {
+    private fun cachesOf(backend: CoherenceBackend, policy: CachePolicy.Builder.() -> Unit): PublishedStateCaches {
         val runtime = CacheRuntime.builder().backend(backend).build().also { opened += it }
-        val factory = object : StateViewCaches.CacheFactory {
+        val factory = object : PublishedStateCaches.CacheFactory {
             override fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V> =
                 runtime.create(spec.toBuilder().updatePolicy { it.policy() }.build())
         }
-        return StateViewCaches(factory) { queryApiOf(snapshots) }
+        return PublishedStateCaches(factory) { queryApiOf(snapshots) }
     }
 
     private val opened = mutableListOf<CacheRuntime>()
@@ -155,7 +155,7 @@ class StateViewUnavailableTest {
             null
         }
         val cache = cachesOf(backend) { load = LoadPolicy(asyncTimeout = Duration.ofMillis(100)) }.of<OrderView>()
-        (readFailure { cache.get(key) } as StateViewUnavailableException).message.assert().contains("in time")
+        (readFailure { cache.get(key) } as PublishedStateUnavailableException).message.assert().contains("in time")
     }
 
     @Test
@@ -172,7 +172,7 @@ class StateViewUnavailableTest {
         }.of<OrderView>()
         val first = async(Dispatchers.Default) { cache.get(key) }
         loading.await()
-        val failure = readFailure { cache.get(StateKey("t", "o-2")) } as StateViewUnavailableException
+        val failure = readFailure { cache.get(StateKey("t", "o-2")) } as PublishedStateUnavailableException
         failure.message.assert().contains("in flight")
         release.complete(Unit)
         first.await().assert().isNull()
@@ -181,7 +181,7 @@ class StateViewUnavailableTest {
     @Test
     fun `a read of the owner that cancels itself should be unavailable`() {
         coEvery { snapshots.state("o-1") } throws CancellationException("The owner's read gave up.")
-        val failure = readFailure { caches.of<OrderView>().get(key) } as StateViewUnavailableException
+        val failure = readFailure { caches.of<OrderView>().get(key) } as PublishedStateUnavailableException
         failure.message.assert().contains("cancelled")
     }
 
@@ -191,7 +191,7 @@ class StateViewUnavailableTest {
         val down = failingBackend(IllegalStateException("Redis is down."))
         val failure = readFailure {
             cachesOf(down) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key)
-        } as StateViewUnavailableException
+        } as PublishedStateUnavailableException
         failure.message.assert().contains("backend")
         val foreign = failingBackend(ForeignFormatException("wow.shop.order", "t/o-1", 0, null))
         val unreadable =

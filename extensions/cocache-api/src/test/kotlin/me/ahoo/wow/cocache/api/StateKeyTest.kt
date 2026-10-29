@@ -38,7 +38,7 @@ class StateKeyTest {
 
     @Test
     fun `a get by tenant and id should read the key`() {
-        val cache = object : StateViewCache<String> {
+        val cache = object : PublishedStateCache<String> {
             override val name: String = "c"
 
             override suspend fun get(key: StateKey): String = key.toString()

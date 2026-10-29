@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper
  * A state view [viewType] as its JSON: Wow's JSON, read as a reader of another context's state reads it, so a field
  * or an enumeration constant the owner adds later breaks no reader.
  */
-internal class StateViewCodec<V : Any>(private val viewType: Class<V>) : Codec<V> {
+internal class PublishedStateCodec<V : Any>(private val viewType: Class<V>) : Codec<V> {
     override fun encode(value: V): ByteArray = MAPPER.writeValueAsBytes(value)
 
     override fun decode(bytes: ByteArray): V = MAPPER.readValue(bytes, viewType)
@@ -30,7 +30,7 @@ internal class StateViewCodec<V : Any>(private val viewType: Class<V>) : Codec<V
     /** The view of [state], a state's JSON as the owner publishes it. */
     fun viewOf(state: JsonNode): V = MAPPER.treeToValue(state, viewType)
 
-    override fun toString(): String = "StateViewCodec(${viewType.name})"
+    override fun toString(): String = "PublishedStateCodec(${viewType.name})"
 
     private companion object {
         val MAPPER: JsonMapper = WowJson.readerBuilder().build()

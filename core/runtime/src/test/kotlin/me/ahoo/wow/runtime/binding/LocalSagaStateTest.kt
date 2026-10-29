@@ -44,7 +44,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
-import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.state.PublishedStateOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -64,7 +64,7 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Decision D261 (B.G-5): a saga chain on one node, as the E3 benchmark runs it. The log hands each commit to the
  * node's subscriptions before the executor returns (decision D249; [SlowReturns] makes sure they get it first); the
- * state view of that commit is taken before the append, so the saga and the snapshot subscription read the state of
+ * published state of that commit is taken before the append, so the saga and the snapshot subscription read the state of
  * the node's own commits without a read of the snapshots or the log, even when the aggregate's earlier views are gone.
  */
 class LocalSagaStateTest {
@@ -107,7 +107,7 @@ class LocalSagaStateTest {
         backends,
         LoopbackClusterChannel(),
         // Views age out between the rounds, as an account's do between two transfers in the benchmark.
-        options = fastNodeOptions().copyWith(appendQueue = queue, stateViews = StateViewOptions(maxAge = MAX_AGE)),
+        options = fastNodeOptions().copyWith(appendQueue = queue, publishedStates = PublishedStateOptions(maxAge = MAX_AGE)),
         subscriptions = SubscriptionBindings(mapOf(SHOP to listOf(onOrderPlaced, onCartChanged))),
         observer = SlowReturns,
     ).also {
