@@ -24,7 +24,7 @@ import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /**
- * The CoSec actions and resources of Wow's commands and service routes (decision D367), one name whether CoSec
+ * The CoSec actions and resources of Wow's commands and service routes, one name whether CoSec
  * decides the HTTP request or an authorizer decides the command in the process:
  *
  * - a command is the action `<context>:<command>`, the command's name as the Manifest lists it

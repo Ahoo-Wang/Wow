@@ -48,7 +48,6 @@ import me.ahoo.cosec.webflux.PipelineWebFilter
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.decide.Decision as WowDecision
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -81,10 +80,11 @@ import org.springframework.web.server.WebFilter
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
-import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Creation as ManifestCreation
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.api.decide.Decision as WowDecision
+import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 const val CONTEXT = "shop"
 
@@ -197,16 +197,16 @@ class CoSecPipeline(
         this.permits = { true }
         val outcome = try {
             pipeline.evaluate(
-            HttpFacts(
-                method = "POST",
-                rawPath = path,
-                rawQuery = null,
-                headers = Headers.of(all.mapValues { listOf(it.value) }),
-                cookies = Cookies.of(emptyMap()),
-                remoteAddress = "10.0.0.1",
-                host = HostScope(host?.let(::AppId)),
+                HttpFacts(
+                    method = "POST",
+                    rawPath = path,
+                    rawQuery = null,
+                    headers = Headers.of(all.mapValues { listOf(it.value) }),
+                    cookies = Cookies.of(emptyMap()),
+                    remoteAddress = "10.0.0.1",
+                    host = HostScope(host?.let(::AppId)),
+                )
             )
-        )
         } finally {
             this.permits = permits
         }
@@ -240,7 +240,9 @@ class CoSecPipeline(
     private object InstalledViews : SnapshotViews {
         override fun peek(key: ViewKey): SnapshotView = viewOf(key)
 
-        override fun load(key: ViewKey): CompletableFuture<SnapshotView> = CompletableFuture.completedFuture(viewOf(key))
+        override fun load(key: ViewKey): CompletableFuture<SnapshotView> = CompletableFuture.completedFuture(
+            viewOf(key)
+        )
 
         private fun viewOf(key: ViewKey) = SnapshotView(
             CompiledDocument.platform(emptyList(), emptyList()),

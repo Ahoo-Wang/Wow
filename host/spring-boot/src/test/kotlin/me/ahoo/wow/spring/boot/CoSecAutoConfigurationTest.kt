@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.engine.flat.CompiledDocument
 import me.ahoo.cosec.engine.flat.SnapshotView
 import me.ahoo.cosec.runtime.AuthorizationChecker
@@ -175,7 +174,9 @@ class CoSecAutoConfigurationTest {
             "${mapped.action.namespace}:${mapped.action.verb} ${mapped.resource.type}/${mapped.resource.id}".assert()
                 .isEqualTo("shop:AddItem cart/c-1")
         }
-        runner.withUserConfiguration(CoSec::class.java).withPropertyValues("cosec.pipeline.mode=gateway").run { context ->
+        runner.withUserConfiguration(
+            CoSec::class.java
+        ).withPropertyValues("cosec.pipeline.mode=gateway").run { context ->
             context.getBeansOfType(RouteMap::class.java).assert().isEmpty()
         }
         runner.withUserConfiguration(CoSec::class.java).withPropertyValues("cosec.enabled=false").run { context ->

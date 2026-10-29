@@ -76,13 +76,13 @@ class CoSecCallerOptions @InternalWowApi constructor(
 }
 
 /**
- * The caller of a request from the security context CoSec's pipeline built for it (decision D367): CoSec
+ * The caller of a request from the security context CoSec's pipeline built for it: CoSec
  * authenticates the request and resolves its scope, deciding it itself or, behind a CoSec gateway
  * (`cosec.pipeline.mode=gateway`), reading what the gateway verified from `CoSec-Identity`. This resolver turns that
  * context into a [Caller].
  *
  * - **Unauthenticated**: no security context, one CoSec's pipeline did not build (it has no
- *   [scope][SecurityContext.scope]), or an anonymous principal, is no caller: the edge answers 401.
+ *   `scope`), or an anonymous principal, is no caller: the edge answers 401.
  * - **Tenant**: the security context's; CoSec's default tenant `(0)` is [CoSecCallerOptions.defaultTenant].
  * - **Owner and subject**: the principal's id, the subject always. The owner is the principal's id for an owner-level
  *   caller, and none for a tenant-level one ([CoSecCallerOptions.tenantRoles], [CoSecCallerOptions.tenantPolicies]),

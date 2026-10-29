@@ -27,7 +27,6 @@ import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean

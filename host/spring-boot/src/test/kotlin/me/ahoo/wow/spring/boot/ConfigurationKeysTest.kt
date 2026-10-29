@@ -199,7 +199,11 @@ class ConfigurationKeysTest {
         val variables = deploy.walkTopDown().filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
             manifest.readLines().mapNotNull { manifestVariable.find(it)?.groupValues?.get(1) }
         }.toSet()
-        variables.assert().contains("WOW_KAFKA_COMMANDINTAKE_ENABLED", "WOW_KAFKA_BOOTSTRAPSERVERS", "WOW_INTERNAL_HOST")
+        variables.assert().contains(
+            "WOW_KAFKA_COMMANDINTAKE_ENABLED",
+            "WOW_KAFKA_BOOTSTRAPSERVERS",
+            "WOW_INTERNAL_HOST"
+        )
         keys.unknown(variables(*variables.map { it to "x" }.toTypedArray())).assert().isEmpty()
         // The shipped files teach one form, the canonical one, dashes dropped: the legacy one reads two ways
         // (WOW_LOG_MAX_POLL_INTERVAL could be max.poll.interval).

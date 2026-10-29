@@ -20,13 +20,13 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
- * Authorizes a command with CoSec's documents, as its caller (decision D367): the command is the action
+ * Authorizes a command with CoSec's documents, as its caller: the command is the action
  * `<context>:<command>` on the resource `<aggregate>/<id>` ([CoSecActions]), the name CoSec's route map gives its
  * HTTP route, so one policy guards both. CoSec's [checker] evaluates it for the principal and scope of the request
  * the caller comes from ([CoSecRequests]); a command it does not permit is denied.
  *
  * A request-less caller, such as a saga's, a timer's, a compensation's or a scheduled job's command, which carries
- * the scope and operator of the root command admission authorized (decision D298), gets no objection: CoSec has no
+ * the scope and operator of the root command admission authorized, gets no objection: CoSec has no
  * request of its to evaluate, and the node's other authorizers still apply. On the public port CoSec's pipeline has
  * already decided the command's route by the same action, so the host leaves this authorizer off unless
  * `wow.cosec.authorizer.enabled` asks for it.

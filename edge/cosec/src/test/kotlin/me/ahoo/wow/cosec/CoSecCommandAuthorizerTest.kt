@@ -77,7 +77,12 @@ class CoSecCommandAuthorizerTest {
             inRequest(security) {
                 authorizer.authorize(
                     editor(),
-                    CommandAction(CommandType(name, Any::class.java), type.ref("acme", id), Scope("alice"), Creation.NONE)
+                    CommandAction(
+                        CommandType(name, Any::class.java),
+                        type.ref("acme", id),
+                        Scope("alice"),
+                        Creation.NONE
+                    )
                 )
             }
             return cosec.asked.last().toString()
