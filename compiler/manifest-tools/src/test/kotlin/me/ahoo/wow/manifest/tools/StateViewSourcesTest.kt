@@ -228,6 +228,26 @@ class StateViewSourcesTest {
         }
     }
 
+    class ReadingsState(val id: String) {
+        var nullableItems: List<Long?> = emptyList()
+        var nullableValues: Map<String, String?> = emptyMap()
+        var values: Map<String, Long> = emptyMap()
+        var itemsOrNull: List<Long>? = null
+        var addresses: List<Map<String, Address?>> = emptyList()
+    }
+
+    @Test
+    fun `an element or a value should be nullable in the view where its Kotlin type argument is`() {
+        val text = views(contract(ReadingsState::class.java, "readings")).single().text
+        text.assert().contains(
+            "val addresses: List<Map<String, ReadingsStateView.Address?>>,",
+            "val itemsOrNull: List<Long>? = null,",
+            "val nullableItems: List<Long?>,",
+            "val nullableValues: Map<String, String?>,",
+            "val values: Map<String, Long>,",
+        )
+    }
+
     @Test
     fun `a nullable or optional field should be nullable, null by default`() {
         fieldOf(emptyMap(), required = false).assert().isEqualTo("val field: tools.jackson.databind.JsonNode? = null,")

@@ -16,6 +16,8 @@ package me.ahoo.wow.manifest.tools
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
+import com.github.victools.jsonschema.generator.CustomPropertyDefinition
+import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.Option
@@ -50,6 +52,7 @@ import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.KotlinModule
 import java.lang.reflect.Modifier
+import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -71,7 +74,8 @@ import kotlin.reflect.jvm.kotlinProperty
  *   a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
  *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`), the key the fragment's references
- *   use; a type referred to once is inlined.
+ *   use; a type referred to once is inlined. A property's list, set, object array or map is no named type: it is
+ *   written where it is used, each element or value nullable as its Kotlin type argument is ([Containers]).
  * - A custom serializer is opaque to introspection: [schemaOverrides] gives the schema of such a class, by binary
  *   name, and a class Jackson does not write as an object fails the generation until it has one.
  * - The query field annotations of `wow-query-api` become `x-wow-*` keywords of the property schemas
@@ -208,8 +212,75 @@ internal class SchemaIntrospector(
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck(::isKotlinNullable)
+            .withCustomDefinitionProvider(Containers)
             .withInstanceAttributeOverride(queryKeywords)
         return SchemaGenerator(builder.build())
+    }
+
+    /**
+     * A property's list, set, object array or map, written where it is used, never as a definition of its erased type
+     * (two `Map<String, Long>` and one `Map<String, Long?>` are three schemas, not one shared definition): each element
+     * or value accepts null when its Kotlin type argument is nullable, at any depth (`List<Map<String, Item?>>`), the
+     * way a nullable property does, a scalar by a type union and any other value by a `null` alternative beside its
+     * schema. A Java or platform type argument is not nullable; a primitive array is left to the generator.
+     */
+    private object Containers : CustomPropertyDefinitionProvider<FieldScope> {
+        override fun provideCustomSchemaDefinition(
+            field: FieldScope,
+            context: SchemaGenerationContext,
+        ): CustomPropertyDefinition? {
+            if (field.isFakeContainerItemScope) return null
+            val schema = container(field.type, kotlinProperty(field)?.returnType, context) ?: return null
+            return CustomPropertyDefinition(schema, CustomDefinition.AttributeInclusion.YES)
+        }
+
+        /** The schema of [type] when it is a container, its elements typed by [kotlinType]'s arguments, else null. */
+        private fun container(type: ResolvedType, kotlinType: KType?, context: SchemaGenerationContext): ObjectNode? {
+            val erased = type.erasedType
+            val (keyword, element, argument) = when {
+                erased.isArray && !erased.componentType.isPrimitive ->
+                    Triple(ITEMS, type.arrayElementType, 0)
+                Collection::class.java.isAssignableFrom(erased) ->
+                    Triple(ITEMS, context.typeContext.getContainerItemType(type), 0)
+                Map::class.java.isAssignableFrom(erased) ->
+                    Triple(ADDITIONAL_PROPERTIES, type.typeParametersFor(Map::class.java)?.getOrNull(1), 1)
+                else -> return null
+            }
+            val elementKotlinType = kotlinType?.arguments?.getOrNull(argument)?.type
+            return context.generatorConfig.createObjectNode().apply {
+                put(TYPE, if (keyword == ITEMS) ARRAY else OBJECT)
+                // Any value at all, null included, is left unsaid, as the generator leaves it out of a free map.
+                element?.takeIf { it.erasedType != Any::class.java }?.let {
+                    set(keyword, element(it, elementKotlinType, context))
+                }
+                if (Set::class.java.isAssignableFrom(erased)) put(WireTypes.UNIQUE_ITEMS, true)
+            }
+        }
+
+        private fun element(type: ResolvedType, kotlinType: KType?, context: SchemaGenerationContext): ObjectNode {
+            val nullable = kotlinType?.isMarkedNullable == true
+            container(type, kotlinType, context)?.let { return if (nullable) context.makeNullable(it) else it }
+            if (!nullable) return context.createDefinitionReference(type)
+            if (isScalar(type.erasedType)) return context.makeNullable(context.createDefinition(type))
+            // The reference is filled in, or replaced by a definition's reference, once the generation ends.
+            return context.generatorConfig.createObjectNode().apply {
+                putArray(ANY_OF)
+                    .add(context.generatorConfig.createObjectNode().put(TYPE, NULL))
+                    .add(context.createDefinitionReference(type))
+            }
+        }
+
+        /** A value of the platform written as a JSON scalar: a number, a string, a boolean, an enumeration, a time. */
+        private fun isScalar(type: Class<*>): Boolean =
+            type.isPrimitive || type.isEnum || PLATFORM_PACKAGES.any { type.name.startsWith(it) }
+
+        const val TYPE = "type"
+        const val ITEMS = "items"
+        const val ADDITIONAL_PROPERTIES = "additionalProperties"
+        const val ANY_OF = "anyOf"
+        const val ARRAY = "array"
+        const val OBJECT = "object"
+        const val NULL = "null"
     }
 
     private fun parse(type: String, schema: String): ObjectNode {

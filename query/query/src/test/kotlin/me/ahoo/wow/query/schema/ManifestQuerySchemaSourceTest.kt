@@ -139,6 +139,10 @@ class ManifestQuerySchemaSourceTest {
                     schema.value("state.$map.k1").semanticType.assert().isEqualTo(semantic)
                     val pattern = descriptor.dynamic.single { it.pattern == "state.$map.{key}" }
                     pattern.semantic.assert().isEqualTo(semantic)
+                    // A Map<String, Long?> holds null values, and its pattern says so.
+                    val nullable = map in setOf("reminders", "pauses")
+                    schema.value("state.$map.k1").nullable.assert().isEqualTo(nullable)
+                    pattern.nullable.assert().isEqualTo(nullable)
                     // Relative time takes a time, never a duration.
                     val relative = listOf(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
                     if (semantic is Temporal) {

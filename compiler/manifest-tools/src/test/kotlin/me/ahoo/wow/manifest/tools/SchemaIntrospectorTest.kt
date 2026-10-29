@@ -391,4 +391,82 @@ class SchemaIntrospectorTest {
             mapOf("type" to "string", "enum" to listOf("RED", "GREEN"), "x-wow-class" to Color::class.java.name),
         )
     }
+
+    data class Reading(val value: Long)
+
+    /** Containers whose elements or values may be null, nested and not, beside ones whose may not. */
+    data class ContainersState(
+        val nullableItems: List<Long?>,
+        val nullableValues: Map<String, String?>,
+        val values: Map<String, Long>,
+        val sameValues: Map<String, Long>,
+        val itemsOrNull: List<Long>?,
+        val nullableReadings: List<Map<String, Reading?>>,
+        val reading: Reading,
+        val codes: Set<String?>,
+    )
+
+    /** Arrays, as Jackson writes them: an object array's elements nullable as declared, a primitive one's never. */
+    class ArraysState(val names: Array<String?>, val counts: IntArray)
+
+    @Test
+    fun `a container should be written at each use, its elements nullable as their Kotlin type arguments say`() {
+        val fragment = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            name = "box",
+                            state = StateManifest(schemaRef(ContainersState::class.java.name)),
+                        ),
+                        AggregateManifest(
+                            name = "shelf",
+                            state = StateManifest(schemaRef(ArraysState::class.java.name)),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val completed = introspector.complete(fragment)
+        val properties = defOf(completed, ContainersState::class.java)["properties"] as Map<*, *>
+        val long = mapOf("type" to "integer", "format" to "int64")
+        val nullableLong = mapOf("type" to listOf("integer", "null"), "format" to "int64")
+        properties["nullableItems"].assert().isEqualTo(mapOf("type" to "array", "items" to nullableLong))
+        properties["nullableValues"].assert().isEqualTo(
+            mapOf("type" to "object", "additionalProperties" to mapOf("type" to listOf("string", "null"))),
+        )
+        // A map used twice is written at each use: no definition is keyed by its erased type.
+        listOf("values", "sameValues").forEach {
+            properties[it].assert().isEqualTo(mapOf("type" to "object", "additionalProperties" to long))
+        }
+        properties["itemsOrNull"].assert().isEqualTo(mapOf("type" to listOf("array", "null"), "items" to long))
+        // A nullable class is a null alternative beside its reference, as on a nullable property.
+        properties["nullableReadings"].assert().isEqualTo(
+            mapOf(
+                "type" to "array",
+                "items" to mapOf(
+                    "type" to "object",
+                    "additionalProperties" to mapOf(
+                        "anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to schemaRef(Reading::class.java.name))),
+                    ),
+                ),
+            ),
+        )
+        properties["codes"].assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null")), "uniqueItems" to true),
+        )
+        val arrays = defOf(completed, ArraysState::class.java)["properties"] as Map<*, *>
+        arrays["names"].assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null"))),
+        )
+        arrays["counts"].assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to "integer", "format" to "int32")),
+        )
+        completed.defs.keys.assert().containsExactlyInAnyOrder(
+            ArraysState::class.java.name,
+            ContainersState::class.java.name,
+            Reading::class.java.name,
+        )
+    }
 }

@@ -49,7 +49,7 @@ export type DatasetWordingCleared = Record<string, unknown>;
 export interface DatasetWordingSet {
   appId: string;
   dataset: string;
-  fields?: null | Record<string, unknown>;
+  fields?: Record<string, unknown> | null;
   recordNoun?: string | null;
   title?: string | null;
 }
@@ -59,7 +59,7 @@ export interface DatasetWordingSet {
 export interface DatasetWordingState {
   appId: string;
   dataset: string;
-  fields?: null | Record<string, unknown>;
+  fields?: Record<string, unknown> | null;
   recordNoun?: string | null;
   title?: string | null;
 }
@@ -89,7 +89,7 @@ export interface SaveView {
  */
 export interface SetDatasetWording {
   dataset: string;
-  fields?: null | Record<string, unknown>;
+  fields?: Record<string, unknown> | null;
   recordNoun?: string | null;
   title?: string | null;
 }
