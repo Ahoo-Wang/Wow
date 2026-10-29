@@ -38,6 +38,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
@@ -130,6 +131,70 @@ class WowPluginTest {
         vendored.dependencies.add("ksp", vendored.files("libs/wow-compiler-10.0.0.jar"))
         vendored.configurations.getByName("ksp").incoming.dependencies.filterIsInstance<ExternalModuleDependency>()
             .assert().isEmpty()
+        // Wow's own build declares the compiler project; another processor, Wow's or not, leaves it to the plugin.
+        val root = ProjectBuilder.builder().withProjectDir(File(directory, "repo")).withName("wow").build()
+        ProjectBuilder.builder().withParent(root).withName("compiler").build().group = "me.ahoo.wow"
+        val own = ProjectBuilder.builder().withParent(root).withName("sample").build().also { sample ->
+            sample.pluginManager.apply("me.ahoo.wow")
+            sample.pluginManager.apply("org.jetbrains.kotlin.jvm")
+            sample.dependencies.add("ksp", sample.dependencies.project(mapOf("path" to ":compiler")))
+        }
+        own.configurations.getByName("ksp").incoming.dependencies.map { it.name }.assert().containsExactly("compiler")
+        val other = project()
+        other.dependencies.add("ksp", "sample:processor:1.0.0")
+        other.dependencies.add("ksp", "me.ahoo.wow:wow-models:1.0.0")
+        other.configurations.getByName("ksp").incoming.dependencies.map { it.name }.assert()
+            .containsExactly("processor", "wow-models", "wow-compiler")
+    }
+
+    @Test
+    fun `a failure should name the owner of each class path entry, a project, a module or a file`() {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("store").build()
+        // A project whose artifact no task builds, so its owner resolves here, as the merge reads it once built.
+        val lib = ProjectBuilder.builder().withParent(
+            root
+        ).withName("lib").withProjectDir(File(directory, "lib")).build()
+        val libJar = File(directory, "lib/lib.jar")
+        lib.configurations.create("elements") { it.isCanBeResolved = false }
+        lib.artifacts.add("elements", libJar)
+        val repository = File(directory, "maven")
+        File(repository, "com/acme/billing/1.0.0/billing-1.0.0.pom").apply { parentFile.mkdirs() }.writeText(
+            """<project><modelVersion>4.0.0</modelVersion><groupId>com.acme</groupId>""" +
+                """<artifactId>billing</artifactId><version>1.0.0</version></project>""",
+        )
+        File(repository, "com/acme/billing/1.0.0/billing-1.0.0.jar").writeText("")
+        val vendor = File(directory, "shop/vendor/tool.jar").apply { parentFile.mkdirs() }.also { it.writeText("") }
+        val shop = ProjectBuilder.builder().withParent(root).withName("shop").withProjectDir(File(directory, "shop"))
+            .build()
+        shop.extensions.extraProperties.set("kotlin.stdlib.default.dependency", "false")
+        shop.pluginManager.apply("me.ahoo.wow")
+        shop.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        shop.repositories.maven { it.url = repository.toURI() }
+        shop.dependencies.add(
+            "implementation",
+            shop.dependencies.project(mapOf("path" to ":lib", "configuration" to "elements"))
+        )
+        shop.dependencies.add("implementation", "com.acme:billing:1.0.0")
+        shop.dependencies.add("implementation", shop.files(vendor))
+        (shop as ProjectInternal).evaluate()
+        val owners = (shop.tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest).owners.get()
+        owners.assert()
+            .containsEntry(libJar.path, "project ':lib'")
+            .containsEntry(
+                File(shop.layout.buildDirectory.get().asFile, "wow/manifest-fragment").path,
+                "project ':shop'"
+            )
+            .containsKey(vendor.path)
+        owners.values.assert().contains("com.acme:billing:1.0.0")
+    }
+
+    @Test
+    fun `an api module's sources jar should hold the generated sources`() {
+        val api = paired("shop-domain")
+        api.extensions.getByType(JavaPluginExtension::class.java).withSourcesJar()
+        val sources = api.tasks.getByName("sourcesJar") as Jar
+        sources.taskDependencies.getDependencies(sources).map { it.name }.assert()
+            .contains(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK)
     }
 
     @Test
@@ -499,8 +564,9 @@ class WowPluginTest {
         File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
         return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
             this.contracts.setFrom(*contracts)
-            // The domain module each contract comes from, as the build resolves it once the domain's task has run.
-            this.owners.set(contracts.associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })
+            // The domain module each contract comes from, as the build resolves it once the domain's task has run; a
+            // contract of no known owner (the second) is named by its file.
+            this.owners.set(contracts.take(1).associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })
             this.classes.setFrom(classes, File(directory, "missing"))
         }
     }
@@ -643,6 +709,7 @@ class WowPluginTest {
                 "Kotlin Gradle plugin 1.9.25",
                 "Kotlin ${WowPlugin.minKotlin} or later"
             )
+        assertThrows<GradleException> { WowPlugin.requireKotlin(":shop", "2.2.21") }
         WowPlugin.requireKotlin(":shop", WowPlugin.minKotlin + ".0")
         WowPlugin.requireKotlin(":shop", "3.0.0-Beta1")
     }
