@@ -14,3 +14,10 @@ public abstract interface class me/ahoo/wow/cocache/api/StateViewCache {
 	public abstract fun getName ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/cocache/api/StateViewUnavailableException : java/lang/RuntimeException {
+	public fun <init> (Ljava/util/Collection;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/util/Collection;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getKey ()Lme/ahoo/wow/cocache/api/StateKey;
+	public final fun getKeys ()Ljava/util/Collection;
+}
+

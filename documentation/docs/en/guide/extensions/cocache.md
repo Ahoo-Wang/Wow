@@ -57,23 +57,28 @@ class PaymentGatewaySaga(
 }
 ```
 
-The eShop's payment reads the order it charges this way, to say what the charge is for. That use is the saga's own, so a payment never waits on the ordering for it: an order the cache cannot give, when the ordering does not share its orders there or a miss cannot reach it, is charged by its id:
+A state the cache does not hold, whose owner cannot be read now (unreachable, no route to it from this node, a timeout) or whose cache backend fails, is a `StateViewUnavailableException`, naming the keys. Nothing else is: a state that does not decode as its view, or a defect in the reading code, is thrown as it is.
+
+Whether to fall back on it is the reader's call. A read for the reader's own use, a name or a description, may fall back. A read a decision rests on must not: it fails, and the handler retries and then parks as any failure does. The eShop's payment reads the order it charges to say what the charge is for, its own use, so a payment never waits on the ordering for it. It catches exactly the unavailable state, says so once, and charges by the order's id:
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentGatewaySaga.kt#read-order -->
 
 ```kotlin
 /**
- * The order [orderId] as the ordering's shared cache gives it; null when it cannot: the ordering does not share its
- * orders here, or a miss cannot reach the ordering service. The charge's description is the saga's own use of the
- * order, so a payment never waits on the ordering for it.
+ * The order [orderId] as the ordering's shared cache gives it; null when the cache cannot serve it now (the
+ * ordering does not share its orders here, or a miss cannot reach the ordering service). The charge's description
+ * is the saga's own use of the order, so a payment never waits on the ordering for it. Only an unavailable order
+ * falls back: an order that does not decode, or a defect, fails the handling as any error does.
  */
-// A miss fails as the ordering's read fails, by any exception; the charge goes on without the order.
-@Suppress("TooGenericExceptionCaught", "SwallowedException")
 private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
     orders.get(tenantId, orderId)
-} catch (cancelled: CancellationException) {
-    throw cancelled
-} catch (unavailable: Exception) {
+} catch (unavailable: StateViewUnavailableException) {
+    // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
+    if (warned.compareAndSet(false, true)) {
+        logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
+    } else {
+        logger.debug(unavailable) { "The order ${unavailable.key} is unavailable." }
+    }
     null
 }
 ```

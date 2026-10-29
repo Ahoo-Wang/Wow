@@ -15,17 +15,23 @@ package me.ahoo.wow.cocache
 
 import kotlinx.coroutines.flow.toList
 import me.ahoo.cocache.api.Cache
+import me.ahoo.cocache.api.CacheReadException
 import me.ahoo.cocache.api.Versioned
 import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.core.CacheSpec
+import me.ahoo.cocache.core.ForeignFormatException
 import me.ahoo.cocache.core.KeyEncoder
+import me.ahoo.cocache.core.SourceLoadRejectedException
+import me.ahoo.cocache.core.SourceLoadTimeoutException
 import me.ahoo.cocache.core.cacheSpec
+import me.ahoo.cocache.coroutines.SourceLoadCancelledException
 import me.ahoo.cocache.coroutines.SuspendingCache
 import me.ahoo.cocache.coroutines.SuspendingCacheLoader
 import me.ahoo.cocache.coroutines.suspending
 import me.ahoo.cocache.coroutines.suspendingVersionedLoader
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -34,6 +40,8 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.StateViewUnavailableException
+import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
@@ -94,9 +102,33 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
     private class Reads<V : Any>(private val cache: SuspendingCache<StateKey, V>) : StateViewCache<V> {
         override val name: String get() = cache.name
 
-        override suspend fun get(key: StateKey): V? = cache.get(key)
+        override suspend fun get(key: StateKey): V? = served(listOf(key)) { cache.get(key) }
 
-        override suspend fun getAll(keys: Collection<StateKey>): Map<StateKey, V> = cache.getAll(keys)
+        override suspend fun getAll(keys: Collection<StateKey>): Map<StateKey, V> =
+            served(keys) { cache.getAll(keys) }
+
+        /**
+         * [read], whose failure to reach the states' source is a [StateViewUnavailableException]: the owner's read
+         * the loader could not make, CoCache's load that timed out, was refused or cancelled, or its backend's read
+         * that failed. A state that does not decode, or any other error, is thrown as it is.
+         */
+        private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T = try {
+            read()
+        } catch (unavailable: StateViewUnavailableException) {
+            throw unavailable
+        } catch (source: SourceLoadTimeoutException) {
+            throw unavailable(keys, "its owner did not answer in time", source)
+        } catch (source: SourceLoadRejectedException) {
+            throw unavailable(keys, "too many reads of its owner are in flight", source)
+        } catch (source: SourceLoadCancelledException) {
+            throw unavailable(keys, "the read of its owner was cancelled", source)
+        } catch (backend: CacheReadException) {
+            if (backend.cause is ForeignFormatException) throw backend
+            throw unavailable(keys, "the cache's backend failed", backend)
+        }
+
+        private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
+            StateViewUnavailableException(keys, "The states $keys in $name cannot be served: $reason.", cause)
 
         override fun toString(): String = "StateViewCache($name)"
     }
@@ -136,31 +168,58 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
  * Reads the states of a cache's misses from the aggregate's owner, each at its version: [load] its state read,
  * [loadAll] one list query per tenant, its ids in one `IN`. A deleted aggregate is no view at its version (a
  * tombstone), one never created `null` (a negative cache).
+ *
+ * An owner it cannot read is a [StateViewUnavailableException]: the node has no route to it (it neither serves the
+ * aggregate nor reaches it as a peer), the owner is unreachable (an I/O failure), or it answers a problem a retry may
+ * get past (a 5xx, a 429). Any other failure, a refusal or an error, is thrown as it is.
  */
 internal class StateViewLoader<V : Any>(
     private val viewType: Class<V>,
     private val queries: () -> QueryApi,
 ) : SuspendingCacheLoader<StateKey, Versioned<V?>> {
-    override suspend fun load(key: StateKey): Versioned<V?>? =
-        snapshots(key.tenantId).state(key.id)?.let { versionedOf(it.state, it.version, it.deleted) }
+    override suspend fun load(key: StateKey): Versioned<V?>? = owned(listOf(key)) {
+        snapshots(key.tenantId, listOf(key)).state(key.id)?.let { versionedOf(it.state, it.version, it.deleted) }
+    }
 
-    override suspend fun loadAll(keys: Collection<StateKey>): Map<StateKey, Versioned<V?>> =
+    override suspend fun loadAll(keys: Collection<StateKey>): Map<StateKey, Versioned<V?>> = owned(keys) {
         keys.groupBy { it.tenantId }.flatMap { (tenantId, ofTenant) ->
             val ids = ofTenant.map { it.id }.distinct()
             val query = listQuery {
                 filter { ids(ids) }
                 limit(ids.size)
             }
-            snapshots(tenantId).list(query).toList().map { row ->
+            snapshots(tenantId, ofTenant).list(query).toList().map { row ->
                 StateKey(tenantId, row.ref.id) to versionedOf(row.state, row.version, row.deleted)
             }
         }.toMap()
+    }
+
+    /** [read] of the owner, a failure to reach it a [StateViewUnavailableException] naming [keys]. */
+    private inline fun <T> owned(keys: Collection<StateKey>, read: () -> T): T = try {
+        read()
+    } catch (unreachable: IOException) {
+        throw unavailable(keys, "its owner is unreachable", unreachable)
+    } catch (problem: WowProblemException) {
+        if (!problem.retryHint.retryable && problem.status < SERVER_ERROR) throw problem
+        throw unavailable(keys, "its owner answered ${problem.status} ${problem.code}", problem)
+    }
 
     private fun versionedOf(view: V, version: Int, deleted: Boolean): Versioned<V?> =
         Versioned(view.takeUnless { deleted }, version.toLong())
 
-    /** The snapshots of the views, as this service reads them for a commit of [tenantId]. */
-    private fun snapshots(tenantId: String): SnapshotQueries<V> = queriesOf(tenantId).snapshots(viewType)
+    /**
+     * The snapshots of the views, as this service reads them for a commit of [tenantId]: a
+     * [StateViewUnavailableException] naming [keys] when the node has no route to their owner, whose type no model of
+     * the node nor any peer it reaches has.
+     */
+    private fun snapshots(tenantId: String, keys: Collection<StateKey>): SnapshotQueries<V> = try {
+        queriesOf(tenantId).snapshots(viewType)
+    } catch (noRoute: IllegalArgumentException) {
+        throw unavailable(keys, "the node has no route to their owner", noRoute)
+    }
+
+    private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
+        StateViewUnavailableException(keys, "The states $keys of ${viewType.name} cannot be read: $reason.", cause)
 
     private fun queriesOf(tenantId: String): Queries = when (val api = queries()) {
         is TenantQueryApi -> api.tenant(tenantId)
@@ -168,4 +227,9 @@ internal class StateViewLoader<V : Any>(
     }
 
     override fun toString(): String = "StateViewLoader(${viewType.name})"
+
+    private companion object {
+        /** The first status of a server's error, which a retry may get past. */
+        const val SERVER_ERROR = 500
+    }
 }

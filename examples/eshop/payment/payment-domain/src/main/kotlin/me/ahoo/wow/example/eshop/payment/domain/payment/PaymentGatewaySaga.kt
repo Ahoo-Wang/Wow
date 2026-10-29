@@ -13,17 +13,19 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import kotlinx.coroutines.CancellationException
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Charges the [gateway] for each requested payment and records its answer on the payment: [ConfirmPayment] when it
@@ -44,6 +46,8 @@ class PaymentGatewaySaga(
     private val gateway: PaymentGateway,
     private val orders: StateViewCache<OrderStateView>,
 ) {
+    private val warned = AtomicBoolean()
+
     @OnEvent(derives = [ConfirmPayment::class, FailPayment::class])
     suspend fun onPaymentRequested(
         event: StateTypedEvent<PaymentState, PaymentRequested>,
@@ -60,17 +64,20 @@ class PaymentGatewaySaga(
 
     // region read-order
     /**
-     * The order [orderId] as the ordering's shared cache gives it; null when it cannot: the ordering does not share its
-     * orders here, or a miss cannot reach the ordering service. The charge's description is the saga's own use of the
-     * order, so a payment never waits on the ordering for it.
+     * The order [orderId] as the ordering's shared cache gives it; null when the cache cannot serve it now (the
+     * ordering does not share its orders here, or a miss cannot reach the ordering service). The charge's description
+     * is the saga's own use of the order, so a payment never waits on the ordering for it. Only an unavailable order
+     * falls back: an order that does not decode, or a defect, fails the handling as any error does.
      */
-    // A miss fails as the ordering's read fails, by any exception; the charge goes on without the order.
-    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
         orders.get(tenantId, orderId)
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (unavailable: Exception) {
+    } catch (unavailable: StateViewUnavailableException) {
+        // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
+        if (warned.compareAndSet(false, true)) {
+            logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
+        } else {
+            logger.debug(unavailable) { "The order ${unavailable.key} is unavailable." }
+        }
         null
     }
     // endregion
@@ -78,4 +85,8 @@ class PaymentGatewaySaga(
     /** What the charge is for, as the buyer's statement shows it: `2 × mug, 1 × cap`. */
     private fun describe(order: OrderStateView): String =
         order.items.joinToString { "${it.quantity} × ${it.productId}" }
+
+    private companion object {
+        val logger = KotlinLogging.logger {}
+    }
 }

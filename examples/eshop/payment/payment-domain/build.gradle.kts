@@ -17,6 +17,8 @@ dependencies {
     implementation(project(":eshop-ordering-api"))
     // The ordering's shared cache of its orders, which the gateway saga reads: the interface alone, no dependency.
     implementation("me.ahoo.wow:wow-cocache-api")
+    // The gateway saga says once when the ordering's orders are unavailable.
+    implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("me.ahoo.wow:wow-test")
     // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
     testImplementation("me.ahoo.wow:wow-manifest")

@@ -820,7 +820,7 @@ Service mode, the default, calls the peer's internal port as this service (its `
 
 ## State caches (9.x `wow-cocache`)
 
-9.x `wow-cocache` gave each reader the parts to build its own cache of another context's state: a CoCache cache it declared, a refresher it registered on the state events, and a source it loaded misses from. V10's `wow-cocache` (decision D364) keeps one shared cache per aggregate type, written by the context that owns the aggregate and read by every service with nothing declared: the docs page Guide › Share State through CoCache (`/guide/extensions/cocache`). The cache of each reader is replaced, not ported; report each one and what replaces it.
+9.x `wow-cocache` gave each reader the parts to build its own cache of another context's state: a CoCache cache it declared, a refresher it registered on the state events, and a source it loaded misses from. V10's `wow-cocache` (decision D364) keeps one shared cache per aggregate type, written by the context that owns the aggregate and read by every service with nothing declared: the docs page Guide › Share State through CoCache. The cache of each reader is replaced, not ported; report each one and what replaces it.
 
 | 9.x `wow-cocache` | V10 |
 |---|---|

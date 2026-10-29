@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
@@ -43,15 +44,15 @@ class PaymentGatewaySagaTest {
     private val orders = object : StateViewCache<OrderStateView> {
         override val name: String = "wow.eshop-ordering.order"
 
-        override suspend fun get(key: StateKey): OrderStateView? = if (key.id == ORDER) {
-            OrderStateView(
+        override suspend fun get(key: StateKey): OrderStateView? = when (key.id) {
+            ORDER -> OrderStateView(
                 confirmedProducts = setOf("mug"),
                 items = listOf(OrderItem("mug", BigDecimal("50.00"), 2)),
                 status = OrderStatus.STOCK_CONFIRMED,
                 totalAmount = BigDecimal("100.01"),
             )
-        } else {
-            null
+            // The cache does not hold it, and the ordering service cannot be read.
+            else -> throw StateViewUnavailableException(listOf(key), "The ordering service is unreachable.")
         }
 
         override suspend fun getAll(keys: Collection<StateKey>): Map<StateKey, OrderStateView> =
@@ -93,7 +94,7 @@ class PaymentGatewaySagaTest {
     }
 
     @Test
-    fun `an order the cache does not have should be charged by its id`() = sagaSpec(handlers) {
+    fun `an order the cache cannot serve should be charged by its id`() = sagaSpec(handlers) {
         givenAggregate(paymentModel(), OTHER)
         whenEvent(PaymentRequested(OTHER, BigDecimal("200.00")), by = RequestPayment::class) {
             expectCommand<FailPayment> { body.reason.assert().contains("(order $OTHER)") }
