@@ -29,13 +29,12 @@ dependencies {
     implementation("me.ahoo.wow:wow-mongo")
     // The `postgres` profile: the host keeps the views on PostgreSQL and serves their snapshot queries there.
     implementation("me.ahoo.wow:wow-postgres")
-    // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads
-    // the user and the application CoSec authorized from CoSec's security context (decisions D232, D236); CoSec
+    // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec reads the identity the CoSec gateway forwards, and
+    // the edge reads the user and the app of its scope from CoSec's security context (decisions D232, D236); CoSec
     // itself is the application's to bring.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
     // deployment attaches one, a no-op otherwise.
     implementation("me.ahoo.wow:wow-observability")

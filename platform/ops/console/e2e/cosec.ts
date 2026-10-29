@@ -14,9 +14,9 @@
 import { createHmac } from "node:crypto";
 
 /**
- * The secret the CoSec gateway signs its tokens with, here the suite. The `cosec` server
- * holds none: behind the gateway it parses the token the gateway verified
- * (decision D296).
+ * The secret the suite signs its tokens with, which the CoSec gateway's
+ * stand-in (`e2e/cosec-gateway.mjs`) verifies them with. The `cosec` server
+ * holds none: it reads the identity the gateway forwards.
  */
 export const COSEC_SECRET =
   "the-ops-console-e2e-secret-of-32-characters";

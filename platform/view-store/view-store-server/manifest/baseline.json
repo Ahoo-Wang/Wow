@@ -339,7 +339,7 @@
     "errors" : [ {
       "code" : "view-store.app-required",
       "status" : 400,
-      "description" : "The request carries no CoSec-App-Id."
+      "description" : "The request's CoSec scope has no application (behind the CoSec gateway, the one it forwarded)."
     }, {
       "code" : "view-store.invalid",
       "status" : 400,

@@ -1,0 +1,22 @@
+{
+  "schema": 2,
+  "revision": 1,
+  "publishedAt": "2026-10-29T00:00:00Z",
+  "policies": [
+    {
+      "id": "ga-e2e-flaky",
+      "condition": { "eq": ["subject.authenticated", true] },
+      "statements": [
+        {
+          "name": "the runner's probe of what a retry resends",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": "http:path:/ga-e2e-flaky/probe"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    { "id": "ga-e2e-flaky", "subject": "*", "app": "*", "space": "", "policy": "ga-e2e-flaky" }
+  ]
+}

@@ -38,8 +38,8 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * `WOW_PG_PASSWORD` is left alone), as Spring maps them: lower case,
  * an underscore a dot, a number an index (`WOW_CALLERS_BASKET_COMMANDS_0` is `wow.callers.basket.commands[0]`), and
  * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`),
- * or, Spring's legacy form, a key's dashes written as underscores too (`WOW_COSEC_TRUST_INJECTED_APP` is
- * `wow.cosec.trust-injected-app`): a variable is known when either reading names a key ([namesOf]).
+ * or, Spring's legacy form, a key's dashes written as underscores too (`WOW_COSEC_TENANT_LEVEL_ROLES` is
+ * `wow.cosec.tenant-level.roles`): a variable is known when either reading names a key ([namesOf]).
  * An entry of a checked map may span several elements there, since a variable cannot write its brackets or dashes:
  * one is known when the elements after some part of it name a property of the value.
  *
@@ -201,7 +201,7 @@ class ConfigurationKeys(
         /**
          * The property names [key] may stand for: a `wow.*` key as written; an environment variable as [nameOf] maps
          * it, and in Spring's legacy form too, each underscore between two words a dash or a dot
-         * (`WOW_COSEC_TRUST_INJECTED_APP` is `wow.cosec.trust-injected-app`), as Spring's binder reads it.
+         * (`WOW_COSEC_TENANT_LEVEL_ROLES` is `wow.cosec.tenant-level.roles`), as Spring's binder reads it.
          */
         fun namesOf(key: String): List<ConfigurationPropertyName> {
             if (!key.startsWith(ENV_PREFIX)) {

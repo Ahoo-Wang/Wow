@@ -21,7 +21,7 @@ export const orders = new OrderCommandClient({ fetcher });
 
 ## Acting elsewhere: scope and space
 
-`RequestOptions.scope` sends `Wow-Scope` (a tenant, an owner; a command sets `targetTenant` and `targetScope: { ownerId?, spaceId? }` instead) and is honoured only for a caller the service lets act across scopes (an administrator, a service identity); `space` sends `Wow-Space`, one of the caller's own spaces. Leave both out for an ordinary user.
+`RequestOptions.scope` sends `Wow-Scope` (a tenant, an owner; a command sets `targetTenant` and `targetScope: { ownerId?, spaceId? }` instead) and is honoured only for a caller the service lets act across scopes (an administrator, a service identity); `space` sends `Wow-Space`, one of the caller's own spaces; a CoSec service reads the space from `CoSec-Space-Id` instead, which `CoSecConfigurer`'s `spaceIdProvider` sends. Leave both out for an ordinary user.
 
 ## Request facts
 

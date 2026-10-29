@@ -1,0 +1,99 @@
+{
+  "schema": 2,
+  "revision": 1,
+  "publishedAt": "2026-10-29T00:00:00Z",
+  "policies": [
+    {
+      "id": "buyer",
+      "condition": { "eq": ["subject.authenticated", true] },
+      "statements": [
+        {
+          "name": "the catalog's products",
+          "effect": "allow",
+          "action": "http:GET",
+          "resource": "http:path:/eshop-catalog/product/*/state"
+        },
+        {
+          "name": "the buyer's own basket: its items and its checkout",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": ["http:path:/eshop-basket/basket/add-basket-item", "http:path:/eshop-basket/basket/checkout-basket"]
+        },
+        {
+          "name": "an order",
+          "effect": "allow",
+          "action": "http:GET",
+          "resource": "http:path:/eshop-ordering/order/*/state"
+        },
+        {
+          "name": "an order submitted directly, which the ordering refuses on its public port",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": "http:path:/eshop-ordering/order/*/submit-order"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "statements": [
+        {
+          "name": "the catalog's commands and queries",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": [
+            "http:path:/eshop-catalog/brand/*/create-brand",
+            "http:path:/eshop-catalog/category/*/create-category",
+            "http:path:/eshop-catalog/product/*/create-product",
+            "http:path:/eshop-catalog/product/*/publish-product",
+            "http:path:/eshop-catalog/product/*/change-product-price",
+            "http:path:/eshop-catalog/product/snapshot/query",
+            "http:path:/eshop-catalog/product/events/query"
+          ]
+        },
+        {
+          "name": "the stock received and the orders shipped",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": ["http:path:/eshop-inventory/stock/*/receive-stock", "http:path:/eshop-ordering/order/*/ship-order"]
+        },
+        {
+          "name": "the states and traces of the shop's aggregates",
+          "effect": "allow",
+          "action": "http:GET",
+          "resource": [
+            "http:path:/eshop-catalog/product/*/state",
+            "http:path:/eshop-inventory/stock/*/state",
+            "http:path:/eshop-ordering/order/*/state",
+            "http:path:/eshop-ordering/order/*/state/trace",
+            "http:path:/eshop-payment/payment/*/state",
+            "http:path:/eshop-payment/payment/*/state/trace",
+            "http:path:/eshop-basket/basket/*/state/trace"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ops",
+      "statements": [
+        {
+          "name": "the parked entries read",
+          "effect": "allow",
+          "action": "http:GET",
+          "resource": "http:path:/ops/parked/*/state"
+        },
+        {
+          "name": "the parked entries listed, resumed and skipped (ops decides which role may)",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": ["http:path:/ops/parked/snapshot/query", "http:path:/ops/parked/*/resume", "http:path:/ops/parked/*/skip"]
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    { "id": "buyer", "subject": "*", "app": "*", "space": "", "policy": "buyer" },
+    { "id": "employee", "subject": { "role": "employee" }, "app": "*", "space": "", "policy": "employee" },
+    { "id": "ops-operator", "subject": { "role": "ops.operator" }, "app": "*", "space": "", "policy": "ops" },
+    { "id": "ops-viewer", "subject": { "role": "ops.viewer" }, "app": "*", "space": "", "policy": "ops" }
+  ]
+}

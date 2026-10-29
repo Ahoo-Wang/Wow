@@ -8,16 +8,11 @@ metadata:
     app.kubernetes.io/name: view-store-service
 data:
   # The mongo profile keeps the views, preferences and wording on MongoDB, the replica set at secret.yaml's URI
-  # (deploy/mongodb), and serves their snapshot queries; the cosec profile parses each request's CoSec token, which the
-  # CoSec gateway verified (CoSec's inject mode, decision D296: no secret here).
+  # (deploy/mongodb), and serves their snapshot queries; the cosec profile reads the identity the CoSec gateway verified
+  # and forwards (CoSec-Identity: no secret here), with the app of its scope, in which the view store
+  # keeps every view (the request fact app_id, decision D232). Trusted only because nothing but the gateway reaches the
+  # HTTP port (networkpolicy.yaml).
   SPRING_PROFILES_ACTIVE: mongo,cosec
-  # Behind a CoSec gateway (decision D236 ②): the gateway authorizes each request's CoSec-App-Id by the application's
-  # roles and forwards it, and the view store keeps every view in that application (the request fact app_id, decision
-  # D232). Trusted only because nothing but the gateway reaches the HTTP port (networkpolicy.yaml): turn it off, and
-  # every query is refused for want of an application, unless the service authorizes its requests itself
-  # (cosec.authorization.enabled, with CoSec's policy and app role permission repositories). The property is
-  # wow.cosec.trust-injected-app; its variable drops the dashes, as Spring maps a key to a variable.
-  WOW_COSEC_TRUSTINJECTEDAPP: "true"
   # Fixed once the context's log holds entries.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0

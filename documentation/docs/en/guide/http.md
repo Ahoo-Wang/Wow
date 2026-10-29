@@ -36,7 +36,7 @@ curl localhost:8083/eshop-ordering/order/order-1/state "${BUYER[@]}"
 - An employee is a **tenant-level** caller: no owner, so it reaches every aggregate of its tenant, and action-level authorization decides what it may do.
 - A request without `Wow-User` is the anonymous caller of the default tenant. A resolver that returns `null` answers `401 wow.auth.unauthenticated`. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
 
-With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the development headers above step aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
+With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile reads the identity the gateway forwards (`wow.cosec.mode: gateway`), the development headers above step aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body (on a CoSec host the space is the one CoSec accepted from `CoSec-Space-Id`); a caller allowed to act across scopes names another in `Wow-Scope`.
 
 ## Send a command
 

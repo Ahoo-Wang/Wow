@@ -25,6 +25,9 @@ spec:
         # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
         instrumentation.opentelemetry.io/inject-java: "true"
     spec:
+      # No service environment variables: a Service named cosec-gateway in the namespace would give the pod
+      # COSEC_GATEWAY_* variables, which Spring reads as cosec.gateway.* keys, and CoSec refuses keys it does not read.
+      enableServiceLinks: false
       # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
       # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
       # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.

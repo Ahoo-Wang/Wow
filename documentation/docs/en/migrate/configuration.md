@@ -57,7 +57,7 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.cosec.*`, `wow.cosec.abac.*` | `wow.cosec.*`: `tenant-level`, `cross-scope`, `service`, `authorizer`, `trust-injected-app` ([Secure a Deployment](../operate/security)); query ABAC is `wow.query.abac.*` |
+| `wow.cosec.*`, `wow.cosec.abac.*` | `wow.cosec.*`: `mode`, `tenant-level`, `cross-scope`, `authorizer` ([Secure a Deployment](../operate/security)); query ABAC is `wow.query.abac.*` |
 | `wow.compensation.*`, the compensation service's own keys | `wow.subscription.parked.*` per node, and `wow.subscriptions.[<processor.function>].parked.*` per subscription; `wow.ops.*` for the operator routes, the webhook and publishing to the ops service ([Platform Services](./platform)) |
 | `wow.bi.script.*` | Removed with BI sync: the ClickHouse sink, `wow.clickhouse.sink.*` ([ClickHouse](../operate/clickhouse)) |
 | A fixed tenant per aggregate in code | `wow.aggregates.[<context>.<aggregate>].tenant` |

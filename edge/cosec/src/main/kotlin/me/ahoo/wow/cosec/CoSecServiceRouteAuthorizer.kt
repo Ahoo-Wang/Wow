@@ -13,42 +13,29 @@
 
 package me.ahoo.wow.cosec
 
-import kotlinx.coroutines.reactive.awaitFirstOrNull
+import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
- * Authorizes a call of a service route with CoSec's policies, as [CoSecCommandAuthorizer] authorizes a
- * command: the call is evaluated as the request of the route's own method and the path it was called at, so the
- * policy that guards the route over HTTP guards it here too. The attributes [ROUTE] (`context.name`),
- * [CoSecCommandAuthorizer.TENANT], [CoSecCommandAuthorizer.OWNER] and [CoSecCommandAuthorizer.SPACE] are there for
- * condition matchers; the principal is rebuilt from the [Caller] as for a command.
+ * Authorizes a call of a service route with CoSec's documents, as [CoSecCommandAuthorizer] authorizes a command: the
+ * call is the action `<context>:<route>` on the resource `route/<route>` ([CoSecActions]), the name CoSec's route
+ * map gives the route over HTTP. A request-less caller gets no objection.
  */
 class CoSecServiceRouteAuthorizer(
-    private val authorization: CoSecAuthorization,
+    private val checker: AuthorizationChecker,
     private val defaultTenant: String = Caller.DEFAULT_TENANT,
 ) : ServiceRouteAuthorizer {
     override suspend fun authorize(caller: Caller, action: RouteAction): Authorization {
-        val attributes = buildMap {
-            put(ROUTE, "${action.context}.${action.name}")
-            put(CoSecCommandAuthorizer.TENANT, action.tenantId)
-            action.scope.ownerId?.let { put(CoSecCommandAuthorizer.OWNER, it) }
-            action.scope.spaceId?.let { put(CoSecCommandAuthorizer.SPACE, it) }
+        val security = CoSecRequests.securityOf(caller, defaultTenant) ?: return Authorization.Allowed
+        val name = CoSecActions.route(action)
+        val resource = CoSecActions.routeResource(action.name)
+        return if (checker.check(security, name, resource)) {
+            Authorization.Allowed
+        } else {
+            Authorization.Denied("CoSec does not permit $name on $resource.")
         }
-        val request = ActionRequest(action.method, action.path, attributes, caller.app, caller.scope.spaceId)
-        val result = authorization.authorize(request, coSecContextOf(caller, defaultTenant)).awaitFirstOrNull()
-        val route = "${action.context}.${action.name}"
-        return when {
-            result == null -> Authorization.Denied("CoSec gave no decision on $route.")
-            result.authorized -> Authorization.Allowed
-            else -> Authorization.Denied(result.reason.ifBlank { "CoSec denies $route." })
-        }
-    }
-
-    companion object {
-        const val ROUTE: String = "wow.route"
     }
 }
