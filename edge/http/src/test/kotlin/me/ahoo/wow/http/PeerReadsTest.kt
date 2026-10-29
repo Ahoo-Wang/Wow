@@ -295,16 +295,25 @@ class PeerReadsTest {
 
     @Test
     fun `a refused service-mode read should be a problem, and a client should have no trusted queries`() {
-        val client = WowClient.builder()
-            .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${internal.address}"))))
-            .contracts(contracts.fragments)
-            .build()
-            .queries
-        val problem = runCatching { runBlocking { client.of(alice).snapshots<Cart>().list(ListQuery(all)).toList() } }
-            .exceptionOrNull() as WowProblemException
-        problem.status.assert().isEqualTo(403)
-        // Trusted code reads its own node: a client's queries are a caller's alone, with no trusted() to call.
-        client.assert().isNotInstanceOf(NodeQueryApi::class.java)
+        // The peer lets the service read the events alone: its snapshot query is refused.
+        val permitted =
+            InternalServer(peerRoutes(CallPermits(emptyMap(), mapOf(SERVICE to listOf("shop.cart.events")))))
+        permitted.use { server ->
+            WowClient.builder()
+                .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${server.address}"))))
+                .service(SERVICE)
+                .contracts(contracts.fragments)
+                .build()
+                .use { wow ->
+                    val client = wow.queries
+                    val problem = runCatching {
+                        runBlocking { client.of(alice).snapshots<Cart>().list(ListQuery(all)).toList() }
+                    }.exceptionOrNull() as WowProblemException
+                    problem.status.assert().isEqualTo(403)
+                    // Trusted code reads its own node: a client's queries are a caller's alone, with no trusted().
+                    client.assert().isNotInstanceOf(NodeQueryApi::class.java)
+                }
+        }
     }
 
     private fun Answer.problemCode(): String? = body?.get("code")?.asString()

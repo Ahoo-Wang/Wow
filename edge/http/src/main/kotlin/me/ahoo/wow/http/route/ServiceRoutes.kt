@@ -19,6 +19,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.route.RouteCall
@@ -56,13 +58,14 @@ import kotlin.reflect.javaType
 
 /**
  * The service routes a node serves: the [handlers] the modules' model providers bind, the
- * [authorizers] every call passes, and the [commands] a handler sends as its caller.
+ * [authorizers] every call passes, and the [commands] a handler sends and the [queries] it runs as its caller.
  */
 @InternalWowApi
 class ServiceRoutes(
     val handlers: List<ServiceRouteHandler> = emptyList(),
     val authorizers: List<ServiceRouteAuthorizer> = emptyList(),
     val commands: CommandClient? = null,
+    val queries: QueryApi? = null,
 ) {
     /**
      * The handler of each of [manifest]'s service routes, by context and name; an [IllegalStateException] naming every
@@ -125,6 +128,7 @@ internal class ServiceRouteHandling(
             scope = acting.scope,
             requestId = headers.requestId(request) ?: UUID.randomUUID().toString(),
             client = routes.commands,
+            queryApi = routes.queries,
         )
         val answer = answer(context, route) { handler.handle(call, Parameters(request, body)) }
         if (answer == null || answer == Unit) return ServerResponse.noContent().buildAndAwait()
@@ -214,9 +218,13 @@ internal class ServiceRouteHandling(
         override val scope: Scope,
         override val requestId: String,
         private val client: CommandClient?,
+        private val queryApi: QueryApi?,
     ) : RouteCall {
         override val commands: CommandClient
             get() = checkNotNull(client) { "This node gives its service routes no command client." }.of(caller)
+
+        override val queries: Queries
+            get() = checkNotNull(queryApi) { "This node gives its service routes no query API." }.of(caller)
     }
 
     /** The request's parameters, read as their route's function asks. */

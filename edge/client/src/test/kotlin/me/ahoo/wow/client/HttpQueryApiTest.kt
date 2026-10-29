@@ -55,6 +55,7 @@ class HttpQueryApiTest {
 
     private val queries = WowClient.builder()
         .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+        .service("reader-service")
         .retry(RetryPolicy.of(backoff = 1.milliseconds))
         .build()
         .queries
@@ -173,6 +174,7 @@ class HttpQueryApiTest {
         peer.reply(Reply.events(row("b-1"), reclaimed), Reply.events(reclaimed), Reply.events(row("b-2"), complete))
         val slow = WowClient.builder()
             .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service("reader-service")
             .retry(RetryPolicy.of(backoff = 100.milliseconds))
             .build()
             .queries
@@ -306,6 +308,7 @@ class HttpQueryApiTest {
             )
             val events = WowClient.builder()
                 .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .service("reader-service")
                 .contracts(listOf(ManifestFragment("test", contract)))
                 .build()
                 .queries

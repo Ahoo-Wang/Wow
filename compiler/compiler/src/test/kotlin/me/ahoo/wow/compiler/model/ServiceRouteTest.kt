@@ -105,6 +105,7 @@ class ServiceRouteTest {
             override val scope: Scope = Scope.NONE
             override val requestId: String = "r1"
             override val commands: CommandClient get() = error("no commands")
+            override val queries: me.ahoo.wow.api.read.Queries get() = error("no queries")
         }
 
         fun run(): String = runBlocking {

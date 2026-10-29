@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
@@ -423,7 +424,7 @@ class WowAutoConfiguration {
                 .manifestPeers(described)
             properties.peerTimeouts().forEach { (context, timeout) -> builder.timeout(context, timeout) }
             when (mode) {
-                is ClientMode.Service -> mode.service?.let(builder::service)
+                is ClientMode.Service -> builder.service(checkNotNull(mode.service) { "The node's service is named." })
                 is ClientMode.User -> builder.user(mode.credential)
             }
             builder.build()
@@ -833,6 +834,7 @@ class WowAutoConfiguration {
         dependencies: Dependencies,
         routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
         commands: ObjectProvider<CommandClient>,
+        queryApi: ObjectProvider<NodeQueryApi>,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -846,6 +848,7 @@ class WowAutoConfiguration {
             handlers = models.providers.flatMap { it.routes(dependencies) },
             authorizers = routeAuthorizers.orderedStream().toList(),
             commands = commands.getIfAvailable(),
+            queries = queryApi.getIfAvailable(),
         ),
     )
 

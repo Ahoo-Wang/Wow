@@ -121,10 +121,13 @@ class JavaFacadeTest {
             every { type } returns this@JavaFacadeTest.type
             coEvery { state("p-1") } returns state
             coEvery { state(ref) } returns state
+            coEvery { state("p-1", 3) } returns state
+            coEvery { state(ref, 3) } returns state
         }
         val snapshots = mockk<SnapshotQueries<ObjectNode>> {
             every { type } returns this@JavaFacadeTest.type
             coEvery { state(ref) } returns state
+            coEvery { state(ref, 3) } returns state
         }
         val caller = Caller.of(tenantId = "t1")
         val api = JavaQueryApi.of(
@@ -138,9 +141,15 @@ class JavaFacadeTest {
         byCaller.state("p-1").assert().isSameAs(state)
         byCaller.stateAsync("p-1").join().assert().isSameAs(state)
         byCaller.state(ref).assert().isSameAs(state)
+        // Read your writes: at a minimum version, by id or by ref, blocking or asynchronously.
+        byCaller.state("p-1", 3).assert().isSameAs(state)
+        byCaller.stateAsync("p-1", 3).join().assert().isSameAs(state)
+        byCaller.state(ref, 3).assert().isSameAs(state)
         val trusted = api.trusted().snapshots(type)
         trusted.state(ref).assert().isSameAs(state)
         trusted.stateAsync(ref).join().assert().isSameAs(state)
+        trusted.state(ref, 3).assert().isSameAs(state)
+        trusted.stateAsync(ref, 3).join().assert().isSameAs(state)
     }
 
     @Test

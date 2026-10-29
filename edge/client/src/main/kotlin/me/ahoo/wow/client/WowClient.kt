@@ -36,21 +36,26 @@ import kotlin.time.toKotlinDuration
  * does. A peer's commands and state classes are found in the contract its api jar carries, read from
  * the class path: a consumer depends on the peer's `*-api` and writes no path.
  *
- * Build it with [builder]:
+ * Build it with [builder], naming its mode: [Builder.service] or [Builder.user]. Close it when done: it closes the
+ * JDK client it built, not one it was given ([Builder.httpClient]).
  *
  * ```kotlin
- * val client = WowClient.builder().
- *     endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090")))).
- *     service("basket-service").
- *     build()
- * client.commands.of(caller).wait(SubmitOrder(...), OrderingContract.ORDER.ref(tenant, id))
+ * WowClient.builder()
+ *     .endpoints(EndpointResolver.of(emptyMap(), mapOf("eshop-ordering" to URI.create("http://ordering:9090"))))
+ *     .service("basket-service")
+ *     .build()
+ *     .use { client ->
+ *         client.commands.of(caller).wait(CommandRequest.to(EshopOrderingContract.Order.ref(tenantId, id), body))
+ *     }
  * ```
  */
 class WowClient private constructor(
     private val http: HttpCommandClient,
     /** The query client of the peers' read routes, for a caller ([QueryApi.of]); see [HttpQueryApi]. */
     val queries: QueryApi,
-) {
+    /** The JDK client the builder made, closed with this client; null when it was given one. */
+    private val owned: HttpClient?,
+) : AutoCloseable {
     /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
     val commands: CommandClient get() = http
 
@@ -62,10 +67,15 @@ class WowClient private constructor(
     suspend fun manifestOf(context: String, caller: Caller): Manifest =
         (http.of(caller) as HttpCommandClient).manifestOf(context)
 
-    /** How a [WowClient] is built; every setting has a default. */
+    /** Closes the JDK client this client built; one it was given stays its owner's to close. */
+    override fun close() {
+        owned?.close()
+    }
+
+    /** How a [WowClient] is built: its mode is named ([service] or [user]); every other setting has a default. */
     class Builder internal constructor() {
         private var endpoints: EndpointResolver = EndpointResolver.NONE
-        private var mode: ClientMode = ClientMode.Service(null)
+        private var mode: ClientMode? = null
         private var httpClient: HttpClient? = null
         private var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT
         private var timeout: Duration = DEFAULT_TIMEOUT
@@ -80,8 +90,8 @@ class WowClient private constructor(
         fun endpoints(endpoints: EndpointResolver): Builder = apply { this.endpoints = endpoints }
 
         /**
-         * Service mode ([ClientMode.Service], the default) as the service named [name], the `spring.application.name`
-         * the peers list it by (`Wow-Service`); a client that names none is refused by every peer.
+         * Service mode ([ClientMode.Service]) as the service named [name], the `spring.application.name` the peers list
+         * it by (`Wow-Service`).
          */
         fun service(name: String): Builder = apply {
             require(name.isNotBlank()) { "A service is named." }
@@ -146,11 +156,17 @@ class WowClient private constructor(
         @InternalWowApi
         fun ids(ids: GlobalIdGenerator): Builder = apply { this.ids = ids }
 
+        /** The client; refused until its mode is named ([service] or [user]): a client of no identity calls no peer. */
         fun build(): WowClient {
+            val mode = checkNotNull(mode) {
+                "Name the client's mode: service(name), as a service calls a peer, or user(credential), forwarding the " +
+                    "end user's."
+            }
+            val owned = if (httpClient == null) HttpCommandCaller.client(connectTimeout) else null
             val transport = HttpTransport(
                 endpoints,
                 mode,
-                httpClient ?: HttpCommandCaller.client(connectTimeout),
+                httpClient ?: checkNotNull(owned),
                 timeout,
                 retry,
                 timeouts.toMap(),
@@ -170,6 +186,7 @@ class WowClient private constructor(
                     described = manifestPeers.takeIf { it.isNotEmpty() }?.let { ManifestPeers(it, transport) },
                 ),
                 HttpQueryApi(transport, PeerModels.of(manifests), ids),
+                owned,
             )
         }
     }
