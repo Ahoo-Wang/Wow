@@ -21,6 +21,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-test")
     // The generator of this module's configuration metadata, and the host's check of the keys against it (D302).
     testImplementation(testFixtures(project(":spring-boot")))
+    // The owner's gateway in a test: the real query engine over snapshots in memory.
+    testImplementation(project(":test-query"))
     integrationTestImplementation("me.ahoo.cocache:cocache-redis")
     integrationTestImplementation("org.testcontainers:testcontainers")
 }

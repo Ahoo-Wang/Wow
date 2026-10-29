@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.client
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.takeWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -60,6 +63,7 @@ import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
+import kotlin.time.Duration
 
 /**
  * The [QueryApi] of the peers' HTTP read routes: the same queries as in process, sent
@@ -77,10 +81,12 @@ import java.io.IOException
  * dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class given.
  *
  * A streamed list ([RowQueries.stream]) reads the peer's server-sent events and resumes on its own:
- * when the peer ends it resumably (its hold expired, it is stopping, its store reclaimed the permit) or the connection
- * drops after a row, it is asked again with `Last-Event-ID`, the last row's position, up to
- * [MAX_RESUMES_WITHOUT_ROWS] times in a row without a row read. Only a 429 (`wow.query.busy`) is retried;
- * any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
+ * when the peer ends it resumably (its hold expired, it is stopping, its store reclaimed the permit), sends a problem a
+ * retry may get past, or the connection drops, it is asked again with `Last-Event-ID`, the last row's position, for
+ * what is left of its limit (the peer reads up to the limit again after the position), so it never answers more rows
+ * than the limit. It waits between resumes as the transport's [RetryPolicy] says (at once after a hold expired, else the
+ * peer's `Retry-After` or the backoff), and fails after the policy's attempts in a row without a row read. Only a 429
+ * (`wow.query.busy`) is retried; any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
  * found, or that the caller may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
  */
 class HttpQueryApi internal constructor(
@@ -142,43 +148,96 @@ class HttpQueryApi internal constructor(
 
         override fun stream(query: ListQuery, after: String?): Flow<Positioned<R>> = flow {
             check(query)
-            var position = after
-            var idle = 0
+            val stream = Streamed(query, after)
             while (true) {
-                var read = false
-                var end: Boolean? = null
-                val answer = transport.stream(
-                    request(KIND_LIST, query, position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()),
-                    PeerProblem::retriesQuery,
-                )
+                val asked = stream.asked()
+                val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), PeerProblem::retriesQuery)
                 val events = when (answer) {
                     is Answer.Ok -> answer.value
                     is Answer.Problem -> throw answer.problem.exception(what())
                 }
+                val stop = stream.read(events, this) ?: return@flow
+                delay(stream.delayAfter(stop))
+            }
+        }
+
+        /**
+         * A stream's progress over the requests it takes: the [position] of its last row, the rows emitted of its
+         * query's limit, and the requests in a row that read none.
+         */
+        private inner class Streamed(private val query: ListQuery, private var position: String?) {
+            private val limit = query.limit
+            private var emitted = 0
+            private var failures = 0
+
+            /**
+             * The query of the next request, for what is left of the limit: the peer reads up to the limit again after
+             * the position. [read] ends the stream once the limit is read.
+             */
+            fun asked(): ListQuery {
+                val left = limit?.minus(emitted)
+                if (left == null || left == limit) return query
+                return ListQuery.of(query.filter, query.projection, query.sort, left)
+            }
+
+            fun headers(): Map<String, String> = position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()
+
+            /**
+             * Emits the rows of one request's [events] to [collector], never past the limit, whatever the peer sends:
+             * null once the stream is complete, else why it stopped. A stream that ended without an end event was cut,
+             * as a dropped one.
+             */
+            suspend fun read(events: Flow<String>, collector: FlowCollector<Positioned<R>>): Stop? {
+                var complete = false
+                var stop: Stop? = null
                 try {
-                    events.serverSentEvents().collect { event ->
+                    events.serverSentEvents().takeWhile { limit == null || emitted < limit }.collect { event ->
                         when (event.event) {
                             ROW -> {
-                                emit(Positioned.of(row(tree(event.data) as ObjectNode), event.id))
+                                collector.emit(Positioned.of(row(tree(event.data) as ObjectNode), event.id))
                                 event.id?.let { position = it }
-                                read = true
+                                emitted++
+                                failures = 0
                             }
-                            END -> end = tree(event.data)[RESUMABLE]?.asBoolean() == true
-                            ERROR -> throw Problems.ofMembers(event.data).exception(what())
+                            END -> tree(event.data).let { end ->
+                                complete = end[REASON]?.asString() == COMPLETE
+                                if (!complete) stop = ended(end)
+                            }
+                            ERROR -> stop = failed(event.data)
                         }
                     }
                 } catch (dropped: IOException) {
-                    // A connection lost after a row resumes from it; one lost before any is the caller's.
-                    if (position == null) throw dropped
-                    end = true
+                    return Stop(dropped)
                 }
-                idle = if (read) 0 else idle + 1
-                // A stream that ended without saying so was cut: it resumes from its last position, as a dropped one.
-                val resumable = end ?: (position != null)
-                if (!resumable) return@flow
-                check(idle < MAX_RESUMES_WITHOUT_ROWS) {
-                    "The stream of $path was ended $idle times in a row without a row: it is not resumed again."
-                }
+                if (complete || limit != null && emitted >= limit) return null
+                return stop ?: Stop(IOException("The stream of $path was cut off."))
+            }
+
+            /** A resumable end, which a hold that expired asks to take again at once; another is thrown. */
+            private fun ended(end: JsonNode): Stop {
+                val reason = end[REASON]?.asString()
+                val ended = IllegalStateException("The stream of $path ended: $reason.")
+                if (end[RESUMABLE]?.asBoolean() != true) throw ended
+                return Stop(ended, Duration.ZERO.takeIf { reason == HOLD_EXPIRED })
+            }
+
+            /** A problem a retry may get past, after its `Retry-After`; another is thrown. */
+            private fun failed(data: String): Stop {
+                val problem = Problems.ofMembers(data)
+                val failed = problem.exception(what())
+                if (!problem.hint.retryable) throw failed
+                return Stop(failed, problem.retryAfter)
+            }
+
+            /**
+             * How long to wait before asking for the stream again after [stop], as the transport's retry policy says;
+             * its cause is thrown once the policy's attempts in a row read no row, or when the stream cannot be asked
+             * for again: rows were read that have no position.
+             */
+            fun delayAfter(stop: Stop): Duration {
+                if (position == null && emitted > 0) throw stop.cause
+                failures++
+                return transport.retry.delayBefore(failures, stop.retryAfter) ?: throw stop.cause
             }
         }
 
@@ -325,13 +384,13 @@ class HttpQueryApi internal constructor(
         )
     }
 
+    /** Why a request of a stream stopped short of complete: its [cause], and the wait the peer asked for. */
+    private class Stop(val cause: Exception, val retryAfter: Duration? = null)
+
     /** Whether this problem is the 404 of [code]: an answer of no match, not of a missing dataset or route. */
     private fun PeerProblem.isNotFound(code: String): Boolean = status == NOT_FOUND && this.code == code
 
     companion object {
-        /** How often a stream is resumed in a row without a row read before it fails. */
-        const val MAX_RESUMES_WITHOUT_ROWS: Int = 3
-
         private const val NOT_FOUND = 404
         private const val KIND = "kind"
         private const val KIND_SINGLE = "single"
@@ -345,6 +404,9 @@ class HttpQueryApi internal constructor(
         private const val END = "end"
         private const val ERROR = "error"
         private const val RESUMABLE = "resumable"
+        private const val REASON = "reason"
+        private const val COMPLETE = "complete"
+        private const val HOLD_EXPIRED = "hold-expired"
         private const val TOTAL = "total"
         private const val LIST = "list"
         private const val EXACT = "exact"

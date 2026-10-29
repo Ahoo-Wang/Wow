@@ -32,6 +32,7 @@ import me.ahoo.cocache.coroutines.suspendingVersionedLoader
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -166,8 +167,9 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
 
 /**
  * Reads the states of a cache's misses from the aggregate's owner, each at its version: [load] its state read,
- * [loadAll] one list query per tenant, its ids in one `IN`. A deleted aggregate is no view at its version (a
- * tombstone), one never created `null` (a negative cache).
+ * [loadAll] one list query per tenant and [MAX_BATCH] ids, its ids in one `IN`, deleted aggregates included (a snapshot
+ * query reads active ones alone unless asked). A deleted aggregate is no view at its version (a tombstone, which no
+ * older version a writer replays resurrects), one never created `null` (a negative cache).
  *
  * An owner it cannot read is a [StateViewUnavailableException]: the node has no route to it (it neither serves the
  * aggregate nor reaches it as a peer), the owner is unreachable (an I/O failure), or it answers a problem a retry may
@@ -183,13 +185,17 @@ internal class StateViewLoader<V : Any>(
 
     override suspend fun loadAll(keys: Collection<StateKey>): Map<StateKey, Versioned<V?>> = owned(keys) {
         keys.groupBy { it.tenantId }.flatMap { (tenantId, ofTenant) ->
-            val ids = ofTenant.map { it.id }.distinct()
-            val query = listQuery {
-                filter { ids(ids) }
-                limit(ids.size)
-            }
-            snapshots(tenantId, ofTenant).list(query).toList().map { row ->
-                StateKey(tenantId, row.ref.id) to versionedOf(row.state, row.version, row.deleted)
+            ofTenant.map { it.id }.distinct().chunked(MAX_BATCH).flatMap { ids ->
+                val query = listQuery {
+                    filter {
+                        ids(ids)
+                        deletion(DeletionState.ALL)
+                    }
+                    limit(ids.size)
+                }
+                snapshots(tenantId, ofTenant).list(query).toList().map { row ->
+                    StateKey(tenantId, row.ref.id) to versionedOf(row.state, row.version, row.deleted)
+                }
             }
         }.toMap()
     }
@@ -228,8 +234,14 @@ internal class StateViewLoader<V : Any>(
 
     override fun toString(): String = "StateViewLoader(${viewType.name})"
 
-    private companion object {
+    companion object {
+        /**
+         * The most ids of one list query: 1000, the default query budget's bound on the values of an `IN` and on the
+         * rows of a list. An owner whose budget is configured lower refuses a larger batch as `wow.query.invalid`.
+         */
+        const val MAX_BATCH: Int = 1000
+
         /** The first status of a server's error, which a retry may get past. */
-        const val SERVER_ERROR = 500
+        private const val SERVER_ERROR = 500
     }
 }
