@@ -280,12 +280,6 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
 }
 
 /**
- * A handling that failed for a business reason, which no retry changes: the subscription does not
- * retry it but parks the aggregate at once, and a wait at the hop ends REJECTED with [error].
- */
-internal open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
-
-/**
  * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout]
  * ([RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
  */

@@ -392,7 +392,7 @@ internal class ModelSymbolProcessor(
             Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
-        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding)) }
+        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context())) }
     }
 
     @OptIn(KspExperimental::class)

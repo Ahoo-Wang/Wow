@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
@@ -28,11 +27,11 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
-import me.ahoo.wow.runtime.subscription.HandlingRejectedException
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
@@ -301,11 +300,3 @@ internal fun List<DerivedCommands.Rejected>.parking(): DerivedCommandRejectedExc
             rejected.map { it.command to it.rejection }
         )
     }
-
-/**
- * A saga's handler let through the rejection of a synchronous call it made: a business outcome, so the
- * aggregate parks at once, without a retry, as for a derived command's rejection no `@OnRejected` handler takes,
- * and a wait at the saga's hop ends REJECTED with the target's error.
- */
-internal class CallRejectedHandlingException(val rejected: CommandRejectedException) :
-    HandlingRejectedException(rejected.result.error!!, rejected.message!!)

@@ -124,6 +124,9 @@ class ScheduleJobBindingTest {
             )
             invoice.kind.assert().isEqualTo(FunctionKind.SAGA)
             invoice.retry.assert().isEqualTo(HandlerRetry(maxAttempts = 2))
+            // The context the job runs in, as the compiler knew it, for the test DSL's schedule specification.
+            invoice.context.assert().isEqualTo("billing")
+            bindings.getValue("BillingSaga.onEvent").context.assert().isNull()
             bindings.getValue("BillingSaga.sweep").job.assert().isEqualTo(
                 ScheduleJob("sweep", ScheduleRule.Cron("0 */5 * * * *", misfire = Misfire.CATCH_UP), sharded = true),
             )

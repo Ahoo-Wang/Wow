@@ -13,23 +13,35 @@
 
 package me.ahoo.wow.kernel.schedule
 
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.TenantSnapshotQueries
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.Ticked
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.test.scheduleSpec
+import me.ahoo.wow.test.scheduleSpecTests
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -39,6 +51,8 @@ import kotlin.time.Duration.Companion.minutes
 class ScheduleSpecDslTest {
     data class IssueInvoices(val tenantId: String, val slot: Long, val skipped: Long = 0)
     data class Sweep(val partition: Int?, val slot: Long)
+    data class Charge(val limit: Int)
+    class Account(val limit: Int)
 
     private val account = AggregateType("billing", "account")
     private val invoice = ScheduleJob("invoice", ScheduleRule.Cron("0 0 0 1 * *"), JobScope.TENANT)
@@ -46,7 +60,7 @@ class ScheduleSpecDslTest {
     private val nightly = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"))
 
     private val handlers = listOf(
-        ProcessorBinding.schedule("BillingSaga", "onInvoice", invoice) { tick, context ->
+        ProcessorBinding.schedule("BillingSaga", "onInvoice", invoice, context = "billing") { tick, context ->
             listOf(
                 CommandRequest.to(
                     account.ref(tick.tenantId, "all"),
@@ -54,15 +68,15 @@ class ScheduleSpecDslTest {
                 )
             )
         },
-        ProcessorBinding.schedule("BillingSaga", "onSweep", sweep) { tick, context ->
+        ProcessorBinding.schedule("BillingSaga", "onSweep", sweep, context = "billing") { tick, context ->
             listOf(CommandRequest.to(account.ref(tick.tenantId, "sweep"), Sweep(tick.partition, tick.slot)))
         },
-        ProcessorBinding.schedule("BillingSaga", "onNightly", nightly) { _, _ -> emptyList() },
+        ProcessorBinding.schedule("BillingSaga", "onNightly", nightly, context = "billing") { _, _ -> emptyList() },
     )
 
     @Test
     fun `each tenant's instance runs in its own time zone`() {
-        scheduleSpec(handlers, context = "billing") {
+        scheduleSpec(handlers) {
             enable("invoice", tenantId = "acme", rule = JobRule(zone = "Asia/Shanghai"))
             enable("invoice", tenantId = "globex")
             // February 1st in Shanghai begins at 16:00 UTC on January 31st, eight hours before it does in UTC.
@@ -136,6 +150,76 @@ class ScheduleSpecDslTest {
             assertThrownBy<IllegalArgumentException> { whenTick(ScheduleTick("acme", "unknown", 1)) {} }
             assertThrownBy<IllegalArgumentException> { enable("unknown") }
         }
+    }
+
+    @Test
+    fun `a job's context should be the one its generated binding names`() {
+        val unbound = ProcessorBinding.schedule("BillingSaga", "onInvoice", invoice) { _, _ -> emptyList() }
+        assertThrownBy<IllegalArgumentException> { scheduleSpec(listOf(unbound)) {} }
+            .hasMessageContaining("name no bounded context")
+        val elsewhere = ProcessorBinding.schedule("BillingSaga", "onNightly", nightly, context = "audit") { _, _ ->
+            emptyList()
+        }
+        assertThrownBy<IllegalArgumentException> { scheduleSpec(listOf(handlers.first(), elsewhere)) {} }
+            .hasMessageContaining("several contexts: [billing, audit]")
+    }
+
+    @Test
+    fun `a job's handling should be retried and parked by its job's own retry`() {
+        val failing = ProcessorBinding.schedule(
+            "BillingSaga",
+            "onInvoice",
+            invoice,
+            retry = HandlerRetry(maxAttempts = 2),
+            context = "billing",
+        ) { _, _ -> error("The ledger is busy.") }
+        scheduleSpec(listOf(failing)) {
+            enable("invoice", tenantId = "acme")
+            advanceTime(31.days) {
+                expectRetried()
+                expectParked(attempt = 2)
+            }
+        }
+    }
+
+    @Test
+    fun `a job's commands should be rejected in place or in a fork, and its reads served`() {
+        val reading = ProcessorBinding.schedule(
+            "BillingSaga",
+            "onInvoice",
+            invoice,
+            context = "billing"
+        ) { tick, context ->
+            val limit = context.queries.snapshots<Account>().state("all")!!.state.limit
+            listOf(CommandRequest.to(account.ref(tick.tenantId, "all"), Charge(limit)))
+        }
+        scheduleSpec(listOf(reading)) {
+            givenQueries(queries(limit = 300))
+            enable("invoice", tenantId = "acme")
+            advanceTime(31.days) {
+                expectCommands(Charge(300))
+                val charge = commands.single()
+                fork("closed") { whenRejected(charge, "closed") { expectParked() } }
+                whenRejected(charge, "frozen") { expectParked() }
+            }
+        }
+    }
+
+    @TestFactory
+    fun `a schedule specification as a tree of tests`() = scheduleSpecTests(handlers) {
+        enable("invoice", tenantId = "acme")
+        advanceTime(31.days) { expectCommandTypes(IssueInvoices::class) }
+        whenTick(ScheduleTick("acme", "invoice", 2)) { expectCommandCount(1) }
+    }
+
+    private fun queries(limit: Int): NodeQueryApi {
+        val accounts = mockk<TenantSnapshotQueries<Account>> {
+            coEvery { state(any<String>()) } answers {
+                Snapshot.of(account.ref("acme", firstArg()), 1, Scope.NONE, emptyMap(), false, null, 0, 0, Account(limit))
+            }
+        }
+        val tenant = mockk<Queries> { every { snapshots(Account::class.java) } returns accounts }
+        return mockk { every { of(Caller.of(tenantId = "acme")) } returns tenant }
     }
 
     @Test

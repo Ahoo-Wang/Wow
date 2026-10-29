@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.kernel.ContextQueries
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -21,7 +22,6 @@ import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.PeerEvents
-import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.SignalSender

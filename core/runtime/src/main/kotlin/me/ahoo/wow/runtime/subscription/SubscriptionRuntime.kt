@@ -29,6 +29,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -77,7 +78,7 @@ class SubscriptionRuntime internal constructor(
     /** Sees each entry its subscriptions handle. */
     private val observer: Observer = Observer.NONE,
     /** How its subscriptions classify their handlers' failures. */
-    private val classification: FailureClassification = FailureClassification.DEFAULT,
+    private val classification: FailureClassification = RuntimeFailures.DEFAULT,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -92,7 +93,7 @@ class SubscriptionRuntime internal constructor(
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         observer: Observer = Observer.NONE,
-        classification: FailureClassification = FailureClassification.DEFAULT,
+        classification: FailureClassification = RuntimeFailures.DEFAULT,
     ) : this(
         group,
         LogSource(log),

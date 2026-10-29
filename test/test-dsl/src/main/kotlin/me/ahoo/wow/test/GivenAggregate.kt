@@ -23,42 +23,57 @@ import kotlin.reflect.KClass
 
 /**
  * An aggregate a processor reads, as [ProcessorSpec.givenAggregate] gave it: its [model] replays its history, one
- * commit per event, to the [state] and [version] it is at. [ProcessorSpec.whenEvent] hands over the next commit of it.
+ * commit per event, to the [state] and [version] it is at. [ProcessorSpec.whenEvent] hands over its next commit, and
+ * the aggregate is then at it: the next one comes after it, and [ProcessorSpec.whenRedelivered] and
+ * [ProcessorSpec.whenDeliveredLate] hand it again. A fork of the specification advances a copy of its own, which
+ * [ProcessorSpec.whenEvent] still finds by the aggregate's [ref].
  */
-class GivenAggregate<S : Any> internal constructor(
+class GivenAggregate<S : Any> private constructor(
     /** The model that evolves the aggregate's state. */
     val model: AggregateModel<S>,
     /** The aggregate. */
     val ref: AggregateRef,
-    private val history: List<Any>,
+    /** Its events so far: its history, one commit per event, then those of the commits handed over. */
+    private val events: MutableList<Any>,
+    /** The commits [ProcessorSpec.whenEvent] handed over, by version. */
+    private val handed: MutableMap<Int, StateEvent<S>>,
+    initialVersion: Int,
     /** The scope its commits leave it in. */
     val scope: Scope,
 ) {
+    internal constructor(model: AggregateModel<S>, ref: AggregateRef, history: List<Any>, scope: Scope) :
+        this(model, ref, ArrayList(history), LinkedHashMap(), history.size, scope)
+
     init {
         require(ref.type == model.type) { "$ref is not an aggregate of ${model.type}, the model's." }
     }
 
-    /** The version its history left it at: one commit per event. */
-    val version: Int get() = history.size
+    /**
+     * The version it is at: one commit per event of its history, then one per commit handed over, by the
+     * specification that gave it (a fork advances a copy of its own).
+     */
+    var version: Int = initialVersion
+        private set
 
-    /** The state its history left it in, replayed anew on each read, as states are mutable. */
+    /** The state it is in, replayed anew on each read, as states are mutable. */
     val state: S get() = stateAfter(emptyList())
 
-    private fun stateAfter(events: List<Any>): S =
-        (history + events).fold(model.initialState(ref)) { state, event -> model.evolve(state, event) }
+    private fun stateAfter(more: List<Any>): S =
+        (events + more).fold(model.initialState(ref)) { state, event -> model.evolve(state, event) }
 
     /**
-     * The commit of [events] after the history, at the next version, leaving the aggregate in the state they evolve
-     * it to: the commit of the command of [by] when given, which names its command type as the model does.
+     * The commit of [events] after those so far, at the next version, leaving the aggregate in the state they evolve
+     * it to, and at that version: the commit of the command of [by] when given, which names its command type as the
+     * model does.
      */
     internal fun commit(
         events: List<Any>,
         by: KClass<*>?,
-        operator: Operator?,
         headers: Map<String, String>,
+        operator: Operator?,
     ): StateEvent<S> {
         require(events.isNotEmpty()) { "A commit has at least one event." }
-        return stateEvent(
+        val commit = stateEvent(
             ref,
             stateAfter(events),
             *events.toTypedArray(),
@@ -68,7 +83,27 @@ class GivenAggregate<S : Any> internal constructor(
             headers = headers,
             operator = operator,
         )
+        this.events.addAll(events)
+        version = commit.version
+        handed[version] = commit
+        return commit
     }
+
+    /** The commit at [version] it handed over, the latest when null: a commit to hand again. */
+    internal fun handed(version: Int?): StateEvent<S> {
+        val at = version ?: this.version
+        return handed[at] ?: throw IllegalArgumentException(
+            if (handed.isEmpty()) {
+                "No commit of $ref was handed over yet: whenEvent hands it over first."
+            } else {
+                "No commit of $ref was handed over at version $at: those handed over are at ${handed.keys}."
+            },
+        )
+    }
+
+    /** A copy for a fork of the specification: its commits so far, advanced apart from this one. */
+    internal fun copy(): GivenAggregate<S> =
+        GivenAggregate(model, ref, ArrayList(events), LinkedHashMap(handed), version, scope)
 
     /** The full name of the command [type] of the aggregate: the model's name of it, else the naming rule's. */
     private fun commandTypeOf(type: Class<*>): String =
