@@ -37,6 +37,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.measureTime
 
 /** The HTTP query client (decision D259) against a fake peer: its problems, retries and stream resumption. */
 class HttpQueryApiTest {
@@ -85,30 +86,93 @@ class HttpQueryApiTest {
         }
 
     @Test
-    fun `a stream ended without an end and without a position should not resume`(): Unit = runBlocking {
+    fun `a stream cut after rows without positions should fail, since it cannot be asked for again`() {
         peer.reply(Reply.events("event: row\ndata: ${record("b-1")}\n\n"))
-        boxes.stream(ListQuery(MatchAllFilter), null).toList().single().position.assert().isNull()
+        caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
+            .message.assert().contains("cut off")
         peer.taken.assert().hasSize(1)
     }
 
     @Test
-    fun `a stream cut before any position should fail, and one that keeps ending without rows should stop`() {
+    fun `a stream that keeps failing without rows should stop after the retry policy's attempts`() {
+        // Cut before any row: asked for again from its start, as often as the policy allows (3 attempts).
         peer.reply(Reply.cut(": opening\n"))
         caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+        peer.taken.assert().hasSize(3)
+        peer.taken.clear()
         peer.reply(Reply.events(end))
         caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), "p-0").toList() } }
-            .message.assert().contains("without a row")
+            .message.assert().contains("ended: hold-expired")
+        peer.taken.assert().hasSize(3)
     }
 
     @Test
-    fun `an error event should be the problem it holds`() {
+    fun `a stream should skip an event it does not know, and fail on an end that says nothing`() {
+        peer.reply(Reply.events(row("b-1"), "event: heartbeat\ndata: {}\n\n", "event: end\ndata: {}\n\n"))
+        caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+            .message.assert().contains("ended: null")
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a stream that ended not resumably, short of complete, should fail`() {
+        peer.reply(Reply.events(row("b-1"), "event: end\ndata: {\"reason\":\"hold-expired\",\"resumable\":false}\n\n"))
+        caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+            .message.assert().contains("ended: hold-expired")
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a retryable error event should resume the stream, and another fail it as the problem it holds`() {
         peer.reply(
-            Reply.events(row("b-1"), "event: error\ndata: {\"status\":503,\"code\":\"wow.storage.unavailable\"}\n\n")
+            Reply.events(row("b-1"), "event: error\ndata: {\"status\":503,\"code\":\"wow.storage.unavailable\"}\n\n"),
+            Reply.events(row("b-2"), complete),
         )
+        runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() }.map { it.row.ref.id }.assert()
+            .containsExactly("b-1", "b-2")
+        peer.taken.map { it.headers["Last-Event-ID"] }.assert().containsExactly(null, "p-b-1")
+        peer.taken.clear()
+        peer.reply(Reply.events(row("b-1"), "event: error\ndata: {\"status\":400,\"code\":\"wow.query.invalid\"}\n\n"))
         val problem = caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
-        problem.code.assert().isEqualTo("wow.storage.unavailable")
-        problem.status.assert().isEqualTo(503)
+        problem.code.assert().isEqualTo("wow.query.invalid")
+        problem.status.assert().isEqualTo(400)
+        peer.taken.assert().hasSize(1)
         Problems.ofMembers("not json").status.assert().isEqualTo(500)
+    }
+
+    @Test
+    fun `a resumed stream should ask for what is left of its limit, and never answer more`(): Unit = runBlocking {
+        peer.reply(
+            Reply.events(row("b-1"), row("b-2"), end),
+            Reply.events(row("b-3"), row("b-4"), row("b-5"), complete),
+        )
+        val rows = boxes.stream(ListQuery.of(MatchAllFilter, limit = 3)).toList()
+        // A peer that sends more than it was asked for is read no further than the limit.
+        rows.map { it.row.ref.id }.assert().containsExactly("b-1", "b-2", "b-3")
+        peer.taken.map { WowJson.mapper.readTree(it.body)["limit"].asInt() }.assert().containsExactly(3, 1)
+
+        // Every row of the limit read before the peer ended it: nothing is asked for again.
+        peer.taken.clear()
+        peer.reply(Reply.events(row("b-1"), row("b-2"), row("b-3"), end))
+        boxes.stream(ListQuery.of(MatchAllFilter, limit = 3)).toList().assert().hasSize(3)
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a stream whose permit was reclaimed should resume after the retry policy's backoff`(): Unit = runBlocking {
+        val reclaimed = "event: end\ndata: {\"reason\":\"permit-reclaimed\",\"resumable\":true}\n\n"
+        peer.reply(Reply.events(row("b-1"), reclaimed), Reply.events(reclaimed), Reply.events(row("b-2"), complete))
+        val slow = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .retry(RetryPolicy.of(backoff = 100.milliseconds))
+            .build()
+            .queries
+            .of(Caller.of(tenantId = "t1"))
+            .snapshots(BOX)
+        val took = measureTime { slow.stream(ListQuery(MatchAllFilter)).toList().assert().hasSize(2) }
+        // 100 ms before the first resume and 200 ms before the second, which follows a resume without a row.
+        took.assert().isGreaterThanOrEqualTo(300.milliseconds)
+        peer.taken.map { it.headers["Last-Event-ID"] }.assert().containsExactly(null, "p-b-1", "p-b-1")
     }
 
     @Test
