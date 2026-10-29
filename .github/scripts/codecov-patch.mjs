@@ -36,7 +36,10 @@ import { pathToFileURL } from 'node:url';
 // flags are complete and the first-parent merge that inherits from it (a
 // plain update from main keeps the head as the first parent and the gap with
 // it). This is a diagnosis only: when Codecov's API cannot be read, the gate
-// waits as before.
+// waits as before. Each TypeScript package's flag counts one session: a main
+// commit pushed before its parent's slowest upload, view-engine's, carries
+// none of that package forward, so a flag with no session at all is a gap too
+// once the commit carried any other forward (ebbde37, 2026-10-29).
 //
 // A failure can also be judged on someone else's lines. Codecov diffs a pull
 // request from its base, and the base is GitHub's `base.sha`: main as it was
@@ -55,7 +58,15 @@ export const APP = 'codecov';
  * The flags whose statuses wait for a number of sessions: codecov.yml's
  * `after_n_builds` (the test holds the two to each other).
  */
-export const AFTER_N_BUILDS = { 'jvm-unit': 4, integration: 4 };
+export const AFTER_N_BUILDS = {
+  'jvm-unit': 4,
+  integration: 4,
+  'typescript-wow-client': 1,
+  'typescript-wow-generator': 1,
+  'typescript-wow-react': 1,
+  'typescript-wow-view-engine': 1,
+  'typescript-wow-view-store': 1,
+};
 /**
  * What the check runs of the head commit say: the newest of Codecov's patch
  * runs decides, `pending` until there is one and it is completed.
@@ -105,13 +116,20 @@ export function flagSessions(uploads, builds = AFTER_N_BUILDS) {
 
 /**
  * The counted flags a commit carried forward too few sessions of and uploads
- * nothing of: Codecov will never judge a status that reads one.
+ * nothing of: Codecov will never judge a status that reads one. A flag with no
+ * session at all is one once the commit carried any session forward; before,
+ * Codecov has made no report of the commit to read.
  */
 export function incompleteFlags(uploads, builds = AFTER_N_BUILDS) {
+  const carriedAny = uploads.some(
+    upload => upload.upload_type === 'carriedforward',
+  );
   return Object.entries(flagSessions(uploads, builds))
     .filter(
       ([flag, { uploaded, carried }]) =>
-        uploaded.size === 0 && carried.size > 0 && carried.size < builds[flag],
+        uploaded.size === 0 &&
+        (carried.size > 0 || carriedAny) &&
+        carried.size < builds[flag],
     )
     .map(([flag, { carried }]) => ({
       flag,
