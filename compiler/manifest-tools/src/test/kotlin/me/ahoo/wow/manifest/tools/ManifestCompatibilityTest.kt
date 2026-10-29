@@ -793,6 +793,32 @@ class ManifestCompatibilityTest {
         )
     }
 
+    @Test
+    fun `a service with no version should record no line, and break nothing`(@TempDir directory: File) {
+        val baseline = File(directory, "manifest/baseline.json")
+        val current = File(directory, "build/manifest.json")
+        val report = File(directory, "build/report/compatibility.txt")
+        val recordReport = File(directory, "build/report/baseline.txt")
+        val owner = "project ':shop-server'"
+        fun gate() = ManifestTools.checkCompatibility(baseline, current, report, owner)
+        fun record() = ManifestTools.recordBaseline(current, baseline, false, recordReport, owner)
+
+        ManifestJson.write(BASELINE.copyWith(service = ServiceInfo("shop-service")), current)
+        record()
+        baseline.readText().assert().doesNotContain("\"${Baseline.LINE}\"")
+        Baseline.read(baseline).line.assert().isNull()
+        recordReport.readText().assert().startsWith("Recorded on the compatibility line (none) (version (none))")
+        gate().assert().isZero()
+        report.readText().assert().contains("Compatibility line (none), version (none): breaking changes fail")
+
+        val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
+        ManifestJson.write(broken.copyWith(service = ServiceInfo("shop-service")), current)
+        assertThrows<IllegalStateException> { gate() }.message.assert()
+            .contains("has 1 breaking change(s) within its compatibility line (none) (version (none))")
+        assertThrows<IllegalStateException> { record() }.message.assert()
+            .contains("refuses to record 1 breaking change(s) within its compatibility line (none) (version (none))")
+    }
+
     private val summary = ServiceRouteManifest(
         name = "summary",
         route = RouteManifest("GET", "/shop/summaries/{day}"),
