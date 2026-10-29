@@ -70,7 +70,7 @@ class BasketSpec {
 
     @Test
     fun `adding a product again should add to its quantity at the new price`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2))
         whenCommand(AddBasketItem(MUG, BigDecimal("9.00"), 1)) {
             expectEvents(BasketItemAdded(MUG, BigDecimal("9.00"), 1))
             expectState { items.assert().containsExactly(BasketItem(MUG, BigDecimal("9.00"), 3)) }
@@ -79,7 +79,7 @@ class BasketSpec {
 
     @Test
     fun `changing a quantity should replace it`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
         whenCommand(ChangeBasketItemQuantity(MUG, 5)) {
             expectEvents(BasketItemQuantityChanged(MUG, 5))
             expectState {
@@ -92,7 +92,7 @@ class BasketSpec {
 
     @Test
     fun `removing an item should take it out of the basket`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
         whenCommand(RemoveBasketItem(MUG)) {
             expectEvents(BasketItemRemoved(MUG))
             expectState { items.assert().containsExactly(BasketItem(CAP, CAP_PRICE, 1)) }
@@ -102,7 +102,7 @@ class BasketSpec {
 
     @Test
     fun `clearing should empty the basket`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2))
         whenCommand(ClearBasket) {
             expectEvents(BasketCleared)
             expectState { items.assert().isEmpty() }
@@ -112,7 +112,7 @@ class BasketSpec {
 
     @Test
     fun `checking out should empty the basket into a numbered order`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1), scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
         val items = listOf(BasketItem(MUG, MUG_PRICE, 2), BasketItem(CAP, CAP_PRICE, 1))
         whenCommand(CheckoutBasket) {
             expectEvents(BasketCheckedOut("$BUYER-1", items))
@@ -130,15 +130,13 @@ class BasketSpec {
 
     @Test
     fun `an empty basket should not be checked out`() = basketSpec {
-        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketCleared, scope = OWNED)
+        given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketCleared)
         whenCommand(CheckoutBasket) { expectRejected(Basket.Rejections.EMPTY) }
     }
 
     private companion object {
         const val BUYER = "alice"
 
-        /** The scope of the buyer's basket: its owner is the buyer whose id it has, as its history records it. */
-        val OWNED = Scope(ownerId = BUYER)
         const val MUG = "mug"
         const val CAP = "cap"
         val MUG_PRICE = BigDecimal("8.50")
