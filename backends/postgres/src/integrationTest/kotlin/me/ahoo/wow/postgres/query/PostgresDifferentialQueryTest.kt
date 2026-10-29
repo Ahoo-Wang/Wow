@@ -295,11 +295,11 @@ class PostgresDifferentialQueryTest {
             ),
         )
 
-        private fun QueryField.child(): QueryField = QueryField(path.substringAfterLast('.'))
+        private fun QueryField<*>.child(): QueryField<*> = QueryField(path.substringAfterLast('.'))
 
         private fun count(alias: String = "count") = AggregationMetric.Count(alias)
 
-        private fun numeric(function: AggregationFunction, alias: String, field: QueryField = AMOUNT) =
+        private fun numeric(function: AggregationFunction, alias: String, field: QueryField<*> = AMOUNT) =
             AggregationMetric.Numeric(function, AggregationExpression.Field(field), alias)
 
         private val BY_STATUS = AggregationGroup.Terms(STATUS, "status")

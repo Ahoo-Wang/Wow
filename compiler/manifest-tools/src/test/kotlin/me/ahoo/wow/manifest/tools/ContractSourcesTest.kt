@@ -109,7 +109,7 @@ class ContractSourcesTest {
     @Test
     fun `the state's paths should be named as the compiler names them`() {
         val defs = contract(aggregate()).defs
-        StateFields.of(Manifest.schemaRef(OrderState::class.java.name), defs).associateBy(
+        StateFields.of(Manifest.schemaRef(OrderState::class.java.name), defs).map { it.path }.associateBy(
             me.ahoo.wow.manifest.QueryFieldNames::constantOf,
         ).assert().isEqualTo(
             // QueryPropertiesTest's `a state's properties are its serialized paths under state`, without the system fields.
@@ -132,6 +132,20 @@ class ContractSourcesTest {
     }
 
     @Test
+    fun `each constant should be typed as the state's view types its property`() {
+        val text = contractOf(contract(aggregate()), queryFields = true).text
+        text.assert().contains(
+            "public val STATE__ID: QueryField<String> = QueryField.of(\"state.id\")",
+            "public val STATE__CUSTOMER_ID: QueryField<String?> = QueryField.of(\"state.customerId\")",
+            "public val STATE__LINES__QUANTITY: QueryField<Int> = QueryField.of(\"state.lines.quantity\")",
+            "public val STATE__ATTRIBUTES: QueryField<Map<String, String>> = QueryField.of(\"state.attributes\")",
+        )
+        // The view copies the enumeration, and the constant names the copy, as a reader of the view compares it.
+        val view = Regex("public val STATE__STATUS: QueryField<([^>]+)>").find(text)!!.groupValues[1]
+        view.assert().endsWith(".Status")
+    }
+
+    @Test
     fun `a schema walk should follow nullable alternatives and stop at leaves, cycles and missing definitions`() {
         val defs = mapOf(
             "S" to mapOf(
@@ -147,7 +161,7 @@ class ContractSourcesTest {
             ),
             "P" to mapOf("type" to "object", "properties" to mapOf("self" to mapOf("\$ref" to "#/\$defs/P"), "name" to mapOf("type" to "string"))),
         )
-        StateFields.of("#/\$defs/S", defs).assert().containsExactly(
+        StateFields.of("#/\$defs/S", defs).map { it.path }.assert().containsExactly(
             "state.owner",
             "state.owner.self",
             "state.owner.name",
@@ -185,7 +199,7 @@ class ContractSourcesTest {
             "public const val QUALIFIED_NAME: String = \"shop-ordering.order\"",
             "public object Commands {",
             "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
-            "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
+            "public val STATE__ADDRESS__ZIP: QueryField<String> = QueryField.of(\"state.address.zip\")",
         )
     }
 

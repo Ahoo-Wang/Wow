@@ -71,9 +71,9 @@ import tools.jackson.databind.node.ObjectNode
  */
 internal class RecordScope(
     val record: ObjectNode,
-    private val elements: List<Pair<QueryField, JsonNode>> = emptyList()
+    private val elements: List<Pair<QueryField<*>, JsonNode>> = emptyList()
 ) {
-    fun enter(container: QueryField, element: JsonNode): RecordScope = RecordScope(
+    fun enter(container: QueryField<*>, element: JsonNode): RecordScope = RecordScope(
         record,
         elements + (container to element)
     )
@@ -235,7 +235,7 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
     }
 
     /** The instant [field] holds here, in epoch milliseconds. */
-    fun instant(field: QueryField, scope: RecordScope): Long? {
+    fun instant(field: QueryField<*>, scope: RecordScope): Long? {
         val resolved = query.field(field)
         return scope.values(resolved).singleOrNull()?.epochMillis(resolved.temporal)
     }

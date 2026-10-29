@@ -173,7 +173,7 @@ class FilterNormalizer(
     }
 
     private fun weekRange(
-        field: QueryField,
+        field: QueryField<*>,
         today: LocalDate,
         offset: Long,
         zoneId: ZoneId,
@@ -185,7 +185,7 @@ class FilterNormalizer(
     }
 
     private fun monthRange(
-        field: QueryField,
+        field: QueryField<*>,
         today: LocalDate,
         offset: Long,
         zoneId: ZoneId,
@@ -197,7 +197,7 @@ class FilterNormalizer(
     }
 
     private fun range(
-        field: QueryField,
+        field: QueryField<*>,
         start: java.time.LocalDateTime,
         end: java.time.LocalDateTime,
         zoneId: ZoneId,

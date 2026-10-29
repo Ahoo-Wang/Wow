@@ -85,7 +85,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 ) : QueryBackend {
     override val aggregateType: AggregateType = dataset.name
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
-    private val fields: List<String> = dataset.declaration.fields.keys.map(QueryField::path)
+    private val fields: List<String> = dataset.declaration.fields.keys.map(QueryField<*>::path)
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val select = Select(query, metadata.table())

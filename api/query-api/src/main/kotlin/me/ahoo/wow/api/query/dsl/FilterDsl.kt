@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.dsl
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
@@ -98,7 +99,7 @@ class FilterDsl internal constructor(
     private val prefix: String = "",
     private val allowScopedExpression: Boolean = false,
     /** The absolute path of the element [elementMatch] scopes this block to; `null` at the record's root. */
-    private val element: QueryField? = null,
+    private val element: QueryField<*>? = null,
 ) {
     private val expressions = mutableListOf<FilterExpression>()
 
@@ -119,6 +120,7 @@ class FilterDsl internal constructor(
     }
 
     /** `EXPRESSION`: compares the computed [expression] of each record with [value]. */
+    @ExperimentalWowApi
     fun expression(expression: AggregationExpression, comparison: ComparisonOperator, value: Double) =
         expression(ExpressionFilter(expression, comparison, value))
 
@@ -164,105 +166,107 @@ class FilterDsl internal constructor(
     fun String.path(block: FilterDsl.() -> Unit) = scoped(at(), block)
 
     /** Applies [block] in the path scope of this field, as [String.path] does. */
-    fun QueryField.path(block: FilterDsl.() -> Unit) = scoped(at(), block)
+    fun QueryField<*>.path(block: FilterDsl.() -> Unit) = scoped(at(), block)
 
     /** `ELEMENT_MATCH`: an element of this collection matches [block], whose fields are relative to the element. */
     fun String.elementMatch(block: FilterDsl.() -> Unit) = matchElements(at(), block)
 
     /** `ELEMENT_MATCH` on this collection field, as [String.elementMatch] does. */
-    fun QueryField.elementMatch(block: FilterDsl.() -> Unit) = matchElements(at(), block)
+    fun QueryField<*>.elementMatch(block: FilterDsl.() -> Unit) = matchElements(at(), block)
 
     infix fun String.eq(value: Any?) = equal(at(), value)
 
-    infix fun QueryField.eq(value: Any?) = equal(at(), value)
+    infix fun <T> QueryField<T>.eq(value: T) = equal(at(), value)
 
     infix fun String.ne(value: Any?) = notEqual(at(), value)
 
-    infix fun QueryField.ne(value: Any?) = notEqual(at(), value)
+    infix fun <T> QueryField<T>.ne(value: T) = notEqual(at(), value)
 
     infix fun String.gt(value: Any?) = add(GreaterThanFilter(at(), value))
 
-    infix fun QueryField.gt(value: Any?) = add(GreaterThanFilter(at(), value))
+    infix fun <T> QueryField<T>.gt(value: T) = add(GreaterThanFilter(at(), value))
 
     infix fun String.gte(value: Any?) = add(GreaterThanOrEqualFilter(at(), value))
 
-    infix fun QueryField.gte(value: Any?) = add(GreaterThanOrEqualFilter(at(), value))
+    infix fun <T> QueryField<T>.gte(value: T) = add(GreaterThanOrEqualFilter(at(), value))
 
     infix fun String.lt(value: Any?) = add(LessThanFilter(at(), value))
 
-    infix fun QueryField.lt(value: Any?) = add(LessThanFilter(at(), value))
+    infix fun <T> QueryField<T>.lt(value: T) = add(LessThanFilter(at(), value))
 
     infix fun String.lte(value: Any?) = add(LessThanOrEqualFilter(at(), value))
 
-    infix fun QueryField.lte(value: Any?) = add(LessThanOrEqualFilter(at(), value))
+    infix fun <T> QueryField<T>.lte(value: T) = add(LessThanOrEqualFilter(at(), value))
 
     fun String.containsText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(ContainsFilter(at(), value, comparison))
 
-    fun QueryField.containsText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun QueryField<*>.containsText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(ContainsFilter(at(), value, comparison))
 
     fun String.startsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(StartsWithFilter(at(), value, comparison))
 
-    fun QueryField.startsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun QueryField<*>.startsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(StartsWithFilter(at(), value, comparison))
 
     fun String.endsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(EndsWithFilter(at(), value, comparison))
 
-    fun QueryField.endsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
+    fun QueryField<*>.endsWithText(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
         add(EndsWithFilter(at(), value, comparison))
 
     infix fun String.isIn(values: Iterable<*>) = add(InFilter(at(), values.toList()))
 
-    infix fun QueryField.isIn(values: Iterable<*>) = add(InFilter(at(), values.toList()))
+    infix fun <T> QueryField<T>.isIn(values: Iterable<T>) = add(InFilter(at(), values.toList()))
 
     infix fun String.notIn(values: Iterable<*>) = add(NotInFilter(at(), values.toList()))
 
-    infix fun QueryField.notIn(values: Iterable<*>) = add(NotInFilter(at(), values.toList()))
+    infix fun <T> QueryField<T>.notIn(values: Iterable<T>) = add(NotInFilter(at(), values.toList()))
 
     /** `BETWEEN`: the field lies in `[lowerBound, upperBound]`, both bounds included. */
     fun String.between(lowerBound: Any?, upperBound: Any?) = add(BetweenFilter(at(), lowerBound, upperBound))
 
-    fun QueryField.between(lowerBound: Any?, upperBound: Any?) = add(BetweenFilter(at(), lowerBound, upperBound))
+    fun <T> QueryField<T>.between(lowerBound: T, upperBound: T) = add(BetweenFilter(at(), lowerBound, upperBound))
 
     /** `BETWEEN` the bounds of [range], both included: `"state.price" between 10..20`. */
     infix fun String.between(range: ClosedRange<*>) = add(BetweenFilter(at(), range.start, range.endInclusive))
 
-    infix fun QueryField.between(range: ClosedRange<*>) = add(BetweenFilter(at(), range.start, range.endInclusive))
+    /** `BETWEEN` of [range]'s bounds: a range of the field's type, or of a type a nullable or untyped field takes. */
+    infix fun <C : Comparable<C>> QueryField<in C>.between(range: ClosedRange<C>) =
+        add(BetweenFilter(at(), range.start, range.endInclusive))
 
     infix fun String.containsAll(values: Iterable<*>) = add(ContainsAllFilter(at(), values.toList()))
 
-    infix fun QueryField.containsAll(values: Iterable<*>) = add(ContainsAllFilter(at(), values.toList()))
+    infix fun QueryField<*>.containsAll(values: Iterable<*>) = add(ContainsAllFilter(at(), values.toList()))
 
     fun String.isEmptyCollection() = add(IsEmptyFilter(at()))
 
-    fun QueryField.isEmptyCollection() = add(IsEmptyFilter(at()))
+    fun QueryField<*>.isEmptyCollection() = add(IsEmptyFilter(at()))
 
     fun String.isEmptyString() = add(IsEmptyStringFilter(at()))
 
-    fun QueryField.isEmptyString() = add(IsEmptyStringFilter(at()))
+    fun QueryField<*>.isEmptyString() = add(IsEmptyStringFilter(at()))
 
     fun String.isNotEmptyString() = add(IsNotEmptyStringFilter(at()))
 
-    fun QueryField.isNotEmptyString() = add(IsNotEmptyStringFilter(at()))
+    fun QueryField<*>.isNotEmptyString() = add(IsNotEmptyStringFilter(at()))
 
     fun String.isNull() = add(IsNullFilter(at()))
 
-    fun QueryField.isNull() = add(IsNullFilter(at()))
+    fun QueryField<*>.isNull() = add(IsNullFilter(at()))
 
     fun String.isNotNull() = add(IsNotNullFilter(at()))
 
-    fun QueryField.isNotNull() = add(IsNotNullFilter(at()))
+    fun QueryField<*>.isNotNull() = add(IsNotNullFilter(at()))
 
     fun String.exists() = add(ExistsFilter(at()))
 
-    fun QueryField.exists() = add(ExistsFilter(at()))
+    fun QueryField<*>.exists() = add(ExistsFilter(at()))
 
     fun String.notExists() = add(NotExistsFilter(at()))
 
-    fun QueryField.notExists() = add(NotExistsFilter(at()))
+    fun QueryField<*>.notExists() = add(NotExistsFilter(at()))
 
     /** `SEARCH` of [query] in [fields], or in every searchable field of the model when none is named. */
     fun search(query: String, vararg fields: String) = search(query, SearchMode.TERMS, *fields)
@@ -270,23 +274,23 @@ class FilterDsl internal constructor(
     fun search(query: String, mode: SearchMode, vararg fields: String) =
         add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field), mode))
 
-    fun search(query: String, mode: SearchMode, vararg fields: QueryField) =
+    fun search(query: String, mode: SearchMode, vararg fields: QueryField<*>) =
         add(SearchFilter(query, fields.mapTo(linkedSetOf()) { it.at() }, mode))
 
     infix fun String.search(query: String) = search(query, this)
 
-    infix fun QueryField.search(query: String) = search(query, SearchMode.TERMS, this)
+    infix fun QueryField<*>.search(query: String) = search(query, SearchMode.TERMS, this)
 
     fun String.today(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(TodayFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.today(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.today(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(TodayFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.yesterday(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(YesterdayFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.yesterday(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.yesterday(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(YesterdayFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     /** `BEFORE_TODAY`: before [time] of today. */
@@ -297,7 +301,7 @@ class FilterDsl internal constructor(
         timeUnit: TimeUnit = MILLIS,
     ) = add(BeforeTodayFilter(at(), time.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.beforeToday(
+    fun QueryField<*>.beforeToday(
         time: LocalTime,
         zoneId: ZoneId? = null,
         datePattern: String? = null,
@@ -307,68 +311,68 @@ class FilterDsl internal constructor(
     fun String.tomorrow(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(TomorrowFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.tomorrow(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.tomorrow(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(TomorrowFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.thisWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.thisWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.thisWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.nextWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.nextWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.nextWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.lastWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.lastWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.lastWeek(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastWeekFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.thisMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.thisMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.thisMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.nextMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.nextMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.nextMonth(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextMonthFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.lastYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.lastYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.lastYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(LastYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.thisYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.thisYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.thisYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(ThisYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     fun String.nextYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.nextYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
+    fun QueryField<*>.nextYear(zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(NextYearFilter(at(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     /** `RECENT_DAYS`: within the last [days] days, today included. */
     fun String.recentDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null, timeUnit: TimeUnit = MILLIS) =
         add(RecentDaysFilter(at(), days, zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.recentDays(
+    fun QueryField<*>.recentDays(
         days: Int,
         zoneId: ZoneId? = null,
         datePattern: String? = null,
@@ -384,7 +388,7 @@ class FilterDsl internal constructor(
     ) =
         add(EarlierDaysFilter(at(), days, zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.earlierDays(
+    fun QueryField<*>.earlierDays(
         days: Int,
         zoneId: ZoneId? = null,
         datePattern: String? = null,
@@ -399,7 +403,7 @@ class FilterDsl internal constructor(
         timeUnit: TimeUnit = MILLIS,
     ) = add(BeforeNowFilter(at(), offset.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.beforeNow(
+    fun QueryField<*>.beforeNow(
         offset: Duration = Duration.ZERO,
         zoneId: ZoneId? = null,
         datePattern: String? = null,
@@ -414,7 +418,7 @@ class FilterDsl internal constructor(
         timeUnit: TimeUnit = MILLIS,
     ) = add(AfterNowFilter(at(), offset.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
-    fun QueryField.afterNow(
+    fun QueryField<*>.afterNow(
         offset: Duration = Duration.ZERO,
         zoneId: ZoneId? = null,
         datePattern: String? = null,
@@ -426,20 +430,20 @@ class FilterDsl internal constructor(
         return expressions.singleOrNull() ?: AndFilter(expressions.toList())
     }
 
-    private fun equal(field: QueryField, value: Any?) =
+    private fun equal(field: QueryField<*>, value: Any?) =
         add(if (value == null) IsNullFilter(field) else EqualFilter(field, value))
 
-    private fun notEqual(field: QueryField, value: Any?) =
+    private fun notEqual(field: QueryField<*>, value: Any?) =
         add(if (value == null) IsNotNullFilter(field) else NotEqualFilter(field, value))
 
-    private fun scoped(field: QueryField, block: FilterDsl.() -> Unit) {
+    private fun scoped(field: QueryField<*>, block: FilterDsl.() -> Unit) {
         val scoped = FilterDsl(prefix = field.path, element = element).apply(block)
         require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
         add(scoped.build())
     }
 
     /** [field] is relative to the enclosing element, if any; the nested block's element is its absolute path. */
-    private fun matchElements(field: QueryField, block: FilterDsl.() -> Unit) {
+    private fun matchElements(field: QueryField<*>, block: FilterDsl.() -> Unit) {
         val nested = FilterDsl(element = element?.append(field) ?: field).apply(block)
         require(nested.expressions.isNotEmpty()) { "elementMatch block cannot be empty." }
         add(ElementMatchFilter(field, nested.build()))
@@ -458,12 +462,12 @@ class FilterDsl internal constructor(
         block: FilterDsl.() -> Unit,
     ): FilterExpression = create(nested(name, block).expressions.toList())
 
-    private fun String.at(): QueryField = field(this)
+    private fun String.at(): QueryField<*> = field(this)
 
-    private fun QueryField.at(): QueryField = field(path)
+    private fun QueryField<*>.at(): QueryField<*> = field(path)
 
     /** [value] in this block's terms: relative to its element when it lies under it, then under its path scope. */
-    private fun field(value: String): QueryField {
+    private fun field(value: String): QueryField<*> {
         val relative = element?.let { QueryField(value).relativeTo(it)?.path } ?: value
         return QueryField(resolvePath(relative))
     }

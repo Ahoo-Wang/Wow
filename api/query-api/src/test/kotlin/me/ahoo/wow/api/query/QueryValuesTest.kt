@@ -75,7 +75,7 @@ class QueryValuesTest {
             is Long -> value + 1
             is Double -> value + 1
             is Boolean -> !value
-            is QueryField -> QueryField("${value.path}x")
+            is QueryField<*> -> QueryField("${value.path}x")
             is Enum<*> -> value.javaClass.enumConstants.firstOrNull { it != value } ?: return@firstNotNullOfOrNull null
             is List<*> -> value + value
             null -> return@firstNotNullOfOrNull null

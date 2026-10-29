@@ -61,7 +61,7 @@ data class QuerySchemaRegistration(
 /** What one source declares about a model's fields, by logical field. */
 @ExperimentalWowApi
 class QuerySchemaDeclaration @InternalWowApi constructor(
-    val fields: Map<QueryField, QueryFieldDeclaration>,
+    val fields: Map<QueryField<*>, QueryFieldDeclaration>,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is QuerySchemaDeclaration && valueFields() == other.valueFields()
@@ -75,7 +75,9 @@ class QuerySchemaDeclaration @InternalWowApi constructor(
     companion object {
         /** A [QuerySchemaDeclaration] of the given values. */
         @JvmStatic
-        fun of(fields: Map<QueryField, QueryFieldDeclaration>): QuerySchemaDeclaration = QuerySchemaDeclaration(fields)
+        fun of(fields: Map<QueryField<*>, QueryFieldDeclaration>): QuerySchemaDeclaration = QuerySchemaDeclaration(
+            fields
+        )
     }
 }
 
@@ -108,7 +110,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
      */
     val variant: DeclarationValue<String?> = DeclarationValue.Unset,
     /** Other logical paths that name this value; admission replaces them with this value's path. */
-    val aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset,
+    val aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset,
     /** Set when the field is kept only for existing callers. */
     val deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
 ) {
@@ -130,7 +132,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         semanticType: DeclarationValue<QuerySemanticType?> = this.semanticType,
         maskRule: DeclarationValue<MaskRule> = this.maskRule,
         variant: DeclarationValue<String?> = this.variant,
-        aliases: DeclarationValue<Set<QueryField>> = this.aliases,
+        aliases: DeclarationValue<Set<QueryField<*>>> = this.aliases,
         deprecated: DeclarationValue<QueryDeprecation?> = this.deprecated,
     ): QueryFieldDeclaration = QueryFieldDeclaration(
         title,
@@ -204,7 +206,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
             maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
             variant: DeclarationValue<String?> = DeclarationValue.Unset,
-            aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset,
+            aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset,
             deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
         ): QueryFieldDeclaration = QueryFieldDeclaration(
             title,
@@ -260,7 +262,7 @@ internal data class PrioritizedQuerySchemaDeclaration(
 
 internal fun QueryFieldDeclaration.merge(
     higher: QueryFieldDeclaration,
-    field: QueryField,
+    field: QueryField<*>,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
     title = title.merge(higher.title, field, "title", rejectDifferent),
@@ -310,7 +312,7 @@ private fun QueryFieldDeclaration.openedValueTypes(
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(
     higher: DeclarationValue<MaskRule>,
-    field: QueryField,
+    field: QueryField<*>,
 ): DeclarationValue<MaskRule> {
     if (this is DeclarationValue.Unset) return higher
     if (higher is DeclarationValue.Unset) return this
@@ -320,7 +322,7 @@ private fun DeclarationValue<MaskRule>.mergeMaskRule(
 
 private fun <T> DeclarationValue<T>.merge(
     higher: DeclarationValue<T>,
-    field: QueryField,
+    field: QueryField<*>,
     leaf: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<T> {
@@ -342,7 +344,7 @@ internal fun <T> DeclarationValue<T>.valueOr(default: T): T = when (this) {
 
 private fun QueryFieldDeclaration.mergeProperties(
     higher: QueryFieldDeclaration,
-    field: QueryField,
+    field: QueryField<*>,
     rejectDifferent: Boolean,
 ): DeclarationValue<Map<String, QueryFieldDeclaration>> {
     val incoming = higher.properties.valueOr(emptyMap())
@@ -366,12 +368,12 @@ private fun QueryFieldDeclaration.mergeProperties(
     }
 }
 
-private fun QueryFieldDeclaration.inheritDynamicMasks(child: QueryFieldDeclaration, field: QueryField): QueryFieldDeclaration =
+private fun QueryFieldDeclaration.inheritDynamicMasks(child: QueryFieldDeclaration, field: QueryField<*>): QueryFieldDeclaration =
     additionalProperties.valueOr(null)?.takeIf(QueryFieldDeclaration::hasMasks)?.merge(child, field, false) ?: child
 
 private fun DeclarationValue<QueryFieldDeclaration?>.replaceStructure(
     higher: DeclarationValue<QueryFieldDeclaration?>,
-    field: QueryField,
+    field: QueryField<*>,
     leaf: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<QueryFieldDeclaration?> {
@@ -384,7 +386,7 @@ private fun DeclarationValue<QueryFieldDeclaration?>.replaceStructure(
 private fun preserveAlternativeMasks(
     previous: List<QueryFieldDeclaration>,
     replacements: List<QueryFieldDeclaration>,
-    field: QueryField,
+    field: QueryField<*>,
 ): List<QueryFieldDeclaration> {
     val result = replacements.toMutableList()
     previous.filter(QueryFieldDeclaration::hasMasks).forEach { protected ->
@@ -432,7 +434,7 @@ private fun QueryFieldDeclaration.compatibleMaskShape(other: QueryFieldDeclarati
 
 private fun QueryFieldDeclaration.preserveMasks(
     replacement: QueryFieldDeclaration?,
-    field: QueryField,
+    field: QueryField<*>,
 ): QueryFieldDeclaration? {
     if (!hasMasks()) return replacement
     if (replacement == null || !compatibleMaskShape(replacement)) {

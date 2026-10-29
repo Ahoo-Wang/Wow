@@ -40,12 +40,12 @@ internal class QuerySchemaMerger {
         }
         var root = QueryFieldDeclaration()
         system.fields.toSortedMap(
-            compareBy<QueryField> { it.path.length }.thenBy { it.path }
+            compareBy<QueryField<*>> { it.path.length }.thenBy { it.path }
         ).forEach { (field, declaration) ->
             root = root.patchAt(field.path.split('.'), declaration, field, false)
         }
         extensions.groupBy(PrioritizedQuerySchemaDeclaration::priority).toSortedMap().forEach { (_, sources) ->
-            val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
+            val fields = linkedMapOf<QueryField<*>, QueryFieldDeclaration>()
             sources.forEach { source ->
                 source.declaration.fields.forEach { (field, declaration) ->
                     fields[field] = fields[field]?.merge(declaration, field, true) ?: declaration
@@ -54,7 +54,7 @@ internal class QuerySchemaMerger {
             // Validate overlaps between nested declarations and path patches in the same priority.
             var priorityRoot = QueryFieldDeclaration()
             fields.toSortedMap(
-                compareBy<QueryField> { it.path.length }.thenBy { it.path }
+                compareBy<QueryField<*>> { it.path.length }.thenBy { it.path }
             ).forEach { (field, declaration) ->
                 priorityRoot = priorityRoot.patchAt(field.path.split('.'), declaration, field, true)
                 root = root.patchAt(field.path.split('.'), declaration, field, false)
@@ -63,7 +63,7 @@ internal class QuerySchemaMerger {
         return LogicalQuerySchema(root.materialize(), sensitivity)
     }
 
-    private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField, extension: QueryFieldDeclaration) {
+    private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField<*>, extension: QueryFieldDeclaration) {
         val systemLeaves = listOf(
             title, description, enumValues, enumDescriptions, valueTypes, nullable, required, kind,
             items, additionalProperties, alternatives, semanticType, maskRule, aliases, deprecated
@@ -93,7 +93,7 @@ internal class QuerySchemaMerger {
 private fun QueryFieldDeclaration.patchAt(
     path: List<String>,
     patch: QueryFieldDeclaration,
-    field: QueryField,
+    field: QueryField<*>,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration {
     if (path.isEmpty()) return merge(patch, field, rejectDifferent)

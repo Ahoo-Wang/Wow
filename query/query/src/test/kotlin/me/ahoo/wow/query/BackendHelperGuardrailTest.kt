@@ -41,7 +41,7 @@ class BackendHelperGuardrailTest {
         val samples = mapOf(
             NATIVE_VALUE to "private fun tools.jackson.databind.JsonNode.nativeValue(): Any? = null",
             ANY_NATIVE_VALUE to "private fun Any?.nativeValue(): Any? = this",
-            PHYSICAL_PATH to "fun QueryField.physicalPath(query: AdmittedQuery<*>) = query.physicalPath(this)",
+            PHYSICAL_PATH to "fun QueryField<*>.physicalPath(query: AdmittedQuery<*>) = query.physicalPath(this)",
             PHYSICAL_FIELD_PATH to "val path = query.field(field).physicalField.path",
         )
         samples.forEach { (name, sample) -> PATTERNS.getValue(name).containsMatchIn(sample).assert().isTrue() }
@@ -74,13 +74,13 @@ class BackendHelperGuardrailTest {
 
         const val NATIVE_VALUE = "fun JsonNode.nativeValue"
         const val ANY_NATIVE_VALUE = "fun Any?.nativeValue"
-        const val PHYSICAL_PATH = "fun QueryField.physicalPath"
+        const val PHYSICAL_PATH = "fun QueryField<*>.physicalPath"
         const val PHYSICAL_FIELD_PATH = ".physicalField.path"
 
         val PATTERNS = mapOf(
             NATIVE_VALUE to Regex("""fun\s+(tools\.jackson\.databind\.)?JsonNode\.nativeValue\b"""),
             ANY_NATIVE_VALUE to Regex("""fun\s+Any\?\.nativeValue\b"""),
-            PHYSICAL_PATH to Regex("""fun\s+QueryField\.physicalPath\b"""),
+            PHYSICAL_PATH to Regex("""fun\s+QueryField<\*>\.physicalPath\b"""),
             PHYSICAL_FIELD_PATH to Regex("""\.physicalField\.path\b"""),
         )
 

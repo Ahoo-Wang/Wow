@@ -250,7 +250,7 @@ private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any = checkN
  * This temporal field as a BSON date, decoded from its epoch; `null` when absent. A snapshot document stores a date
  * string as text ([me.ahoo.wow.mongo.ExactBson]), so the storage facts grant temporal aggregation to epochs alone.
  */
-internal fun QueryField.dateInput(admitted: AdmittedQuery<*>): Any {
+internal fun QueryField<*>.dateInput(admitted: AdmittedQuery<*>): Any {
     val resolved = admitted.field(this)
     return when (val temporal = resolved.temporal) {
         is Temporal.Epoch -> epochDate(admitted.path(this), temporal.timeUnit)

@@ -71,7 +71,7 @@ internal class ManifestSchemaReader(
     private val contextName: String,
     private val strategies: MaskStrategyResolver,
 ) {
-    fun declaration(schema: Map<*, *>, field: QueryField): QueryFieldDeclaration =
+    fun declaration(schema: Map<*, *>, field: QueryField<*>): QueryFieldDeclaration =
         read(schema, field.path, emptySet())
 
     private fun read(schema: Map<*, *>, field: String, resolving: Set<String>): QueryFieldDeclaration {
@@ -329,7 +329,7 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
         }
     }
 
-    fun aliases(): Set<QueryField>? = schema[ManifestQueryKeywords.ALIAS]?.let { aliases ->
+    fun aliases(): Set<QueryField<*>>? = schema[ManifestQueryKeywords.ALIAS]?.let { aliases ->
         declared(ManifestQueryKeywords.ALIAS) {
             (aliases as List<*>).mapTo(linkedSetOf()) { QueryField(it as String) }
         }

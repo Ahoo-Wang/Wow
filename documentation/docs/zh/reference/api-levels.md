@@ -50,10 +50,12 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.api.query.ComparisonOperator` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.AggregationFunction` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.AggregationGroupScope` | class | `wow-query-api` |
+| `me.ahoo.wow.api.query.ExpressionFilter` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.AggregationQueryDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.DerivedExpressionDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.HavingDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.aggregation` | fun | `wow-query-api` |
+| `me.ahoo.wow.api.query.dsl.FilterDsl.expression` | fun | `wow-query-api` |
 | `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |

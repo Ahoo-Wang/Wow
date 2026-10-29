@@ -27,7 +27,7 @@ abstract class NestedFieldDsl {
         this.nestedField = nestedField
     }
 
-    fun nested(nestedField: QueryField) = nested(nestedField.path)
+    fun nested(nestedField: QueryField<*>) = nested(nestedField.path)
 
     fun String.withNestedField(): String {
         if (nestedField.isBlank() || startsWith("$nestedField$NESTED_FIELD_DELIMITER")) {

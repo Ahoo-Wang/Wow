@@ -158,7 +158,7 @@ internal class RecordFilter(private val filter: FilterExpression) {
      * missing. An array on the way contributes each element's child, and a numeric segment on an array its element
      * at that index. [QueryField]'s grammar keeps `.` out of a segment, so the segments are exactly the path's.
      */
-    private fun ObjectNode.values(field: QueryField): List<JsonNode> =
+    private fun ObjectNode.values(field: QueryField<*>): List<JsonNode> =
         field.path.split('.').fold(listOf<JsonNode>(this)) { nodes, name -> nodes.flatMap { it.child(name) } }
 
     private fun JsonNode.child(name: String): List<JsonNode> = when {

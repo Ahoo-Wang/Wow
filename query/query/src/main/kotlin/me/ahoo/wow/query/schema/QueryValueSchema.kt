@@ -43,12 +43,12 @@ class QueryValueSchema @InternalWowApi constructor(
     val maskRule: MaskRule? = null,
     /** The discriminator value when this value is one variant of a variant payload, such as an event's `bodyType`. */
     val variant: String? = null,
-    aliases: Set<QueryField> = emptySet(),
+    aliases: Set<QueryField<*>> = emptySet(),
     /** Set when the field is kept only for existing callers. */
     val deprecated: QueryDeprecation? = null,
 ) {
     /** Other logical paths that name this value. */
-    val aliases: Set<QueryField> = java.util.Collections.unmodifiableSet(LinkedHashSet(aliases))
+    val aliases: Set<QueryField<*>> = java.util.Collections.unmodifiableSet(LinkedHashSet(aliases))
 
     private val enumSnapshot: List<JsonNode>? = enumValues?.map { it.deepCopy() }
     val enumValues: List<JsonNode>?
@@ -133,7 +133,7 @@ class QueryValueSchema @InternalWowApi constructor(
 class QueryFieldBindingTemplate @InternalWowApi constructor(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
-    val physicalScope: QueryField? = null,
+    val physicalScope: QueryField<*>? = null,
     val indexed: Boolean? = null,
 ) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let {
@@ -159,7 +159,7 @@ class QueryFieldBindingTemplate @InternalWowApi constructor(
         fun of(
             physicalPath: QueryPathTemplate,
             storageTypes: Set<QueryStorageType>?,
-            physicalScope: QueryField? = null,
+            physicalScope: QueryField<*>? = null,
             indexed: Boolean? = null,
         ): QueryFieldBindingTemplate = QueryFieldBindingTemplate(physicalPath, storageTypes, physicalScope, indexed)
     }

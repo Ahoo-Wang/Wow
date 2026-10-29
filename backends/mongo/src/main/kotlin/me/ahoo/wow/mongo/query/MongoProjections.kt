@@ -56,7 +56,7 @@ internal object MongoProjections {
         return Projections.exclude(dropped + MongoSnapshotDocuments.ID)
     }
 
-    private fun physical(query: AdmittedQuery<Queryable<*>>, field: QueryField): String =
+    private fun physical(query: AdmittedQuery<Queryable<*>>, field: QueryField<*>): String =
         MongoSnapshotDocuments.checked(query.physicalPath(field))
 
     private fun subtree(path: String): String = path.split('.').take(NATIVE_DEPTH).joinToString(".")
@@ -76,7 +76,7 @@ internal object MongoProjections {
         return projected
     }
 
-    private fun logical(query: AdmittedQuery<Queryable<*>>, field: QueryField): List<String> =
+    private fun logical(query: AdmittedQuery<Queryable<*>>, field: QueryField<*>): List<String> =
         query.field(field).logicalField.path.split('.')
 
     private fun include(source: JsonNode, target: ObjectNode, path: List<String>) {

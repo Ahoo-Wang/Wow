@@ -57,7 +57,7 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
             storageTypes?.singleOrNull()?.let { type -> entries.firstOrNull { it.storageType == type } }
 
         /** The type a binding of [field] states; a binding of this storage always states one. */
-        fun require(storageTypes: Set<QueryStorageType>?, field: QueryField): PostgresQueryType =
+        fun require(storageTypes: Set<QueryStorageType>?, field: QueryField<*>): PostgresQueryType =
             of(storageTypes) ?: throw QueryExecutionException("Field [$field] has no PostgreSQL type.")
 
         /**
@@ -157,7 +157,7 @@ internal open class PostgresQueryExpressions(
     private val jsonbColumns = columnTypes.filterValues { it == PostgresQueryType.JSONB }.keys
 
     /** The typed value of the field at the absolute physical [path] of a snapshot row. */
-    fun value(path: QueryField, type: PostgresQueryType): String {
+    fun value(path: QueryField<*>, type: PostgresQueryType): String {
         val (head, rest) = split(path)
         val column = column(head)
         if (head !in jsonbColumns) {
@@ -168,7 +168,7 @@ internal open class PostgresQueryExpressions(
     }
 
     /** The `jsonb` node of the field at the absolute physical [path] of a snapshot row; a scalar column as `jsonb`. */
-    fun node(path: QueryField): String {
+    fun node(path: QueryField<*>): String {
         val (head, rest) = split(path)
         val column = column(head)
         if (head !in jsonbColumns) {
@@ -202,7 +202,7 @@ internal open class PostgresQueryExpressions(
     fun column(field: String): String =
         COLUMNS[field] ?: throw QueryExecutionException("Field [$field] is not a field of the query table.")
 
-    private fun split(path: QueryField): Pair<String, List<String>> {
+    private fun split(path: QueryField<*>): Pair<String, List<String>> {
         val segments = path.path.split('.')
         return segments.first() to segments.drop(1)
     }

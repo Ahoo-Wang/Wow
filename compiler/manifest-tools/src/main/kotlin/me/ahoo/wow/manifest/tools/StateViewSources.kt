@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
@@ -58,6 +59,22 @@ internal class StateViewSources(
         }
     }
 
+    /**
+     * The Kotlin type of a value of [schema], at [field] of [aggregate]'s state, as [context]'s view of the state types
+     * it: the one mapping of the views and of their contract's query fields. Null when the value is of a class the view
+     * would copy and the state has no view to hold the copy, or when the view could not type it.
+     */
+    fun typeOf(context: ContextManifest, aggregate: AggregateManifest, schema: Any?, field: String): Type? {
+        val state = Manifest.schemaKey(aggregate.state.schema)
+        if (defs[state] !is Map<*, *>) return null
+        val view = PeerContracts.viewsOf(context, defs)[aggregate.name]
+        return try {
+            View(view ?: "", classOf(state), copies = view != null).typeOf(schema, field)
+        } catch (_: IllegalStateException) {
+            null
+        }
+    }
+
     private fun source(pkg: String, name: String, state: String, aggregate: String): ContractSources.Source {
         val view = View(name, classOf(state))
         val body = view.dataClass(name, state, schemaOf(state), "")
@@ -80,8 +97,11 @@ internal class StateViewSources(
         return ContractSources.Source("$directory$name.kt", text)
     }
 
-    /** The view [root] of the state class [state] being generated, with the domain's own types it copies. */
-    private inner class View(private val root: String, private val state: String) {
+    /**
+     * The view [root] of the state class [state] being generated, with the domain's own types it copies; one that
+     * [copies] nothing names only the types of the class path, for a state without a view.
+     */
+    private inner class View(private val root: String, private val state: String, private val copies: Boolean = true) {
         /** The nested class names of the copied classes, by binary name. */
         private val nested = linkedMapOf<String, String>()
         private val bodies = mutableListOf<String>()
@@ -185,11 +205,12 @@ internal class StateViewSources(
         private fun classType(binary: String, node: Map<*, *>, field: String): String {
             WireTypes.KOTLIN_TYPES[binary]?.let { return it }
             if ('(' in binary) fail(field, "it is of the parameterized class $binary")
-            if (binary == state) return root
+            if (binary == state && copies) return root
             if (onClassPath(binary)) return binary.replace('$', '.')
+            if (!copies) fail(field, "it is of the class $binary, which only a view copies")
             nested[binary]?.let { return "$root.$it" }
             val simple = simpleName(binary)
-            if (simple == root || simple in nested.values) {
+            if (simple == simpleName(root) || simple in nested.values) {
                 fail(field, "it is of the class $binary, whose simple name another copied class of the view has")
             }
             val enum = node[ENUM] as? List<*>

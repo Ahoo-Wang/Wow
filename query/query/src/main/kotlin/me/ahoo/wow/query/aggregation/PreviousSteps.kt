@@ -70,7 +70,7 @@ internal data class PreviousStep(
     private val grid = DenseDateGrid(along.unit, zone)
     private val unit: TemporalUnit = (period ?: along.unit).temporalUnit()
 
-    val field: QueryField
+    val field: QueryField<*>
         get() = checkNotNull(along.field)
 
     /** The key of the bucket this step reaches from the bucket [key]. */
@@ -168,7 +168,7 @@ internal data class PreviousStep(
 }
 
 /** Whether this filter conditions [field] anywhere, an ELEMENT_MATCH over a container of it included. */
-private fun FilterExpression.mentions(field: QueryField): Boolean = when (this) {
+private fun FilterExpression.mentions(field: QueryField<*>): Boolean = when (this) {
     is FieldPredicate -> this.field == field
     is ElementMatchFilter -> this.field == field || field.path.startsWith("${this.field.path}.")
     is ExpressionFilter -> field in expression.fields

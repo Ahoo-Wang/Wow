@@ -160,7 +160,7 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
     )
 }
 
-private fun ObjectNode.tagsOf(): Map<String, QueryField> {
+private fun ObjectNode.tagsOf(): Map<String, QueryField<*>> {
     val tags = get(QueryDatasetProperties.TAGS) ?: return emptyMap()
     val path = "${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.TAGS}"
     require(tags is ObjectNode) { "Dataset [$path] must be an object." }
@@ -170,7 +170,7 @@ private fun ObjectNode.tagsOf(): Map<String, QueryField> {
     }
 }
 
-private fun ObjectNode.fieldOf(name: String): QueryField? = get(name)?.let {
+private fun ObjectNode.fieldOf(name: String): QueryField<*>? = get(name)?.let {
     require(it.isString) { "Dataset [$name] must name a field." }
     QueryField(it.stringValue())
 }

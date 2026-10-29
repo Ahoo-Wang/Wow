@@ -200,7 +200,7 @@ internal object ElasticsearchAggregationCompiler {
         admitted: AdmittedQuery<AggregationQuery>,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
-        val scalarField: QueryField? = (expression as? AggregationExpression.Field)?.field?.takeIf { field ->
+        val scalarField: QueryField<*>? = (expression as? AggregationExpression.Field)?.field?.takeIf { field ->
             admitted.field(field).cardinality == QueryCardinality.SINGLE
         }
         return scalarField?.let(admitted::physicalPath) ?: runtimeExpression(expression, index, admitted, runtimeMappings)

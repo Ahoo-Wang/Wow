@@ -125,7 +125,7 @@ internal class QueryResolver(
         Collections.newSetFromMap(IdentityHashMap<FilterExpression, Boolean>()).apply { addAll(trusted) }
 
     /** An element scope: its canonical logical container, its physical container and the ancestors it requires. */
-    private class Scope(val logical: QueryField?, val physical: QueryField?, val ancestors: List<QueryField>?)
+    private class Scope(val logical: QueryField<*>?, val physical: QueryField<*>?, val ancestors: List<QueryField<*>>?)
 
     /** Where a filter node sits: its scope, whether admission appended it, and whether it is a metric filter. */
     private class At(val scope: Scope, val trusted: Boolean = false, val metric: Boolean = false) {
@@ -134,8 +134,8 @@ internal class QueryResolver(
 
     /** A field reference looked up once: its canonical name as written, and the model's record of it. */
     private class Reference(
-        val name: QueryField,
-        val logical: QueryField,
+        val name: QueryField<*>,
+        val logical: QueryField<*>,
         val definition: QueryFieldSchema,
         val capability: QueryCapability,
     ) {
@@ -177,7 +177,7 @@ internal class QueryResolver(
     }
 
     /** A cursor query, its sort completed by the fields of [uniqueKey] as tie-breakers ([withUniqueSort]). */
-    fun cursor(query: CursorQuery, uniqueKey: List<QueryField>): CursorQuery {
+    fun cursor(query: CursorQuery, uniqueKey: List<QueryField<*>>): CursorQuery {
         val effectiveSort = query.sort.withUniqueSort(uniqueKey)
         requireCursorSort(effectiveSort)
         val filter = filter(query.filter)
@@ -222,17 +222,17 @@ internal class QueryResolver(
     }
 
     /** The canonical form of [field], which is relative to [scope]'s canonical container. */
-    private fun canonical(field: QueryField, scope: Scope): QueryField =
+    private fun canonical(field: QueryField<*>, scope: Scope): QueryField<*> =
         if (!schema.hasAliases) field else schema.definition.canonical(field, scope.logical)
 
     /**
      * Looks [field] up once: canonical, known, granting the first of [capabilities] it has, and in its declared
      * element scope.
      */
-    private fun reference(field: QueryField, scope: Scope, vararg capabilities: QueryCapability): Reference =
+    private fun reference(field: QueryField<*>, scope: Scope, vararg capabilities: QueryCapability): Reference =
         reference(field, scope, capabilities.asList())
 
-    private fun reference(field: QueryField, scope: Scope, capabilities: List<QueryCapability>): Reference {
+    private fun reference(field: QueryField<*>, scope: Scope, capabilities: List<QueryCapability>): Reference {
         val name = canonical(field, scope)
         val logical = absoluteLogicalField(name, scope.logical)
         val definition = schema.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
@@ -249,7 +249,7 @@ internal class QueryResolver(
         reference: Reference,
         scope: Scope,
         capability: QueryCapability = reference.capability,
-    ): QueryField = QueryField(reference.name.path).also { fields[it] = bind(reference, scope, capability) }
+    ): QueryField<*> = QueryField(reference.name.path).also { fields[it] = bind(reference, scope, capability) }
 
     private fun bind(reference: Reference, scope: Scope, capability: QueryCapability): ResolvedField {
         val physical = reference.definition.binding(capability)?.physicalField
@@ -260,7 +260,7 @@ internal class QueryResolver(
         return ResolvedField(reference.logical, reference.definition, scope.physical, capability, physical)
     }
 
-    private fun elementScope(container: Reference, path: QueryField): Scope = Scope(
+    private fun elementScope(container: Reference, path: QueryField<*>): Scope = Scope(
         container.logical,
         checkNotNull(fields[path]).physicalField,
         container.definition.elementAncestors?.plus(container.logical),
@@ -272,12 +272,12 @@ internal class QueryResolver(
     }
 
     /** A field whose values are aggregated; a protected field never is. */
-    private fun aggregated(field: QueryField, scope: Scope, capabilities: List<QueryCapability>): Reference =
+    private fun aggregated(field: QueryField<*>, scope: Scope, capabilities: List<QueryCapability>): Reference =
         reference(field, scope, capabilities).also {
             requireValid(!it.effective.protected) { QueryViolation.ProtectedAggregation(it.logical) }
         }
 
-    private fun aggregated(field: QueryField, scope: Scope, capability: QueryCapability): Reference =
+    private fun aggregated(field: QueryField<*>, scope: Scope, capability: QueryCapability): Reference =
         aggregated(field, scope, listOf(capability))
 
     /** A field whose instants are aggregated (date groups, date differences): it must store a date or an epoch. */
@@ -381,7 +381,7 @@ internal class QueryResolver(
     }
 
     /** Whether [field], a resolved reference, is the name of an event of [profile]'s `events`. */
-    private fun isEventName(field: QueryField, profile: EventsQueryModelProfile): Boolean =
+    private fun isEventName(field: QueryField<*>, profile: EventsQueryModelProfile): Boolean =
         fields[field]?.logicalField?.relativeTo(profile.eventsField) == profile.nameField
 
     /** Each event name of [values] as the names it is stored under; any other value kept. */
@@ -496,7 +496,7 @@ internal class QueryResolver(
         return resolved
     }
 
-    private fun projected(field: QueryField): QueryField {
+    private fun projected(field: QueryField<*>): QueryField<*> {
         val canonical = canonical(field, ROOT)
         val definition = schema.field(canonical)
         val physical = definition?.projectionField
@@ -558,7 +558,7 @@ internal class QueryResolver(
         }
     }
 
-    private fun QueryField.independentOf(other: QueryField): Boolean =
+    private fun QueryField<*>.independentOf(other: QueryField<*>): Boolean =
         this != other && !path.startsWith("${other.path}.") && !other.path.startsWith("$path.")
 
     private fun group(group: AggregationGroup, scope: Scope): AggregationGroup {
@@ -634,7 +634,7 @@ internal class QueryResolver(
     }
 
     /** FIRST / LAST read one single value and order by one single sortable value, neither of them protected. */
-    private fun edge(metric: AggregationMetric.Edge, scope: Scope): Pair<QueryField, QueryField> {
+    private fun edge(metric: AggregationMetric.Edge, scope: Scope): Pair<QueryField<*>, QueryField<*>> {
         val spec = metric.spec
         val value = aggregated(metric.field, scope, spec.fieldCapabilities)
         requireValid(spec in value.effective.metrics) { QueryViolation.FirstLastRequiresSingleValue(value.logical) }
@@ -659,7 +659,7 @@ internal class QueryResolver(
         trusted: Boolean = false,
         scalarOnly: Boolean = false,
     ): AggregationExpression {
-        fun field(field: QueryField, capability: QueryCapability): QueryField {
+        fun field(field: QueryField<*>, capability: QueryCapability): QueryField<*> {
             val reference = if (trusted) {
                 reference(field, scope, capability)
             } else {

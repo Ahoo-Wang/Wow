@@ -34,9 +34,9 @@ internal fun String.testPath() = QueryPathTemplate(split('.').map(QueryPathSegme
 internal fun nativeSchema(
     model: QueryModel = QueryModel.SNAPSHOT,
     capabilities: Set<QueryCapability> = emptySet(),
-    fields: Map<QueryField, QueryValueBindings> = emptyMap(),
-    semanticTypes: Map<QueryField, QuerySemanticType> = emptyMap(),
-    values: Map<QueryField, QueryValueSchema> = emptyMap(),
+    fields: Map<QueryField<*>, QueryValueBindings> = emptyMap(),
+    semanticTypes: Map<QueryField<*>, QuerySemanticType> = emptyMap(),
+    values: Map<QueryField<*>, QueryValueSchema> = emptyMap(),
 ): QueryModelSchema {
     fun value(prefix: String): QueryValueSchema {
         if (prefix.isNotEmpty()) values[QueryField(prefix.removeSuffix("."))]?.let { return it }
@@ -84,11 +84,11 @@ internal fun nativeSchema(
 }
 
 internal fun nativeBindings(
-    physical: QueryField,
+    physical: QueryField<*>,
     vararg capabilities: QueryCapability,
-    projection: QueryField? = physical,
-    response: QueryField? = projection,
-    scope: QueryField? = null,
+    projection: QueryField<*>? = physical,
+    response: QueryField<*>? = projection,
+    scope: QueryField<*>? = null,
 ): QueryValueBindings = QueryValueBindings(
     capabilities.associateWith { QueryFieldBindingTemplate(physical.path.testPath(), null, scope) },
     projection?.path?.testPath(),

@@ -135,7 +135,7 @@ class QueryEntryPolicy @InternalWowApi constructor(
  * Whether this scope restricts [field] to one value: at the top level, a single-valued filter on the system field
  * [profile] maps to [field], or an equality.
  */
-private fun FilterExpression.pins(field: QueryField, profile: QueryModelProfile): Boolean = when (this) {
+private fun FilterExpression.pins(field: QueryField<*>, profile: QueryModelProfile): Boolean = when (this) {
     is AndFilter -> operands.any { it.pins(field, profile) }
     is EqualFilter -> this.field == field && !value.isNullValue
     // A model with a fixed tenant has no tenant field: its tenant filter pins the tenant itself.

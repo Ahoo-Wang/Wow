@@ -50,8 +50,8 @@ class QueryIndexPlan @InternalWowApi constructor(
      * when unknown).
      */
     class Key @InternalWowApi constructor(
-        val field: QueryField,
-        val physicalField: QueryField,
+        val field: QueryField<*>,
+        val physicalField: QueryField<*>,
         val storageTypes: Set<QueryStorageType>?,
         val cardinality: QueryCardinality?,
     ) {
