@@ -16,7 +16,6 @@ package me.ahoo.wow.architecture
 import me.ahoo.wow.architecture.ArchitectureRules.API
 import me.ahoo.wow.architecture.ArchitectureRules.CLIENT
 import me.ahoo.wow.architecture.ArchitectureRules.COMPILER
-import me.ahoo.wow.architecture.ArchitectureRules.GRADLE_PLUGIN
 import me.ahoo.wow.architecture.ArchitectureRules.KERNEL
 import me.ahoo.wow.architecture.ArchitectureRules.MANIFEST
 import me.ahoo.wow.architecture.ArchitectureRules.MIGRATE_DATA
@@ -149,11 +148,10 @@ object PositiveRules {
 
     /**
      * The sources that name 9.x packages on purpose, to refuse 9.x leftovers in an application's build: the compiler's
-     * check that a model uses no 9.x framework type, and the Gradle plugin's refusal of 9.x's KSP processors.
+     * check that a model uses no 9.x framework type.
      */
     val NINE_X_DETECTORS: Set<String> = setOf(
         "${COMPILER.dir}/src/main/kotlin/me/ahoo/wow/compiler/model/symbol/ModelNames.kt",
-        "${GRADLE_PLUGIN.dir}/src/main/kotlin/me/ahoo/wow/gradle/WowPlugin.kt",
     )
 
     /** No module but the 9.x import names a 9.x package, but in [NINE_X_DETECTORS] (06 §3, 07 §4). */

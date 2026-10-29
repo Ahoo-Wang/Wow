@@ -38,7 +38,9 @@ import javax.inject.Inject
  * fragment replaces the compiler's in the module's resources.
  */
 @CacheableTask
-abstract class GenerateManifestFragment @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
+internal abstract class GenerateManifestFragment @Inject constructor(
+    private val workers: WorkerExecutor
+) : DefaultTask() {
     /** The fragments `wow-compiler` wrote, `META-INF/wow/manifest/<module>.json`. */
     @get:InputFiles
     @get:SkipWhenEmpty

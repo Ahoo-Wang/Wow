@@ -67,9 +67,12 @@ tasks.pluginUnderTestMetadata {
 
 tasks.processResources {
     val version = project.version.toString()
+    // The Kotlin Wow builds with: the plugin requires the Kotlin Gradle plugin of one minor version before it at least.
+    val kotlinVersion = libs.versions.kotlin.asProvider().get()
     inputs.property("version", version)
+    inputs.property("kotlinVersion", kotlinVersion)
     filesMatching("**/wow-gradle-plugin.properties") {
-        expand("version" to version)
+        expand("version" to version, "kotlinVersion" to kotlinVersion)
     }
 }
 

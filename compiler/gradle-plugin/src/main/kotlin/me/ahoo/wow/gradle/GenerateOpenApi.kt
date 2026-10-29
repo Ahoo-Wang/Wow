@@ -28,7 +28,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Writes the OpenAPI 3.1 document of the service's public routes (.2) from its merged `manifest.json`, the
+ * Writes the OpenAPI 3.1 document of the service's public routes from its merged `manifest.json`, the
  * output of [MergeManifest], for offline tools: the document `GET /wow/openapi` serves, as far as the build knows it.
  * What only the running node knows is the host's: a route without an id it adds for a command a transformer takes,
  * the query models and datasets its backends serve, and the error statuses it configures.
@@ -37,7 +37,7 @@ import org.gradle.api.tasks.TaskAction
  * document with the JSON writer Gradle ships (Groovy's), as [GenerateContract] reads and writes Manifests.
  */
 @CacheableTask
-abstract class GenerateOpenApi : DefaultTask() {
+internal abstract class GenerateOpenApi : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val manifestFile: RegularFileProperty

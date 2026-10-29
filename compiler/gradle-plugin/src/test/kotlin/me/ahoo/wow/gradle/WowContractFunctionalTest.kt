@@ -80,7 +80,6 @@ class WowContractFunctionalTest {
                 $tools
                 $dependencies
             }
-            ${if (wow) "wow { addCompilerDependency = false }" else ""}
             // An api module paired with a domain module runs the contract code generator of the tools too.
             configurations.matching { it.name == "wowManifestTools" }.configureEach {
                 project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
@@ -332,9 +331,9 @@ class WowContractFunctionalTest {
     fun `a context with classes outside its api module should fail the api's build naming them`() {
         val failed = runner(":broken-api:jar").buildAndFail()
         failed.output.assert().contains(
-            "The contract of :broken-api cannot be assembled",
-            "context broken of ",
-            "has classes that are not in :broken-api: brokenapi.ThingCreated",
+            "The contract of project ':broken-api' cannot be assembled",
+            "context broken of project ':broken-domain' has classes that are not in project ':broken-api': " +
+                "brokenapi.ThingCreated",
         )
     }
 

@@ -119,9 +119,8 @@ tasks.test {
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `context` | 模块中唯一的 `@BoundedContext` | 模块中的聚合和处理器所属的上下文 |
-| `addCompilerDependency` | `true` | 插件是否把 `wow-compiler` 加到 `ksp` |
 | `schemaOverrides` | 空 | 每个 JVM 类名对应一个 JSON Schema，用于由自定义序列化器写出的类型 |
-| `serviceName` | 其上下文的契约写明的服务，否则为项目的名字 | 合并后的 Manifest 所描述的服务；其上下文的契约写明不同服务时须设置 |
+| `serviceName` | 其上下文的契约写明的服务，否则为项目的路径（`:shop-server` 即 `shop-server`） | 合并后的 Manifest 所描述的服务；其上下文的契约写明不同服务时须设置 |
 | `serviceVersion` | 项目的版本 | 合并后的 Manifest 所描述的服务的版本 |
 | `manifestBaseline` | `manifest/baseline.json` | 兼容检查使用的、提交到仓库的基线 |
 

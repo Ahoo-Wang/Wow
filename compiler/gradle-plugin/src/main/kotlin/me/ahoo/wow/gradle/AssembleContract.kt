@@ -19,11 +19,13 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -37,15 +39,19 @@ import java.io.File
  * all among the api module's [classes] ([PeerContracts.assemble]). A context with none of them is another api's.
  *
  * The build fails, naming the classes, when a context has some of its classes in the api module and others outside
- * it, or when two domain modules declare one of its contexts. With no context of its own, the api module carries no
- * contract.
+ * it, or when two domain modules declare one of its contexts, naming the domain modules ([owners]). With no context of
+ * its own, the api module carries no contract.
  */
 @CacheableTask
-abstract class AssembleContract : DefaultTask() {
+internal abstract class AssembleContract : DefaultTask() {
     /** The contracts of the domain modules paired with this api module. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val contracts: ConfigurableFileCollection
+
+    /** The domain module each of [contracts] comes from, by the contract's path, as a failure names it. */
+    @get:Internal
+    abstract val owners: MapProperty<String, String>
 
     /** The api module's compiled classes. */
     @get:Classpath
@@ -63,10 +69,16 @@ abstract class AssembleContract : DefaultTask() {
     fun assemble() {
         val output = outputDirectory.get().asFile
         output.deleteRecursively()
-        val contracts = contracts.files.sorted().map { ManifestFragment(it.path, ContractJson.read(it)) }
+        val owners = owners.get()
+        val contracts = contracts.files.sorted().map {
+            ManifestFragment(
+                owners[it.path] ?: it.name,
+                ContractJson.read(it)
+            )
+        }
         val directories = classes.files.filter { it.isDirectory }
         val contract = try {
-            PeerContracts.assemble(owner.get(), contracts) { binary ->
+            PeerContracts.assemble("project '${owner.get()}'", contracts) { binary ->
                 val path = binary.replace('.', '/') + ".class"
                 directories.any { File(it, path).isFile }
             }

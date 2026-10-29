@@ -42,22 +42,24 @@ object ManifestTools {
 
     /**
      * Assembles the fragments found in the [classpath] entries into [output] as the node does at startup
-     * ([ManifestAssembly]), describing the service
+     * ([ManifestAssembly]), each named after its entry's owner in [owners] (a project or a module, by the entry's
+     * path), describing the service
      * [serviceName] names, or else the one [serviceOf] derives; fails on a conflict, on
      * a schema reference no fragment resolves, on another context's event a handler takes whose aggregate the peer
      * contracts on the [classpath] do not say ([PeerSources]), or on a command a saga derives by its class that neither a context of
-     * the service nor a peer contract on the [classpath] decides ([undecidedCommands]). Returns the number of
-     * fragments merged.
+     * the service nor a peer contract on the [classpath] decides ([undecidedCommands]), or on two fragments of one
+     * name ([fragmentsOf]). Returns the number of fragments merged.
      */
     @JvmStatic
     fun merge(
         classpath: List<File>,
+        owners: Map<String, String>,
         serviceName: String?,
         defaultServiceName: String,
         serviceVersion: String?,
         output: File,
     ): Int {
-        val fragments = classpath.flatMap(ManifestJson::fragments)
+        val fragments = fragmentsOf(classpath, owners)
         val contracts = classpath.mapNotNull(ManifestJson::contract)
         val service = serviceName ?: serviceOf(fragments, contracts, defaultServiceName)
         val manifest = ManifestAssembly.assemble(
@@ -78,6 +80,33 @@ object ManifestTools {
         }
         ManifestJson.write(manifest, output)
         return fragments.size
+    }
+
+    /**
+     * The fragments of the [classpath] entries, each named by its entry's owner in [owners] and its resource
+     * (`project ':shop-domain' META-INF/wow/manifest/shop-domain.json`), the entry's file name when it has none.
+     *
+     * @throws IllegalStateException when two entries hold a fragment of one name: the node reads one of them alone at
+     * startup, dropping the other's contexts, so the build refuses them, naming both owners.
+     */
+    internal fun fragmentsOf(classpath: List<File>, owners: Map<String, String>): List<ManifestFragment> {
+        val found = classpath.flatMap { entry ->
+            val owner = owners[entry.path] ?: entry.name
+            ManifestJson.fragments(entry).map { fragment ->
+                val resource = Manifest.FRAGMENT_DIRECTORY + "/" + File(fragment.source.substringAfter("!/")).name
+                resource to ManifestFragment("$owner $resource", fragment.manifest)
+            }
+        }
+        val duplicates = found.groupBy({ it.first }, { it.second.source.substringBeforeLast(' ') })
+            .filterValues { it.size > 1 }
+        check(duplicates.isEmpty()) {
+            duplicates.entries.joinToString("\n") { (resource, sources) ->
+                "The Manifest fragment $resource is in ${sources.joinToString(" and ")}: a fragment is named after " +
+                    "its module's project path, so these come from projects of one path in different builds. " +
+                    "Rename one of the projects."
+            }
+        }
+        return found.map { it.second }
     }
 
     /**

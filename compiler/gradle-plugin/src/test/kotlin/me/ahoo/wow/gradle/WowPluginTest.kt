@@ -42,6 +42,7 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.util.GradleVersion
 import org.gradle.workers.WorkQueue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -119,10 +120,16 @@ class WowPluginTest {
     }
 
     @Test
-    fun `turning the compiler dependency off should leave ksp to the build`() {
-        val project = project()
-        project.extensions.getByType(WowExtension::class.java).addCompilerDependency.set(false)
-        project.configurations.getByName("ksp").incoming.dependencies.assert().isEmpty()
+    fun `a wow-compiler ksp declares should be the one it takes`() {
+        val pinned = project()
+        pinned.dependencies.add("ksp", "me.ahoo.wow:wow-compiler:10.0.0")
+        pinned.configurations.getByName(
+            "ksp"
+        ).incoming.dependencies.map { it.name }.assert().containsExactly("wow-compiler")
+        val vendored = project()
+        vendored.dependencies.add("ksp", vendored.files("libs/wow-compiler-10.0.0.jar"))
+        vendored.configurations.getByName("ksp").incoming.dependencies.filterIsInstance<ExternalModuleDependency>()
+            .assert().isEmpty()
     }
 
     @Test
@@ -179,7 +186,16 @@ class WowPluginTest {
     @Test
     fun `the work should reach the tools by name and rethrow what they throw`() {
         val output = File(directory, "manifest.json")
-        ManifestToolsWork.call(javaClass.classLoader, "merge", emptyList<File>(), "shop", "default", null, output)
+        ManifestToolsWork.call(
+            javaClass.classLoader,
+            "merge",
+            emptyList<File>(),
+            emptyMap<String, String>(),
+            "shop",
+            "default",
+            null,
+            output
+        )
             .assert().isEqualTo(0)
         ManifestJson.read(output).service?.name.assert().isEqualTo("shop")
         // The tools' own exception, not the reflective wrapper.
@@ -241,6 +257,8 @@ class WowPluginTest {
 
         val merge = project.tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest
         merge.classpath.setFrom(generate.outputDirectory)
+        // The owners the build resolves once the tasks producing the class path have run.
+        merge.owners.set(emptyMap())
         merge.submit(queue)
         ManifestJson.read(File(directory, "build/wow/manifest.json")).service?.name.assert().isEqualTo("shop")
     }
@@ -481,6 +499,8 @@ class WowPluginTest {
         File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
         return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
             this.contracts.setFrom(*contracts)
+            // The domain module each contract comes from, as the build resolves it once the domain's task has run.
+            this.owners.set(contracts.associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })
             this.classes.setFrom(classes, File(directory, "missing"))
         }
     }
@@ -510,7 +530,10 @@ class WowPluginTest {
     fun `assembling a context with classes outside the api module should fail naming them`() {
         val task = assembleTask(contractFile("shop", "sample.AddItem", "sample.RemoveItem"))
         assertThrows<GradleException> { task.assemble() }.message.assert()
-            .contains("context shop of ", "has classes that are not in :shop-api: sample.RemoveItem")
+            .contains(
+                "context shop of project ':",
+                "has classes that are not in project ':shop-api': sample.RemoveItem",
+            )
     }
 
     @Test
@@ -596,5 +619,31 @@ class WowPluginTest {
         )
         val failure = assertThrows<IllegalStateException> { check.submit(queue) }
         failure.message.assert().contains("  - contexts[shop].errors[shop.cart.full]: error code removed")
+    }
+
+    @Test
+    fun `a module should be named by its project path`() {
+        WowPlugin.moduleName(":eshop:ordering-domain", "root").assert().isEqualTo("eshop-ordering-domain")
+        WowPlugin.moduleName(":shop", "root").assert().isEqualTo("shop")
+        WowPlugin.moduleName(":", "root").assert().isEqualTo("root")
+    }
+
+    @Test
+    fun `an old Gradle or Kotlin should fail, naming the project and both versions`() {
+        assertThrows<GradleException> { WowPlugin.requireGradle(":shop", GradleVersion.version("8.14")) }
+            .message.assert().contains(
+                "Project ':shop'",
+                "Gradle ${WowPlugin.MIN_GRADLE.version} or later",
+                "Gradle 8.14"
+            )
+        WowPlugin.requireGradle(":shop", GradleVersion.version("9.0.1"))
+        assertThrows<GradleException> { WowPlugin.requireKotlin(":shop", "1.9.25") }
+            .message.assert().contains(
+                "Project ':shop'",
+                "Kotlin Gradle plugin 1.9.25",
+                "Kotlin ${WowPlugin.minKotlin} or later"
+            )
+        WowPlugin.requireKotlin(":shop", WowPlugin.minKotlin + ".0")
+        WowPlugin.requireKotlin(":shop", "3.0.0-Beta1")
     }
 }

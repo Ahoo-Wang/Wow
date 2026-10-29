@@ -105,10 +105,6 @@ class ManifestCompatibilityFunctionalTest {
                 ksp(files(${classpath("wow.fixture.processorClasspath")}))
                 wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
             }
-
-            wow {
-                addCompilerDependency = false
-            }
             """,
         )
         writeCart(addItem = "val productId: String, val quantity: Int", itemAdded = "val productId: String")

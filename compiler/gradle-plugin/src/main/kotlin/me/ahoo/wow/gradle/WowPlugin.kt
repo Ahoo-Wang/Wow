@@ -21,7 +21,11 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationVariant
+import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.FileCollectionDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.Bundling
@@ -45,6 +49,7 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
+import org.gradle.util.GradleVersion
 import java.util.Properties
 
 /**
@@ -54,18 +59,18 @@ import java.util.Properties
  * building without models. Wow builds with Gradle only. Once the Kotlin JVM
  * plugin is applied, it
  *
- * - applies KSP with `wow-compiler` (of the plugin's version, unless [WowExtension.addCompilerDependency] is false)
- *   in `generate` mode, so the module's aggregates compile into models and its Manifest fragment
- *   (`META-INF/wow/manifest/<project name>.json`); only the model processor runs, the 9.x ones
- *   (`wow-metadata.json`, query helpers) are excluded;
+ * - applies KSP with `wow-compiler` of the plugin's version (unless `ksp` declares `wow-compiler` itself) in
+ *   `generate` mode, so the module's aggregates compile into models and its Manifest fragment
+ *   (`META-INF/wow/manifest/<module>.json`, the module named by its project path, [moduleName]);
  * - registers [GENERATE_FRAGMENT_TASK] ([GenerateManifestFragment]), which completes the fragment with the
  *   schemas Jackson introspection gives; the completed fragment is part of the module's resources in
  *   place of the compiler's;
  * - registers [MERGE_TASK] ([MergeManifest]), which merges every fragment on the runtime class path into
- *   `build/wow/manifest.json`, and exposes that file as the outgoing variant [MANIFEST_ELEMENTS], published with
+ *   `build/wow/manifest.json`, failing on two fragments of one name, and naming the service after the project path
+ *   unless the contracts or `wow { serviceName }` name it; and exposes that file as the outgoing variant [MANIFEST_ELEMENTS], published with
  *   the `java` component;
  * - registers [OPENAPI_TASK] ([GenerateOpenApi]), which writes the OpenAPI document of that Manifest's routes into
- *   `build/wow/openapi.json` (.2);
+ *   `build/wow/openapi.json`;
  * - registers [CHECK_COMPATIBILITY_TASK] ([CheckManifestCompatibility]), part of `check`, which compares the merged
  *   Manifest with the committed baseline (`manifest/baseline.json`, [WowExtension.manifestBaseline]) and fails on a
  *   breaking change within the major version, and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
@@ -88,14 +93,17 @@ import java.util.Properties
  * plugin is not compatible with them (a settings plugin pairing `x-api` with `x-domain` by name takes
  * its place once they are the default). The configuration cache is supported.
  *
+ * It needs Gradle [MIN_GRADLE] or later and the Kotlin Gradle plugin [minKotlin] or later, and fails naming both
+ * versions otherwise. A failure names the projects and modules involved, not their build directories.
+ *
  * The fragment, merge and compatibility tasks run their work in workers with an isolated class loader over
  * [TOOLS_CONFIGURATION]: the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools
  * or Kotlin reflection to the build script.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
+        requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(EXTENSION, WowExtension::class.java)
-        extension.addCompilerDependency.convention(true)
         extension.serviceVersion.convention(project.provider { project.version.toString() })
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
         project.pluginManager.withPlugin(KOTLIN_JVM) { configure(project, extension) }
@@ -119,6 +127,7 @@ class WowPlugin : Plugin<Project> {
     }
 
     private fun configure(project: Project, extension: WowExtension) {
+        requireKotlin(project.path, kotlinPluginVersion(project))
         configureKsp(project, extension)
 
         val tools = toolsConfiguration(project)
@@ -151,9 +160,12 @@ class WowPlugin : Plugin<Project> {
             task.description = "Merges the Manifest fragments on the runtime class path into the service's manifest.json."
             // The module's own completed fragment and its dependencies'.
             task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
+            val owner = "project '${project.path}'"
+            task.owners.putAll(fragmentDirectory.map { mapOf(it.asFile.path to owner) })
+            task.owners.putAll(runtimeClasspath.flatMap(::ownersOf))
             task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
-            task.defaultServiceName.set(project.name)
+            task.defaultServiceName.set(moduleName(project.path, project.rootProject.name))
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
@@ -238,6 +250,7 @@ class WowPlugin : Plugin<Project> {
             task.group = GROUP_NAME
             task.description = "Takes the contracts of this api module's contexts from the domain modules that declare it."
             task.contracts.from(contracts)
+            task.owners.set(ownersOf(contracts))
             task.classes.from(main.output.classesDirs)
             task.owner.set(api.path)
             task.outputDirectory.set(api.layout.buildDirectory.dir("wow/contract"))
@@ -284,7 +297,26 @@ class WowPlugin : Plugin<Project> {
             }
         }
         api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(generated.output) }
+        // The sources jar, when the module publishes one (`java { withSourcesJar() }`), holds the generated sources.
+        api.tasks.withType(Jar::class.java).matching { it.name == main.sourcesJarTaskName }.configureEach {
+            it.from(generate)
+        }
     }
+
+    /**
+     * The owner of each file [configuration] resolves to, by its path, as a failure names it: `project ':x'` for a
+     * project of the build, the coordinates for a module. Only messages read it.
+     */
+    private fun ownersOf(configuration: Configuration): Provider<Map<String, String>> =
+        configuration.incoming.artifacts.resolvedArtifacts.map { artifacts ->
+            artifacts.associate { artifact ->
+                artifact.file.path to when (val id = artifact.id.componentIdentifier) {
+                    is ProjectComponentIdentifier -> "project '${id.projectPath}'"
+                    is ModuleComponentIdentifier -> "${id.group}:${id.module}:${id.version}"
+                    else -> id.displayName
+                }
+            }
+        }
 
     /**
      * The core view of [api] for the domain module [domain]: a variant of its `apiElements` and of its
@@ -394,20 +426,21 @@ class WowPlugin : Plugin<Project> {
         }
     }
 
-    /** Applies KSP with the model processor alone, and adds `wow-compiler` unless turned off. */
+    /**
+     * Applies KSP with the model processor, and adds `wow-compiler` of the plugin's version unless `ksp` declares
+     * `wow-compiler` itself (a build that pins it, or Wow's own build).
+     */
     private fun configureKsp(project: Project, extension: WowExtension) {
         project.pluginManager.apply(KSP)
         project.extensions.configure(KspExtension::class.java) { ksp ->
             ksp.arg(MODEL_OPTION, "generate")
-            ksp.arg(MODULE_OPTION, project.name)
+            ksp.arg(MODULE_OPTION, moduleName(project.path, project.rootProject.name))
             ksp.arg(ContextArgument(extension.context))
-            // A module is built by the model processor alone; the 9.x processors serve wow-core.
-            NINE_X_PROCESSORS.forEach(ksp::excludeProcessor)
         }
         project.configurations.named(KSP_CONFIGURATION) { configuration ->
             configuration.withDependencies { dependencies ->
-                if (extension.addCompilerDependency.get()) {
-                    dependencies.add(project.dependencies.create("$GROUP:wow-compiler:$version"))
+                if (dependencies.none(::isCompiler)) {
+                    dependencies.add(project.dependencies.create("$GROUP:$COMPILER:$version"))
                 }
             }
         }
@@ -571,11 +604,70 @@ class WowPlugin : Plugin<Project> {
         private const val MODEL_OPTION = "wow.model"
         private const val MODULE_OPTION = "wow.manifest.module"
         private const val CONTEXT_OPTION = "wow.context"
-        private val NINE_X_PROCESSORS = listOf(
-            "me.ahoo.wow.compiler.metadata.MetadataSymbolProcessorProvider",
-            "me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider",
-            "me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataSymbolProcessorProvider",
-        )
+
+        private const val COMPILER = "wow-compiler"
+
+        /** The oldest Gradle the plugin runs on: the first whose Kotlin DSL reads the plugin's Kotlin 2 metadata. */
+        internal val MIN_GRADLE: GradleVersion = GradleVersion.version("9.0")
+
+        /**
+         * The oldest Kotlin Gradle plugin the plugin works with: one minor version before the Kotlin Wow is built with,
+         * the oldest compiler that reads the metadata of Wow's libraries.
+         */
+        internal val minKotlin: String by lazy {
+            val (major, minor) = properties.getProperty("kotlinVersion").split('.').map(String::toInt)
+            "$major.${minor - 1}"
+        }
+
+        /**
+         * The name of the module at the project [path], which names its Manifest fragment and, by default, the service
+         * it merges: the path's segments joined by `-` (`:eshop:ordering-domain` is `eshop-ordering-domain`), the
+         * root project's [rootName] for the root. Unique within a build, where a project's name need not be.
+         */
+        internal fun moduleName(path: String, rootName: String): String =
+            if (path == ":") rootName else path.removePrefix(":").replace(':', '-')
+
+        /** Fails a project at [path] built by a Gradle older than [MIN_GRADLE]. */
+        internal fun requireGradle(path: String, gradle: GradleVersion) {
+            if (gradle.baseVersion < MIN_GRADLE) {
+                throw GradleException(
+                    "Project '$path' applies the Wow plugin (me.ahoo.wow $version), which needs Gradle " +
+                        "${MIN_GRADLE.version} or later; this build runs Gradle ${gradle.version}. Upgrade the Gradle " +
+                        "wrapper: ./gradlew wrapper --gradle-version <version>.",
+                )
+            }
+        }
+
+        /** Fails a project at [path] whose Kotlin Gradle plugin, of version [kotlin], is older than [minKotlin]. */
+        internal fun requireKotlin(path: String, kotlin: String) {
+            val (major, minor) = kotlin.split('.').take(2).map { it.takeWhile(Char::isDigit).toInt() }
+            val (minMajor, minMinor) = minKotlin.split('.').map(String::toInt)
+            if (major < minMajor || major == minMajor && minor < minMinor) {
+                throw GradleException(
+                    "Project '$path' applies the Wow plugin (me.ahoo.wow $version) with the Kotlin Gradle plugin " +
+                        "$kotlin; it needs Kotlin $minKotlin or later, whose compiler reads Wow's libraries. Raise " +
+                        "kotlin(\"jvm\") to $minKotlin or later.",
+                )
+            }
+        }
+
+        /** The version of the Kotlin Gradle plugin [project] applies, read through the plugin's own class loader. */
+        private fun kotlinPluginVersion(project: Project): String {
+            val loader = project.plugins.getPlugin(KOTLIN_JVM).javaClass.classLoader
+            return Class.forName(KOTLIN_WRAPPER, false, loader).getMethod("getKotlinPluginVersion", Project::class.java)
+                .invoke(null, project) as String
+        }
+
+        private const val KOTLIN_WRAPPER = "org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapperKt"
+
+        /**
+         * Whether [dependency] of `ksp` declares `wow-compiler`: by its coordinates, as Wow's own build's project, or as
+         * its jar among files.
+         */
+        private fun isCompiler(dependency: Dependency): Boolean = when (dependency) {
+            is FileCollectionDependency -> dependency.files.any { it.name.startsWith("$COMPILER-") }
+            else -> dependency.name == COMPILER || dependency.group == GROUP && dependency.name == "compiler"
+        }
 
         /** Why a module that applies the plugin without the Kotlin JVM plugin fails ([requireKotlinJvm]). */
         internal fun missingKotlinJvm(path: String): String =
@@ -584,11 +676,13 @@ class WowPlugin : Plugin<Project> {
                 "processor of the Kotlin compilation. Apply kotlin(\"jvm\") in the module as well; a module of " +
                 "Java sources only needs it too, and its Java sources are then processed."
 
-        /** The plugin's version, which is also the version of `wow-compiler` it adds. */
-        val version: String by lazy {
+        private val properties: Properties by lazy {
             Properties().apply {
                 WowPlugin::class.java.getResourceAsStream("/META-INF/wow-gradle-plugin.properties")!!.use(::load)
-            }.getProperty("version")
+            }
         }
+
+        /** The plugin's version, which is also the version of `wow-compiler` it adds. */
+        val version: String by lazy { properties.getProperty("version") }
     }
 }

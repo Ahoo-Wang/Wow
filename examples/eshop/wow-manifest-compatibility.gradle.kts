@@ -64,7 +64,8 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
     val classpath = files(configurations.named("runtimeClasspath"), serverOutput)
     val tools = wowManifestTools
     val service = wowService
-    val defaultService = project.name
+    // The project path, as the plugin names a service (D363 ②).
+    val defaultService = path.removePrefix(":").replace(':', '-')
     val version = project.version.toString()
     val output = manifestFile
     inputs.files(classpath).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("classpath")
@@ -79,6 +80,7 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
             tools.files,
             "merge",
             classpath.files.toList(),
+            emptyMap<String, String>(),
             service,
             defaultService,
             version,

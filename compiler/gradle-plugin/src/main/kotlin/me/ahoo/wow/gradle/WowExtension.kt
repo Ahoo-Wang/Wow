@@ -40,9 +40,6 @@ abstract class WowExtension {
      */
     abstract val context: Property<String>
 
-    /** Whether the plugin adds `me.ahoo.wow:wow-compiler` of its own version to `ksp`; true by default. */
-    abstract val addCompilerDependency: Property<Boolean>
-
     /**
      * JSON Schemas (2020-12, as JSON text) that replace the introspected schema of a class, by its JVM binary name.
      * Introspection follows Jackson's annotations, naming and Kotlin module, but cannot see inside a custom serializer:
@@ -53,7 +50,8 @@ abstract class WowExtension {
     /**
      * The service the merged `manifest.json` describes. Unset, it is derived when the Manifest is merged: the service
      * the contracts of the contexts it hosts name (their domain modules' `wow { contract { service } }`, in their api
-     * modules' jars on the runtime class path), or the project's name when none does. Contracts that name different
+     * modules' jars on the runtime class path), or the project's path when none does (`:shop-server` is
+     * `shop-server`). Contracts that name different
      * services fail the merge: set it then. A peer's contract does not count.
      */
     abstract val serviceName: Property<String>
@@ -68,7 +66,7 @@ abstract class WowExtension {
      */
     abstract val manifestBaseline: RegularFileProperty
 
-    /** The peer contract its api modules carry ([WowContract]). */
+    /** The peer contract its api modules carry ([WowContract]); `@Nested` makes Gradle create it. */
     @get:Nested
     abstract val contract: WowContract
 

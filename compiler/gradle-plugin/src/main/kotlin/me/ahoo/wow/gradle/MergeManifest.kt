@@ -16,10 +16,12 @@ package me.ahoo.wow.gradle
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -30,14 +32,19 @@ import javax.inject.Inject
 /**
  * Merges every Manifest fragment on the module's runtime class path into the service's `manifest.json`,
  * for offline tools; the runtime merges the same fragments when it starts. A conflict between fragments
- * (`ManifestMerger`) fails the task, and so does a schema reference no fragment resolves (a module whose fragment
- * was not completed by this plugin). It runs in an isolated worker with the tools, like [GenerateManifestFragment].
+ * (`ManifestMerger`) fails the task, and so do two fragments of one name (two modules of one name, from two builds)
+ * and a schema reference no fragment resolves (a module whose fragment was not completed by this plugin). A failure
+ * names the projects and modules the fragments come from ([owners]). It runs in an isolated worker with the tools, like [GenerateManifestFragment].
  */
 @CacheableTask
-abstract class MergeManifest @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
+internal abstract class MergeManifest @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
     /** The module's runtime class path, with its own completed fragment. */
     @get:Classpath
     abstract val classpath: ConfigurableFileCollection
+
+    /** The owner of each [classpath] entry, by its path, as a failure names it: a project or a module. */
+    @get:Internal
+    abstract val owners: MapProperty<String, String>
 
     /** The tools that read and merge the fragments: the `wowManifestTools` configuration. */
     @get:Classpath
@@ -70,6 +77,7 @@ abstract class MergeManifest @Inject constructor(private val workers: WorkerExec
     internal fun submit(queue: WorkQueue) {
         queue.submit(ManifestToolsWork.Merge::class.java) { parameters ->
             parameters.classpath.from(classpath)
+            parameters.owners.set(owners)
             parameters.serviceName.set(serviceName)
             parameters.defaultServiceName.set(defaultServiceName)
             parameters.serviceVersion.set(serviceVersion)
