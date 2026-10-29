@@ -149,7 +149,7 @@ class MongoEventLog(
      */
     appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
     /** Whether the log shards its aggregate collections on a sharded cluster. */
-    private val sharding: MongoSharding = MongoSharding.AUTO,
+    sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : EventLog,
@@ -159,8 +159,11 @@ class MongoEventLog(
 
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
-    /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
-    private val sharded by lazy { sharding.shards(client, ddl) }
+    /**
+     * Whether this log shards its collections: asked of the server once, as the log is built when its port opens,
+     * so a server that cannot answer fails the start, and no first write waits on the round trip under a lock.
+     */
+    private val sharded: Boolean = sharding.shards(client, ddl)
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
 
@@ -185,7 +188,7 @@ class MongoEventLog(
 
     /** The context's aggregate collections and their registry. */
     private val collections =
-        MongoLogCollections(client, database, registry, context, partitions, countersName, ddl, { sharded }, appendMillis)
+        MongoLogCollections(client, database, registry, context, partitions, countersName, ddl, sharded, appendMillis)
 
     /** The documents of the streams and placeholders. */
     private val documents = MongoLogDocuments(context)

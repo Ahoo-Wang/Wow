@@ -92,7 +92,7 @@ class MongoTimerStore(
     /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /** Whether the store shards its collections on a sharded cluster. */
-    private val sharding: MongoSharding = MongoSharding.AUTO,
+    sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : TimerStore {
@@ -102,7 +102,12 @@ class MongoTimerStore(
 
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
-    private val sharded by lazy { sharding.shards(client, ddl) }
+
+    /**
+     * Whether this store shards its collections: asked of the server once, as the store is built when its port opens,
+     * so a server that cannot answer fails the start, and no first write waits on the round trip under a lock.
+     */
+    private val sharded: Boolean = sharding.shards(client, ddl)
 
     /** The timer collections whose creation and registration this store has made sure of, each once. */
     private val ensured = EnsuredOnce<String, TimerCollection>()
