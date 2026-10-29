@@ -50,6 +50,7 @@ up() {
   until docker exec "$NAME" test -f /data/cluster/ready 2>/dev/null; do
     if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ] || [ $waited -ge 180 ]; then
       docker logs "$NAME" >&2
+      docker inspect -f 'container {{.State.Status}}, exit code {{.State.ExitCode}}, OOM killed {{.State.OOMKilled}} {{.State.Error}}' "$NAME" >&2
       echo "the $mode cluster did not start" >&2
       exit 1
     fi

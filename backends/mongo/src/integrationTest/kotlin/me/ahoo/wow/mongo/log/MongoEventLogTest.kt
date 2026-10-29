@@ -360,7 +360,8 @@ class MongoEventLogTest : EventLogSpec() {
             }
         }
         outcomes.assert().allMatch { it is AppendOutcome.Committed }
-        sent.count { it.name == "createIndexes" }.assert().isEqualTo(2)
+        // Its two indexes, and on a sharded cluster the shard key's, which sharding the collection creates.
+        sent.count { it.name == "createIndexes" }.assert().isEqualTo(2 + MongoLogFixture.shardIndexes.size)
     }
 
     @Test

@@ -28,6 +28,10 @@ RESTART_DELAY=${RESTART_DELAY:-2}
 ROOT=/data/cluster
 MEMBERS=()
 
+# A step that fails ends the supervisor, and so the container: say which, with the members' last log lines, so that
+# cluster.sh's "did not start" shows why (docker logs).
+trap 'echo "supervise.sh: line $LINENO failed" >&2; tail -n 20 "$ROOT"/*/log >&2 2>/dev/null || true' ERR
+
 # member <name> <port> <mongod or mongos arguments...>: records how to start the member.
 member() {
   local name=$1 port=$2
@@ -97,9 +101,18 @@ case $MODE in
     # A second router: the tests reserve the same keys through both at once (decision D307).
     member mongos2 27202 mongos --configdb cfg/localhost:27201
     start "${MEMBERS[-1]}"
-    mongosh --quiet --port 27200 --eval "
+    # A router just started may not reach the config server yet: retried for a minute, then the start fails.
+    tries=0
+    until mongosh --quiet --port 27200 --eval "
       sh.addShard('sh1/localhost:27211,localhost:27212,localhost:27213');
-      sh.addShard('sh2/localhost:27221,localhost:27222,localhost:27223');" >/dev/null
+      sh.addShard('sh2/localhost:27221,localhost:27222,localhost:27223');" >/dev/null; do
+      tries=$((tries + 1))
+      if [ $tries -ge 60 ]; then
+        echo "the shards could not be added" >&2
+        exit 1
+      fi
+      sleep 1
+    done
     ;;
 esac
 touch "$ROOT/ready"
