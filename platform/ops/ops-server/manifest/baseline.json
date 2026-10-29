@@ -500,7 +500,7 @@
           "type" : "string"
         },
         "failedAt" : {
-          "type" : [ "integer", "null" ],
+          "type" : "integer",
           "format" : "int64"
         },
         "id" : {
@@ -513,7 +513,7 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ],
+      "required" : [ "aggregate", "context", "failedAt", "id", "subscription", "tenantId" ],
       "x-wow-class" : "me.ahoo.wow.api.ledger.SkipParked"
     },
     "me.ahoo.wow.ops.api.parked.ActionRefused" : {

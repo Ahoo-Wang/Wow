@@ -27,6 +27,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.seconds
@@ -70,6 +71,7 @@ class CompensationImporterTest {
                 ParkedAggregate.of(
                     CART_SAGA,
                     ref,
+                    Partitioner.partitionOf(ref, log.partitions),
                     1,
                     "IllegalState: the order $ORDER_ID failed in CartSaga [9.x execution 0VYC0mp1nA0001]",
                     FAILED_AT,
@@ -81,6 +83,7 @@ class CompensationImporterTest {
                 ParkedAggregate.of(
                     ORDER_CREATED,
                     ref,
+                    Partitioner.partitionOf(ref, log.partitions),
                     1,
                     "Conflict: stock reserved twice [9.x execution 0VYC0mp1nA0002]",
                     FAILED_AT + 181_000,
@@ -178,7 +181,7 @@ class CompensationImporterTest {
 
         ledger.resolve(CART_SAGA, ref)
         ledger.resolve(ORDER_CREATED, ref)
-        ledger.park(ParkedAggregate.of(ORDER_CREATED, ref, 2, "later", FAILED_AT))
+        ledger.park(ParkedAggregate.of(ORDER_CREATED, ref, 0, 2, "later", FAILED_AT))
         val result = comparison().compare()
         result.assert().isEqualTo(CompensationComparisonResult(3, 2, 1))
         result.passed.assert().isFalse()
@@ -243,9 +246,9 @@ class CompensationImporterTest {
         importStreams()
         importer().importAll()
         val other = NineXExample.orderModel.type.ref(TENANT, "another")
-        ledger.park(ParkedAggregate.of(CART_SAGA, other, 1, "IllegalState: boom", FAILED_AT))
+        ledger.park(ParkedAggregate.of(CART_SAGA, other, 0, 1, "IllegalState: boom", FAILED_AT))
         // A resume that failed again re-parked the imported entry with its own reason.
-        ledger.repark(ParkedAggregate.of(ORDER_CREATED, ref, 1, "Conflict: again", FAILED_AT))
+        ledger.repark(ParkedAggregate.of(ORDER_CREATED, ref, 0, 1, "Conflict: again", FAILED_AT))
 
         source.update(NineXCompensationExample.execution(2).copy(status = NineXExecutionFailed.SUCCEEDED))
         importer(ImportOptions(pageSize = 2, restart = true)).importAll().resolved.assert().isEqualTo(0)

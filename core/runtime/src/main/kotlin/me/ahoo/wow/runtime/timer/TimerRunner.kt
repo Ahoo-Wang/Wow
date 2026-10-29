@@ -350,7 +350,14 @@ class TimerRunner(
         if (written) {
             quietly("park the target of the timer ${timer.id}") {
                 ledger.park(
-                    ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 1, "${timer.id}: $reason", now),
+                    ParkedAggregate(
+                        TimerOptions.PARKED_SUBSCRIPTION,
+                        timer.target,
+                        timer.partition,
+                        1,
+                        "${timer.id}: $reason",
+                        now,
+                    ),
                 )
             }
         }

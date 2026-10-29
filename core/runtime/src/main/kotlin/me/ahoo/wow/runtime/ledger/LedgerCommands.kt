@@ -98,22 +98,22 @@ internal class LedgerCommands(
         // The context of the entry, read before an action may resolve it.
         val current = parked.get(subscription, ref)
         val context = current?.context
-        stale(command, current)?.let { return it }
         when (command) {
-            is ResumeParked -> settled(
-                subscription,
-                ref,
-                context,
-                parked.resume(subscription, ref),
-                LedgerResolution.RESUMED
-            )
-            is SkipParked -> settled(
-                subscription,
-                ref,
-                context,
-                parked.skip(subscription, ref),
-                LedgerResolution.SKIPPED
-            )
+            is ResumeParked -> {
+                val outcome = parked.resume(subscription, ref, command.failedAt)
+                if (outcome == ParkedOps.Outcome.STALE) {
+                    return stale(command, command.failedAt, current)
+                }
+                settled(subscription, ref, context, outcome, LedgerResolution.RESUMED)
+            }
+
+            is SkipParked -> {
+                val outcome = parked.skip(subscription, ref, command.failedAt)
+                if (outcome == ParkedOps.Outcome.STALE) {
+                    return stale(command, command.failedAt, current)
+                }
+                settled(subscription, ref, context, outcome, LedgerResolution.SKIPPED)
+            }
             is MarkParkedRecoverable -> {
                 val recoverable = WireNames.entryOf<Recoverable>(command.recoverable)
                     ?: return ErrorInfo(
@@ -142,20 +142,12 @@ internal class LedgerCommands(
     }
 
     /**
-     * The refusal of a resume or a skip that names a parking other than the entry's [current] one: sent
-     * for an entry that was resolved and parked again since, as a command delivered again, or an operator's action
-     * on what the console showed a while ago, would skip events nobody looked at.
+     * The refusal of a resume or a skip that names a parking ([failedAt]) other than the entry's [current] one
+     * ([ParkedOps.Outcome.STALE]): sent for an entry that was resolved and parked again since, as a command delivered
+     * again, or an operator's action on what the console showed a while ago, would skip events nobody looked at.
      */
-    private fun stale(command: LedgerCommand, current: ParkedView?): ErrorInfo? {
-        val failedAt = when (command) {
-            is ResumeParked -> command.failedAt
-            is SkipParked -> command.failedAt
-            else -> null
-        } ?: return null
-        val held = current?.entry?.failedAt ?: return null
-        if (held == failedAt) {
-            return null
-        }
+    private fun stale(command: LedgerCommand, failedAt: Long?, current: ParkedView?): ErrorInfo {
+        val held = current?.entry?.failedAt
         logger.warn { "Refused the stale ${command.javaClass.simpleName} of ${command.subscription} on ${command.toRef()}." }
         return ErrorInfo(
             FrameworkCodes.LEDGER_STALE,
@@ -176,7 +168,7 @@ internal class LedgerCommands(
         when (outcome) {
             ParkedOps.Outcome.RESOLVED -> publisher.resolved(subscription, ref, context, resolved)
             ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, context, LedgerResolution.NOT_PARKED)
-            ParkedOps.Outcome.PARKED, ParkedOps.Outcome.REQUESTED ->
+            ParkedOps.Outcome.PARKED, ParkedOps.Outcome.REQUESTED, ParkedOps.Outcome.STALE ->
                 parked.get(subscription, ref)?.let { publisher.parked(it) }
         }
     }

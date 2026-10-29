@@ -109,7 +109,7 @@ class ParkedRoutesTest {
         }.let { if (body == null) it else it.bodyValue(body) }.answer()
 
     private suspend fun park(id: String, version: Int = 1) {
-        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), version, "$id failed", FAILED_AT))
+        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), 0, version, "$id failed", FAILED_AT))
     }
 
     private suspend fun append(id: String) {
@@ -198,19 +198,27 @@ class ParkedRoutesTest {
         requested.status.assert().isEqualTo(202)
         requested.body!!["outcome"].asString().assert().isEqualTo("requested")
         requested.body!!["entry"]["request"].asString().assert().isEqualTo("resume")
-        remote.post("${entry("x")}/${OpsPaths.SKIP}").body!!["entry"]["request"].asString().assert().isEqualTo("skip")
+        // A skip names the parking it discards; without it the skip is refused.
+        val x = """{"failedAt":${ledger.parked(NAME, type.ref(TENANT, "x"))!!.failedAt}}"""
+        remote.post("${entry("x")}/${OpsPaths.SKIP}").assertMalformed()
+        remote.post(
+            "${entry("x")}/${OpsPaths.SKIP}",
+            x
+        ).body!!["entry"]["request"].asString().assert().isEqualTo("skip")
         ledger.parked(NAME, type.ref(TENANT, "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
-        val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}")
+        val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}", x)
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
-        local.post("${entry("x")}/${OpsPaths.SKIP}").status.assert().isEqualTo(404)
+        local.post("${entry("x")}/${OpsPaths.SKIP}", x).status.assert().isEqualTo(404)
         local.post("${entry("x")}/${OpsPaths.RESUME}").status.assert().isEqualTo(404)
 
         actions.map { it.second.type.name }.assert().containsExactly(
             OpsCommands.RESUME,
             OpsCommands.RESUME,
             OpsCommands.RESUME,
+            // Authorized, then refused for naming no parking.
+            OpsCommands.SKIP,
             OpsCommands.SKIP,
             OpsCommands.SKIP,
             OpsCommands.SKIP,
@@ -218,6 +226,24 @@ class ParkedRoutesTest {
         )
         actions.first().second.ref.assert().isEqualTo(type.ref(TENANT, "gone"))
         actions.first().second.scope.assert().isEqualTo(Scope("alice"))
+    }
+
+    @Test
+    fun `a resume or a skip naming another parking than the entry's is refused as stale`(): Unit = runBlocking {
+        park("a")
+        val client = client(other)
+        val failedAt = ledger.parked(NAME, type.ref(TENANT, "a"))!!.failedAt
+        listOf(OpsPaths.RESUME, OpsPaths.SKIP).forEach { action ->
+            val stale = client.post("${entry("a")}/$action", """{"failedAt":${failedAt - 1}}""")
+            stale.status.assert().isEqualTo(409)
+            stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
+            client.post("${entry("a")}/$action", """{"failedAt":"yesterday"}""").assertMalformed()
+        }
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
+        // The parking the operator saw: acted on, here a request to the owner.
+        val requested = client.post("${entry("a")}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
+        requested.status.assert().isEqualTo(202)
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
     }
 
     @Test
@@ -253,7 +279,8 @@ class ParkedRoutesTest {
             resumed.status.assert().isEqualTo(200)
             resumed.body!!["outcome"].asString().assert().isEqualTo("resolved")
             timers.find(type.ref(TENANT, "o-1"), "pay")!!.status.assert().isEqualTo(TimerStatus.PENDING)
-            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}")
+            val parkedAt = client.get(timerEntry("t-2")).body!!["failedAt"].asLong()
+            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}", """{"failedAt":$parkedAt}""")
             skipped.status.assert().isEqualTo(200)
             skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
             val remind = timers.find(type.ref(TENANT, "o-1"), "remind")!!
@@ -286,7 +313,7 @@ class ParkedRoutesTest {
         timers.put(timer).assert().isTrue()
         val parked = timer.copyWith(status = TimerStatus.PARKED, attempts = 10, outcome = "down")
         timers.settle(listOf(TimerChange(timer, parked))).assert().isEqualTo(1)
-        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 1, "$key: down", FAILED_AT))
+        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 0, 1, "$key: down", FAILED_AT))
     }
 
     @Test
@@ -386,8 +413,8 @@ class ParkedRoutesTest {
     fun `a caller sees and acts on its own tenant's entries alone, a cross-scope caller on every tenant's`(): Unit =
         runBlocking {
             park("a")
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 1, "b failed", FAILED_AT))
-            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 1, "c failed", FAILED_AT))
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 0, 1, "b failed", FAILED_AT))
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 0, 1, "c failed", FAILED_AT))
             val client = client(other)
             val foreign = "${OpsPaths.PARKED}/$NAME/shop/cart/other/b"
 
@@ -422,7 +449,8 @@ class ParkedRoutesTest {
                 .headers {
                     it.set("X-User", "root")
                     it.set("X-Admin", "true")
-                }.answer().status.assert().isEqualTo(202)
+                    it.set("Content-Type", "application/json")
+                }.bodyValue("""{"failedAt":$FAILED_AT}""").answer().status.assert().isEqualTo(202)
         }
 
     @Test

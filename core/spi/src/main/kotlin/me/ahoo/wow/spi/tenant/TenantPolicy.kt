@@ -53,6 +53,13 @@ fun interface TenantPolicy {
         @JvmStatic
         fun reaches(caller: Caller, tenantId: String): Boolean = caller.crossScope || caller.tenantId == tenantId
 
+        /**
+         * The one tenant [caller] reaches ([reaches]): its own; null for a caller that may act across scopes, which
+         * reaches every tenant. A read that a store filters by tenant takes it.
+         */
+        @JvmStatic
+        fun confinedTo(caller: Caller): String? = caller.tenantId.takeUnless { caller.crossScope }
+
         /** Every aggregate is in its caller's tenant. */
         @JvmField
         val CALLERS: TenantPolicy = TenantPolicy { null }

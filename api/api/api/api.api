@@ -673,25 +673,19 @@ public final class me/ahoo/wow/api/ledger/SkipParked : me/ahoo/wow/api/ledger/Le
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAggregate ()Ljava/lang/String;
 	public fun getContext ()Ljava/lang/String;
-	public final fun getFailedAt ()Ljava/lang/Long;
+	public final fun getFailedAt ()J
 	public fun getId ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
 	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/api/ledger/SkipParked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;J)Lme/ahoo/wow/api/ledger/SkipParked;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/ledger/SkipParked$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/SkipParked$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/SkipParked;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/SkipParked$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/api/ledger/SkipParked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;J)Lme/ahoo/wow/api/ledger/SkipParked;
 }
 
 public final class me/ahoo/wow/api/lifecycle/AggregateDeleted {

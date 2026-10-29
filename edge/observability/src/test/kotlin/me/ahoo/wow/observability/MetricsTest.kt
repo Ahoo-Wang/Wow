@@ -141,7 +141,7 @@ class MetricsTest {
     @Test
     fun `each parked notice should be counted by group, subscription and kind`(): Unit = runBlocking {
         val parked = ParkedMetrics(telemetry.meters)
-        val entry = ParkedAggregate("Board.onOrder", ORDER.ref("t", "o-1"), 1, "boom", 0)
+        val entry = ParkedAggregate("Board.onOrder", ORDER.ref("t", "o-1"), 0, 1, "boom", 0)
         parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
         parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
         parked.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "g", entry, ParkedRetrySpec(), 0))

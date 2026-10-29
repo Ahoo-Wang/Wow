@@ -554,6 +554,7 @@ internal class SubscriptionWorker(
         val entry = ParkedAggregate(
             subscription.name,
             stream.ref,
+            partition,
             stream.version,
             reason(failure),
             clock.millis(),
@@ -704,6 +705,7 @@ internal class SubscriptionWorker(
         return ParkedAggregate(
             subscription.name,
             stream.ref,
+            partition,
             stream.version,
             reason(failure),
             clock.millis(),

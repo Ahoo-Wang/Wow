@@ -40,15 +40,17 @@ import kotlin.time.Duration.Companion.milliseconds
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
  * ledger is of: services that share a database, and subscriptions of one name, see and resolve only
- * their own entries. The table's layout is recorded as format 1 ([PostgresFormat]).
+ * their own entries. The table's layout is recorded as format 2 ([PostgresFormat]), with an index answering what is
+ * due in a node's partitions and one answering a tenant's listing.
  *
  * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row, conditional on the retries or the request read when it claims or takes one. Format 1 creates the table with
- * the source position of a Kafka-sourced subscription's entry and the retry state among
- * its columns; nothing adds columns to an older table: one without a format record is refused ([PostgresFormat]).
+ * row, conditional on the retries, the request or the schedule read when it claims, takes or schedules. Format 2
+ * creates the table with the source partition and position of the entry and the retry state among its columns;
+ * nothing adds columns to an older table: one of another format, or without a format record, is refused
+ * ([PostgresFormat]).
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
@@ -69,7 +71,7 @@ class PostgresFailureLedger(
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
-                PostgresSchema.execute(connection, listOf(tables.ddl))
+                PostgresSchema.execute(connection, tables.ddls)
             }
         }
     }
@@ -77,15 +79,17 @@ class PostgresFailureLedger(
     override suspend fun park(entry: ParkedAggregate): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.park).use { park ->
             park.setKey(entry.subscription, entry.ref)
-            park.setInt(KEY_COLUMNS + 1, entry.fromVersion)
-            park.setString(KEY_COLUMNS + 2, entry.reason)
-            park.setLong(KEY_COLUMNS + 3, entry.failedAt)
-            park.setNullableLong(KEY_COLUMNS + 4, entry.fromPosition)
-            park.setInt(KEY_COLUMNS + 5, entry.retries)
-            park.setNullableLong(KEY_COLUMNS + 6, entry.retryAt)
-            park.setSpec(KEY_COLUMNS + 7, entry.retrySpec)
-            park.setString(KEY_COLUMNS + 10, entry.recoverable.name)
-            park.setString(KEY_COLUMNS + 11, entry.request?.name)
+            park.setInt(KEY_COLUMNS + 1, entry.partition)
+            park.setInt(KEY_COLUMNS + 2, entry.fromVersion)
+            park.setString(KEY_COLUMNS + 3, entry.reason)
+            park.setLong(KEY_COLUMNS + 4, entry.failedAt)
+            park.setNullableLong(KEY_COLUMNS + 5, entry.fromPosition)
+            park.setInt(KEY_COLUMNS + 6, entry.retries)
+            park.setNullableLong(KEY_COLUMNS + 7, entry.retryAt)
+            park.setSpec(KEY_COLUMNS + 8, entry.retrySpec)
+            park.setString(KEY_COLUMNS + 11, entry.recoverable.name)
+            park.setString(KEY_COLUMNS + 12, entry.request?.name)
+            park.setNullableLong(KEY_COLUMNS + 13, entry.nextAttemptAt)
             park.executeQuery().use { rows -> rows.next() }
         }
     }
@@ -108,24 +112,76 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun list(subscription: String, after: AggregateRef?, limit: Int): List<ParkedAggregate> {
+    override suspend fun list(
+        subscription: String,
+        after: AggregateRef?,
+        limit: Int,
+        tenantId: String?,
+    ): List<ParkedAggregate> {
         require(limit >= 1) { "A page holds at least one entry." }
+        val sql = when {
+            tenantId == null -> if (after == null) tables.listFirst else tables.listAfter
+            else -> if (after == null) tables.listTenantFirst else tables.listTenantAfter
+        }
+        return page(sql, subscription, after) { query, next ->
+            tenantId?.let { query.setString(next, it) }
+            query.setInt(next + if (tenantId == null) 0 else 1, limit)
+        }
+    }
+
+    override suspend fun due(
+        subscription: String,
+        partitions: Collection<Int>,
+        now: Long,
+        after: AggregateRef?,
+        limit: Int,
+    ): List<ParkedAggregate> {
+        require(limit >= 1) { "A page holds at least one entry." }
+        if (partitions.isEmpty()) {
+            return emptyList()
+        }
+        return page(if (after == null) tables.dueFirst else tables.dueAfter, subscription, after) { query, next ->
+            query.setArray(next, query.connection.createArrayOf("integer", partitions.toTypedArray()))
+            query.setLong(next + 1, now)
+            query.setInt(next + 2, limit)
+        }
+    }
+
+    override suspend fun count(subscription: String, max: Int): Int {
+        require(max >= 1) { "At least one parked entry is counted." }
         return jdbc { connection ->
-            val sql = if (after == null) tables.listFirst else tables.listAfter
-            connection.prepareStatement(sql).use { query ->
-                if (after == null) {
-                    query.setString(1, service)
-                    query.setString(2, subscription)
-                    query.setInt(3, limit)
-                } else {
-                    query.setKey(subscription, after)
-                    query.setInt(KEY_COLUMNS + 1, limit)
-                }
-                query.executeQuery().use { rows ->
-                    buildList {
-                        while (rows.next()) {
-                            add(entryOf(rows))
-                        }
+            connection.prepareStatement(tables.count).use { query ->
+                query.setString(1, service)
+                query.setString(2, subscription)
+                query.setInt(3, max)
+                query.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else 0 }
+            }
+        }
+    }
+
+    /**
+     * The rows [sql] selects: it starts with the service and the subscription, or with the key of [after] when given,
+     * and [bind] binds the rest from the parameter it is given.
+     */
+    private suspend fun page(
+        sql: String,
+        subscription: String,
+        after: AggregateRef?,
+        bind: (PreparedStatement, Int) -> Unit,
+    ): List<ParkedAggregate> = jdbc { connection ->
+        connection.prepareStatement(sql).use { query ->
+            if (after == null) {
+                query.setString(1, service)
+                query.setString(2, subscription)
+                bind(query, 3)
+            } else {
+                query.setKey(subscription, after)
+                bind(query, KEY_COLUMNS + 1)
+            }
+            query.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        add(entryOf(rows))
                     }
                 }
             }
@@ -144,42 +200,57 @@ class PostgresFailureLedger(
         ref: AggregateRef,
         amendment: ParkedAmendment,
     ): ParkedAggregate? = jdbc { connection ->
-        val sql = when (amendment) {
-            is ParkedAmendment.ClaimRetry -> tables.claimRetry
-            is ParkedAmendment.MarkRecoverable -> tables.markRecoverable
-            is ParkedAmendment.ApplyRetrySpec -> tables.applyRetrySpec
-            is ParkedAmendment.Request -> tables.request
-            is ParkedAmendment.TakeRequest -> tables.takeRequest
-        }
-        connection.prepareStatement(sql).use { update ->
-            when (amendment) {
-                is ParkedAmendment.ClaimRetry -> {
-                    update.setLong(1, amendment.at)
-                    update.setKey(subscription, ref, first = 2)
-                    update.setInt(KEY_COLUMNS + 2, amendment.retries)
-                }
-
-                is ParkedAmendment.MarkRecoverable -> {
-                    update.setString(1, amendment.recoverable.name)
-                    update.setKey(subscription, ref, first = 2)
-                }
-
-                is ParkedAmendment.ApplyRetrySpec -> {
-                    update.setSpec(1, amendment.spec)
-                    update.setKey(subscription, ref, first = SPEC_COLUMNS + 1)
-                }
-
-                is ParkedAmendment.Request -> {
-                    update.setString(1, amendment.request.name)
-                    update.setKey(subscription, ref, first = 2)
-                }
-
-                is ParkedAmendment.TakeRequest -> {
-                    update.setKey(subscription, ref)
-                    update.setString(KEY_COLUMNS + 1, amendment.request.name)
-                }
-            }
+        connection.prepareStatement(sqlOf(amendment)).use { update ->
+            update.bind(amendment, subscription, ref)
             update.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+        }
+    }
+
+    /** The statement of [amendment]. */
+    private fun sqlOf(amendment: ParkedAmendment): String = when (amendment) {
+        is ParkedAmendment.ClaimRetry -> tables.claimRetry
+        is ParkedAmendment.MarkRecoverable -> tables.markRecoverable
+        is ParkedAmendment.ApplyRetrySpec -> tables.applyRetrySpec
+        is ParkedAmendment.Request -> tables.request
+        is ParkedAmendment.Schedule -> tables.schedule
+        is ParkedAmendment.TakeRequest -> tables.takeRequest
+    }
+
+    /** Binds [amendment] of [subscription]'s entry of [ref] to its statement ([sqlOf]). */
+    private fun PreparedStatement.bind(amendment: ParkedAmendment, subscription: String, ref: AggregateRef) {
+        when (amendment) {
+            is ParkedAmendment.ClaimRetry -> {
+                setLong(1, amendment.at)
+                setKey(subscription, ref, first = 2)
+                setInt(KEY_COLUMNS + 2, amendment.retries)
+            }
+
+            is ParkedAmendment.MarkRecoverable -> {
+                setString(1, amendment.recoverable.name)
+                setKey(subscription, ref, first = 2)
+            }
+
+            is ParkedAmendment.ApplyRetrySpec -> {
+                setSpec(1, amendment.spec)
+                setKey(subscription, ref, first = SPEC_COLUMNS + 1)
+            }
+
+            is ParkedAmendment.Request -> {
+                setString(1, amendment.request.name)
+                setKey(subscription, ref, first = 2)
+            }
+
+            is ParkedAmendment.Schedule -> {
+                setLong(1, amendment.at)
+                setKey(subscription, ref, first = 2)
+                setInt(KEY_COLUMNS + 2, amendment.retries)
+                setNullableLong(KEY_COLUMNS + 3, amendment.from)
+            }
+
+            is ParkedAmendment.TakeRequest -> {
+                setKey(subscription, ref)
+                setString(KEY_COLUMNS + 1, amendment.request.name)
+            }
         }
     }
 
@@ -229,6 +300,7 @@ class PostgresFailureLedger(
             subscription = row.getString("subscription"),
             ref = AggregateType(row.getString("context"), row.getString("aggregate_name"))
                 .ref(row.getString("tenant_id"), row.getString("aggregate_id")),
+            partition = row.getInt("partition"),
             fromVersion = row.getInt("from_version"),
             reason = row.getString("reason"),
             failedAt = row.getLong("failed_at"),
@@ -244,6 +316,7 @@ class PostgresFailureLedger(
             },
             recoverable = Recoverable.valueOf(row.getString("recoverable")),
             request = row.getString("request")?.let { LedgerRequest.valueOf(it) },
+            nextAttemptAt = row.nullableLong("next_attempt_at"),
         )
     }
 }

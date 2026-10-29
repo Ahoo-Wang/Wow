@@ -68,7 +68,11 @@ import kotlin.time.Duration.Companion.seconds
  *   cursor of the next page (`next`, passed back as `after`);
  * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry;
  * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry resolved or still
- *   parked), 202 when it was left for the owner of the entry's partition;
+ *   parked), 202 when it was left for the owner of the entry's partition. The body `{"failedAt": <epoch ms>}` names
+ *   the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and parked
+ *   again, is refused as 409 `wow.ledger.stale`, as the ops context's `ResumeParked` and `SkipParked` are. A skip
+ *   requires it (400 without), since it discards what was parked; a resume may leave it out and acts on the current
+ *   parking, since it only handles the parked streams again;
  * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
  *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration
  *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
@@ -80,7 +84,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise),
  * and keeps it in the tenants it reaches ([TenantPolicy.reaches]): a caller that may not act across scopes lists only
- * its tenant's entries, and an entry of another tenant is a 404 to it, as one that is not parked. The four actions are
+ * its tenant's entries, which the ledger filters, and an entry of another tenant is a 404 to it, as one that is not
+ * parked. The four actions are
  * then authorized by [authorizer] as the system commands [OpsCommands] names on the parked aggregate (a
  * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
  * CoSec's WebFilter can guard the routes by their paths too; without an [authorizer] every action is refused (403
@@ -172,6 +177,7 @@ private const val CONTEXT = "context"
 private const val AGGREGATE = "aggregate"
 private const val TENANT = "tenant"
 private const val ID = "id"
+private const val FAILED_AT = "failedAt"
 
 private class ParkedHandler(
     private val ops: ParkedOps,
@@ -192,7 +198,7 @@ private class ParkedHandler(
                 statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusedWithoutAuthorizer(OpsPaths.READ))
             )
         }
-        val page = ops.list(subscription, after, limit) { caller.sees(it) }
+        val page = ops.list(subscription, after, limit, TenantPolicy.confinedTo(caller))
         val readable = page.entries.filter { view -> readable(caller, view.entry.ref) }
         return ok(
             mapOf(
@@ -212,20 +218,39 @@ private class ParkedHandler(
         authorizer.authorize(caller, actionOf(caller, OpsPaths.READ, ref)) is Authorization.Allowed
 
     suspend fun resume(request: ServerRequest): ServerResponse =
-        act(request, OpsCommands.RESUME) { subscription, ref -> ops.resume(subscription, ref) }
+        act(request, OpsCommands.RESUME) { subscription, ref, failedAt -> ops.resume(subscription, ref, failedAt) }
 
     suspend fun skip(request: ServerRequest): ServerResponse =
-        act(request, OpsCommands.SKIP) { subscription, ref -> ops.skip(subscription, ref) }
+        act(request, OpsCommands.SKIP) { subscription, ref, failedAt ->
+            ops.skip(
+                subscription,
+                ref,
+                failedAt ?: throw badRequest(
+                    "A skip names the parking it discards: the body's $FAILED_AT, the entry's failedAt."
+                ),
+            )
+        }
 
     private suspend fun act(
         request: ServerRequest,
         command: String,
-        action: suspend (String, AggregateRef) -> ParkedOps.Outcome,
+        action: suspend (String, AggregateRef, Long?) -> ParkedOps.Outcome,
     ): ServerResponse {
         val (subscription, ref) = authorized(request, command)
-        val outcome = action(subscription, ref)
+        val failedAt = failedAtOf(body(request))
+        val outcome = action(subscription, ref, failedAt)
         if (outcome == ParkedOps.Outcome.NOT_PARKED) {
             throw notParked(subscription, ref)
+        }
+        if (outcome == ParkedOps.Outcome.STALE) {
+            val held = ops.get(subscription, ref)?.entry?.failedAt
+            throw ProblemException(
+                statuses.problemOf(
+                    FrameworkCodes.LEDGER_STALE,
+                    "The entry of $subscription on $ref was parked at $held, not at $failedAt: it was resolved and " +
+                        "parked again since; read it again before acting on it.",
+                ),
+            )
         }
         val status = if (outcome == ParkedOps.Outcome.REQUESTED) HttpStatus.ACCEPTED else HttpStatus.OK
         val body = buildMap {
@@ -329,6 +354,15 @@ private class ParkedHandler(
             throw badRequest("The body is a JSON object.")
         }
         return node
+    }
+
+    /** The parking an action names: the body's `failedAt`, epoch milliseconds; null when it names none. */
+    private fun failedAtOf(body: JsonNode): Long? {
+        val failedAt = body.get(FAILED_AT)?.takeUnless { it.isNull } ?: return null
+        if (!failedAt.isIntegralNumber || !failedAt.canConvertToLong()) {
+            throw badRequest("$FAILED_AT is the entry's failedAt, a number of epoch milliseconds: '$failedAt'.")
+        }
+        return failedAt.asLong()
     }
 
     private fun durationOf(name: String, node: JsonNode): Duration = when {
