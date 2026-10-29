@@ -1,8 +1,8 @@
 {
   "format" : 1,
+  "line" : 10,
   "service" : {
-    "name" : "eshop-catalog-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "eshop-catalog-service"
   },
   "contexts" : [ {
     "name" : "eshop-catalog",

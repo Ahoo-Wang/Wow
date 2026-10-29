@@ -25,16 +25,16 @@ outline: deep
 
 ## 兼容检查 {#the-compatibility-check}
 
-每个服务把合并后的 Manifest 作为基线 `manifest/baseline.json` 提交。`checkWowManifest`（`check` 的一部分）把每次构建合并出的 Manifest 与基线比较，并为每处差异归类：
+每个服务把合并后的 Manifest 作为基线 `manifest/baseline.json` 提交。基线记录服务的兼容线，即其版本的主版本号（`"line": 10`），而不是随每次发布变化的版本。`checkWowManifest`（`check` 的一部分）把每次构建合并出的 Manifest 与基线比较，并为每处差异归类：
 
-| 类别 | 例子 | 在基线的主版本内 |
+| 类别 | 例子 | 在 `check` 中 |
 | --- | --- | --- |
-| 增量的 | 新的命令、事件或聚合；新的可选字段 | 允许 |
-| 破坏性的 | 删除命令或事件；新的必填字段；删除字段或改变字段类型；改变了事件的 schema 却没有新的修订号和升级函数 | 构建失败，并列出每处改变及其路径 |
+| 增量的 | 新的命令、事件或聚合；新的可选字段 | 基线记录它之前失败 |
+| 破坏性的 | 删除命令或事件；新的必填字段；删除字段或改变字段类型；改变了事件的 schema 却没有新的修订号和升级函数 | 在兼容线内让构建失败，并列出每处改变及其路径 |
 
-`build/wow/manifest-compatibility.txt` 列出每处改变，包括增量的改变。有意的改变之后，`updateWowManifestBaseline` 记录新的基线：把它与改变一起提交，这样评审时就能看到客户端和对端会看到什么。eShop 从基线重新生成它的 TypeScript 客户端，所以客户端与它的服务永远不会在不知不觉中偏离。
+`build/wow/manifest-compatibility.txt` 列出每处改变，包括增量的改变。没有基线时 `check` 也会失败。有意的改变之后，`updateWowManifestBaseline` 记录新的基线：把它与改变一起提交，这样评审时就能看到客户端和对端会看到什么。每次失败都会写明这个任务。eShop 从基线重新生成它的 TypeScript 客户端，所以客户端与它的服务永远不会在不知不觉中偏离。
 
-破坏性改变需要服务契约的一个新主版本，或者在旧的命令或事件旁边新增一个，待最后一个客户端迁移之后再让旧的退役。
+破坏性改变需要服务的下一个主版本；或者在旧的命令或事件旁边新增一个，待最后一个客户端迁移之后再让旧的退役。服务的主版本号等于基线的兼容线时，`checkWowManifest` 让破坏失败，`updateWowManifestBaseline` 拒绝记录它。版本的主版本号大于兼容线之后，更新会在同一次改变中记录这次破坏和新的兼容线。一个主版本首个版本的预发布版（例如 `11.0.0-beta.1`）让它的兼容线保持开放：它可以记录破坏，因为这条线上还没有发布过任何东西。其他预发布版只有带上 `-Pwow.manifest.allowBreaking` 才能记录破坏，更新的报告 `build/wow/manifest-baseline.txt` 会记下这个标志和它放过的改变。
 
 ## 谁读取 Manifest {#what-reads-the-manifest}
 

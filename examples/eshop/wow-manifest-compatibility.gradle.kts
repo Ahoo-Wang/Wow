@@ -9,12 +9,12 @@
  * - `mergeWowManifestWithSchemas` merges the Manifest fragments of the server's runtime class path, with their schemas,
  *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`).
  * - `checkWowManifest`, part of `check`, compares it with the committed baseline `manifest/baseline.json`
- *   (`ManifestTools.checkCompatibility`): a change that breaks the contract within the baseline's major version fails
- *   the build with each breaking change and its path; `build/wow/manifest-compatibility.txt` lists every change.
- * - `updateWowManifestBaseline` records the merged Manifest as the baseline; commit it.
- * - `checkManifestBaseline`, part of `check`, fails when the merged Manifest is not byte for byte the committed
- *   baseline, so a change the compatibility check only reports (an additive one, a dropped `derives`) cannot leave
- *   the baseline, and the clients generated from it, behind.
+ *   (`ManifestTools.checkCompatibility`), as the plugin's does: a missing baseline, a change that breaks the contract
+ *   within the baseline's compatibility line, and a baseline that does not record this build's Manifest (an additive change, a dropped `derives`) fail it, naming
+ *   `updateWowManifestBaseline`; `build/wow/manifest-compatibility.txt` lists every change.
+ * - `updateWowManifestBaseline` records the merged Manifest, without its version, on the compatibility line of its
+ *   major, as the baseline (`ManifestTools.recordBaseline`), refusing a break within the line unless
+ *   `-Pwow.manifest.allowBreaking`; commit it.
  *
  * As the plugin's workers do, the tools run in a class loader of their own over `:manifest-tools` and its runtime class
  * path, with the JDK's platform class loader as parent, so none of them reaches the build script's class path.
@@ -96,18 +96,35 @@ val updateWowManifestBaseline = tasks.register("updateWowManifestBaseline") {
     val baseline = baselineFile
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
     outputs.file(baseline)
+    val tools = wowTools
+    // As the plugin's: a break within the baseline's line is recorded only with -Pwow.manifest.allowBreaking.
+    val allowBreaking = providers.gradleProperty("wow.manifest.allowBreaking").map(String::toBoolean).orElse(false)
+    val report = layout.buildDirectory.file("wow/manifest-baseline.txt")
+    val owner = "project '${project.path}'"
+    inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
+    inputs.property("allowBreaking", allowBreaking)
+    outputs.file(report)
     doLast {
-        manifest.get().asFile.copyTo(baseline.asFile, overwrite = true)
+        manifestTools(
+            tools.files,
+            "recordBaseline",
+            manifest.get().asFile,
+            baseline.asFile,
+            allowBreaking.get(),
+            report.get().asFile,
+            owner,
+        )
     }
 }
 
 val checkWowManifest = tasks.register("checkWowManifest") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Fails on a change of the merged Manifest that breaks its baseline within the major version."
+    description = "Fails when the merged Manifest breaks its baseline, or the baseline does not record it."
     val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
     val baseline = baselineFile
     val tools = wowTools
     val report = layout.buildDirectory.file("wow/manifest-compatibility.txt")
+    val owner = "project '${project.path}'"
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
     inputs.files(baseline).withPathSensitivity(PathSensitivity.NONE).withPropertyName("baseline")
     inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
@@ -116,32 +133,17 @@ val checkWowManifest = tasks.register("checkWowManifest") {
     // Recording the baseline and checking against it in one build checks the new baseline.
     mustRunAfter(updateWowManifestBaseline)
     doLast {
-        manifestTools(tools.files, "checkCompatibility", baseline.asFile, manifest.get().asFile, report.get().asFile)
-    }
-}
-
-val checkManifestBaseline = tasks.register("checkManifestBaseline") {
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Fails when the merged Manifest differs from the committed baseline: run updateWowManifestBaseline."
-    val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
-    val baseline = baselineFile
-    val path = rootDir.toPath().relativize(baselineFile.asFile.toPath()).toString()
-    val update = "${project.path}:updateWowManifestBaseline"
-    inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
-    inputs.files(baseline).withPathSensitivity(PathSensitivity.NONE).withPropertyName("baseline")
-    mustRunAfter(updateWowManifestBaseline)
-    doLast {
-        val recorded = baseline.asFile
-        if (!recorded.isFile || !recorded.readBytes().contentEquals(manifest.get().asFile.readBytes())) {
-            throw GradleException(
-                "$path does not record the Manifest this build produces: run $update, review the diff and " +
-                    "commit it.",
-            )
-        }
+        manifestTools(
+            tools.files,
+            "checkCompatibility",
+            baseline.asFile,
+            manifest.get().asFile,
+            report.get().asFile,
+            owner,
+        )
     }
 }
 
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(checkWowManifest)
-    dependsOn(checkManifestBaseline)
 }

@@ -358,35 +358,23 @@ class WowPluginTest {
     }
 
     @Test
-    fun `the manifest and contract variants should be wired`() {
+    fun `the contract variant should be wired, and no Manifest variant published`() {
         val project = project()
-        val elements = project.configurations.getByName(WowPlugin.MANIFEST_ELEMENTS)
         val contract = project.configurations.getByName(WowPlugin.CONTRACT_ELEMENTS)
-        mapOf(elements to WowPlugin.MANIFEST_DOCS_TYPE, contract to WowPlugin.CONTRACT_DOCS_TYPE)
-            .forEach { (configuration, docsType) ->
-                configuration.isCanBeConsumed.assert().isTrue()
-                configuration.isCanBeResolved.assert().isFalse()
-                configuration.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name.assert().isEqualTo(docsType)
-                configuration.attributes.getAttribute(Category.CATEGORY_ATTRIBUTE)?.name
-                    .assert().isEqualTo(Category.DOCUMENTATION)
-            }
-        elements.outgoing.artifacts.single().let {
-            it.classifier.assert().isEqualTo(WowPlugin.MANIFEST_CLASSIFIER)
-            it.extension.assert().isEqualTo("json")
-            it.file.name.assert().isEqualTo("manifest.json")
-        }
+        contract.isCanBeConsumed.assert().isTrue()
+        contract.isCanBeResolved.assert().isFalse()
+        contract.attributes.getAttribute(
+            DocsType.DOCS_TYPE_ATTRIBUTE
+        )?.name.assert().isEqualTo(WowPlugin.CONTRACT_DOCS_TYPE)
+        contract.attributes.getAttribute(Category.CATEGORY_ATTRIBUTE)?.name.assert().isEqualTo(Category.DOCUMENTATION)
         contract.outgoing.artifacts.single().file.canonicalFile
             .assert().isEqualTo(File(directory, "build/wow/contract.json").canonicalFile)
         val generate = project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract
         generate.outputFile.get().asFile.name.assert().isEqualTo("contract.json")
-    }
-
-    @Test
-    fun `the manifest variant should be an optional variant of the java component`() {
-        val project = project()
+        // The service's contract is its committed baseline: the java component offers no Manifest, nor the contract.
+        project.configurations.findByName("wowManifestElements").assert().isNull()
         val component = project.components.getByName("java") as SoftwareComponentInternal
-        component.usages.map { it.name }.assert().contains(WowPlugin.MANIFEST_ELEMENTS)
-        component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS)
+        component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS, "wowManifestElements")
     }
 
     @Test
@@ -445,12 +433,15 @@ class WowPluginTest {
     }
 
     @Test
-    fun `the gate should pass without a baseline, record one, and fail on a breaking change`() {
+    fun `the gate should fail without a baseline, pass on the recorded one, and fail on a breaking change`() {
         val project = project()
         val manifest = File(directory, "build/wow/manifest.json")
         val cart = ContextManifest("shop", errors = listOf(ErrorManifest("shop.cart.full", 409)))
         ManifestJson.write(Manifest(service = ServiceInfo("shop", "1.0.0"), contexts = listOf(cart)), manifest)
         val check = project.tasks.getByName(WowPlugin.CHECK_TASK) as CheckManifestCompatibility
+        check.owner.get().assert().isEqualTo("project ':'")
+        val update = project.tasks.getByName(WowPlugin.UPDATE_BASELINE_TASK) as UpdateManifestBaseline
+        update.tools.from.assert().contains(project.configurations.getByName(WowPlugin.TOOLS_CONFIGURATION))
         val queue = mockk<WorkQueue>()
         every { queue.submit(ManifestToolsWork.CheckCompatibility::class.java, any()) } answers {
             val parameters = project.objects.newInstance(ManifestToolsWork.CheckCompatibility.Parameters::class.java)
@@ -459,16 +450,21 @@ class WowPluginTest {
                 override fun getParameters() = parameters
             }.execute()
         }
+        every { queue.submit(ManifestToolsWork.RecordBaseline::class.java, any()) } answers {
+            val parameters = project.objects.newInstance(ManifestToolsWork.RecordBaseline.Parameters::class.java)
+            secondArg<Action<ManifestToolsWork.RecordBaseline.Parameters>>().execute(parameters)
+            object : ManifestToolsWork.RecordBaseline() {
+                override fun getParameters() = parameters
+            }.execute()
+        }
 
-        check.submit(queue)
-        check.report.get().asFile.readText().assert().startsWith("No Manifest baseline")
+        assertThrows<IllegalStateException> { check.submit(queue) }.message.assert()
+            .contains("project ':' has no Manifest baseline", "run updateWowManifestBaseline of project ':'")
 
-        (project.tasks.getByName(WowPlugin.UPDATE_BASELINE_TASK) as UpdateManifestBaseline).update()
-        File(directory, WowPlugin.BASELINE_FILE).readBytes().assert().isEqualTo(manifest.readBytes())
+        update.submit(queue)
+        ManifestJson.read(File(directory, WowPlugin.BASELINE_FILE)).service.assert().isEqualTo(ServiceInfo("shop"))
         check.submit(queue)
-        check.report.get().asFile.readText().assert().startsWith(
-            "Manifest 1.0.0 against the baseline 1.0.0: 0 breaking"
-        )
+        check.report.get().asFile.readText().assert().startsWith("Manifest against its baseline: 0 breaking")
 
         ManifestJson.write(
             Manifest(service = ServiceInfo("shop", "1.1.0"), contexts = listOf(cart.copyWith(errors = emptyList()))),
@@ -550,7 +546,6 @@ class WowPluginTest {
         domain.tasks.findByName(WowPlugin.GENERATE_CONTRACT_TASK).assert().isNotNull()
         listOf(WowPlugin.MERGE_TASK, WowPlugin.OPENAPI_TASK, WowPlugin.CHECK_TASK, WowPlugin.UPDATE_BASELINE_TASK)
             .forEach { domain.tasks.findByName(it).assert().describedAs(it).isNull() }
-        domain.configurations.findByName(WowPlugin.MANIFEST_ELEMENTS).assert().isNull()
         domain.extensions.getByType(WowExtension::class.java).assert().isNotInstanceOf(WowServiceExtension::class.java)
         val service = project()
         listOf(

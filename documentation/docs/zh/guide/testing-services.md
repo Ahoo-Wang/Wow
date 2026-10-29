@@ -12,7 +12,7 @@ outline: deep
 | --- | --- | --- |
 | 进程内 | 服务运行在测试的 JVM 里，使用内存后端，主题在内存中 | 装配、路由、Saga、等待、定时器 |
 | 真实存储 | 同上，但使用容器里的 PostgreSQL 和 ClickHouse | schema、查询、Sink |
-| 契约 | 构建合并出的 Manifest 对照提交的基线 | 没有改变会在同一主版本内破坏客户端 |
+| 契约 | 构建合并出的 Manifest 对照提交的基线 | 没有改变破坏客户端，基线记录了每处改变 |
 
 ## 在测试中运行服务 {#run-the-service-in-the-test}
 
@@ -104,7 +104,7 @@ private val server = wowServer<OrderingServer>(
 
 ## 检查契约 {#check-the-contract}
 
-Gradle 插件 `me.ahoo.wow.service` 从服务的模块合并出它的 Manifest，并在 `checkWowManifest`（`check` 的一部分）中与提交的基线 `manifest/baseline.json` 比较。在基线的主版本内破坏客户端的改变会让构建失败，并列出每个破坏性改变及其路径。有意的改变之后，`updateWowManifestBaseline` 记录新的基线；把它与改变一起提交，这样评审时就能看到客户端会看到什么。什么算破坏性改变，见[一份契约](../concepts/contract#compatibility)。
+Gradle 插件 `me.ahoo.wow.service` 从服务的模块合并出它的 Manifest，并在 `checkWowManifest`（`check` 的一部分）中与提交的基线 `manifest/baseline.json` 比较。在基线的兼容线（服务的主版本号）之内破坏客户端的改变会让构建失败，并列出每个破坏性改变及其路径；基线尚未记录的改变、缺少基线也会让构建失败。有意的改变之后，`updateWowManifestBaseline` 记录新的基线（记录兼容线而不是版本），并拒绝记录兼容线内的破坏；把它与改变一起提交，这样评审时就能看到客户端会看到什么。什么算破坏性改变，见[一份契约](../concepts/contract#compatibility)。
 
 ## 跨服务测试 {#test-across-services}
 

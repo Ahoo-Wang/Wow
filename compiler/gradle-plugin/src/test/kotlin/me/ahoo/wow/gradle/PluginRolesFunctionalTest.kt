@@ -125,6 +125,8 @@ class PluginRolesFunctionalTest {
         bank(root, "")
         val result = runner(
             root,
+            // The gate needs a baseline: record it, then check against it.
+            WowPlugin.UPDATE_BASELINE_TASK,
             "check",
             WowPlugin.MERGE_TASK,
             WowPlugin.OPENAPI_TASK,

@@ -1,8 +1,8 @@
 {
   "format" : 1,
+  "line" : 10,
   "service" : {
-    "name" : "analytics-catalog-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "analytics-catalog-service"
   },
   "contexts" : [ {
     "name" : "analytics-catalog",

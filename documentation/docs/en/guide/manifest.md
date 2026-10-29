@@ -25,16 +25,16 @@ A tool that cannot take the api jar, such as a console or a gateway, reads the p
 
 ## The compatibility check
 
-Each service commits its merged Manifest as a baseline, `manifest/baseline.json`. `checkWowManifest`, part of `check`, compares every build's merged Manifest with it and sorts each difference:
+Each service commits its merged Manifest as a baseline, `manifest/baseline.json`. The baseline records the service's compatibility line, the major of its version (`"line": 10`), not the version, which moves with every release. `checkWowManifest`, part of `check`, compares every build's merged Manifest with it and sorts each difference:
 
-| Kind | Examples | Within the baseline's major version |
+| Kind | Examples | In `check` |
 | --- | --- | --- |
-| Additive | A new command, event or aggregate; a new optional field | Allowed |
-| Breaking | A removed command or event; a new required field; a field removed or retyped; an event's schema changed without a new revision and upgrade | Fails the build, listing each change and its path |
+| Additive | A new command, event or aggregate; a new optional field | Fails until the baseline records it |
+| Breaking | A removed command or event; a new required field; a field removed or retyped; an event's schema changed without a new revision and upgrade | Fails the build within the line, listing each change and its path |
 
-`build/wow/manifest-compatibility.txt` lists every change, additive ones too. After an intended change, `updateWowManifestBaseline` records the new baseline: commit it with the change, so its review shows what clients and peers will see. The eShop regenerates its TypeScript clients from the baselines, so a client and its service never drift apart unnoticed.
+`build/wow/manifest-compatibility.txt` lists every change, additive ones too. A missing baseline fails `check` too. After an intended change, `updateWowManifestBaseline` records the new baseline: commit it with the change, so its review shows what clients and peers will see. Each failure names that task. The eShop regenerates its TypeScript clients from the baselines, so a client and its service never drift apart unnoticed.
 
-A breaking change needs a new major version of the service's contract, or a new command or event beside the old one, the old one retired once its last client has moved.
+A breaking change needs the service's next major version, or a new command or event beside the old one, the old one retired once its last client has moved. While the service's major equals the baseline's line, `checkWowManifest` fails a break and `updateWowManifestBaseline` refuses to record it. Once the version's major is greater than the line, the update records the break and the new line in the same change. A pre-release of a major's first version, such as `11.0.0-beta.1`, keeps its line open: it records a break, since nothing has shipped on that line yet. Any other pre-release records a break only with `-Pwow.manifest.allowBreaking`, and the update's report, `build/wow/manifest-baseline.txt`, logs the flag and the changes it let through.
 
 ## What reads the Manifest
 

@@ -56,10 +56,10 @@ When the other context's domain module is compiled, a build task selects what a 
 
 ## Compatibility
 
-The Manifest is the contract clients and other services rely on, so its changes are checked. A service keeps the Manifest of its last release as a baseline in its repository. The build compares the current Manifest with it and sorts each difference:
+The Manifest is the contract clients and other services rely on, so its changes are checked. A service keeps its Manifest as a baseline in its repository, with its compatibility line, the major of its version, instead of the version. The build compares the current Manifest with it and sorts each difference:
 
-- **Additive**, such as a new command, a new optional field, or an event that is removed while its name stays retired: allowed within a major version.
-- **Breaking**, such as removing a command or an event, adding a required field, or changing an event's schema without a new revision and an upgrade function: the build fails within a major version.
+- **Additive**, such as a new command, a new optional field, or an event that is removed while its name stays retired: allowed, once the baseline records it.
+- **Breaking**, such as removing a command or an event, adding a required field, or changing an event's schema without a new revision and an upgrade function: the build fails while the service's major is the baseline's line. The service's next major records the break and its new line in the baseline; so does a pre-release of a major's first version, such as `10.0.0-beta.1`, whose line is still open.
 
 A new revision exempts only the service's own storage. Once an event or a state has outside readers, through event queries, snapshot queries or a published stream, removing or retyping one of its fields is still breaking.
 
