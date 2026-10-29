@@ -2386,6 +2386,7 @@
         "object"
       ],
       "kind": "object",
+      "nullable": false,
       "filter": {
         "operators": [
           "is-null",
@@ -2401,6 +2402,7 @@
         "integer"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2425,6 +2427,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2454,6 +2457,7 @@
         "integer"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2478,6 +2482,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2507,6 +2512,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2536,6 +2542,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2565,6 +2572,7 @@
         "string"
       ],
       "kind": "array",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",

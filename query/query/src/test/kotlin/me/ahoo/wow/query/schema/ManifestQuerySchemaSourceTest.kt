@@ -29,6 +29,8 @@ import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.schema.ManifestFixtures.ITEM_STATE_DEFS
 import me.ahoo.wow.query.schema.ManifestFixtures.ORDER
 import me.ahoo.wow.query.schema.ManifestFixtures.REDACT
+import me.ahoo.wow.query.schema.ManifestFixtures.SEMANTIC_MAPS_DEFS
+import me.ahoo.wow.query.schema.ManifestFixtures.SEMANTIC_MAPS_STATE
 import me.ahoo.wow.query.schema.ManifestFixtures.STRATEGIES
 import me.ahoo.wow.query.schema.ManifestFixtures.manifest
 import me.ahoo.wow.query.schema.ManifestFixtures.orderSchema
@@ -121,6 +123,35 @@ class ManifestQuerySchemaSourceTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test
+    fun `a semantic type declared on a map reaches its values`() {
+        runTest {
+            val schema = schemaOf(ManifestQuerySchemaSource(manifest(SEMANTIC_MAPS_DEFS, SEMANTIC_MAPS_STATE)))
+            val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+            val epoch = Temporal.Epoch(TimeUnit.MILLISECONDS)
+            val seconds = TimeSpan(TimeUnit.SECONDS)
+            mapOf("deadlines" to epoch, "reminders" to epoch, "timeouts" to seconds, "pauses" to seconds)
+                .forEach { (map, semantic) ->
+                    schema.value("state.$map").semanticType.assert().isNull()
+                    schema.value("state.$map.k1").semanticType.assert().isEqualTo(semantic)
+                    val pattern = descriptor.dynamic.single { it.pattern == "state.$map.{key}" }
+                    pattern.semantic.assert().isEqualTo(semantic)
+                    // Relative time takes a time, never a duration.
+                    val relative = listOf(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+                    if (semantic is Temporal) {
+                        pattern.filter.operators.assert().containsAll(relative)
+                        val field = QueryField("state.$map.k1")
+                        listOf(TodayFilter(field), RecentDaysFilter(field, 7)).forEach { filter ->
+                            // Admitted, or admission throws.
+                            QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+                        }
+                    } else {
+                        pattern.filter.operators.assert().doesNotContainAnyElementsOf(relative)
+                    }
+                }
         }
     }
 

@@ -67,11 +67,13 @@ const KEY_SEGMENT = '{key}';
  * path, and failing that the dynamic patterns it falls under — a key the
  * pattern excludes (#3477) is a field of its own, so it never matches. A
  * pattern says how a concrete key under it is filtered, sorted and
- * aggregated, as a field does. The service describes each pattern once
+ * aggregated, and what its values mean, as a field does: a key under a
+ * pattern of epoch times is a time. The service describes each pattern once
  * (#3489), so a key matches at most one; should two ever match, each admits
- * its operators on its own, and the key gets their union, but a sort or an
- * aggregation is one the server resolves for the key, so the key keeps only
- * what every pattern grants (`commonSort`, `commonAggregate`). A field
+ * its operators on its own, and the key gets their union, but a sort, an
+ * aggregation or a meaning is one the server resolves for the key, so the
+ * key keeps only what every pattern grants (`commonSort`, `commonAggregate`,
+ * `commonSemantic`). A field
  * inside an element (`scope`: the array's path) is the descriptor's field of
  * that path in that scope; dynamic patterns never describe one.
  */
@@ -115,11 +117,29 @@ export function describedField(
   const matched = dynamicFieldsOf(descriptor, path);
   if (matched.length === 0) return null;
   const aggregate = commonAggregate(matched);
+  const semantic = commonSemantic(matched);
   return {
     operators: new Set(matched.flatMap(entry => entry.filter.operators)),
     sort: commonSort(matched),
     ...(aggregate ? { aggregate } : {}),
+    ...(semantic ? { semantic } : {}),
   };
+}
+
+/**
+ * What every matched pattern says its values mean; absent when one says
+ * nothing or two say different things, since the key's values are one of
+ * them and the engine cannot tell which.
+ */
+function commonSemantic(
+  matched: readonly DynamicFieldDescriptor[],
+): QuerySemanticType | undefined {
+  const [first, ...rest] = matched.map(entry => entry.semantic);
+  if (!first) return undefined;
+  const same = JSON.stringify(first);
+  return rest.every(each => each && JSON.stringify(each) === same)
+    ? first
+    : undefined;
 }
 
 /** The sorts every matched pattern grants. */
