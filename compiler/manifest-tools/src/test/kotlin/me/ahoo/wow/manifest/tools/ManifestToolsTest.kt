@@ -186,20 +186,65 @@ class ManifestToolsTest {
         }
         val fragmentFile = File(directory, "fragment/shop.json").also { ManifestJson.write(shop, it) }
         val contractFile = File(directory, "domain/contract.json")
-        ManifestTools.generateContract(listOf(fragmentFile), contractFile, null)
+        ManifestTools.generateContract(listOf(fragmentFile), null, ":shop-domain", emptyMap(), contractFile)
         ManifestJson.read(contractFile).contexts.map { it.name }.assert().containsExactly("shop")
 
         val classes = File(directory, "api-classes")
         File(classes, CreateCart::class.java.name.replace('.', '/') + ".class").apply { parentFile.mkdirs() }
             .writeText("")
-        val output = File(directory, "api/contract.json")
-        ManifestTools.assembleContract(listOf(contractFile), listOf(classes), ":shop-api", output).assert().isTrue()
-        ManifestJson.read(output).contexts.single().aggregates.single().commands.map { it.name }
-            .assert().containsExactly("CreateCart")
+        val output = File(directory, "api")
+        val owners = mapOf(contractFile.path to "project ':shop-domain'")
+        ManifestTools.assembleContract(listOf(contractFile), owners, listOf(classes), "project ':shop-api'", output)
+            .assert().isTrue()
+        ManifestJson.read(File(output, PeerContracts.RESOURCE)).contexts.single().aggregates.single().commands
+            .map { it.name }.assert().containsExactly("CreateCart")
 
-        val other = File(directory, "other/contract.json")
-        ManifestTools.assembleContract(listOf(contractFile), emptyList(), ":other-api", other).assert().isFalse()
-        other.exists().assert().isFalse()
+        // The classes are in another api module: it carries no contract, and clears what it carried.
+        ManifestTools.assembleContract(listOf(contractFile), owners, emptyList(), "project ':other-api'", output)
+            .assert().isFalse()
+        File(output, PeerContracts.RESOURCE).exists().assert().isFalse()
+
+        // A project whose classes hold the context's, and that does not pair with the domain module, is named.
+        assertThrows<IllegalStateException> {
+            ManifestTools.generateContract(
+                listOf(fragmentFile),
+                null,
+                ":shop-domain",
+                mapOf(classes.path to ":shop-api"),
+                contractFile,
+            )
+        }.message.assert().isEqualTo(
+            "The contract of project ':shop-domain' reaches no api module:\n- context shop has its classes " +
+                "${CreateCart::class.java.name} in project ':shop-api', which does not pair with project " +
+                "':shop-domain': in :shop-api's build file, apply id(\"me.ahoo.wow.api\") and add " +
+                "dependencies { wowContract(project(\":shop-domain\")) }",
+        )
+    }
+
+    @Test
+    fun `an api module should refuse a declared domain module of no contract`() {
+        val empty = File(directory, "empty/contract.json").also { ManifestJson.write(Manifest(), it) }
+        assertThrows<IllegalStateException> {
+            ManifestTools.assembleContract(
+                listOf(empty),
+                mapOf(empty.path to "project ':empty-domain'"),
+                emptyList(),
+                "project ':shop-api'",
+                File(directory, "api"),
+            )
+        }.message.assert().startsWith(
+            "project ':shop-api' declares project ':empty-domain' in wowContract, which compiles no model",
+        )
+    }
+
+    @Test
+    fun `the OpenAPI document should be written from the merged Manifest`() {
+        val manifest = File(directory, "manifest.json").also {
+            ManifestJson.write(fragment("shop", CartState::class.java).copyWith(service = ServiceInfo("shop")), it)
+        }
+        val output = File(directory, "openapi/openapi.json")
+        ManifestTools.generateOpenApi(manifest, output)
+        output.readText().assert().contains("\"openapi\" : \"3.1").endsWith("}\n")
     }
 
     /** [fragment] of [context] with a saga `CartSaga.onEvent` that derives [derives]. */

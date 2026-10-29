@@ -17,36 +17,25 @@ description = "Wow migration rehearsal (roadmap 8c.1): the 9.x example ported to
 // order and cart, under the names migration-map.json gives them, and the CartSaga subscription that parks the 9.x
 // compensation service's unresolved executions. rehearse.sh imports the 9.x data with migrate-data, switches the
 // traffic to this host and rolls it back (decision D32). Never published; outside the coverage reports and the ABI
-// checks. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so this applies KSP and
-// passes the plugin's options by hand, as the quickstart does.
+// checks. The plugin `me.ahoo.wow` builds its models; it has no Manifest gate, being no service a client depends on.
 plugins {
-    alias(libs.plugins.ksp)
     application
+    id("me.ahoo.wow")
 }
 
 application {
     mainClass.set("me.ahoo.wow.rehearsal.RehearsalServerKt")
 }
 
-ksp {
-    arg("wow.model", "generate")
-    arg("wow.manifest.module", project.name)
-}
-
-// The plugin's completion of the fragment with the schemas of the types, so the snapshot queries know the state.
-apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
-
 dependencies {
-    implementation(project(":kernel"))
-    implementation(project(":spring-boot"))
+    implementation("me.ahoo.wow:wow-spring-boot")
     // The CallerResolver that names the driver's tenant and owner.
-    implementation(project(":http"))
-    implementation(project(":postgres"))
+    implementation("me.ahoo.wow:wow-http")
+    implementation("me.ahoo.wow:wow-postgres")
     // The pool the host makes of `spring.datasource.*` (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     // Actuator's health endpoint, which rehearse.sh waits on.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
-    ksp(project(":compiler"))
-    testImplementation(project(":test-dsl"))
+    testImplementation("me.ahoo.wow:wow-test")
 }

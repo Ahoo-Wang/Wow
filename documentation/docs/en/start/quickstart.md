@@ -77,6 +77,14 @@ tasks.test {
 
 The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-alpha.6`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
 
+`./gradlew build` also checks the service's Manifest, the contract its clients see, against a baseline committed beside the build file, `manifest/baseline.json`, and fails while there is none. Once the code below is written, record it once and commit it with the code:
+
+```bash
+./gradlew updateWowManifestBaseline
+```
+
+From then on `check` fails a change the baseline does not record, so the review of each change shows what its clients will see ([The Manifest](../guide/manifest#the-compatibility-check)).
+
 ## Write the commands and events
 
 Name the context once, with `@BoundedContext`. Commands and events are data classes. A command carries no aggregate id: the id comes from the route. A deposit and a withdrawal are of a positive amount: that is the command's shape, a Jakarta constraint the host checks before the account decides.

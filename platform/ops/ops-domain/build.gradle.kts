@@ -1,33 +1,21 @@
 description = "Wow ops: the parked aggregate, the read model of every service's failure ledger (roadmap 6.3f, 7.1a)"
 
-// The minimal ops domain of work package 6.3f (decision D141); roadmap 7.1a builds the ops service on it. KSP with
-// :compiler compiles the aggregate and the saga into kernel models, their binding index and the module's Manifest
-// fragment, as the Gradle plugin `me.ahoo.wow` does for an application; the plugin cannot be applied to a project of
-// the build that produces it, so this applies KSP and passes its options by hand, as the eShop's domains do.
+// The minimal ops domain of work package 6.3f (decision D141); roadmap 7.1a builds the ops service on it. The plugin
+// `me.ahoo.wow` compiles the aggregate and the saga into kernel models, their binding index and the module's Manifest
+// fragment, and offers its contract to :ops-api, as the eShop's domains do.
 plugins {
-    alias(libs.plugins.ksp)
+    id("me.ahoo.wow")
 }
 
-ksp {
-    arg("wow.model", "generate")
-    arg("wow.manifest.module", project.name)
+wow {
+    service = "ops-service"
 }
-
-// The plugin's completion of the fragment with the schemas of the types (decision D73): the parked state's schema is
-// what a query of the ops view reads.
-// The service that hosts the contexts, which a peer of the api module finds by this name (decision D330); the
-// plugin's `wow { service = "ops-service" }`.
-extra["wowContractService"] = "ops-service"
-apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     api(project(":ops-api"))
-    // The generated models and the binding index build on the kernel only (decision D149).
-    api(project(":kernel"))
     // @QueryTemporal on the parked state's times: a query buckets the entries by when they failed (roadmap 7.1c).
-    implementation(project(":query-api"))
-    ksp(project(":compiler"))
-    testImplementation(project(":test-dsl"))
+    implementation("me.ahoo.wow:wow-query-api")
+    testImplementation("me.ahoo.wow:wow-test")
     // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
-    testImplementation(project(":manifest"))
+    testImplementation("me.ahoo.wow:wow-manifest")
 }

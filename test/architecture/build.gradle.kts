@@ -44,6 +44,10 @@ tasks.named<Test>("test") {
             exclude("**/build/**", "**/node_modules/**", ".git/**", ".gradle/**", ".claude/**", "documentation/designs/**")
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("designIdSources")
+    // The included build of the Gradle plugin, which compiles :gradle-plugin's sources and has none of its own.
+    inputs.files(
+        rootProject.fileTree("build-logic/wow-gradle-plugin") { exclude("build/**", ".gradle/**", ".kotlin/**") },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("includedPlugin")
     inputs.files(rootProject.file("settings.gradle.kts"), rootProject.subprojects.map { it.buildFile })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("buildScripts")

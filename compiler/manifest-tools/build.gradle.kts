@@ -3,6 +3,8 @@ description = "Wow Manifest tools: completes Manifest fragments with Jackson-int
 
 dependencies {
     implementation(project(":manifest"))
+    // generateWowOpenApi: the OpenAPI document of the merged Manifest, plain data like wow-manifest.
+    implementation(project(":openapi"))
     // The state schema fingerprint, Wow's state JSON (StateJson), computed at build time as a snapshot carries it.
     implementation(project(":spi"))
     // The query field annotations it writes as the x-wow-* keywords of the state schema (decisions D125, D151).

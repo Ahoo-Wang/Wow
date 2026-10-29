@@ -37,8 +37,6 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.missingKotlinJvm
 import me.ahoo.wow.gradle.WowPlugin.Companion.moduleName
 import me.ahoo.wow.gradle.WowPlugin.Companion.requireKotlin
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -103,7 +101,7 @@ internal object WowRoles {
 
     private fun configureDomain(project: Project, extension: WowExtension) {
         requireKotlin(project.path, kotlinPluginVersion(project))
-        wowDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, KERNEL, KERNEL_PROJECT)
+        wowDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, KERNEL)
         configureKsp(project, extension)
         configureIntegrationTest(project)
 
@@ -118,7 +116,7 @@ internal object WowRoles {
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))
             .builtBy(KSP_TASK)
             .asFileTree
-            .matching { it.include("${Manifest.FRAGMENT_DIRECTORY}/*.json") }
+            .matching { it.include("${FRAGMENT_RESOURCES}/*.json") }
         val fragmentDirectory = project.layout.buildDirectory.dir(FRAGMENT_DIRECTORY)
         val generate = project.tasks.register(GENERATE_FRAGMENT_TASK, GenerateManifestFragment::class.java) { task ->
             task.description = "Completes this module's Manifest fragment with the schemas of its types."
@@ -131,7 +129,7 @@ internal object WowRoles {
         main.output.dir(mapOf("builtBy" to generate), fragmentDirectory)
         // The completed fragment takes the place of the compiler's.
         project.tasks.named(main.processResourcesTaskName, ProcessResources::class.java) {
-            it.exclude("${Manifest.FRAGMENT_DIRECTORY}/**")
+            it.exclude("${FRAGMENT_RESOURCES}/**")
         }
         contract(project, project.files(fragmentDirectory).builtBy(generate).asFileTree, extension, compileClasspath)
     }
@@ -166,11 +164,12 @@ internal object WowRoles {
         val unpaired = unpairedProjectsOf(compileClasspath)
         val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
-            task.fragments.from(fragments.matching { it.include("${Manifest.FRAGMENT_DIRECTORY}/*.json") })
+            task.fragments.from(fragments.matching { it.include("${FRAGMENT_RESOURCES}/*.json") })
             task.service.set(extension.service)
             task.module.set(project.path)
             task.unpaired.set(unpaired)
             task.unpairedProjects.set(unpaired.map { it.values.distinct().sorted() })
+            task.tools.from(toolsConfiguration(project))
             task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
         }
         val elements = project.configurations.create(CONTRACT_ELEMENTS) { configuration ->
@@ -217,11 +216,13 @@ internal object WowRoles {
             ksp.arg(MODULE_OPTION, moduleName(project.path, project.rootProject.name))
             ksp.arg(ContextArgument(extension.context))
         }
+        // Added at once, not when `ksp` resolves: KSP wires a compilation's processors only when it sees a declared
+        // one. A wow-compiler the module declares itself takes its place.
         project.configurations.named(KSP_CONFIGURATION) { configuration ->
+            val compiler = project.dependencies.create("$GROUP:$COMPILER:$version")
+            configuration.dependencies.add(compiler)
             configuration.withDependencies { dependencies ->
-                if (dependencies.none { declares(it, COMPILER, COMPILER_PROJECT) }) {
-                    dependencies.add(project.dependencies.create("$GROUP:$COMPILER:$version"))
-                }
+                if (dependencies.any { it !== compiler && declares(it, COMPILER) }) dependencies.remove(compiler)
             }
         }
     }
@@ -229,16 +230,15 @@ internal object WowRoles {
     /**
      * Adds `platform("me.ahoo.wow:wow-bom:<plugin version>")` to [configuration] of [project], so its Wow dependencies
      * take no version, and the role's Wow module [artifact] unless the module declares it in a configuration it
-     * compiles against ([DECLARING]): by its coordinates, as Wow's own build's project [ownProject], or as its jar among
-     * files.
+     * compiles against ([DECLARING]): by its coordinates, or as its jar among files.
      */
-    private fun wowDependencies(project: Project, configuration: String, artifact: String, ownProject: String) {
+    private fun wowDependencies(project: Project, configuration: String, artifact: String) {
         project.configurations.named(configuration) {
             it.withDependencies { dependencies ->
                 val declared = DECLARING.mapNotNull(project.configurations::findByName)
                     .filter { other -> other.name != configuration }.flatMap { other -> other.dependencies } +
                     dependencies
-                if (declared.none { dependency -> declares(dependency, artifact, ownProject) }) {
+                if (declared.none { dependency -> declares(dependency, artifact) }) {
                     dependencies.add(project.dependencies.create("$GROUP:$artifact"))
                 }
                 dependencies.add(project.dependencies.platform("$GROUP:$BOM:$version"))
@@ -246,21 +246,22 @@ internal object WowRoles {
         }
     }
 
-    /** Whether [dependency] declares the Wow module [artifact]: by its coordinates, as [ownProject], or as its jar. */
-    private fun declares(dependency: Dependency, artifact: String, ownProject: String): Boolean = when (dependency) {
+    /** Whether [dependency] declares the Wow module [artifact]: by its coordinates, or as its jar. */
+    private fun declares(dependency: Dependency, artifact: String): Boolean = when (dependency) {
         is FileCollectionDependency -> dependency.files.any { it.name.startsWith("$artifact-") }
-        is ProjectDependency -> dependency.group == GROUP && dependency.name == ownProject
         else -> dependency.name == artifact
     }
 
     /**
-     * The test suite [INTEGRATION_TEST], unless the build declares one: JUnit Jupiter,
+     * The test suite [INTEGRATION_TEST], unless the build declares one, or a source set of that name: JUnit Jupiter,
      * against the module's classes and everything `testImplementation` gives (the test DSL, Testcontainers), for the
      * tests that run on containers. It is not part of `check`: `./gradlew integrationTest` runs it.
      */
     private fun configureIntegrationTest(project: Project) {
         val suites = project.extensions.getByType(TestingExtension::class.java).suites
-        if (suites.findByName(INTEGRATION_TEST) != null) {
+        val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
+        // A build that sets its integration tests up itself, as a suite or as a source set of its own, keeps them.
+        if (suites.findByName(INTEGRATION_TEST) != null || sourceSets.findByName(INTEGRATION_TEST) != null) {
             return
         }
         suites.register(INTEGRATION_TEST, JvmTestSuite::class.java) { suite ->
@@ -289,7 +290,7 @@ internal object WowRoles {
      */
     fun api(project: Project) {
         project.pluginManager.apply(JavaLibraryPlugin::class.java)
-        wowDependencies(project, JavaPlugin.API_CONFIGURATION_NAME, API, API_PROJECT)
+        wowDependencies(project, JavaPlugin.API_CONFIGURATION_NAME, API)
         // Created with the plugin, so the build script declares in it: the contract code generator runs over it.
         toolsConfiguration(project)
         val declared = project.configurations.create(CONTRACT_CONFIGURATION) { configuration ->
@@ -313,6 +314,7 @@ internal object WowRoles {
             task.owners.set(ownersOf(contracts))
             task.classes.from(main.output.classesDirs)
             task.owner.set(project.path)
+            task.tools.from(toolsConfiguration(project))
             task.outputDirectory.set(project.layout.buildDirectory.dir("wow/contract"))
         }
         project.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(assemble) }
@@ -339,7 +341,7 @@ internal object WowRoles {
         val generate = api.tasks.register(GENERATE_CONTRACT_SOURCES_TASK, GenerateContractSources::class.java) { task ->
             task.description = "Generates the constants, refs, query fields and state views of this api module's " +
                 "contexts from its contract."
-            task.contract.from(assemble.map { it.outputDirectory.file(PeerContracts.RESOURCE) })
+            task.contract.from(assemble.map { it.outputDirectory.file(CONTRACT_RESOURCE) })
             task.classpath.from(api.provider { generated.compileClasspath })
             task.tools.from(tools)
             task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))
@@ -468,6 +470,7 @@ internal object WowRoles {
             task.group = GROUP_NAME
             task.description = "Writes the OpenAPI document of the service's routes from its manifest.json."
             task.manifestFile.set(merge.flatMap { it.outputFile })
+            task.tools.from(tools)
             task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
         }
         compatibility(project, extension, merge, tools)
@@ -609,11 +612,8 @@ internal object WowRoles {
     private const val GROUP = "me.ahoo.wow"
     private const val BOM = "wow-bom"
     private const val COMPILER = "wow-compiler"
-    private const val COMPILER_PROJECT = "compiler"
     private const val KERNEL = "wow-kernel"
-    private const val KERNEL_PROJECT = "kernel"
     private const val API = "wow-api"
-    private const val API_PROJECT = "api"
     private const val CLASSES_VARIANT = "classes"
 
     /** The configurations a module declares what it compiles against in. */
@@ -627,6 +627,12 @@ internal object WowRoles {
     private const val CORE_CLASSIFIER = "wow-core"
     private const val CORE_UNPUBLISHED = "wowCoreUnpublished"
     private const val FRAGMENT_DIRECTORY = "wow/manifest-fragment"
+
+    /** Where the compiler writes a module's Manifest fragments, and where a jar carries them. */
+    private const val FRAGMENT_RESOURCES = "META-INF/wow/manifest"
+
+    /** The peer contract an api module's jar carries. */
+    const val CONTRACT_RESOURCE = "META-INF/wow/contract.json"
     private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
     private const val KOTLIN_WRAPPER = "org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapperKt"
     private const val KSP = "com.google.devtools.ksp"

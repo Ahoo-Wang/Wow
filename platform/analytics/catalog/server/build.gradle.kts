@@ -6,28 +6,18 @@ description = "Wow analytics catalog: the analytics catalog service on the Sprin
 // Wow modules are not published before M8 (decision D88).
 plugins {
     application
-    alias(libs.plugins.ksp)
+    id("me.ahoo.wow.service")
 }
 
-// The context's service routes (decision D359): KSP with :compiler reads the `@ServiceRoute` functions of the server,
-// lists them in the module's Manifest fragment and binds them in its model provider, as the domain module's
-// aggregates are; the plugin `me.ahoo.wow` cannot be applied to a project of the build that produces it, so this
-// applies KSP and passes its options by hand, as the domain does.
-ksp {
-    arg("wow.model", "generate")
-    arg("wow.context", "analytics-catalog")
-    arg("wow.manifest.module", project.name)
+// The context's service routes (decision D359): KSP reads the `@ServiceRoute` functions of the server, lists them in
+// the module's Manifest fragment and binds them in its model provider, as the domain module's aggregates are.
+wow {
+    context = "analytics-catalog"
 }
-apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 application {
     mainClass.set("me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogServerKt")
 }
-
-// The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with
-// manifest/baseline.json. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so the server
-// applies the repository's script in its place, as the other platform servers do (DX gap G6).
-apply(from = rootProject.file("examples/eshop/wow-manifest-compatibility.gradle.kts"))
 
 // The console (roadmap 7.2c), served by the server as static resources from the distribution's ui/ folder
 // (`spring.web.resources.static-locations`): `pnpm --filter wow-analytics-catalog-console... build` first, or the
@@ -42,10 +32,11 @@ distributions {
     }
 }
 
+// The service module (decision D363 ①): `me.ahoo.wow.service` merges the service's Manifest from its class path,
+// writes its OpenAPI document and gates `check` on manifest/baseline.json (decision D76).
 dependencies {
     implementation(project(":analytics-catalog-domain"))
-    ksp(project(":compiler"))
-    implementation(project(":spring-boot"))
+    implementation("me.ahoo.wow:wow-spring-boot")
     // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
@@ -55,27 +46,27 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The warehouse the catalog reads (decision D241): the host builds the ClickHouse client of
     // `wow.clickhouse.endpoint`, which the catalog queries `system.tables`, `system.columns` and `wow_catalog` with.
-    implementation(project(":clickhouse"))
+    implementation("me.ahoo.wow:wow-clickhouse")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
-    implementation(project(":mongo"))
+    implementation("me.ahoo.wow:wow-mongo")
     // The `postgres` profile: the sources' log and snapshots on PostgreSQL, their snapshot queries served there.
-    implementation(project(":postgres"))
+    implementation("me.ahoo.wow:wow-postgres")
     // The `cosec` profile (roadmap P.15): CoSec verifies each request's token, and the edge reads the caller from it.
-    implementation(project(":cosec"))
+    implementation("me.ahoo.wow:wow-cosec")
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174).
-    implementation(project(":observability"))
+    implementation("me.ahoo.wow:wow-observability")
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    testImplementation(project(":test-spring-boot"))
+    testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // The generator of the configuration metadata of the service's own keys (design rule K8).
     testImplementation(testFixtures(project(":spring-boot")))
     // The catalog on ClickHouse in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
-    integrationTestImplementation(project(":tck-containers"))
+    integrationTestImplementation("me.ahoo.wow:wow-tck-containers")
 }
 
 // `./gradlew :analytics-catalog-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity

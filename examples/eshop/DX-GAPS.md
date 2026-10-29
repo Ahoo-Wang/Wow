@@ -90,7 +90,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: yes, for the documentation. The default context is not blocking.
 - **Resolved**: by #4379, for the documentation. `guide/v10/testing` says where `aggregateSpec` lives (the kernel's test fixtures, `me.ahoo.wow.kernel.test`) and lists its expectations; `guide/v10/generated-code` describes the model factories (the context a parameter), the processor bindings, the binding index's name and package, the fragment and the routes. The test DSL still has no artifact of its own, and the factory still takes the context: neither blocks M7.
 
-### G6. The Gradle plugin cannot be applied in the build that produces it
+### G6. The Gradle plugin cannot be applied in the build that produces it (resolved)
 
 - **Work package**: 6.3e (the shop's inventory, found while wiring the example's two services)
 - **Area**: build
@@ -102,6 +102,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - `examples/eshop/wow-manifest-compatibility.gradle.kts` merges a server's Manifest and checks it against its baseline.
 - **Proposed fix**: Share that script, or a `build-logic` convention, with the eShop. The eShop's ordering and inventory services hit the same wall. Alternatively, build the plugin as an included build so the repository's own examples can apply it.
 - **Blocks M7**: no. Users apply the published plugin. It blocks the eShop's cross-context work packages until a shared workaround exists.
+- **Resolved**: by decision D363 ⑤. The repository's build includes the plugin (`build-logic/wow-gradle-plugin`, from `compiler/gradle-plugin`'s sources) and substitutes `me.ahoo.wow:*` with its projects, so the examples, the platform services and the test applications apply the real plugins and declare Wow by its coordinates. The three scripts are gone.
 
 ### G7. Events from another context's stream are untyped payloads (resolved)
 

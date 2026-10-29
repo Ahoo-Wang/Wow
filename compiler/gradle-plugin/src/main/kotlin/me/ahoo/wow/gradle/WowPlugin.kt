@@ -45,9 +45,9 @@ import java.util.Properties
  * configures another project: a domain module and its api module each configure themselves, so the build may use
  * Gradle's isolated projects; the configuration cache is supported.
  *
- * The fragment, merge and compatibility tasks run their work in workers with an isolated class loader over
- * [TOOLS_CONFIGURATION]: the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools
- * or Kotlin reflection to the build script.
+ * Every task that reads or writes a Manifest runs its work in a worker with an isolated class loader over
+ * [TOOLS_CONFIGURATION]: the plugin itself depends on the KSP Gradle plugin only, so it brings no Wow module, Jackson,
+ * victools or Kotlin reflection to the build script, and a build of Wow itself can include it to apply it.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {

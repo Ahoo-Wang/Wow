@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.gradle
 
-import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
@@ -76,7 +75,7 @@ internal abstract class GenerateManifestFragment @Inject constructor(
         fragments.files.sortedBy { it.name }.forEach { fragment ->
             queue.submit(ManifestToolsWork.CompleteFragment::class.java) { parameters ->
                 parameters.fragment.set(fragment)
-                parameters.output.set(output.resolve("${Manifest.FRAGMENT_DIRECTORY}/${fragment.name}"))
+                parameters.output.set(output.resolve("META-INF/wow/manifest/${fragment.name}"))
                 parameters.schemaOverrides.set(schemaOverrides)
             }
         }

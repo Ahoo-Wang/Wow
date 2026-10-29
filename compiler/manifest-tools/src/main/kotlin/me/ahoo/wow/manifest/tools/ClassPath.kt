@@ -22,8 +22,8 @@ import java.util.zip.ZipFile
  * code generated for an api module compiles against. A JDK class is always there.
  */
 internal class ClassPath(private val entries: List<File>) {
-    private val jars: List<Set<String>> by lazy {
-        entries.filter { it.isFile }.map { jar ->
+    private val jars: Map<File, Set<String>> by lazy {
+        entries.filter { it.isFile }.associateWith { jar ->
             try {
                 ZipFile(jar).use { zip -> zip.entries().asSequence().map { it.name }.toSet() }
             } catch (_: ZipException) {
@@ -33,10 +33,15 @@ internal class ClassPath(private val entries: List<File>) {
     }
 
     /** Whether the class [binary] (`a.b.Outer$Inner`) is on the class path. */
-    operator fun contains(binary: String): Boolean {
-        if (JDK_PACKAGES.any { binary.startsWith(it) }) return true
+    operator fun contains(binary: String): Boolean =
+        JDK_PACKAGES.any { binary.startsWith(it) } || entryOf(binary) != null
+
+    /** The entry that holds the class [binary], or null; a JDK class is in none. */
+    fun entryOf(binary: String): File? {
         val path = binary.replace('.', '/') + ".class"
-        return entries.any { it.isDirectory && File(it, path).isFile } || jars.any { path in it }
+        return entries.firstOrNull { entry ->
+            if (entry.isDirectory) File(entry, path).isFile else jars[entry].orEmpty().contains(path)
+        }
     }
 
     private companion object {

@@ -51,6 +51,26 @@ class MainProjectDependenciesTest {
             .containsExactlyInAnyOrder("runtime", "openapi")
     }
 
+    @Test
+    fun `a Wow module declared by its coordinates should be read as its project, and a contract pairing left out`(
+        @TempDir root: File,
+    ) {
+        File(root, ArchitectureRules.HTTP.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
+            """
+            dependencies {
+                wowContract(project(":shop-domain"))
+                api("me.ahoo.wow:wow-runtime")
+                implementation("me.ahoo.wow:wow-openapi")
+                testImplementation("me.ahoo.wow:wow-test")
+            }
+            """.trimIndent(),
+        )
+        ArchitectureRules.mainProjectDependencies(root, ArchitectureRules.HTTP).assert()
+            .containsExactlyInAnyOrder("runtime", "openapi")
+        ArchitectureRules.projectDependencies(root, ArchitectureRules.HTTP).assert()
+            .containsExactlyInAnyOrder("runtime", "openapi")
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }

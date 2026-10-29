@@ -95,7 +95,7 @@ dependencies {
 }
 ```
 
-The eShop's domain modules apply KSP by hand with the plugin's options (`wow.model=generate`, `wow.manifest.module=<project path>`), only because the plugins cannot be applied inside the build that produces them yet. A downstream module uses the plugins. The KSP option `wow.context` is needed only when the module has no single `@BoundedContext`.
+The eShop's modules apply the plugins as a downstream build does: `me.ahoo.wow` on each domain module, `me.ahoo.wow.api` on its api module, `me.ahoo.wow.service` on its server. The plugin passes the KSP options itself (`wow.model=generate`, `wow.manifest.module=<project path>`); `wow { context = "…" }` sets `wow.context`, needed only when the module has no single `@BoundedContext`.
 
 ## Annotation mapping
 
