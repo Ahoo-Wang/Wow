@@ -22,6 +22,7 @@ import {
   QueryValueKind,
   SearchMode,
   type QueryModelDescriptor,
+  type QuerySemanticType,
   QueryValueTypes,
   HavingExpressionType,
   TimeUnit,
@@ -1091,5 +1092,29 @@ describe('a key under a dynamic pattern sorts and aggregates where it grants', (
         'tags.color',
       )?.aggregate,
     ).toBeUndefined();
+  });
+
+  it('means what every matched pattern says its values mean', () => {
+    const epoch = { type: QuerySemanticTypes.TEMPORAL_EPOCH } as const;
+    const seconds = {
+      type: QuerySemanticTypes.TEMPORAL_EPOCH,
+      timeUnit: TimeUnit.SECONDS,
+    } as const;
+    const meaning = (...semantics: (QuerySemanticType | undefined)[]) =>
+      describedFieldOf(
+        ordersDescriptor({
+          dynamic: semantics.map(semantic =>
+            pattern(semantic ? { semantic } : {}),
+          ),
+        }),
+        'tags.color',
+      )?.semantic;
+
+    expect(meaning(epoch)).toEqual(epoch);
+    expect(meaning(epoch, epoch)).toEqual(epoch);
+    // Two meanings, or one only some patterns say, leave the key none.
+    expect(meaning(epoch, seconds)).toBeUndefined();
+    expect(meaning(epoch, undefined)).toBeUndefined();
+    expect(meaning()).toBeUndefined();
   });
 });

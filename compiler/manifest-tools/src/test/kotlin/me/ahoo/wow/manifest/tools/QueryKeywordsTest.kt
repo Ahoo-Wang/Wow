@@ -174,6 +174,38 @@ class QueryKeywordsTest {
         }
     }
 
+    /** Semantic types declared on maps, which their values carry: an epoch time and a duration, nullable or not. */
+    data class SemanticMapsState(
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val deadlines: Map<String, Long>,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val reminders: Map<String, Long?>,
+        @get:QueryDuration(TimeUnit.SECONDS)
+        val timeouts: Map<String, Long>,
+        @get:QueryDuration(TimeUnit.SECONDS)
+        val pauses: Map<String, Long?>,
+    )
+
+    @Test
+    fun `a semantic keyword on a map should sit on the map`() {
+        val defs = complete(SemanticMapsState::class.java).defs
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/semantic-maps.defs.json")!!.use {
+            mapper.readValue(it, Map::class.java)
+        }
+        defs.assert().isEqualTo(snapshot)
+        val properties = (defs.getValue(SemanticMapsState::class.java.name) as Map<*, *>)["properties"] as Map<*, *>
+        val temporal = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
+        val duration = "x-wow-duration" to mapOf("unit" to "SECONDS")
+        mapOf("deadlines" to temporal, "reminders" to temporal, "timeouts" to duration, "pauses" to duration)
+            .forEach { (name, keyword) ->
+                // The keyword sits beside the reference to the map, whose values are the integers it means.
+                val property = properties[name] as Map<*, *>
+                property[keyword.first].assert().isEqualTo(keyword.second)
+                val map = defs.getValue(Manifest.schemaKey(property["\$ref"] as String)) as Map<*, *>
+                map["additionalProperties"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int64"))
+            }
+    }
+
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)
 
     @Test

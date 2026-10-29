@@ -387,8 +387,18 @@ private fun invalid(field: String, keyword: String): Nothing =
     throw QuerySchemaConflictException("Invalid Manifest schema [$keyword] at [$field].")
 
 /**
- * Applies a numeric format, a duration or a reference to every non-null leaf, which must be a scalar; the schema
- * checks the leaf's type and any sibling field the semantic type names.
+ * The values of a map, an object of dynamic keys with no named property, or `null` when this declaration is no map:
+ * an annotation on a map property is about its values, as on a collection it is about its items.
+ */
+private fun QueryFieldDeclaration.mapValues(): QueryFieldDeclaration? =
+    additionalProperties.valueOr(null)?.takeIf {
+        inferredKind() == QueryValueKind.OBJECT && properties.valueOr(emptyMap()).isEmpty()
+    }
+
+/**
+ * Applies a numeric format, a duration or a reference to every non-null leaf (an array's items, a map's values, a
+ * union's alternatives), which must be a scalar; the schema checks the leaf's type and any sibling field the semantic
+ * type names.
  */
 private fun QueryFieldDeclaration.withScalarSemantic(
     semantic: QuerySemanticType,
@@ -405,10 +415,15 @@ private fun QueryFieldDeclaration.withScalarSemantic(
         ),
     )
     QueryValueKind.SCALAR -> copy(semanticType = DeclarationValue.Set(semantic))
-    else -> throw QuerySchemaConflictException("A semantic type requires a scalar field, but [$field] is not.")
+    else -> mapValues()?.let { values ->
+        copy(additionalProperties = DeclarationValue.Set(values.withScalarSemantic(semantic, "$field.{key}")))
+    } ?: throw QuerySchemaConflictException("A semantic type requires a scalar field, but [$field] is not.")
 }
 
-/** Applies a declared time encoding to every non-null leaf, which must have its JSON wire type. */
+/**
+ * Applies a declared time encoding to every non-null leaf (an array's items, a map's values, a union's alternatives),
+ * which must have its JSON wire type.
+ */
 private fun QueryFieldDeclaration.withTemporal(temporal: Temporal, field: String): QueryFieldDeclaration {
     val wire = if (temporal is Temporal.Formatted) QueryValueType.STRING else QueryValueType.INTEGER
     return when (inferredKind()) {
@@ -430,7 +445,9 @@ private fun QueryFieldDeclaration.withTemporal(temporal: Temporal, field: String
             }
             copy(semanticType = DeclarationValue.Set(temporal))
         }
-        else -> throw QuerySchemaConflictException(
+        else -> mapValues()?.let { values ->
+            copy(additionalProperties = DeclarationValue.Set(values.withTemporal(temporal, "$field.{key}")))
+        } ?: throw QuerySchemaConflictException(
             "${ManifestQueryKeywords.TEMPORAL} on [$field] requires the ${wire.value.lowercase()} JSON type.",
         )
     }
@@ -443,8 +460,7 @@ private fun QueryFieldDeclaration.withTemporal(temporal: Temporal, field: String
  */
 private fun QueryFieldDeclaration.withMaskRule(rule: MaskRule, field: String): QueryFieldDeclaration {
     if (isMaskStringDomain()) return copy(maskRule = DeclarationValue.Set(rule))
-    val values = additionalProperties.valueOr(null)
-    if (inferredKind() == QueryValueKind.OBJECT && values != null && properties.valueOr(emptyMap()).isEmpty()) {
+    mapValues()?.let { values ->
         return copy(additionalProperties = DeclarationValue.Set(values.withMaskRule(rule, "$field.{key}")))
     }
     if (inferredKind() == QueryValueKind.UNION) {

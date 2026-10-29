@@ -56,6 +56,14 @@ internal object ManifestFixtures {
         WowJson.mapper.readValue(text, Map::class.java) as Map<String, Map<String, Any?>>
     }
 
+    /** The `$defs` of `QueryKeywordsTest.SemanticMapsState`, semantic types declared on maps: `manifest/semantic-maps.defs.json`. */
+    @Suppress("UNCHECKED_CAST")
+    val SEMANTIC_MAPS_DEFS: Map<String, Any?> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/semantic-maps.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
+    }
+    const val SEMANTIC_MAPS_STATE = "me.ahoo.wow.manifest.tools.QueryKeywordsTest\$SemanticMapsState"
+
     /** A Manifest of one aggregate `shop.order` with the state [state] (a `$defs` key) among [defs]. */
     fun manifest(
         defs: Map<String, Any?> = ORDER_DEFS,
