@@ -28,7 +28,7 @@
 |---|---|---|---|
 | 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型；依赖 `wow-annotations`、`wow-query-api`、kotlinx-coroutines 与 `jackson-databind`（任意形状的内容是 `ObjectNode`，D362；本模块源码不 import Jackson）（§2.1，D66、D282） | wow-api（重新设计，去掉查询协议） |
 | 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口；查询字段注解（`@Sensitive` 等）；纯数据，包名仍是 `me.ahoo.wow.api.query`（D125） | wow-api 的 `api.query` 包 |
-| 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
+| 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据；依赖 `wow-api` 只为共用 `api.problem` 的 `Retry` 与 `CommandResult`（D366 ②） | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
 | 编译 | `wow-manifest-tools` | 构建期内省：victools 生成 schema、状态指纹、片段补全与合并；只在 `wow-gradle-plugin` 的隔离 Worker 里运行（D83） | — |
 | 编译 | `wow-gradle-plugin` | Gradle 插件 `me.ahoo.wow`：接好 KSP，构建期内省 schema、合并服务级 Manifest（D83） | wow-schema 的构建期部分 |
