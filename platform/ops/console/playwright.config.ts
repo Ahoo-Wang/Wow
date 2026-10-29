@@ -12,10 +12,14 @@
  */
 
 import { defineConfig } from "@playwright/test";
+import { COSEC_SECRET } from "./e2e/cosec.ts";
 
 const port = process.env.OPS_E2E_PORT ?? "18188";
 
-/** The ops server in its `cosec` profile, which `cosec.spec.ts` signs in to. */
+/**
+ * The CoSec gateway's stand-in in front of the ops server in its `cosec`
+ * profile, which `cosec.spec.ts` signs in through.
+ */
 const cosecPort = process.env.OPS_E2E_COSEC_PORT ?? "18189";
 
 const browser = {
@@ -51,8 +55,10 @@ const given = process.env.WOW_OPS_URL;
  * suite runs once, in order, and never retries: a failure is the finding.
  * `OPS_E2E_CHANNEL=chrome` runs it in the installed Chrome instead of
  * Playwright's own Chromium. A second server runs in the `cosec` profile, as a
- * deployment does, for `cosec.spec.ts`: the operator signs in with a CoSec
- * token (not against a server given by `WOW_OPS_URL`).
+ * deployment does, behind a stand-in of the CoSec gateway, for
+ * `cosec.spec.ts`: the operator signs in with a CoSec token, which the
+ * gateway verifies and forwards as the caller's identity (not against a
+ * server given by `WOW_OPS_URL`).
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -88,7 +94,10 @@ export default defineConfig({
     : {
         webServer: [
           server(port),
-          server(cosecPort, { OPS_E2E_COSEC: "true" }),
+          server(cosecPort, {
+            OPS_E2E_COSEC: "true",
+            OPS_E2E_COSEC_SECRET: COSEC_SECRET,
+          }),
         ],
       }),
 });

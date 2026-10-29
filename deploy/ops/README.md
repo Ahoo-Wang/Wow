@@ -36,26 +36,25 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (by itself once this service is deployed: `wow.ops.publish.enabled` is `auto` by default); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
 
-4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret. Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
+4. Put the CoSec gateway in front and route `/` to the `ops-service` service: it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads, holding no secret. Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 
 ## Apply and sign in
 
 ```bash
 kubectl apply -k deploy/ops
 kubectl rollout status deployment/ops-service
-kubectl port-forward service/ops-service 8088:80
 ```
 
-Open `http://localhost:8088/`, and sign in with an access token your CoSec issued (the console's sign-in page; a CoSec single sign-on that stored its token in this browser signs the console in too). The service reads the operator from the token:
+Open the console through the CoSec gateway's route, and sign in with an access token your CoSec issued (the console's sign-in page; a CoSec single sign-on that stored its token in this browser signs the console in too). Reached around the gateway (a `kubectl port-forward` to the service, say), every request is anonymous and answered 401. The service reads the operator from the identity the gateway forwards:
 
 - **Roles.** `ops.operator` acts on the entries (resume, skip, mark recoverable, apply a retry spec); `ops.viewer` only reads them. A principal with neither reads nothing: both are tenant-level roles (`wow.cosec.tenant-level.roles` in the `cosec` profile), whose scope has no owner.
 - **Tenant.** The services' ledgers publish to Wow's default tenant, `(0)`, which a principal of CoSec's default tenant is in.
-- **Application.** The console calls as `CoSec-App-Id: ops-console`. The ops service does not use it to decide anything.
+- **Application.** The console calls as `CoSec-App-Id: ops-console`, the app the gateway decides the request in. The ops service does not use it to decide anything.
 
 A request without a token, or with one the gateway refuses or that has expired, is answered 401; the console then signs out.
 
 ## Choices
 
-- **CoSec.** The `cosec` profile runs CoSec's inject mode behind the CoSec gateway: the gateway verifies each token, and the service parses the principal from the token it forwards, holding no secret, without CoSec's own authorization of each path (no policy or permission repository to run). Whether a caller is an operator is the service's to say, by its roles. With CoSec's authorization on (`cosec.authorization.enabled=true`, with CoSec's policy and app role permission repositories) and `wow.cosec.authorizer.enabled=true`, CoSec's policies decide it instead, as the ledger's system commands `wow.ledger.*`.
+- **CoSec.** The `cosec` profile runs CoSec's gateway mode (`wow.cosec.mode: gateway`) behind the CoSec gateway: the gateway verifies each token and decides the request, and the service reads the principal, its tenant and its roles from the `CoSec-Identity` header the gateway forwards, holding no secret, documents or Redis of CoSec's. It believes any such header, so only the gateway may reach the HTTP port (`networkpolicy.yaml`, in a cluster whose network plugin enforces it). Whether a caller is an operator is the service's to say, by its roles.
 - **Traces and metrics.** The image carries Wow's observability module (`wow-observability`), whose spans and meters go through the OpenTelemetry Java agent. The pod asks the [OpenTelemetry Operator](https://opentelemetry.io/docs/kubernetes/operator/automatic/) to inject it (`instrumentation.opentelemetry.io/inject-java`), which needs an `Instrumentation` resource in the namespace. Where nothing injects the agent, the module records into no-ops. `configmap.yaml` names the service and the collector (`OTEL_*`); `wow.observability.enabled=false` turns the module off.
 - **Internal port.** Reached by the service's own nodes only. The services whose entries it shows reach it through Kafka.

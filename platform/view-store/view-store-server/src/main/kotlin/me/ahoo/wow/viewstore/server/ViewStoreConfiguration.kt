@@ -36,9 +36,10 @@ import org.springframework.context.annotation.Configuration
  * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup, the
  * system views and the handlers of its own routes.
  *
- * Its callers: CoSec's, the user, its roles and the application CoSec authorized the request in, which the edge's
- * resolver reads from the security context CoSec put on the request, which the `cosec` profile has CoSec's inject mode
- * parse from the token the gateway verified and forwarded. In development without CoSec, the host's, from the `Wow-*`
+ * Its callers: CoSec's, the user, its roles and the app of its scope, which the edge's resolver reads from the
+ * security context CoSec put on the request, which the `cosec` profile has CoSec's gateway mode read from the identity
+ * the CoSec gateway verified and forwarded (`CoSec-Identity`, the app the gateway decided the request in). In
+ * development without CoSec, the host's, from the `Wow-*`
  * identity headers any client sets (`DevelopmentCallerResolver`; a user acts as an owner with `Wow-Owner`, in the
  * application `Wow-App` names); a request without a user is the anonymous caller, which reads the reserved owners'
  * views. Either is behind the view store's reserved owners ([ReservedScopeCallers]). A node

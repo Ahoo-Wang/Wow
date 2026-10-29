@@ -61,7 +61,7 @@ class ViewStoreRoutes(private val reads: ViewReads) {
 
     private fun RouteCall.appId(): String = caller.app?.trim() ?: throw RouteRefusal(
         ViewStoreRejections.APP_REQUIRED,
-        "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+        "The request's CoSec scope has no application.",
     )
 
     private fun SystemView.toEntry(): ViewEntry = ViewEntry(

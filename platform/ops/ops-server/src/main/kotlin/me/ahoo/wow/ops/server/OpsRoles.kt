@@ -14,10 +14,10 @@
 package me.ahoo.wow.ops.server
 
 /**
- * The ops service's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the token the CoSec gateway
- * verified (the `cosec` profile, its operators' roles listed in `wow.cosec.tenant-level.roles`), or, in development,
- * from the `Wow-Roles` header (the host's development callers). Its callers are tenant-level: they have no owner, so
- * they read every entry of their tenant.
+ * The ops service's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the identity the CoSec
+ * gateway verified and forwarded (the `cosec` profile, its operators' roles listed in `wow.cosec.tenant-level.roles`),
+ * or, in development, from the `Wow-Roles` header (the host's development callers). Its callers are tenant-level: they
+ * have no owner, so they read every entry of their tenant.
  */
 object OpsRoles {
     /** The caller attribute listing its roles, as CoSec's resolver names it. */

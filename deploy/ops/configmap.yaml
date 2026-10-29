@@ -9,8 +9,8 @@ metadata:
 data:
   # The mongo profile keeps the entries on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), and serves
   # their snapshot queries; the kafka profile records the entries the services publish and sends the operators' actions
-  # to them; the cosec profile parses each request's CoSec token, which the CoSec gateway verified (CoSec's inject mode,
-  # decision D296: no secret here).
+  # to them; the cosec profile reads the identity the CoSec gateway verified and forwards (CoSec-Identity, decision
+  # D296: no secret here), trusted only because nothing but the gateway reaches the HTTP port (networkpolicy.yaml).
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka

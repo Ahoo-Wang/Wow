@@ -25,7 +25,7 @@ export const devStore = new MemoryViewStore({
 
 ## WowViewStore on the V10 view store service
 
-The service keeps views and preferences as two Wow aggregates; `WowViewStore` reaches them through the clients generated from the service's Manifest. It takes a fetcher and, optionally, the permissions that enable buttons. It takes **no tenant, owner, user or application**, and no path names them: the service reads who is asking from the caller's principal, which the fetcher's interceptors carry as they do for every other Wow request of the host (a CoSec token, and `CoSec-App-Id`, the application every view, preference and wording is kept in). **The owner is the audience:**
+The service keeps views and preferences as two Wow aggregates; `WowViewStore` reaches them through the clients generated from the service's Manifest. It takes a fetcher and, optionally, the permissions that enable buttons. It takes **no tenant, owner, user or application**, and no path names them: the service reads who is asking from the caller's principal, which the fetcher's interceptors carry as they do for every other Wow request of the host (a CoSec token, and `CoSec-App-Id`, the application CoSec decides the request in, which every view, preference and wording is kept in). **The owner is the audience:**
 
 | View | Owner | How the store reaches it |
 | --- | --- | --- |
@@ -87,7 +87,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 - **The service decides; `permissions` only enables buttons.** It authorizes every write by the caller's roles: the owner `(shared)`'s writes (a shared view's save, rename, delete and claim, sharing a personal view, the shared preferences) need `view-store.shared-writer`; the owner `(system)`'s need `view-store.system-writer`; a user writes only its own views and preferences; an owner never changes over HTTP except by sharing or claiming. The role names are the service's as shipped: a team's own role (an "ops lead") is granted these roles in the identity provider, not renamed in the host. Answer each `permissions` member by the same role the service checks, or a button is enabled whose write the service refuses (or the other way round).
 - **Silence:** `createPersonal`, `createShared`, `reorder`, `setDefault` and `instance(id)`'s `save`, `rename`, `delete` are required. Only `changeAudience` (absent: allowed), **`editSystem` (absent: `false`)** and `permissions` itself (absent: everything but `editSystem`) may be left out. A system view reaches every tenant and every reader, so only a host that says so lets anyone change one.
-- Every request needs the application (`CoSec-App-Id`): without it the service answers `view-store.app-required`. Views, preferences and wordings of one application are not another's.
+- Every request needs an application, the app of the scope CoSec decided it in (the `CoSec-App-Id` CoSec accepted, or the gateway's own app): without one the service answers `view-store.app-required`. Views, preferences and wordings of one application are not another's.
 - The engine already handles what the store reports: `CONFLICT` (reload, overwrite or save as), `UNAVAILABLE` (retry with the same request id), a refused claim while a shared board shows the view, `FORBIDDEN` on a read-only view. Do not wrap them.
 - A page's total is the service's default `BOUNDED` count; the store lists at most the service's query budget of views per audience.
 
@@ -145,6 +145,6 @@ A tenant may reword the datasets it is served (title, record noun, field labels,
 
 ## Running the service, and a host nobody signs in to
 
-- In a deployment the service verifies each request's CoSec token (its `cosec` profile) and reads the tenant, the user and the roles from it. Only behind a CoSec gateway that authorizes each request's `CoSec-App-Id`, and only where nothing else reaches the service, does it trust the injected application (`wow.cosec.trust-injected-app`); otherwise the application is the one CoSec authorized.
+- In a deployment the service runs behind the CoSec gateway in gateway mode (its `cosec` profile, `wow.cosec.mode: gateway`): the gateway verifies each request's CoSec token and decides it, and the service reads the tenant, the user, the roles and the application from the identity the gateway forwards (`CoSec-Identity`). It believes any such header, so only the gateway may reach it.
 - Without an identity provider the service starts in a development profile alone (`dev`, of `wow.dev-profiles`), for a local run: it then reads the caller from `Wow-User`, `Wow-Owner`, `Wow-Tenant`, `Wow-Roles` and the application from `Wow-App` instead; elsewhere it refuses to start.
 - A caller with no user is anonymous: it reads only the reserved owners' views and writes nothing. So a host nobody signs in to either keeps its views in the browser (`localStorageSnapshot`, as the ops console does), or is put behind a gateway that sends a service identity holding the roles above; its permissions then leave `createPersonal` off.

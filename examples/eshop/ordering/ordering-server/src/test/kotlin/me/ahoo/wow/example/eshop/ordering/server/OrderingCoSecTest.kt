@@ -13,12 +13,8 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
-import com.auth0.jwt.algorithms.Algorithm
-import me.ahoo.cosec.jwt.JwtTokenConverter
-import me.ahoo.cosec.principal.SimplePrincipal
-import me.ahoo.cosec.principal.SimpleTenantPrincipal
-import me.ahoo.cosec.tenant.SimpleTenant
-import me.ahoo.cosid.jvm.UuidGenerator
+import me.ahoo.cosec.runtime.identity.IdentityCodec
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
@@ -30,29 +26,41 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
+import java.time.Instant
+import java.util.UUID
 
 /**
- * The ordering service as it is deployed, behind the CoSec gateway (the `cosec` profile, decisions D295, D296, D301):
- * CoSec's inject mode reads the principal from the token the gateway verified, and wow-cosec's resolver makes it the
- * caller. A buyer owns the orders it submits and reads only its own; an employee, a tenant-level caller, reads every
- * order; a request without a token is answered 401, whatever headers it carries. Outside development, a node without
- * CoSec does not start: it would take its callers from headers any client sets.
+ * The ordering service as it is deployed, behind the CoSec gateway (the `cosec` profile): CoSec's gateway mode reads
+ * the principal the gateway verified from its `CoSec-Identity` header, and wow-cosec's resolver makes it the caller. A
+ * buyer owns the orders it submits and reads only its own; an employee, a tenant-level caller, reads every order; a
+ * request without the header is anonymous and answered 401, whatever else it carries, a token included, since the
+ * service verifies none. Outside development, a node without CoSec does not start: it would take its callers from
+ * headers any client sets.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingCoSecTest {
     private val server = wowServer<OrderingServer>("cosec", sources = listOf(InMemoryOrderingTopics::class.java))
-
-    /** The gateway's tokens: the service holds no secret and verifies none (decision D296). */
-    private val tokens = JwtTokenConverter(UuidGenerator.INSTANCE, Algorithm.HMAC256(GATEWAY_SECRET))
 
     @AfterAll
     fun close() {
         server.close()
     }
 
+    /** The header the gateway forwards for [id] of the default tenant, with [roles], after verifying its token. */
     private fun signedIn(id: String, vararg roles: String): Map<String, String> {
-        val principal = SimpleTenantPrincipal(SimplePrincipal(id, roles = roles.toSet()), SimpleTenant(DEFAULT_TENANT))
-        return mapOf("Authorization" to "Bearer ${tokens.toToken(principal).accessToken}")
+        val now = Instant.now()
+        val identity = Identity(
+            tenant = DEFAULT_TENANT,
+            subject = id,
+            app = "",
+            space = "",
+            roles = roles.toSet(),
+            credential = Identity.Credential(Identity.Method.JWT, UUID.randomUUID().toString(), now.plus(TOKEN_TTL)),
+            issuedAt = now,
+            requestId = UUID.randomUUID().toString(),
+        )
+        return mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity))
     }
 
     @Test
@@ -72,8 +80,8 @@ class OrderingCoSecTest {
     }
 
     @Test
-    fun `a request without a token should be answered 401, whatever headers it names`() {
-        val headers = mapOf(USER to "mallory", ROLES to "employee")
+    fun `a request without the gateway's identity should be answered 401, whatever headers it names`() {
+        val headers = mapOf(USER to "mallory", ROLES to "employee", "Authorization" to "Bearer not-verified-here")
         submit("cosec-mallory-1", headers).status.assert().isEqualTo(UNAUTHORIZED)
         read("cosec-mallory-1", headers).status.assert().isEqualTo(UNAUTHORIZED)
     }
@@ -103,8 +111,8 @@ class OrderingCoSecTest {
         server.http.post(path, body, headers)
 
     private companion object {
-        const val GATEWAY_SECRET = "the-gateway-test-secret-of-32-characters"
         const val DEFAULT_TENANT = "(0)"
+        val TOKEN_TTL: Duration = Duration.ofHours(1)
         const val OK = 200
         const val UNAUTHORIZED = 401
         const val NOT_FOUND = 404
