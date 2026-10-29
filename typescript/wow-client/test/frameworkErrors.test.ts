@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error the generator script is plain JavaScript, without declarations
 import {
   CATALOG,
+  type FrameworkErrorsCatalog,
   frameworkErrors,
   OUTPUT,
 } from '../scripts/framework-errors.mjs';
@@ -20,7 +20,9 @@ import {
  * `node typescript/wow-client/scripts/framework-errors.mjs` runs.
  */
 describe('the framework errors', () => {
-  const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
+  const catalog: FrameworkErrorsCatalog = JSON.parse(
+    readFileSync(CATALOG, 'utf8'),
+  );
 
   it('should be what the error catalog generates', async () => {
     expect(readFileSync(OUTPUT, 'utf8')).toBe(await frameworkErrors(catalog));
@@ -28,7 +30,7 @@ describe('the framework errors', () => {
 
   it('should name every code of the catalog, with its status and retry', () => {
     expect(Object.values(FrameworkErrorCodes).sort()).toEqual(
-      catalog.errors.map((error: { code: string }) => error.code).sort(),
+      catalog.errors.map(error => error.code).sort(),
     );
     expect(FRAMEWORK_RETRIES.get('wow.command.unknown')).toEqual({
       retry: 'same-request',
