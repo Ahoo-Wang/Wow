@@ -236,8 +236,8 @@ internal class StateViewLoader<V : Any>(
 
     companion object {
         /**
-         * The most ids of one list query: the default query budget's most values of an `IN` and most rows of a list,
-         * both 1000, which an owner's budget refuses past.
+         * The most ids of one list query: 1000, the default query budget's bound on the values of an `IN` and on the
+         * rows of a list. An owner whose budget is configured lower refuses a larger batch as `wow.query.invalid`.
          */
         const val MAX_BATCH: Int = 1000
 
