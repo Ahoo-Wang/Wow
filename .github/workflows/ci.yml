@@ -58,10 +58,9 @@ jobs:
       architecture: ${{ steps.scope.outputs.architecture }}
       typescript: ${{ steps.scope.outputs.typescript }}
       sdk: ${{ steps.scope.outputs.sdk }}
-      unit-matrix: ${{ steps.scope.outputs.unitMatrix }}
+      unit-packages: ${{ steps.scope.outputs.unitPackages }}
       docs: ${{ steps.scope.outputs.docs }}
       view-engine: ${{ steps.scope.outputs.viewEngine }}
-      view-engine-coverage: ${{ steps.scope.outputs.viewEngineCoverage }}
       package-docs: ${{ steps.scope.outputs.packageDocs }}
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
       workflows: ${{ steps.scope.outputs.workflows }}
@@ -314,19 +313,18 @@ jobs:
   unit:
     name: Unit / ${{ matrix.package }} / Node ${{ matrix.node-version }}
     needs: scope
-    if: needs.scope.outputs.unit-matrix != '[]'
+    if: needs.scope.outputs.sdk == 'true'
     timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
     strategy:
       fail-fast: false
-      # The packages a change reruns, on Node 24 with coverage and, off pull
-      # requests, on Node 22 (see the top of the file); a push to main runs
-      # every package on Node 24 (ci-scope.mjs, coverageScopes). Node 20
-      # reached end of life on 2026-04-30.
       matrix:
-        include: ${{ fromJSON(needs.scope.outputs.unit-matrix) }}
+        package: ${{ fromJSON(needs.scope.outputs.unit-packages) }}
+        # Node 20 reached end of life on 2026-04-30. Node 22 off pull requests
+        # (see the top of the file).
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[24]' || '[22, 24]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -443,7 +441,7 @@ jobs:
   view-engine-shard:
     name: View engine / Node 24 (${{ matrix.shard }}/4)
     needs: scope
-    if: needs.scope.outputs.view-engine-coverage == 'true'
+    if: needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
@@ -477,7 +475,7 @@ jobs:
   view-engine:
     name: View engine
     needs: [scope, view-engine-shard]
-    if: needs.scope.outputs.view-engine-coverage == 'true'
+    if: needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
@@ -1042,22 +1040,24 @@ jobs:
           path: platform/analytics/catalog/console/test-results/
           retention-days: 7
 
-  # Uploads every coverage report of the run and triggers Codecov's
-  # notifications, which Codecov holds until then (codecov.yml:
-  # codecov.notify.manual_trigger), so it judges the run on all of its
-  # uploads, never on a partial report. The test jobs keep their reports as
-  # artifacts. It runs when any of them ran, after a failed one too (that
-  # one's report is missing, its flag falls short of after_n_builds, and
-  # Codecov posts nothing that reads it), and is skipped when none ran or the
-  # run was cancelled.
+  # Judges a pull request's patch coverage from the run's own reports, then
+  # hands every report to Codecov. The test jobs keep their reports as
+  # artifacts. It runs when any of them ran, after a failed one too (its
+  # report is missing, and ci-gate fails on the failed job), and is skipped
+  # when none ran or the run was cancelled.
   #
-  # Codecov builds a commit's report on its first upload and fixes then what
-  # it carries forward from the parent commit's report, so the uploads first
-  # wait, at most 20 minutes, until the parent's ci.yml run has uploaded
-  # (coverage-notify.mjs parent). Each send of the notifications is then
-  # checked for three minutes and repeated twice at most: Codecov sometimes
-  # posts nothing for a trigger it accepted. The outputs `verdict` (posted,
-  # gap, silent) and `message` are what ci-gate reads.
+  # The patch verdict (.github/scripts/patch-coverage.mjs): the main-source
+  # lines the pull request adds or changes against its merge base with main,
+  # covered ÷ the ones some report instruments, at least 89% (codecov.yml's
+  # target, 90%, less its threshold, 1%). Its outputs `patch` (pass, fail,
+  # none) and `patch-message` are what ci-gate reads; the job summary lists
+  # the uncovered lines. A push to main judges no patch.
+  #
+  # Codecov is informational (codecov.yml): its uploads and its one trigger
+  # cannot fail this job, and none of its statuses blocks a pull request.
+  # Codecov holds every notification until the trigger (codecov.yml:
+  # codecov.notify.manual_trigger), sent once after every upload, so its
+  # comment and statuses read the whole run, never a partial report.
   coverage:
     name: Coverage
     needs: [check, integration, unit, view-engine]
@@ -1065,35 +1065,35 @@ jobs:
       !cancelled() &&
       (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
       needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
-    # The parent wait (20), the uploads, and three three-minute checks.
-    timeout-minutes: 40
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # The parent commit's runs.
-      actions: read
-      # Codecov's check runs and statuses on the commit.
-      checks: read
-      statuses: read
       # Codecov through OIDC.
       id-token: write
     outputs:
-      verdict: ${{ steps.confirm-last.outputs.verdict || steps.confirm-again.outputs.verdict || steps.confirm.outputs.verdict }}
-      message: ${{ steps.confirm-last.outputs.message || steps.confirm-again.outputs.message || steps.confirm.outputs.message }}
+      patch: ${{ steps.patch.outputs.patch }}
+      patch-message: ${{ steps.patch.outputs.patch-message }}
     steps:
-      # The whole tree: Codecov matches the reports' paths to the repository's files.
+      # The whole history: the patch is the diff from the merge base with main,
+      # and Codecov matches the reports' paths to the repository's files.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           pattern: coverage-*
           path: coverage
-      - name: Wait for the parent commit's coverage
+      - name: Judge the patch coverage
+        id: patch
+        if: github.event_name == 'pull_request'
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/coverage-notify.mjs parent
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE=$(git merge-base origin/main "$HEAD_SHA")
+          export BASE
+          node .github/scripts/patch-coverage.mjs coverage
       - name: Upload jvm-unit-host
         if: hashFiles('coverage/coverage-jvm-unit-host/coverageReport.xml') != ''
         uses: codecov/codecov-action@v7
@@ -1101,7 +1101,7 @@ jobs:
           use_oidc: true
           flags: jvm-unit
           name: jvm-unit-host
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-jvm-unit-host/coverageReport.xml
@@ -1112,7 +1112,7 @@ jobs:
           use_oidc: true
           flags: jvm-unit
           name: jvm-unit-apps
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-jvm-unit-apps/coverageReport.xml
@@ -1123,7 +1123,7 @@ jobs:
           use_oidc: true
           flags: jvm-unit
           name: jvm-unit-tooling
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-jvm-unit-tooling/coverageReport.xml
@@ -1134,7 +1134,7 @@ jobs:
           use_oidc: true
           flags: jvm-unit
           name: jvm-unit-rest
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-jvm-unit-rest/coverageReport.xml
@@ -1145,7 +1145,7 @@ jobs:
           use_oidc: true
           flags: integration
           name: integration-eshop
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-integration-eshop/integrationCoverageReport.xml
@@ -1156,7 +1156,7 @@ jobs:
           use_oidc: true
           flags: integration
           name: integration-host-platform
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-integration-host-platform/integrationCoverageReport.xml
@@ -1167,7 +1167,7 @@ jobs:
           use_oidc: true
           flags: integration
           name: integration-kafka-elasticsearch-clickhouse
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-integration-kafka-elasticsearch-clickhouse/integrationCoverageReport.xml
@@ -1178,7 +1178,7 @@ jobs:
           use_oidc: true
           flags: integration
           name: integration-mongo-postgres
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-integration-mongo-postgres/integrationCoverageReport.xml
@@ -1189,7 +1189,7 @@ jobs:
           use_oidc: true
           flags: typescript-wow-client
           name: typescript-wow-client
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-typescript-wow-client/coverage-final.json
@@ -1200,7 +1200,7 @@ jobs:
           use_oidc: true
           flags: typescript-wow-react
           name: typescript-wow-react
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-typescript-wow-react/coverage-final.json
@@ -1211,7 +1211,7 @@ jobs:
           use_oidc: true
           flags: typescript-wow-generator
           name: typescript-wow-generator
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-typescript-wow-generator/coverage-final.json
@@ -1222,7 +1222,7 @@ jobs:
           use_oidc: true
           flags: typescript-wow-view-store
           name: typescript-wow-view-store
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-typescript-wow-view-store/coverage-final.json
@@ -1233,7 +1233,7 @@ jobs:
           use_oidc: true
           flags: typescript-wow-view-engine
           name: typescript-wow-view-engine
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
           files: ./coverage/coverage-typescript-wow-view-engine/coverage-final.json
@@ -1242,47 +1242,36 @@ jobs:
         with:
           use_oidc: true
           run_command: send-notifications
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
-      - name: Check that Codecov posted
-        id: confirm
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/coverage-notify.mjs confirm
-      - name: Send Codecov's notifications again
-        if: steps.confirm.outputs.verdict == 'pending'
-        uses: codecov/codecov-action@v7
+
+  # Coverage must not drift down over time. On the nightly's full run on main
+  # (nightly.yml dispatches it), the commit's coverage, overall and per flag,
+  # is compared with the nightly of a week earlier, from Codecov's reports:
+  # more than half a point down overall, or a point on any flag, fails it
+  # (.github/scripts/coverage-trend.mjs). Pull requests judge only their own
+  # lines, so a slow loss across many of them shows here.
+  coverage-trend:
+    name: Coverage trend
+    needs: coverage
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.coverage.result == 'success'
+    # Codecov's report of the commit (at most 20 minutes) and two reads.
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The nightly runs of a week earlier.
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          use_oidc: true
-          run_command: send-notifications
-          fail_ci_if_error: true
-          verbose: true
-      - name: Check that Codecov posted
-        id: confirm-again
-        if: steps.confirm.outputs.verdict == 'pending'
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Compare the coverage with a week earlier
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          HEAD_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/coverage-notify.mjs confirm
-      - name: Send Codecov's notifications a last time
-        if: steps.confirm-again.outputs.verdict == 'pending'
-        uses: codecov/codecov-action@v7
-        with:
-          use_oidc: true
-          run_command: send-notifications
-          fail_ci_if_error: true
-          verbose: true
-      - name: Check that Codecov posted (after the last send)
-        id: confirm-last
-        if: steps.confirm-again.outputs.verdict == 'pending'
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/coverage-notify.mjs confirm --last
+        run: node .github/scripts/coverage-trend.mjs
 
   # The merge signal: every job above passed, or the scope skipped it.
   ci-gate:
@@ -1317,13 +1306,10 @@ jobs:
         coverage,
       ]
     if: always()
-    # The patch coverage wait below is bounded at 5 minutes.
-    timeout-minutes: 10
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Codecov's check runs on the pull request's head commit.
-      checks: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1337,30 +1323,17 @@ jobs:
             esac
           done
       # Patch coverage is part of the merge signal: on a pull request whose run
-      # uploaded coverage (the coverage job), Codecov's codecov/patch on the
-      # head commit must pass (codecov.yml: 90%, threshold 1%). Codecov posts it
-      # only after the coverage job's trigger, judged on every upload of the
-      # run, and the newest one decides. A run without coverage leaves it out,
-      # so a required codecov/patch never blocks a change Codecov does not see.
-      # The coverage job's verdict names the two states Codecov never resolves:
-      # `gap`, a head that carried forward fewer sessions of a flag than
-      # codecov.yml's after_n_builds, fails at once with the first-parent merge
-      # that repairs it, and `silent`, nothing posted after three sends, with
-      # the rerun. `posted` waits for codecov/patch (codecov-patch.mjs).
-      - name: Check out the gate script
-        if: github.event_name == 'pull_request' && needs.coverage.result == 'success'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/scripts
-      - name: Require Codecov's patch status to pass
+      # has coverage, the coverage job's verdict over the changed lines must
+      # not fail (.github/scripts/patch-coverage.mjs). A run without coverage
+      # leaves it out. Codecov blocks nothing.
+      - name: Require the patch coverage
         if: github.event_name == 'pull_request' && needs.coverage.result == 'success'
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          # Which pull request Codecov compared, for the stale-base diagnosis.
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COVERAGE_VERDICT: ${{ needs.coverage.outputs.verdict }}
-          COVERAGE_MESSAGE: ${{ needs.coverage.outputs.message }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/codecov-patch.mjs
+          PATCH: ${{ needs.coverage.outputs.patch }}
+          PATCH_MESSAGE: ${{ needs.coverage.outputs.patch-message }}
+        run: |
+          echo "Patch coverage: $PATCH: $PATCH_MESSAGE"
+          if [ "$PATCH" = fail ]; then
+            echo "::error::$PATCH_MESSAGE (the Coverage job's summary lists every uncovered line)"
+            exit 1
+          fi

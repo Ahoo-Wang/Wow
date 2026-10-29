@@ -6,16 +6,23 @@
 # cache is keyed on the inputs, so a restored session is still this commit's
 # coverage: never expire it.
 #
+# Codecov is informational: every status below is `informational`, so none
+# can block or fail a pull request, and ci.yml's uploads and trigger cannot
+# fail the run. The merge signal judges a pull request's changed lines from
+# the run's own reports (ci.yml's coverage job, .github/scripts/
+# patch-coverage.mjs), and the nightly compares the week's coverage from
+# Codecov's reports (.github/scripts/coverage-trend.mjs).
+#
 # Codecov holds every notification of a commit (its statuses and its pull
 # request comment) until ci.yml's coverage job triggers them. That job uploads
 # every report of the run itself, once every test job has finished, so Codecov
-# judges the run on all of its uploads and posts once, never from a partial
-# report.
+# posts once, from the whole run, never from a partial report.
 codecov:
   max_report_age: off
   notify:
     manual_trigger: true
-# Files whose code JaCoCo cannot attribute to the tests that run it (Codecov ignores whole files, not lines).
+# Files whose code JaCoCo cannot attribute to the tests that run it (Codecov ignores whole files, not lines);
+# patch-coverage.mjs leaves them out too.
 ignore:
   # inline helper: JaCoCo cannot attribute inline bodies; the file also holds the Ddl enum; DdlTest covers both
   - core/spi/src/main/kotlin/me/ahoo/wow/spi/Ddl.kt
@@ -24,12 +31,13 @@ coverage:
   round: down
   precision: 2
   status:
-    # Changed and new main code must be covered by the tests that run on the pull request.
+    # The patch target and threshold are the merge signal's too (patch-coverage.mjs: TARGET, THRESHOLD).
     # `flags` names every flag, each TypeScript package's (no flag has paths, so nothing is filtered out); it is there
     # so these statuses, like the components', wait for the flags' after_n_builds (which carried-forward sessions
     # satisfy, see flag_management below).
     patch:
       default:
+        informational: true
         target: 90%
         threshold: 1%
         flags:
@@ -42,6 +50,7 @@ coverage:
           - typescript-wow-view-store
     project:
       default:
+        informational: true
         target: 80%
         threshold: 1%
         flags:
@@ -61,34 +70,26 @@ coverage:
 # only once the flag has `after_n_builds` sessions of this commit; carried-forward sessions count until the flag's
 # first real upload replaces them. The notifications wait for ci.yml's coverage job (`manual_trigger` above),
 # which uploads after every test job, so a run that uploads the JVM flags is judged on its own shards, and a pull
-# request that skips the JVM jobs on the base's carried-forward JVM sessions (its JVM code is the base's). ci.yml's
-# ci-gate takes the newest codecov/patch (.github/scripts/codecov-patch.mjs). A run whose shard fails or uploads
-# nothing leaves its flag short of `after_n_builds`, and Codecov posts none of the statuses that read it. The
-# jvm-unit and integration flags' after_n_builds are the numbers of shards of ci.yml's `check` and `integration`
-# matrices (.github/scripts/integration-shards.mjs checks both, and codecov-patch.test.mjs holds the gate's copy,
-# AFTER_N_BUILDS, to them).
+# request that skips the JVM jobs on the base's carried-forward JVM sessions (its JVM code is the base's). A run
+# whose shard fails or uploads nothing leaves its flag short of `after_n_builds`, and Codecov posts none of the
+# statuses that read it. The jvm-unit and integration flags' after_n_builds are the numbers of shards of ci.yml's
+# `check` and `integration` matrices (.github/scripts/integration-shards.mjs checks both, and
+# codecov-report.test.mjs holds the trend's copy, AFTER_N_BUILDS, to them).
 #
-# The race manual triggering leaves: Codecov fixes a commit's carried-forward sessions when it creates the commit's report, so a
-# main commit pushed while its parent's JVM shards were still uploading carried forward only the shards already in
-# (96dadfe, 2026-10-28: 2 of `integration`'s 4), and every commit built on it, a TypeScript-only pull request's head
-# among them, inherited the gap. A flag short of after_n_builds is never satisfied, so Codecov posts none of the
-# statuses that read it, patch included. Two things close it. A push to main runs every coverage suite, whatever it
-# changed (ci-scope.mjs), so every main commit holds a real session of every flag. And the coverage job uploads only
-# once no ci.yml run of the commit's first parent is still running (at most 20 minutes, .github/scripts/
-# coverage-notify.mjs), so the report is created from a complete parent. A gap that still happens (a parent run that
-# failed or was cancelled, or the wait's deadline) is named by the coverage job's verdict, and ci-gate fails at once
-# with the first-parent merge that repairs it. Codecov also sometimes posts nothing for a trigger it accepted
-# (#5172, 2026-10-29): the coverage job checks for its statuses and sends the trigger again, twice at most.
+# Carry-forward is why Codecov blocks nothing. Codecov fixes a commit's carried-forward sessions when it creates the
+# commit's report, so a main commit pushed while its parent's shards were still uploading carried forward only those
+# already in (96dadfe, 2026-10-28: 2 of `integration`'s 4; ebbde37, 2026-10-29: none of view-engine), and every commit
+# built on it inherited the gap; a flag short of after_n_builds is never satisfied, so Codecov posted none of the
+# statuses that read it, and a gate waiting on codecov/patch timed out. Codecov also sometimes posted nothing for a
+# trigger it accepted (#5172, 2026-10-29). The merge signal reads the run's own reports instead, and the trend reads
+# only a nightly's report once every flag's sessions are in.
 #
 # Each TypeScript package uploads under its own flag alone, `typescript-<package>` (ci.yml's unit matrix and
 # view-engine job), never a flag it shares with another package. Codecov carries a session forward only when none of
 # its flags has an upload of the commit's own, so a shared flag on every package's upload (the retired `typescript`)
 # dropped every package a run did not test from the commit's report: a pull request that tested only view-engine
 # reported the other packages at no coverage. The statuses above and the components below read the package flags by
-# name, and each package flag's after_n_builds is 1, its one upload. The race above held for them too: a main commit
-# pushed before its parent's view-engine upload (the slowest) was in carried none of view-engine forward (ebbde37,
-# 2026-10-29), and a main commit that skipped a package carried whatever its parent had; a push to main now tests
-# every package on Node 24 with coverage, and the parent wait above covers them as it does the JVM flags.
+# name, and each package flag's after_n_builds is 1, its one upload.
 #
 # ci.yml drops the closing-brace lines from the JVM reports before it keeps them for the coverage job (.github/scripts/jacoco-braces.mjs).
 # Kotlin gives a function that returns Unit an instruction on its `}`, so JaCoCo reports about 4,600 such lines, which
@@ -147,6 +148,7 @@ component_management:
       - "^(jvm-unit|integration)$"
     statuses:
       - type: project
+        informational: true
         target: auto
         threshold: 1%
   individual_components:
