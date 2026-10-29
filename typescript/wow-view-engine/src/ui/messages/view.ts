@@ -206,6 +206,8 @@ export const viewMessages = {
     '“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.',
   [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_CURSOR)]:
     'This page can no longer be continued; start again from the first page.',
+  [wireKey('runtime.query.failed', QueryErrorCodes.STREAM_NOT_RESUMABLE)]:
+    'This data cannot be read to its end in this order; sort it another way or read fewer records.',
   [wireKey('runtime.query.failed', QueryErrorCodes.SIZE_OUT_OF_RANGE)]:
     'The service limits how many rows one request may read: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.FILTER_TOO_LARGE)]:

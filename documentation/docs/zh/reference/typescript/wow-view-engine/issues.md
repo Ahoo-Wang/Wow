@@ -550,6 +550,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.sort-field-duplicate` | 「{field}」排了两次，保留一次即可。 |
 | `runtime.query.failed.sort-too-many` | 排序字段太多，去掉几个。 |
 | `runtime.query.failed.storage-unsupported` | 服务端的存储运行不了这条查询：{reason} |
+| `runtime.query.failed.stream-not-resumable` | 按这个顺序没法一直读到底；换一种排序，或者少读一些记录。 |
 | `runtime.query.failed.temporal-aggregation-unsupported` | 「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。 |
 | `runtime.query.failed.temporal-configuration-conflict` | 「{field}」上的相对时间与这个字段记时间的方式不一致：{reason} |
 | `runtime.query.failed.temporal-representation-required` | 「{field}」存的不是已知的日期或时间，不能按相对时间筛选。 |
