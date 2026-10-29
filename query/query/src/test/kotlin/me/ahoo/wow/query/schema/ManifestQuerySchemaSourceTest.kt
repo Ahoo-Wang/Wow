@@ -16,9 +16,17 @@ package me.ahoo.wow.query.schema
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.api.query.RecentDaysFilter
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.schema.ManifestFixtures.ITEM_STATE_DEFS
 import me.ahoo.wow.query.schema.ManifestFixtures.ORDER
 import me.ahoo.wow.query.schema.ManifestFixtures.REDACT
 import me.ahoo.wow.query.schema.ManifestFixtures.STRATEGIES
@@ -62,6 +70,52 @@ class ManifestQuerySchemaSourceTest {
             schema.value("state.createdAt").semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.SECONDS))
             schema.value("state.shippedAt").semanticType.assert().isEqualTo(Temporal.Formatted("yyyy-MM-dd HH:mm:ss"))
             schema.value("state.shippedAt").nullable.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `x-wow-temporal holds on a nullable time in list elements and map values alike`() {
+        runTest {
+            // A map value is addressed by a concrete key; the descriptor lists the key's fields as `{key}` patterns.
+            val items = mapOf(
+                "ItemListState" to listOf("state.items"),
+                "ItemMapState" to listOf("state.itemsById.k1"),
+                "ItemListAndMapState" to listOf("state.items", "state.itemsById.k1"),
+                "TwoItemListsState" to listOf("state.first", "state.second"),
+            )
+            ITEM_STATE_DEFS.keys.map { it.substringAfterLast('$') }.assert()
+                .containsExactlyInAnyOrderElementsOf(items.keys)
+            ITEM_STATE_DEFS.forEach { (state, defs) ->
+                val schema = schemaOf(ManifestQuerySchemaSource(manifest(defs, state)))
+                val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+                items.getValue(state.substringAfterLast('$')).forEach { item ->
+                    schema.value("$item.endDate").run {
+                        kind.assert().isEqualTo(QueryValueKind.SCALAR)
+                        valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+                        nullable.assert().isTrue()
+                        semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                    }
+                    schema.value("$item.startDate").run {
+                        nullable.assert().isFalse()
+                        semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                    }
+                    schema.value("$item.type").enumValues?.map { it.stringValue() }.assert().containsExactly("A", "B")
+                    listOf("endDate", "startDate").forEach { time ->
+                        // A list element's field is reached through its element scope, a map value's directly.
+                        val scope = schema.field(QueryField("$item.$time"))?.elementAncestors?.lastOrNull()?.path
+                        val field = QueryField(if (scope == null) "$item.$time" else time)
+                        listOf(TodayFilter(field), RecentDaysFilter(field, 7)).forEach { predicate ->
+                            val filter = scope?.let { ElementMatchFilter(QueryField(it), predicate) } ?: predicate
+                            // Admitted, or admission throws.
+                            QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+                        }
+                        val path = "$item.$time".replace(".k1.", ".{key}.")
+                        val operators = descriptor.fields.singleOrNull { it.path == path }?.filter?.operators
+                            ?: descriptor.dynamic.single { it.pattern == path }.filter.operators
+                        operators.assert().contains(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+                    }
+                }
+            }
         }
     }
 

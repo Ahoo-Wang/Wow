@@ -43,6 +43,18 @@ internal object ManifestFixtures {
         WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
     }
 
+    /**
+     * The `$defs` `manifest-tools` writes for each state of #5166's item (`QueryKeywordsTest.Item` in a list, in a map,
+     * in both and in two lists), keyed by the state's `$defs` key: the snapshot
+     * `compiler/manifest-tools/src/test/resources/query-keywords/item-states.defs.json`, copied byte for byte to
+     * `manifest/item-states.defs.json`.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val ITEM_STATE_DEFS: Map<String, Map<String, Any?>> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/item-states.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Map<String, Any?>>
+    }
+
     /** A Manifest of one aggregate `shop.order` with the state [state] (a `$defs` key) among [defs]. */
     fun manifest(
         defs: Map<String, Any?> = ORDER_DEFS,

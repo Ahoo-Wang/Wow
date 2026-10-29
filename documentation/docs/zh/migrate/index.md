@@ -48,7 +48,7 @@ flowchart LR
 - **从 9.x 的最后一个次版本开始。** 支持从 9.x 的最后一个次版本迁移到 10.0。先在 9.x 之内升级。
 - **9.x 的 MongoDB 事件存储。** 数据工具读取 9.x 的 MongoDB 存储。使用 9.x Redis 或 Elasticsearch 事件存储的服务，先把数据迁到 9.x 的 MongoDB 存储。
 - **Gradle。** V10 的编译期绑定在 Gradle 中经 KSP 和 Wow Gradle 插件运行。不支持 Maven 构建。
-- **JDK 21。**
+- **JDK 21**，生产环境在 JDK 25 上运行（[JDK](../operate/kubernetes#the-jdk)）。
 
 ## 工具支持多久 {#how-long-the-tools-are-supported}
 

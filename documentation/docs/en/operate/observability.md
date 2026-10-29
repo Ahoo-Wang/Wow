@@ -28,7 +28,7 @@ The components:
 | `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | |
 | `subscriptions` | Never | A subscription is `lag-degraded-at` (10,000) entries behind, or has `parked-degraded-at` (100) parked entries |
 | `executor` | | The executor runs at `saturation` (90 %) of its in-flight bound |
-| `liveness` | The node is stuck: its dispatcher does not tick, or commands in flight do not finish while every log answers, for `wow.health.liveness.stall-timeout` (3 min). This alone fails liveness | |
+| `liveness` | The node is stuck for `wow.health.liveness.stall-timeout` (3 min): its dispatcher does not tick, the threads of its backends' driver calls run nothing, a reconcile of its partitions does not end, or commands in flight do not finish while every log answers. This alone fails liveness | |
 
 A degraded component does not change a group's status: it is there to be seen and alerted on. Liveness never fails for a storage outage or while the node drains, so an outage does not restart every node at once. The node samples what a probe must not wait for (the logs' heads, the subscriptions' lag, the parked entries) every `wow.node.sample-interval` (10 s), so a probe answers at once. One sample serves the health and the gauges alike, each subscription by its group and name: every context's `snapshot` subscription is its own, with its own parked count, up to `wow.node.max-parked`.
 

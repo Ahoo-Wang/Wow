@@ -23,7 +23,11 @@ A Wow service runs on Kubernetes as a Deployment: its pods are the service's nod
 
 ## The image
 
-The image runs the service's Gradle distribution (`./gradlew :eshop-ordering-server:installDist`) on a JDK 21 base, as a numeric non-root user, and exposes the HTTP port and the internal port.
+The image runs the service's Gradle distribution (`./gradlew :eshop-ordering-server:installDist`) on a JDK 25 base, pinned by digest, as a numeric non-root user, and exposes the HTTP port and the internal port.
+
+## The JDK
+
+Wow is built for JDK 21 and runs on it, but run it on JDK 25 in production. The backends make their blocking driver calls (JDBC, the MongoDB and Kafka clients) on virtual threads. Before JDK 24, a virtual thread that blocks inside `synchronized` code, as drivers and Java agents often do, pins the carrier thread it runs on. Enough of them at once leave no carrier for the others: every store and topic call of the node stops returning, its leases lapse, and the other nodes take its partitions. The node's liveness then fails after `wow.health.liveness.stall-timeout`, and Kubernetes restarts it ([Health](./observability#health)). JDK 24 and later let those threads unmount. A node on an earlier JDK warns of this once when it starts.
 
 ## Shared settings
 
