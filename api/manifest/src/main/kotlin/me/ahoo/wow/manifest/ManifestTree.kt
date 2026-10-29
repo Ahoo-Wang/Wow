@@ -86,7 +86,11 @@ object ManifestTree {
     private fun writeAggregate(aggregate: AggregateManifest): Map<String, Any?> = obj(
         "name" to aggregate.name,
         "description" to aggregate.description,
-        "state" to obj("schema" to aggregate.state.schema, "fingerprint" to aggregate.state.fingerprint),
+        "state" to obj(
+            "schema" to aggregate.state.schema,
+            "fingerprint" to aggregate.state.fingerprint,
+            "view" to aggregate.state.view,
+        ),
         "snapshot" to obj(
             "enabled" to aggregate.snapshot.enabled,
             // Written only when raised, so a Manifest of an aggregate that never raised it reads as before.
@@ -272,7 +276,11 @@ object ManifestTree {
         return AggregateManifest(
             name = node.string("name"),
             description = node.stringOrNull("description"),
-            state = StateManifest(state.string("schema"), state.stringOrNull("fingerprint")),
+            state = StateManifest(
+                state.string("schema"),
+                state.stringOrNull("fingerprint"),
+                state.stringOrNull("view")
+            ),
             snapshot = node.objOrNull("snapshot").let { snapshot ->
                 SnapshotManifest(
                     snapshot?.booleanOrNull("enabled") ?: true,

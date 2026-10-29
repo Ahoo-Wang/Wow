@@ -79,6 +79,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `state`: 对象
   - `schema`
   - `fingerprint`
+  - `view`
 - `snapshot`: 对象
   - `enabled`
   - `stateRevision`: 缺省或取默认值时省略

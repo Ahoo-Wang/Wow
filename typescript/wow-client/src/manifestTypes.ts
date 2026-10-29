@@ -81,11 +81,12 @@ export interface AggregateManifest {
   readonly retired?: readonly string[];
 }
 
-/** An aggregate's state: its schema and the fingerprint of its shape. */
+/** An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. */
 export interface StateManifest {
   /** #/$defs/<key> */
   readonly schema: string;
   readonly fingerprint?: string;
+  readonly view?: string;
 }
 
 /** Whether an aggregate keeps snapshots, and the revision of their state. */

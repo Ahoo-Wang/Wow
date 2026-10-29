@@ -189,7 +189,7 @@ jobs:
           - shard: eshop
             projects: :eshop-e2e :eshop-ordering-server
           - shard: host-platform
-            projects: :spring-boot :ops-server :view-store-server :analytics-catalog-server
+            projects: :spring-boot :cocache :ops-server :view-store-server :analytics-catalog-server
           - shard: kafka-elasticsearch-clickhouse
             projects: :kafka :elasticsearch :clickhouse :routing-spike
           - shard: mongo-postgres
