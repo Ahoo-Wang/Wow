@@ -47,10 +47,7 @@ export interface SourceOptions {
  * runtime keeps both and says so.
  */
 export interface ViewSource {
-  paged(
-    query: PagedQuery,
-    options?: SourceOptions,
-  ): Promise<PagedList<object>>;
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
   cursor(
     query: CursorQuery,
     options?: SourceOptions,

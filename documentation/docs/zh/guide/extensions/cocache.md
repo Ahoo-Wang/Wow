@@ -9,7 +9,7 @@ outline: deep
 Saga、名称解析或内部计算常常要按 ID 多次读取另一个上下文的聚合。`wow-cocache` 把这些状态放在共享的 [CoCache](https://cocache.ahoo.me/) 缓存里：L1 是 Redis，每个服务各有本地 L2。
 
 - **拥有**聚合的上下文在自己的提交之后，按版本顺序把每个状态写进缓存。
-- 每个**读方**注入所生成视图的 `PublishedStateCache<V>` 直接读取。不用声明缓存，不用编写订阅，读方也不各存一份。
+- 每个**读方**注入所生成视图的 `StateViewCache<V>` 直接读取。不用声明缓存，不用编写订阅，读方也不各存一份。
 
 连不上共享 Redis 的服务，用[类型化的对端读取](../reading-state) `queries.snapshots<V>()` 读同样的视图：缓存只是这次读取的加速，答案不会不同。
 
@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-`wow-cocache-api` 只有 `StateKey` 与 `PublishedStateCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。
+`wow-cocache-api` 只有 `StateKey` 与 `StateViewCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。
 
 ## 读取状态
 
@@ -47,7 +47,7 @@ dependencies {
 @Saga
 class PaymentGatewaySaga(
     private val gateway: PaymentGateway,
-    private val orders: PublishedStateCache<OrderStateView>,
+    private val orders: StateViewCache<OrderStateView>,
 ) {
     @OnEvent
     suspend fun onPaymentRequested(event: StateTypedEvent<PaymentState, PaymentRequested>): CommandRequest<*> {
@@ -57,7 +57,7 @@ class PaymentGatewaySaga(
 }
 ```
 
-缓存中没有、而属主此刻读不到（连不上、本节点没有到它的路由、超时），或缓存后端故障时，读取抛出 `PublishedStateUnavailableException`，并写出这些键。其他情况都不是它：解码不成视图的状态，或读取代码中的缺陷，都原样抛出。
+缓存中没有、而属主此刻读不到（连不上、本节点没有到它的路由、超时），或缓存后端故障时，读取抛出 `StateViewUnavailableException`，并写出这些键。其他情况都不是它：解码不成视图的状态，或读取代码中的缺陷，都原样抛出。
 
 是否在它上面回退由读方决定。为读方自己用途的读取（名称、描述）可以回退；决策所依据的读取不可以：它应当失败，处理函数会像任何失败一样重试，然后挂起。eShop 的支付读取它要扣款的订单，用来说明这笔扣款的内容，这是它自己的用途，所以支付从不为此等待订单服务。它只捕获不可用这一种情况，只记录一次，并按订单 ID 扣款：
 
@@ -72,7 +72,7 @@ class PaymentGatewaySaga(
  */
 private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
     orders.get(tenantId, orderId)
-} catch (unavailable: PublishedStateUnavailableException) {
+} catch (unavailable: StateViewUnavailableException) {
     // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
     if (warned.compareAndSet(false, true)) {
         logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
@@ -86,7 +86,7 @@ private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? 
 - `get(key)` 与 `get(tenantId, id)` 返回视图；聚合不存在或已删除时返回 `null`。
 - `getAll(keys)` 返回存在的聚合的视图：读一次缓存，未命中的按租户各向属主查询一次，ID 放在一个 `IN` 里。
 
-缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `PublishedStateCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存。
+缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `StateViewCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存。
 
 缓存中没有的视图经节点的类型化查询向属主读取：节点自己承载该聚合时在进程内读取，否则以本服务身份经 HTTP 读取属主的内部端口（[调用其他服务](../calling-services)）。从未创建过的聚合会作为不存在缓存一段时间（CoCache 的负缓存）。
 

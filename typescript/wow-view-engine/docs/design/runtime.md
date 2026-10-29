@@ -390,10 +390,7 @@ export interface ViewEngine {
 ```ts
 /** 一个定义的数据从哪里来：一个 Wow 查询路由的读法，用 wow-client 自己的形状；任意 QueryModelClient 原样就是一个 ViewSource。 */
 export interface ViewSource {
-  paged(
-    query: PagedQuery,
-    options?: SourceOptions,
-  ): Promise<PagedList<object>>; // total 可为 null，带 exact
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>; // total 可为 null，带 exact
   cursor(
     query: CursorQuery,
     options?: SourceOptions,

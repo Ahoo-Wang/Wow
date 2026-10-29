@@ -114,7 +114,7 @@ class TransferSagaConfiguration {
 
 /**
  * Decision D261 (B.G-5) on MongoDB through the host: the saga chain of the E3 benchmark, a deposit on one account
- * passed on by a saga to another, on one node. Each account's earlier published states are gone (their maximum age passed),
+ * passed on by a saga to another, on one node. Each account's earlier shared states are gone (their maximum age passed),
  * as between two transfers of the benchmark; the saga and the snapshot subscription still read the state of the
  * node's own commits without loading a snapshot or reading the log, since the executor takes the view before the
  * append that the log hands over (decision D249).
@@ -125,7 +125,7 @@ class MongoSagaStateHostTest {
     private val host = startHost(
         "wow.mongo.database" to "saga_state_test",
         "wow.log.partitions" to 4,
-        "wow.published-states.max-age" to "${MAX_AGE_MILLIS}ms",
+        "wow.shared-states.max-age" to "${MAX_AGE_MILLIS}ms",
         "test.mongo.url" to mongo.replicaSetUrl,
         sources = listOf(HostTestApp::class.java, TransferSagaConfiguration::class.java),
     )

@@ -308,7 +308,10 @@ export interface ScheduleCancelled {
  * `wow-generator` writes for an aggregate includes this one.
  */
 export type SystemEvent =
-  | CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>>
+  | CommittedEvent<
+      'wow.lifecycle.AggregateDeleted',
+      Readonly<Record<string, never>>
+    >
   | CommittedEvent<
       'wow.lifecycle.AggregateRestored',
       Readonly<Record<string, never>>
@@ -326,7 +329,10 @@ export type SystemEvent =
  * @typeParam S - The state's type.
  * @typeParam E - The events' type.
  */
-export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export interface CommitView<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> {
   readonly version: number;
   /** When it was committed, in epoch milliseconds. */
   readonly commitTime: number;
@@ -345,7 +351,10 @@ export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEve
  * What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate
  * and its commits in version order.
  */
-export interface StateTrace<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export interface StateTrace<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> {
   readonly ref: AggregateRef;
   readonly commits: readonly CommitView<S, E>[];
 }

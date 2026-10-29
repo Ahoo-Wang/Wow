@@ -420,16 +420,6 @@ The settings of every postgres store; a store's own options override them.
 | --- | --- | --- | --- |
 | `wow.postgres.operation-timeout` | `Duration` | `PT30S` | How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever. |
 
-## `wow.published-states`
-
-The bounds of each context's published states: `wow.published-states.*`.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.published-states.capacity` | `Integer` | `4096` | The most published states a context keeps. |
-| `wow.published-states.max-age` | `Duration` | `PT1M` | How long a published state is kept at most. |
-| `wow.published-states.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
-
 ## `wow.query`
 
 The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: the query routes and gateways, the budgets they run under, who may query what, and how many queries each store runs at once.
@@ -585,6 +575,16 @@ Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's 
 | `wow.schedules.<name>.expression` | `String` |  | The job's cron expression, over its annotation's. |
 | `wow.schedules.<name>.misfire` | `Misfire` |  | What a firing missed while no node ran it does, over its annotation's. |
 | `wow.schedules.<name>.zone` | `String` |  | The time zone its expression is read in, over its annotation's. |
+
+## `wow.shared-states`
+
+The bounds of each context's shared states: `wow.shared-states.*`.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.shared-states.capacity` | `Integer` | `4096` | The most shared states a context keeps. |
+| `wow.shared-states.max-age` | `Duration` | `PT1M` | How long a shared state is kept at most. |
+| `wow.shared-states.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
 
 ## `wow.snapshot`
 

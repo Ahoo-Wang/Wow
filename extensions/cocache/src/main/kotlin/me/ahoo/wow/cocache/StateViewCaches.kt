@@ -39,22 +39,22 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
-import me.ahoo.wow.cocache.api.PublishedStateCache
-import me.ahoo.wow.cocache.api.PublishedStateUnavailableException
 import me.ahoo.wow.cocache.api.StateKey
+import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The published-state caches of a service, one CoCache cache per aggregate type, each holding that type's states as the
- * view [StateView] marks, each at the aggregate's version: what a [PublishedStateCache] reads, and what the owner's
- * [PublishedStateWriter] writes after each commit.
+ * The state view caches of a service, one CoCache cache per aggregate type, each holding that type's states as the
+ * view [StateView] marks, each at the aggregate's version: what a [StateViewCache] reads, and what the owner's
+ * [StateViewWriter] writes after each commit.
  *
  * Everything about a cache follows from its view, the same on the owner and on every reader ([specOf]):
  * - its name is `wow.<context>.<aggregate>` ([nameOf]), the aggregate the view's `@StateView` names;
  * - its key is the aggregate's [StateKey], stored as `<tenantId>/<id>`;
- * - its value is the view, stored as its JSON ([PublishedStateCodec]), at the aggregate's version: a versioned cache, so
+ * - its value is the view, stored as its JSON ([StateViewCodec]), at the aggregate's version: a versioned cache, so
  *   a state is written only over an older one, and a deleted aggregate is a tombstone at its version that no older
  *   state undoes;
  * - a miss is read from the owner through the node's typed queries ([queries]): in process when the node serves the
@@ -66,18 +66,18 @@ import java.util.concurrent.ConcurrentHashMap
  * Each cache is created once, by [factory], which applies the application's CoCache settings to it when it has
  * CoCache's starter (`cocache.caches.[wow.<context>.<aggregate>].*`).
  */
-class PublishedStateCaches(private val factory: CacheFactory, private val queries: () -> QueryApi) {
+class StateViewCaches(private val factory: CacheFactory, private val queries: () -> QueryApi) {
     private val caches = ConcurrentHashMap<AggregateType, Typed<*>>()
 
     /** The cache of the states [viewType] views, created on first use. */
-    fun <V : Any> of(viewType: Class<V>): PublishedStateCache<V> = typed(viewType).reads
+    fun <V : Any> of(viewType: Class<V>): StateViewCache<V> = typed(viewType).reads
 
     /** The cache of the states [V] views, created on first use. */
-    inline fun <reified V : Any> of(): PublishedStateCache<V> = of(V::class.java)
+    inline fun <reified V : Any> of(): StateViewCache<V> = of(V::class.java)
 
     /** The writer of the states [viewType] views, each written for [ttl], else for the cache's lifetime. */
-    fun <V : Any> writerOf(viewType: Class<V>, ttl: Duration? = null): PublishedStateWriter<V> =
-        PublishedStateWriter(typed(viewType).cache, ttl)
+    fun <V : Any> writerOf(viewType: Class<V>, ttl: Duration? = null): StateViewWriter<V> =
+        StateViewWriter(typed(viewType).cache, ttl)
 
     /** Creates the caches of [viewTypes] now: CoCache's starter checks its settings against the caches it knows. */
     fun declare(viewTypes: Collection<Class<*>>) {
@@ -90,17 +90,17 @@ class PublishedStateCaches(private val factory: CacheFactory, private val querie
             type
         ) { Typed(viewType, factory.create(specOf(viewType, queries)).suspending()) }
         check(typed.viewType == viewType) {
-            "The published states ${typed.viewType.name} and ${viewType.name} both view $type: a view is of one aggregate."
+            "The state views ${typed.viewType.name} and ${viewType.name} both view $type: a view is of one aggregate."
         }
         @Suppress("UNCHECKED_CAST")
         return typed as Typed<V>
     }
 
     private class Typed<V : Any>(val viewType: Class<V>, val cache: SuspendingCache<StateKey, V>) {
-        val reads: PublishedStateCache<V> = Reads(cache)
+        val reads: StateViewCache<V> = Reads(cache)
     }
 
-    private class Reads<V : Any>(private val cache: SuspendingCache<StateKey, V>) : PublishedStateCache<V> {
+    private class Reads<V : Any>(private val cache: SuspendingCache<StateKey, V>) : StateViewCache<V> {
         override val name: String get() = cache.name
 
         override suspend fun get(key: StateKey): V? = served(listOf(key)) { cache.get(key) }
@@ -109,13 +109,13 @@ class PublishedStateCaches(private val factory: CacheFactory, private val querie
             served(keys) { cache.getAll(keys) }
 
         /**
-         * [read], whose failure to reach the states' source is a [PublishedStateUnavailableException]: the owner's read
+         * [read], whose failure to reach the states' source is a [StateViewUnavailableException]: the owner's read
          * the loader could not make, CoCache's load that timed out, was refused or cancelled, or its backend's read
          * that failed. A state that does not decode, or any other error, is thrown as it is.
          */
         private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T = try {
             read()
-        } catch (unavailable: PublishedStateUnavailableException) {
+        } catch (unavailable: StateViewUnavailableException) {
             throw unavailable
         } catch (source: SourceLoadTimeoutException) {
             throw unavailable(keys, "its owner did not answer in time", source)
@@ -129,9 +129,9 @@ class PublishedStateCaches(private val factory: CacheFactory, private val querie
         }
 
         private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
-            PublishedStateUnavailableException(keys, "The states $keys in $name cannot be served: $reason.", cause)
+            StateViewUnavailableException(keys, "The states $keys in $name cannot be served: $reason.", cause)
 
-        override fun toString(): String = "PublishedStateCache($name)"
+        override fun toString(): String = "StateViewCache($name)"
     }
 
     /** What creates a CoCache cache of a spec: the runtime itself, or CoCache's starter, which applies its settings. */
@@ -152,15 +152,15 @@ class PublishedStateCaches(private val factory: CacheFactory, private val querie
 
         /** The aggregate type [viewType] views, by its `@StateView`. */
         fun typeOf(viewType: Class<*>): AggregateType = requireNotNull(StateView.typeOf(viewType)) {
-            "${viewType.name} is no state view: a PublishedStateCache reads a generated <State>View, marked @StateView."
+            "${viewType.name} is no state view: a StateViewCache reads a generated <State>View, marked @StateView."
         }
 
         /** The spec of the cache of the states [viewType] views, misses read through [queries]. */
         fun <V : Any> specOf(viewType: Class<V>, queries: () -> QueryApi): CacheSpec<StateKey, V> =
             cacheSpec(nameOf(typeOf(viewType))) {
                 keyEncoder = KeyEncoder { it.toString() }
-                codec = PublishedStateCodec(viewType)
-                suspendingVersionedLoader(PublishedStateLoader(viewType, queries))
+                codec = StateViewCodec(viewType)
+                suspendingVersionedLoader(StateViewLoader(viewType, queries))
             }
     }
 }
@@ -171,11 +171,11 @@ class PublishedStateCaches(private val factory: CacheFactory, private val querie
  * query reads active ones alone unless asked). A deleted aggregate is no view at its version (a tombstone, which no
  * older version a writer replays resurrects), one never created `null` (a negative cache).
  *
- * An owner it cannot read is a [PublishedStateUnavailableException]: the node has no route to it (it neither serves the
+ * An owner it cannot read is a [StateViewUnavailableException]: the node has no route to it (it neither serves the
  * aggregate nor reaches it as a peer), the owner is unreachable (an I/O failure), or it answers a problem a retry may
  * get past (a 5xx, a 429). Any other failure, a refusal or an error, is thrown as it is.
  */
-internal class PublishedStateLoader<V : Any>(
+internal class StateViewLoader<V : Any>(
     private val viewType: Class<V>,
     private val queries: () -> QueryApi,
 ) : SuspendingCacheLoader<StateKey, Versioned<V?>> {
@@ -200,7 +200,7 @@ internal class PublishedStateLoader<V : Any>(
         }.toMap()
     }
 
-    /** [read] of the owner, a failure to reach it a [PublishedStateUnavailableException] naming [keys]. */
+    /** [read] of the owner, a failure to reach it a [StateViewUnavailableException] naming [keys]. */
     private inline fun <T> owned(keys: Collection<StateKey>, read: () -> T): T = try {
         read()
     } catch (unreachable: IOException) {
@@ -215,7 +215,7 @@ internal class PublishedStateLoader<V : Any>(
 
     /**
      * The snapshots of the views, as this service reads them for a commit of [tenantId]: a
-     * [PublishedStateUnavailableException] naming [keys] when the node has no route to their owner, whose type no model of
+     * [StateViewUnavailableException] naming [keys] when the node has no route to their owner, whose type no model of
      * the node nor any peer it reaches has.
      */
     private fun snapshots(tenantId: String, keys: Collection<StateKey>): TenantSnapshotQueries<V> = try {
@@ -225,14 +225,14 @@ internal class PublishedStateLoader<V : Any>(
     }
 
     private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
-        PublishedStateUnavailableException(keys, "The states $keys of ${viewType.name} cannot be read: $reason.", cause)
+        StateViewUnavailableException(keys, "The states $keys of ${viewType.name} cannot be read: $reason.", cause)
 
     private fun queriesOf(tenantId: String): Queries = when (val api = queries()) {
         is TenantQueryApi -> api.tenant(tenantId)
         else -> api.of(Caller.of(tenantId = tenantId))
     }
 
-    override fun toString(): String = "PublishedStateLoader(${viewType.name})"
+    override fun toString(): String = "StateViewLoader(${viewType.name})"
 
     companion object {
         /**

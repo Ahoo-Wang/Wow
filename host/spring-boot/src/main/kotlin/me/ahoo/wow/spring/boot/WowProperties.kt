@@ -37,7 +37,7 @@ import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.state.PublishedStateOptions
+import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.BackpressureOptions
@@ -128,8 +128,8 @@ class WowProperties {
     var executor: Executor = Executor()
     var stateCache: StateCache = StateCache()
 
-    /** The bounds of each context's published states: `wow.published-states.*`. */
-    var publishedStates: PublishedStates = PublishedStates()
+    /** The bounds of each context's shared states: `wow.shared-states.*`. */
+    var sharedStates: SharedStates = SharedStates()
     var subscription: Subscription = Subscription()
 
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
@@ -613,20 +613,20 @@ class WowProperties {
     }
 
     /**
-     * The bounds of each context's published states, the states its consumers share after each commit.
+     * The bounds of each context's shared states, the states its consumers share after each commit.
      */
     @InternalWowApi
-    class PublishedStates {
-        /** The most published states a context keeps. */
-        var capacity: Int = PublishedStateOptions.DEFAULT_CAPACITY
+    class SharedStates {
+        /** The most shared states a context keeps. */
+        var capacity: Int = SharedStateOptions.DEFAULT_CAPACITY
 
-        /** How long a published state is kept at most. */
-        var maxAge: Duration = PublishedStateOptions.DEFAULT_MAX_AGE.toJavaDuration()
+        /** How long a shared state is kept at most. */
+        var maxAge: Duration = SharedStateOptions.DEFAULT_MAX_AGE.toJavaDuration()
 
         /** The most serialized state a context's views hold, counting two bytes a character (`64MB`). */
-        var maxBytes: DataSize = DataSize.ofBytes(PublishedStateOptions.DEFAULT_MAX_BYTES)
+        var maxBytes: DataSize = DataSize.ofBytes(SharedStateOptions.DEFAULT_MAX_BYTES)
 
-        fun options(): PublishedStateOptions = PublishedStateOptions(
+        fun options(): SharedStateOptions = SharedStateOptions(
             capacity,
             maxAge.toKotlinDuration(),
             maxBytes.toBytes()

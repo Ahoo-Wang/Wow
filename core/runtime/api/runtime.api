@@ -637,9 +637,9 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getExecutor ()Lme/ahoo/wow/runtime/ExecutorOptions;
 	public final fun getHandoff ()Lme/ahoo/wow/runtime/log/HandoffOptions;
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
-	public final fun getPublishedStates ()Lme/ahoo/wow/runtime/state/PublishedStateOptions;
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
+	public final fun getSharedStates ()Lme/ahoo/wow/runtime/state/SharedStateOptions;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
 	public final fun getStateCache ()Lme/ahoo/wow/runtime/StateCacheOptions;
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
@@ -779,8 +779,8 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotTargets$Companion {
 	public static synthetic fun single$default (Lme/ahoo/wow/runtime/snapshot/SnapshotTargets$Companion;Lme/ahoo/wow/spi/snapshot/SnapshotStore;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 }
 
-public final class me/ahoo/wow/runtime/state/PublishedStateOptions {
-	public static final field Companion Lme/ahoo/wow/runtime/state/PublishedStateOptions$Companion;
+public final class me/ahoo/wow/runtime/state/SharedStateOptions {
+	public static final field Companion Lme/ahoo/wow/runtime/state/SharedStateOptions$Companion;
 	public static final field DEFAULT_CAPACITY I
 	public static final field DEFAULT_MAX_BYTES J
 	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -792,7 +792,7 @@ public final class me/ahoo/wow/runtime/state/PublishedStateOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/runtime/state/PublishedStateOptions$Companion {
+public final class me/ahoo/wow/runtime/state/SharedStateOptions$Companion {
 	public final fun getDEFAULT_MAX_AGE-UwyO8pc ()J
 }
 

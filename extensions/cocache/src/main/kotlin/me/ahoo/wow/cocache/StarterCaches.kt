@@ -28,10 +28,10 @@ internal object StarterCaches {
     private const val ASSEMBLER = "me.ahoo.cocache.spring.boot.CacheAssembler"
 
     /** The starter's cache factory among [beans], null without the starter or its assembler. */
-    fun factoryOf(beans: ListableBeanFactory, classLoader: ClassLoader?): PublishedStateCaches.CacheFactory? {
+    fun factoryOf(beans: ListableBeanFactory, classLoader: ClassLoader?): StateViewCaches.CacheFactory? {
         if (!ClassUtils.isPresent(ASSEMBLER, classLoader)) return null
         val assembler = beans.getBeanProvider(CacheAssembler::class.java).ifAvailable ?: return null
-        return object : PublishedStateCaches.CacheFactory {
+        return object : StateViewCaches.CacheFactory {
             override fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V> = assembler.create(spec)
         }
     }

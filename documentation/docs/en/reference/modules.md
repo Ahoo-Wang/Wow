@@ -36,8 +36,8 @@ The Gradle plugins add `platform("me.ahoo.wow:wow-bom:<their version>")`, so `im
 | `me.ahoo.wow:wow-observability` | [`edge/observability`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/observability) | Tracing and Micrometer metrics on the core's observation seams |
 | `me.ahoo.wow:wow-spring-boot` | [`host/spring-boot`](https://github.com/Ahoo-Wang/Wow/tree/main/host/spring-boot) | Auto-configuration by classpath; wiring only |
 | `me.ahoo.wow:wow-cosid` | [`extensions/cosid`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cosid) | CosId's generators as a node's global and aggregate id generators |
-| `me.ahoo.wow:wow-cocache-api` | [`extensions/cocache-api`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cocache-api) | The cache of another context's aggregate states that a domain injects (PublishedStateCache); no dependencies |
-| `me.ahoo.wow:wow-cocache` | [`extensions/cocache`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cocache) | Another context's aggregate states shared through CoCache, kept by the context that owns them and read as their generated views (PublishedStateCache) |
+| `me.ahoo.wow:wow-cocache-api` | [`extensions/cocache-api`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cocache-api) | The cache of another context's aggregate states that a domain injects (StateViewCache); no dependencies |
+| `me.ahoo.wow:wow-cocache` | [`extensions/cocache`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cocache) | Another context's aggregate states shared through CoCache, kept by the context that owns them and read as their generated views (StateViewCache) |
 | `me.ahoo.wow:wow-models` | [`extensions/models`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/models) | Shared capability interfaces, EnumText and the reusable Tree aggregate |
 | `me.ahoo.wow:wow-test` | [`test/test-dsl`](https://github.com/Ahoo-Wang/Wow/tree/main/test/test-dsl) | The aggregate and processor specs that run a domain on the kernel |
 | `me.ahoo.wow:wow-test-query` | [`test/test-query`](https://github.com/Ahoo-Wang/Wow/tree/main/test/test-query) | A real in-memory QueryApi for the processor specs of the test DSL |

@@ -27,12 +27,10 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 /** The owner's sink: each commit's state, as its view at its version, a deleting commit as a tombstone. */
-class PublishedStateSinkTest {
+class StateViewSinkTest {
     private val runtime = runtimeOn(InMemoryBackend())
-    private val caches = PublishedStateCaches(
-        PublishedStateCaches.CacheFactory.of(runtime)
-    ) { error("no miss is read") }
-    private val sink = PublishedStateSink(OrderView::class.java, caches.writerOf(OrderView::class.java))
+    private val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { error("no miss is read") }
+    private val sink = StateViewSink(OrderView::class.java, caches.writerOf(OrderView::class.java))
     private val key = StateKey("t", "o-1")
 
     @AfterEach
@@ -78,7 +76,7 @@ class PublishedStateSinkTest {
     @Test
     fun `states written for a lifetime of their own should be read as written`() = runBlocking<Unit> {
         val writer = caches.writerOf(OrderView::class.java, Duration.ofMinutes(5))
-        PublishedStateSink(OrderView::class.java, writer).write(
+        StateViewSink(OrderView::class.java, writer).write(
             listOf(
                 recordOf(1, """{"item":"book"}"""),
                 recordOf(2, null, deleted = true),

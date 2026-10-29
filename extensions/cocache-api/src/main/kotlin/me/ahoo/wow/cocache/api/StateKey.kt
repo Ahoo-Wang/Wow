@@ -14,7 +14,7 @@
 package me.ahoo.wow.cocache.api
 
 /**
- * The key of one aggregate's state in a [PublishedStateCache]: the aggregate's [tenantId] and [id], its identity within
+ * The key of one aggregate's state in a [StateViewCache]: the aggregate's [tenantId] and [id], its identity within
  * its type. The type is the cache's: one cache per aggregate type.
  */
 class StateKey(val tenantId: String, val id: String) {

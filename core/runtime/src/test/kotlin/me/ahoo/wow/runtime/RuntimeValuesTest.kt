@@ -40,7 +40,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SnapshotTailReaders
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.state.PublishedStateOptions
+import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
@@ -68,7 +68,7 @@ class RuntimeValuesTest {
         valueSemantics(JobOptions(), JobOptions(), JobOptions(enabled = false))
         valueSemantics(WaitOptions(), WaitOptions(), WaitOptions(maxHops = 1))
         valueSemantics(TimerOptions(), TimerOptions(), TimerOptions(batch = 1))
-        valueSemantics(PublishedStateOptions(), PublishedStateOptions(), PublishedStateOptions(capacity = 1))
+        valueSemantics(SharedStateOptions(), SharedStateOptions(), SharedStateOptions(capacity = 1))
         valueSemantics(SubscriptionOptions(), SubscriptionOptions(), SubscriptionOptions(maxInFlight = 1))
         valueSemantics(ParkedRetryOptions(), ParkedRetryOptions(), ParkedRetryOptions(scanInterval = 1.seconds))
         valueSemantics(AppendQueueOptions(), AppendQueueOptions(), AppendQueueOptions(maxBatch = 1))

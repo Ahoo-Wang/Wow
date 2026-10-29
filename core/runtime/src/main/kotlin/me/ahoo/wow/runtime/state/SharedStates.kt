@@ -61,30 +61,30 @@ class SerializedState(
 }
 
 /**
- * The bounds of a context's [PublishedStates]: at most [capacity] views, holding at most [maxBytes] of serialized state
+ * The bounds of a context's [SharedStates]: at most [capacity] views, holding at most [maxBytes] of serialized state
  * (a few aggregates with states of hundreds of kilobytes would otherwise take gigabytes within the
- * count), none older than [maxAge]. The host configures them (`wow.published-states.*`).
+ * count), none older than [maxAge]. The host configures them (`wow.shared-states.*`).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
-class PublishedStateOptions @InternalWowApi constructor(
+class SharedStateOptions @InternalWowApi constructor(
     val capacity: Int = DEFAULT_CAPACITY,
     val maxAge: Duration = DEFAULT_MAX_AGE,
     val maxBytes: Long = DEFAULT_MAX_BYTES,
 ) {
     init {
-        require(capacity >= 1) { "The published states hold at least one view." }
-        require(maxAge.isPositive()) { "The maximum age of a published state is positive." }
-        require(maxBytes >= 1) { "The published states hold at least one byte." }
+        require(capacity >= 1) { "The shared states hold at least one view." }
+        require(maxAge.isPositive()) { "The maximum age of a shared state is positive." }
+        require(maxBytes >= 1) { "The shared states hold at least one byte." }
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is PublishedStateOptions && valueFields() == other.valueFields()
+        this === other || other is SharedStateOptions && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "PublishedStateOptions(capacity=$capacity, maxAge=$maxAge, maxBytes=$maxBytes)"
+    override fun toString(): String = "SharedStateOptions(capacity=$capacity, maxAge=$maxAge, maxBytes=$maxBytes)"
 
     private fun valueFields(): List<Any?> = listOf(capacity, maxAge, maxBytes)
 
@@ -98,12 +98,12 @@ class PublishedStateOptions @InternalWowApi constructor(
 }
 
 /**
- * The published states of one bounded context, shared by every state consumer of it: the
+ * The shared states of one bounded context, shared by every state consumer of it: the
  * snapshot subscription, the subscriptions of annotated processors, and later the sinks. Each of them is a named
  * [readers] entry with the aggregate types it reads.
  *
  * - **Recording**: the executor [record]s the state after each commit of an aggregate type some reader reads, while
- *   the aggregate's lane still holds it; a reader that had to rebuild a state ([PublishedStateReader]) [put]s it here too,
+ *   the aggregate's lane still holds it; a reader that had to rebuild a state ([SharedStateReader]) [put]s it here too,
  *   so the other readers, and its own next entry of the aggregate, start from it.
  * - **Expecting**: the log hands a commit to this node's subscriptions as it commits,
  * before the executor can record it. So the executor first [expect]s the state of the stream it is about to
@@ -116,22 +116,22 @@ class PublishedStateOptions @InternalWowApi constructor(
  *   gets it. [floor] gives the latest one before a version, which a reader behind it evolves with the log's tail.
  * - **Eviction**: a reader [pass]es an aggregate's version once it is done with it. A view is evicted once every
  *   reader of its type passed a later version of its aggregate, so the latest view each reader handled stays as the
- *   base of its next entry; and in any case once it is older than [PublishedStateOptions.maxAge] or the views exceed
- *   [PublishedStateOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
+ *   base of its next entry; and in any case once it is older than [SharedStateOptions.maxAge] or the views exceed
+ *   [SharedStateOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
  *   parked never holds views for long. A view missing for any reason costs its reader a rebuild, never a wrong state.
  */
 @InternalWowApi
-class PublishedStates(
+class SharedStates(
     private val codec: EventCodec,
     readers: Map<String, Set<AggregateType>>,
-    private val options: PublishedStateOptions = PublishedStateOptions(),
+    private val options: SharedStateOptions = SharedStateOptions(),
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     /** The readers, by name, with the aggregate types each reads. */
     val readers: Map<String, Set<AggregateType>> = readers.mapValues { it.value.toSet() }
 
     private val readersOf: Map<AggregateType, Set<String>> = buildMap<AggregateType, MutableSet<String>> {
-        this@PublishedStates.readers.forEach { (reader, types) -> types.forEach { getOrPut(it) { linkedSetOf() } += reader } }
+        this@SharedStates.readers.forEach { (reader, types) -> types.forEach { getOrPut(it) { linkedSetOf() } += reader } }
     }
 
     /** The aggregate types whose views are recorded: those some reader reads. */
@@ -139,7 +139,7 @@ class PublishedStates(
 
     /**
      * The views, striped by aggregate as [me.ahoo.wow.runtime.LruStateCache] is: each stripe holds its
-     * share of [PublishedStateOptions.capacity] under its own lock, so the executor's [record] and the consumers' [get] and
+     * share of [SharedStateOptions.capacity] under its own lock, so the executor's [record] and the consumers' [get] and
      * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe.
      */
     private val stripes: Array<Stripe> = Stripes.of(options.capacity).let { count ->

@@ -40,25 +40,25 @@ import java.time.Duration
  * auto-configuration) is in `META-INF/spring-autoconfigure-metadata.properties`, so that it imports no Spring Boot
  * type.
  *
- * - **The readers**: a lazy `PublishedStateCache<V>` bean of each state view the peer contracts on the class path name
- *   ([PublishedStateCacheRegistrar]), from the service's [PublishedStateCaches], whose misses read through the node's
+ * - **The readers**: a lazy `StateViewCache<V>` bean of each state view the peer contracts on the class path name
+ *   ([StateViewCacheRegistrar]), from the service's [StateViewCaches], whose misses read through the node's
  *   [QueryApi]. Its caches are created at startup, through CoCache's starter when the application has it, so
  *   `cocache.caches.[wow.<context>.<aggregate>].*` applies to them.
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
- *   after each commit (`cocache-sink.<aggregate>`, [PublishedStateSink]), which the node runs beside the application's.
+ *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */
 @Configuration(proxyBeanMethods = false)
 @Conditional(WowCoCacheAutoConfiguration.RunsCoCache::class)
 class WowCoCacheAutoConfiguration {
     @Bean
-    fun wowPublishedStateCaches(
+    fun wowStateViewCaches(
         runtime: CacheRuntime,
         beanFactory: ConfigurableListableBeanFactory,
         queries: ObjectProvider<QueryApi>,
-    ): PublishedStateCaches {
+    ): StateViewCaches {
         val classLoader = classLoaderOf(beanFactory)
-        val factory = StarterCaches.factoryOf(beanFactory, classLoader) ?: PublishedStateCaches.CacheFactory.of(runtime)
-        return PublishedStateCaches(factory) { queries.getObject() }.apply {
+        val factory = StarterCaches.factoryOf(beanFactory, classLoader) ?: StateViewCaches.CacheFactory.of(runtime)
+        return StateViewCaches(factory) { queries.getObject() }.apply {
             declare(ContractViews.onClassPath(classLoader).values)
         }
     }
@@ -66,7 +66,7 @@ class WowCoCacheAutoConfiguration {
     @Bean
     @Conditional(Publishes::class)
     fun wowCoCacheSinks(
-        caches: PublishedStateCaches,
+        caches: StateViewCaches,
         manifest: Manifest,
         environment: Environment,
         beanFactory: ConfigurableListableBeanFactory,
@@ -102,10 +102,10 @@ class WowCoCacheAutoConfiguration {
         /** The processor of the sink subscriptions that write the states: `cocache-sink.<aggregate>`. */
         const val PROCESSOR: String = "cocache-sink"
 
-        /** Registers the `PublishedStateCache<V>` beans before the others are created. */
+        /** Registers the `StateViewCache<V>` beans before the others are created. */
         @Bean
         @JvmStatic
-        fun wowPublishedStateCacheRegistrar(): PublishedStateCacheRegistrar = PublishedStateCacheRegistrar()
+        fun wowStateViewCacheRegistrar(): StateViewCacheRegistrar = StateViewCacheRegistrar()
 
         /**
          * The aggregate types whose states the service writes: `wow.cocache.publish`, read from the environment since
@@ -152,7 +152,7 @@ class WowCoCacheAutoConfiguration {
             ttl: Duration?,
             manifest: Manifest,
             views: Map<AggregateType, Class<*>>,
-            caches: PublishedStateCaches,
+            caches: StateViewCaches,
         ): PublishedSinks {
             val own = manifest.contexts.flatMap { context ->
                 context.aggregates.map { AggregateType(context.name, it.name) }
@@ -197,8 +197,8 @@ class WowCoCacheAutoConfiguration {
             return AggregateType(context, aggregate)
         }
 
-        private fun <V : Any> sinkOf(viewType: Class<V>, ttl: Duration?, caches: PublishedStateCaches): Sink =
-            PublishedStateSink(viewType, caches.writerOf(viewType, ttl))
+        private fun <V : Any> sinkOf(viewType: Class<V>, ttl: Duration?, caches: StateViewCaches): Sink =
+            StateViewSink(viewType, caches.writerOf(viewType, ttl))
 
         private fun classLoaderOf(beans: ConfigurableListableBeanFactory): ClassLoader =
             beans.beanClassLoader ?: WowCoCacheAutoConfiguration::class.java.classLoader

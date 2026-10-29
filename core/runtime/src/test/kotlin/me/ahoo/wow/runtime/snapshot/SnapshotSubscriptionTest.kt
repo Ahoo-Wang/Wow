@@ -401,7 +401,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `a published state recorded after its entry was written is never written again`(): Unit = runBlocking {
+    fun `a shared state recorded after its entry was written is never written again`(): Unit = runBlocking {
         runtime.start(setOf(0))
         repeat(2) { coordinator.execute(counter, add("a")) }
         // Version 3's append returns only once the subscription has written it without a view: the executor records
@@ -431,7 +431,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `without a published state the snapshot and the log's tail give the state`(): Unit = runBlocking {
+    fun `without a shared state the snapshot and the log's tail give the state`(): Unit = runBlocking {
         // Commands run outside the executor that records views: as on another node, or before an ownership change.
         val elsewhere = Executor(kernel)
         repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copyWith(operator = ALICE)) }
@@ -459,7 +459,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `a published state is written without reading the log or the store`(): Unit = runBlocking {
+    fun `a shared state is written without reading the log or the store`(): Unit = runBlocking {
         runtime.start(setOf(0))
         coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
         runtime.stop()
@@ -481,7 +481,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `a deletion written from its published state reloads as deleted until it is restored`(): Unit = runBlocking {
+    fun `a deletion written from its shared state reloads as deleted until it is restored`(): Unit = runBlocking {
         runtime.start(setOf(0))
         coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
         runtime.stop()
@@ -516,7 +516,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `a published state a new subscription has not written before keeps the view's metadata`(): Unit = runBlocking {
+    fun `a shared state a new subscription has not written before keeps the view's metadata`(): Unit = runBlocking {
         runtime.start(setOf(0))
         coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
         runtime.stop()
@@ -571,7 +571,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `without a published state the snapshot holds the deleted mark, the scope and the tags`(): Unit = runBlocking {
+    fun `without a shared state the snapshot holds the deleted mark, the scope and the tags`(): Unit = runBlocking {
         // Commands run outside the executor that records views: as on another node, or before an ownership change.
         val elsewhere = Executor(kernel)
         val tags = mapOf("tier" to listOf("gold"))
@@ -622,7 +622,7 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
-    fun `a published state that fails to serialize never fails the committed command`(): Unit = runBlocking {
+    fun `a shared state that fails to serialize never fails the committed command`(): Unit = runBlocking {
         val subscription = SnapshotSubscription("shop", listOf(fragile), store, kernel, log, codec)
         val executor = Executor(kernel, views = subscription.views)
         val ref = fragile.type.ref("t", "f")

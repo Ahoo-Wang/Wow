@@ -238,9 +238,7 @@ export function resumableQueryRows<T>(
               received++;
               failures = 0;
               controller.enqueue(
-                id
-                  ? { row: data as T, position: id }
-                  : { row: data as T },
+                id ? { row: data as T, position: id } : { row: data as T },
               );
               return;
             }

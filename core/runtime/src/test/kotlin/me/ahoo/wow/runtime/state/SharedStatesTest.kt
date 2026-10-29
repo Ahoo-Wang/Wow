@@ -36,17 +36,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
-/** Decision D133: the published states a context's state consumers share, and when they are evicted. */
-class PublishedStatesTest {
+/** Decision D133: the shared states a context's state consumers share, and when they are evicted. */
+class SharedStatesTest {
     private val codec = EventCodec()
     private val time = TestTimeSource()
     private val alice = CART.ref(TENANT, "alice")
     private val bob = CART.ref(TENANT, "bob")
 
-    private fun views(capacity: Int = 16, maxAge: kotlin.time.Duration = 60.seconds) = PublishedStates(
+    private fun views(capacity: Int = 16, maxAge: kotlin.time.Duration = 60.seconds) = SharedStates(
         codec,
         mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART, ORDER)),
-        PublishedStateOptions(capacity, maxAge),
+        SharedStateOptions(capacity, maxAge),
         time,
     )
 
@@ -55,7 +55,7 @@ class PublishedStatesTest {
     @Test
     fun `the executor's commits should be recorded for the types some reader reads`(): Unit = runBlocking {
         val kernel = Kernel(InMemoryEventLog(), codec = codec)
-        val readers = PublishedStates(codec, mapOf(PROJECTION to setOf(CART)))
+        val readers = SharedStates(codec, mapOf(PROJECTION to setOf(CART)))
         readers.types.assert().containsExactly(CART)
         readers.readers.assert().isEqualTo(mapOf(PROJECTION to setOf(CART)))
         val cart = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple"))))
@@ -102,7 +102,7 @@ class PublishedStatesTest {
             val committed = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple"))))
                 as CommandOutcome.Committed
             val state = CachedState(committed.state, 1)
-            val views = PublishedStates(codec, mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART)))
+            val views = SharedStates(codec, mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART)))
             val missed = AtomicInteger()
             val pool = Executors.newFixedThreadPool(2)
             try {
@@ -184,7 +184,7 @@ class PublishedStatesTest {
         views.forget(bob)
         views.get(pear.stream).assert().isNull()
         // Nothing is held for a type no reader reads.
-        val unread = PublishedStates(codec, mapOf(PROJECTION to setOf(ORDER)))
+        val unread = SharedStates(codec, mapOf(PROJECTION to setOf(ORDER)))
         unread.expect(cartModel(), pear.stream, state)
         unread.get(pear.stream).assert().isNull()
         unread.forget(bob)
@@ -249,10 +249,10 @@ class PublishedStatesTest {
 
     @Test
     fun `the views should be bounded by the bytes of their states, oldest first, the last one kept`() {
-        val views = PublishedStates(
+        val views = SharedStates(
             codec,
             mapOf(SNAPSHOT to setOf(CART)),
-            PublishedStateOptions(capacity = 16, maxBytes = 40),
+            SharedStateOptions(capacity = 16, maxBytes = 40),
             time,
         )
         val state = "x".repeat(8)
@@ -286,9 +286,9 @@ class PublishedStatesTest {
 
     @Test
     fun `the options and a view should be valid`() {
-        assertThrownBy<IllegalArgumentException> { PublishedStateOptions(capacity = 0) }
-        assertThrownBy<IllegalArgumentException> { PublishedStateOptions(maxAge = 0.seconds) }
-        assertThrownBy<IllegalArgumentException> { PublishedStateOptions(maxBytes = 0) }
+        assertThrownBy<IllegalArgumentException> { SharedStateOptions(capacity = 0) }
+        assertThrownBy<IllegalArgumentException> { SharedStateOptions(maxAge = 0.seconds) }
+        assertThrownBy<IllegalArgumentException> { SharedStateOptions(maxBytes = 0) }
         assertThrownBy<IllegalArgumentException> { SerializedState(0, "{}") }
         view(3).toString().assert().isEqualTo("SerializedState(version=3)")
     }

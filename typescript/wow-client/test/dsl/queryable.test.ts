@@ -135,7 +135,11 @@ describe('queryable', () => {
         total: 5,
         exact: false,
       });
-      expect(pagedList({ total: 10 })).toEqual({ total: 10, exact: true, list: [] });
+      expect(pagedList({ total: 10 })).toEqual({
+        total: 10,
+        exact: true,
+        list: [],
+      });
     });
   });
 });

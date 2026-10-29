@@ -14,14 +14,14 @@
 package me.ahoo.wow.cocache.api
 
 /**
- * A [PublishedStateCache] cannot serve the states of [keys] now: the cache does not hold them and their owner cannot be
+ * A [StateViewCache] cannot serve the states of [keys] now: the cache does not hold them and their owner cannot be
  * read (it is unreachable, the node has no route to it, or the read timed out), or the cache's backend fails. It may
  * serve them later; the [cause] says what failed.
  *
  * Only an unavailable source is this exception: a state that does not decode as its view, or an error in the code
  * that reads it, is thrown as it is, so a reader that falls back on this exception never hides a defect.
  */
-class PublishedStateUnavailableException(
+class StateViewUnavailableException(
     /** The keys of the states the read asked for. */
     val keys: Collection<StateKey>,
     message: String,

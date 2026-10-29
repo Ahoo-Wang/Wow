@@ -39,7 +39,7 @@ import me.ahoo.wow.runtime.snapshot.LogProgress
 import me.ahoo.wow.runtime.snapshot.SnapshotHops
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
-import me.ahoo.wow.runtime.state.PublishedStates
+import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.LogGroupDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -62,7 +62,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 /**
  * Wires one bounded context of a [ServiceNode] from its [ContextBackends]: a [PartitionAppendQueue] over the context's
  * log groups (configured by [ServiceNodeOptions.appendQueue]) → a [Kernel] with its state cache, snapshot and
- * reservation stores → an [Executor] recording the published states the context's state consumers share; the built-in
+ * reservation stores → an [Executor] recording the shared states the context's state consumers share; the built-in
  * [SnapshotSubscription] (for the aggregates whose Manifest enables snapshots) and [ReservationSubscription], in a
  * [SubscriptionRuntime] per log group; a [PartitionOwnership] of the lease group `(service, context)`; with a timer
  * store, the built-in [TimersSubscription] and a [TimerRunner] driven by that ownership; the runtime of the context's
@@ -155,10 +155,10 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val reserved = reservationsOf(backends, groups)
         val kernel = kernelOf(log, backends, reserved, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
-        val views = PublishedStates(
+        val views = SharedStates(
             codec,
             stateReaders(context, models, snaps.readers, application),
-            options.publishedStates
+            options.sharedStates
         )
         val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
         val reservations = reserved?.let { ReservationSubscription(context, it, observer) }
@@ -401,7 +401,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val ownership: PartitionOwnership,
         val backends: ContextBackends,
         val codec: EventCodec,
-        val views: PublishedStates,
+        val views: SharedStates,
         val intake: SubscriptionRuntime?,
         val timers: ContextTimers?,
         val firing: LateFirer,
@@ -484,5 +484,5 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     }
 }
 
-/** The published states an executor records commits in: none when no reader of the context reads any aggregate type. */
-private fun PublishedStates.forExecutor(): PublishedStates? = takeIf { it.types.isNotEmpty() }
+/** The shared states an executor records commits in: none when no reader of the context reads any aggregate type. */
+private fun SharedStates.forExecutor(): SharedStates? = takeIf { it.types.isNotEmpty() }

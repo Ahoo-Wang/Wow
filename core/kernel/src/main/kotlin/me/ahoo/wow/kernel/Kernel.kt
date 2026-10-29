@@ -212,7 +212,7 @@ class Kernel(
             }
         } catch (cancelled: CancellationException) {
             // An observation's context returns through a cancellable switch: a commit that switch
-            // dropped for a caller cancelled meanwhile is still answered, so its published state is recorded.
+            // dropped for a caller cancelled meanwhile is still answered, so its shared state is recorded.
             committed ?: throw cancelled
         }
     }
@@ -799,7 +799,7 @@ class Kernel(
 
     /**
      * The committed state of [ref] at [version], read-only (the state a subscription hands over when
-     * the commit's published state is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
+     * the commit's shared state is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *

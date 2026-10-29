@@ -9,7 +9,7 @@ outline: deep
 A Saga, a name lookup or an internal computation often needs another context's aggregate, by its id, many times. `wow-cocache` keeps those states in a shared [CoCache](https://cocache.ahoo.me/) cache, a Redis L1 with a local L2 in each service:
 
 - The context that **owns** the aggregate writes each state into the cache after its own commit, in version order.
-- Every **reader** injects `PublishedStateCache<V>` of the generated view and reads it. There is no cache to declare, no subscription to write and no copy per reader.
+- Every **reader** injects `StateViewCache<V>` of the generated view and reads it. There is no cache to declare, no subscription to write and no copy per reader.
 
 A service that cannot reach the shared Redis reads the same views with the [typed peer read](../reading-state), `queries.snapshots<V>()`: the cache is an acceleration of that read, never a different answer.
 
@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-`wow-cocache-api` holds `StateKey` and `PublishedStateCache` and nothing else, so a domain module that uses them pulls in neither CoCache nor Redis. `wow-cocache` turns itself on when the application runs CoCache, that is, when CoCache's starter has a backend (`cocache.backend: redis`, with Spring's `spring.data.redis.*`; `memory` for one JVM).
+`wow-cocache-api` holds `StateKey` and `StateViewCache` and nothing else, so a domain module that uses them pulls in neither CoCache nor Redis. `wow-cocache` turns itself on when the application runs CoCache, that is, when CoCache's starter has a backend (`cocache.backend: redis`, with Spring's `spring.data.redis.*`; `memory` for one JVM).
 
 ## Read a state
 
@@ -47,7 +47,7 @@ The reader injects the cache of the view the owner's api module generates, `<Sta
 @Saga
 class PaymentGatewaySaga(
     private val gateway: PaymentGateway,
-    private val orders: PublishedStateCache<OrderStateView>,
+    private val orders: StateViewCache<OrderStateView>,
 ) {
     @OnEvent
     suspend fun onPaymentRequested(event: StateTypedEvent<PaymentState, PaymentRequested>): CommandRequest<*> {
@@ -57,7 +57,7 @@ class PaymentGatewaySaga(
 }
 ```
 
-A state the cache does not hold, whose owner cannot be read now (unreachable, no route to it from this node, a timeout) or whose cache backend fails, is a `PublishedStateUnavailableException`, naming the keys. Nothing else is: a state that does not decode as its view, or a defect in the reading code, is thrown as it is.
+A state the cache does not hold, whose owner cannot be read now (unreachable, no route to it from this node, a timeout) or whose cache backend fails, is a `StateViewUnavailableException`, naming the keys. Nothing else is: a state that does not decode as its view, or a defect in the reading code, is thrown as it is.
 
 Whether to fall back on it is the reader's call. A read for the reader's own use, a name or a description, may fall back. A read a decision rests on must not: it fails, and the handler retries and then parks as any failure does. The eShop's payment reads the order it charges to say what the charge is for, its own use, so a payment never waits on the ordering for it. It catches exactly the unavailable state, says so once, and charges by the order's id:
 
@@ -72,7 +72,7 @@ Whether to fall back on it is the reader's call. A read for the reader's own use
  */
 private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
     orders.get(tenantId, orderId)
-} catch (unavailable: PublishedStateUnavailableException) {
+} catch (unavailable: StateViewUnavailableException) {
     // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
     if (warned.compareAndSet(false, true)) {
         logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
@@ -86,7 +86,7 @@ private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? 
 - `get(key)` and `get(tenantId, id)` answer the view, or `null` when the aggregate does not exist or is deleted.
 - `getAll(keys)` answers the views of the aggregates that exist: one read of the cache, and one query of the owner per tenant for those it misses, their ids in one `IN`.
 
-Everything about the cache follows from the view. Its name is `wow.<context>.<aggregate>`, the aggregate the view's `@StateView` names; its key is the aggregate's tenant and id; its value is the view's JSON. The owner and every reader derive the same, so nothing is configured to make them meet. Each view the contracts on the class path name gets a `PublishedStateCache<V>` bean. Outside Spring, `StateViewCaches.of<V>()` gives the same cache.
+Everything about the cache follows from the view. Its name is `wow.<context>.<aggregate>`, the aggregate the view's `@StateView` names; its key is the aggregate's tenant and id; its value is the view's JSON. The owner and every reader derive the same, so nothing is configured to make them meet. Each view the contracts on the class path name gets a `StateViewCache<V>` bean. Outside Spring, `StateViewCaches.of<V>()` gives the same cache.
 
 A view the cache does not hold is read from the owner through the node's typed queries: in process when the node serves the aggregate, else over HTTP on the owner's internal port as this service ([Call Other Services](../calling-services)). An aggregate that was never created is cached as absent for a while (CoCache's negative cache).
 

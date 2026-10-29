@@ -34,8 +34,8 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.TestTrace
-import me.ahoo.wow.runtime.state.PublishedStateReader
-import me.ahoo.wow.runtime.state.PublishedStates
+import me.ahoo.wow.runtime.state.SharedStateReader
+import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
@@ -87,7 +87,7 @@ class SinkSubscriptionTest {
     private val codec = EventCodec()
     private val log = InMemoryEventLog(1)
     private val kernel = Kernel(log, codec = codec)
-    private val views = PublishedStates(codec, mapOf(NAME to setOf(type)))
+    private val views = SharedStates(codec, mapOf(NAME to setOf(type)))
     private val executor = Executor(kernel, views = views)
     private val written = CopyOnWriteArrayList<StateEventRecord>()
     private val commands = AtomicInteger()
@@ -96,7 +96,7 @@ class SinkSubscriptionTest {
         NAME,
         type,
         { written += it },
-        PublishedStateReader(NAME, listOf(model), kernel, codec, views),
+        SharedStateReader(NAME, listOf(model), kernel, codec, views),
         includeState,
     )
 
@@ -225,9 +225,9 @@ class SinkSubscriptionTest {
     }
 
     @Test
-    fun `a sink should read the published states under its own name`() {
+    fun `a sink should read the shared states under its own name`() {
         assertThrows<IllegalArgumentException> {
-            SinkSubscription(NAME, type, {}, PublishedStateReader("other", listOf(model), kernel, codec, views))
+            SinkSubscription(NAME, type, {}, SharedStateReader("other", listOf(model), kernel, codec, views))
         }
     }
 

@@ -19,12 +19,12 @@ import me.ahoo.wow.spi.state.StateEventRecord
 
 /**
  * The sink that writes one aggregate type's states into its cache: each commit, in version order per aggregate, its
- * state after the commit as the view [viewType], or its tombstone when the commit deleted it ([PublishedStateWriter]). It
+ * state after the commit as the view [viewType], or its tombstone when the commit deleted it ([StateViewWriter]). It
  * runs as a sink subscription of the owner's node, so it checkpoints, retries and parks as every subscription does,
  * and a record written again changes nothing.
  */
-internal class PublishedStateSink<V : Any>(viewType: Class<V>, private val writer: PublishedStateWriter<V>) : Sink {
-    private val codec = PublishedStateCodec(viewType)
+internal class StateViewSink<V : Any>(viewType: Class<V>, private val writer: StateViewWriter<V>) : Sink {
+    private val codec = StateViewCodec(viewType)
 
     override suspend fun write(records: List<StateEventRecord>) {
         records.forEach { record ->
@@ -38,5 +38,5 @@ internal class PublishedStateSink<V : Any>(viewType: Class<V>, private val write
         }
     }
 
-    override fun toString(): String = "PublishedStateSink($writer)"
+    override fun toString(): String = "StateViewSink($writer)"
 }

@@ -487,7 +487,8 @@ function emitAggregate(
     ])}export type ${name}StateField = ${union(aggregate.stateFields.map(quoteStringLiteral))};`,
   );
   const events = aggregate.events.map(
-    event => `CommittedEvent<${quoteStringLiteral(event.wireName)}, ${event.type}>`,
+    event =>
+      `CommittedEvent<${quoteStringLiteral(event.wireName)}, ${event.type}>`,
   );
   module.imports.add(
     WOW_CLIENT,

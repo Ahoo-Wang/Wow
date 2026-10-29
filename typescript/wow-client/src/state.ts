@@ -87,7 +87,10 @@ export interface StateTraceOptions extends RequestOptions {
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
  */
-export class StateClient<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export class StateClient<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached

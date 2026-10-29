@@ -19,7 +19,7 @@ import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.redis.RedisBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.cocache.PublishedStateCaches
+import me.ahoo.wow.cocache.StateViewCaches
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import org.apache.kafka.clients.admin.Admin
@@ -48,7 +48,7 @@ import java.time.Duration
  *
  * - **The orders' cache.** The ordering and the payment services run their `redis` profile, on Redis in a container:
  *   the ordering service writes each order into CoCache after its commits (`wow.cocache.publish`, its sink
- *   subscription), and the payment's gateway saga reads it there, `PublishedStateCache<OrderStateView>`, to say what a
+ *   subscription), and the payment's gateway saga reads it there, `StateViewCache<OrderStateView>`, to say what a
  *   charge is for. The test reads the cache as a third service does, with no read of the ordering service.
  *
  * The orders are submitted to the ordering service directly; the basket's checkout is `EshopOrderFlowTest`'s.
@@ -93,7 +93,7 @@ class EshopPaymentFlowTest {
     private val reader = CacheRuntime.builder()
         .backend(RedisBackend.standalone(RedisURI.create(redis.host, redis.getMappedPort(REDIS_PORT))))
         .build()
-    private val orders = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(reader)) {
+    private val orders = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) {
         error("The ordering service writes the orders: the test reads none from it.")
     }.of<OrderStateView>()
 

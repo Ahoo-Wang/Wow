@@ -19,8 +19,8 @@ import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
-import me.ahoo.wow.cocache.api.PublishedStateCache
-import me.ahoo.wow.cocache.api.PublishedStateUnavailableException
+import me.ahoo.wow.cocache.api.StateViewCache
+import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
@@ -37,14 +37,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * handling retried after a failure does not charge twice. A gateway that fails is retried, then the payment is parked for this saga.
  *
  * The charge says what it is for, the order's items, which the saga reads from the ordering context's shared cache of
- * its orders ([orders], `PublishedStateCache<OrderStateView>`, wow-cocache): the ordering service writes each order into it
+ * its orders ([orders], `StateViewCache<OrderStateView>`, wow-cocache): the ordering service writes each order into it
  * after its commits, and a miss reads the ordering service. That is a trusted read for the saga's own use, the
  * charge's description: the order is never decided by it, and an order the cache cannot give is charged by its id.
  */
 @Saga
 class PaymentGatewaySaga(
     private val gateway: PaymentGateway,
-    private val orders: PublishedStateCache<OrderStateView>,
+    private val orders: StateViewCache<OrderStateView>,
 ) {
     private val warned = AtomicBoolean()
 
@@ -71,7 +71,7 @@ class PaymentGatewaySaga(
      */
     private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
         orders.get(tenantId, orderId)
-    } catch (unavailable: PublishedStateUnavailableException) {
+    } catch (unavailable: StateViewUnavailableException) {
         // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
         if (warned.compareAndSet(false, true)) {
             logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }

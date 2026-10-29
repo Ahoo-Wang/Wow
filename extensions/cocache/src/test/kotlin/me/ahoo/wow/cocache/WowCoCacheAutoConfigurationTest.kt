@@ -19,7 +19,7 @@ import me.ahoo.cocache.spring.boot.CoCacheAutoConfiguration
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.cocache.api.PublishedStateCache
+import me.ahoo.wow.cocache.api.StateViewCache
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -40,19 +40,16 @@ class WowCoCacheAutoConfigurationTest {
         )
         .withBean(QueryApi::class.java, { mockk<QueryApi>() })
 
-    private val cacheOfOrders = ResolvableType.forClassWithGenerics(
-        PublishedStateCache::class.java,
-        OrderView::class.java
-    )
+    private val cacheOfOrders = ResolvableType.forClassWithGenerics(StateViewCache::class.java, OrderView::class.java)
 
     @Test
     fun `a service should inject the cache of each view its contracts name, with nothing declared`() {
         runner.withPropertyValues("cocache.backend=memory", "cocache.caches.[wow.shop.order].ttl=5m").run { context ->
             context.startupFailure.assert().isNull()
-            val cache = context.getBeanProvider<PublishedStateCache<OrderView>>(cacheOfOrders).getObject()
+            val cache = context.getBeanProvider<StateViewCache<OrderView>>(cacheOfOrders).getObject()
             cache.name.assert().isEqualTo("wow.shop.order")
-            cache.assert().isSameAs(context.getBean(PublishedStateCaches::class.java).of<OrderView>())
-            context.containsBean(PublishedStateCacheRegistrar.beanNameOf("shop.order")).assert().isTrue()
+            cache.assert().isSameAs(context.getBean(StateViewCaches::class.java).of<OrderView>())
+            context.containsBean(StateViewCacheRegistrar.beanNameOf("shop.order")).assert().isTrue()
             // Created at startup, so CoCache's starter knows the cache its settings name.
             context.getBean(CacheRuntime::class.java).cacheNames.assert().contains("wow.shop.order")
             context.getBeansOfType(PublishedSinks::class.java).assert().isEmpty()
@@ -63,8 +60,8 @@ class WowCoCacheAutoConfigurationTest {
     fun `a service that does not run CoCache should get nothing`() {
         runner.run { context ->
             context.startupFailure.assert().isNull()
-            context.getBeansOfType(PublishedStateCaches::class.java).assert().isEmpty()
-            context.containsBean(PublishedStateCacheRegistrar.beanNameOf("shop.order")).assert().isFalse()
+            context.getBeansOfType(StateViewCaches::class.java).assert().isEmpty()
+            context.containsBean(StateViewCacheRegistrar.beanNameOf("shop.order")).assert().isFalse()
         }
     }
 
@@ -95,7 +92,7 @@ class WowCoCacheAutoConfigurationTest {
     @Test
     fun `the sinks should refuse a type with no view, or a name that is no type`() {
         val runtime = runtimeOn(me.ahoo.cocache.core.memory.InMemoryBackend())
-        val caches = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(runtime)) { mockk() }
+        val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { mockk() }
         val views = mapOf(ORDER to OrderView::class.java)
         fun sinksOf(publish: String, views: Map<AggregateType, Class<*>>) =
             runCatching { WowCoCacheAutoConfiguration.sinksOf(listOf(publish), null, shopManifest(), views, caches) }

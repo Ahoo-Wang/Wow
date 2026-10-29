@@ -154,7 +154,7 @@ class SourcedNodeTest {
             node.topicSubscriptions.keys.assert().containsExactly(TOPIC)
             val subscriptions = node.topicSubscriptions.getValue(TOPIC)
             subscriptions.subscriptions.map { it.name }.assert().containsExactly("Board.onOrder", "Payout.onOrder")
-            // A sourced handler reads no published state of the node's own context.
+            // A sourced handler reads no shared state of the node's own context.
             node.context(BANK).views.readers.keys.assert().doesNotContain("Board.onOrder")
             node.start()
             subscriptions.awaitStarted()

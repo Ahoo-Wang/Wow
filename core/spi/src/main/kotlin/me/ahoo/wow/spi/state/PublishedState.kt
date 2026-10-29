@@ -21,7 +21,7 @@ import tools.jackson.databind.JsonNode
  * as a JSON tree, numbers exact, and the [schemaFingerprint] of the state's schema, the one the
  * Manifest and the aggregate's snapshots carry, so a reader knows which schema the tree follows.
  *
- * The runtime keeps its own form of a view for the state consumers of a context (`runtime.state.PublishedStates`): the
+ * The runtime keeps its own form of a view for the state consumers of a context (`runtime.state.SharedStates`): the
  * serialized text a snapshot stores, with the aggregate's scope, deletion and tags. A sink maps that form to this one.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.

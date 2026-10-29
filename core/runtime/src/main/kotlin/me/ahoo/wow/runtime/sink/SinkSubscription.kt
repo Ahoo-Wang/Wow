@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
-import me.ahoo.wow.runtime.state.PublishedStateReader
+import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -55,7 +55,7 @@ internal class SinkSubscription(
     val name: String,
     val type: AggregateType,
     private val sink: Sink,
-    private val reader: PublishedStateReader,
+    private val reader: SharedStateReader,
     private val includeState: Boolean = true,
     startFrom: StartFrom = StartFrom.BEGINNING,
 ) {
@@ -65,7 +65,7 @@ internal class SinkSubscription(
     init {
         require(
             reader.reader == name
-        ) { "The sink $name reads the published states as ${reader.reader}, not as itself." }
+        ) { "The sink $name reads the shared states as ${reader.reader}, not as itself." }
     }
 
     /** The subscription to register: of [type]'s streams only, every event of them. */

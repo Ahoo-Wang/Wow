@@ -1186,9 +1186,7 @@ describe('StateClient', () => {
   });
 
   it('reads a trace', async () => {
-    const { requests } = stubFetch(() =>
-      jsonResponse({ ref, commits: [] }),
-    );
+    const { requests } = stubFetch(() => jsonResponse({ ref, commits: [] }));
     await new StateClient(PRODUCT, client()).trace('p1', {
       from: 2,
       to: 5,

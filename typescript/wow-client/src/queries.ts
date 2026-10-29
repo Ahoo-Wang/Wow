@@ -355,10 +355,7 @@ export function queryPath(type: AggregateType, model: string): string {
 export class SnapshotQueryClient<
   S = unknown,
   STATE_FIELDS extends string = `state.${string}`,
-> extends QueryModelClient<
-  Snapshot<S>,
-  SnapshotSystemField | STATE_FIELDS
-> {
+> extends QueryModelClient<Snapshot<S>, SnapshotSystemField | STATE_FIELDS> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached

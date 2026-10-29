@@ -1,7 +1,7 @@
 {
   "version": 1,
   "files": {
-    "eshop-basket/basket/aggregate.ts": "0d053578c789c86f780831d4b8b1e4db95efd81188db579294f1cdc4687999d4",
+    "eshop-basket/basket/aggregate.ts": "faed1b917c70fef752f8df2aefc02912e92ab0f2ff1ddbe16a0ef7a64c6edf69",
     "eshop-basket/basket/commandClient.ts": "c3acc893655c0f2fbfca50cf5fee0ab6cf2ac8988091ba93bc80184ba77b23cc",
     "eshop-basket/basket/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-basket/basket/queryClient.ts": "17eaf51704332a17a02ad21265e4de9c90d8a924d1d8e482536f3e0733378b5f",

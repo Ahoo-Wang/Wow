@@ -130,7 +130,9 @@ export function problemResponse(
 export function snapshotOf<S>(
   ref: AggregateRef,
   state: S,
-  overrides: Partial<Omit<Snapshot<S>, 'tenantId' | 'aggregateId' | 'state'>> = {},
+  overrides: Partial<
+    Omit<Snapshot<S>, 'tenantId' | 'aggregateId' | 'state'>
+  > = {},
 ): Snapshot<S> {
   return {
     tenantId: ref.tenantId,

@@ -177,11 +177,6 @@
     "type" : "me.ahoo.wow.postgres.PostgresStoreProvider",
     "description" : "The settings of every postgres store; a store's own options override them."
   }, {
-    "name" : "wow.published-states",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$PublishedStates",
-    "description" : "The bounds of each context's published states: `wow.published-states.*`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.query",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties",
     "description" : "The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: the query routes and gateways, the budgets they run under, who may query what, and how many queries each store runs at once."
@@ -250,6 +245,11 @@
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Stream",
     "description" : "How a `list` streamed as server-sent events reads its chunks and how long it runs.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
+  }, {
+    "name" : "wow.shared-states",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "description" : "The bounds of each context's shared states: `wow.shared-states.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.snapshot",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
@@ -930,23 +930,6 @@
     "sourceType" : "me.ahoo.wow.postgres.PostgresStoreProvider",
     "defaultValue" : "PT30S"
   }, {
-    "name" : "wow.published-states.capacity",
-    "type" : "java.lang.Integer",
-    "description" : "The most published states a context keeps.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PublishedStates",
-    "defaultValue" : 4096
-  }, {
-    "name" : "wow.published-states.max-age",
-    "type" : "java.time.Duration",
-    "description" : "How long a published state is kept at most.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PublishedStates",
-    "defaultValue" : "PT1M"
-  }, {
-    "name" : "wow.published-states.max-bytes",
-    "type" : "org.springframework.util.unit.DataSize",
-    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PublishedStates"
-  }, {
     "name" : "wow.query.abac.attribute-prefix",
     "type" : "java.lang.String",
     "description" : "The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`.",
@@ -1281,6 +1264,23 @@
     "type" : "java.lang.String",
     "description" : "The service's name; `spring.application.name` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
+    "name" : "wow.shared-states.capacity",
+    "type" : "java.lang.Integer",
+    "description" : "The most shared states a context keeps.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : 4096
+  }, {
+    "name" : "wow.shared-states.max-age",
+    "type" : "java.time.Duration",
+    "description" : "How long a shared state is kept at most.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : "PT1M"
+  }, {
+    "name" : "wow.shared-states.max-bytes",
+    "type" : "org.springframework.util.unit.DataSize",
+    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates"
   }, {
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",

@@ -21,8 +21,8 @@ import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { ReactNode } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
@@ -4545,7 +4545,7 @@ interface ViewSource {
     cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
     describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
     // (undocumented)
-    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
+    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
 }
 
 // @public
