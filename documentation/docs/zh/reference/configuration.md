@@ -397,7 +397,7 @@ How a typed client's request that a peer answered with a problem a retry may get
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.peer.retry.initial-backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
-| `wow.peer.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
+| `wow.peer.retry.max-attempts` | `Integer` | `5` | The most attempts of a request in all; 1 never retries. |
 | `wow.peer.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
 
 ## `wow.peers.<context>`

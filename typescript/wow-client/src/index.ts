@@ -67,7 +67,10 @@ export type * from './manifestTypes.js';
 export * from './wire.js';
 export {
   CommandRejectedError,
+  DEFAULT_RETRY,
   FRAMEWORK_ERROR_PREFIX,
+  FRAMEWORK_RETRIES,
+  type FrameworkRetry,
   type FrameworkErrorCode,
   FrameworkErrorCodes,
   isProblem,
@@ -76,8 +79,8 @@ export {
   PROBLEM_TYPE_PREFIX,
   readProblem,
   requestIdOf,
-  type RetryHint,
-  retryHintOf,
+  type Retry,
+  retryOf,
   toWowProblemError,
   WowProblemError,
 } from './problem.js';

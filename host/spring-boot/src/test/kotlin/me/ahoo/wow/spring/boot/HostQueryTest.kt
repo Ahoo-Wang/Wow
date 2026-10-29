@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
@@ -42,7 +43,6 @@ import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.client
 
-import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -35,6 +34,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wire.CallWires

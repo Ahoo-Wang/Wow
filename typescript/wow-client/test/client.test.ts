@@ -36,7 +36,7 @@ import {
   readProblem,
   type RouteManifest,
   requestIdOf,
-  retryHintOf,
+  retryOf,
   SnapshotQueryClient,
   StateClient,
   type SystemEvent,
@@ -569,7 +569,7 @@ describe('CommandClient', () => {
     expect((newer as WowProblemError).code).toBe(
       FrameworkErrorCodes.COMMAND_FAILED,
     );
-    expect((newer as WowProblemError).retry.retryable).toBe(false);
+    expect((newer as WowProblemError).retry).toBe('none');
     expect((newer as WowProblemError).result?.status).toBe(
       'paused-by-a-newer-service',
     );
@@ -607,11 +607,8 @@ describe('CommandClient', () => {
     })
       .wait({ command: 'c.a.X' })
       .catch((e: unknown) => e)) as WowProblemError;
-    expect(error.retry).toEqual({
-      retryable: true,
-      sameRequestId: true,
-      afterMs: 1000,
-    });
+    expect(error.retry).toBe('same-request');
+    expect(error.retryAfterMs).toBe(1000);
     expect(error.isFramework).toBe(true);
   });
 
@@ -728,7 +725,7 @@ describe('CommandClient', () => {
       .catch((error: unknown) => error);
     expect(unknown).toBeInstanceOf(WowProblemError);
     expect((unknown as WowProblemError).requestId).toBe('r-503');
-    expect((unknown as WowProblemError).retry.sameRequestId).toBe(true);
+    expect((unknown as WowProblemError).retry).toBe('same-request');
     expect(requestIdOf(unknown)).toBe('r-503');
     expect(requestIdOf('not an error')).toBeUndefined();
     expect(requestIdOf(new Error('of no command'))).toBeUndefined();
@@ -794,31 +791,41 @@ describe('CommandClient', () => {
 });
 
 describe('problems', () => {
-  it('hints a retry for the codes a retry may get past', () => {
-    expect(retryHintOf('wow.command.unknown', 503)).toEqual({
-      retryable: true,
-      sameRequestId: true,
+  it('reads what a retry may do from the problem, else from the catalog', () => {
+    const problem = (status: number, members: Record<string, unknown>) => ({
+      type: 'about:blank',
+      title: 'T',
+      status,
+      ...members,
     });
-    expect(retryHintOf('wow.schedule.not-due', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.node.closing', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.node.standby', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.command.busy', 429).retryable).toBe(true);
-    expect(retryHintOf('wow.command.contended', 409).retryable).toBe(true);
-    expect(retryHintOf('wow.wait.timeout', 504).sameRequestId).toBe(true);
+    // The member every problem a Wow service writes carries wins.
+    expect(
+      retryOf(problem(503, { code: 'wow.command.unknown', retry: 'none' })),
+    ).toBe('none');
+    expect(retryOf(problem(503, { code: 'wow.command.unknown' }))).toBe(
+      'same-request',
+    );
+    expect(retryOf(problem(429, { code: 'wow.query.busy' }))).toBe(
+      'new-request',
+    );
     // A query that ran out of time would run as long again (decision D254 ③).
-    expect(retryHintOf('wow.query.timeout', 504)).toEqual({
-      retryable: false,
-      sameRequestId: false,
-    });
-    expect(retryHintOf('wow.query.busy', 429, 1000)).toEqual({
-      retryable: true,
-      sameRequestId: false,
-      afterMs: 1000,
-    });
-    expect(retryHintOf(undefined, 503).retryable).toBe(true);
-    expect(retryHintOf(undefined, 500).retryable).toBe(false);
-    expect(retryHintOf('wow.aggregate.exists', 409).retryable).toBe(false);
-    expect(retryHintOf('wow.schedule.job-invalid', 400).retryable).toBe(false);
+    expect(retryOf(problem(504, { code: 'wow.query.timeout' }))).toBe('none');
+    expect(retryOf(problem(409, { code: 'wow.aggregate.exists' }))).toBe(
+      'none',
+    );
+    // A body that is no Wow problem: a proxy's 503 or 429.
+    expect(retryOf(problem(503, {}))).toBe('same-request');
+    expect(retryOf(problem(429, {}))).toBe('same-request');
+    expect(retryOf(problem(500, {}))).toBe('none');
+    const busy = new WowProblemError(
+      problem(429, { code: 'wow.query.busy', retry: 'new-request' }) as never,
+    );
+    expect(busy.retryAfterMs).toBe(1000);
+    expect(
+      new WowProblemError(
+        problem(409, { code: 'wow.aggregate.exists' }) as never,
+      ).retryAfterMs,
+    ).toBeUndefined();
   });
 
   it('reads Retry-After as seconds or a date', () => {

@@ -11,114 +11,21 @@
  * limitations under the License.
  */
 
+import { FRAMEWORK_RETRIES, type Retry } from './frameworkErrors.js';
 import {
   CommandResultStatus,
   type RefusedResult,
   type Violation,
 } from './wire.js';
 
-/**
- * The framework's error codes,
- * each answered with the status of the Manifest's `errors` table. A domain
- * rejection has a code of its own, answered with 422 unless the service
- * configures another status.
- */
-export const FrameworkErrorCodes = {
-  /** 401: the request carries no valid credentials. */
-  AUTH_UNAUTHENTICATED: 'wow.auth.unauthenticated',
-  /** 403: the caller may not send this command. */
-  AUTH_FORBIDDEN: 'wow.auth.forbidden',
-  /** 403: the aggregate is outside the caller's scope. */
-  AGGREGATE_FORBIDDEN: 'wow.aggregate.forbidden',
-  /**
-   * 400: a request header or parameter does not parse, or names what Wow does
-   * not take.
-   */
-  REQUEST_MALFORMED: 'wow.request.malformed',
-  /** 400: the command body cannot be read as the command type. */
-  COMMAND_MALFORMED: 'wow.command.malformed',
-  /** 400: the command failed validation; the problem lists the violations. */
-  COMMAND_INVALID: 'wow.command.invalid',
-  /** 400: the wait is not a chain the runtime can follow. */
-  WAIT_INVALID: 'wow.wait.invalid',
-  /** 400: the aggregate does not handle this command. */
-  COMMAND_UNHANDLED: 'wow.command.unhandled',
-  /** 404: the aggregate does not exist. */
-  AGGREGATE_NOT_FOUND: 'wow.aggregate.not-found',
-  /** 409: the aggregate already exists. */
-  AGGREGATE_EXISTS: 'wow.aggregate.exists',
-  /** 409, or 412 with `If-Match`: the aggregate is not at the expected version. */
-  AGGREGATE_VERSION_MISMATCH: 'wow.aggregate.version-mismatch',
-  /** 409: the request id was used by another command. */
-  COMMAND_REQUEST_ID_REUSED: 'wow.command.request-id-reused',
-  /** 409: concurrent writers kept winning; retrying with the same request id is safe. */
-  COMMAND_CONTENDED: 'wow.command.contended',
-  /** 410: the aggregate is deleted; only RestoreAggregate applies. */
-  AGGREGATE_DELETED: 'wow.aggregate.deleted',
-  /** 429: the command was not taken, its aggregate or the node being busy; retry later. */
-  COMMAND_BUSY: 'wow.command.busy',
-  /** 503: whether the command committed is unknown; retrying with the same request id is safe. */
-  COMMAND_UNKNOWN: 'wow.command.unknown',
-  /** 500: the command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. */
-  COMMAND_FAILED: 'wow.command.failed',
-  /** 409: the aggregate's current state refuses the command (a check of its decide function); the message says why. */
-  COMMAND_REFUSED: 'wow.command.refused',
-  COMMAND_UNDECLARED_EVENT: 'wow.command.undeclared-event',
-  /** 503: the node is shutting down; retry on another node. */
-  NODE_CLOSING: 'wow.node.closing',
-  /** 503: the node is on standby until a migration's cut-over; it serves reads only. */
-  NODE_STANDBY: 'wow.node.standby',
-  /** 503, with `Retry-After`: a store could not be reached in time; retry later. */
-  STORAGE_UNAVAILABLE: 'wow.storage.unavailable',
-  /** 503: a scheduled command arrived too long before its due time; it is sent again later. */
-  SCHEDULE_NOT_DUE: 'wow.schedule.not-due',
-  /** 400: the job command does not fit its job or instance (decision D198). */
-  SCHEDULE_JOB_INVALID: 'wow.schedule.job-invalid',
-  /** 500: a subscription on the wait chain parked the aggregate. */
-  SUBSCRIPTION_PARKED: 'wow.subscription.parked',
-  /** 409: a ledger action names a parking the entry no longer is; read it again. */
-  LEDGER_STALE: 'wow.ledger.stale',
-  /** 504: the wait ran out of time; the command may have committed. */
-  WAIT_TIMEOUT: 'wow.wait.timeout',
-  /** 400: a service route's parameter or body cannot be read as its type; the violation names it. */
-  ROUTE_MALFORMED: 'wow.route.malformed',
-  /** 400: the query body cannot be read as a query. */
-  QUERY_MALFORMED: 'wow.query.malformed',
-  /** 400: the query failed admission; each violation has its code. */
-  QUERY_INVALID: 'wow.query.invalid',
-  /** 500: the query backend failed to run the query. */
-  QUERY_FAILED: 'wow.query.failed',
-  /** 504: the query ran longer than its budget allows; not retried (decision D254 ③). */
-  QUERY_TIMEOUT: 'wow.query.timeout',
-  /** 429, with `Retry-After`: the query's store runs as many queries as it allows; retry later. */
-  QUERY_BUSY: 'wow.query.busy',
-  /**
-   * 404: a `single` query matched no record, whatever its model (review R4-Q,
-   * Q-4); a state read by id that finds none is `wow.aggregate.not-found`.
-   */
-  QUERY_NOT_FOUND: 'wow.query.not-found',
-  /** 404: no dataset of that name is served to the caller. */
-  QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
-  /**
-   * 400: an aggregation that names no sort has more groups than its `limit`;
-   * add a sort for a top-N, or raise the limit.
-   */
-  QUERY_TOO_MANY_GROUPS: 'wow.query.too-many-groups',
-  /**
-   * 409, with `Retry-After`: a state read asked for a version (`minVersion`) the
-   * aggregate has not reached within the wait; the problem's `version` is its
-   * current one (review R4-Q, Q-13).
-   */
-  QUERY_MIN_VERSION_NOT_REACHED: 'wow.query.min-version-not-reached',
-  /** 409: the dataset is served but cannot be queried now (it needs revision, decision D259). */
-  QUERY_DATASET_UNAVAILABLE: 'wow.query.dataset-unavailable',
-  /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */
-  CALL_COMMAND_FORBIDDEN: 'wow.call.command-forbidden',
-} as const;
-
-/** A {@link FrameworkErrorCodes} value. */
-export type FrameworkErrorCode =
-  (typeof FrameworkErrorCodes)[keyof typeof FrameworkErrorCodes];
+export {
+  DEFAULT_RETRY,
+  FRAMEWORK_RETRIES,
+  type FrameworkRetry,
+  type FrameworkErrorCode,
+  FrameworkErrorCodes,
+  type Retry,
+} from './frameworkErrors.js';
 
 /** The prefix of every framework code, and of no domain code. */
 export const FRAMEWORK_ERROR_PREFIX = 'wow.';
@@ -138,6 +45,11 @@ export interface Problem {
   readonly detail?: string;
   /** The Wow code; absent for an error that is only HTTP's. */
   readonly code?: string;
+  /**
+   * What a retry may do, as the error catalog declares it for the code: every
+   * problem a Wow service writes carries it.
+   */
+  readonly retry?: Retry;
   readonly violations?: readonly Violation[];
   /**
    * The whole result of a command that has a ref; its id is null when
@@ -160,6 +72,7 @@ const PROBLEM_MEMBERS: ReadonlySet<string> = new Set([
   'detail',
   'instance',
   'code',
+  'retry',
   'violations',
   'result',
   'extensions',
@@ -180,60 +93,23 @@ function withExtensions(problem: Problem): Problem {
 }
 
 /**
- * What a client may do about a failed request: whether retrying can succeed,
- * whether to keep the request id (`Wow-Request-Id`) so the server
- * deduplicates a command that did commit, and how long to wait first.
- */
-export interface RetryHint {
-  readonly retryable: boolean;
-  /** Retry with the same `Wow-Request-Id`: a commit is then answered as a duplicate. */
-  readonly sameRequestId: boolean;
-  /** The server's `Retry-After`, in milliseconds. */
-  readonly afterMs?: number;
-}
-
-/**
- * The codes a retry may get past, each with whether to keep the request id:
- * the 503s (`wow.command.unknown`, `wow.node.closing`, `wow.node.standby`,
- * `wow.storage.unavailable`, `wow.schedule.not-due`),
- * the 429s `wow.command.busy` and `wow.query.busy`, the 409s `wow.command.contended` and
- * `wow.query.min-version-not-reached` (once the command commits), and the 504
- * `wow.wait.timeout`, whose command may have committed.
- */
-const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
-  [FrameworkErrorCodes.COMMAND_UNKNOWN, true],
-  [FrameworkErrorCodes.NODE_CLOSING, true],
-  [FrameworkErrorCodes.NODE_STANDBY, true],
-  [FrameworkErrorCodes.STORAGE_UNAVAILABLE, true],
-  [FrameworkErrorCodes.SCHEDULE_NOT_DUE, true],
-  [FrameworkErrorCodes.COMMAND_BUSY, true],
-  [FrameworkErrorCodes.QUERY_BUSY, false],
-  [FrameworkErrorCodes.QUERY_MIN_VERSION_NOT_REACHED, false],
-  [FrameworkErrorCodes.COMMAND_CONTENDED, true],
-  [FrameworkErrorCodes.WAIT_TIMEOUT, true],
-]);
-
-/**
- * The retry hint of a problem with `code` and `status`: a code of the
- * retryable table, or a 503 without a code (a proxy's), may be retried.
+ * What a retry of `problem` may do: its `retry` member, which every problem a
+ * Wow service writes carries; else the error catalog's for its code; else, for
+ * a body that is no Wow problem (a proxy's 503 or 429), `same-request`.
  *
- * @param code - The problem's Wow code, if any
- * @param status - The HTTP status
- * @param afterMs - The `Retry-After` the response carried, in milliseconds
+ * @param problem - The problem a request was answered with
  */
-export function retryHintOf(
-  code: string | undefined,
-  status: number,
-  afterMs?: number,
-): RetryHint {
-  const sameRequestId = code === undefined ? undefined : RETRYABLE.get(code);
-  const retryable =
-    sameRequestId !== undefined || (code === undefined && status === 503);
-  return {
-    retryable,
-    sameRequestId: sameRequestId ?? retryable,
-    ...(afterMs === undefined ? {} : { afterMs }),
-  };
+export function retryOf(problem: Problem): Retry {
+  if (problem.retry !== undefined) return problem.retry;
+  const known =
+    problem.code === undefined
+      ? undefined
+      : FRAMEWORK_RETRIES.get(problem.code);
+  if (known) return known.retry;
+  return problem.code === undefined &&
+    (problem.status === 503 || problem.status === 429)
+    ? 'same-request'
+    : 'none';
 }
 
 /**
@@ -252,15 +128,21 @@ export class WowProblemError extends Error {
   readonly violations: readonly Violation[];
   /** The command's result, when the command had a ref ({@link RefusedResult}). */
   readonly result?: RefusedResult;
-  /** What a client may do about it. */
-  readonly retry: RetryHint;
+  /** What a retry may do ({@link retryOf}). */
+  readonly retry: Retry;
+  /**
+   * How long to wait before a retry, in milliseconds: the response's
+   * `Retry-After`, else the error catalog's for its code; none when no retry
+   * may get past it.
+   */
+  readonly retryAfterMs?: number;
   /** The error this one explains: the fetcher's, or the stream's. */
   readonly cause?: unknown;
 
   /**
    * The request id (`Wow-Request-Id`) of the command this answers: its
    * result's, else the one the client sent. Retry with it when
-   * {@link RetryHint.sameRequestId} says so.
+   * {@link WowProblemError.retry} is `same-request`.
    */
   get requestId(): string | undefined {
     return this.result?.requestId ?? SENT_REQUEST_IDS.get(this);
@@ -285,11 +167,15 @@ export class WowProblemError extends Error {
     if (problem.code !== undefined) this.code = problem.code;
     this.violations = problem.violations ?? [];
     if (problem.result !== undefined) this.result = problem.result;
-    this.retry = retryHintOf(
-      problem.code,
-      problem.status,
-      options.retryAfterMs,
-    );
+    this.retry = retryOf(problem);
+    const retryAfterMs =
+      options.retryAfterMs ??
+      (problem.code === undefined
+        ? undefined
+        : FRAMEWORK_RETRIES.get(problem.code)?.retryAfterMs);
+    if (this.retry !== 'none' && retryAfterMs !== undefined) {
+      this.retryAfterMs = retryAfterMs;
+    }
     if (options.cause !== undefined) this.cause = options.cause;
   }
 
@@ -319,7 +205,7 @@ export class WowProblemError extends Error {
  *   parse), a technical failure (a busy or closing node, a store or a broker
  *   that is down, a wait that timed out) or a failed result: a
  *   {@link WowProblemError}, with its result when the service sent one, and
- *   whether to retry ({@link RetryHint}).
+ *   what a retry may do ({@link WowProblemError.retry}).
  *
  * `stream` emits every result, whatever its status.
  */

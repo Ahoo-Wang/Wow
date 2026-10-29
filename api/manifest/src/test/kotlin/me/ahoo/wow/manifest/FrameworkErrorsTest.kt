@@ -16,13 +16,13 @@ package me.ahoo.wow.manifest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.wire.WireNames
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.module.kotlin.jacksonObjectMapper
-import kotlin.time.Duration.Companion.seconds
-import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
+import kotlin.time.Duration.Companion.seconds
 
 class FrameworkErrorsTest {
     @Test
@@ -147,7 +147,10 @@ class FrameworkErrorsTest {
         fun text(value: String) = json.writeValueAsString(value)
         val constants = FrameworkErrors::class.java.declaredFields
             .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
-            .associate { it.isAccessible = true; it.get(null) as String to it.name }
+            .associate {
+                it.isAccessible = true
+                it.get(null) as String to it.name
+            }
         val errors = FrameworkErrors.ALL.joinToString(",\n", "[\n", "\n  ]") { error ->
             listOfNotNull(
                 "\"name\": ${text(constants.getValue(error.code))}",

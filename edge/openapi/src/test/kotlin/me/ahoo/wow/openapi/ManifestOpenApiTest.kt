@@ -583,7 +583,7 @@ class ManifestOpenApiTest {
             ),
         )
 
-        private const val PROBLEM = """{"type":"urn:wow:error:wow.command.invalid","title":"Invalid","status":400,
+        private const val PROBLEM = """{"type":"urn:wow:error:wow.command.invalid","title":"Invalid","status":400,"retry":"none",
             "detail":"d","code":"wow.command.invalid","violations":[{"path":"p","code":"c","message":"m"}]}"""
         private const val REF = """{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"}"""
         private const val STATE = """{"ref":$REF,"version":1,"scope":{"ownerId":"o","spaceId":"s"},"deleted":false,

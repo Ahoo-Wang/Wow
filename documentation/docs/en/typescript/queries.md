@@ -198,6 +198,6 @@ Dataset queries are experimental in 10.0: their API may still change.
 
 ## When a query fails
 
-A rejected query rejects with a `WowProblemError`. 400 `wow.query.invalid` lists a violation per rule it broke: its `code` one of `QueryErrorCodes` (from `/dsl`), its `path`, and a `message`. That list only grows, so fall back to the problem's `detail` for a code you do not handle. 429 `wow.query.busy` means the store runs as many queries as it allows: `error.retry.afterMs` says when to try again. Every method takes the request options last, with the `signal` that cancels the query.
+A rejected query rejects with a `WowProblemError`. 400 `wow.query.invalid` lists a violation per rule it broke: its `code` one of `QueryErrorCodes` (from `/dsl`), its `path`, and a `message`. That list only grows, so fall back to the problem's `detail` for a code you do not handle. 429 `wow.query.busy` means the store runs as many queries as it allows: `error.retryAfterMs` says when to try again. Every method takes the request options last, with the `signal` that cancels the query.
 
 React components run these queries through the hooks of `@ahoo-wang/wow-react`, which keep a query, its result and its loading state.

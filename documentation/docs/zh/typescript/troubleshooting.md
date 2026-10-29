@@ -49,8 +49,8 @@ description: Wow TypeScript 包、编译器和服务给出的消息是什么意�
 | `wow.wait.timeout` | 504 | 等待用完了时间；命令可能已经提交 | 用同一个请求 ID 重试，或者读取状态 |
 | `wow.wait.invalid` | 400 | 等待计划不是服务能跟随的链 | 用每个上下文生成的各跳构建计划 |
 | `wow.query.invalid` | 400 | 查询违反了查询模型的规则 | 读取每个 violation 的 `code` 和 `path` |
-| `wow.query.min-version-not-reached` | 409 | 读取的 `minVersion` 在等待时间内没有达到 | 在 `retry.afterMs` 之后重试；problem 的 `version` 是当前的版本 |
-| `wow.command.busy`、`wow.query.busy` | 429 | 聚合、节点或存储繁忙 | 在 `retry.afterMs` 之后重试 |
+| `wow.query.min-version-not-reached` | 409 | 读取的 `minVersion` 在等待时间内没有达到 | 在 `retryAfterMs` 之后重试；problem 的 `version` 是当前的版本 |
+| `wow.command.busy`、`wow.query.busy` | 429 | 聚合、节点或存储繁忙 | 在 `retryAfterMs` 之后重试 |
 | `wow.node.standby` | 503 | 服务在迁移切换之前处于待机，只提供读取 | 稍后重试 |
 
 `error.retry` 说明重试能否成功，以及是否保留请求 ID。

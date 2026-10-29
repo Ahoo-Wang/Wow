@@ -38,7 +38,7 @@ A plan may follow a saga across contexts: `WaitPlan.of(wait.committed(), wait.ha
 
 ## Retries
 
-Every command carries a request id (`Wow-Request-Id`), given or generated. A retry with the same id is answered as the first commit's duplicate (`duplicate: true`), never applied twice. On a failure, `requestIdOf(error)` gives the id it was sent with, and `error.retry` says whether a retry may help (`retryable`), when (`after`) and whether with the same id (`sameRequestId`). In particular:
+Every command carries a request id (`Wow-Request-Id`), given or generated. A retry with the same id is answered as the first commit's duplicate (`duplicate: true`), never applied twice. On a failure, `requestIdOf(error)` gives the id it was sent with, and `error.retry` says what a retry may do (`none`, `same-request` with the same id, or `new-request`), and `error.retryAfterMs` when. In particular:
 
 - `wow.wait.timeout` (504): the command may have committed. Read the state (or retry with the same id); never send it again with a new id.
 - `wow.command.unknown` (503), `wow.command.contended` (409), `wow.storage.unavailable` (503): retry with the same id.

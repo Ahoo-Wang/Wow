@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.client
 
-import me.ahoo.wow.manifest.FrameworkErrors
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -31,6 +30,7 @@ import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
