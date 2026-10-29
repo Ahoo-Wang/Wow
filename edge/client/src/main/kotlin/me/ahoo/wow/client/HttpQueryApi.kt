@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
@@ -38,7 +37,6 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
@@ -48,10 +46,10 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
-import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.wire.CallWire
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -63,6 +61,8 @@ import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
 /**
@@ -76,18 +76,24 @@ import kotlin.time.Duration
  * - in user mode, on the public routes with the end user's forwarded credential.
  *
  * A peer's rows are typed by the caller: [Queries.snapshots] of a state class decodes the state as that
- * class, found by its schema in the peer's contract ([models]); [Queries.snapshots] of a type and [Queries.events]
- * decode a state and an event body as an `ObjectNode`, which the generated field constants of the peer's api read; a
- * dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class given.
+ * class, found by its schema in the peer's contract ([models]); [Queries.snapshots] of a type decodes a state as an
+ * `ObjectNode`, which the generated field constants of the peer's api read; [Queries.events] decodes an event body as
+ * the class the contract names for it, when the class path has it (the peer's api jar), else as an `ObjectNode`, as in
+ * process; a dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class
+ * given.
  *
  * A streamed list ([RowQueries.stream]) reads the peer's server-sent events and resumes on its own:
  * when the peer ends it resumably (its hold expired, it is stopping, its store reclaimed the permit), sends a problem a
  * retry may get past, or the connection drops, it is asked again with `Last-Event-ID`, the last row's position, for
  * what is left of its limit (the peer reads up to the limit again after the position), so it never answers more rows
  * than the limit. It waits between resumes as the transport's [RetryPolicy] says (at once after a hold expired, else the
- * peer's `Retry-After` or the backoff), and fails after the policy's attempts in a row without a row read. Only a 429
- * (`wow.query.busy`) is retried; any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
- * found, or that the caller may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
+ * peer's `Retry-After` or the backoff), and fails after the policy's attempts in a row without a row read.
+ *
+ * A query is sent again when its problem says a retry may get past it (its `retry` member); any other problem, and
+ * one the retries do not get past, is a [me.ahoo.wow.api.problem.WowProblemException], as is a failure of the
+ * transport (`wow.peer.unavailable`, `wow.query.timeout`). A single row or a state that is not found, or that the caller
+ * may not see, is null. There are no trusted queries over HTTP: a peer reads for a caller ([of]); trusted code
+ * reads its own node ([me.ahoo.wow.api.read.NodeQueryApi]).
  */
 class HttpQueryApi internal constructor(
     private val transport: HttpTransport,
@@ -96,19 +102,12 @@ class HttpQueryApi internal constructor(
 ) : QueryApi {
     override fun of(caller: Caller): Queries = Scoped(caller)
 
-    /** Not served over HTTP: a peer reads for a caller, its root context's tenant and scope. */
-    override fun trusted(): TrustedQueries = throw UnsupportedOperationException(
-        "A peer's queries are scoped by a caller, the root context of the read: use of(caller).",
-    )
-
     private inner class Scoped(val caller: Caller) : Queries {
-        override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> =
+        override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> =
             Snapshots(models.typeOf(stateType), stateType, caller)
 
-        override fun snapshots(type: AggregateType): SnapshotQueries<Any> {
-            @Suppress("UNCHECKED_CAST")
-            return Snapshots(type, ObjectNode::class.java as Class<Any>, caller)
-        }
+        override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> =
+            Snapshots(type, ObjectNode::class.java, caller)
 
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
@@ -151,7 +150,7 @@ class HttpQueryApi internal constructor(
             val stream = Streamed(query, after)
             while (true) {
                 val asked = stream.asked()
-                val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), PeerProblem::retriesQuery)
+                val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), Exchange.QUERY)
                 val events = when (answer) {
                     is Answer.Ok -> answer.value
                     is Answer.Problem -> throw answer.problem.exception(what())
@@ -207,10 +206,16 @@ class HttpQueryApi internal constructor(
                         }
                     }
                 } catch (dropped: IOException) {
-                    return Stop(dropped)
+                    return lost("The connection of the stream of $path was lost ($dropped).", dropped)
                 }
                 if (complete || limit != null && emitted >= limit) return null
-                return stop ?: Stop(IOException("The stream of $path was cut off."))
+                return stop ?: lost("The stream of $path was cut off.", IOException("No end event."))
+            }
+
+            /** A stream that lost its connection, [failure], as the transport answers one: `wow.peer.unavailable`. */
+            private fun lost(detail: String, failure: IOException): Stop {
+                val problem = PeerProblem.of(FrameworkErrors.PEER_UNAVAILABLE, detail, failure)
+                return Stop(problem.exception(what()), problem.retryAfter)
             }
 
             /** A resumable end, which a hold that expired asks to take again at once; another is thrown. */
@@ -225,7 +230,7 @@ class HttpQueryApi internal constructor(
             private fun failed(data: String): Stop {
                 val problem = Problems.ofMembers(data)
                 val failed = problem.exception(what())
-                if (!problem.hint.retryable) throw failed
+                if (!problem.retriesQuery) throw failed
                 return Stop(failed, problem.retryAfter)
             }
 
@@ -275,7 +280,7 @@ class HttpQueryApi internal constructor(
         }
 
         private suspend fun post(kind: String, query: Any): Answer<ByteArray> =
-            transport.exchange(request(kind, query), PeerProblem::retriesQuery)
+            transport.exchange(request(kind, query), Exchange.QUERY)
 
         private fun request(kind: String, query: Any, headers: Map<String, String> = emptyMap()): PeerRequest {
             val body = QueryProtocolJson.mapper.valueToTree<ObjectNode>(query).put(KIND, kind)
@@ -304,21 +309,21 @@ class HttpQueryApi internal constructor(
     ) : Rows<Snapshot<S>>(type.context, queryPath(type, QueryRoutes.SNAPSHOT), caller, ::wholeRecords, {
         it.toSnapshot(type, stateType)
     }),
-        SnapshotQueries<S> {
+        TenantSnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
             Rows(context, path, caller) { decode(it, rowType) }
 
-        override suspend fun state(id: String): AggregateState<S>? = read(type.ref(caller.tenantId, id), null)
+        override suspend fun state(id: String): Snapshot<S>? = read(type.ref(caller.tenantId, id), null)
 
-        override suspend fun state(ref: AggregateRef): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef): Snapshot<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId)
         }
 
-        override suspend fun state(id: String, minVersion: Int): AggregateState<S>? =
+        override suspend fun state(id: String, minVersion: Int): Snapshot<S>? =
             read(type.ref(caller.tenantId, id), null, minVersion)
 
-        override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId, minVersion)
         }
@@ -328,12 +333,12 @@ class HttpQueryApi internal constructor(
          * see it, or it is in another tenant; a peer's 409 `wow.query.min-version-not-reached` is a
          * [MinVersionNotReachedException] with the version it names.
          */
-        private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): AggregateState<S>? {
+        private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): Snapshot<S>? {
             minVersion?.let { require(it >= 1) { "A committed state has a version from 1." } }
             val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
             val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
             val request = PeerRequest(type.context, path, caller, rootOf(caller))
-            val view = when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
+            val view = when (val answer = transport.exchange(request, Exchange.QUERY)) {
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
                     answer.problem.isNotFound(FrameworkErrors.AGGREGATE_NOT_FOUND) -> return null
@@ -342,24 +347,15 @@ class HttpQueryApi internal constructor(
                     else -> throw answer.problem.exception("The state of $ref")
                 }
             }
-            val read = ClientJson.mapper.treeToValue(view.get(REF), AggregateRef::class.java)
-            if (tenantId != null && read.tenantId != tenantId) return null
-            return AggregateState.of(
-                read,
-                view.get(VERSION).asInt(),
-                ClientJson.mapper.treeToValue(view.get(SCOPE), Scope::class.java),
-                view.get(DELETED)?.asBoolean() ?: false,
-                view.get(TAGS)?.takeUnless { it.isNull }?.properties()?.associate { (name, values) ->
-                    name to values.elements().map { it.asString() }
-                }.orEmpty(),
-                decode(view.get(STATE), stateType),
-            )
+            // The snapshot record's shape, a snapshot query's row.
+            val snapshot = (view as ObjectNode).toSnapshot(type, stateType)
+            return snapshot.takeUnless { tenantId != null && it.ref.tenantId != tenantId }
         }
     }
 
     private inner class Events(override val type: AggregateType, caller: Caller) :
         Rows<EventStream>(type.context, queryPath(type, QueryRoutes.EVENTS), caller, ::wholeRecords, { record ->
-            record.toEventStream(type) { ObjectNode::class.java }
+            record.toEventStream(type) { models.eventClassOf(type, it) }
         }),
         EventQueries {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
@@ -411,13 +407,7 @@ class HttpQueryApi internal constructor(
         private const val LIST = "list"
         private const val EXACT = "exact"
         private const val NEXT_CURSOR = "nextCursor"
-        private const val REF = "ref"
-        private const val VERSION = "version"
         private const val MIN_VERSION = "minVersion"
-        private const val SCOPE = "scope"
-        private const val DELETED = "deleted"
-        private const val TAGS = "tags"
-        private const val STATE = "state"
 
         private fun queryPath(type: AggregateType, model: String) =
             "/${type.context}/${type.name}/$model/${QueryRoutes.SEGMENT}"
@@ -439,11 +429,18 @@ class HttpQueryApi internal constructor(
 }
 
 /**
- * The aggregate types of the peers by their state classes: a [StateView] names its aggregate, the view a peer's api
- * generates; the contracts on the class path name each aggregate's state schema (`#/$defs/<binary name>`), whose class
- * a caller queries the snapshots of.
+ * The aggregate types of the peers by their state classes, and the classes of their events: a [StateView] names its
+ * aggregate, the view a peer's api generates; the contracts on the class path name each aggregate's state schema
+ * (`#/$defs/<binary name>`), whose class a caller queries the snapshots of, and each event's schema, whose class (its
+ * `x-wow-class`, else its key) an event body is decoded as when [classLoader] has it.
  */
-internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
+internal class PeerModels(
+    private val types: Map<String, List<AggregateType>>,
+    private val events: Map<AggregateType, Map<String, String>> = emptyMap(),
+    private val classLoader: () -> ClassLoader? = { Thread.currentThread().contextClassLoader },
+) {
+    private val eventClasses = ConcurrentHashMap<String, Optional<Class<*>>>()
+
     /**
      * The aggregate type whose state is of [stateType], or that the [StateView] [stateType] names.
      *
@@ -457,14 +454,40 @@ internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
         return found.single()
     }
 
+    /** The class of [type]'s event [name] the contract names, or null when it names none or the class path lacks it. */
+    fun eventClassOf(type: AggregateType, name: String): Class<*>? {
+        val className = events[type]?.get(name) ?: return null
+        return eventClasses.computeIfAbsent(className) {
+            Optional.ofNullable(
+                try {
+                    Class.forName(className, false, classLoader() ?: PeerModels::class.java.classLoader)
+                } catch (_: ClassNotFoundException) {
+                    null
+                },
+            )
+        }.orElse(null)
+    }
+
     companion object {
-        /** The aggregates of every context in [manifests], by their state schema. */
+        /** The aggregates of every context in [manifests], by their state schema, and the classes of their events. */
         fun of(manifests: List<Manifest>): PeerModels = PeerModels(
             manifests.flatMap { manifest ->
                 manifest.contexts.flatMap { context ->
                     context.aggregates.map { it.state.schema to AggregateType(context.name, it.name) }
                 }
             }.groupBy({ it.first }, { it.second }).mapValues { (_, types) -> types.distinct() },
+            manifests.flatMap { manifest ->
+                manifest.contexts.flatMap { context ->
+                    context.aggregates.map { aggregate ->
+                        AggregateType(context.name, aggregate.name) to aggregate.events
+                            .filter { Manifest.isSchemaRef(it.schema) }
+                            .associate { event ->
+                                val key = Manifest.schemaKey(event.schema)
+                                event.name to ((manifest.defs[key] as? Map<*, *>)?.get(CLASS_KEYWORD) as? String ?: key)
+                            }
+                    }
+                }
+            }.toMap(),
         )
     }
 }

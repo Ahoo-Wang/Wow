@@ -21,7 +21,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -85,7 +85,7 @@ describe('DataWorkbench export', () => {
             opened = true;
             return Promise.resolve(answer);
           }
-          return new Promise<PagedResult<RecordData>>(resolve =>
+          return new Promise<PagedList<RecordData>>(resolve =>
             held.push(() => resolve(answer)),
           );
         }),

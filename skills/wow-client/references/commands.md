@@ -1,6 +1,6 @@
 # Commands
 
-A command is sent to `POST /{context}/{aggregate}/{id}/{command}` (a command that may create its aggregate also has the route without `{id}`). The call answers when the command reaches the stage its wait plan names, with a `CommandResult`, or rejects: a rejected command with a `CommandRejectedError`, anything else with a `WowProblemError`.
+A command is sent to `POST /{context}/{aggregate}/{id}/{command}` (a command that may create its aggregate also has the route without `{id}`, where the server generates the id; every command of an aggregate whose id is its owner's, such as the eShop's basket, has it too, meaning the caller's own aggregate, and nothing is generated). The call answers when the command reaches the stage its wait plan names, with a `CommandResult`, or rejects: a rejected command with a `CommandRejectedError`, anything else with a `WowProblemError`.
 
 ## The generated client
 
@@ -12,9 +12,10 @@ import { BasketCommandClient } from './generated/index.js';
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com', timeout: 30_000 });
 const basket = new BasketCommandClient({ fetcher });
 
-const result = await basket.addBasketItem(
+// The basket's id is its buyer's: the caller's own, by no id (addBasketItem('buyer-1', body) addresses it by id).
+const result = await basket.addBasketItemOwn(
   { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
-  { id: 'buyer-1', wait: WaitPlan.SNAPSHOT, timeout: 10_000 },
+  { wait: WaitPlan.SNAPSHOT, timeout: 10_000 },
 );
 // result.version: the aggregate's version after the commit.
 ```
@@ -38,7 +39,7 @@ A plan may follow a saga across contexts: `WaitPlan.of(wait.committed(), wait.ha
 
 ## Retries
 
-Every command carries a request id (`Wow-Request-Id`), given or generated. A retry with the same id is answered as the first commit's duplicate (`duplicate: true`), never applied twice. On a failure, `requestIdOf(error)` gives the id it was sent with, and `error.retry` says whether a retry may help (`retryable`), when (`after`) and whether with the same id (`sameRequestId`). In particular:
+Every command carries a request id (`Wow-Request-Id`), given or generated. A retry with the same id is answered as the first commit's duplicate (`duplicate: true`), never applied twice. On a failure, `requestIdOf(error)` gives the id it was sent with, and `error.retry` says what a retry may do (`none`, `same-request` with the same id, or `new-request`), and `error.retryAfterMs` when. In particular:
 
 - `wow.wait.timeout` (504): the command may have committed. Read the state (or retry with the same id); never send it again with a new id.
 - `wow.command.unknown` (503), `wow.command.contended` (409), `wow.storage.unavailable` (503): retry with the same id.

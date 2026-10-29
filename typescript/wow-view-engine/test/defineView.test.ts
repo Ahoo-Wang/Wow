@@ -23,8 +23,11 @@ import {
   FilterOperator,
   AggregationFunction,
   PagingMode,
+  TimeUnit,
+  type DynamicFieldDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
+import { narrowDefinition } from '../src/capabilities/index.js';
 import {
   builtinFieldKinds,
   defineView,
@@ -138,6 +141,58 @@ describe('defineView', () => {
       ['createdAt', 'datetime'],
       ['status', 'enum'],
     ]);
+  });
+
+  it('reads a map key’s kind and time off its dynamic pattern, as a field’s', () => {
+    const pattern = (
+      name: string,
+      semantic?: DynamicFieldDescriptor['semantic'],
+    ): DynamicFieldDescriptor => ({
+      pattern: `${name}.{key}`,
+      types: [QueryValueTypes.INTEGER],
+      kind: QueryValueKind.SCALAR,
+      nullable: true,
+      ...(semantic ? { semantic } : {}),
+      filter: { operators: [FilterOperator.EQ, FilterOperator.TODAY] },
+      sort: { paged: true, cursor: false },
+    });
+    const described = {
+      ...descriptor(),
+      dynamic: [
+        pattern('deadlines', { type: QuerySemanticTypes.TEMPORAL_EPOCH }),
+        pattern('reminders', {
+          type: QuerySemanticTypes.TEMPORAL_EPOCH,
+          timeUnit: TimeUnit.SECONDS,
+        }),
+        pattern('counts'),
+      ],
+    };
+    const definition = defineView(described, {
+      id: 'orders',
+      source: 'orders',
+      title: 'Orders',
+      fields: {
+        id: 'Order',
+        'deadlines.a': 'Deadline',
+        'reminders.a': 'Reminder',
+        'counts.a': 'Count',
+      },
+    });
+    const field = (name: string) =>
+      definition.fields.find(entry => entry.name === name);
+    expect(field('deadlines.a')?.kind).toBe('datetime');
+    // Milliseconds is the field's own default, left unsaid.
+    expect(field('deadlines.a')?.temporal).toBeUndefined();
+    expect(field('reminders.a')).toMatchObject({
+      kind: 'datetime',
+      temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
+    });
+    expect(field('counts.a')?.kind).toBe('number');
+    expect(
+      codes(
+        narrowDefinition(definition, described, builtinFieldKinds).findings,
+      ),
+    ).not.toContain('capability.field.temporal-mismatch');
   });
 
   it('keeps a yes-or-no field one when the host names its two answers', () => {

@@ -23,16 +23,22 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.AggregateIdSource
+import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wire.CallWires
@@ -128,6 +134,49 @@ class HttpCommandClientTest {
                 .message.assert().contains("decided by no aggregate")
             caught<IllegalArgumentException> { runBlocking { client().wait(DeleteAggregate, "a b") } }
                 .message.assert().contains("lifecycle command")
+        }
+
+    @Test
+    fun `a command by no id to an aggregate whose id is its owner's should go to the caller's own`(): Unit =
+        runBlocking {
+            peer.reply(Reply.json(committed()), Reply.json(committed()))
+            val owned = contractOf(BOX, DeliverItems::class.java).map { fragment ->
+                fragment.copyWith(
+                    manifest = fragment.manifest.copyWith(
+                        contexts = fragment.manifest.contexts.map { context ->
+                            context.copyWith(
+                                aggregates = context.aggregates.map { aggregate ->
+                                    aggregate.copyWith(
+                                        idSource = AggregateIdSource.OWNER,
+                                        commands = aggregate.commands.map {
+                                            it.copyWith(
+                                                creation = Creation.NONE,
+                                                routes = CommandRoutes.of("mail", "box", it.name, Creation.NONE, true),
+                                            )
+                                        },
+                                    )
+                                },
+                            )
+                        },
+                    ),
+                )
+            }
+            val client = WowClient.builder()
+                .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .service(SERVICE)
+                .contracts(owned)
+                .build()
+                .commands
+                .of(alice)
+            client.wait(DeliverItems(listOf("mug")))
+            // A trusted caller still names the id.
+            client.wait(DeliverItems(listOf("cup")), "alice")
+            peer.taken.map { it.path }.assert().containsExactly(
+                "/mail/box/deliver-items",
+                "/mail/box/alice/deliver-items"
+            )
+            val root = CallWires.decode(peer.taken.first().headers.getValue(WowHeaders.CALL))
+            root.ownerId.assert().isEqualTo("alice")
         }
 
     @Test
@@ -253,7 +302,7 @@ class HttpCommandClientTest {
             }
         problem.code.assert().isEqualTo("wow.command.failed")
         problem.status.assert().isEqualTo(500)
-        problem.retryHint.retryable.assert().isFalse()
+        problem.retryable.assert().isFalse()
         problem.result.assert().isEqualTo(failed)
         problem.message.assert().contains("Boom.")
         peer.taken.assert().hasSize(1)
@@ -299,7 +348,7 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.retryAfter.assert().isEqualTo(60.seconds)
+        problem.retryAfter.assert().isEqualTo(60.seconds)
         peer.taken.assert().hasSize(1)
     }
 
@@ -314,8 +363,8 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.sameRequestId.assert().isTrue()
-        peer.taken.assert().hasSize(3)
+        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
         peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.distinct().assert().hasSize(1)
     }
 
@@ -334,19 +383,24 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retryHint.sameRequestId.assert().isTrue()
+        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         peer.taken.assert().hasSize(1)
     }
 
     @Test
-    fun `a peer that is down should be tried as often as the policy says, then its failure thrown`() {
+    fun `a peer that is down should be tried as often as the policy says, then be wow-peer-unavailable`() {
         withRefusingPort { closed ->
             val down = EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://127.0.0.1:$closed")))
             val client = WowClient.builder().endpoints(down).connectTimeout(200.milliseconds)
                 .retry(RetryPolicy.of(maxAttempts = 2, backoff = 1.milliseconds))
                 .contracts(contractOf(BOX, DeliverItems::class.java)).build().commands
             // Refused, or never answered, as the platform has it: either way the connection was not made.
-            caught<IOException> { runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) } }
+            val unreachable = caught<WowProblemException> {
+                runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
+            }
+            unreachable.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            unreachable.retry.assert().isEqualTo(Retry.NEW_REQUEST)
+            unreachable.cause.assert().isInstanceOf(IOException::class.java)
         }
     }
 
@@ -400,7 +454,7 @@ class HttpCommandClientTest {
         newerPeer.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
         newerPeer.result!!.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
         newerPeer.message!!.assert().contains("the peer is newer than this client")
-        newerPeer.retryHint.retryable.assert().isFalse()
+        newerPeer.retryable.assert().isFalse()
         // A stream emits it as read, for the caller to see.
         peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n"))
         client(ClientMode.User(UserCredential.NONE)).stream(CommandRequest.to(ref, DeliverItems(emptyList())))

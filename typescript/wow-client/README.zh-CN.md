@@ -142,7 +142,7 @@ if (
 
 Wow 服务的开发模式从请求头读取调用者（`DevelopmentCallerHeaders`）；
 `developmentCaller` 在一个 fetcher 的每个请求上发送它们。`commandResultOf`、
-`problemOf`、`problemResponse` 和 `stateViewOf` 为假服务构造服务的应答。这个入口不加载
+`problemOf`、`problemResponse` 和 `snapshotOf` 为假服务构造服务的应答。这个入口不加载
 任何测试运行器。
 
 ```ts

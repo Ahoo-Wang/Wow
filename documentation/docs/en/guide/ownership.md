@@ -1,12 +1,12 @@
 ---
 title: Owners, Spaces and Tags
-description: Decide who an aggregate belongs to besides its tenant, check the caller in a command, transfer owners and spaces, and tag aggregates for attribute-based access.
+description: Decide who an aggregate belongs to besides its tenant, give each owner one aggregate whose id is the owner's, check the caller in a command, transfer owners and spaces, and tag aggregates for attribute-based access.
 outline: deep
 ---
 
 # Owners, Spaces and Tags
 
-Every aggregate belongs to its tenant. Most also belong to someone: an order to its buyer, a saved view to the person who saved it. Wow records that as the aggregate's **scope**, its owner and its space, and keeps every caller to the aggregates in its scope. This page chooses an aggregate's ownership, checks the caller where the scope is not enough, and changes owners, spaces and tags. [Identity, Tenancy and Access](../concepts/identity) explains the model.
+Every aggregate belongs to its tenant. Most also belong to someone: an order to its buyer, a saved view to the person who saved it. Wow records that as the aggregate's **scope**, its owner and its space, and keeps every caller to the aggregates in its scope. This page chooses an aggregate's ownership, gives each owner one aggregate of a type, checks the caller where the scope is not enough, and changes owners, spaces and tags. [Identity, Tenancy and Access](../concepts/identity) explains the model.
 
 ## Choose who an aggregate belongs to
 
@@ -46,28 +46,52 @@ The first command's caller gives an `OWNER` aggregate its scope. After that, the
 
 The writes of a `TENANT` aggregate are not checked against an owner at all: action-level authorization decides who may change a product.
 
-## Check the caller in a command
+## One aggregate per owner
 
-Sometimes the scope is not enough. A basket's id is its buyer's user id, so its first command, which creates it, checks that the caller is that buyer. The command function takes `Command<X>` and compares `command.scope.ownerId` with the id:
+Some aggregates exist once per owner: a buyer has one basket, a user one set of preferences. Such an aggregate takes its owner's id as its own, which `@AggregateRoot(idSource = AggregateIdSource.OWNER)` declares:
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: fragment -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
+@AggregateRoot(idSource = AggregateIdSource.OWNER)
+class Basket(private val state: BasketState) {
+    fun onCommand(command: AddBasketItem): BasketItemAdded =
+        BasketItemAdded(command.productId, command.unitPrice, command.quantity)
 }
 ```
 
-The item's quantity and price are the command's shape: its constraints are checked before the function runs ([Write an Aggregate](./aggregates#check-its-shape)), so the function checks only the caller. After the basket exists, the kernel keeps it to the owner that created it.
+Each owner then has exactly one basket in its tenant, and its id is the buyer's user id. The declaration requires `ownership = OWNER`, the default: an aggregate that belongs to its tenant has no owner to take its id from. Its owner never changes, so the default lifecycle leaves `TransferOwner` out, and the compiler refuses one listed in `lifecycle`, or a command that produces `OwnerTransferred`. The default, `AggregateIdSource.ASSIGNED`, takes the id the request names, or generates one for a creating command.
+
+### Its routes
+
+Every command of such an aggregate, its lifecycle commands included, has a route that names no id beside the route by id. The route without an id means the caller's own aggregate:
+
+| Route | Serves |
+| --- | --- |
+| `POST /<context>/<aggregate>/<command>` | A command to the caller's own aggregate: `POST /eshop-basket/basket/add-basket-item` |
+| `POST /<context>/<aggregate>/wow.lifecycle.<command>`, `DELETE /<context>/<aggregate>` | The lifecycle commands to the caller's own aggregate |
+| `GET /<context>/<aggregate>/state`, `…/state/trace` | The caller's own aggregate's state and history |
+| The routes by id: `POST /<context>/<aggregate>/{id}/<command>`, `GET …/{id}/state` | The aggregate of that id, for a caller with no owner |
+
+No route generates an id: a creating command creates the aggregate of its owner.
+
+### Who names the id
+
+Admission takes the id from the caller:
+
+- An **owner-level** caller's aggregate is its own: the id is its owner, on the routes without an id or by its own id, and a caller acting in another scope through `Wow-Scope` reaches that scope's owner's. Naming another owner's id is refused with `403 wow.aggregate.forbidden`.
+- A caller **with no owner**, such as a tenant-level member of staff, a service or a saga, has no aggregate of its own: it names the id, on the routes by id. On a route without an id it is answered `400 wow.command.malformed` ("This caller has no owner; address the aggregate by its id."), and `400 wow.query.malformed` on the state read. An unauthenticated caller is answered `401 wow.auth.unauthenticated`.
+- A command a saga derives, or a scheduled command, that names no id takes the owner of the scope it carries: a saga that follows a buyer's order reaches that buyer's basket.
+
+The kernel records the aggregate's id as its owner, whoever creates it, and refuses a command whose owner is another, a creating one too. The command functions therefore check no caller: the basket above needs no ownership check of its own.
+
+## Check the caller in a command
+
+Where the scope is still not enough, a command function takes `Command<X>` and reads `command.scope`, the caller's owner and space, and rejects the command with its own code ([Read the admitted command](./aggregates#read-the-admitted-command)).
 
 ## Commands a saga sends
 
-A command a saga derives, a compensation and a scheduled command carry the scope and the operator of the commit they follow. An aggregate a saga creates therefore belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. [Write a Saga](./sagas#build-the-commands) covers it.
+A command a saga derives, a compensation and a scheduled command carry the scope and the operator of the commit they follow. An aggregate a saga creates therefore belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. An aggregate whose id is its owner's takes that id for its owner instead ([One aggregate per owner](#one-aggregate-per-owner)). [Write a Saga](./sagas#build-the-commands) covers it.
 
 ## Transfer an owner or a space
 
@@ -78,7 +102,7 @@ Two lifecycle commands change an aggregate's scope; every aggregate handles them
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-A `TENANT` aggregate handles no `TransferOwner`. Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history.
+A `TENANT` aggregate handles no `TransferOwner`, and neither does one whose id is its owner's. Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history.
 
 ## Tag aggregates
 

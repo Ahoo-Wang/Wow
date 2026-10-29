@@ -54,9 +54,32 @@ class StateAndManifestRoutesTest {
         val view = answer.body!!
         view["version"].asInt().assert().isEqualTo(2)
         view["state"]["items"].asInt().assert().isEqualTo(3)
-        view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        // The snapshot record's shape, a snapshot query's row (decision D348 ⑦).
+        view["ownerId"].asString().assert().isEqualTo("alice")
         view["deleted"].asBoolean().assert().isFalse()
-        view["ref"]["id"].asString().assert().isEqualTo("c-1")
+        view["aggregateId"].asString().assert().isEqualTo("c-1")
+        view["tenantId"].asString().assert().isEqualTo(TENANT)
+        view["firstEventTime"].asLong().assert().isEqualTo(1L)
+        view["lastEventTime"].asLong().assert().isEqualTo(2L)
+        view["operator"].isNull.assert().isTrue()
+        view["firstOperator"].isNull.assert().isTrue()
+        view["schedules"].isObject.assert().isTrue()
+    }
+
+    @Test
+    fun `a state replayed before its first snapshot tells its first and last commits`() {
+        twoItems(snapshot = false)
+        val view = node.get("/shop/cart/c-1/state").body!!
+        view["version"].asInt().assert().isEqualTo(2)
+        val commits = node.get("/shop/cart/c-1/state/trace").body!!["commits"]
+        view["firstEventTime"].asLong().assert().isEqualTo(commits[0]["commitTime"].asLong())
+        view["lastEventTime"].asLong().assert().isEqualTo(commits[1]["commitTime"].asLong())
+        view["operator"].assert().isEqualTo(commits[1]["operator"])
+        view["firstOperator"].assert().isEqualTo(commits[0]["operator"])
+        // At a version, the first commit is the same; the last, that version's.
+        val first = node.get("/shop/cart/c-1/state?version=1").body!!
+        first["lastEventTime"].asLong().assert().isEqualTo(commits[0]["commitTime"].asLong())
+        first["firstEventTime"].asLong().assert().isEqualTo(commits[0]["commitTime"].asLong())
     }
 
     @Test
@@ -117,7 +140,7 @@ class StateAndManifestRoutesTest {
         node.post("/shop/cart/c-1/add-item", """{"sku":"plum"}""", user = "erin", headers = employee)
             .status.assert().isEqualTo(200)
         // The owner is still the cart's: the tenant-level caller did not take it over.
-        node.get("/shop/cart/c-1/state?version=3", user = "alice").body!!["scope"]["ownerId"].asString()
+        node.get("/shop/cart/c-1/state?version=3", user = "alice").body!!["ownerId"].asString()
             .assert().isEqualTo("alice")
         node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
@@ -168,7 +191,7 @@ class StateAndManifestRoutesTest {
 
         val state = fixed.get("/shop/cart/c-1/state?version=1")
         state.status.assert().isEqualTo(200)
-        state.body!!["ref"]["tenantId"].asString().assert().isEqualTo("fixed")
+        state.body!!["tenantId"].asString().assert().isEqualTo("fixed")
         // A cross-scope caller may name the fixed tenant, never another one; the others may name none.
         val admin = mapOf("X-Admin" to "true")
         fixed.get(

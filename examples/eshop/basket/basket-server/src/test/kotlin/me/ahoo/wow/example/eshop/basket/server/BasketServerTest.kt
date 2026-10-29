@@ -81,26 +81,15 @@ class BasketServerTest {
 
     @Test
     fun `a buyer should fill their basket and check it out into an order`() {
-        post(
-            "/eshop-basket/basket/alice/add-basket-item",
-            """{"productId":"mug","unitPrice":8.50,"quantity":2}""",
-            "alice"
-        )
+        // The buyer's routes name no basket: its basket is the one whose id is the buyer's.
+        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":2}""", "alice")
             .status.assert().isEqualTo(OK)
-        post(
-            "/eshop-basket/basket/alice/add-basket-item",
-            """{"productId":"cap","unitPrice":12.00,"quantity":1}""",
-            "alice"
-        )
-        post("/eshop-basket/basket/alice/change-basket-item-quantity", """{"productId":"cap","quantity":3}""", "alice")
+        mine("add-basket-item", """{"productId":"cap","unitPrice":12.00,"quantity":1}""", "alice")
+        mine("change-basket-item-quantity", """{"productId":"cap","quantity":3}""", "alice")
             .status.assert().isEqualTo(OK)
-        post(
-            "/eshop-basket/basket/alice/remove-basket-item",
-            """{"productId":"cap"}""",
-            "alice"
-        ).status.assert().isEqualTo(OK)
+        mine("remove-basket-item", """{"productId":"cap"}""", "alice").status.assert().isEqualTo(OK)
 
-        val checkedOut = post("/eshop-basket/basket/alice/checkout-basket", "{}", "alice")
+        val checkedOut = mine("checkout-basket", "{}", "alice")
         checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
         checkedOut.body!!["results"]["orderId"].asString().assert().isEqualTo("alice-1")
         state("alice")["items"].isEmpty.assert().isTrue()
@@ -112,62 +101,59 @@ class BasketServerTest {
         call.call.operator?.id.assert().isEqualTo("alice")
         WowJson.mapper.readTree(call.body)["items"].single()["productId"].asString().assert().isEqualTo("mug")
 
-        val empty = post("/eshop-basket/basket/alice/checkout-basket", "{}", "alice")
+        val empty = mine("checkout-basket", "{}", "alice")
         empty.status.assert().isEqualTo(UNPROCESSABLE)
         empty.body!!["code"].asString().assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
     }
 
     @Test
     fun `a basket should be its buyer's alone`() {
-        val other = post(
+        val other = server.http.post(
             "/eshop-basket/basket/carol/add-basket-item",
             """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
-            "dave"
+            buyer("dave"),
         )
-        other.status.assert().isEqualTo(FORBIDDEN)
-        other.body!!["code"].asString().assert().isEqualTo(EshopBasketContract.Basket.Errors.NOT_OWNER)
+        other.status.assert().describedAs(other.text).isEqualTo(FORBIDDEN)
+        other.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AGGREGATE_FORBIDDEN)
+        // By its own id, the buyer reaches the basket the routes without one do.
+        server.http.post(
+            "/eshop-basket/basket/dave/add-basket-item",
+            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
+            buyer("dave"),
+        ).status.assert().isEqualTo(OK)
+        state("dave")["items"].single()["productId"].asString().assert().isEqualTo("mug")
     }
 
     @Test
     fun `an item of no quantity or a negative price should be invalid before the basket decides`() {
-        val invalid = post(
-            "/eshop-basket/basket/frank/add-basket-item",
-            """{"productId":"mug","unitPrice":-1,"quantity":0}""",
-            "frank",
-        )
+        val invalid = mine("add-basket-item", """{"productId":"mug","unitPrice":-1,"quantity":0}""", "frank")
         invalid.status.assert().describedAs(invalid.text).isEqualTo(BAD_REQUEST)
         invalid.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
         invalid.body!!["violations"].values().map { it["path"].asString() to it["code"].asString() }
             .assert().containsExactly("quantity" to "positive", "unitPrice" to "positive-or-zero")
         // Nothing was decided: the basket was not created.
-        read("frank", buyer("frank")).status.assert().isEqualTo(NOT_FOUND)
+        readMine(buyer("frank")).status.assert().isEqualTo(NOT_FOUND)
 
-        post(
-            "/eshop-basket/basket/frank/add-basket-item",
-            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
-            "frank",
-        ).status.assert().isEqualTo(OK)
-        val quantity = post(
-            "/eshop-basket/basket/frank/change-basket-item-quantity",
-            """{"productId":"mug","quantity":0}""",
-            "frank",
-        )
+        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":1}""", "frank")
+            .status.assert().isEqualTo(OK)
+        val quantity = mine("change-basket-item-quantity", """{"productId":"mug","quantity":0}""", "frank")
         quantity.status.assert().isEqualTo(BAD_REQUEST)
         quantity.body!!["violations"].single()["path"].asString().assert().isEqualTo("quantity")
     }
 
     @Test
-    fun `an employee should read every buyer's basket, and the anonymous caller too`() {
-        post(
-            "/eshop-basket/basket/erin-buyer/add-basket-item",
-            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
-            "erin-buyer",
-        ).status.assert().isEqualTo(OK)
+    fun `an employee should read every buyer's basket by its id, and the anonymous caller too`() {
+        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":1}""", "erin-buyer")
+            .status.assert().isEqualTo(OK)
         val employee = mapOf(USER to "erin", ROLES to "employee")
         read("erin-buyer", employee).status.assert().isEqualTo(OK)
         read("erin-buyer", emptyMap()).status.assert().isEqualTo(OK)
         // Another buyer's basket is not found for it: what a caller may not see is not found (decision D254 ④).
         read("erin-buyer", buyer("dave")).status.assert().isEqualTo(NOT_FOUND)
+        // An employee has no basket of its own: the route without an id is not for it.
+        val noOwner = readMine(employee)
+        noOwner.status.assert().describedAs(noOwner.text).isEqualTo(BAD_REQUEST)
+        noOwner.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
     }
 
     /** The buyer [id]: the user, and the owner of what it creates. */
@@ -191,13 +177,19 @@ class BasketServerTest {
     private fun read(id: String, headers: Map<String, String>): Answer =
         server.http.get("/eshop-basket/basket/$id/state", headers)
 
+    /** The caller's own basket, by the read route that names none. */
+    private fun readMine(headers: Map<String, String>): Answer = server.http.get("/eshop-basket/basket/state", headers)
+
+    /** The buyer [id]'s basket, by the route without an id. */
     private fun state(id: String): JsonNode {
-        val answer = read(id, buyer(id))
+        val answer = readMine(buyer(id))
         check(answer.status == OK) { "The state of $id answered $answer" }
         return answer.body!!["state"]
     }
 
-    private fun post(path: String, body: String, user: String): Answer = server.http.post(path, body, buyer(user))
+    /** The command [segment] on the buyer [user]'s own basket, by the route that names none. */
+    private fun mine(segment: String, body: String, user: String): Answer =
+        server.http.post("/eshop-basket/basket/$segment", body, buyer(user))
 
     private companion object {
         const val OK = 200

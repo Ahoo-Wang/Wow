@@ -11,7 +11,8 @@
 ARG APP_NAME=analytics-catalog-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
-FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu AS base
+# JDK 25, as Wow recommends to run on, pinned by digest.
+FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:25-ubuntu@sha256:6490a55d94a6ba1dcf88f8a1de8a5d67f5cf0fac717c1d84f18933516bd27b1a AS base
 
 FROM base AS build
 ARG WORK_HOME

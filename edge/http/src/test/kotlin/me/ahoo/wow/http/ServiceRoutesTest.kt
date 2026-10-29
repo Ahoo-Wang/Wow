@@ -18,8 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
@@ -126,7 +126,7 @@ class ServiceRoutesTest {
         handler("relay") { call, _ -> call.commands.of(call.caller).toString() },
         handler("peer") { _, request ->
             when (request.path("answer", String::class)) {
-                "gone" -> throw WowProblemException("crm.member.gone", 410, RetryHint(false, false), "Gone.")
+                "gone" -> throw WowProblemException("crm.member.gone", 410, Retry.NONE, null, "Gone.")
                 else -> throw RouteRefusal(FrameworkErrors.COMMAND_UNHANDLED, "Not offered.")
             }
         },

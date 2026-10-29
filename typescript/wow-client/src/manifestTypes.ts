@@ -79,6 +79,8 @@ export interface AggregateManifest {
   readonly ownership?: 'owner' | 'tenant' | (string & {});
   /** The events the aggregate no longer produces. */
   readonly retired?: readonly string[];
+  /** Where an aggregate's id comes from; assigned when absent. */
+  readonly idSource?: 'assigned' | 'owner' | (string & {});
 }
 
 /** An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. */
@@ -137,11 +139,15 @@ export interface RouteManifest {
   readonly path: string;
 }
 
-/** An error code and the HTTP status it is answered with. */
+/** An error code, the HTTP status it is answered with, and what a retry may do. */
 export interface ErrorManifest {
   readonly code: string;
   readonly status: number;
   readonly description?: string;
+  /** What a retry may do, as a problem of the code says: none when left out. */
+  readonly retry?: 'none' | 'same-request' | 'new-request' | (string & {});
+  /** The seconds to wait before a retry, the problem's Retry-After; given with retry. */
+  readonly retryAfter?: number;
 }
 
 /** A stream a context publishes of an aggregate's events, and its topic. */

@@ -1480,7 +1480,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.StateView",
+                  "$ref" : "#/components/schemas/wow.Snapshot",
                   "properties" : {
                     "state" : {
                       "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1614,7 +1614,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                      "$ref" : "#/components/schemas/wow.Snapshot",
                       "properties" : {
                         "state" : {
                           "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1627,7 +1627,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1642,7 +1642,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "$ref" : "#/components/schemas/wow.Snapshot",
                           "properties" : {
                             "state" : {
                               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1652,7 +1652,7 @@
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1676,7 +1676,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "$ref" : "#/components/schemas/wow.Snapshot",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
@@ -1804,7 +1804,7 @@
                   "anyOf" : [ {
                     "type" : "array",
                     "items" : {
-                      "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                      "$ref" : "#/components/schemas/wow.EventStream"
                     }
                   }, {
                     "$ref" : "#/components/schemas/wow.PagedList",
@@ -1812,7 +1812,7 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
@@ -1822,12 +1822,12 @@
                       "list" : {
                         "type" : "array",
                         "items" : {
-                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                          "$ref" : "#/components/schemas/wow.EventStream"
                         }
                       }
                     }
                   }, {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   }, {
                     "$ref" : "#/components/schemas/wow.CountResult"
                   }, {
@@ -1846,7 +1846,7 @@
                 "x-wow-events" : {
                   "event" : [ "row", "end", "error" ],
                   "data" : {
-                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    "$ref" : "#/components/schemas/wow.EventStream"
                   },
                   "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
                   "end" : {
@@ -2147,6 +2147,11 @@
           "code" : {
             "type" : "string"
           },
+          "retry" : {
+            "type" : "string",
+            "enum" : [ "none", "same-request", "new-request" ],
+            "description" : "What a retry may do, as the error catalog declares it for the code; with `Retry-After` when a retry may get past the problem."
+          },
           "violations" : {
             "type" : "array",
             "items" : {
@@ -2157,7 +2162,7 @@
             "$ref" : "#/components/schemas/wow.CommandResult"
           }
         },
-        "required" : [ "type", "title", "status" ]
+        "required" : [ "type", "title", "status", "retry" ]
       },
       "wow.Scope" : {
         "type" : "object",
@@ -2185,36 +2190,6 @@
           }
         },
         "required" : [ "id", "tenantId" ]
-      },
-      "wow.StateView" : {
-        "type" : "object",
-        "properties" : {
-          "ref" : {
-            "$ref" : "#/components/schemas/wow.AggregateRef"
-          },
-          "version" : {
-            "type" : "integer"
-          },
-          "scope" : {
-            "$ref" : "#/components/schemas/wow.Scope"
-          },
-          "deleted" : {
-            "type" : "boolean"
-          },
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          },
-          "state" : {
-            "description" : "The aggregate's state."
-          }
-        },
-        "required" : [ "ref", "version", "scope", "deleted", "tags", "state" ]
       },
       "wow.StateTrace" : {
         "type" : "object",
@@ -2252,7 +2227,7 @@
           "events" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/wow.EventView"
+              "$ref" : "#/components/schemas/wow.CommittedEvent"
             }
           },
           "scope" : {
@@ -2283,7 +2258,7 @@
         },
         "required" : [ "version", "commitTime", "commandId", "requestId", "commandType", "events", "scope", "deleted", "state" ]
       },
-      "wow.EventView" : {
+      "wow.CommittedEvent" : {
         "type" : "object",
         "properties" : {
           "name" : {
@@ -2543,6 +2518,11 @@
               "type" : "string"
             },
             "description" : "The events the aggregate no longer produces."
+          },
+          "idSource" : {
+            "type" : "string",
+            "enum" : [ "assigned", "owner" ],
+            "description" : "Where an aggregate's id comes from; assigned when absent."
           }
         }
       },
@@ -2692,7 +2672,7 @@
       },
       "wow.Manifest.Error" : {
         "type" : "object",
-        "description" : "An error code and the HTTP status it is answered with.",
+        "description" : "An error code, the HTTP status it is answered with, and what a retry may do.",
         "required" : [ "code", "status" ],
         "properties" : {
           "code" : {
@@ -2703,6 +2683,16 @@
           },
           "description" : {
             "type" : "string"
+          },
+          "retry" : {
+            "type" : "string",
+            "enum" : [ "none", "same-request", "new-request" ],
+            "description" : "What a retry may do, as a problem of the code says: none when left out."
+          },
+          "retryAfter" : {
+            "type" : "integer",
+            "minimum" : 1,
+            "description" : "The seconds to wait before a retry, the problem's Retry-After; given with retry."
           }
         }
       },
@@ -2896,9 +2886,9 @@
           }
         }
       },
-      "wow.SnapshotRecord" : {
+      "wow.Snapshot" : {
         "type" : "object",
-        "description" : "An aggregate's snapshot as a query returns it; a projection leaves fields out.",
+        "description" : "An aggregate's snapshot as a query and a state read return it; a projection leaves fields out.",
         "properties" : {
           "tenantId" : {
             "type" : "string"
@@ -2947,12 +2937,19 @@
               "type" : "null"
             } ]
           },
+          "schedules" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object"
+            },
+            "description" : "The schedules the aggregate keeps, each rule by its key."
+          },
           "state" : {
             "description" : "The aggregate's state."
           }
         }
       },
-      "wow.EventStreamRecord" : {
+      "wow.EventStream" : {
         "type" : "object",
         "description" : "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
         "properties" : {
@@ -2993,7 +2990,7 @@
           "events" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/wow.EventView"
+              "$ref" : "#/components/schemas/wow.CommittedEvent"
             }
           }
         }
@@ -3857,7 +3854,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "eshop-ordering.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.\n`wow.peer.unavailable`: A client reached no node of the peer, or lost the connection before a query's answer; nothing was changed, so the request may be sent again.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3870,7 +3867,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due", "wow.peer.unavailable" ]
       },
       "eshop-ordering.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
@@ -4003,7 +4000,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.\n`wow.peer.unavailable`: A client reached no node of the peer, or lost the connection before a query's answer; nothing was changed, so the request may be sent again.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -4016,7 +4013,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due", "wow.peer.unavailable" ]
       },
       "wow.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",

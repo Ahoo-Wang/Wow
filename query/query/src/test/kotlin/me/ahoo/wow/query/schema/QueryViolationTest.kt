@@ -189,6 +189,12 @@ class QueryViolationTest {
             QueryRequestException.BODY,
         ),
         QueryViolation.InvalidCursor to Row(QueryErrorCodes.INVALID_CURSOR, "Invalid cursor.", "cursor"),
+        QueryViolation.StreamNotResumable to Row(
+            QueryErrorCodes.STREAM_NOT_RESUMABLE,
+            "This stream cannot be resumed, its sort having no keyset in its store: name a limit, or sort by fields " +
+                "its store keeps a keyset of.",
+            "limit",
+        ),
         QueryViolation.CursorSortDuplicate(field) to
             Row(QueryErrorCodes.CURSOR_SORT_DUPLICATE, "Cursor sort fields must be unique."),
         QueryViolation.CursorSortTooMany(4) to Row(

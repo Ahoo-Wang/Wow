@@ -49,8 +49,8 @@ A refusal rejects with a `WowProblemError`; its `code` is one of these, or a dom
 | `wow.wait.timeout` | 504 | The wait ran out of time; the command may have committed | Retry with the same request id, or read the state |
 | `wow.wait.invalid` | 400 | The wait plan is not a chain the service can follow | Build the plan from the generated hops of each context |
 | `wow.query.invalid` | 400 | The query broke a rule of the query model | Read each violation's `code` and `path` |
-| `wow.query.min-version-not-reached` | 409 | A read's `minVersion` was not reached within the wait | Retry after `retry.afterMs`; the problem's `version` is the current one |
-| `wow.command.busy`, `wow.query.busy` | 429 | The aggregate, the node or the store is busy | Retry after `retry.afterMs` |
+| `wow.query.min-version-not-reached` | 409 | A read's `minVersion` was not reached within the wait | Retry after `retryAfterMs`; the problem's `version` is the current one |
+| `wow.command.busy`, `wow.query.busy` | 429 | The aggregate, the node or the store is busy | Retry after `retryAfterMs` |
 | `wow.node.standby` | 503 | The service is on standby before a migration's cut-over and serves reads only | Retry later |
 
 `error.retry` says whether a retry can succeed and whether to keep the request id.

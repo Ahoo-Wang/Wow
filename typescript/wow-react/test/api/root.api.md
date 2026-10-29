@@ -11,10 +11,10 @@ import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterSingleQuery } from '@ahoo-wang/wow-client/dsl';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import { Positioned } from '@ahoo-wang/wow-client';
 import { RequestOptions } from '@ahoo-wang/wow-client';
-import { StreamedRow } from '@ahoo-wang/wow-client';
 import { StreamOptions } from '@ahoo-wang/wow-client';
 import { WowProblemError } from '@ahoo-wang/wow-client';
 
@@ -52,7 +52,7 @@ export interface QueryHookReturn<Q, R> {
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 // @public
-export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<StreamedRow<R>>, StreamOptions>;
+export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<Positioned<R>>, StreamOptions>;
 
 // @public
 export function useAggregateQuery<ROW, FIELDS extends string = string>(options: UseAggregateQueryOptions<ROW, FIELDS, AggregationQuery<FIELDS, string>>): UseAggregateQueryReturn<ROW, FIELDS, AggregationQuery<FIELDS, string>>;
@@ -123,11 +123,11 @@ export function usePagedQuery<R, FIELDS extends string = string>(options: UsePag
 export function usePagedQuery<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>>(options: UsePagedQueryOptions<R, FIELDS, Q>): UsePagedQueryReturn<R, FIELDS, Q>;
 
 // @public
-export interface UsePagedQueryOptions<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookOptions<Q, PagedResult<R>> {
+export interface UsePagedQueryOptions<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookOptions<Q, PagedList<R>> {
 }
 
 // @public
-export interface UsePagedQueryReturn<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookReturn<Q, PagedResult<R>> {
+export interface UsePagedQueryReturn<R, FIELDS extends string = string, Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>> extends QueryHookReturn<Q, PagedList<R>> {
 }
 
 // @public

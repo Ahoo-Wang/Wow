@@ -11,7 +11,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 | 9.x | V10 |
 | --- | --- |
-| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`。租户和所有者来自调用方，从不来自路径 |
+| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`，ID 即所有者 ID 的聚合（9.x `OwnerPolicy.AGGREGATE_ID`）的每条命令也可以，指调用方自己的聚合。租户和所有者来自调用方，从不来自路径 |
 | `DELETE …/{id}`、`PUT …/{id}/recover`、`PUT …/{id}/tags` | `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.restore-aggregate`、`POST …/{id}/wow.lifecycle.apply-tags` |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`、它们的 `/state` 形式、`…/event/…` | `POST /<context>/<aggregate>/snapshot/query` 和 `…/events/query`，操作写在请求体的 `kind` 中 |
 | `GET …/snapshot/schema` | 对同一个查询路由发 `GET`：能力描述符，带着它的 `ETag` |

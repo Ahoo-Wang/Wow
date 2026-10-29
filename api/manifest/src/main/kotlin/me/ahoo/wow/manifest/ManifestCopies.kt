@@ -16,6 +16,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.problem.Retry
 
 // The Manifest model has no `copy`: it may gain fields, and a `copy` would be a promise to every caller.
 // Wow's own code replaces fields through these, never by calling a constructor with the fields it knows of, so a field
@@ -61,6 +62,7 @@ fun AggregateManifest.copyWith(
     schedules: List<String>? = this.schedules,
     ownership: Ownership = this.ownership,
     retired: List<String> = this.retired,
+    idSource: AggregateIdSource = this.idSource,
 ): AggregateManifest =
     AggregateManifest(
         name,
@@ -73,6 +75,7 @@ fun AggregateManifest.copyWith(
         schedules,
         ownership,
         retired,
+        idSource,
     )
 
 @InternalWowApi
@@ -141,7 +144,9 @@ fun ErrorManifest.copyWith(
     code: String = this.code,
     status: Int = this.status,
     description: String? = this.description,
-): ErrorManifest = ErrorManifest(code, status, description)
+    retry: Retry = this.retry,
+    retryAfter: Int? = this.retryAfter,
+): ErrorManifest = ErrorManifest(code, status, description, retry, retryAfter)
 
 @InternalWowApi
 fun EventManifest.copyWith(

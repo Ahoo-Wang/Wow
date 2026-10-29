@@ -34,7 +34,7 @@ import me.ahoo.wow.api.decide.Causation
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] is whose name the commit is recorded in; the commands a saga derives from it keep it.
  *
- * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one. It is the
+ * [state] is a copy read from the commit's shared state, never the live instance: changing it affects no one. It is the
  * state after the whole commit, also for a [StateTypedEvent] of one of its events. The runtime
  * decodes it on its first read, so a handler that only reads [events] costs no decoding; a state that
  * does not decode fails that read, and a handler that catches every exception there swallows the failure with it. A handler of

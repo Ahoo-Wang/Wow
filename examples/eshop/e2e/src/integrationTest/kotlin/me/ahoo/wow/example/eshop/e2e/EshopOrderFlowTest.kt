@@ -114,7 +114,7 @@ class EshopOrderFlowTest {
         eventually("alice-1 confirmed") { orderStatus("alice-1") == "STOCK_CONFIRMED" }
         // The order belongs to its buyer (decision D189): the checkout saga's call carried the basket's scope.
         val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
-        view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        view["ownerId"].asString().assert().isEqualTo("alice")
         // Another buyer does not see it: not found, as an order that does not exist (decision D254 ④).
         val hidden = ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob"))
         hidden.status.assert().isEqualTo(NOT_FOUND)
@@ -176,7 +176,7 @@ class EshopOrderFlowTest {
 
     private fun addItem(buyer: String, product: String, price: String, quantity: Int) {
         val added = basket.post(
-            "/eshop-basket/basket/$buyer/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
             buyer(buyer),
         )
@@ -184,7 +184,7 @@ class EshopOrderFlowTest {
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers + buyer(buyer))
+        val checkedOut = basket.post("/eshop-basket/basket/checkout-basket", "{}", headers + buyer(buyer))
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }

@@ -37,7 +37,7 @@ import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.BackpressureOptions
@@ -128,8 +128,8 @@ class WowProperties {
     var executor: Executor = Executor()
     var stateCache: StateCache = StateCache()
 
-    /** The bounds of each context's state views: `wow.state-views.*`. */
-    var stateViews: StateViews = StateViews()
+    /** The bounds of each context's shared states: `wow.shared-states.*`. */
+    var sharedStates: SharedStates = SharedStates()
     var subscription: Subscription = Subscription()
 
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
@@ -532,7 +532,8 @@ class WowProperties {
 
         /**
          * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends,
-         * so the other nodes take the partitions it cannot run; longer than `drain-timeout`.
+         * so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after
+         * `wow.health.liveness.stall-timeout` fails the node's liveness.
          */
         var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
 
@@ -613,20 +614,24 @@ class WowProperties {
     }
 
     /**
-     * The bounds of each context's state views, the states its consumers share after each commit.
+     * The bounds of each context's shared states, the states its consumers share after each commit.
      */
     @InternalWowApi
-    class StateViews {
-        /** The most state views a context keeps. */
-        var capacity: Int = StateViewOptions.DEFAULT_CAPACITY
+    class SharedStates {
+        /** The most shared states a context keeps. */
+        var capacity: Int = SharedStateOptions.DEFAULT_CAPACITY
 
-        /** How long a state view is kept at most. */
-        var maxAge: Duration = StateViewOptions.DEFAULT_MAX_AGE.toJavaDuration()
+        /** How long a shared state is kept at most. */
+        var maxAge: Duration = SharedStateOptions.DEFAULT_MAX_AGE.toJavaDuration()
 
         /** The most serialized state a context's views hold, counting two bytes a character (`64MB`). */
-        var maxBytes: DataSize = DataSize.ofBytes(StateViewOptions.DEFAULT_MAX_BYTES)
+        var maxBytes: DataSize = DataSize.ofBytes(SharedStateOptions.DEFAULT_MAX_BYTES)
 
-        fun options(): StateViewOptions = StateViewOptions(capacity, maxAge.toKotlinDuration(), maxBytes.toBytes())
+        fun options(): SharedStateOptions = SharedStateOptions(
+            capacity,
+            maxAge.toKotlinDuration(),
+            maxBytes.toBytes()
+        )
     }
 
     /** The cache of aggregate states each context keeps between commands. */
@@ -1522,8 +1527,9 @@ class WowProperties {
     @InternalWowApi
     class HealthLiveness {
         /**
-         * How long the node's dispatcher may not tick, or commands in flight not finish while every log answers,
-         * before the node is not live.
+         * How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or
+         * commands in flight not finish while every log answers, before the node is not live; longer than
+         * `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.
          */
         var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
     }

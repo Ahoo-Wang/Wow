@@ -31,6 +31,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.route.ServiceRoutes
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -242,6 +243,8 @@ class HttpNode(
     minVersionWait: kotlin.time.Duration = KernelStateReads.DEFAULT_MIN_VERSION_WAIT,
     /** The node's service routes: their handlers and authorizers. */
     serviceRoutes: ServiceRoutes = ServiceRoutes.NONE,
+    /** The node's aggregates besides the cart, which [manifest] then declares. */
+    aggregates: List<AggregateModel<*>> = emptyList(),
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -298,7 +301,7 @@ class HttpNode(
         WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
     )
     private val models = ModelRegistry(
-        listOf(cartModel(commands, mounted)) +
+        listOf(cartModel(commands, mounted)) + aggregates +
             listOfNotNull(jobs.takeIf { it.isNotEmpty() }?.let { ScheduleJobModel.model(CONTEXT, it) }) +
             listOfNotNull(SnapshotRebuildModel.model(CONTEXT, setOf("cart")).takeIf { rebuilds }),
     )

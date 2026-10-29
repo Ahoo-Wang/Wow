@@ -22,6 +22,6 @@ Every name `@ahoo-wang/wow-client/testing` exports — 8 — with its kind and t
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `problemOf` | function | An RFC 9457 problem as a service answers it, of `status` and the Wow `code` (`urn:wow:error:<code>`; `about:blank` without one), for a test's fake or an expected error. | — |
 | `problemResponse` | function | The response a service answers `problem` with: `application/problem+json`, its extension members written as members of their own, as the wire carries them. | — |
-| `stateViewOf` | function | An aggregate's state as a state read answers it, for a test's fake: `ref`'s`state` at version 1, of no owner or space, not deleted and untagged unless`overrides` says otherwise. | — |
+| `snapshotOf` | function | An aggregate's snapshot as a state read and a snapshot query answer it, for a test's fake: `ref`'s `state` at version 1, committed at 0 by an anonymous caller, of no owner or space, not deleted, untagged and keeping no schedules unless `overrides` says otherwise. | — |
 
 :::

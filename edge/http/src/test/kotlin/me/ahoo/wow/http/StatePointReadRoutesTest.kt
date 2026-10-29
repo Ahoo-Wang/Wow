@@ -110,11 +110,13 @@ class StatePointReadRoutesTest {
         val (late, read) = node.reading { get("/shop/cart/c-1/state?at=1970-12-31T00:00:00Z") }
         late.assertInvalid(QueryErrorCodes.REPLAY_TOO_LONG, "at")
         read.assert().isEqualTo(MAX_REPLAY + 2)
-        // Within the bound, the state is replayed from the snapshot.
+        // Within the bound, the state is replayed from the snapshot, and its last stream read once more for the
+        // time and operator of its commit (decision D348 ⑦); its first commit's are the snapshot's.
         val (within, replayed) = node.reading { get("/shop/cart/c-1/state?version=5000") }
         within.status.assert().isEqualTo(200)
         within.body!!["state"]["items"].asInt().assert().isEqualTo(5000)
-        replayed.assert().isEqualTo(5000 - 10 + 1)
+        within.body!!["version"].asInt().assert().isEqualTo(5000)
+        replayed.assert().isEqualTo(5000 - 10 + 1 + 1)
         // A caller who may not see the cart reads nothing of its log.
         val (refused, none) = node.reading { get("/shop/cart/c-1/state?version=5000", user = "bob") }
         refused.assertNotFound()

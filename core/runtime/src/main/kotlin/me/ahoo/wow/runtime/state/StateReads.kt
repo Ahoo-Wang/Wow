@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
@@ -49,7 +50,7 @@ interface StateReads {
      * its snapshots off), the state its log holds; null when no commit of [ref] is known. A read
      * that replays the log runs under the node's [ReplayGate] (its log store's query bulkhead).
      */
-    suspend fun latest(ref: AggregateRef): StateReadView?
+    suspend fun latest(ref: AggregateRef): Snapshot<JsonNode>?
 
     /**
      * The latest state of [ref] at version [minVersion] or later (read your writes): its snapshot
@@ -59,26 +60,26 @@ interface StateReads {
      *
      * @throws MinVersionNotReachedException when the aggregate stays below [minVersion] through the wait.
      */
-    suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView?
+    suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>?
 
     /**
      * The latest committed state of [ref], as [latest] reads it but outside any [ReplayGate]: the
      * events model reads it while its query holds a permit of its store's bulkhead, which it must not wait for again.
      */
-    suspend fun committed(ref: AggregateRef): StateReadView?
+    suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>?
 
     /**
      * The committed state of [ref] at [version], or null when the log does not hold that version. Its replay runs
      * under the node's [ReplayGate] and folds a bounded number of streams: past the bound, it
      * throws [StateReplayLimitException].
      */
-    suspend fun at(ref: AggregateRef, version: Int): StateReadView?
+    suspend fun at(ref: AggregateRef, version: Int): Snapshot<JsonNode>?
 
     /**
      * The committed state of [ref] as of [instant]: after the last commit at or before it by commit time; null when
      * none had committed by then. Replayed as [at] a version is.
      */
-    suspend fun at(ref: AggregateRef, instant: Instant): StateReadView?
+    suspend fun at(ref: AggregateRef, instant: Instant): Snapshot<JsonNode>?
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit], in version order, each with
@@ -92,16 +93,16 @@ interface StateReads {
         /** Reads nothing: every state is not found. */
         @JvmField
         val NONE: StateReads = object : StateReads {
-            override suspend fun latest(ref: AggregateRef): StateReadView? = null
+            override suspend fun latest(ref: AggregateRef): Snapshot<JsonNode>? = null
 
-            override suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView? =
+            override suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
                 throw MinVersionNotReachedException(ref, minVersion, 0)
 
-            override suspend fun committed(ref: AggregateRef): StateReadView? = null
+            override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? = null
 
-            override suspend fun at(ref: AggregateRef, version: Int): StateReadView? = null
+            override suspend fun at(ref: AggregateRef, version: Int): Snapshot<JsonNode>? = null
 
-            override suspend fun at(ref: AggregateRef, instant: Instant): StateReadView? = null
+            override suspend fun at(ref: AggregateRef, instant: Instant): Snapshot<JsonNode>? = null
 
             override suspend fun trace(ref: AggregateRef, fromVersion: Int, toVersion: Int, limit: Int): List<CommitView> =
                 emptyList()
@@ -140,17 +141,6 @@ interface ReplayGate {
 @InternalWowApi
 class StateReplayLimitException(val ref: AggregateRef, val limit: Int, cause: Throwable? = null) :
     RuntimeException("Reading this state of $ref replays more than $limit commits of its log.", cause)
-
-/** An aggregate's state at [version] with what the kernel keeps beside it, as a state read answers it. */
-@InternalWowApi
-data class StateReadView(
-    val ref: AggregateRef,
-    val version: Int,
-    val scope: Scope,
-    val deleted: Boolean,
-    val tags: Map<String, List<String>>,
-    val state: JsonNode,
-)
 
 /**
  * One commit of a trace: the stream at [version], committed at [commitTime] (epoch milliseconds) for
@@ -211,11 +201,11 @@ class KernelStateReads(
     @InternalWowApi
     class ContextReads(val kernel: Kernel, val snapshots: SnapshotStore)
 
-    override suspend fun latest(ref: AggregateRef): StateReadView? = latest(ref, gate, maxReplay)
+    override suspend fun latest(ref: AggregateRef): Snapshot<JsonNode>? = latest(ref, gate, maxReplay)
 
-    override suspend fun committed(ref: AggregateRef): StateReadView? = latest(ref, ReplayGate.OPEN, Int.MAX_VALUE)
+    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? = latest(ref, ReplayGate.OPEN, Int.MAX_VALUE)
 
-    override suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView? {
+    override suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? {
         require(minVersion >= 1) { "A committed state has a version from 1." }
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
@@ -226,7 +216,7 @@ class KernelStateReads(
             val caughtUp = gate.replay(ref) {
                 bounded { reads.kernel.stateAt(model, ref, Instant.MAX, snapshot, maxReplay) }
             }
-            if (caughtUp != null && caughtUp.version >= minVersion) return caughtUp.view(ref)
+            if (caughtUp != null && caughtUp.version >= minVersion) return caughtUp.view(ref, reads.kernel, snapshot)
             if (deadline.hasPassedNow()) {
                 throw MinVersionNotReachedException(ref, minVersion, caughtUp?.version ?: 0)
             }
@@ -236,21 +226,21 @@ class KernelStateReads(
     }
 
     /** The snapshot of [ref], else its log replayed under [gate], at most [maxReplay] streams of it. */
-    private suspend fun latest(ref: AggregateRef, gate: ReplayGate, maxReplay: Int): StateReadView? {
+    private suspend fun latest(ref: AggregateRef, gate: ReplayGate, maxReplay: Int): Snapshot<JsonNode>? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         reads.snapshots.load(ref)?.let { return it.view() }
         return gate.replay(ref) {
             bounded { reads.kernel.stateAt(model, ref, Instant.MAX, maxReplay = maxReplay) }
-        }?.view(ref)
+        }?.view(ref, reads.kernel, null)
     }
 
-    override suspend fun at(ref: AggregateRef, version: Int): StateReadView? {
+    override suspend fun at(ref: AggregateRef, version: Int): Snapshot<JsonNode>? {
         require(version >= 1) { "A committed state has a version from 1." }
         return replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, version, snapshot, maxReplay) }
     }
 
-    override suspend fun at(ref: AggregateRef, instant: Instant): StateReadView? =
+    override suspend fun at(ref: AggregateRef, instant: Instant): Snapshot<JsonNode>? =
         replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, instant, snapshot, maxReplay) }
 
     override suspend fun trace(ref: AggregateRef, fromVersion: Int, toVersion: Int, limit: Int): List<CommitView> {
@@ -288,11 +278,11 @@ class KernelStateReads(
     private suspend fun replayed(
         ref: AggregateRef,
         read: suspend (Kernel, AggregateModel<Any>, snapshot: SnapshotRecord?) -> CachedState?,
-    ): StateReadView? {
+    ): Snapshot<JsonNode>? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         val snapshot = reads.snapshots.load(ref)
-        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }?.view(ref)
+        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }?.view(ref, reads.kernel, snapshot)
     }
 
     /** [replay]'s result; a replay past the kernel's bound is this read's [StateReplayLimitException]. */
@@ -322,22 +312,47 @@ class KernelStateReads(
         @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
         private fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>
 
-        private fun SnapshotRecord.view(): StateReadView = StateReadView(
+        private fun SnapshotRecord.view(): Snapshot<JsonNode> = Snapshot.of(
             ref = ref,
             version = version,
             scope = scope,
-            deleted = deleted,
             tags = tags,
+            deleted = deleted,
+            operator = operator,
+            firstEventTime = firstEventTime,
+            lastEventTime = lastEventTime,
             state = WowJson.mapper.readTree(state),
+            firstOperator = firstOperator,
+            schedules = schedules,
         )
 
-        private fun CachedState.view(ref: AggregateRef): StateReadView = StateReadView(
-            ref = ref,
-            version = version,
-            scope = scope,
-            deleted = deleted,
-            tags = tags,
-            state = WowJson.mapper.valueToTree(state),
-        )
+        /**
+         * This replayed state of [ref] as a snapshot of it: the time and operator of its last commit are its stream's,
+         * those of its first the [snapshot]'s, which keeps them whatever its version, else the first stream's.
+         */
+        private suspend fun CachedState.view(
+            ref: AggregateRef,
+            kernel: Kernel,
+            snapshot: SnapshotRecord?,
+        ): Snapshot<JsonNode> {
+            val last = checkNotNull(kernel.streamAt(ref, version)) { "The log holds no version $version of $ref." }
+            val (firstEventTime, firstOperator) = snapshot?.takeIf { it.ref == ref }
+                ?.let { it.firstEventTime to it.firstOperator }
+                ?: (if (version == 1) last else checkNotNull(kernel.streamAt(ref, 1)) { "The log holds no $ref." })
+                    .let { it.commitTime to it.operator }
+            return Snapshot.of(
+                ref = ref,
+                version = version,
+                scope = scope,
+                tags = tags,
+                deleted = deleted,
+                operator = last.operator,
+                firstEventTime = firstEventTime,
+                lastEventTime = last.commitTime,
+                state = WowJson.mapper.valueToTree(state),
+                firstOperator = firstOperator,
+                schedules = schedules,
+            )
+        }
     }
 }

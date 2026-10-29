@@ -103,7 +103,9 @@ export class Failure {
     if (known) return known;
     // What a retry may get past (a busy or closing node, a store out of
     // reach, contended writers, a wait that ran out): the outcome is unknown.
-    if (this.problem?.retry.retryable) return 'UNAVAILABLE';
+    if (this.problem !== undefined && this.problem.retry !== 'none') {
+      return 'UNAVAILABLE';
+    }
     // The aggregate refused the command in the state it is in.
     if (this.problem === undefined && this.rejection) return 'CONFLICT';
     switch (this.problem?.status) {

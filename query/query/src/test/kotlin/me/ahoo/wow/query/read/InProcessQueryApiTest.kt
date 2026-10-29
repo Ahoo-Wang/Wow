@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -32,13 +33,17 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
+import me.ahoo.wow.api.read.aggregate
+import me.ahoo.wow.api.read.datasets
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
@@ -49,14 +54,22 @@ import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
-import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.PagingSupport
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
+import me.ahoo.wow.query.schema.StorageSupport
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.toSnapshot
 import me.ahoo.wow.spi.log.EventRecord
@@ -64,10 +77,23 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
-/** The node's typed QueryApi (decisions D254 ②, D259): one engine, the caller's scope, the in-process budget. */
+/** The node's typed NodeQueryApi (decisions D254 ②, D259): one engine, the caller's scope, the in-process budget. */
 class InProcessQueryApiTest {
+    /** The in-memory facts of a store that pages without a keyset, so no stream of it resumes. */
+    private object NoKeyset : QueryStorageAdapter {
+        override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts {
+            val facts = InMemoryQueryStorageAdapter.facts(logicalSchema)
+            return QueryStorageFacts(
+                bindings = facts.bindings,
+                capabilities = facts.capabilities,
+                storage = StorageSupport(paging = PagingSupport(keyset = SupportMode.NONE)),
+            )
+        }
+    }
+
     data class CartState(val items: Int = 0)
 
     /** The cart's state as another context's api generates its view (decision D362). */
@@ -126,12 +152,13 @@ class InProcessQueryApiTest {
 
     private fun api(
         defaultListSize: Int = InProcessQueryApi.DEFAULT_LIST_SIZE,
-        latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> CommittedState? = { null },
+        latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> Snapshot<JsonNode>? = { null },
         policies: List<QueryPolicy> = emptyList(),
+        snapshots: QueryBindings<AggregateType> = storage,
     ): InProcessQueryApi {
         val events = InMemoryEventQueryStorage({ type -> if (type == cart) streams else emptyList() })
         val engine = QueryEngine.Builder(manifest)
-            .snapshots(storage) { it == cart }
+            .snapshots(snapshots) { it == cart }
             .events { type -> events.binding(type).takeIf { type == cart } }
             // The host's default (`wow.query.budgets.in-process.*`): the HTTP defaults.
             .entryPolicy(QueryEntryPolicy(inProcess = QueryBudget.IN_PROCESS_DEFAULT))
@@ -147,12 +174,15 @@ class InProcessQueryApiTest {
         )
     }
 
-    private fun committed(ref: me.ahoo.wow.api.aggregate.AggregateRef, owner: String) = CommittedState(
+    private fun committed(ref: me.ahoo.wow.api.aggregate.AggregateRef, owner: String) = Snapshot.of<JsonNode>(
         ref = ref,
         version = 3,
         scope = Scope(owner),
         deleted = false,
         tags = emptyMap(),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 7),
     )
 
@@ -180,6 +210,10 @@ class InProcessQueryApiTest {
         page.list.map { it.state }.assert().containsExactly(CartState(2))
         page.total.assert().isEqualTo(1)
         carts.cursor(CursorQuery(MatchAllFilter, size = 10)).list.single().ref.id.assert().isEqualTo("c-1")
+        // Untyped: the state as a tree.
+        val tree = api().of(alice).snapshots(cart).single(SingleQuery(AggregateIdFilter("c-1")))!!.state
+        tree.assert().isInstanceOf(ObjectNode::class.java)
+        tree["items"].asInt().assert().isEqualTo(2)
     }
 
     @Test
@@ -187,13 +221,16 @@ class InProcessQueryApiTest {
         save("acme", "c-1", "alice")
         save("other", "c-2", "bob")
         val api = api()
-        api.trusted().snapshots(cart).list(ListQuery(MatchAllFilter)).toList().map { it.state }
+        api.trusted().snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList().map { it.state }
             .assert().containsExactly(CartState(1), CartState(1))
         val tooMany = ListQuery(MatchAllFilter, limit = 1001)
         val refused = runCatching { api.trusted().snapshots<CartState>().list(tooMany).toList() }
-            .exceptionOrNull() as QueryError
-        refused.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            .exceptionOrNull() as WowProblemException
+        refused.code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        refused.status.assert().isEqualTo(400)
+        refused.cause.assert().isInstanceOf(QueryError::class.java)
         api.trusted().unbounded().snapshots<CartState>().list(tooMany).toList().assert().hasSize(2)
+        api.trusted().unbounded().unbounded().assert().isSameAs(api.trusted().unbounded())
         api.trusted().unbounded().snapshots<CartState>()
             .paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT)).exact.assert().isTrue()
     }
@@ -210,7 +247,7 @@ class InProcessQueryApiTest {
                 defaultListSize = 0
             ).of(alice).snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList()
         }
-        (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        (refused.exceptionOrNull() as WowProblemException).code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
         api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().list(ListQuery(MatchAllFilter))
             .toList().assert().hasSize(3)
     }
@@ -226,6 +263,22 @@ class InProcessQueryApiTest {
             all.forEach { it.position.assert().isNotNull() }
             carts.stream(query, after = all.first().position).toList().map { it.row.ref.id }
                 .assert().containsExactly("c-2", "c-3")
+        }
+
+    @Test
+    fun `a stream its store cannot resume should read the limit it names, and be refused without one`(): Unit =
+        runBlocking {
+            (1..3).forEach { save("acme", "c-$it", "alice", items = it) }
+            val noKeyset = QueryBindings<AggregateType> { QueryBackendBinding(storage.binding(it).backend, NoKeyset) }
+            val carts = api(defaultListSize = 1, snapshots = noKeyset).of(alice).snapshots<CartState>()
+            val limited = carts.stream(ListQuery(MatchAllFilter, limit = 2)).toList()
+            limited.assert().hasSize(2)
+            limited.forEach { it.position.assert().isNull() }
+            val refused = runCatching { carts.stream(ListQuery(MatchAllFilter)).toList() }
+                .exceptionOrNull() as WowProblemException
+            refused.code.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            (refused.cause as QueryError).bindingErrors.single().code
+                .assert().isEqualTo(QueryErrorCodes.STREAM_NOT_RESUMABLE)
         }
 
     @Test
@@ -258,7 +311,7 @@ class InProcessQueryApiTest {
             projection = Projection(include = listOf(QueryField("aggregateId")))
         )
         assertThrows<IllegalArgumentException> { carts.single(projected) }
-        val tree = carts.trees().single(projected)!!
+        val tree = carts.dynamic<ObjectNode>().single(projected)!!
         tree["aggregateId"].asString().assert().isEqualTo("c-1")
         tree.has("state").assert().isFalse()
         val map = carts.dynamic<Map<String, Any?>>().list(ListQuery(MatchAllFilter)).toList().single()
@@ -271,7 +324,7 @@ class InProcessQueryApiTest {
         save("acme", "c-1", "alice")
         val carts = api().of(alice).snapshots<CartState>()
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
-        carts.groupTrees(query).toList().single()["count"].asInt().assert().isEqualTo(1)
+        carts.aggregate<ObjectNode>(query).toList().single()["count"].asInt().assert().isEqualTo(1)
         carts.aggregate(query, Map::class.java).toList().single()["count"].assert().isEqualTo(1L)
     }
 
@@ -292,7 +345,6 @@ class InProcessQueryApiTest {
         carts.state("missing").assert().isNull()
         carts.state(cart.ref("other", "a")).assert().isNull()
         assertThrows<IllegalArgumentException> { carts.state(order.ref("acme", "a")) }
-        assertThrows<IllegalStateException> { api.trusted().snapshots<CartState>().state("a") }
         api.trusted().snapshots<CartState>().state(cart.ref("other", "b"))!!.scope.assert().isEqualTo(Scope("bob"))
     }
 
@@ -314,7 +366,6 @@ class InProcessQueryApiTest {
             carts.state("missing", 1).assert().isNull()
             carts.state(cart.ref("acme", "a"), 3)!!.state.assert().isEqualTo(CartState(7))
             assertThrows<IllegalArgumentException> { carts.state("a", 0) }
-            assertThrows<IllegalStateException> { api.trusted().snapshots<CartState>().state("a", 1) }
             MinVersionNotReachedException.CODE.assert().isEqualTo(QueryErrors.MIN_VERSION_NOT_REACHED)
         }
 
@@ -369,8 +420,9 @@ class InProcessQueryApiTest {
         stream.events.map { it.name }.assert().containsExactly("item_added", "retired")
         stream.events[0].body.assert().isEqualTo(ItemAdded("s-1"))
         stream.events[0].revision.assert().isEqualTo(1)
-        stream.events[1].body.assert().isEqualTo(mapOf("a" to 1))
-        events.trees().single(SingleQuery(AggregateIdFilter("c-1")))!!["commandId"].asString()
+        // An event the model has no class of is its body as stored, as over HTTP.
+        (stream.events[1].body as ObjectNode)["a"].asInt().assert().isEqualTo(1)
+        events.dynamic<ObjectNode>().single(SingleQuery(AggregateIdFilter("c-1")))!!["commandId"].asString()
             .assert().isEqualTo("cmd-1")
     }
 
@@ -381,7 +433,7 @@ class InProcessQueryApiTest {
         assertThrows<IllegalArgumentException> { api.of(alice).snapshots(order) }
         assertThrows<IllegalArgumentException> { api.of(alice).events(order) }
         assertThrows<IllegalArgumentException> { api.of(alice).snapshots<ItemAdded>() }
-        assertThrows<IllegalArgumentException> { api.of(alice).datasetTrees(DatasetName.of("shop", "sales")) }
+        assertThrows<IllegalArgumentException> { api.of(alice).datasets<ObjectNode>(DatasetName.of("shop", "sales")) }
     }
 
     @Test

@@ -22,8 +22,8 @@ import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
@@ -2669,7 +2669,7 @@ export interface ProjectedRecord extends ProjectedBase {
 export type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
 // @public
-export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedResult<RecordData> | CursorPage<RecordData>, pageIndex?: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
+export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedList<RecordData> | CursorPage<RecordData>, pageIndex?: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
 
 // @public
 export type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
@@ -3827,7 +3827,7 @@ export interface ViewSource {
     cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
     describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
     // (undocumented)
-    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
+    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>;
 }
 
 // @public

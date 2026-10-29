@@ -16,9 +16,9 @@ package me.ahoo.wow.runtime.source
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicProducer
 
@@ -40,7 +40,7 @@ fun orderRecord(id: String, version: Int, withState: Boolean = true): StateEvent
     commandType = "sales.order.Place",
     commitTime = 1_000L * version,
     events = listOf(StateEventPayload("sales.order.Placed", 1, WowJson.mapper.readTree("""{"n":$version}"""))),
-    state = if (withState) StateView(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")) else null,
+    state = if (withState) PublishedState(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")) else null,
 )
 
 /** Publishes [records] to [topic], each keyed by its aggregate, as the transport sink does. */

@@ -1055,16 +1055,20 @@ export function fakeViewStore(
         `view-store.view/${id} has no version ${version}.`,
       );
     return json(
+      // The snapshot record's shape (decision D348 ⑦).
       {
-        ref: {
-          type: { context: 'view-store', name: 'view' },
-          tenantId: aggregate.tenantId,
-          id,
-        },
+        tenantId: aggregate.tenantId,
+        aggregateId: id,
         version: at.version,
-        scope: { ownerId: at.ownerId, spaceId: null },
+        ownerId: at.ownerId,
+        spaceId: null,
         deleted: at.deleted,
         tags: {},
+        firstEventTime: 0,
+        lastEventTime: 0,
+        operator: null,
+        firstOperator: null,
+        schedules: {},
         state: structuredClone(at.state),
       },
       200,

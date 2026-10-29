@@ -16,7 +16,7 @@ package me.ahoo.wow.http.problem
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -40,7 +40,7 @@ import kotlin.math.ceil
  *
  * - a [CommandRejectedException] (a command an application route sent through a `CommandClient`) as its result, the
  *   status of its code in the Manifest's tables ([ErrorStatuses]) and its result as `result`;
- * - a [WowProblemException] as its code, status, result and `Retry-After`;
+ * - a [WowProblemException] as its code, status, result, retry and `Retry-After`;
  * - a [StorageUnavailableException] as 503 `wow.storage.unavailable` with `Retry-After`, a body larger than the
  *   codecs take as 413, as on the framework routes ([Problem.ofFailure]);
  * - a [ResponseStatusException] (no route, a method or media type not served, a body that cannot be read) as the
@@ -64,7 +64,7 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
         val problem = problemOf(ex)
         response.statusCode = HttpStatus.valueOf(problem.status)
         response.headers.contentType = MediaType.APPLICATION_PROBLEM_JSON
-        problem.retryAfter?.let { response.headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
+        problem.retryAfterHeader?.let { response.headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
         return response.writeWith(
             Mono.fromSupplier { response.bufferFactory().wrap(HttpJson.write(problem.members())) }
         )
@@ -78,7 +78,8 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
             title = statuses.title(failure.code, null, failure.status),
             detail = failure.message,
             code = failure.code,
-            retryAfter = failure.retryHint.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+            retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+            retry = failure.retry,
         )
         is ResponseStatusException -> {
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR

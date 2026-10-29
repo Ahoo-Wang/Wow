@@ -40,6 +40,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/change-basket-item-quantity"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/change-basket-item-quantity"
         } ],
         "description" : "Change an item's quantity"
       }, {
@@ -51,6 +54,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/checkout-basket"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/checkout-basket"
         } ],
         "description" : "Check the basket out"
       }, {
@@ -62,6 +68,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/clear-basket"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/clear-basket"
         } ],
         "description" : "Clear the basket"
       }, {
@@ -73,6 +82,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/remove-basket-item"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/remove-basket-item"
         } ],
         "description" : "Remove an item from the basket"
       }, {
@@ -83,6 +95,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.apply-tags"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/wow.lifecycle.apply-tags"
         } ],
         "system" : true
       }, {
@@ -93,6 +108,9 @@
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-basket/basket/{id}"
+        }, {
+          "method" : "DELETE",
+          "path" : "/eshop-basket/basket"
         } ],
         "system" : true
       }, {
@@ -103,16 +121,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate"
-        } ],
-        "system" : true
-      }, {
-        "name" : "wow.lifecycle.TransferOwner",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
-        "creation" : "none",
-        "routes" : [ {
+        }, {
           "method" : "POST",
-          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner"
+          "path" : "/eshop-basket/basket/wow.lifecycle.restore-aggregate"
         } ],
         "system" : true
       }, {
@@ -123,6 +134,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-space"
+        }, {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/wow.lifecycle.transfer-space"
         } ],
         "system" : true
       }, {
@@ -185,7 +199,8 @@
           "method" : "GET",
           "path" : "/eshop-basket/basket/events/query"
         } ]
-      } ]
+      } ],
+      "idSource" : "owner"
     } ],
     "subscriptions" : [ {
       "name" : "BasketCheckoutSaga.onBasketCheckedOut",
@@ -218,10 +233,6 @@
       "code" : "eshop-basket.basket.item-not-found",
       "status" : 404,
       "description" : "The basket does not hold the product."
-    }, {
-      "code" : "eshop-basket.basket.not-owner",
-      "status" : 403,
-      "description" : "A basket belongs to the buyer whose id it has."
     } ]
   } ],
   "errors" : [ {
@@ -275,7 +286,9 @@
   }, {
     "code" : "wow.command.contended",
     "status" : 409,
-    "description" : "Concurrent writers kept winning the version; retrying with the same request id is safe."
+    "description" : "Concurrent writers kept winning the version; retrying with the same request id is safe.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.aggregate.deleted",
     "status" : 410,
@@ -283,11 +296,15 @@
   }, {
     "code" : "wow.command.busy",
     "status" : 429,
-    "description" : "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later."
+    "description" : "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.command.unknown",
     "status" : 503,
-    "description" : "Whether the command committed is unknown; retrying with the same request id is safe."
+    "description" : "Whether the command committed is unknown; retrying with the same request id is safe.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.command.failed",
     "status" : 500,
@@ -303,19 +320,27 @@
   }, {
     "code" : "wow.node.closing",
     "status" : 503,
-    "description" : "The node is shutting down; retry on another node."
+    "description" : "The node is shutting down; retry on another node.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.node.standby",
     "status" : 503,
-    "description" : "The node is on standby until the cut-over: it serves reads only."
+    "description" : "The node is on standby until the cut-over: it serves reads only.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.storage.unavailable",
     "status" : 503,
-    "description" : "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+    "description" : "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.schedule.not-due",
     "status" : 503,
-    "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+    "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.schedule.job-invalid",
     "status" : 400,
@@ -331,7 +356,9 @@
   }, {
     "code" : "wow.wait.timeout",
     "status" : 504,
-    "description" : "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+    "description" : "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+    "retry" : "same-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.route.malformed",
     "status" : 400,
@@ -367,11 +394,15 @@
   }, {
     "code" : "wow.query.min-version-not-reached",
     "status" : 409,
-    "description" : "The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later."
+    "description" : "The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later.",
+    "retry" : "new-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.query.busy",
     "status" : 429,
-    "description" : "The query was not run: its store has as many queries running as it allows; retry later."
+    "description" : "The query was not run: its store has as many queries running as it allows; retry later.",
+    "retry" : "new-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.query.dataset-unavailable",
     "status" : 409,
@@ -380,6 +411,12 @@
     "code" : "wow.call.command-forbidden",
     "status" : 403,
     "description" : "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
+  }, {
+    "code" : "wow.peer.unavailable",
+    "status" : 503,
+    "description" : "A client reached no node of the peer, or lost the connection before a query's answer; nothing was changed, so the request may be sent again.",
+    "retry" : "new-request",
+    "retryAfter" : 1
   } ],
   "$defs" : {
     "me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem" : {
@@ -594,17 +631,6 @@
       "type" : "object",
       "description" : "Takes back the deletion of a deleted aggregate.",
       "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
-    },
-    "wow.lifecycle.TransferOwner" : {
-      "type" : "object",
-      "properties" : {
-        "ownerId" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "ownerId" ],
-      "description" : "Gives the aggregate to the owner ownerId.",
-      "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferOwner"
     },
     "wow.lifecycle.TransferSpace" : {
       "type" : "object",

@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.example.eshop.basket.domain.basket
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
@@ -31,26 +31,20 @@ import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 
 /**
- * A buyer's basket; its id is the buyer's user id, so each buyer has one. The first item creates it, and only its
- * buyer may: a caller with an owner other than the basket's id is rejected ([Rejections.NOT_OWNER]). After
- * that the kernel keeps the basket to the owner that created it.
+ * A buyer's basket, one per buyer: its id is the buyer's user id ([AggregateIdSource.OWNER]). The buyer addresses it
+ * by no id, as "mine", and the first item creates it; Wow forbids a buyer another buyer's basket, and only a caller
+ * with no owner, such as a saga or a service, names the basket by its id.
  *
  * [CheckoutBasket] empties the basket into an order: [BasketCheckoutSaga] submits it to the ordering context. The
  * order's id is the basket's id and the number of the checkout (`alice-1`, `alice-2`, ...), so deciding again gives
  * the same event, and the caller is answered it as the result `orderId`.
  */
-@AggregateRoot
+@AggregateRoot(idSource = AggregateIdSource.OWNER)
 @Description("A buyer's basket before checkout; its id is the buyer's user id")
 class Basket(private val state: BasketState) {
     // region add-item
-    fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-        val owner = command.scope.ownerId
-        if (owner != null && owner != command.ref.id) {
-            reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-        }
-        val adding = command.body
-        return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
-    }
+    fun onCommand(command: AddBasketItem): BasketItemAdded =
+        BasketItemAdded(command.productId, command.unitPrice, command.quantity)
     // endregion
 
     /** Changing a quantity to the one the basket holds changes nothing. */
@@ -98,8 +92,5 @@ class Basket(private val state: BasketState) {
 
         @ErrorCode(description = "An empty basket cannot be checked out.")
         const val EMPTY = "empty"
-
-        @ErrorCode(description = "A basket belongs to the buyer whose id it has.", status = 403)
-        const val NOT_OWNER = "not-owner"
     }
 }

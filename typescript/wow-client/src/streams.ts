@@ -19,6 +19,7 @@ import {
 } from '@ahoo-wang/fetcher-eventstream';
 import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
 import type { CommandResult } from './wire.js';
+import { DEFAULT_RETRY } from './frameworkErrors.js';
 import { isProblem, WowProblemError } from './problem.js';
 
 /** The event of each record of a streamed query list. */
@@ -75,10 +76,10 @@ export interface StreamEnd {
   readonly resumable: boolean;
 }
 
-/** One record of a streamed list, with its position. */
-export interface StreamedRow<T> {
-  /** The record. */
-  readonly record: T;
+/** One row of a streamed list, with its position. Kotlin's `Positioned`. */
+export interface Positioned<T> {
+  /** The row. */
+  readonly row: T;
   /**
    * The record's position, its event's `id`: an opaque cursor token to
    * resume after it ({@link StreamResumeOptions.lastEventId}). Absent from a
@@ -95,17 +96,21 @@ export interface StreamedRow<T> {
  * after it.
  */
 export interface StreamResumeOptions {
-  /** Starts after this position: a {@link StreamedRow.position} read before. */
+  /** Starts after this position: a {@link Positioned.position} read before. */
   readonly lastEventId?: string;
   /**
    * How many times in a row the stream may be resumed without a record in
-   * between before it fails with what stopped it; 5 by default, 0 never
-   * resumes.
+   * between before it fails with what stopped it; by default one fewer than
+   * the catalog's attempts ({@link DEFAULT_RETRY}, as the Kotlin client), 0
+   * never resumes.
    */
   readonly maxRetries?: number;
-  /** The wait before the first such retry, doubled for each next; 200 ms by default. */
+  /**
+   * The wait before the first such retry, doubled for each next; the
+   * catalog's backoff by default ({@link DEFAULT_RETRY}).
+   */
   readonly initialDelayMs?: number;
-  /** The longest wait between retries; 10 s by default. */
+  /** The longest wait between retries; the catalog's by default ({@link DEFAULT_RETRY}). */
   readonly maxDelayMs?: number;
 }
 
@@ -159,11 +164,11 @@ export function resumableQueryRows<T>(
     /** The numbers of each record read as their exact text (review R4-Q, Q-9). */
     readonly numbers?: TextNumbers;
   } = {},
-): ReadableStream<StreamedRow<T>> {
+): ReadableStream<Positioned<T>> {
   const {
-    maxRetries = 5,
-    initialDelayMs = 200,
-    maxDelayMs = 10_000,
+    maxRetries = DEFAULT_RETRY.attempts - 1,
+    initialDelayMs = DEFAULT_RETRY.backoffMs,
+    maxDelayMs = DEFAULT_RETRY.maxWaitMs,
     signal,
   } = options;
   const numbers = options.numbers;
@@ -206,17 +211,17 @@ export function resumableQueryRows<T>(
       } catch (error) {
         if (
           signal?.aborted ||
-          (error instanceof WowProblemError && !error.retry.retryable)
+          (error instanceof WowProblemError && error.retry === 'none')
         ) {
           throw error;
         }
-        delayMs = (error as WowProblemError).retry?.afterMs;
+        delayMs = (error as WowProblemError).retryAfterMs;
         cause = error;
       }
     }
   }
 
-  return new ReadableStream<StreamedRow<T>>({
+  return new ReadableStream<Positioned<T>>({
     async pull(controller) {
       for (;;) {
         let stop: unknown;
@@ -233,9 +238,7 @@ export function resumableQueryRows<T>(
               received++;
               failures = 0;
               controller.enqueue(
-                id
-                  ? { record: data as T, position: id }
-                  : { record: data as T },
+                id ? { row: data as T, position: id } : { row: data as T },
               );
               return;
             }
@@ -250,9 +253,9 @@ export function resumableQueryRows<T>(
               if (end.reason === HOLD_EXPIRED) delayMs = 0;
             } else if (event === ERROR_EVENT) {
               const error = problemOf(data);
-              if (!error.retry.retryable) throw error;
+              if (error.retry === 'none') throw error;
               stop = error;
-              delayMs = error.retry.afterMs;
+              delayMs = error.retryAfterMs;
             } else {
               continue;
             }

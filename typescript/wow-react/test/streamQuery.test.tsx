@@ -259,8 +259,8 @@ describe('where the stream stopped', () => {
         execute: async () =>
           new ReadableStream({
             start(controller) {
-              controller.enqueue({ record: o1, position: 'p1' });
-              controller.enqueue({ record: o2 });
+              controller.enqueue({ row: o1, position: 'p1' });
+              controller.enqueue({ row: o2 });
               controller.close();
             },
           }),

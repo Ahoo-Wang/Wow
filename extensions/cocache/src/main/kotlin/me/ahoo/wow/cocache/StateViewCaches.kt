@@ -31,14 +31,14 @@ import me.ahoo.cocache.coroutines.suspending
 import me.ahoo.cocache.coroutines.suspendingVersionedLoader
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
 import me.ahoo.wow.cocache.api.StateViewUnavailableException
@@ -206,7 +206,7 @@ internal class StateViewLoader<V : Any>(
     } catch (unreachable: IOException) {
         throw unavailable(keys, "its owner is unreachable", unreachable)
     } catch (problem: WowProblemException) {
-        if (!problem.retryHint.retryable && problem.status < SERVER_ERROR) throw problem
+        if (!problem.retryable && problem.status < SERVER_ERROR) throw problem
         throw unavailable(keys, "its owner answered ${problem.status} ${problem.code}", problem)
     }
 
@@ -218,7 +218,7 @@ internal class StateViewLoader<V : Any>(
      * [StateViewUnavailableException] naming [keys] when the node has no route to their owner, whose type no model of
      * the node nor any peer it reaches has.
      */
-    private fun snapshots(tenantId: String, keys: Collection<StateKey>): SnapshotQueries<V> = try {
+    private fun snapshots(tenantId: String, keys: Collection<StateKey>): TenantSnapshotQueries<V> = try {
         queriesOf(tenantId).snapshots(viewType)
     } catch (noRoute: IllegalArgumentException) {
         throw unavailable(keys, "the node has no route to their owner", noRoute)

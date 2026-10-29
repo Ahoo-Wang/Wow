@@ -28,8 +28,8 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.RetryHint
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -54,7 +54,7 @@ class CatalogWatcherTest {
             return when (sync.table) {
                 "bad" -> throw CommandRejectedException(result(ref, CommandResult.Status.REJECTED))
                 "down" -> if (down) {
-                    throw WowProblemException("wow.storage.unavailable", 503, RetryHint(true, true), "Down.")
+                    throw WowProblemException("wow.storage.unavailable", 503, Retry.SAME_REQUEST, null, "Down.")
                 } else {
                     result(ref, CommandResult.Status.SUCCEEDED)
                 }

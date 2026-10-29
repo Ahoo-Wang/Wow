@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.spi.VirtualThreads
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
@@ -75,10 +76,23 @@ import kotlin.time.Duration.Companion.seconds
  * **Readiness** ([readiness], whether the node can serve traffic): `node`, `stores`, `ownership` and `topics`; `DOWN`
  * when one of them is, `UP` otherwise (a degraded node still serves).
  *
- * **Liveness** ([liveness], whether the process is stuck, so a restart helps): `DOWN` only when the node runs and
- * either its dispatcher has not ticked for [HealthOptions.stallTimeout], or commands are in flight, every log answered
- * within that time, and none finished in it. A storage outage never fails it: the kernel then waits for the stores,
- * which a restart does not bring back, and a restart storm would only add load to them. A node that is not running
+ * **Liveness** ([liveness], whether the process is stuck, so a restart helps): `DOWN` only when the node runs and,
+ * for [HealthOptions.stallTimeout], one of these holds:
+ *
+ * - `dispatcher`: its dispatcher has not ticked;
+ * - `drivers`: the dispatcher of the backends' blocking driver calls ([drivers]) has not run a tick of its own. Every
+ *   store and topic call of the node runs there, so a wedged one (every carrier of the virtual threads pinned, say)
+ *   stops the node's leases, heartbeats and reads, with no call failing;
+ * - `reconcile`: a reconcile of one of its lease groups has not ended. The node left the group's members after the
+ *   group's `reconcileTimeout`, which is shorter, so the others run its partitions meanwhile;
+ * - `kernel`: commands are in flight, every log answered within that time, and none finished in it.
+ *
+ * Each is measured on its own (the drivers tick on the drivers alone), so more than one may hold at once: the details
+ * list every one under `stalls`, in this order, and name the first as `stalled`.
+ *
+ * A storage outage never fails it: a store call that fails or times out returns, and a reconcile waiting on a slow
+ * store ends once it answers, while a restart would not bring the stores back, and a restart storm would only add
+ * load to them. So the bound is minutes, well above what a slow store under load takes. A node that is not running
  * (starting, stopping) is live: the startup probe covers the start, and a draining node is not restarted.
  *
  * A probe reads what was recorded and sampled: it never calls a store. [sampler], the node's one sampler, which its
@@ -92,6 +106,8 @@ class NodeHealth(
     private val sampler: NodeSampler,
     val options: HealthOptions = HealthOptions(),
     private val context: CoroutineContext = Dispatchers.Default,
+    /** Where the backends run their blocking driver calls: [VirtualThreads.dispatcher], which every backend shares. */
+    private val drivers: CoroutineContext = VirtualThreads.dispatcher,
     private val nanos: () -> Long = System::nanoTime,
     /**
      * The partitions a runtime has paused: by default what it tells as [SubscriptionPauses]; a host or
@@ -107,6 +123,10 @@ class NodeHealth(
 
     @Volatile
     private var lastTick: Long = StoreActivity.NONE
+
+    /** When [drivers] last ran a tick. */
+    @Volatile
+    private var lastDriverTick: Long = StoreActivity.NONE
 
     /** The node's logs and lease stores, with what was seen of their calls. */
     private val stores: NodeStores = NodeStores.of(node)
@@ -128,8 +148,8 @@ class NodeHealth(
     private val tick: Duration = minOf(TICK, options.stallTimeout / TICKS_PER_STALL)
 
     /**
-     * Starts the dispatcher's tick, every second (more often within a short stall timeout). Starting twice does
-     * nothing.
+     * Starts the dispatcher's tick, and the drivers' tick run from it, every second (more often within a short stall
+     * timeout). Starting twice does nothing.
      */
     @Synchronized
     fun start() {
@@ -137,11 +157,19 @@ class NodeHealth(
             return
         }
         lastTick = nanos()
+        lastDriverTick = lastTick
         val root = SupervisorJob()
         val scope = CoroutineScope(context + root)
         scope.launch {
             while (true) {
                 lastTick = nanos()
+                delay(tick)
+            }
+        }
+        // On the drivers alone, so a stalled dispatcher does not stop it, nor stalled drivers the dispatcher's.
+        scope.launch(drivers) {
+            while (true) {
+                lastDriverTick = nanos()
                 delay(tick)
             }
         }
@@ -210,27 +238,44 @@ class NodeHealth(
         val limit = node.inFlight
         val inFlight = limit.inFlight
         val tickAge = ago(now, lastTick)
+        val driverTickAge = ago(now, lastDriverTick)
         val progressAge = (now - limit.lastProgress).nanoseconds
         val details = linkedMapOf<String, Any?>(
             "state" to node.state.name,
             "commandsInFlight" to inFlight,
             "lastTickMillis" to tickAge?.inWholeMilliseconds,
+            "lastDriverTickMillis" to driverTickAge?.inWholeMilliseconds,
             "lastProgressMillis" to progressAge.inWholeMilliseconds,
         )
         if (node.state != ServiceNode.State.RUNNING || !isRunning) {
             return ComponentHealth(LIVENESS, HealthStatus.UP, details)
         }
         val stall = options.stallTimeout
+        val stalls = mutableListOf<String>()
         if (tickAge != null && tickAge >= stall) {
-            details["stalled"] = "dispatcher"
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
+            stalls += STALLED_DISPATCHER
+        }
+        if (driverTickAge != null && driverTickAge >= stall) {
+            stalls += STALLED_DRIVERS
+        }
+        val reconciling = ownerships().mapNotNull { ownership ->
+            ownership.reconcilingFor?.takeIf { it >= stall }?.let { ownership.group.name to it }
+        }.maxByOrNull { it.second }
+        if (reconciling != null) {
+            stalls += STALLED_RECONCILE
+            details["group"] = reconciling.first
+            details["reconcilingMillis"] = reconciling.second.inWholeMilliseconds
         }
         val storesAnswer = stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
         if (inFlight > 0 && progressAge >= stall && storesAnswer) {
-            details["stalled"] = "kernel"
-            return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
+            stalls += STALLED_KERNEL
         }
-        return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+        if (stalls.isEmpty()) {
+            return ComponentHealth(LIVENESS, HealthStatus.UP, details)
+        }
+        details["stalled"] = stalls.first()
+        details["stalls"] = stalls
+        return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
     }
 
     private fun nodeState(): ComponentHealth = ComponentHealth(
@@ -284,6 +329,10 @@ class NodeHealth(
         activity.lastError?.takeIf { failures > 0 || failingFor != null }?.let { details["lastError"] = it }
         return ComponentHealth(name, status, details)
     }
+
+    /** Every lease group the node takes part in: each context's, and each topic's it reads. */
+    private fun ownerships(): List<PartitionOwnership> =
+        node.contexts.values.map { it.ownership } + node.topicSubscriptions.values.mapNotNull { it.ownership }
 
     private fun ownership(): ComponentHealth {
         val leases = stores.leases.associateBy { it.context }
@@ -491,6 +540,12 @@ class NodeHealth(
         const val SUBSCRIPTIONS: String = "subscriptions"
         const val EXECUTOR: String = "executor"
         const val LEASE_STORE: String = "leaseStore"
+
+        /** The liveness's stalls, in the order it lists them. */
+        const val STALLED_DISPATCHER: String = "dispatcher"
+        const val STALLED_DRIVERS: String = "drivers"
+        const val STALLED_RECONCILE: String = "reconcile"
+        const val STALLED_KERNEL: String = "kernel"
 
         /** The detail that marks a lease group or a topic a node on standby has not joined. */
         private const val STANDBY = "standby"

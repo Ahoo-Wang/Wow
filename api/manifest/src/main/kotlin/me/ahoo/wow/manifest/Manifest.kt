@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.problem.Retry
 
 /**
  * The contract of a service: its bounded contexts, their aggregates with the
@@ -195,6 +196,10 @@ class ContextManifest @InternalWowApi constructor(
  * query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
  * not those of an [Ownership.TENANT] one.
  *
+ * [idSource] is where the aggregate's id comes from, as `@AggregateRoot(idSource)` declares it: an
+ * [AggregateIdSource.OWNER] aggregate's id is its owner's, so every command also has a route that names no id and
+ * means the caller's own aggregate ([CommandRoutes]), as its state read does, and no route generates an id.
+ *
  * [retired] lists the events the aggregate retired, as `@AggregateRoot(retiredEvents)` declares them:
  * the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
  * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
@@ -213,6 +218,7 @@ class AggregateManifest @InternalWowApi constructor(
     val schedules: List<String>? = null,
     val ownership: Ownership = Ownership.OWNER,
     val retired: List<String> = emptyList(),
+    val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is AggregateManifest && valueFields() == other.valueFields()
@@ -222,7 +228,7 @@ class AggregateManifest @InternalWowApi constructor(
     override fun toString(): String =
         "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
             "commands=$commands, events=$events, queries=$queries, schedules=$schedules, " +
-            "ownership=$ownership, retired=$retired)"
+            "ownership=$ownership, retired=$retired, idSource=$idSource)"
 
     /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
     val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
@@ -242,7 +248,17 @@ class AggregateManifest @InternalWowApi constructor(
         schedules,
         ownership,
         retired,
+        idSource,
     )
+}
+
+/** Where an aggregate's id comes from (`me.ahoo.wow.api.aggregate.AggregateIdSource`). */
+enum class AggregateIdSource {
+    /** The request's, or one admission generates for a command that creates its aggregate. */
+    ASSIGNED,
+
+    /** Its owner's: one per owner, addressed by an owner-level caller as its own. */
+    OWNER,
 }
 
 /** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`). */
@@ -456,20 +472,36 @@ class RouteManifest @InternalWowApi constructor(val method: String, val path: St
 }
 
 /**
- * An error code a client may receive: its [code], the HTTP [status] it is answered with, and what it means. The
- * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`.
+ * An error code a client may receive: its [code], the HTTP [status] it is answered with, what it means, and what a retry
+ * may do ([retry]), after [retryAfter] seconds, the `Retry-After` of its problem: one when a retry may get past it, none
+ * otherwise. The code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is
+ * `urn:wow:error:<code>` and whose `retry` member is [retry]'s.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
-class ErrorManifest @InternalWowApi constructor(val code: String, val status: Int, val description: String? = null) {
+class ErrorManifest @InternalWowApi constructor(
+    val code: String,
+    val status: Int,
+    val description: String? = null,
+    val retry: Retry = Retry.NONE,
+    val retryAfter: Int? = null,
+) {
+    init {
+        require((retry == Retry.NONE) == (retryAfter == null)) {
+            "$code: a Retry-After is given exactly when a retry may get past the error ($retry, $retryAfter)."
+        }
+        require(retryAfter == null || retryAfter > 0) { "$code: a Retry-After is at least a second." }
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || other is ErrorManifest && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ErrorManifest(code=$code, status=$status, description=$description)"
+    override fun toString(): String =
+        "ErrorManifest(code=$code, status=$status, description=$description, retry=$retry, retryAfter=$retryAfter)"
 
-    private fun valueFields(): List<Any?> = listOf(code, status, description)
+    private fun valueFields(): List<Any?> = listOf(code, status, description, retry, retryAfter)
 }
 
 /** Whether a command creates its aggregate (`@CreateAggregate`, `@AllowCreate`). */

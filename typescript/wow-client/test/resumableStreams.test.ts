@@ -290,8 +290,8 @@ describe('resumable query streams (decision D253)', () => {
       }),
     );
     expect(rows).toEqual([
-      { record: { id: 'p8' }, position: 'p8' },
-      { record: { id: 'p9' }, position: 'p9' },
+      { row: { id: 'p8' }, position: 'p8' },
+      { row: { id: 'p9' }, position: 'p9' },
     ]);
     expect(lastEventIds(requests)).toEqual(['p7']);
   });
@@ -309,7 +309,7 @@ describe('resumable query streams (decision D253)', () => {
     const rows = await readAll(
       await new SnapshotQueryClient(PRODUCT, client()).streamRows(query),
     );
-    expect(rows).toEqual([{ record: { id: 'x' } }]);
+    expect(rows).toEqual([{ row: { id: 'x' } }]);
     // A list whose sort cannot order a cursor ends its hold unresumable: the stream fails.
     answers(() =>
       sseResponse(

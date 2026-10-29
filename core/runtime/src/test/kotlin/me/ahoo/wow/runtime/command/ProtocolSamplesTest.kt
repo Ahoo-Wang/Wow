@@ -31,9 +31,9 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -68,7 +68,7 @@ class ProtocolSamplesTest {
             commandType = "bank.account.Deposit",
             commitTime = 1760950800000,
             events = listOf(StateEventPayload("bank.account.Deposited", 1, tree("""{"amount":100}"""))),
-            state = StateView(2, FINGERPRINT, tree("""{"owner":"Alice","balance":100}""")),
+            state = PublishedState(2, FINGERPRINT, tree("""{"owner":"Alice","balance":100}""")),
             scope = Scope("u-42"),
             headers = mapOf(RequestFacts.APP_ID to "teller-app"),
             operator = operator,

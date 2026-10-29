@@ -14,8 +14,10 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
@@ -639,6 +641,57 @@ class ManifestCompatibilityTest {
             "BREAKING $CART.snapshot.stateRevision: state revision lowered from 2 to 1",
             "BREAKING $CART.state.items: field removed",
         )
+    }
+
+    @Test
+    fun `an id source changed either way should break, the routes by no id it adds or removes part of it`() {
+        fun changes(baseline: Manifest, current: Manifest) =
+            ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        // The cart, its id its owner's: every command, its delete too, also routed by no id.
+        val owned = BASELINE.cart { cart ->
+            cart.copyWith(
+                idSource = AggregateIdSource.OWNER,
+                commands = cart.commands.map { command ->
+                    if (command.system) {
+                        SystemCommands.lifecycle("shop", "cart", command.name, owned = true)
+                    } else {
+                        command.copyWith(
+                            routes = CommandRoutes.of("shop", "cart", command.name, command.creation, true)
+                        )
+                    }
+                },
+            )
+        }
+        owned.contexts.single().aggregates.single().commands.flatMap { it.routes }
+            .map { "${it.method} ${it.path}" }.assert()
+            .contains("POST /shop/cart/add-item", "DELETE /shop/cart")
+        val idSource = "BREAKING $CART.idSource: id source changed from ASSIGNED to OWNER"
+        changes(BASELINE, owned).assert().containsExactly(idSource)
+        changes(owned, BASELINE).assert()
+            .containsExactly("BREAKING $CART.idSource: id source changed from OWNER to ASSIGNED")
+        changes(owned, owned).assert().isEmpty()
+
+        // Outside the change, routes follow the rules: a route by id removed breaks.
+        val byIdRemoved = owned.addItem { it.copyWith(routes = it.routes.filterNot { route -> route == ROUTE }) }
+        changes(BASELINE, byIdRemoved).assert().containsExactlyInAnyOrder(
+            idSource,
+            "BREAKING $CART.commands[AddItem].routes: route POST /shop/cart/{id}/add-item removed",
+        )
+        // Without it, a route by no id of an aggregate whose id is its owner's follows them too.
+        changes(owned, owned.addItem { it.copyWith(routes = listOf(ROUTE)) }).assert()
+            .containsExactly("BREAKING $CART.commands[AddItem].routes: route POST /shop/cart/add-item removed")
+        // A route by no id the assigned side has too is no part of the change.
+        val unaddressed = BASELINE.addItem {
+            it.copyWith(routes = CommandRoutes.of("shop", "cart", it.name, it.creation, true))
+        }
+        changes(unaddressed, owned.addItem { it.copyWith(routes = listOf(ROUTE)) }).assert().containsExactlyInAnyOrder(
+            idSource,
+            "BREAKING $CART.commands[AddItem].routes: route POST /shop/cart/add-item removed",
+        )
+        // Back to assigned ids, a route by no id the assigned side keeps is no part of the change either.
+        changes(owned, unaddressed).assert()
+            .containsExactly("BREAKING $CART.idSource: id source changed from OWNER to ASSIGNED")
     }
 
     @Test

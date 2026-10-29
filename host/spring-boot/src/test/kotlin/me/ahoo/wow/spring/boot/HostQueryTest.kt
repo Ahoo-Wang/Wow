@@ -21,13 +21,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.http.query.HttpQueries
@@ -381,11 +382,11 @@ class HostQueryTest {
     }
 
     @Test
-    fun `the node's QueryApi should read the snapshots, events and states of its models as a caller`() {
+    fun `the node's NodeQueryApi should read the snapshots, events and states of its models as a caller`() {
         startHost("wow.query.budgets.in-process.max-list-size" to 5).use { host ->
             val id = host.openAccount("mona")
             host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
-            val api = host.context.getBean(QueryApi::class.java)
+            val api = host.context.getBean(NodeQueryApi::class.java)
             val accounts = api.of(Caller.ANONYMOUS).snapshots<Account>()
             accounts.type.assert().isEqualTo(ACCOUNT)
             eventually {
@@ -393,12 +394,18 @@ class HostQueryTest {
             }
             runBlocking {
                 accounts.state(id)!!.state.owner.assert().isEqualTo("mona")
+                // At a version reached: the snapshot of its record, the deposit its last commit.
+                val read = accounts.state(id, 2)!!
+                read.version.assert().isGreaterThanOrEqualTo(2)
+                read.state.balance.assert().isEqualTo(3L)
+                read.lastEventTime.assert().isGreaterThanOrEqualTo(read.firstEventTime)
                 api.of(Caller.of(tenantId = "other")).snapshots<Account>().state(id).assert().isNull()
                 val events = api.trusted().events(ACCOUNT).list(ListQuery(AggregateIdFilter(id))).toList()
                 events.map { it.events.single().body }.assert().containsExactly(AccountOpened("mona"), Deposited(3))
                 // wow.query.budgets.in-process.*: the in-process budget, trusted code's too.
                 runCatching { api.trusted().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList() }
-                    .exceptionOrNull().assert().isInstanceOf(QueryRequestException::class.java)
+                    .exceptionOrNull().assert().isInstanceOf(WowProblemException::class.java)
+                    .hasCauseInstanceOf(QueryRequestException::class.java)
                 api.trusted().unbounded().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList()
                     .assert().hasSize(1)
             }
@@ -424,9 +431,9 @@ class HostQueryTest {
     }
 
     @Test
-    fun `an application's own QueryApi should serve the handlers as a caller of the commit's tenant`() {
+    fun `an application's own NodeQueryApi should serve the handlers as a caller of the commit's tenant`() {
         val trusted = mockk<TrustedQueries>()
-        val api = mockk<QueryApi> { every { trusted() } returns trusted }
+        val api = mockk<NodeQueryApi> { every { trusted() } returns trusted }
         QueryAutoConfiguration.NodeQueries().wowContextQueries(api).of("acme").trusted().assert().isSameAs(trusted)
     }
 

@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 126 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -31,25 +31,28 @@ Every name `@ahoo-wang/wow-client` exports — 126 — with its kind and the fir
 | `CommandResultStatus` | type, const | A `CommandResultStatus` value. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
 | `CommitView` | interface | One commit of a state trace: the events of a version and the aggregate after it. | — |
+| `CommittedEvent` | interface | An event as Wow reads it now: under its current name, upgraded to its latest revision. | — |
 | `ContextManifest` | interface | A bounded context: its aggregates, subscriptions, published streams, error codes and job commands. | — |
 | `CountQuery` | interface | A count of a query route. | — |
 | `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
 | `CreateCommandOptions` | interface | The options of a command that may create its aggregate, with its id or not. | — |
 | `Creation` | type | Whether a command creates its aggregate. | — |
+| `DEFAULT_RETRY` | const | How often, and after how long, a client sends a request again by default when a retry may get past its error, as the Kotlin client does (`RetryPolicy.DEFAULT`): at most `attempts` attempts, the first included,`backoffMs` before the first retry without a `Retry-After`, doubled at each attempt up to `maxWaitMs`. | — |
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
 | `DevelopmentCallerHeaders` | const | The identity headers a development run of a Wow service reads the caller from (the host's development callers, in a profile of `wow.dev-profiles`, when CoSec is off): any client can set them, so a deployment never reads them. | — |
 | `ErrorInfo` | interface | Why a command was rejected or failed. | — |
-| `ErrorManifest` | interface | An error code and the HTTP status it is answered with. | — |
+| `ErrorManifest` | interface | An error code, the HTTP status it is answered with, and what a retry may do. | — |
 | `EventManifest` | interface | An event of an aggregate and its revision. | — |
 | `EventQueryClient` | class | Queries an aggregate type's event streams on the same engine as its snapshots: one record per commit, `count` counts commits, a condition on an event is an `elementMatch` on `events`, and per-event analytics expand `events` in an aggregation (`elements`). | — |
+| `EventStream` | interface | A record of the `events` query model: one commit of one aggregate and its events. | — |
 | `EventStreamField` | type | The fields of an event stream record a query names: its system fields and `events`, the array an `elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own`name`, `revision` and `body.*`. | — |
-| `EventStreamRecord` | interface | A record of the `events` query model: one commit of one aggregate and its events. | — |
-| `EventView` | interface | An event as Wow reads it now: under its current name, upgraded to its latest revision. | — |
 | `FRAMEWORK_ERROR_PREFIX` | const | The prefix of every framework code, and of no domain code. | — |
+| `FRAMEWORK_RETRIES` | const | What a retry may do of each framework code a retry may get past, by code; a retry of every other code, a domain's among them, is `none`. | — |
 | `FrameworkErrorCode` | type | A `FrameworkErrorCodes` value. | — |
-| `FrameworkErrorCodes` | const | The framework's error codes, each answered with the status of the Manifest's `errors` table. | — |
+| `FrameworkErrorCodes` | const | The framework's error codes, each answered with the status of the error catalog. | — |
+| `FrameworkRetry` | interface | What a retry of a framework code may do, as the error catalog declares it. | — |
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
 | `FunctionKind` | type, const | A `FunctionKind` value. | — |
 | `FunctionManifest` | interface | The handler function of a subscription. | — |
@@ -62,16 +65,18 @@ Every name `@ahoo-wang/wow-client` exports — 126 — with its kind and the fir
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest, or a module's fragment (without service), format 1. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
+| `OwnStateClient` | class | Reads the states of an aggregate type whose id is its owner's (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`): by id as `StateClient` does, for a caller with no owner, and the caller's own by no id, `GET /{context}/{aggregate}/state` and`…/state/trace`, its id the owner the caller reads as. | — |
 | `OwnerTransferred` | interface | The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. | — |
 | `Ownership` | type | How an aggregate belongs to its callers. | — |
 | `PROBLEM_TYPE_PREFIX` | const | The prefix of a problem's `type` that carries a Wow code. | — |
+| `Positioned` | interface | One row of a streamed list, with its position. | — |
 | `Problem` | interface | An RFC 9457 problem as a Wow service writes it:`type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
 | `RefusedResult` | interface | A result that may not have succeeded, as a rejection or a problem carries it (`CommandRejectedError.result`, `WowProblemError.result`): a command refused before an aggregate id was decided names none (`CommandRef`). | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
-| `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
+| `Retry` | type | What a retry of a request answered with an error may do, as the error catalog declares it for the error's code and every problem carries it (`retry`): `none`, a retry fails alike; `same-request`, send it again with the same request id (`Wow-Request-Id`), so a command that did commit is answered as its duplicate; `new-request`, send it again as it is. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
 | `RouteParameterManifest` | interface | A path variable or query parameter of a service route, and its scalar schema. | — |
@@ -85,25 +90,23 @@ Every name `@ahoo-wang/wow-client` exports — 126 — with its kind and the fir
 | `Scope` | interface | The owner and the space an aggregate belongs to, beside its tenant. | — |
 | `ServiceManifest` | interface | The service a merged Manifest describes; a fragment has none. | — |
 | `ServiceRouteManifest` | interface | A service route: a route whose handler is the service's own code, its parameters and schemas. | — |
+| `Snapshot` | interface | An aggregate's latest committed state, as a record of the `snapshot` query model and as `GET /{context}/{aggregate}/{id}/state` answer it: the aggregate's system fields and its state. | — |
 | `SnapshotManifest` | interface | Whether an aggregate keeps snapshots, and the revision of their state. | — |
 | `SnapshotQueryClient` | class | Queries an aggregate type's snapshots, the default read model; only where the aggregate keeps them. | — |
-| `SnapshotRecord` | interface | A record of the `snapshot` query model: the aggregate's system fields and its state. | — |
 | `SnapshotSystemField` | type | The system fields of a snapshot record a query can filter, sort and project on; a state field is `state.<path>`. | — |
 | `SourceManifest` | interface | What a subscription reads: a context, aggregate types and events. | — |
 | `SpaceTransferred` | interface | The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. | — |
 | `Stage` | type, const | A `Stage` value. | — |
-| `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`. | — |
+| `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
 | `StateManifest` | interface | An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. | — |
 | `StateReadOptions` | interface | Which state a read asks for: the latest, at a version or as of a time. | — |
-| `StateReadResult` | type | A state read: the view and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
+| `StateReadResult` | type | A state read: the snapshot and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
 | `StateTrace` | interface | What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate and its commits in version order. | — |
 | `StateTraceOptions` | interface | Which commits a trace reads. | — |
-| `StateView` | interface | An aggregate's state at a version, as`GET /{context}/{aggregate}/{id}/state` answers it. | — |
 | `StreamEnd` | interface | The data of the `end` event that ends a resumable streamed list. | — |
 | `StreamEndReason` | type | Why a resumable streamed list ended: `complete` once every record was sent; the others are the server's, and resumable: the stream ran for its hold time, its store had no query permit for its next chunk, or the node is stopping. | — |
 | `StreamOptions` | interface | How a list is streamed: the request's options, and how it resumes. | — |
 | `StreamResumeOptions` | interface | How a streamed list resumes. | — |
-| `StreamedRow` | interface | One record of a streamed list, with its position. | — |
 | `SubscriptionManifest` | interface | A subscription of a bounded context: what it reads and what its handler derives. | — |
 | `SystemEvent` | type | The system events the kernel gives every aggregate: the lifecycle events and the schedule events. | — |
 | `Tags` | type | The tags of an aggregate: names to values. | — |
@@ -136,7 +139,7 @@ Every name `@ahoo-wang/wow-client` exports — 126 — with its kind and the fir
 | `queryPath` | function | The query route of a model of an aggregate type. | — |
 | `readProblem` | function | The problem a response that did not succeed carries: its body when it is a problem (or a code the `type` names), else one made of its status. | — |
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |
-| `retryHintOf` | function | The retry hint of a problem with `code` and `status`: a code of the retryable table, or a 503 without a code (a proxy's), may be retried. | — |
+| `retryOf` | function | What a retry of `problem` may do: its `retry` member, which every problem a Wow service writes carries; else the error catalog's for its code; else, for a body that is no Wow problem (a proxy's 503 or 429), `same-request`. | — |
 | `stringifyJson` | function | `value` written as `JSON.stringify` writes it, but each string `marks` marks goes on the wire as the JSON number it spells, unquoted: `{"price": "19.99"}` marked `{price: true}` is `{"price":19.99}`. | — |
 | `textNumbersBy` | function | The marks of `member` chosen by the string value of `discriminant`, its sibling: `textNumbersBy('name', 'body', { 'shop.cart.ItemAdded': { price: true } })` reads an event's body by the event's name. | — |
 | `toWowProblemError` | function | The `WowProblemError` of an error a request rejected with: the fetcher's `ExchangeError` of a response that is not 2xx, read as a problem. | — |

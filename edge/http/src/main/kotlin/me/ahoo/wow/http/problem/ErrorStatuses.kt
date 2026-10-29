@@ -28,10 +28,8 @@ import org.springframework.http.HttpStatus
  * 4. else a domain rejection is 422 ([FrameworkErrors.DOMAIN_REJECTION_STATUS]) and an unknown framework code
  *    (`wow.*`) 500.
  *
- * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
- * problem a retry may get past, every framework code the table answers with 503 or 429 (`wow.storage.unavailable`,
- * `wow.command.unknown`, `wow.node.closing`, `wow.schedule.not-due`, `wow.command.busy`,
- * `wow.query.busy`), and `wow.query.min-version-not-reached`, carries `Retry-After` ([retryAfter]).
+ * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`. What a
+ * retry may do, and its `Retry-After`, the problem takes from the error catalog ([Problem.retry]).
  */
 internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
@@ -77,7 +75,6 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
             violations = error.violations,
             result = result,
             extensions = error.extensions,
-            retryAfter = retryAfter(error.code),
             // The version a rejection answered: its events', else the one the decision saw, the next If-Match.
             version = result.version.takeIf { result.status == CommandResult.Status.REJECTED },
         )
@@ -86,32 +83,9 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
     /** A problem with [code] before the command has a ref. */
     fun problemOf(code: String, detail: String, context: String? = null): Problem {
         val status = status(code, context)
-        return Problem(status, title(code, context, status), detail, code, retryAfter = retryAfter(code))
+        return Problem(status, title(code, context, status), detail, code)
     }
-
-    /** The `Retry-After` seconds of [code]: [STORAGE_RETRY_AFTER_SECONDS] for a code a retry may get past, else none. */
-    fun retryAfter(code: String): Long? = STORAGE_RETRY_AFTER_SECONDS.takeIf { code in RETRYABLE }
 
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
-
-    companion object {
-        /**
-         * The `Retry-After` of `wow.storage.unavailable`: a store restarting or failing over is back within seconds,
-         * and a client that waits a second spreads its retries rather than repeating at once.
-         */
-        const val STORAGE_RETRY_AFTER_SECONDS: Long = 1
-
-        /**
-         * The codes whose problems carry `Retry-After`: every framework code answered with 503 or
-         * 429, such as a store that is unavailable, a command whose outcome is unknown (retried with the same request
-         * id), a node that is closing, a node or lane that is busy, a query over its budget. A client
-         * that waits spreads its retries instead of repeating them at once.
-         */
-        internal val RETRYABLE: Set<String> = FrameworkErrors.ALL
-            .filter { it.status == HttpStatus.SERVICE_UNAVAILABLE.value() || it.status == HttpStatus.TOO_MANY_REQUESTS.value() }
-            .mapTo(LinkedHashSet()) { it.code } +
-            // A 409 a retry gets past once the command commits.
-            FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
-    }
 }

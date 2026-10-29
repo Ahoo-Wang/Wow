@@ -112,6 +112,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     suspend fun start(standby: Boolean): Unit = lock.withLock {
         check(state == ServiceNode.State.NEW) { "Node $node is $state; a node starts once." }
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
+        JdkCheck.PROCESS.warnOnce()
         state = ServiceNode.State.STARTING
         gateway.standby = standby
         try {

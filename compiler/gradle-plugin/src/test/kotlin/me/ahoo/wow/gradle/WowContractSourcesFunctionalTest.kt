@@ -199,12 +199,12 @@ class WowContractSourcesFunctionalTest {
             package $pkg
 
             import me.ahoo.wow.api.read.Queries
-            import me.ahoo.wow.api.read.SnapshotQueries
+            import me.ahoo.wow.api.read.TenantSnapshotQueries
             import me.ahoo.wow.api.read.snapshots
             import shopapi.CartStateView
 
             object ViewUsage {
-                fun carts(queries: Queries): SnapshotQueries<CartStateView> = queries.snapshots<CartStateView>()
+                fun carts(queries: Queries): TenantSnapshotQueries<CartStateView> = queries.snapshots<CartStateView>()
 
                 fun isOpen(cart: CartStateView): Boolean =
                     cart.status == CartStateView.CartStatus.OPEN && cart.lines.all { it.quantity > 0 } &&
@@ -224,6 +224,7 @@ class WowContractSourcesFunctionalTest {
             package $pkg;
 
             import java.util.List;
+            import me.ahoo.wow.api.aggregate.AggregateIdSource;
             import me.ahoo.wow.api.aggregate.AggregateRef;
             import me.ahoo.wow.api.aggregate.AggregateType;
             import me.ahoo.wow.api.aggregate.Ownership;
@@ -236,6 +237,7 @@ class WowContractSourcesFunctionalTest {
                 public static final AggregateType TYPE = ShopContract.Cart.TYPE;
                 public static final AggregateRef REF = ShopContract.Cart.ref("t", "1");
                 public static final Ownership OWNERSHIP = ShopContract.Cart.OWNERSHIP;
+                public static final AggregateIdSource ID_SOURCE = ShopContract.Cart.ID_SOURCE;
                 public static final List<String> MODELS = ShopContract.Cart.QUERY_MODELS;
                 public static final QueryField PRODUCT = ShopContract.Cart.STATE__LINES__PRODUCT_ID;
                 public static final QueryField VERSION = ShopContract.Cart.INSTANCE.VERSION;

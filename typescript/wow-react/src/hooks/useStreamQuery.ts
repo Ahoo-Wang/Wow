@@ -117,12 +117,12 @@ interface Rows<R> {
  *
  * @example
  * ```tsx
- * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
  * import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useStreamQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { items, done, loading, error, abort } = useStreamQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { items, done, loading, error, abort } = useStreamQuery<Snapshot<OrderState>, OrderFields>({
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *     execute: (query, options) =>
  *       client.streamRows(query, options),

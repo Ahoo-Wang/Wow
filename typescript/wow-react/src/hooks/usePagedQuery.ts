@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedQuery, PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
@@ -27,7 +27,7 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
-> extends QueryHookOptions<Q, PagedResult<R>> {}
+> extends QueryHookOptions<Q, PagedList<R>> {}
 
 /**
  * What {@link usePagedQuery} returns: the page (`total` and `list`) as
@@ -41,7 +41,7 @@ export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
-> extends QueryHookReturn<Q, PagedResult<R>> {}
+> extends QueryHookReturn<Q, PagedList<R>> {}
 
 /**
  * Runs a paged query through your own `execute` function and keeps the page
@@ -64,12 +64,12 @@ export interface UsePagedQueryReturn<
  *
  * @example
  * ```tsx
- * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
  * import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
  * import { usePagedQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client, page }: { client: SnapshotQueryClient<OrderState, OrderFields>; page: number }) {
- *   const { result, loading, error } = usePagedQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { result, loading, error } = usePagedQuery<Snapshot<OrderState>, OrderFields>({
  *     query: pagedQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       pagination: { index: page, size: 20 },
@@ -104,5 +104,5 @@ export function usePagedQuery<
 >(
   options: UsePagedQueryOptions<R, FIELDS, Q>,
 ): UsePagedQueryReturn<R, FIELDS, Q> {
-  return useQueryRunner<Q, PagedResult<R>>(options);
+  return useQueryRunner<Q, PagedList<R>>(options);
 }

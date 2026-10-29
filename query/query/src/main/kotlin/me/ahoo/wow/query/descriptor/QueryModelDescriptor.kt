@@ -264,6 +264,10 @@ data class DynamicFieldDescriptor(
     val pattern: String,
     val types: Set<QueryValueType>,
     val kind: QueryValueKind,
+    /** Whether a concrete key's value may be `null`, as [FieldDescriptor.nullable] says of a field. */
+    val nullable: Boolean,
+    /** What a concrete key's value means beyond its type, as [FieldDescriptor.semantic] says of a field. */
+    val semantic: QuerySemanticType?,
     val filter: FieldFilterDescriptor,
     /** How a concrete key sorts pages, as admission grants it. */
     val sort: FieldSortDescriptor,

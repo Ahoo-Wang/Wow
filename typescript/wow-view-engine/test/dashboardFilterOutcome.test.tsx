@@ -17,7 +17,7 @@
  * of those could not load — in the board's one voice, in both catalogues.
  */
 
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -207,7 +207,7 @@ describe('a change of the board’s filters', () => {
     let slow = false;
     const paged = vi.fn(() =>
       slow
-        ? new Promise<PagedResult<object>>(resolve => {
+        ? new Promise<PagedList<object>>(resolve => {
             release = () => resolve({ total: 2, exact: true, list: [] });
           })
         : Promise.resolve({ total: 2, exact: true, list: [] as [] }),

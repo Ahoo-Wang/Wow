@@ -29,7 +29,7 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -46,7 +46,7 @@ class StateViewCachesTest {
     private val backend = InMemoryBackend()
     private val owner = runtimeOn(backend)
     private val reader = runtimeOn(backend)
-    private val snapshots = mockk<SnapshotQueries<OrderView>>()
+    private val snapshots = mockk<TenantSnapshotQueries<OrderView>>()
     private val api = queryApiOf(snapshots)
     private val readers = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) { api }
     private val owners = StateViewCaches(StateViewCaches.CacheFactory.of(owner)) { api }

@@ -36,7 +36,11 @@ internal object LifecycleCompositions {
     private val RESTORED: String = AggregateRestored::class.java.canonicalName
     private val OWNER_TRANSFERRED: String = OwnerTransferred::class.java.canonicalName
 
-    fun problems(commands: List<CommandBinding>, ownership: String): List<String> = commands.flatMap { command ->
+    fun problems(
+        commands: List<CommandBinding>,
+        ownership: String,
+        idSource: String,
+    ): List<String> = commands.flatMap { command ->
         val yields = command.yields.orEmpty()
         val subject = "${command.function}(${command.command})"
         buildList {
@@ -57,6 +61,9 @@ internal object LifecycleCompositions {
             }
             if (ownership == Ownership.TENANT.name && OWNER_TRANSFERRED in yields) {
                 add("$subject produces OwnerTransferred, but the aggregate belongs to its tenant: it has no owner")
+            }
+            if (idSource == "OWNER" && OWNER_TRANSFERRED in yields) {
+                add("$subject produces OwnerTransferred, but the aggregate's id is its owner's: its owner is fixed")
             }
         }
     }

@@ -550,6 +550,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.sort-field-duplicate` | {field} is sorted by twice; keep it once. |
 | `runtime.query.failed.sort-too-many` | The sort has too many fields; remove some. |
 | `runtime.query.failed.storage-unsupported` | The service's storage cannot run this: {reason} |
+| `runtime.query.failed.stream-not-resumable` | This data cannot be read to its end in this order; sort it another way or read fewer records. |
 | `runtime.query.failed.temporal-aggregation-unsupported` | {field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time. |
 | `runtime.query.failed.temporal-configuration-conflict` | The relative time on {field} does not agree with how the field keeps its time: {reason} |
 | `runtime.query.failed.temporal-representation-required` | {field} is not stored as a known date or time, so a relative time cannot be asked of it. |

@@ -29,6 +29,7 @@ import {
   LifecycleCommands,
   MANIFEST_FEATURES,
   newRequestId,
+  OwnStateClient,
   parseRetryAfter,
   parseWaitPlan,
   type Problem,
@@ -36,7 +37,7 @@ import {
   readProblem,
   type RouteManifest,
   requestIdOf,
-  retryHintOf,
+  retryOf,
   SnapshotQueryClient,
   StateClient,
   type SystemEvent,
@@ -46,6 +47,7 @@ import {
   WowProblemError,
 } from '../src/index.js';
 import { rememberRequestId } from '../src/problem.js';
+import { snapshotOf } from '../src/testing.js';
 import {
   BASE_URL,
   jsonResponse,
@@ -235,6 +237,57 @@ describe('CommandClient', () => {
       'wow-space': 's',
       'x-user': 'alice',
     });
+  });
+
+  it("sends a command by no id to the caller's own aggregate of one whose id is its owner's", async () => {
+    const BASKET = '/shop/basket';
+    const owned = manifestOf([
+      context('shop', [
+        {
+          ...aggregate('basket', [
+            {
+              name: 'Clear',
+              aliases: [],
+              schema: '#/$defs/Clear',
+              creation: 'none',
+              routes: [
+                { method: 'POST', path: `${BASKET}/{id}/clear` },
+                { method: 'POST', path: `${BASKET}/clear` },
+              ],
+            },
+            {
+              name: LifecycleCommands.DELETE_AGGREGATE,
+              aliases: [],
+              schema: `#/$defs/${LifecycleCommands.DELETE_AGGREGATE}`,
+              creation: 'none',
+              routes: [
+                { method: 'DELETE', path: `${BASKET}/{id}` },
+                { method: 'DELETE', path: BASKET },
+              ],
+              system: true,
+            },
+          ]),
+          idSource: 'owner',
+        },
+      ]),
+    ]);
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: owned });
+    const type = { context: 'shop', name: 'basket' };
+    await commands.wait({ command: 'shop.basket.Clear' });
+    await commands.wait({ command: 'shop.basket.Clear', id: 'u1' });
+    await commands.wait({ command: LifecycleCommands.DELETE_AGGREGATE, type });
+    await commands.wait({
+      command: LifecycleCommands.DELETE_AGGREGATE,
+      type,
+      id: 'u1',
+    });
+    expect(requests.map(r => [r.method, r.url])).toEqual([
+      ['POST', `${BASE_URL}/shop/basket/clear`],
+      ['POST', `${BASE_URL}/shop/basket/u1/clear`],
+      ['DELETE', `${BASE_URL}/shop/basket`],
+      ['DELETE', `${BASE_URL}/shop/basket/u1`],
+    ]);
   });
 
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
@@ -569,7 +622,7 @@ describe('CommandClient', () => {
     expect((newer as WowProblemError).code).toBe(
       FrameworkErrorCodes.COMMAND_FAILED,
     );
-    expect((newer as WowProblemError).retry.retryable).toBe(false);
+    expect((newer as WowProblemError).retry).toBe('none');
     expect((newer as WowProblemError).result?.status).toBe(
       'paused-by-a-newer-service',
     );
@@ -607,11 +660,8 @@ describe('CommandClient', () => {
     })
       .wait({ command: 'c.a.X' })
       .catch((e: unknown) => e)) as WowProblemError;
-    expect(error.retry).toEqual({
-      retryable: true,
-      sameRequestId: true,
-      afterMs: 1000,
-    });
+    expect(error.retry).toBe('same-request');
+    expect(error.retryAfterMs).toBe(1000);
     expect(error.isFramework).toBe(true);
   });
 
@@ -728,7 +778,7 @@ describe('CommandClient', () => {
       .catch((error: unknown) => error);
     expect(unknown).toBeInstanceOf(WowProblemError);
     expect((unknown as WowProblemError).requestId).toBe('r-503');
-    expect((unknown as WowProblemError).retry.sameRequestId).toBe(true);
+    expect((unknown as WowProblemError).retry).toBe('same-request');
     expect(requestIdOf(unknown)).toBe('r-503');
     expect(requestIdOf('not an error')).toBeUndefined();
     expect(requestIdOf(new Error('of no command'))).toBeUndefined();
@@ -794,31 +844,41 @@ describe('CommandClient', () => {
 });
 
 describe('problems', () => {
-  it('hints a retry for the codes a retry may get past', () => {
-    expect(retryHintOf('wow.command.unknown', 503)).toEqual({
-      retryable: true,
-      sameRequestId: true,
+  it('reads what a retry may do from the problem, else from the catalog', () => {
+    const problem = (status: number, members: Record<string, unknown>) => ({
+      type: 'about:blank',
+      title: 'T',
+      status,
+      ...members,
     });
-    expect(retryHintOf('wow.schedule.not-due', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.node.closing', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.node.standby', 503).retryable).toBe(true);
-    expect(retryHintOf('wow.command.busy', 429).retryable).toBe(true);
-    expect(retryHintOf('wow.command.contended', 409).retryable).toBe(true);
-    expect(retryHintOf('wow.wait.timeout', 504).sameRequestId).toBe(true);
+    // The member every problem a Wow service writes carries wins.
+    expect(
+      retryOf(problem(503, { code: 'wow.command.unknown', retry: 'none' })),
+    ).toBe('none');
+    expect(retryOf(problem(503, { code: 'wow.command.unknown' }))).toBe(
+      'same-request',
+    );
+    expect(retryOf(problem(429, { code: 'wow.query.busy' }))).toBe(
+      'new-request',
+    );
     // A query that ran out of time would run as long again (decision D254 ③).
-    expect(retryHintOf('wow.query.timeout', 504)).toEqual({
-      retryable: false,
-      sameRequestId: false,
-    });
-    expect(retryHintOf('wow.query.busy', 429, 1000)).toEqual({
-      retryable: true,
-      sameRequestId: false,
-      afterMs: 1000,
-    });
-    expect(retryHintOf(undefined, 503).retryable).toBe(true);
-    expect(retryHintOf(undefined, 500).retryable).toBe(false);
-    expect(retryHintOf('wow.aggregate.exists', 409).retryable).toBe(false);
-    expect(retryHintOf('wow.schedule.job-invalid', 400).retryable).toBe(false);
+    expect(retryOf(problem(504, { code: 'wow.query.timeout' }))).toBe('none');
+    expect(retryOf(problem(409, { code: 'wow.aggregate.exists' }))).toBe(
+      'none',
+    );
+    // A body that is no Wow problem: a proxy's 503 or 429.
+    expect(retryOf(problem(503, {}))).toBe('same-request');
+    expect(retryOf(problem(429, {}))).toBe('same-request');
+    expect(retryOf(problem(500, {}))).toBe('none');
+    const busy = new WowProblemError(
+      problem(429, { code: 'wow.query.busy', retry: 'new-request' }) as never,
+    );
+    expect(busy.retryAfterMs).toBe(1000);
+    expect(
+      new WowProblemError(
+        problem(409, { code: 'wow.aggregate.exists' }) as never,
+      ).retryAfterMs,
+    ).toBeUndefined();
   });
 
   it('reads Retry-After as seconds or a date', () => {
@@ -1098,17 +1158,12 @@ describe('query clients', () => {
 });
 
 describe('StateClient', () => {
-  const view = {
-    ref: { type: PRODUCT, tenantId: 't', id: 'p1' },
-    version: 2,
-    scope: {},
-    deleted: false,
-    tags: {},
-    state: { name: 'n' },
-  };
+  const ref = { type: PRODUCT, tenantId: 't', id: 'p1' };
+  // The snapshot record's shape, a snapshot query's row (decision D348 ⑦).
+  const snapshot = snapshotOf(ref, { name: 'n' }, { version: 2 });
 
   it('reads the latest state, at a version or a time, or of a minimum version', async () => {
-    const { requests } = stubFetch(() => jsonResponse(view));
+    const { requests } = stubFetch(() => jsonResponse(snapshot));
     const states = new StateClient<{ name: string }>(PRODUCT, client());
     expect((await states.get('p1')).state.name).toBe('n');
     await states.get('p1', { version: 2 });
@@ -1147,7 +1202,7 @@ describe('StateClient', () => {
   it('answers a state with its entity tag', async () => {
     stubFetch(
       () =>
-        new Response(JSON.stringify(view), {
+        new Response(JSON.stringify(snapshot), {
           headers: {
             'Content-Type': 'application/json',
             ETag: '"2-0123456789abcdef"',
@@ -1156,7 +1211,7 @@ describe('StateClient', () => {
     );
     expect(await new StateClient(PRODUCT, client()).read('p1')).toEqual({
       notModified: false,
-      view,
+      snapshot,
       etag: '2-0123456789abcdef',
     });
   });
@@ -1169,7 +1224,7 @@ describe('StateClient', () => {
   });
 
   it('finds a state, or undefined only for an aggregate that does not exist', async () => {
-    let answer: () => Response = () => jsonResponse(view);
+    let answer: () => Response = () => jsonResponse(snapshot);
     stubFetch(() => answer());
     const states = new StateClient<{ name: string }>(PRODUCT, client());
     expect((await states.find('p1'))?.state.name).toBe('n');
@@ -1182,10 +1237,34 @@ describe('StateClient', () => {
     await expect(states.find('p1')).rejects.toMatchObject({ status: 403 });
   });
 
+  it("reads the caller's own state and trace by no id, and by id as any other", async () => {
+    let answer: () => Response = () => jsonResponse(snapshot);
+    const { requests } = stubFetch(() => answer());
+    const states = new OwnStateClient<{ name: string }>(PRODUCT, client());
+    expect((await states.getOwn()).state.name).toBe('n');
+    expect((await states.readOwn({ version: 2 })).notModified).toBe(false);
+    expect((await states.findOwn({ minVersion: 3 }))?.state.name).toBe('n');
+    await states.get('p1');
+    answer = () => jsonResponse({ ref, commits: [] });
+    await states.traceOwn({ limit: 3 });
+    expect(requests.map(r => r.url)).toEqual([
+      `${BASE_URL}/eshop-catalog/product/state`,
+      `${BASE_URL}/eshop-catalog/product/state?version=2`,
+      `${BASE_URL}/eshop-catalog/product/state?minVersion=3`,
+      `${BASE_URL}/eshop-catalog/product/p1/state`,
+      `${BASE_URL}/eshop-catalog/product/state/trace?limit=3`,
+    ]);
+    answer = () => problemResponse(404, 'wow.aggregate.not-found');
+    expect(await states.findOwn()).toBeUndefined();
+    answer = () => problemResponse(400, 'wow.query.malformed');
+    await expect(states.getOwn()).rejects.toMatchObject({
+      code: 'wow.query.malformed',
+      status: 400,
+    });
+  });
+
   it('reads a trace', async () => {
-    const { requests } = stubFetch(() =>
-      jsonResponse({ ref: view.ref, commits: [] }),
-    );
+    const { requests } = stubFetch(() => jsonResponse({ ref, commits: [] }));
     await new StateClient(PRODUCT, client()).trace('p1', {
       from: 2,
       to: 5,
@@ -1220,7 +1299,7 @@ describe('StateClient', () => {
     });
     stubFetch(() =>
       jsonResponse({
-        ref: view.ref,
+        ref,
         commits: [
           commit(4, [
             {

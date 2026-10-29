@@ -187,13 +187,13 @@ try {
       default:
         throw error;
     }
-  } else if (!(error instanceof WowProblemError) || !error.retry.retryable) {
+  } else if (!(error instanceof WowProblemError) || error.retry === 'none') {
     throw error;
   }
 }
 ```
 
-A `WowProblemError`'s `retry` says whether a retry can succeed, after how long (`afterMs`, from `Retry-After`), and whether to keep the request id (`sameRequestId`). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
+A `WowProblemError`'s `retry` says what a retry may do, as the error catalog declares it for its code: `none`, a retry fails alike; `same-request`, send it again with the same request id; `new-request`, send it again as it is. `retryAfterMs` says how long to wait first (`Retry-After`). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';

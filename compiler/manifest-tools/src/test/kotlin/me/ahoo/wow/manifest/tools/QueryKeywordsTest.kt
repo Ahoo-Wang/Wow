@@ -110,10 +110,100 @@ class QueryKeywordsTest {
 
     @Test
     fun `the state schema should carry each query keyword`() {
-        val snapshot = javaClass.getResourceAsStream("/query-keywords/order-state.schema.json")!!.use {
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/order-state.defs.json")!!.use {
             mapper.readValue(it, Map::class.java)
         }
         complete(OrderState::class.java).defs.assert().isEqualTo(snapshot)
+    }
+
+    enum class ItemType { A, B }
+
+    /** The item of #5166: an epoch-millisecond time, non-null and nullable, beside an enum. */
+    data class Item(
+        val type: ItemType,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val startDate: Long,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val endDate: Long?,
+    )
+
+    data class ItemListState(val items: List<Item>)
+
+    data class ItemMapState(val itemsById: Map<String, Item>)
+
+    data class ItemListAndMapState(val items: List<Item>, val itemsById: Map<String, Item>)
+
+    data class TwoItemListsState(val first: List<Item>, val second: List<Item>)
+
+    @Test
+    fun `a temporal keyword should stay on its property in list elements and map values alike`() {
+        // Each state in a Manifest of its own: an item used once in a list is inlined, a map value or an item used
+        // twice is a $ref to its definition.
+        val defs = listOf(
+            ItemListState::class.java,
+            ItemMapState::class.java,
+            ItemListAndMapState::class.java,
+            TwoItemListsState::class.java,
+        ).associate { it.name to complete(it).defs }
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/item-states.defs.json")!!.use {
+            mapper.readValue(it, Map::class.java)
+        }
+        defs.assert().isEqualTo(snapshot)
+        defs.forEach { (state, stateDefs) ->
+            ((stateDefs.getValue(state) as Map<*, *>)["properties"] as Map<*, *>).values.forEach { property ->
+                property as Map<*, *>
+                val value = (property["items"] ?: property["additionalProperties"]) as Map<*, *>
+                val item = ((value["\$ref"] as? String)?.let { stateDefs[Manifest.schemaKey(it)] } ?: value)
+                    .let { (it as Map<*, *>)["properties"] as Map<*, *> }
+                // The keyword sits on the nullable property itself, never on a branch of it.
+                item["endDate"].assert().isEqualTo(
+                    mapOf(
+                        "type" to listOf("integer", "null"),
+                        "format" to "int64",
+                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                    ),
+                )
+                item["startDate"].assert().isEqualTo(
+                    mapOf(
+                        "type" to "integer",
+                        "format" to "int64",
+                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Semantic types declared on maps, which their values carry: an epoch time and a duration, nullable or not. */
+    data class SemanticMapsState(
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val deadlines: Map<String, Long>,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val reminders: Map<String, Long?>,
+        @get:QueryDuration(TimeUnit.SECONDS)
+        val timeouts: Map<String, Long>,
+        @get:QueryDuration(TimeUnit.SECONDS)
+        val pauses: Map<String, Long?>,
+    )
+
+    @Test
+    fun `a semantic keyword on a map should sit on the map`() {
+        val defs = complete(SemanticMapsState::class.java).defs
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/semantic-maps.defs.json")!!.use {
+            mapper.readValue(it, Map::class.java)
+        }
+        defs.assert().isEqualTo(snapshot)
+        val properties = (defs.getValue(SemanticMapsState::class.java.name) as Map<*, *>)["properties"] as Map<*, *>
+        val temporal = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
+        val duration = "x-wow-duration" to mapOf("unit" to "SECONDS")
+        mapOf("deadlines" to temporal, "reminders" to temporal, "timeouts" to duration, "pauses" to duration)
+            .forEach { (name, keyword) ->
+                // The keyword sits beside the reference to the map, whose values are the integers it means.
+                val property = properties[name] as Map<*, *>
+                property[keyword.first].assert().isEqualTo(keyword.second)
+                val map = defs.getValue(Manifest.schemaKey(property["\$ref"] as String)) as Map<*, *>
+                map["additionalProperties"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int64"))
+            }
     }
 
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)

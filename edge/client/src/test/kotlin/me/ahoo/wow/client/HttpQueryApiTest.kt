@@ -18,7 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
@@ -29,12 +29,17 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
@@ -88,22 +93,26 @@ class HttpQueryApiTest {
     @Test
     fun `a stream cut after rows without positions should fail, since it cannot be asked for again`() {
         peer.reply(Reply.events("event: row\ndata: ${record("b-1")}\n\n"))
-        caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
-            .message.assert().contains("cut off")
+        caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), null).toList() } }
+            .apply {
+                code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+                message.assert().contains("cut off")
+            }
         peer.taken.assert().hasSize(1)
     }
 
     @Test
     fun `a stream that keeps failing without rows should stop after the retry policy's attempts`() {
-        // Cut before any row: asked for again from its start, as often as the policy allows (3 attempts).
+        // Cut before any row: asked for again from its start, as often as the policy allows.
         peer.reply(Reply.cut(": opening\n"))
-        caught<IOException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
-        peer.taken.assert().hasSize(3)
+        caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+            .cause.assert().isInstanceOf(IOException::class.java)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
         peer.taken.clear()
         peer.reply(Reply.events(end))
         caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter), "p-0").toList() } }
             .message.assert().contains("ended: hold-expired")
-        peer.taken.assert().hasSize(3)
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
     }
 
     @Test
@@ -176,7 +185,7 @@ class HttpQueryApiTest {
     }
 
     @Test
-    fun `only a 429 should be retried`(): Unit = runBlocking {
+    fun `a query should be run again whenever a retry may get past its problem, and only then`(): Unit = runBlocking {
         peer.reply(
             Reply.problem(429, mapOf("code" to "wow.query.busy"), retryAfter = "0"),
             Reply.json(emptyList<Any>())
@@ -184,7 +193,12 @@ class HttpQueryApiTest {
         boxes.list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
         peer.taken.assert().hasSize(2)
         peer.taken.clear()
-        peer.reply(Reply.problem(503, mapOf("code" to "wow.storage.unavailable")))
+        // A store that stays down: retried as often as the policy allows, then its problem.
+        peer.reply(Reply.problem(503, mapOf("code" to "wow.storage.unavailable"), retryAfter = "0"))
+        caught<WowProblemException> { runBlocking { boxes.list(ListQuery(MatchAllFilter)).toList() } }
+        peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
+        peer.taken.clear()
+        peer.reply(Reply.problem(400, mapOf("code" to "wow.query.invalid")))
         caught<WowProblemException> { runBlocking { boxes.list(ListQuery(MatchAllFilter)).toList() } }
         peer.taken.assert().hasSize(1)
         caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
@@ -230,7 +244,6 @@ class HttpQueryApiTest {
             caught<IllegalArgumentException> { runBlocking { boxes.state("b-1", 0) } }
             val other = AggregateType("mail", "other").ref("t1", "x")
             caught<IllegalArgumentException> { runBlocking { boxes.state(other, 1) } }
-            Problems.hintOf("wow.query.min-version-not-reached", 409, null).retryable.assert().isTrue()
         }
     }
 
@@ -258,6 +271,82 @@ class HttpQueryApiTest {
         caught<IllegalArgumentException> { models.typeOf(String::class.java) }
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
+    }
+
+    data class BoxDelivered(val items: Int)
+
+    data class BoxLabelled(val label: String)
+
+    @Test
+    fun `a peer's events should decode as the classes its contract names, and as trees otherwise`(): Unit =
+        runBlocking {
+            val delivered = "mail.BoxDelivered"
+            val labelled = BoxLabelled::class.java.name
+            val contract = Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "mail",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "box",
+                                state = StateManifest(Manifest.schemaRef("mail.BoxState")),
+                                events = listOf(
+                                    // Its class by the schema's x-wow-class.
+                                    EventManifest("delivered", schema = Manifest.schemaRef(delivered)),
+                                    // Its class by the schema's key, its binary name.
+                                    EventManifest("labelled", schema = Manifest.schemaRef(labelled)),
+                                    // A class this class path lacks.
+                                    EventManifest("lost", schema = Manifest.schemaRef("mail.BoxLost")),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                defs = mapOf(delivered to mapOf(CLASS_KEYWORD to BoxDelivered::class.java.name)),
+            )
+            val events = WowClient.builder()
+                .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .contracts(listOf(ManifestFragment("test", contract)))
+                .build()
+                .queries
+                .of(Caller.of(tenantId = "t1"))
+                .events(BOX)
+            val body = { name: String, value: Any -> mapOf("name" to name, "revision" to 1, "body" to value) }
+            peer.reply(
+                Reply.json(
+                    listOf(
+                        mapOf(
+                            "tenantId" to "t1",
+                            "aggregateId" to "b-1",
+                            "version" to 1,
+                            "commitTime" to 1,
+                            "commandId" to "c-1",
+                            "requestId" to "r-1",
+                            "commandType" to "mail.deliver",
+                            "events" to listOf(
+                                body("delivered", mapOf("items" to 2)),
+                                body("labelled", mapOf("label" to "a")),
+                                body("lost", mapOf("why" to "x")),
+                                body("unknown", mapOf("n" to 1)),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            val stream = events.list(ListQuery(MatchAllFilter)).toList().single()
+            val bodies = stream.events.map { it.body }
+            bodies[0].assert().isEqualTo(BoxDelivered(2))
+            bodies[1].assert().isEqualTo(BoxLabelled("a"))
+            (bodies[2] as ObjectNode)["why"].asString().assert().isEqualTo("x")
+            (bodies[3] as ObjectNode)["n"].asInt().assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a peer's event class should be found without a context class loader, and only where the contract names one`() {
+        val models = PeerModels(emptyMap(), mapOf(BOX to mapOf("labelled" to BoxLabelled::class.java.name))) { null }
+        models.eventClassOf(BOX, "labelled").assert().isEqualTo(BoxLabelled::class.java)
+        models.eventClassOf(BOX, "unknown").assert().isNull()
+        models.eventClassOf(AggregateType("mail", "other"), "labelled").assert().isNull()
     }
 
     /** A peer's state as its api generates the view of it (decision D362). */

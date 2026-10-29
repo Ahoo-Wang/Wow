@@ -13,14 +13,14 @@ A service serves an HTTP API derived from its Manifest: a route per command, the
 | Route | Serves |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | A command to an aggregate |
-| `POST /<context>/<aggregate>/<command>` | A creating command whose aggregate id the server gives |
-| `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.<command>` | The lifecycle commands |
-| `GET /<context>/<aggregate>/{id}/state`, `…/state/trace` | An aggregate's state and history ([Read State](./reading-state)) |
+| `POST /<context>/<aggregate>/<command>` | A creating command whose aggregate id the server gives; of an aggregate whose id is its owner's, any command to the caller's own |
+| `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.<command>` | The lifecycle commands; of an aggregate whose id is its owner's, also `DELETE /<context>/<aggregate>` and `POST /<context>/<aggregate>/wow.lifecycle.<command>` |
+| `GET /<context>/<aggregate>/{id}/state`, `…/state/trace` | An aggregate's state and history ([Read State](./reading-state)); of an aggregate whose id is its owner's, also `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`, `…/events/query` | The query models ([Query Snapshots](./queries), [Query Event Streams](./event-queries)) |
 | `POST /wow/dataset/<context>/<dataset>/query` | A dataset of the service |
 | `GET /wow/manifest`, `GET /wow/openapi` | The Manifest and the OpenAPI 3.1 document of these routes |
 
-The routes are on the public port. The internal port serves the cluster and other services, never a client.
+An aggregate whose id is its owner's, such as the eShop's basket, has one per owner: its routes without an id mean the caller's own aggregate, and no route generates its id ([One aggregate per owner](./ownership#one-aggregate-per-owner)). The routes are on the public port. The internal port serves the cluster and other services, never a client.
 
 ## Who the caller is
 

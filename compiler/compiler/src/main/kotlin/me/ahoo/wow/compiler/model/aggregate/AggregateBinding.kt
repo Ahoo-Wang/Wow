@@ -53,6 +53,8 @@ internal data class AggregateBinding(
     val mounted: List<MountedBinding> = emptyList(),
     /** `@AggregateRoot(ownership)`: the name of its `Ownership` entry, `OWNER` by default. */
     val ownership: String = "OWNER",
+    /** `@AggregateRoot(idSource)`: the name of its `AggregateIdSource` entry, `ASSIGNED` by default. */
+    val idSource: String = "ASSIGNED",
     /** `@AggregateRoot(snapshot)`: whether it keeps snapshots, true by default. */
     val snapshot: Boolean = true,
     /** `@AggregateRoot(stateRevision)`: the revision of its state's structure, 1 by default. */
@@ -69,6 +71,9 @@ internal data class AggregateBinding(
     /** Whether the root or its state is `internal`, so the generated factory is too. */
     val internal: Boolean = false,
 ) {
+    /** Whether the aggregate's id is its owner's (`@AggregateRoot(idSource = OWNER)`). */
+    val ownsById: Boolean get() = idSource == "OWNER"
+
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
 

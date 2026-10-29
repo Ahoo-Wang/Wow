@@ -16,8 +16,8 @@ package me.ahoo.wow.api.subscribe
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.ScheduleRule

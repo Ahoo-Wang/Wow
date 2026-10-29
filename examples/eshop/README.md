@@ -93,7 +93,7 @@ Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel
 
 ### Validation
 
-A command's shape is checked before its aggregate decides: each `-api` puts Jakarta constraints on its commands (`@field:Positive`, `@field:NotBlank`, `@field:NotEmpty`, `@field:Valid` for the items of an order), and each `-server` has a Bean Validation provider (`spring-boot-starter-validation`). The gateway checks every command it takes, from HTTP, in process, or from a saga or another context, and answers a violation `wow.command.invalid` (400) with its `violations`. An aggregate rejects only what needs its state or its caller, with an `@ErrorCode`: a buyer who does not own the basket, a product the basket does not hold, an empty basket, a short stock.
+A command's shape is checked before its aggregate decides: each `-api` puts Jakarta constraints on its commands (`@field:Positive`, `@field:NotBlank`, `@field:NotEmpty`, `@field:Valid` for the items of an order), and each `-server` has a Bean Validation provider (`spring-boot-starter-validation`). The gateway checks every command it takes, from HTTP, in process, or from a saga or another context, and answers a violation `wow.command.invalid` (400) with its `violations`. An aggregate rejects only what needs its state, with an `@ErrorCode`: a product the basket does not hold, an empty basket, a short stock. Which basket a buyer reaches is not the basket's rule: its id is its buyer's (`@AggregateRoot(idSource = AggregateIdSource.OWNER)`), so a buyer's routes name no basket, and another buyer's basket is `wow.aggregate.forbidden` (403).
 
 ## Payment
 
@@ -212,7 +212,7 @@ In a development profile (`dev`, which `./gradlew run` and `eshopLocal` add), ev
 ```bash
 curl -s localhost:8081/wow/manifest
 EMPLOYEE=(-H 'Wow-User: erin' -H 'Wow-Roles: employee')    # changes the catalog
-BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')        # reads the catalog, owns her basket and orders
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')        # reads the catalog, owns her basket (id alice) and orders
 curl -s -X POST localhost:8081/eshop-catalog/brand/wow/create-brand "${EMPLOYEE[@]}" \
   -H 'Content-Type: application/json' -d '{"name":"Wow"}'
 curl -s -X POST localhost:8081/eshop-catalog/category/mugs/create-category "${EMPLOYEE[@]}" \
@@ -223,9 +223,9 @@ curl -s -X POST localhost:8081/eshop-catalog/product/mug/publish-product "${EMPL
 curl -s localhost:8081/eshop-catalog/product/mug/state "${BUYER[@]}"
 curl -s -X POST localhost:8084/eshop-inventory/stock/mug/receive-stock \
   -H 'Content-Type: application/json' -d '{"quantity":10}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
+curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" -H 'Content-Type: application/json' -d '{}' \
+curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" -H 'Content-Type: application/json' -d '{}' \
   -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"   # alice's order: STOCK_CONFIRMED, then PAID
 curl -s localhost:8085/eshop-payment/payment/alice-1/state

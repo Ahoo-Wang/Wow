@@ -23,7 +23,11 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 
 ## 镜像 {#the-image}
 
-镜像在 JDK 21 基础镜像上，以数字 ID 的非 root 用户运行服务的 Gradle 发行包（`./gradlew :eshop-ordering-server:installDist`），并暴露 HTTP 端口和内部端口。
+镜像在按 digest 固定的 JDK 25 基础镜像上，以数字 ID 的非 root 用户运行服务的 Gradle 发行包（`./gradlew :eshop-ordering-server:installDist`），并暴露 HTTP 端口和内部端口。
+
+## JDK {#the-jdk}
+
+Wow 为 JDK 21 构建，也能在 JDK 21 上运行，但生产环境请在 JDK 25 上运行。后端在虚拟线程上执行阻塞的驱动调用（JDBC、MongoDB 和 Kafka 客户端）。在 JDK 24 之前，虚拟线程在 `synchronized` 代码中阻塞时（驱动和 Java agent 常常如此）会钉住它所在的载体线程。同时有足够多这样的线程，其他虚拟线程就没有载体可用：节点的每个存储和 topic 调用都不再返回，它的租约失效，其他节点接管它的分区。随后节点的存活探针在 `wow.health.liveness.stall-timeout` 之后失败，由 Kubernetes 重启它（[健康](./observability#health)）。JDK 24 及以后，这些线程可以卸载。运行在更早 JDK 上的节点会在启动时警告一次。
 
 ## 共用的设置 {#shared-settings}
 

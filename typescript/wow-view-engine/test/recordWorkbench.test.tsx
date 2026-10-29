@@ -21,7 +21,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -824,7 +824,7 @@ describe('DataWorkbench', () => {
    * them is in production.
    */
   it('shows a placeholder while the first rows are still coming', async () => {
-    const pending = deferred<PagedResult<RecordData>>();
+    const pending = deferred<PagedList<RecordData>>();
     const engine = new ViewEngine({
       resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: () => pending.promise }),

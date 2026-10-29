@@ -23,6 +23,7 @@ import me.ahoo.wow.compiler.model.route.RouteArgument
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
 import me.ahoo.wow.compiler.model.subscription.HandlerBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
@@ -216,7 +217,14 @@ internal object ManifestFragmentBuilder {
                         schema = Manifest.schemaRef(command.type),
                         creation = creation,
                         produces = produces(command, binding.afters, eventNames),
-                        routes = CommandRoutes.of(context, binding.aggregateName, name, creation, command.unaddressed),
+                        // An aggregate whose id is its owner's: every command also by no id, the caller's own.
+                        routes = CommandRoutes.of(
+                            context,
+                            binding.aggregateName,
+                            name,
+                            creation,
+                            command.unaddressed || binding.ownsById,
+                        ),
                         description = command.description,
                     )
                 } + binding.mounted.map { mounted ->
@@ -246,12 +254,13 @@ internal object ManifestFragmentBuilder {
                 .ifEmpty { null },
             ownership = Ownership.valueOf(binding.ownership),
             retired = binding.retiredEvents.sorted(),
+            idSource = AggregateIdSource.valueOf(binding.idSource),
         )
     }
 
     /** The system commands of [binding]: its lifecycle commands, then its snapshot rebuild when it keeps snapshots. */
     private fun systemCommands(context: String, binding: AggregateBinding): List<CommandManifest> =
-        binding.lifecycle.map { SystemCommands.lifecycle(context, binding.aggregateName, it) } +
+        binding.lifecycle.map { SystemCommands.lifecycle(context, binding.aggregateName, it, binding.ownsById) } +
             listOfNotNull(SystemCommands.rebuild(context, binding.aggregateName).takeIf { binding.snapshot })
 
     /**

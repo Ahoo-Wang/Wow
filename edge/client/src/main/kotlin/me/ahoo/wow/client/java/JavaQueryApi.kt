@@ -27,17 +27,20 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.ModelQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.QueryModels
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
@@ -46,50 +49,70 @@ import java.util.stream.Stream
  * each blocking or asynchronous ([JavaFlows]), lists as [List]s and resumable streams as [Stream]s.
  *
  * ```java
- * JavaSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
- * List<Snapshot<OrderState>> open = orders.list(new ListQuery(MatchAllFilter.INSTANCE));
- * AggregateState<OrderState> order = orders.state("order-1"); // null when there is none
+ * JavaTenantSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
+ * List<Snapshot<OrderState>> open = orders.list(ListQuery.of(MatchAllFilter.INSTANCE));
+ * Snapshot<OrderState> order = orders.state("order-1"); // null when there is none
  * ```
  */
 @JvmSuppressWildcards
-class JavaQueryApi private constructor(private val delegate: QueryApi) {
+open class JavaQueryApi internal constructor(private val delegate: QueryApi) {
     /** The queries [caller] may run ([QueryApi.of]). */
     fun of(caller: Caller): JavaQueries = JavaQueries(delegate.of(caller))
-
-    /** The queries of trusted code ([QueryApi.trusted]). */
-    fun trusted(): JavaTrustedQueries = JavaTrustedQueries(delegate.trusted())
 
     companion object {
         /** The Java facade of [api]. */
         @JvmStatic
         fun of(api: QueryApi): JavaQueryApi = JavaQueryApi(api)
+
+        /** The Java facade of the node's [api], trusted code's queries with it. */
+        @JvmStatic
+        fun of(api: NodeQueryApi): JavaNodeQueryApi = JavaNodeQueryApi(api)
     }
 }
 
-/** [Queries] for Java callers. */
+/** The [NodeQueryApi] for Java callers: a caller's queries, and trusted code's ([trusted]). */
 @JvmSuppressWildcards
-open class JavaQueries internal constructor(private val delegate: Queries) {
-    /** The snapshots of the aggregate whose state is of [stateType] ([Queries.snapshots]). */
-    fun <S : Any> snapshots(stateType: Class<S>): JavaSnapshotQueries<S> =
-        JavaSnapshotQueries(delegate.snapshots(stateType))
+class JavaNodeQueryApi internal constructor(private val delegate: NodeQueryApi) : JavaQueryApi(delegate) {
+    /** The queries of trusted code ([NodeQueryApi.trusted]). */
+    fun trusted(): JavaTrustedQueries = JavaTrustedQueries(delegate.trusted())
+}
 
-    /** The snapshots of [type] ([Queries.snapshots]). */
-    fun snapshots(type: AggregateType): JavaSnapshotQueries<Any> = JavaSnapshotQueries(delegate.snapshots(type))
-
-    /** The event streams of [type] ([Queries.events]). */
+/** [QueryModels] for Java callers: the models any reader reads. */
+@JvmSuppressWildcards
+open class JavaQueryModels internal constructor(private val delegate: QueryModels) {
+    /** The event streams of [type] ([QueryModels.events]). */
     fun events(type: AggregateType): JavaModelQueries<EventStream> = JavaModelQueries(delegate.events(type))
 
-    /** The rows of the dataset [name] as [rowType] ([Queries.datasets]). */
+    /** The rows of the dataset [name] as [rowType] ([QueryModels.datasets]). */
     @ExperimentalWowApi
     fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): JavaRowQueries<R> =
         JavaRowQueries(delegate.datasets(name, rowType))
 }
 
-/** [TrustedQueries] for Java callers. */
+/** [Queries] for Java callers: a tenant's reader, which reads a state by its aggregate id too. */
 @JvmSuppressWildcards
-class JavaTrustedQueries internal constructor(private val delegate: TrustedQueries) : JavaQueries(delegate) {
+class JavaQueries internal constructor(private val delegate: Queries) : JavaQueryModels(delegate) {
+    /** The snapshots of the aggregate whose state is of [stateType] ([Queries.snapshots]). */
+    fun <S : Any> snapshots(stateType: Class<S>): JavaTenantSnapshotQueries<S> =
+        JavaTenantSnapshotQueries(delegate.snapshots(stateType))
+
+    /** The snapshots of [type], their states as stored ([Queries.snapshots]). */
+    fun snapshots(type: AggregateType): JavaTenantSnapshotQueries<ObjectNode> =
+        JavaTenantSnapshotQueries(delegate.snapshots(type))
+}
+
+/** [TrustedQueries] for Java callers: they read a state by its ref alone. */
+@JvmSuppressWildcards
+class JavaTrustedQueries internal constructor(private val delegate: TrustedQueries) : JavaQueryModels(delegate) {
+    /** The snapshots of the aggregate whose state is of [stateType] ([TrustedQueries.snapshots]). */
+    fun <S : Any> snapshots(stateType: Class<S>): JavaSnapshotQueries<S> =
+        JavaSnapshotQueries(delegate.snapshots(stateType))
+
+    /** The snapshots of [type], their states as stored ([TrustedQueries.snapshots]). */
+    fun snapshots(type: AggregateType): JavaSnapshotQueries<ObjectNode> = JavaSnapshotQueries(delegate.snapshots(type))
+
     /** These queries without a budget ([TrustedQueries.unbounded]). */
-    fun unbounded(): JavaQueries = JavaQueries(delegate.unbounded())
+    fun unbounded(): JavaTrustedQueries = JavaTrustedQueries(delegate.unbounded())
 }
 
 /** [RowQueries] for Java callers: each query blocking, or asynchronous with the `Async` suffix. */
@@ -147,17 +170,22 @@ open class JavaModelQueries<R : Any> internal constructor(private val delegate: 
     fun <T : Any> dynamic(rowType: Class<T>): JavaRowQueries<T> = JavaRowQueries(delegate.dynamic(rowType))
 }
 
-/** [SnapshotQueries] for Java callers. */
+/** [SnapshotQueries] for Java callers: a state by its ref. */
 @JvmSuppressWildcards
-class JavaSnapshotQueries<S : Any> internal constructor(private val delegate: SnapshotQueries<S>) :
+open class JavaSnapshotQueries<S : Any> internal constructor(private val delegate: SnapshotQueries<S>) :
     JavaModelQueries<@JvmSuppressWildcards Snapshot<S>>(delegate) {
-    /** The latest committed state of the aggregate [id], or null ([SnapshotQueries.state]). */
-    fun state(id: String): AggregateState<S>? = JavaFlows.blocking { delegate.state(id) }
-
-    fun stateAsync(id: String): CompletableFuture<AggregateState<S>?> = JavaFlows.async { delegate.state(id) }
-
     /** The latest committed state of the aggregate [ref], or null ([SnapshotQueries.state]). */
-    fun state(ref: AggregateRef): AggregateState<S>? = JavaFlows.blocking { delegate.state(ref) }
+    fun state(ref: AggregateRef): Snapshot<S>? = JavaFlows.blocking { delegate.state(ref) }
 
-    fun stateAsync(ref: AggregateRef): CompletableFuture<AggregateState<S>?> = JavaFlows.async { delegate.state(ref) }
+    fun stateAsync(ref: AggregateRef): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(ref) }
+}
+
+/** [TenantSnapshotQueries] for Java callers: a state by its aggregate id too, in the queries' tenant. */
+@JvmSuppressWildcards
+class JavaTenantSnapshotQueries<S : Any> internal constructor(private val delegate: TenantSnapshotQueries<S>) :
+    JavaSnapshotQueries<S>(delegate) {
+    /** The latest committed state of the aggregate [id], or null ([TenantSnapshotQueries.state]). */
+    fun state(id: String): Snapshot<S>? = JavaFlows.blocking { delegate.state(id) }
+
+    fun stateAsync(id: String): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(id) }
 }

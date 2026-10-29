@@ -32,7 +32,7 @@ import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
-import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
@@ -320,7 +320,7 @@ enum class Routing {
  * - [executor]: how the node's executors take commands ([ExecutorOptions]): each aggregate's lane, its batches, and
  *   the commands in flight on the node.
  * - [stateCache]: what each context's state cache keeps between commands ([StateCacheOptions]).
- * - [stateViews]: the bounds of each context's state views, shared by its state consumers.
+ * - [sharedStates]: the bounds of each context's shared states, shared by its state consumers.
  * - [timers]: the timer runner of each context that has a timer store.
  * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`);
  *   a name no `@OnSchedule` handler of the node runs fails its assembly.
@@ -348,7 +348,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val appendQueue: AppendQueueOptions = AppendQueueOptions(),
     val executor: ExecutorOptions = ExecutorOptions(),
     val stateCache: StateCacheOptions = StateCacheOptions(),
-    val stateViews: StateViewOptions = StateViewOptions(),
+    val sharedStates: SharedStateOptions = SharedStateOptions(),
     val timers: TimerOptions = TimerOptions(),
     val schedules: Map<String, JobOptions> = emptyMap(),
     val topicRouted: Set<AggregateType> = emptySet(),
@@ -367,7 +367,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         appendQueue: AppendQueueOptions = this.appendQueue,
         executor: ExecutorOptions = this.executor,
         stateCache: StateCacheOptions = this.stateCache,
-        stateViews: StateViewOptions = this.stateViews,
+        sharedStates: SharedStateOptions = this.sharedStates,
         timers: TimerOptions = this.timers,
         schedules: Map<String, JobOptions> = this.schedules,
         topicRouted: Set<AggregateType> = this.topicRouted,
@@ -382,7 +382,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         appendQueue,
         executor,
         stateCache,
-        stateViews,
+        sharedStates,
         timers,
         schedules,
         topicRouted,
@@ -398,12 +398,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
-            "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, stateViews=$stateViews, " +
+            "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, sharedStates=$sharedStates, " +
             "timers=$timers, schedules=$schedules, topicRouted=$topicRouted, ledger=$ledger, snapshots=$snapshots, " +
             "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
-        cluster, routing, wait, subscription, appendQueue, executor, stateCache, stateViews, timers, schedules,
+        cluster, routing, wait, subscription, appendQueue, executor, stateCache, sharedStates, timers, schedules,
         topicRouted, ledger, snapshots, handoff,
     )
 }
@@ -464,14 +464,14 @@ fun interface SubscriptionFactory {
 
     /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read:
-     * the context's executor keeps their state views ([ContextNode.views]), asked before the context is
+     * the context's executor keeps their shared states ([ContextNode.views]), asked before the context is
      * assembled. None by default.
      */
     fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> = emptySet()
 
     /**
      * The state consumers among the subscriptions of [context], by the reader name each reads the
-     * state views with ([ContextNode.stateReader]), with the aggregate types it reads: a view is evicted once every
+     * shared states with ([ContextNode.stateReader]), with the aggregate types it reads: a view is evicted once every
      * reader of its type passed it, or it ages out. By default one reader named after this factory's class, of the
      * types [viewTypes] names: it passes nothing unless its subscriptions read under that name, so their views only
      * age out. A factory that overrides it also overrides [viewTypes] with the types it names.

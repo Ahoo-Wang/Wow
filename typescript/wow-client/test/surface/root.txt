@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 126 names, from src/index.ts.
+# @ahoo-wang/wow-client — 129 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -17,11 +17,13 @@ type  CommandResult
 value CommandResultStatus
 type  CommandResultStream
 type  CommitView
+type  CommittedEvent
 type  ContextManifest
 type  CountQuery
 type  CountResult
 type  CreateCommandOptions
 type  Creation
+value DEFAULT_RETRY
 value DatasetClient
 type  DatasetEntry
 type  DevelopmentCaller
@@ -30,12 +32,13 @@ type  ErrorInfo
 type  ErrorManifest
 type  EventManifest
 value EventQueryClient
+type  EventStream
 type  EventStreamField
-type  EventStreamRecord
-type  EventView
 value FRAMEWORK_ERROR_PREFIX
+value FRAMEWORK_RETRIES
 type  FrameworkErrorCode
 value FrameworkErrorCodes
+type  FrameworkRetry
 type  FunctionInfo
 value FunctionKind
 type  FunctionManifest
@@ -48,16 +51,18 @@ value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
+value OwnStateClient
 type  OwnerTransferred
 type  Ownership
 value PROBLEM_TYPE_PREFIX
+type  Positioned
 type  Problem
 type  PublishedManifest
 type  QueryManifest
 value QueryModelClient
 type  RefusedResult
 type  RequestOptions
-type  RetryHint
+type  Retry
 type  RetryManifest
 type  RouteManifest
 type  RouteParameterManifest
@@ -71,9 +76,9 @@ type  ScheduleSet
 type  Scope
 type  ServiceManifest
 type  ServiceRouteManifest
+type  Snapshot
 type  SnapshotManifest
 value SnapshotQueryClient
-type  SnapshotRecord
 type  SnapshotSystemField
 type  SourceManifest
 type  SpaceTransferred
@@ -84,12 +89,10 @@ type  StateReadOptions
 type  StateReadResult
 type  StateTrace
 type  StateTraceOptions
-type  StateView
 type  StreamEnd
 type  StreamEndReason
 type  StreamOptions
 type  StreamResumeOptions
-type  StreamedRow
 type  SubscriptionManifest
 type  SystemEvent
 type  Tags
@@ -122,7 +125,7 @@ value parseWaitPlan
 value queryPath
 value readProblem
 value requestIdOf
-value retryHintOf
+value retryOf
 value stringifyJson
 value textNumbersBy
 value toWowProblemError

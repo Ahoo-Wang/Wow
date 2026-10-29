@@ -13,10 +13,13 @@ outline: deep
 | 请求 | 返回 |
 | --- | --- |
 | `GET /<context>/<aggregate>/{id}/state` | 最新状态 |
+| `GET /<context>/<aggregate>/state` | ID 即所有者 ID 的聚合中，调用方自己那个的最新状态 |
 | `GET …/state?version=n` | 版本 `n` 的状态 |
 | `GET …/state?at=<instant>` | 在某个 ISO-8601 时刻或之前最后一次提交之后的状态（`+` 要写成 `%2B`） |
 | `GET …/state?minVersion=n` | 版本 `n` 或更新的最新状态：写后即可查 |
 | `GET …/state/trace?from=&to=&limit=` | 从版本 `from`（1）到 `to`（最后一个）的提交，至多 `limit` 个，每个带着它的事件和它之后的状态 |
+
+ID 即所有者 ID 的聚合的每种读取，包括 `?version=`、`?at=`、`?minVersion=` 和 `/state/trace`，也都可以不带 ID：它的 ID 是调用方读取所在作用域的所有者。没有所有者的调用方要指明 ID；不指明时得到 `400 wow.query.malformed`，未认证的调用方得到 `401 wow.auth.unauthenticated`（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
 
 状态返回它的聚合的 `ref` 和 `version`、它的 `scope`（所有者和空间）、它的 `deleted` 标记、它的 `tags`，以及 `state` 本身。轨迹返回 `{"ref", "commits"}`：每次提交的版本、提交时间、命令 ID 和请求 ID、命令类型、事件，以及提交之后的聚合。轨迹的下一页从最后一次提交的版本之后开始。
 

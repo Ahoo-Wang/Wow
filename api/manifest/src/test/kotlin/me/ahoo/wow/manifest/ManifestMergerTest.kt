@@ -89,6 +89,68 @@ class ManifestMergerTest {
         )
     }
 
+    /** A basket whose id is its owner's, its commands routed by id and by none, with the [extra] commands. */
+    private fun ownedBasket(vararg extra: CommandManifest): AggregateManifest {
+        val routed = { name: String, creation: Creation ->
+            CommandManifest(
+                name = name,
+                schema = Manifest.schemaRef("sample.$name"),
+                creation = creation,
+                routes = CommandRoutes.of("shop", "basket", name, creation, unaddressed = true),
+            )
+        }
+        return Manifests.cart(aggregate = "basket").copyWith(
+            idSource = AggregateIdSource.OWNER,
+            commands = listOf(routed("CreateBasket", Creation.REQUIRED), routed("PutItem", Creation.NONE)) + extra +
+                Manifests.LIFECYCLE.map { SystemCommands.lifecycle("shop", "basket", it, owned = true) },
+            events = emptyList(),
+        )
+    }
+
+    @Test
+    fun `the routes without an id of an aggregate whose id is its owner's should conflict like the others`() {
+        val duplicate = CommandManifest(
+            name = "Put_Item",
+            schema = Manifest.schemaRef("sample.Put_Item"),
+            routes = CommandRoutes.of("shop", "basket", "Put_Item", Creation.NONE, unaddressed = true),
+        )
+        // A domain command routed where the caller's own DeleteAggregate is.
+        val shadow = CommandManifest(
+            name = "Empty",
+            schema = Manifest.schemaRef("sample.Empty"),
+            routes = listOf(CommandRoutes.ownDeleteRoute("shop", "basket")),
+        )
+        val fragment = Manifests.fragment(aggregates = listOf(Manifests.cart(), ownedBasket(duplicate, shadow)))
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "route POST /shop/basket/{id}/put-item is declared by shop.basket.PutItem (a.json) and " +
+                "shop.basket.Put_Item (a.json)",
+            "route POST /shop/basket/put-item is declared by shop.basket.PutItem (a.json) and " +
+                "shop.basket.Put_Item (a.json)",
+            "route DELETE /shop/basket is declared by shop.basket.Empty (a.json) and " +
+                "shop.basket.wow.lifecycle.DeleteAggregate (a.json)",
+        )
+    }
+
+    @Test
+    fun `the routes without an id should merge beside the routes of an aggregate of assigned ids`() {
+        val fragment = Manifests.fragment(aggregates = listOf(Manifests.cart(), ownedBasket()))
+        val merged = ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        merged.contexts.single().aggregates.single { it.name == "basket" }.commands.flatMap { it.routes }
+            .map { "${it.method} ${it.path}" }.assert().containsExactly(
+                "POST /shop/basket/{id}/create-basket",
+                "POST /shop/basket/create-basket",
+                "POST /shop/basket/{id}/put-item",
+                "POST /shop/basket/put-item",
+                "POST /shop/basket/{id}/wow.lifecycle.apply-tags",
+                "POST /shop/basket/wow.lifecycle.apply-tags",
+                "DELETE /shop/basket/{id}",
+                "DELETE /shop/basket",
+            )
+    }
+
     @Test
     fun `reserved names should be refused, every one at once`() {
         val cart = Manifests.cart(context = "wow")

@@ -56,7 +56,7 @@ class HostFixedTenantTest {
 
         val state = host.get("/bank/account/$id/state")
         state.status.assert().isEqualTo(200)
-        state.body!!["ref"]["tenantId"].asString().assert().isEqualTo("t0")
+        state.body!!["tenantId"].asString().assert().isEqualTo("t0")
         state.body["state"]["owner"].asString().assert().isEqualTo("gina")
 
         // The cross-scope rules are unchanged: an anonymous caller may not name another scope.

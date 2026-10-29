@@ -29,9 +29,8 @@ import me.ahoo.cocache.redis.RedisBackendOptions
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
@@ -54,7 +53,7 @@ data class RedisOrderView(val item: String)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStateViewCachesTest {
     private val redis = GenericContainer(REDIS_IMAGE).withExposedPorts(REDIS_PORT).also { it.start() }
-    private val snapshots = mockk<SnapshotQueries<RedisOrderView>>()
+    private val snapshots = mockk<TenantSnapshotQueries<RedisOrderView>>()
     private val api: TenantQueryApi = mockk {
         every { tenant(any()) } answers {
             mockk<SubscriptionQueries> { every { snapshots(RedisOrderView::class.java) } returns snapshots }
@@ -90,7 +89,7 @@ class RedisStateViewCachesTest {
     fun `a state one node read from the owner should be the other node's from Redis`() = runBlocking<Unit> {
         val key = keyOf()
         coEvery { snapshots.state(key.id) } returns
-            AggregateState.of(order.ref("t", key.id), 3, Scope.NONE, false, emptyMap(), RedisOrderView("book"))
+            Snapshot.of(order.ref("t", key.id), 3, Scope.NONE, emptyMap(), false, null, 0, 0, RedisOrderView("book"))
         first.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("book"))
         second.of<RedisOrderView>().get(key).assert().isEqualTo(RedisOrderView("book"))
         coVerify(exactly = 1) { snapshots.state(key.id) }
@@ -142,7 +141,7 @@ class RedisStateViewCachesTest {
         // A deletion a reader reads on a miss is a tombstone at its version too.
         val read = keyOf()
         coEvery { snapshots.state(read.id) } returns
-            AggregateState.of(order.ref("t", read.id), 4, Scope.NONE, true, emptyMap(), RedisOrderView("gone"))
+            Snapshot.of(order.ref("t", read.id), 4, Scope.NONE, emptyMap(), true, null, 0, 0, RedisOrderView("gone"))
         first.of<RedisOrderView>().get(read).assert().isNull()
         writer.write(read, RedisOrderView("replayed"), 3).assert().isFalse()
         second.of<RedisOrderView>().get(read).assert().isNull()
@@ -156,7 +155,7 @@ class RedisStateViewCachesTest {
         coEvery { snapshots.state(key.id) } coAnswers {
             loading.complete(Unit)
             release.await()
-            AggregateState.of(order.ref("t", key.id), 1, Scope.NONE, false, emptyMap(), RedisOrderView("stale"))
+            Snapshot.of(order.ref("t", key.id), 1, Scope.NONE, emptyMap(), false, null, 0, 0, RedisOrderView("stale"))
         }
         val fill = async { first.of<RedisOrderView>().get(key) }
         loading.await()

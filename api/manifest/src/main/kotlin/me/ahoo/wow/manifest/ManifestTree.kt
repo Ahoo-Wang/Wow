@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.problem.Retry
+
 /**
  * The JSON shape of a [Manifest], as a tree of plain values: a JSON object is a `Map<String, Any?>` (insertion
  * ordered when written), an array a `List<Any?>`, and a scalar a `String`, `Number`, `Boolean` or null. Any JSON
@@ -22,7 +24,7 @@ package me.ahoo.wow.manifest
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
  * `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default,
- * its `retired` events when it has none, and the Manifest's `requires` when it has none.
+ * its `idSource` when it is `ASSIGNED`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -81,7 +83,13 @@ object ManifestTree {
     )
 
     private fun writeError(error: ErrorManifest): Map<String, Any?> =
-        obj("code" to error.code, "status" to error.status, "description" to error.description)
+        obj(
+            "code" to error.code,
+            "status" to error.status,
+            "description" to error.description,
+            "retry" to error.retry.takeUnless { it == Retry.NONE }?.let(::wire),
+            "retryAfter" to error.retryAfter,
+        )
 
     private fun writeAggregate(aggregate: AggregateManifest): Map<String, Any?> = obj(
         "name" to aggregate.name,
@@ -112,6 +120,7 @@ object ManifestTree {
         "schedules" to aggregate.schedules,
         "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.let(::wire),
         "retired" to aggregate.retired.ifEmpty { null },
+        "idSource" to aggregate.idSource.takeIf { it != AggregateIdSource.ASSIGNED }?.let(::wire),
     )
 
     private fun writeRoute(route: RouteManifest): Map<String, Any?> =
@@ -177,7 +186,7 @@ object ManifestTree {
      * `requires` this reader does not understand ([ManifestFeatures]), or a context whose name breaks [ContextName].
      *
      * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
-     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership`, a subscription of an
+     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership` or `idSource`, a subscription of an
      * unknown `kind`, function `kind` or `start`. Each of them decides behaviour (how a command routes, whom an
      * aggregate is scoped to, how a subscription runs), so a reader never guesses it: it reads what it understands
      * and leaves out what it does not. No enumeration of the format is merely descriptive.
@@ -263,7 +272,16 @@ object ManifestTree {
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
 
     private fun readError(node: Node): ErrorManifest =
-        ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
+        node.enumOrNull("retry", Retry.entries).let { retry ->
+            // A retry this reader does not know is none: it never retries what it cannot tell is safe to.
+            ErrorManifest(
+                node.string("code"),
+                node.int("status"),
+                node.stringOrNull("description"),
+                retry ?: Retry.NONE,
+                node.intOrNull("retryAfter").takeIf { retry != null },
+            )
+        }
 
     /** The aggregate of [node], or null, told, when its ownership is unknown to this reader. */
     private fun readAggregate(node: Node): AggregateManifest? {
@@ -272,6 +290,11 @@ object ManifestTree {
             node.enumOrNull("ownership", Ownership.entries) ?: return node.leftOut()
         } else {
             Ownership.OWNER
+        }
+        val idSource = if (node.has("idSource")) {
+            node.enumOrNull("idSource", AggregateIdSource.entries) ?: return node.leftOut()
+        } else {
+            AggregateIdSource.ASSIGNED
         }
         return AggregateManifest(
             name = node.string("name"),
@@ -303,6 +326,7 @@ object ManifestTree {
             schedules = node.stringsOrNull("schedules"),
             ownership = ownership,
             retired = if (node.has("retired")) node.strings("retired") else emptyList(),
+            idSource = idSource,
         )
     }
 

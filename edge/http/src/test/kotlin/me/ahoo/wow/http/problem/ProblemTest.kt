@@ -16,6 +16,7 @@ package me.ahoo.wow.http.problem
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -51,7 +52,7 @@ class ProblemTest {
         problem.type.assert().isEqualTo("urn:wow:error:$CART_EMPTY")
         problem.violations.assert().isEmpty()
         problem.result.assert().isNull()
-        problem.members().keys.assert().containsExactly("type", "title", "status", "code")
+        problem.members().keys.assert().containsExactly("type", "title", "status", "code", "retry")
     }
 
     @Test
@@ -149,36 +150,35 @@ class ProblemTest {
     }
 
     @Test
-    fun `a problem a retry may get past carries Retry-After, which is not a member of the body`() {
+    fun `a problem a retry may get past carries its retry and Retry-After, which is not a member of the body`() {
         val statuses = ErrorStatuses(Manifest())
         val unavailable = statuses.problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, "Down.")
         unavailable.status.assert().isEqualTo(503)
-        unavailable.retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
-        unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code")
-        // Review A3-8: the 503s and the 429 a retry with the same request id may get past.
-        listOf(
-            FrameworkCodes.COMMAND_UNKNOWN,
-            FrameworkCodes.NODE_CLOSING,
-            FrameworkCodes.COMMAND_BUSY
-        ).forEach { code ->
-            statuses.problemOf(code, "Later.").retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
+        unavailable.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        unavailable.retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
+        unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code", "retry")
+        unavailable.members()["retry"].assert().isEqualTo("same-request")
+        statuses.problemOf(FrameworkCodes.COMMAND_FAILED, "Failed.").apply {
+            retry.assert().isEqualTo(Retry.NONE)
+            retryAfter.assert().isNull()
+            members()["retry"].assert().isEqualTo("none")
         }
-        statuses.retryAfter(FrameworkCodes.COMMAND_FAILED).assert().isNull()
-        statuses.retryAfter(FrameworkCodes.COMMAND_CONTENDED).assert().isNull()
+        // A domain's code is none: no Retry-After is written, whatever is given; an explicit retry wins over the catalog's.
+        Problem(422, "Full", null, "shop.cart.full", retryAfter = 5).retryAfterHeader.assert().isNull()
+        Problem(503, "Down", null, FrameworkCodes.COMMAND_FAILED, retry = Retry.SAME_REQUEST).retryAfter.assert()
+            .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
     }
 
     @Test
-    fun `every framework code answered with 503 or 429 carries Retry-After, the min-version 409 too, and no other`() {
+    fun `every framework code's problem should carry the catalog's retry, and Retry-After exactly when it may be retried`() {
         val statuses = ErrorStatuses(Manifest())
         FrameworkErrors.ALL.forEach { error ->
-            val expected = ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS.takeIf {
-                error.status == 503 || error.status == 429 || error.code == FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
-            }
-            statuses.problemOf(error.code, "Later.").retryAfter.assert().describedAs(error.code).isEqualTo(expected)
+            val problem = statuses.problemOf(error.code, "Later.")
+            problem.retry.assert().describedAs(error.code).isEqualTo(error.retry)
+            problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.toLong())
         }
-        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.SCHEDULE_NOT_DUE)
         // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
-        ErrorStatuses.RETRYABLE.assert().doesNotContain(FrameworkErrors.QUERY_TIMEOUT)
+        statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").retryAfter.assert().isNull()
         statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").status.assert().isEqualTo(504)
     }
 }

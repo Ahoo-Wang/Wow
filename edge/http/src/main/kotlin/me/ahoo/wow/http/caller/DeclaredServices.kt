@@ -29,7 +29,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 @InternalWowApi
 object DeclaredServices {
     /** The prefix of a service identity's subject, and of the operator it would record on a command of its own. */
-    const val SUBJECT_PREFIX: String = "service:"
+    const val SUBJECT_PREFIX: String = Caller.SERVICE_SUBJECT_PREFIX
 
     /** The most characters of a service name, a DNS name's. */
     const val MAX_NAME_LENGTH: Int = 253
@@ -46,7 +46,7 @@ object DeclaredServices {
     /** The service identity of the service named [name], in [tenantId]. */
     fun callerOf(name: String, tenantId: String = Caller.DEFAULT_TENANT): Caller {
         require(isName(name)) { "[$name] is no service name." }
-        return Caller(tenantId = tenantId, subject = SUBJECT_PREFIX + name, service = true)
+        return Caller.ofService(name, tenantId)
     }
 
     /** The service each request names, as its [Caller] in [tenantId]; null for a request that names none. */

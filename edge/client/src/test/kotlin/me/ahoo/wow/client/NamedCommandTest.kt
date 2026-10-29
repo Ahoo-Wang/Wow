@@ -186,7 +186,7 @@ class NamedCommandTest {
     @Test
     fun `a peer's Manifest that cannot be read should fail the send`(): Unit = runBlocking {
         peer.reply(Reply.problem(403, mapOf("code" to "wow.auth.forbidden", "detail" to "No.")))
-        assertThrownBy<me.ahoo.wow.api.client.WowProblemException> {
+        assertThrownBy<me.ahoo.wow.api.problem.WowProblemException> {
             runBlocking { client().of(alice).wait(CommandRequest.to(ref, deliver())) }
         }.hasMessageContaining("The Manifest of mail")
     }

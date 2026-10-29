@@ -187,13 +187,13 @@ try {
       default:
         throw error;
     }
-  } else if (!(error instanceof WowProblemError) || !error.retry.retryable) {
+  } else if (!(error instanceof WowProblemError) || error.retry === 'none') {
     throw error;
   }
 }
 ```
 
-`WowProblemError` 的 `retry` 说明重试能否成功、多久之后（`afterMs`，来自 `Retry-After`），以及是否保留请求 ID（`sameRequestId`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的，两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
+`WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的，两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';

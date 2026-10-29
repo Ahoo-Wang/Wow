@@ -14,6 +14,7 @@ interface AggregateManifest {
     readonly description?: string;
     // (undocumented)
     readonly events: readonly EventManifest[];
+    readonly idSource?: 'assigned' | 'owner' | (string & {});
     // (undocumented)
     readonly name: string;
     readonly ownership?: 'owner' | 'tenant' | (string & {});
@@ -68,6 +69,8 @@ interface ErrorManifest {
     readonly code: string;
     // (undocumented)
     readonly description?: string;
+    readonly retry?: 'none' | 'same-request' | 'new-request' | (string & {});
+    readonly retryAfter?: number;
     // (undocumented)
     readonly status: number;
 }

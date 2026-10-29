@@ -18,7 +18,7 @@ import {
   CommandResultStatus,
   FunctionKind,
   Stage,
-  type StateView,
+  type Snapshot,
 } from '../wire.js';
 
 /**
@@ -122,21 +122,31 @@ export function problemResponse(
 }
 
 /**
- * An aggregate's state as a state read answers it, for a test's fake: `ref`'s
- * `state` at version 1, of no owner or space, not deleted and untagged unless
- * `overrides` says otherwise.
+ * An aggregate's snapshot as a state read and a snapshot query answer it, for
+ * a test's fake: `ref`'s `state` at version 1, committed at 0 by an anonymous
+ * caller, of no owner or space, not deleted, untagged and keeping no
+ * schedules unless `overrides` says otherwise.
  */
-export function stateViewOf<S>(
+export function snapshotOf<S>(
   ref: AggregateRef,
   state: S,
-  overrides: Partial<Omit<StateView<S>, 'ref' | 'state'>> = {},
-): StateView<S> {
+  overrides: Partial<
+    Omit<Snapshot<S>, 'tenantId' | 'aggregateId' | 'state'>
+  > = {},
+): Snapshot<S> {
   return {
-    ref,
+    tenantId: ref.tenantId,
+    aggregateId: ref.id,
     version: 1,
-    scope: {},
+    ownerId: null,
+    spaceId: null,
     deleted: false,
     tags: {},
+    firstEventTime: 0,
+    lastEventTime: 0,
+    operator: null,
+    firstOperator: null,
+    schedules: {},
     state,
     ...overrides,
   };

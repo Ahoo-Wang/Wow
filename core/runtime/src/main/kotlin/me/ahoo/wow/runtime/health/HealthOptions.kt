@@ -34,8 +34,13 @@ import kotlin.time.Duration.Companion.seconds
  * - [executorSaturation]: the share of `wow.executor.max-in-flight` at which the executor is `DEGRADED`.
  * - [lagDegradedAt], [parkedDegradedAt]: the entries behind the log's head, and the parked entries (counted up to
  *   it), at which a subscription is `DEGRADED`.
- * - [stallTimeout]: the liveness fails when the node's dispatcher has not ticked for this long, or when commands are
- *   in flight, the stores answer, and none has finished for this long.
+ * - [stallTimeout]: the liveness fails when the node's dispatcher, or the dispatcher of its backends' blocking driver
+ *   calls, has not ticked for this long, when a reconcile has not ended in this long, or when commands are in flight,
+ *   the stores answer, and none has finished for this long. Three minutes by default: a store call that is slow under
+ *   load answers within seconds (a store is `DOWN` after [storeDownAfter] already), and a reconcile waits only on
+ *   store calls and on hand-offs bounded by the cluster's `drainTimeout`. It is longer than the cluster's
+ *   `reconcileTimeout` (one minute), after which a stuck node leaves the members, so the others run its partitions
+ *   before it restarts.
  */
 @InternalWowApi
 class HealthOptions(

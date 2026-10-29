@@ -84,8 +84,11 @@ class MongoReservationStore(
 ) : ReservationStore {
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
-    /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
-    private val sharded by lazy { sharding.shards(client, ddl) }
+    /**
+     * Whether this store shards its collections: asked of the server once, as the store is built when its port opens,
+     * so a server that cannot answer fails the start, and no first write waits on the round trip under a lock.
+     */
+    private val sharded: Boolean = sharding.shards(client, ddl)
 
     /** The collections whose format and indexes this store has made sure of, by aggregate type, each once. */
     private val ensured = EnsuredOnce<String, MongoCollection<Document>>()

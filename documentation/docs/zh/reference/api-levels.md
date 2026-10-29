@@ -27,7 +27,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | 声明 | 种类 | 模块 |
 | --- | --- | --- |
 | `me.ahoo.wow.api.read.DatasetName` | class | `wow-api` |
-| `me.ahoo.wow.api.read.Queries.datasets` | fun | `wow-api` |
+| `me.ahoo.wow.api.read.QueryModels.datasets` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.RowQueries.aggregate` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.datasets` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.RowQueries` | fun | `wow-api` |
@@ -71,8 +71,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
 | `me.ahoo.wow.query.policy.AbacQueryOptions` | class | `wow-query` |
 | `me.ahoo.wow.query.policy.AbacQueryPolicy` | class | `wow-query` |
-| `me.ahoo.wow.query.read.datasetTrees` | fun | `wow-query` |
-| `me.ahoo.wow.query.read.RowQueries` | fun | `wow-query` |
 | `me.ahoo.wow.query.schema.DeclarationValue` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySchemaDeclaration` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |
@@ -85,7 +83,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
-| `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
+| `me.ahoo.wow.client.java.JavaQueryModels.datasets` | fun | `wow-client` |
 
 ## SPI 声明 {#spi-declarations}
 

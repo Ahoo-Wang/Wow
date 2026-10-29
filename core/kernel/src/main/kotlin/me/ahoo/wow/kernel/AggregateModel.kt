@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -229,6 +230,11 @@ class CommandType @InternalWowApi constructor(
  * records no owner and checks no command's owner (the kernel keeps only [Ownership.scopeOf] of a command's scope), so
  * it has no owner to transfer: it never handles [TransferOwner].
  *
+ * [idSource] is where the aggregate's id comes from: an [AggregateIdSource.OWNER] aggregate's id is its owner's, so the
+ * kernel records its id as its owner, refuses a command whose caller has another owner, and never transfers its
+ * owner ([TransferOwner] is left out, and a decide function for it is refused). It belongs to its owner
+ * ([Ownership.OWNER]).
+ *
  * [stateRevision] is the revision of the state's structure its snapshots are written at: a snapshot
  * of another revision is not read back, and the service rebuilds the stored ones in place when it is raised.
  *
@@ -256,12 +262,15 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     val stateRevision: Int = 1,
     retiredEvents: Collection<String> = emptyList(),
     private val tags: ((S) -> Map<String, Collection<String>>)? = null,
+    val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
 
-    private val lifecycle: Set<Class<*>> =
-        if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
+    /** Whether the aggregate's owner is fixed: it has none ([Ownership.TENANT]), or its id is its owner's. */
+    private val ownerFixed: Boolean = ownership == Ownership.TENANT || idSource == AggregateIdSource.OWNER
+
+    private val lifecycle: Set<Class<*>> = if (ownerFixed) lifecycle - TransferOwner::class.java else lifecycle
 
     /** The system commands the kernel decides for this model: its lifecycle ones and the schedule ones. */
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
@@ -313,8 +322,14 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     init {
         require(stateRevision >= 1) { "The state revision of $type starts at 1, not $stateRevision." }
+        require(idSource == AggregateIdSource.ASSIGNED || ownership == Ownership.OWNER) {
+            "The id of $type is its owner's (AggregateIdSource.OWNER), so it belongs to its owner, not its tenant."
+        }
         require(ownership == Ownership.OWNER || TransferOwner::class.java !in deciders) {
             "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer, so it decides no TransferOwner."
+        }
+        require(idSource == AggregateIdSource.ASSIGNED || TransferOwner::class.java !in deciders) {
+            "The id of $type is its owner's (AggregateIdSource.OWNER): its owner is fixed, so it decides no TransferOwner."
         }
         require(KernelLifecycle.COMMANDS.containsAll(lifecycle)) {
             "Not lifecycle commands: ${lifecycle - KernelLifecycle.COMMANDS}"

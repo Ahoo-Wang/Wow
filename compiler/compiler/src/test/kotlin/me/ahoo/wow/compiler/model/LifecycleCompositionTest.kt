@@ -162,6 +162,19 @@ class LifecycleCompositionTest {
     }
 
     @Test
+    fun `an aggregate whose id is its owner's produces no OwnerTransferred`() {
+        failing(
+            """
+            @OnCommand(produces = [Touched::class, OwnerTransferred::class])
+            fun onCommand(command: Touch): Decision = Decision.NoOp
+            """.trimIndent(),
+            "@AggregateRoot(idSource = me.ahoo.wow.api.aggregate.AggregateIdSource.OWNER)",
+        ).assert().contains(
+            "onCommand(sample.Touch) produces OwnerTransferred, but the aggregate's id is its owner's: its owner is fixed",
+        )
+    }
+
+    @Test
     fun `a decide function of a lifecycle command names what to do instead`() {
         failing("fun onCommand(command: DeleteAggregate): Closed = Closed(\"x\")").assert().contains(
             "onCommand takes me.ahoo.wow.api.lifecycle.DeleteAggregate, a command the kernel decides: add events to " +
