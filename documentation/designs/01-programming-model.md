@@ -8,9 +8,9 @@
 |---|---|---|---|
 | Decide | `DecideScope.(S, C) -> Decision`，可以是同步、`suspend` 或 Reactor（§4） | 允许：依赖在构造期绑定，副作用的补偿经 `DecideScope` 登记（D49） | 命令被拒绝；不写入 |
 | Evolve | `S.(E) -> Unit`（可变）或 `(S, E) -> S`（不可变） | **禁止**：非 `suspend`，上下文里没有依赖 | 模型缺陷：快速失败 |
-| React | `(StateEvent[, ReactContext]) -> Unit`，三种调用形态同 Decide | 允许，自行幂等 | 进入失败台账，停放该聚合 |
+| React | `(StateEvent[, SubscriptionContext]) -> Unit`，三种调用形态同 Decide | 允许，自行幂等 | 进入失败台账，停放该聚合 |
 | Saga | `(StateEvent[, SagaContext]) -> List<Command>`，三种调用形态同 Decide | 允许 | 派生命令请求 ID 确定。同上下文的命令要等到 `COMMITTED`，跨上下文的命令等到持久 `ACCEPTED`（D33），Saga 才算完成；派生命令被拒绝视为处理失败，进入失败台账，除非 Saga 声明该拒绝是预期结果；跨上下文命令的拒绝以回执交给 Saga 的 `@OnRejected` 处理函数（D136） |
-| Project | `(StateEvent[, ProjectContext]) -> Unit`，三种调用形态同 Decide | 允许，写入按版本守卫 | 同 React |
+| Project | `(StateEvent[, SubscriptionContext]) -> Unit`，三种调用形态同 Decide | 允许，写入按版本守卫 | 同 React |
 
 处理函数的首参有三种，按声明严格分派（D264）：`StateEvent<S>`（每条事件流调用一次）、`StateTypedEvent<S, E>`（标准写法，流中每个事件 E 调用一次，`state` 是整次提交之后的状态）、裸 `E`（前者的简写）；编译器据此推导状态类型、聚合与事件过滤，并写进 Manifest。
 
@@ -86,7 +86,7 @@ class CartState(val id: String) {
 | `@Name`、`@Revision`、`@Alias` | 命令与事件的名字、事件的 revision 与旧名（D22、D55） | `@Name`、`Revision` |
 | `@Projection`、`@Reactor`、`@Saga` | 订阅处理器的种类 | `@ProjectionProcessor`、`@EventProcessor`、`@StatelessSaga` |
 | `@OnEvent` | 订阅处理函数，唯一一个；种类由所在类的注解决定，每个函数编成一个订阅（[04](04-subscriptions.md) §1）；`aggregates = ["ctx.agg"]` 可指向其他上下文，Saga 可选 `derives = [...]` 声明派生的命令（D138） | `@OnEvent`、`@OnStateEvent`、`@OnMessage` |
-| `@OnRejected` | Saga 处理跨上下文命令被拒绝的回执，参数 `CommandRejected<C>` 与 `SagaContext`（D136） | — |
+| `@OnRejected` | Saga 处理所发命令被拒绝的回执，参数 `CommandReceipt.Rejected<C>`（或同时接收提交与拒绝的 `CommandReceipt<C>`）与 `SagaContext`（D136、D372：四种 Saga 处理器共用一个 `SagaContext`，所发命令由 `@Sends` 声明） | — |
 | `@Upgrade` | 事件的升级函数：`@Upgrade(event = X::class, from = n)`，把 revision n 的 JSON 升到 n + 1；KSP 校验链从 1 到当前 revision 不断档、不重复（§8，D82） | 9.x 的 `EventUpgrader` |
 | `@AggregateRoot(retiredEvents)` | 已删去类的事件名（日志里存的名字；不带点为聚合内的名字，带点为完整名 `context.aggregate.Name`），读取时跳过：溯源不因它改变状态，订阅越过、不停放（D219） | 9.x 的 `DroppedEvent` |
 | `@Tags` | 状态上返回 `Map<String, List<String>>` 的成员，从状态推导 ABAC 标签：推导出的键按键覆盖 `ApplyTags` 应用的标签，空列表删去该键，每次溯源后重算（D220） | 9.x 的 `StateAggregateTagsExtractor` |
@@ -102,7 +102,7 @@ class CartState(val id: String) {
 
 V10 注解在 V10 的 `wow-api` 模块里按上表原样定义（D85 修订 D79）：包名与 9.x 相同（`me.ahoo.wow.api.annotation`），所以同名注解的全名不变、迁移只需换依赖，但不再带 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`）；没有模块同时依赖新旧两边，类路径上不会冲突；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
 
-实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId`、目标（类型、租户与 ID，未指定 ID 的创建记作 `unassigned`）、命令类型，以及该执行内同一目标同一类型的出现序号，生成确定的命令 ID 与请求 ID（回执处理函数的补偿另含回执所属的命令 ID），并带上因果（D346）；生成的工厂函数最后一个参数 `configure` 是通用扩展口。订阅处理器的绑定（D149）：KSP 生成与运行时无关的 `ProcessorBinding`（类型在 `wow-kernel`，领域模块仍只依赖它），经 `ModelProvider.processors(dependencies)` 暴露，由 `wow-runtime` 适配成订阅。
+实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数以 `@OnEvent` 等注解标注，不按函数名查找；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId`、目标（类型、租户与 ID，未指定 ID 的创建记作 `unassigned`）、命令类型，以及该执行内同一目标同一类型的出现序号，生成确定的命令 ID 与请求 ID（回执处理函数的补偿另含回执所属的命令 ID），并带上因果（D346）；生成的工厂函数最后一个参数 `configure` 是通用扩展口。订阅处理器的绑定（D149）：KSP 生成与运行时无关的 `ProcessorBinding`（类型在 `wow-kernel`，领域模块仍只依赖它），经 `ModelProvider.processors(dependencies)` 暴露，由 `wow-runtime` 适配成订阅。
 
 删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
 
