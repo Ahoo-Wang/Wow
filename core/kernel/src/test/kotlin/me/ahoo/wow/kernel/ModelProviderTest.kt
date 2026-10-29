@@ -108,9 +108,11 @@ class ModelProviderTest {
 
     @Test
     fun `two dependencies of a type should be ambiguous without a qualifier`() {
-        assertThrownBy<IllegalStateException> {
+        assertThrownBy<AmbiguousDependencyException> {
             Dependencies.of(Pricing { 1 }, Pricing { 2 }).get(Pricing::class.java)
-        }.hasMessage("2 dependencies are ${Pricing::class.java.name}: qualify the one the models take.")
+        }.hasMessageStartingWith("2 dependencies are ${Pricing::class.java.name} (").hasMessageEndingWith(
+            "and none is primary takes one; qualify it with @Name.",
+        )
     }
 
     @Test

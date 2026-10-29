@@ -153,8 +153,10 @@ class ModelProviderTest {
         generated(compilation, "BankDomainModelProvider.kt")!!.readText().assert().contains(
             "sample.account.accountModel(context, " +
                 "dependencies.get(sample.account.Fees::class.javaObjectType, null, \"the Account model\"), " +
-                "dependencies.get(sample.account.Limits::class.javaObjectType, null, \"the Account model\") " +
-                "as sample.account.Limits<kotlin.String>)",
+                // A parameterized dependency, found by its full type, built without reflection.
+                "dependencies.get(sample.account.Limits::class.javaObjectType, me.ahoo.wow.kernel.Types.parameterized(" +
+                "sample.account.Limits::class.java, kotlin.String::class.javaObjectType), null, \"the Account model\", " +
+                "\"limits\") as sample.account.Limits<kotlin.String>)",
             "sample.ledger.ledgerModel(context)",
         )
 
