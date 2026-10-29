@@ -56,6 +56,8 @@ include("catalog-api", "catalog-domain", "catalog-server")
 
 `catalog-api/build.gradle.kts` 声明它携带其契约的领域模块：
 
+<!-- sample: test/publication-consumer/catalog-api/build.gradle.kts -->
+
 ```kotlin
 plugins {
     kotlin("jvm")
@@ -68,14 +70,17 @@ kotlin {
 
 dependencies {
     wowContract(project(":catalog-domain"))
-    // The commands' constraints (@field:Positive, @field:NotBlank); Spring Boot's version, which wow-api brings.
-    api("jakarta.validation:jakarta.validation-api")
+    // The commands' constraints (@field:Positive, @field:NotBlank). wow-bom constrains Wow's own modules alone, so
+    // the api module names the version, Spring Boot's.
+    api("jakarta.validation:jakarta.validation-api:3.1.1")
 }
 ```
 
 `me.ahoo.wow.api` 加上 `wow-api`，把所声明的领域模块的契约打进它的 jar（`META-INF/wow/contract.json`），并由此编译 `<Context>Contract` 与各个 `<State>View`（[编译器生成什么](../guide/generated-code#the-contract-code-of-the-api-module)）。领域模块的命令和事件所在的 api 模块没有声明它时，构建失败，并写出要加的那一行。
 
 `catalog-domain/build.gradle.kts`：
+
+<!-- sample: test/publication-consumer/catalog-domain/build.gradle.kts -->
 
 ```kotlin
 plugins {
@@ -117,6 +122,8 @@ tasks.test {
 | `service` | 无 | 承载模块上下文的服务，写进其契约，服务的 Manifest 也取这个名字（[编译器生成什么](../guide/generated-code)） |
 
 `catalog-server/build.gradle.kts`：
+
+<!-- sample: test/publication-consumer/catalog-server/build.gradle.kts -->
 
 ```kotlin
 plugins {

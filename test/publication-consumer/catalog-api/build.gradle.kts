@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     wowContract(project(":catalog-domain"))
-    // The commands' constraints: wow-bom constrains Wow's modules alone, so the api module gives its version.
+    // The commands' constraints (@field:Positive, @field:NotBlank). wow-bom constrains Wow's own modules alone, so
+    // the api module names the version, Spring Boot's.
     api("jakarta.validation:jakarta.validation-api:3.1.1")
 }

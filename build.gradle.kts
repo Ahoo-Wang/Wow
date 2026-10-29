@@ -1022,7 +1022,8 @@ tasks.register("publicationCheck") {
     }
 }
 
-// The consumer of a release (D363, G10): the three-module layout of the docs (test/publication-consumer), built against
+// The consumer of a release (D363, G10): the three-module layout of the docs (test/publication-consumer, whose module
+// build files are the samples of start/existing-project.md), built against
 // what `publicationCheck` published into its scratch repository, as a user's build resolves a release from Maven
 // Central: the plugins by their markers, the modules and the BOM by their coordinates. It records the service's
 // baseline, builds and checks it with the configuration cache, builds it again from that cache, and checks that the
@@ -1038,7 +1039,6 @@ tasks.register("publicationConsumerCheck") {
         "-Pwow.consumer.repository=${publicationCheckRepository.get().asFile.toURI()}",
         "-Pwow.consumer.version=$version",
         "-Pwow.consumer.kotlin=${libs.versions.kotlin.asProvider().get()}",
-        "-Pwow.consumer.springBoot=${libs.versions.spring.boot.get()}",
     )
     inputs.dir(fixture).withPropertyName("fixture")
     doLast {

@@ -77,6 +77,14 @@ tasks.test {
 
 插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.6`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
+`./gradlew build` 还会把服务的 Manifest（客户端看到的契约）与提交在构建文件旁边的基线 `manifest/baseline.json` 比较，没有基线时会失败。写好下面的代码后，记录一次基线，并与代码一起提交：
+
+```bash
+./gradlew updateWowManifestBaseline
+```
+
+此后 `check` 会让基线没有记录的改变失败，这样每次改变的评审都能看到客户端会看到什么（[Manifest](../guide/manifest#the-compatibility-check)）。
+
 ## 编写命令和事件 {#write-the-commands-and-events}
 
 用 `@BoundedContext` 命名一次上下文。命令和事件都是数据类。命令不带聚合 ID：ID 来自路由。存款和取款的金额为正：这是命令的形状，一个由宿主在账户决定之前检查的 Jakarta 约束。
