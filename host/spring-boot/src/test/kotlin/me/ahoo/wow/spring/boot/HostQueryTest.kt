@@ -394,6 +394,11 @@ class HostQueryTest {
             }
             runBlocking {
                 accounts.state(id)!!.state.owner.assert().isEqualTo("mona")
+                // At a version reached: the snapshot of its record, the deposit its last commit.
+                val read = accounts.state(id, 2)!!
+                read.version.assert().isGreaterThanOrEqualTo(2)
+                read.state.balance.assert().isEqualTo(3L)
+                read.lastEventTime.assert().isGreaterThanOrEqualTo(read.firstEventTime)
                 api.of(Caller.of(tenantId = "other")).snapshots<Account>().state(id).assert().isNull()
                 val events = api.trusted().events(ACCOUNT).list(ListQuery(AggregateIdFilter(id))).toList()
                 events.map { it.events.single().body }.assert().containsExactly(AccountOpened("mona"), Deposited(3))

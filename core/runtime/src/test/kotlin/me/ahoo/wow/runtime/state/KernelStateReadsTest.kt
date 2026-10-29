@@ -16,6 +16,8 @@ package me.ahoo.wow.runtime.state
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -30,6 +32,7 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -153,6 +156,27 @@ class KernelStateReadsTest {
         replayed.operator.assert().isEqualTo(Operator.of("op-3", "t"))
         reads.at(cart, 1)!!.firstOperator.assert().isEqualTo(first)
         reads.latest(cart)!!.firstOperator.assert().isEqualTo(first)
+    }
+
+    /** A log that has lost its first stream since it was replayed: a point read of version 1 finds nothing. */
+    private class FirstStreamLost(private val delegate: EventLog) : EventLog by delegate {
+        override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
+            if (fromVersion == 1 && toVersion == 1) emptyFlow() else delegate.read(ref, fromVersion, toVersion)
+    }
+
+    @Test
+    fun `a replayed state whose log no longer holds its first stream is refused, not given an invented first commit`():
+        Unit = runBlocking {
+        addItems(2)
+        val lost = KernelStateReads(
+            registry,
+            mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(FirstStreamLost(log)), snapshots)),
+        )
+        runCatching { lost.latest(cart) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalStateException::class.java)
+        // A snapshot keeps the first commit: the log's first stream is not read.
+        snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 7L, 7L))
+        lost.at(cart, 2)!!.firstEventTime.assert().isEqualTo(7L)
     }
 
     private fun waiting(wait: Duration) = KernelStateReads(
