@@ -84,6 +84,7 @@ internal class AggregateAnalyzer(
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
         val ownership = AggregateRootArguments.ownership(root)
+        val idSource = AggregateRootArguments.idSource(root, ownership, problems)
         val retiredEvents = RetiredEvents.of(root)
         problems += RetiredEvents.problems(retiredEvents, aggregateName, context(), commands, sourcing, mounted)
         return AggregateBinding(
@@ -102,9 +103,10 @@ internal class AggregateAnalyzer(
             problems = problems,
             stateType = state.binaryName(),
             description = Descriptions.of(root),
-            lifecycle = AggregateRootArguments.lifecycle(root, ownership, problems),
+            lifecycle = AggregateRootArguments.lifecycle(root, ownership, idSource, problems),
             publication = AggregateRootArguments.publication(root, problems),
             ownership = ownership,
+            idSource = idSource,
             mounted = mounted,
             snapshot = AggregateRootArguments.snapshot(root),
             stateRevision = AggregateRootArguments.stateRevision(root, problems),
@@ -152,7 +154,12 @@ internal class AggregateAnalyzer(
             }
         problems += SourcingResolver.producesProblems(commands, sourcing)
         problems += SourcingResolver.yieldProblems(commands, afters, sourcing)
-        problems += LifecycleCompositions.problems(commands, AggregateRootArguments.ownership(root))
+        val ownership = AggregateRootArguments.ownership(root)
+        problems += LifecycleCompositions.problems(
+            commands,
+            ownership,
+            AggregateRootArguments.idSource(root, ownership, mutableListOf()),
+        )
         val eventTypes = sourcingFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         return Handlers(commands, sourcing, afters)

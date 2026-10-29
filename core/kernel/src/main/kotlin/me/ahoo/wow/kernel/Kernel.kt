@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -110,7 +111,9 @@ import kotlin.coroutines.CoroutineContext
  * or space ([FrameworkCodes.AGGREGATE_FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
  * caller's, or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
  * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
- * ([AggregateModel.ownership]) neither records nor checks an owner: only the space of a command counts.
+ * ([AggregateModel.ownership]) neither records nor checks an owner: only the space of a command counts. An aggregate
+ * whose id is its owner's ([AggregateModel.idSource]) records its id as its owner, whoever creates it, and refuses a
+ * command, creating or not, whose caller has another owner.
  * A transfer of the owner or the space is guarded like any other command: its scope is the caller's, so the current
  * owner (or a member of the current space) transfers, and the new owner or space is in its body.
  *
@@ -335,7 +338,7 @@ class Kernel(
     ): BatchMember? {
         val repeated = current.requests?.versionOf(command.requestId) != null ||
             members.streams.any { it.stream.requestId == command.requestId }
-        if (repeated || admissible(decider, command, current) != null) return null
+        if (repeated || admissible(decider, command, current, model.ownsById) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         val wait = entry.wait.beyondCommitted()
         val attempt = AttemptScope(command, ids, current, reservations, options.reservationTtl, wait, observer, encode)
@@ -454,7 +457,9 @@ class Kernel(
             val (loaded, cached) = load(model, requests)
             // Checked after every load: a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
-            admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
+            admissible(decider, command, loaded, model.ownsById)?.let {
+                return requests.standing(loaded, cached, it) ?: continue
+            }
             val attempt =
                 AttemptScope(
                     command,
@@ -1232,12 +1237,17 @@ class Kernel(
 
 /**
  * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate neither
- * records nor checks an owner, only that part of the scope counts.
+ * records nor checks an owner, only that part of the scope counts. An aggregate whose id is its owner's takes its id
+ * for the owner of a command with none, or derived: a caller's other owner is kept, and refused ([admissible]).
  */
 private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
-    val narrowed = model.ownership.scopeOf(scope)
+    val owned = model.ownsById && (scope.ownerId == null || isDerived)
+    val narrowed = if (owned) scope.copy(ownerId = ref.id) else model.ownership.scopeOf(scope)
     return if (narrowed == scope) this else copyWith(scope = narrowed)
 }
+
+/** Whether the model's aggregate's id is its owner's. */
+private val AggregateModel<*>.ownsById: Boolean get() = idSource == AggregateIdSource.OWNER
 
 /** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
 private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }

@@ -62,6 +62,7 @@ fun AggregateManifest.copyWith(
     schedules: List<String>? = this.schedules,
     ownership: Ownership = this.ownership,
     retired: List<String> = this.retired,
+    idSource: AggregateIdSource = this.idSource,
 ): AggregateManifest =
     AggregateManifest(
         name,
@@ -74,6 +75,7 @@ fun AggregateManifest.copyWith(
         schedules,
         ownership,
         retired,
+        idSource,
     )
 
 @InternalWowApi
