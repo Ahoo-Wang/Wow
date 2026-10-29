@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
@@ -45,12 +46,10 @@ import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
-import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.store.facet
@@ -65,6 +64,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 /**
@@ -272,11 +272,7 @@ class QueryAutoConfiguration {
                     )
                 },
             )
-            .committedStates { ref ->
-                reads.ifAvailable?.committed(ref)?.let {
-                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                }
-            }
+            .committedStates { ref -> reads.ifAvailable?.committed(ref) }
             .reading { type ->
                 val context = node.contexts[type.context]
                 // Events read as the model reads them now: current names and revisions, as typed.
@@ -449,13 +445,11 @@ class QueryAutoConfiguration {
                     },
                 ),
                 latest = object : CommittedStates {
-                    override suspend fun committed(ref: AggregateRef): CommittedState? =
-                        reads.ifAvailable?.latest(ref)?.committed()
+                    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
+                        reads.ifAvailable?.latest(ref)
 
-                    override suspend fun committed(ref: AggregateRef, minVersion: Int): CommittedState? =
-                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)?.committed()
-
-                    private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
+                    override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
+                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
                 },
                 defaultListSize = properties.budgets.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,

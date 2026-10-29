@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { StreamedRow } from '@ahoo-wang/wow-client';
+import type { Positioned } from '@ahoo-wang/wow-client';
 
 /**
  * The least time between two publishes while a stream is read: about one
@@ -40,7 +40,7 @@ export const PUBLISH_INTERVAL_MS = 16;
  * Internal: not exported from the package.
  */
 export async function readStreamRows<R>(
-  stream: ReadableStream<StreamedRow<R>>,
+  stream: ReadableStream<Positioned<R>>,
   signal: AbortSignal,
   publish: (rows: R[], position: string | undefined) => void,
 ): Promise<R[]> {
@@ -74,7 +74,7 @@ export async function readStreamRows<R>(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      rows.push(value.record);
+      rows.push(value.row);
       if (value.position !== undefined) position = value.position;
       schedule();
     }

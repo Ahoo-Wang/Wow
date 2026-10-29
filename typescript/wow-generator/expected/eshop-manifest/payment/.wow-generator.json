@@ -5,7 +5,7 @@
     "eshop-payment/contract.ts": "e52da550d9027630e3436dc89155979a0dc919c9867e1dce21693d19c96e7995",
     "eshop-payment/index.ts": "5ecccfcc543ecd5c4f8033c9af4524141ef92a5e7360f47375bc6229c28892aa",
     "eshop-payment/manifest.ts": "9fb979c0c6397754ec61a70659de3bc49e4ed989fde5cd7c5a349a4f41cf3d6f",
-    "eshop-payment/payment/aggregate.ts": "3743fec2fa3b0407c59a9749e228a4c84d266f937a6de3b10c82ac4eb4a6f1d8",
+    "eshop-payment/payment/aggregate.ts": "8f970f688e5e9590791b30906c1db7522477c048b140781d5ceb44a1d3536cd9",
     "eshop-payment/payment/commandClient.ts": "c81081ee304f96344563416df109c576eb6526577d40cdf49ac46702518ed2ee",
     "eshop-payment/payment/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-payment/payment/queryClient.ts": "fba35ec5bee8e42abb62204940705c30c097aeea2a71b47aff40cdd6b5b3b445",

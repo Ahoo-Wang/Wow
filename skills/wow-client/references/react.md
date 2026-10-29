@@ -7,13 +7,13 @@ Hooks that keep a query, its result, loading and error as React state, on the qu
 `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useAggregateQuery`, `useCursorQuery`, `useStreamQuery` take an `execute` function receiving the query and the run's request options (its `signal` included); a generated client's method fits exactly:
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 import { type OrderState, type OrderStateField, OrderSnapshotQueryClient } from './generated/index.js';
 
 export function PaidOrders({ client, page }: { client: OrderSnapshotQueryClient; page: number }) {
-  const { result, loading, error } = usePagedQuery<SnapshotRecord<OrderState>, OrderStateField>({
+  const { result, loading, error } = usePagedQuery<Snapshot<OrderState>, OrderStateField>({
     query: pagedQuery({ filter: filter.eq('state.status', 'PAID'), pagination: { index: page, size: 20 } }),
     execute: (query, options) => client.paged(query, options),
   });

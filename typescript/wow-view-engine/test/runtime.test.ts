@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator, AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
@@ -407,7 +407,7 @@ describe('DataViewRuntime execution', () => {
   });
 
   it('drops the response of a request a newer one replaced', async () => {
-    const first = deferred<PagedResult<object>>();
+    const first = deferred<PagedList<object>>();
     const paged = vi
       .fn()
       .mockReturnValueOnce(first.promise)
@@ -1093,7 +1093,7 @@ describe('DataViewRuntime auto refresh', () => {
   });
 
   it('holds the timer while a request is still in flight', () => {
-    const gate = deferred<PagedResult<object>>();
+    const gate = deferred<PagedList<object>>();
     const { runtime, clock } = harness({
       config: refreshing,
       source: testSource({ paged: vi.fn(() => gate.promise) }),
@@ -1182,7 +1182,7 @@ describe('DataViewRuntime auto refresh', () => {
    * only known once it lands.
    */
   it('has nothing due while the timer is held, and again once it is armed', async () => {
-    const gate = deferred<PagedResult<object>>();
+    const gate = deferred<PagedList<object>>();
     const paged = vi.fn(() => gate.promise);
     const { runtime, clock } = harness({
       config: refreshing,

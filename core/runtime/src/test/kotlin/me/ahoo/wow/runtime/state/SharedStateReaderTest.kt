@@ -52,7 +52,7 @@ import kotlin.time.TestTimeSource
  * Decision D133: the state after a committed entry, read by one state consumer through the shared views, else from
  * the nearest view or snapshot and the log's tail, else the log replayed; and the `stateEvents` decoder.
  */
-class StateViewReaderTest {
+class SharedStateReaderTest {
     private class CountingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         var streamsRead = 0
 
@@ -90,15 +90,15 @@ class StateViewReaderTest {
     private val kernel = Kernel(log, codec = codec, snapshots = snapshots)
     private val cart = listCartModel()
     private val models = listOf(orderModel(), cart)
-    private val views = StateViews(codec, mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART)))
+    private val views = SharedStates(codec, mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART)))
     private val executor = Executor(kernel, views = views)
     private val ref: AggregateRef = CART.ref(TENANT, "alice")
 
     private fun reader(
         name: String = PROJECTION,
-        views: StateViews = this.views,
+        views: SharedStates = this.views,
         snapshots: SnapshotStore? = this.snapshots,
-    ) = StateViewReader(name, models, kernel, codec, views, snapshots)
+    ) = SharedStateReader(name, models, kernel, codec, views, snapshots)
 
     private suspend fun add(vararg items: String, executor: Executor = this.executor): CommandOutcome.Committed {
         val id = "c-${items.joinToString("-")}"
@@ -209,7 +209,12 @@ class StateViewReaderTest {
     @Test
     fun `a view evicted between two commits should cost the store reads again, and only once`(): Unit = runBlocking {
         val time = TestTimeSource()
-        val aging = StateViews(codec, mapOf(PROJECTION to setOf(CART)), StateViewOptions(maxAge = 1.seconds), time)
+        val aging = SharedStates(
+            codec,
+            mapOf(PROJECTION to setOf(CART)),
+            SharedStateOptions(maxAge = 1.seconds),
+            time
+        )
         val elsewhere = Executor(kernel)
         add("apple", executor = elsewhere)
         add("pear", executor = elsewhere)
@@ -300,7 +305,7 @@ class StateViewReaderTest {
         val failing = object : SnapshotStore by snapshots {
             override suspend fun load(ref: AggregateRef): SnapshotRecord? = error("The store is down.")
         }
-        val alone = StateViews(codec, emptyMap())
+        val alone = SharedStates(codec, emptyMap())
         reader(
             views = alone,
             snapshots = failing
@@ -314,7 +319,7 @@ class StateViewReaderTest {
         add("apple")
         val ahead = stream(1).copyWith(version = 5)
         runCatching {
-            StateViewReader(
+            SharedStateReader(
                 PROJECTION,
                 listOf(orderModel()),
                 kernel,
@@ -340,7 +345,7 @@ class StateViewReaderTest {
             .contains("was not decoded with its state")
         runCatching {
             EntryDecoder.stateEvents(
-                StateViewReader(PROJECTION, emptyList(), kernel, codec, views)
+                SharedStateReader(PROJECTION, emptyList(), kernel, codec, views)
             ).decode(stream(1), null, null)
         }
             .exceptionOrNull()!!.message.assert().contains("No model of shop.cart")

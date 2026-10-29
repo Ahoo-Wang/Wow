@@ -16,8 +16,10 @@ package me.ahoo.wow.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
@@ -102,6 +104,17 @@ class StateMaskingRoutesTest {
         // A field the event's schema does not protect is left as it is.
         commits[1]["events"][0]["body"]["sku"].asString().assert().isEqualTo("apple")
         node.read("/shop/cart/c-1/state/trace", "bob").status.assert().isEqualTo(404)
+    }
+
+    @Test
+    fun `a trace whose earlier commit the policies hide should not be found, though the latest is visible`() {
+        // The policies read each commit's state as a snapshot of it: here, only a cart that holds one item.
+        val withItems = QueryPolicy { _, _ -> EqualFilter(QueryField("state.items"), 1) }
+        val node = opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(withItems)))
+        node.read("/shop/cart/c-1/state", "alice").status.assert().isEqualTo(200)
+        node.read("/shop/cart/c-1/state/trace?from=2", "alice").status.assert().isEqualTo(200)
+        // The cart was opened empty: its first commit is hidden, so the trace that holds it is not found.
+        node.read("/shop/cart/c-1/state/trace", "alice").status.assert().isEqualTo(404)
     }
 
     @Test

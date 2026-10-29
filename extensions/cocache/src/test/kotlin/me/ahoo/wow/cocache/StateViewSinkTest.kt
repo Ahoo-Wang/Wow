@@ -19,9 +19,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -46,7 +46,7 @@ class StateViewSinkTest {
         commandType = "shop.order.Change",
         commitTime = 0,
         events = listOf(StateEventPayload.of("Changed", 1, WowJson.mapper.readTree("{}"))),
-        state = state?.let { StateView.of(version, "f", WowJson.mapper.readTree(it)) },
+        state = state?.let { PublishedState.of(version, "f", WowJson.mapper.readTree(it)) },
         deleted = deleted,
     )
 

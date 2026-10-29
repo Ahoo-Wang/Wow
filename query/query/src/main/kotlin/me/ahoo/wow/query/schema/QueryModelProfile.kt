@@ -294,8 +294,12 @@ private fun String.schedulesField() = field(QueryValueType.OBJECT).let { (field,
                 properties = DeclarationValue.Set(
                     linkedMapOf(
                         ScheduleFields.TYPE to scalarProperty(QueryValueType.STRING),
-                        ScheduleFields.EPOCH_MILLIS to optionalProperty(QueryValueType.INTEGER),
-                        ScheduleFields.MILLIS to optionalProperty(QueryValueType.INTEGER),
+                        // As ScheduleRule.At and ScheduleRule.After declare them: an instant and a delay.
+                        ScheduleFields.EPOCH_MILLIS to optionalProperty(
+                            QueryValueType.INTEGER,
+                            Temporal.Epoch(TimeUnit.MILLISECONDS),
+                        ),
+                        ScheduleFields.MILLIS to optionalProperty(QueryValueType.INTEGER, TimeSpan(TimeUnit.MILLISECONDS)),
                         ScheduleFields.EXPRESSION to optionalProperty(QueryValueType.STRING),
                         ScheduleFields.ZONE to optionalProperty(QueryValueType.STRING),
                         ScheduleFields.MISFIRE to optionalProperty(QueryValueType.STRING),
@@ -316,10 +320,11 @@ internal object ScheduleFields {
     const val MISFIRE: String = "misfire"
 }
 
-private fun optionalProperty(valueType: QueryValueType) = QueryFieldDeclaration(
+private fun optionalProperty(valueType: QueryValueType, semanticType: QuerySemanticType? = null) = QueryFieldDeclaration(
     valueTypes = DeclarationValue.Set(setOf(valueType)),
     nullable = DeclarationValue.Set(false),
     required = DeclarationValue.Set(false),
+    semanticType = semanticType?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
 )
 
 internal fun scalarProperty(valueType: QueryValueType) = QueryFieldDeclaration(

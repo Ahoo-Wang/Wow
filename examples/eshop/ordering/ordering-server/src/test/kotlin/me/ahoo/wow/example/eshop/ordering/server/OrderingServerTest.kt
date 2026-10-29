@@ -130,7 +130,7 @@ class OrderingServerTest {
         submit("order-alice", buyer("alice"))
         read("order-alice", buyer("alice")).let { answer ->
             answer.status.assert().isEqualTo(OK)
-            answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+            answer.body!!["ownerId"].asString().assert().isEqualTo("alice")
         }
         // Another buyer's order is not found for it (decision D254 ④).
         read("order-alice", buyer("bob")).status.assert().isEqualTo(NOT_FOUND)

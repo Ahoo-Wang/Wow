@@ -39,13 +39,13 @@ import me.ahoo.wow.query.schema.ManifestQuerySchemaSource
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.springframework.http.MediaType
+import tools.jackson.databind.JsonNode
 
 val cartType = AggregateType(CONTEXT, "cart")
 
@@ -188,11 +188,7 @@ class QueryNode(
                     visibility = EventVisibility.of(
                         { gateway ?: policyGateway },
                         hides = policies.isNotEmpty()
-                    ) { ref ->
-                        http.reads.committed(ref)?.let {
-                            CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                        }
-                    },
+                    ) { ref -> http.reads.committed(ref) },
                     masks = PayloadMasks(manifest),
                     crossTenant = crossTenant,
                 ),

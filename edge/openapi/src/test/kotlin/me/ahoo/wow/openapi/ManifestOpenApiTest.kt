@@ -305,7 +305,7 @@ class ManifestOpenApiTest {
         val ok = responses(state)["200"] as Map<String, Any?>
         schema(ok).assert().isEqualTo(
             mapOf(
-                "\$ref" to "#/components/schemas/wow.StateView",
+                "\$ref" to "#/components/schemas/wow.Snapshot",
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
@@ -367,7 +367,7 @@ class ManifestOpenApiTest {
         kinds.assert().hasSize(6)
         kinds[3].assert().isEqualTo(
             mapOf(
-                "\$ref" to "#/components/schemas/wow.SnapshotRecord",
+                "\$ref" to "#/components/schemas/wow.Snapshot",
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
@@ -521,7 +521,7 @@ class ManifestOpenApiTest {
     @Test
     fun `the framework schemas should hold what the edge writes`() {
         OpenApiChecks.validate(document, WowSchemas.PROBLEM, PROBLEM).assert().isEmpty()
-        OpenApiChecks.validate(document, WowSchemas.STATE_VIEW, STATE).assert().isEmpty()
+        OpenApiChecks.validate(document, WowSchemas.SNAPSHOT, STATE).assert().isEmpty()
         OpenApiChecks.validate(document, WowSchemas.STATE_TRACE, TRACE).assert().isEmpty()
         OpenApiChecks.validate(document, "wow.lifecycle.TransferOwner", "{}").assert().isNotEmpty()
     }
@@ -652,8 +652,10 @@ class ManifestOpenApiTest {
         private const val PROBLEM = """{"type":"urn:wow:error:wow.command.invalid","title":"Invalid","status":400,"retry":"none",
             "detail":"d","code":"wow.command.invalid","violations":[{"path":"p","code":"c","message":"m"}]}"""
         private const val REF = """{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"}"""
-        private const val STATE = """{"ref":$REF,"version":1,"scope":{"ownerId":"o","spaceId":"s"},"deleted":false,
-            "tags":{"k":["v"]},"state":{}}"""
+        private const val STATE = """{"tenantId":"t","aggregateId":"i","version":1,"ownerId":"o","spaceId":"s",
+            "deleted":false,"tags":{"k":["v"]},"firstEventTime":1,"lastEventTime":2,
+            "operator":{"id":"o","tenantId":"t","crossScope":false},"firstOperator":null,
+            "schedules":{"remind":{"type":"at","epochMillis":5}},"state":{}}"""
         private const val TRACE = """{"ref":$REF,"commits":[{"version":1,"commitTime":2,"commandId":"c",
             "requestId":"r","commandType":"t","events":[{"name":"e","revision":1,"body":{}}],
             "scope":{"ownerId":null,"spaceId":null},"deleted":false,"tags":{},"state":{},

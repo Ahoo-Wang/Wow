@@ -19,9 +19,9 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.StateView
 import tools.jackson.databind.JsonNode
 
 /**
@@ -182,7 +182,7 @@ object EnvelopeCodec {
         val commandType: String,
         val commitTime: Long,
         val events: List<StateEventPayload>,
-        val state: StateView? = null,
+        val state: PublishedState? = null,
         val scope: Scope = Scope.NONE,
         val deleted: Boolean = false,
         val tags: Map<String, List<String>> = emptyMap(),

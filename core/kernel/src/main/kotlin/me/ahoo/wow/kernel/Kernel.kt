@@ -215,7 +215,7 @@ class Kernel(
             }
         } catch (cancelled: CancellationException) {
             // An observation's context returns through a cancellable switch: a commit that switch
-            // dropped for a caller cancelled meanwhile is still answered, so its state view is recorded.
+            // dropped for a caller cancelled meanwhile is still answered, so its shared state is recorded.
             committed ?: throw cancelled
         }
     }
@@ -804,7 +804,7 @@ class Kernel(
 
     /**
      * The committed state of [ref] at [version], read-only (the state a subscription hands over when
-     * the commit's state view is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
+     * the commit's shared state is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *
@@ -824,6 +824,15 @@ class Kernel(
         maxReplay: Int = options.maxReplay,
     ): CachedState? =
         history.stateAt(model, ref, version, snapshot, maxReplay)
+
+    /**
+     * The stream of [ref] at [version] as the log holds it, or null when it holds none: what a state read tells
+     * beside a replayed state, the time and the operator of a commit. The state cache is not touched.
+     */
+    suspend fun streamAt(ref: AggregateRef, version: Int): EventStreamRecord? {
+        require(version >= 1) { "A stream has a version from 1." }
+        return log.read(ref, version, version).firstOrNull()
+    }
 
     /**
      * The committed state of [ref] after [streams], its streams from version 1 in version order as the log holds them,

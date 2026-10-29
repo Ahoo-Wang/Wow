@@ -472,7 +472,7 @@ object ArchitectureRules {
         "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
         "dataset.QueryDatasetProvider", "dataset.QueryDatasetConfig",
         // The read paths it hands out.
-        "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
+        "read.InProcessQueryApi", "read.ReadModels", "mask.PayloadMasks",
     ).map { "me.ahoo.wow.query.$it" }
 
     val HOST_ASSEMBLES_THE_READ_SIDE = DependencyRule(

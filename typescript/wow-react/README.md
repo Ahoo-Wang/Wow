@@ -44,10 +44,7 @@ supplies the route, the headers and the response handling, and nothing is
 hand-written:
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 
@@ -65,7 +62,7 @@ export function PaidOrders({
   page: number;
 }) {
   const { result, loading, error } = usePagedQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: pagedQuery({
@@ -107,10 +104,7 @@ starts at the first page, and `execute` receives the query with the cursor of
 the page it reads.
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCursorQuery } from '@ahoo-wang/wow-react';
 
@@ -125,7 +119,7 @@ export function PaidOrderPages({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
@@ -167,10 +161,7 @@ stopped, and answers each record with its position, which the hook keeps as
 `position`.
 
 ```tsx
-import type {
-  SnapshotQueryClient,
-  SnapshotRecord,
-} from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '@ahoo-wang/wow-react';
 
@@ -185,7 +176,7 @@ export function PaidOrderFeed({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, done, loading, error, abort } = useStreamQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     initialQuery: listQuery({

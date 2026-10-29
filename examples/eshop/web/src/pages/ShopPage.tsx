@@ -20,7 +20,7 @@ import {
   StringComparison,
   type FilterExpression,
 } from "@ahoo-wang/wow-client/dsl";
-import type { SnapshotRecord } from "@ahoo-wang/wow-client";
+import type { Snapshot } from "@ahoo-wang/wow-client";
 import type {
   CategoryState,
   ProductState,
@@ -88,7 +88,7 @@ export function ShopPage() {
   const [notice, setNotice] = useState<unknown>();
   const [added, setAdded] = useState<string>();
   const publishedOnly = user.role === "buyer";
-  const [categories] = useLoad<SnapshotRecord<CategoryState>[]>(
+  const [categories] = useLoad<Snapshot<CategoryState>[]>(
     (signal) =>
       clients.catalog.category.snapshots.list(
         { filter: filter.matchAll(), sort: [asc("state.name")], limit: 100 },
@@ -109,7 +109,7 @@ export function ShopPage() {
     JSON.stringify([user.id, query, sort, page]),
   );
 
-  async function addToBasket(record: SnapshotRecord<ProductState>) {
+  async function addToBasket(record: Snapshot<ProductState>) {
     setNotice(undefined);
     setAdded(undefined);
     try {

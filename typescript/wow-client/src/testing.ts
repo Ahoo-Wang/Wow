@@ -16,7 +16,7 @@
  * service builds on — a caller of a development run
  * ({@link developmentCaller}, the {@link DevelopmentCallerHeaders} it sends,
  * both of the root entry too), and the service's answers for a fake: {@link commandResultOf},
- * {@link problemOf} and {@link problemResponse}, {@link stateViewOf}.
+ * {@link problemOf} and {@link problemResponse}, {@link snapshotOf}.
  *
  * It loads no test framework, so any runner (or a story, or a local tool)
  * imports it.
@@ -31,5 +31,5 @@ export {
   commandResultOf,
   problemOf,
   problemResponse,
-  stateViewOf,
+  snapshotOf,
 } from './testing/wire.js';

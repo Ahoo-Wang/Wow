@@ -390,10 +390,7 @@ export interface ViewEngine {
 ```ts
 /** 一个定义的数据从哪里来：一个 Wow 查询路由的读法，用 wow-client 自己的形状；任意 QueryModelClient 原样就是一个 ViewSource。 */
 export interface ViewSource {
-  paged(
-    query: PagedQuery,
-    options?: SourceOptions,
-  ): Promise<PagedResult<object>>; // total 可为 null，带 exact
+  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedList<object>>; // total 可为 null，带 exact
   cursor(
     query: CursorQuery,
     options?: SourceOptions,
@@ -446,4 +443,4 @@ export interface ViewErrorEvent {
 
 **失败交给宿主的钩子是环境的一员（[D40](decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）。** 界面照旧把每次失败说在它发生的地方；`onError` 是宿主的那一份，**每次失败恰好一次**：存储失败在引擎的存储门口（`runtime/failure/failures.ts` 的 `reportingStore`）报，不管是列表、写入账本（每次重试各一次，`requestId` 相同）、面板引用还是标签页记忆遇到的；视图自己的查询在落定处报（被顶掉的不报）；汇总、合计、拆分补查、读一条整条与条件取值各在吞下失败的那一处报（`KernelContext.queryFailed`）。`query` 类失败都**等源的响应体读完再报**（`queryFailureReporter`），仍是一次，`context.violation` 带着 Wow 说的规则与位置；报不必同步，恰好一次才是约定；导出拉行在 `exportRows` 报，交文件在调用它的钩子或部件报；渲染与图表在渲染边界报（[ui/README.md#渲染边界](ui/README.md#渲染边界)）；声明式操作的命令在执行器里逐条报（`action`，`operation` 是动作 id、`recordKey` 是那条记录；动作自己的拒绝不报，[host-integration.md](host-integration.md) 5.1）。叫停的不算失败：`AbortError`、自己的 signal 已中止、取消的导出。钩子是宿主的代码跑在引擎自己的路径上，`reportError` 吞掉它抛的错与它返回的 promise 的拒绝，也从不写 console。`ViewEngineOptions.onIssue` 只剩没有抛出物的发现（定义准入、被丢掉的保留 id、抛错的变化监听者）。（见 test/hostErrors.test.tsx）
 
-**`ViewSource` 是写出来的，形状取自 wow-client**（D353 V15）：查询、`PagedResult`、`CursorPage`、`DescriptorResult` 都是 wow-client 的 DSL 入口里的类型，取消是 `{ signal }`，与别的端口一样。行是 `object` 而不是 `RecordData`：客户端的记录类型是接口，`Record<string, unknown>` 会拒绝它，而引擎本来就经字段的路径与 kind 读每个值；`resources` 在登记处把一个 `ViewSource` 当作内部的 `RecordSource` 读，这一处转换就是全部。`test/architecture.test.ts` 的「Wow protocol」断言生成的快照查询客户端与 `DatasetClient.dataset(…)` 的客户端都不经适配就是 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。
+**`ViewSource` 是写出来的，形状取自 wow-client**（D353 V15）：查询、`PagedList`、`CursorPage`、`DescriptorResult` 都是 wow-client 的 DSL 入口里的类型，取消是 `{ signal }`，与别的端口一样。行是 `object` 而不是 `RecordData`：客户端的记录类型是接口，`Record<string, unknown>` 会拒绝它，而引擎本来就经字段的路径与 kind 读每个值；`resources` 在登记处把一个 `ViewSource` 当作内部的 `RecordSource` 读，这一处转换就是全部。`test/architecture.test.ts` 的「Wow protocol」断言生成的快照查询客户端与 `DatasetClient.dataset(…)` 的客户端都不经适配就是 `ViewSource`，`tsconfig.test.json` 会类型检查这个文件，所以 Wow 的签名一漂移就断在这里，而不是断在某个试图把查询客户端交过来的宿主身上。

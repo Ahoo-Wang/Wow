@@ -133,9 +133,9 @@ class OwnerIdRoutesTest {
         node.post("/shop/basket/put-item", """{"sku":"apple"}""").assertSucceeded()
         val state = node.get("/shop/basket/state")
         state.status.assert().describedAs(state.body.toString()).isEqualTo(200)
-        state.body!!["ref"]["id"].asString().assert().isEqualTo("alice")
+        state.body!!["aggregateId"].asString().assert().isEqualTo("alice")
         state.body!!["state"]["items"].asInt().assert().isEqualTo(1)
-        state.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        state.body!!["ownerId"].asString().assert().isEqualTo("alice")
         val trace = node.get("/shop/basket/state/trace")
         trace.status.assert().describedAs(trace.body.toString()).isEqualTo(200)
         trace.body!!["ref"]["id"].asString().assert().isEqualTo("alice")
@@ -147,7 +147,7 @@ class OwnerIdRoutesTest {
             "/shop/basket/state",
             user = "admin",
             headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to """tenant="$TENANT", owner="alice""""),
-        ).body!!["ref"]["id"].asString().assert().isEqualTo("alice")
+        ).body!!["aggregateId"].asString().assert().isEqualTo("alice")
     }
 
     @Test
@@ -166,9 +166,9 @@ class OwnerIdRoutesTest {
         node.get("/shop/basket/state/trace", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
         // By its id, the tenant-level caller acts on and reads the owner's aggregate.
         node.post("/shop/basket/carol/open-basket", user = "clerk", headers = tenantLevel).assertSucceeded()
-        node.get("/shop/basket/carol/state", user = "clerk", headers = tenantLevel).body!!["scope"]["ownerId"]
+        node.get("/shop/basket/carol/state", user = "clerk", headers = tenantLevel).body!!["ownerId"]
             .asString().assert().isEqualTo("carol")
-        node.get("/shop/basket/state", user = "carol").body!!["ref"]["id"].asString().assert().isEqualTo("carol")
+        node.get("/shop/basket/state", user = "carol").body!!["aggregateId"].asString().assert().isEqualTo("carol")
     }
 
     @Test

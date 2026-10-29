@@ -8,4 +8,4 @@ value developmentCaller
 value developmentCallerHeaders
 value problemOf
 value problemResponse
-value stateViewOf
+value snapshotOf

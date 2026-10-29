@@ -80,9 +80,9 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | Before | After |
 | --- | --- |
 | `viewSourceOf(client)` (wow-view-store) | the client itself: a generated `…SnapshotQueryClient`, an `…EventQueryClient` or `DatasetClient.dataset(…)` is a `ViewSource` as it is |
-| `ViewSource.paged(query, attributes?, abortController?)` → `PagedList`, and `cursor` / `aggregate` / `describe` the same | `paged(query, { signal })` → wow-client's `PagedResult` (`total: number \| null`, `exact`); `cursor(query, options?)`, `aggregate(query, options?)`, `describe?(version?, options?)` → `DescriptorResult`; rows are `object` |
+| `ViewSource.paged(query, attributes?, abortController?)` → `PagedList`, and `cursor` / `aggregate` / `describe` the same | `paged(query, { signal })` → wow-client's `PagedList` (`total: number \| null`, `exact`); `cursor(query, options?)`, `aggregate(query, options?)`, `describe?(version?, options?)` → `DescriptorResult`; rows are `object` |
 | `QueryDescriptorResult` (wow-view-engine) | `DescriptorResult` from `@ahoo-wang/wow-client/dsl` |
-| `import { PagedQuery, PagedResult, TotalMode, DescriptorResult } from '@ahoo-wang/wow-client'` | import from `'@ahoo-wang/wow-client/dsl'`: the query language's types live in the DSL entry only, never in both |
+| `import { PagedQuery, PagedList, TotalMode, DescriptorResult } from '@ahoo-wang/wow-client'` | import from `'@ahoo-wang/wow-client/dsl'`: the query language's types live in the DSL entry only, never in both |
 | `ViewStore.list(definitionId, signal?)` → `ViewInstanceSummary[]` | `list(definitionId, { cursor?, signal? })` → `ViewListPage { items, nextCursor }`, a page at a time |
 | `ViewStore.get(id, signal?)`, `getPreferences(id, signal?)` | `get(id, { signal? })`, `getPreferences(id, { signal? })` (`ReadOptions`) |
 | `WriteContext` | `WriteOptions` (`{ requestId, signal? }`) |

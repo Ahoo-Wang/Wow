@@ -20,7 +20,6 @@ import me.ahoo.wow.api.client.CommandRejectedException;
 import me.ahoo.wow.api.client.CommandRequest;
 import me.ahoo.wow.api.query.ListQuery;
 import me.ahoo.wow.api.query.MatchAllFilter;
-import me.ahoo.wow.api.read.AggregateState;
 import me.ahoo.wow.api.read.Positioned;
 import me.ahoo.wow.api.read.Snapshot;
 import me.ahoo.wow.api.result.CommandResult;
@@ -99,8 +98,8 @@ class JavaClientSmokeTest {
 
     @Test
     void asynchronousCallsShouldCompose() {
-        String view = "{\"ref\":{\"type\":{\"context\":\"post\",\"name\":\"parcel\"},\"tenantId\":\"t1\",\"id\":\"p-1\"},"
-            + "\"version\":1,\"scope\":{},\"deleted\":false,\"tags\":{},\"state\":{\"to\":\"bob\"}}";
+        String view = "{\"tenantId\":\"t1\",\"aggregateId\":\"p-1\",\"version\":1,\"deleted\":false,"
+            + "\"firstEventTime\":1,\"lastEventTime\":2,\"state\":{\"to\":\"bob\"}}";
         peer.reply(
             Reply.Companion.json(result(CommandResult.Status.SUCCEEDED, null), 200),
             new Reply(200, Map.of("Content-Type", "application/json"), view.getBytes(), null, false));
@@ -146,10 +145,10 @@ class JavaClientSmokeTest {
             assertEquals("x-1", rows.findFirst().orElseThrow().getPosition());
         }
 
-        String view = "{\"ref\":{\"type\":{\"context\":\"post\",\"name\":\"parcel\"},\"tenantId\":\"t1\",\"id\":\"p-1\"},"
-            + "\"version\":3,\"scope\":{},\"deleted\":false,\"tags\":{},\"state\":{\"to\":\"bob\"}}";
+        String view = "{\"tenantId\":\"t1\",\"aggregateId\":\"p-1\",\"version\":3,\"deleted\":false,"
+            + "\"firstEventTime\":1,\"lastEventTime\":2,\"state\":{\"to\":\"bob\"}}";
         peer.reply(new Reply(200, Map.of("Content-Type", "application/json"), view.getBytes(), null, false));
-        AggregateState<ParcelState> state = parcels.state("p-1");
+        Snapshot<ParcelState> state = parcels.state("p-1");
         assertEquals(3, state.getVersion());
         assertEquals("bob", parcels.stateAsync(ref).join().getState().getTo());
         peer.reply(Reply.Companion.problem(404, Map.of("code", "wow.aggregate.not-found"), null));

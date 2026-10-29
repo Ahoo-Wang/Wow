@@ -23,7 +23,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 `use*Query` hook 接收查询和一个运行它的 `execute` 函数；生成客户端的方法恰好接收查询和请求选项，所以由客户端提供路由和响应处理：
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { desc, filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -40,7 +40,7 @@ export function PaidOrders({
   page: number;
 }) {
   const { result, loading, error } = usePagedQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField | 'lastEventTime'
   >({
     query: pagedQuery({
@@ -84,7 +84,7 @@ export function PaidOrders({
 `useCursorQuery` 读取只进的游标查询，保存已读各页的行；`fetchNext()` 读取下一页并追加到后面。游标归 hook 所有：它的查询里没有游标，每次运行都从第一页开始；`fetchNext()` 失败时保留已有的行，再调用一次就重试那一页：
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCursorQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -95,7 +95,7 @@ import type {
 
 export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) {
   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField
   >({
     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
@@ -126,7 +126,7 @@ export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) 
 `useStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。传入客户端的 `streamRows`，它为每条记录带上位置：服务切断的流会从停下的地方续读，hook 把最后读到的记录的位置保存为 `position`：
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -137,7 +137,7 @@ import type {
 
 export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) {
   const { items, done, loading, error, abort } = useStreamQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),

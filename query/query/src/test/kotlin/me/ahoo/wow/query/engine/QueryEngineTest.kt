@@ -19,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -29,6 +30,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -53,10 +55,10 @@ import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 
 /** The read side composed once (decision D237): which gateways the builder gives, and its fail-closed rules (R3.3-3). */
 class QueryEngineTest {
@@ -80,12 +82,22 @@ class QueryEngineTest {
     /** Only the orders' snapshots are queried; the carts' are not, as `snapshot = false` would leave them. */
     private fun builder() = QueryEngine.Builder(manifest).snapshots(InMemoryQueryStorage()) { it == order }
 
-    private fun state(type: AggregateType, region: String) = CommittedState(
-        ref = type.ref("acme", "x-1"),
+    private fun state(
+        type: AggregateType,
+        region: String,
+        ref: AggregateRef = type.ref(
+            "acme",
+            "x-1"
+        )
+    ) = Snapshot.of<JsonNode>(
+        ref = ref,
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
         tags = mapOf("region" to listOf(region)),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 2),
     )
 
@@ -131,7 +143,7 @@ class QueryEngineTest {
             engine.reads.read(alice, { cartState }, { it }).assert().isSameAs(ReadFacade.Read.Hidden)
             engine.reads.read(alice, {
                 null
-            }, { committed: CommittedState -> committed }).assert().isSameAs(ReadFacade.Read.Missing)
+            }, { committed: Snapshot<JsonNode> -> committed }).assert().isSameAs(ReadFacade.Read.Missing)
             val visible = engine.reads.read(admin, { cartState }, { it }) as ReadFacade.Read.Visible
             visible.view.assert().isSameAs(cartState)
             visible.state["items"].asInt().assert().isEqualTo(2)
@@ -145,7 +157,7 @@ class QueryEngineTest {
                 .contexts(setOf("shop"))
                 .events { type -> events.binding(type).takeIf { type == cart } }
                 .abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false))
-                .committedStates { ref -> state(ref.type, "east").copy(ref = ref) }
+                .committedStates { ref -> state(ref.type, "east", ref) }
                 .datasets(QueryDatasets.NONE, null)
                 .build()
             engine.events.map { it.aggregateType }.assert().containsExactly(cart)
@@ -233,7 +245,7 @@ class QueryEngineTest {
                 .events { type -> events.binding(type) }
                 .policies(listOf(policy(mode)))
                 .observers(listOf(observer))
-                .committedStates { ref -> state(ref.type, "east").copy(ref = ref).takeIf { ref.id == "o-1" } }
+                .committedStates { ref -> state(ref.type, "east", ref).takeIf { ref.id == "o-1" } }
                 .build()
                 .events.first { it.aggregateType == order }
             val admin = QueryCaller(Caller(subject = "admin", tenantId = "acme"))

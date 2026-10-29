@@ -35,7 +35,7 @@ internal fun WowProperties.serviceNodeOptions(
     handoff = configured("wow.log") { log.handoffOptions() },
     executor = configured("wow.executor") { executor.options() },
     stateCache = configured("wow.state-cache") { stateCache.options() },
-    stateViews = configured("wow.state-views") { stateViews.options() },
+    sharedStates = configured("wow.shared-states") { sharedStates.options() },
     timers = configured("wow.timers") { timers.options() },
     schedules = schedules.mapValues { (name, schedule) -> configured("wow.schedules.$name") { schedule.options() } },
     topicRouted = topicRouted,

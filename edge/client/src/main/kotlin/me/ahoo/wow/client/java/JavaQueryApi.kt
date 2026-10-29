@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.ModelQueries
@@ -52,7 +51,7 @@ import java.util.stream.Stream
  * ```java
  * JavaTenantSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
  * List<Snapshot<OrderState>> open = orders.list(ListQuery.of(MatchAllFilter.INSTANCE));
- * AggregateState<OrderState> order = orders.state("order-1"); // null when there is none
+ * Snapshot<OrderState> order = orders.state("order-1"); // null when there is none
  * ```
  */
 @JvmSuppressWildcards
@@ -176,9 +175,9 @@ open class JavaModelQueries<R : Any> internal constructor(private val delegate: 
 open class JavaSnapshotQueries<S : Any> internal constructor(private val delegate: SnapshotQueries<S>) :
     JavaModelQueries<@JvmSuppressWildcards Snapshot<S>>(delegate) {
     /** The latest committed state of the aggregate [ref], or null ([SnapshotQueries.state]). */
-    fun state(ref: AggregateRef): AggregateState<S>? = JavaFlows.blocking { delegate.state(ref) }
+    fun state(ref: AggregateRef): Snapshot<S>? = JavaFlows.blocking { delegate.state(ref) }
 
-    fun stateAsync(ref: AggregateRef): CompletableFuture<AggregateState<S>?> = JavaFlows.async { delegate.state(ref) }
+    fun stateAsync(ref: AggregateRef): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(ref) }
 }
 
 /** [TenantSnapshotQueries] for Java callers: a state by its aggregate id too, in the queries' tenant. */
@@ -186,7 +185,7 @@ open class JavaSnapshotQueries<S : Any> internal constructor(private val delegat
 class JavaTenantSnapshotQueries<S : Any> internal constructor(private val delegate: TenantSnapshotQueries<S>) :
     JavaSnapshotQueries<S>(delegate) {
     /** The latest committed state of the aggregate [id], or null ([TenantSnapshotQueries.state]). */
-    fun state(id: String): AggregateState<S>? = JavaFlows.blocking { delegate.state(id) }
+    fun state(id: String): Snapshot<S>? = JavaFlows.blocking { delegate.state(id) }
 
-    fun stateAsync(id: String): CompletableFuture<AggregateState<S>?> = JavaFlows.async { delegate.state(id) }
+    fun stateAsync(id: String): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(id) }
 }

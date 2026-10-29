@@ -32,8 +32,8 @@ import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
-import me.ahoo.wow.runtime.state.StateViewReader
-import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.state.SharedStateReader
+import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
@@ -71,7 +71,7 @@ class ContextNode internal constructor(
     val endpoint: ForwardEndpoint,
     val backends: ContextBackends,
     val codec: EventCodec,
-    val views: StateViews,
+    val views: SharedStates,
     /**
      * The runtime of the context's command topic, driven by [ownership]: null unless the node takes
      * commands from topics ([SourceTopics.intake]).
@@ -116,12 +116,12 @@ class ContextNode internal constructor(
     val creations: CreationIds = CreationIds(ids, CommittedRequests.of(log))
 
     /**
-     * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
+     * Reads the state after a commit as the state consumer [reader] of [views] ([SharedStateReader]), from the
      * context's snapshots when its views miss: what [me.ahoo.wow.runtime.subscription.EntryDecoder.stateEvents]
      * decodes with.
      */
-    fun stateReader(reader: String): StateViewReader =
-        StateViewReader(reader, models, kernel, codec, views, backends.primarySnapshots)
+    fun stateReader(reader: String): SharedStateReader =
+        SharedStateReader(reader, models, kernel, codec, views, backends.primarySnapshots)
 
     /**
      * The snapshot write checkpoint of [type]: the progress of the subscription of [type]'s primary
