@@ -128,10 +128,12 @@ jobs:
       # throwaway key the check generates (gpg): every release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
       # exactly them, no 9.x module is published, and the deploy jobs'
-      # prebuilt publish uploads all of it with its signatures.
+      # prebuilt publish uploads all of it with its signatures. Then the
+      # documented three-module layout builds against that repository
+      # (test/publication-consumer), as a user's build resolves a release.
       - name: Check the publications
         if: matrix.publications
-        run: ./gradlew publicationCheck --stacktrace
+        run: ./gradlew publicationCheck publicationConsumerCheck --stacktrace
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v7
         with:

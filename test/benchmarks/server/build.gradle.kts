@@ -16,38 +16,27 @@ description = "Wow end-to-end benchmark (D224): the account and transfer saga do
 // The benchmark's account and transfer saga domain and its server (test/benchmarks/README.md). Its log and snapshots
 // are on MongoDB (the `mongo` profile) or PostgreSQL (`postgres`), its state stream published to Kafka. It depends on
 // V10 modules only (decision D85). Never published; outside the coverage reports and the ABI checks. The plugin
-// `me.ahoo.wow` cannot be applied inside the build that produces it, so this applies KSP and passes the plugin's options
-// by hand, as the quickstart does.
+// `me.ahoo.wow` builds its models; it has no Manifest gate, being no service a client depends on.
 plugins {
-    alias(libs.plugins.ksp)
     application
+    id("me.ahoo.wow")
 }
 
 application {
     mainClass.set("me.ahoo.wow.benchmark.transfer.TransferServerKt")
 }
 
-ksp {
-    arg("wow.model", "generate")
-    arg("wow.manifest.module", project.name)
-}
-
-// The plugin's completion of the fragment with the schemas of the types, so the snapshot queries know the state.
-apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
-
 dependencies {
-    implementation(project(":kernel"))
-    implementation(project(":spring-boot"))
-    implementation(project(":mongo"))
-    implementation(project(":postgres"))
-    implementation(project(":kafka"))
+    implementation("me.ahoo.wow:wow-spring-boot")
+    implementation("me.ahoo.wow:wow-mongo")
+    implementation("me.ahoo.wow:wow-postgres")
+    implementation("me.ahoo.wow:wow-kafka")
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     // The node's health contributors, without Actuator's endpoints: BenchQueryLimits reads the stores' query bounds
     // from the `wow` contributor, as an operator reads them.
     implementation("org.springframework.boot:spring-boot-health")
-    ksp(project(":compiler"))
-    testImplementation(project(":test-dsl"))
+    testImplementation("me.ahoo.wow:wow-test")
 }
 
 tasks.test {

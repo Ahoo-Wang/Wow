@@ -56,6 +56,8 @@ Each plugin adds `platform("me.ahoo.wow:wow-bom:<its version>")` and the Wow mod
 
 `catalog-api/build.gradle.kts` declares the domain module whose contract it carries:
 
+<!-- sample: test/publication-consumer/catalog-api/build.gradle.kts -->
+
 ```kotlin
 plugins {
     kotlin("jvm")
@@ -68,14 +70,17 @@ kotlin {
 
 dependencies {
     wowContract(project(":catalog-domain"))
-    // The commands' constraints (@field:Positive, @field:NotBlank); Spring Boot's version, which wow-api brings.
-    api("jakarta.validation:jakarta.validation-api")
+    // The commands' constraints (@field:Positive, @field:NotBlank). wow-bom constrains Wow's own modules alone, so
+    // the api module names the version, Spring Boot's.
+    api("jakarta.validation:jakarta.validation-api:3.1.1")
 }
 ```
 
 `me.ahoo.wow.api` adds `wow-api`, packages the contract of the domain modules it declares into its jar, `META-INF/wow/contract.json`, and compiles `<Context>Contract` and the `<State>View`s from it ([What the Compiler Generates](../guide/generated-code#the-contract-code-of-the-api-module)). A domain module whose commands and events are in an api module that does not declare it fails to build, naming the line to add.
 
 `catalog-domain/build.gradle.kts`:
+
+<!-- sample: test/publication-consumer/catalog-domain/build.gradle.kts -->
 
 ```kotlin
 plugins {
@@ -117,6 +122,8 @@ The `wow { }` block configures it:
 | `service` | None | The service that hosts the module's contexts, which its contract names and the service's Manifest takes ([What the Compiler Generates](../guide/generated-code)) |
 
 `catalog-server/build.gradle.kts`:
+
+<!-- sample: test/publication-consumer/catalog-server/build.gradle.kts -->
 
 ```kotlin
 plugins {

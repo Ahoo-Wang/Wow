@@ -39,7 +39,7 @@ fun main(args: Array<String>) {
 ```kotlin
 dependencies {
     implementation(project(":eshop-catalog-domain"))
-    implementation(project(":spring-boot"))
+    implementation("me.ahoo.wow:wow-spring-boot")
     // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // A Bean Validation provider: the host checks each command's constraints with it.
@@ -50,25 +50,25 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // Traces and metrics on the node's seams, through the OpenTelemetry Java agent when the
     // deployment attaches one (deploy/eshop-*: the OpenTelemetry Operator's annotation), a no-op otherwise.
-    implementation(project(":observability"))
+    implementation("me.ahoo.wow:wow-observability")
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
-    implementation(project(":postgres"))
+    implementation("me.ahoo.wow:wow-postgres")
     // The pool the host makes of `spring.datasource.*` in the postgres profile.
     runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set.
-    implementation(project(":mongo"))
+    implementation("me.ahoo.wow:wow-mongo")
     // The `search` profile, MongoDB with the products' search on Elasticsearch, over the client Spring Boot's
     // Elasticsearch support makes of `spring.elasticsearch.uris`.
-    implementation(project(":elasticsearch"))
+    implementation("me.ahoo.wow:wow-elasticsearch")
     implementation("org.springframework.boot:spring-boot-elasticsearch")
     // The `cosec` profile, behind the CoSec gateway: CoSec's inject mode reads the principal
     // from the token the gateway verified, and wow-cosec's resolver makes it the caller.
-    implementation(project(":cosec"))
+    implementation("me.ahoo.wow:wow-cosec")
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
-    testImplementation(project(":test-spring-boot"))
+    testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // The springdoc bridge's acceptance: the document checked against the OpenAPI 3.1 schema.
     testImplementation(libs.json.schema.validator)
 }

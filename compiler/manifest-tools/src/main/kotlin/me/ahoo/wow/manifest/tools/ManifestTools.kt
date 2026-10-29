@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.openapi.ManifestOpenApi
 import java.io.File
 
 /**
@@ -239,33 +240,80 @@ object ManifestTools {
     const val ALLOW_BREAKING = "wow.manifest.allowBreaking"
 
     /**
-     * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf]),
-     * naming the [service] that hosts its contexts when given; what the Gradle plugin's
-     * `generateWowContract` does.
+     * Writes the peer contract of the domain module [module]'s completed [fragments] into [output]
+     * ([PeerContracts.contractOf]), naming the [service] that hosts its contexts when given; what the Gradle plugin's
+     * `generateWowContract` does. A context whose command or event classes are in an entry of [unpaired] (a class path
+     * entry of a project that does not pair with the module, to that project's path) fails, naming the line that pairs
+     * them: the contract would reach no api module, and no peer would see the context.
      */
     @JvmStatic
-    fun generateContract(fragments: List<File>, output: File, service: String?) {
-        ManifestJson.write(
-            PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read), service),
-            output,
-        )
+    fun generateContract(
+        fragments: List<File>,
+        service: String?,
+        module: String,
+        unpaired: Map<String, String>,
+        output: File,
+    ) {
+        val contract = PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read), service)
+        val owners = ClassPath(unpaired.keys.map(::File))
+        val problems = contract.contexts.flatMap { context ->
+            PeerContracts.classesOf(context).mapNotNull { binary ->
+                owners.entryOf(binary)?.let { binary to unpaired.getValue(it.path) }
+            }.groupBy({ it.second }, { it.first }).map { (api, classes) ->
+                "context ${context.name} has its classes ${classes.sorted().joinToString()} in project '$api', which " +
+                    "does not pair with project '$module': in $api's build file, apply id(\"$API_PLUGIN\") and add " +
+                    "dependencies { wowContract(project(\"$module\")) }"
+            }
+        }
+        check(problems.isEmpty()) {
+            "The contract of project '$module' reaches no api module:\n" + problems.joinToString("\n") { "- $it" }
+        }
+        ManifestJson.write(contract, output)
     }
 
     /**
-     * Writes the contract the api module [owner] carries, of the domain modules' [contracts] the contexts whose command
-     * and event classes are all in its [classes] directories ([PeerContracts.assemble]), into
-     * [output]; what the Gradle plugin's `assembleWowContract` does. Returns whether the api module carries one: with
-     * no context of its own, [output] is not written.
+     * Writes the contract the api module [owner] carries, `META-INF/wow/contract.json` ([PeerContracts.RESOURCE])
+     * under [output], which it clears first: of the [contracts] of the domain modules it declares (each named by
+     * [owners], by its path), the contexts whose command and event classes are all in its [classes] directories
+     * ([PeerContracts.assemble]); what the Gradle plugin's `assembleWowContract` does. A declared module of no context
+     * (it compiles no model) fails, naming it. Returns whether the api module carries a contract: with no context of
+     * its own, it carries none.
      */
     @JvmStatic
-    fun assembleContract(contracts: List<File>, classes: List<File>, owner: String, output: File): Boolean {
-        val fragments = contracts.sorted().map { ManifestFragment(it.path, ManifestJson.read(it)) }
+    fun assembleContract(
+        contracts: List<File>,
+        owners: Map<String, String>,
+        classes: List<File>,
+        owner: String,
+        output: File,
+    ): Boolean {
+        output.deleteRecursively()
+        val fragments = contracts.sorted().map { ManifestFragment(owners[it.path] ?: it.name, ManifestJson.read(it)) }
+        val empty = fragments.filter { it.manifest.contexts.isEmpty() }
+        check(empty.isEmpty()) {
+            "$owner declares ${empty.joinToString(" and ") { it.source }} in wowContract, which compiles no model and " +
+                "so has no contract: remove it from wowContract, or give it the aggregates whose contract this api " +
+                "module carries."
+        }
+        val directories = classes.filter { it.isDirectory }
         val contract = PeerContracts.assemble(owner, fragments) { binary ->
             val path = binary.replace('.', '/') + ".class"
-            classes.any { File(it, path).isFile }
+            directories.any { File(it, path).isFile }
         } ?: return false
-        ManifestJson.write(contract, output)
+        ManifestJson.write(contract, File(output, PeerContracts.RESOURCE))
         return true
+    }
+
+    /**
+     * Writes the OpenAPI 3.1 document of the service's public routes ([ManifestOpenApi]) from its merged [manifest]
+     * into [output]: what `GET /wow/openapi` serves, as far as the build knows it; what the Gradle plugin's
+     * `generateWowOpenApi` does.
+     */
+    @JvmStatic
+    fun generateOpenApi(manifest: File, output: File) {
+        val document = ManifestOpenApi.write(ManifestJson.read(manifest))
+        output.parentFile.mkdirs()
+        output.writeText(ManifestJson.pretty(document) + "\n")
     }
 
     /**
@@ -293,4 +341,7 @@ object ManifestTools {
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
 
     private const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
+
+    /** The plugin id of an api module, which a domain module's contract pairs with. */
+    private const val API_PLUGIN = "me.ahoo.wow.api"
 }

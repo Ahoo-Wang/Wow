@@ -42,7 +42,7 @@ const PACKAGE = 'package';
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|build-logic|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer|publication-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's architecture job: `:architecture:test` alone, for a change no JVM
 // job runs but the design-ID rule reads (DesignIdRule.designIdScope in
 // test/architecture): every page of the user documentation and every README
@@ -189,6 +189,8 @@ const RULES = [
   [/^gradle\.properties$/, [TYPESCRIPT]],
   // The Gradle build: the JVM jobs (JVM_PATH).
   [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, []],
+  // The Gradle plugin the build includes (build-logic/wow-gradle-plugin): the JVM jobs (JVM_PATH).
+  [/^build-logic\//, []],
   // Lint and format rules only the static checks read.
   [
     /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,

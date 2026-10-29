@@ -32,8 +32,11 @@ object ManifestJson {
 
     fun write(manifest: Manifest, file: File) {
         file.parentFile.mkdirs()
-        file.writeText(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(ManifestTree.write(manifest)) + "\n")
+        file.writeText(pretty(ManifestTree.write(manifest)) + "\n")
     }
+
+    /** [tree], a JSON tree of maps, lists and scalars, as indented JSON text. */
+    fun pretty(tree: Any?): String = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(tree)
 
     /**
      * The fragments under `META-INF/wow/manifest/` of [entry], a directory or a jar of a classpath, sorted by path;

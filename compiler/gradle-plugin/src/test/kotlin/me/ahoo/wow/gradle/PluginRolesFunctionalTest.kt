@@ -233,8 +233,8 @@ class PluginRolesFunctionalTest {
             .contains("tests=\"1\"", "failures=\"0\"")
     }
 
-    @Test
-    fun `a domain, its api and its service should build under isolated projects`(@TempDir root: File) {
+    /** The documented three-module layout: the bank's api, domain and server modules. */
+    private fun threeModules(root: File) {
         settings(root, "bank", "bank-api", "bank-domain", "bank-server")
         module(root, "bank-api", WowPlugin.API_ID, dependencies = """wowContract(project(":bank-domain"))""")
         write(
@@ -279,6 +279,11 @@ class PluginRolesFunctionalTest {
             """,
         )
         module(root, "bank-server", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":bank-domain"))""")
+    }
+
+    @Test
+    fun `a domain, its api and its service should build under isolated projects`(@TempDir root: File) {
+        threeModules(root)
         runner(
             root,
             ":bank-server:${WowPlugin.MERGE_TASK}",
@@ -291,5 +296,44 @@ class PluginRolesFunctionalTest {
             jar.getEntry("bankapi/BankContract.class").assert().isNotNull()
             jar.getEntry("META-INF/wow/contract.json").assert().isNotNull()
         }
+    }
+
+    @Test
+    fun `every task should reuse the configuration cache, and a relocated build should take its outputs from the cache`(
+        @TempDir directory: File,
+    ) {
+        val cache = File(directory, "build-cache").invariantSeparatorsPath
+        val first = File(directory, "first")
+        threeModules(first)
+        File(first, "settings.gradle.kts").appendText("\nbuildCache { local { directory = file(\"$cache\") } }\n")
+        // Every run stores what it builds in the cache, the second directory's build takes it from there.
+        runner(
+            first,
+            ":bank-server:${WowPlugin.UPDATE_BASELINE_TASK}",
+            "--configuration-cache",
+            "--build-cache"
+        ).build()
+        val tasks = arrayOf(
+            ":bank-domain:${WowPlugin.GENERATE_FRAGMENT_TASK}",
+            ":bank-domain:${WowPlugin.GENERATE_CONTRACT_TASK}",
+            ":bank-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}",
+            ":bank-api:${WowPlugin.GENERATE_CONTRACT_SOURCES_TASK}",
+            ":bank-server:${WowPlugin.MERGE_TASK}",
+            ":bank-server:${WowPlugin.OPENAPI_TASK}",
+            ":bank-server:${WowPlugin.CHECK_TASK}",
+        )
+        runner(first, *tasks, "--configuration-cache", "--build-cache").build().output.assert()
+            .contains("Configuration cache entry stored")
+        val again = runner(first, *tasks, "--configuration-cache", "--build-cache").build()
+        again.output.assert().contains("Configuration cache entry reused")
+        tasks.forEach { again.task(it)?.outcome.assert().describedAs(it).isEqualTo(TaskOutcome.UP_TO_DATE) }
+
+        // The same sources in another directory: each cacheable task's outputs come from the cache.
+        val second = File(directory, "second")
+        first.copyRecursively(second)
+        File(second, ".gradle").deleteRecursively()
+        second.walkTopDown().filter { it.isDirectory && it.name == "build" }.toList().forEach { it.deleteRecursively() }
+        val relocated = runner(second, *tasks, "--build-cache").build()
+        tasks.forEach { relocated.task(it)?.outcome.assert().describedAs(it).isEqualTo(TaskOutcome.FROM_CACHE) }
     }
 }
