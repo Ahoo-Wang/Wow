@@ -103,7 +103,7 @@ wow:
 
 ### 配置 CoSec Gateway {#configure-the-cosec-gateway}
 
-CoSec Gateway（`cosec-gateway-server`，镜像 `ahoowang/cosec-gateway`）基于 Spring Cloud Gateway，Wow 的端到端测试在 eShop 和平台服务之前运行的就是它，使用下面的设置。它们是上面两条要求在这个网关上的写法：
+CoSec Gateway（`cosec-gateway-server`，镜像 `ghcr.io/ahoo-wang/cosec-gateway`）基于 Spring Cloud Gateway，Wow 的端到端测试在 eShop 和平台服务之前运行的就是它，使用下面的设置。它们是上面两条要求在这个网关上的写法：
 
 - **它是边缘。** `server.forward-headers-strategy: none`：它从不把客户端的 `Forwarded` 或 `X-Forwarded-For` 当作自己的远端地址，而 Spring Boot 在 Kubernetes 上的默认做法会这样做。
 - **它只写一次客户端地址。** 从 Spring Cloud Gateway 4.1 起，X-Forwarded 头过滤器只为 `trusted-proxies` 匹配的对端写入，所以只设 `for-append: false` 不起作用。`trusted-proxies: ".*"` 加上 `for-append: false`，把它接受的对端写成唯一的 `X-Forwarded-For`，替换客户端带来的值；`forwarded.enabled: false` 不发送服务会优先采用的 `Forwarded` 头。
@@ -162,14 +162,17 @@ spring:
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
 
 ```yaml
-# Each service by its context prefix.
+# Each service by its context prefix. A route takes the CoSec-Identity of a permitted request only when
+# it opts in (metadata cosec-identity: true) or targets lb://: these target a Kubernetes Service's URL.
 routes:
   - id: eshop-catalog
     uri: http://eshop-catalog-service
     predicates: [Path=/eshop-catalog/**]
+    metadata: { cosec-identity: true }
   - id: eshop-basket
     uri: http://eshop-basket-service
     predicates: [Path=/eshop-basket/**]
+    metadata: { cosec-identity: true }
 ```
 
 网关用 CoSec 的签名密钥（`cosec.jwt.secret`）校验每个请求的令牌，按文档决定请求，并转发身份。它的设置和文档的格式属于 CoSec：[部署网关服务](https://cosec.ahoo.me/operations/deployment)、[第一批文档](https://cosec.ahoo.me/operations/storage#the-first-documents)、[配置](https://cosec.ahoo.me/operations/configuration)。网关上粗粒度的文档，例如让任何已认证主体通过的文档，把每个调用方能做什么留给服务自己的授权器决定。

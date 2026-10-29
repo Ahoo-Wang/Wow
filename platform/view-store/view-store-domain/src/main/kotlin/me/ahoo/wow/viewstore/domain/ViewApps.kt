@@ -16,7 +16,6 @@ package me.ahoo.wow.viewstore.domain
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.decide.reject
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
  * The application a command comes from: its standard request fact `app_id` ([RequestFacts.APP_ID]),
@@ -31,7 +30,7 @@ object ViewApps {
     @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
     inline fun appRequired(): Nothing = reject(
         ViewStoreRejections.APP_REQUIRED,
-        "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+        "The request's CoSec scope has no application.",
     )
 
     /**

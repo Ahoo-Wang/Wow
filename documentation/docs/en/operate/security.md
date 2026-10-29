@@ -103,7 +103,7 @@ The gateway authenticates and authorizes each request and forwards what it verif
 
 ### Configure the CoSec Gateway {#configure-the-cosec-gateway}
 
-The CoSec Gateway (`cosec-gateway-server`, the image `ahoowang/cosec-gateway`), built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
+The CoSec Gateway (`cosec-gateway-server`, the image `ghcr.io/ahoo-wang/cosec-gateway`), built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
 
 - **It is the edge.** `server.forward-headers-strategy: none`: it never takes a client's `Forwarded` or `X-Forwarded-For` as its own remote address, as Spring Boot's default on Kubernetes would.
 - **It writes the client's address once.** From Spring Cloud Gateway 4.1, the X-Forwarded headers filter writes nothing unless `trusted-proxies` matches the peer, so `for-append: false` alone does nothing. `trusted-proxies: ".*"` with `for-append: false` writes the peer it accepted as the one `X-Forwarded-For`, replacing a client's, and `forwarded.enabled: false` sends no `Forwarded` header, which a service would prefer.
@@ -162,14 +162,17 @@ Each route sends a context's path prefix to its service:
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
 
 ```yaml
-# Each service by its context prefix.
+# Each service by its context prefix. A route takes the CoSec-Identity of a permitted request only when
+# it opts in (metadata cosec-identity: true) or targets lb://: these target a Kubernetes Service's URL.
 routes:
   - id: eshop-catalog
     uri: http://eshop-catalog-service
     predicates: [Path=/eshop-catalog/**]
+    metadata: { cosec-identity: true }
   - id: eshop-basket
     uri: http://eshop-basket-service
     predicates: [Path=/eshop-basket/**]
+    metadata: { cosec-identity: true }
 ```
 
 The gateway verifies each request's token with CoSec's signing secret (`cosec.jwt.secret`), decides it by the documents and forwards the identity. Its settings and the documents' format are CoSec's: [Deploying the gateway server](https://cosec.ahoo.me/operations/deployment), [The first documents](https://cosec.ahoo.me/operations/storage#the-first-documents), [Configuration](https://cosec.ahoo.me/operations/configuration). A coarse document at the gateway, such as one that lets any authenticated principal through, leaves what each caller may do to the services' own authorizers.

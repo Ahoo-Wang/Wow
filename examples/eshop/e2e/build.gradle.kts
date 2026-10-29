@@ -216,6 +216,11 @@ val clusterTestSourceSet = sourceSets.create("clusterTest") {
 configurations["clusterTestImplementation"].extendsFrom(configurations["soakTestImplementation"])
 configurations["clusterTestRuntimeOnly"].extendsFrom(configurations["soakTestRuntimeOnly"])
 
+dependencies {
+    // The CoSec-Identity header the gateway forwards (IdentityCodec), for the probe that reaches a service around it.
+    "clusterTestImplementation"("me.ahoo.cosec:cosec-runtime:${libs.versions.cosec.get()}")
+}
+
 tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
     source(files("src/clusterTest/kotlin"))
 }
@@ -237,4 +242,29 @@ tasks.register<Test>("clusterTest") {
     testLogging {
         showStandardStreams = true
     }
+}
+
+// The CoSec gateway's documents of the GA end-to-end cluster (.github/ga-e2e/gateway/documents), published into its
+// Redis before it starts: `cosec-migrate publish`, CoSec's command line, run on its own class path by
+// .github/ga-e2e/cluster.sh (`./gradlew :eshop-e2e:cosecMigrate --args="publish --to-redis <uri> --in <dir>"`).
+val cosecMigrateClasspath = configurations.create("cosecMigrateClasspath") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+        attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE, objects.named(TargetJvmEnvironment.STANDARD_JVM))
+    }
+}
+
+dependencies {
+    "cosecMigrateClasspath"("me.ahoo.cosec:cosec-migrate:${libs.versions.cosec.get()}")
+}
+
+tasks.register<JavaExec>("cosecMigrate") {
+    description = "Runs cosec-migrate (CoSec's documents publisher) with --args; the GA end-to-end cluster's step."
+    classpath = cosecMigrateClasspath
+    mainClass.set("me.ahoo.cosec.migrate.MigrateMain")
 }

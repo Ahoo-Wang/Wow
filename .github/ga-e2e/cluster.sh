@@ -18,9 +18,9 @@
 #   cluster.sh images             build every service's image from its Gradle distribution (installDist done)
 #   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
 #                                 enforced), and the images loaded into it
-#   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway, its Redis and the
-#                                 flaky upstream behind it, the probe pods, and on the mongo arm the replica set and
-#                                 Elasticsearch
+#   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway, its Redis with its
+#                                 documents published and the flaky upstream behind it, the probe pods, and on the mongo
+#                                 arm the replica set and Elasticsearch
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too) and the events
@@ -120,11 +120,35 @@ backends() {
     kubectl logs job/mongodb-init | tail -5
     kubectl rollout status statefulset/elasticsearch --timeout=300s
   fi
-  # The gateway does not start without its Redis.
+  # The gateway does not start without its Redis, and refuses traffic until its documents are there.
+  documents
   kubectl apply -f "$here/gateway/gateway.yaml" -f "$here/gateway/flaky.yaml"
   kubectl rollout status deployment/cosec-gateway --timeout=420s
   kubectl rollout status deployment/flaky --timeout=120s
   kubectl wait --for=condition=Ready pod/outsider pod/insider --timeout=120s
+}
+
+# The gateway's documents (gateway/documents) published into its Redis by `cosec-migrate publish` (CoSec's command line,
+# run by the e2e project on its class path), through a port-forward: first revisions only, never overwritten. publish
+# reads the SHA-256 of each document from a report.json, which `cosec-migrate convert` writes for converted 7.x data
+# and this step writes for the documents written by hand.
+documents() {
+  local dir forward file sums='{}'
+  dir=$(mktemp -d)
+  cp -R "$here/gateway/documents/." "$dir/"
+  while IFS= read -r file; do
+    sums=$(jq --arg file "$file" --arg sha "$(sha256sum "$dir/$file" | cut -d' ' -f1)" '. + {($file): $sha}' <<<"$sums")
+  done < <(cd "$dir" && find . -type f -name '*.json' | sed 's|^\./||' | sort)
+  jq -n --argjson sums "$sums" '{accepted: true, outputSha256: $sums}' >"$dir/report.json"
+  kubectl port-forward service/redis 16379:6379 >/dev/null 2>&1 &
+  forward=$!
+  for _ in $(seq 1 30); do
+    if (exec 3<>/dev/tcp/127.0.0.1/16379) 2>/dev/null; then break; fi
+    sleep 1
+  done
+  "$root/gradlew" -p "$root" --quiet :eshop-e2e:cosecMigrate \
+    --args="publish --to-redis redis://127.0.0.1:16379 --in $dir" || { kill "$forward"; return 1; }
+  kill "$forward" 2>/dev/null || true
 }
 
 # The overlay of one service on the arm (services/<service>, deploy/<service> with the scenarios' settings): on the
