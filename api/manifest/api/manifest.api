@@ -278,6 +278,9 @@ public final class me/ahoo/wow/manifest/PeerContracts {
 	public final fun contractOf (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/manifest/Manifest;
 	public static synthetic fun contractOf$default (Lme/ahoo/wow/manifest/PeerContracts;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 	public final fun outside (Ljava/util/Collection;Ljava/util/List;)Ljava/util/List;
+	public final fun packageOf (Ljava/util/List;)Ljava/lang/String;
+	public final fun viewsOf (Lme/ahoo/wow/manifest/ContextManifest;Ljava/util/Map;)Ljava/util/Map;
+	public final fun withViews (Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/PublishedManifest {
@@ -393,6 +396,7 @@ public final class me/ahoo/wow/manifest/StateManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFingerprint ()Ljava/lang/String;
 	public final fun getSchema ()Ljava/lang/String;
+	public final fun getView ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

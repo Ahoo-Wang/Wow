@@ -1,0 +1,44 @@
+public final class me/ahoo/wow/cocache/StateViewCacheRegistrar : org/springframework/beans/factory/support/BeanDefinitionRegistryPostProcessor {
+	public static final field Companion Lme/ahoo/wow/cocache/StateViewCacheRegistrar$Companion;
+	public fun <init> ()V
+	public fun postProcessBeanDefinitionRegistry (Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+	public fun postProcessBeanFactory (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)V
+}
+
+public final class me/ahoo/wow/cocache/StateViewCacheRegistrar$Companion {
+	public final fun beanNameOf (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/cocache/StateViewCaches {
+	public static final field Companion Lme/ahoo/wow/cocache/StateViewCaches$Companion;
+	public fun <init> (Lme/ahoo/wow/cocache/StateViewCaches$CacheFactory;Lkotlin/jvm/functions/Function0;)V
+	public final fun declare (Ljava/util/Collection;)V
+	public final fun of (Ljava/lang/Class;)Lme/ahoo/wow/cocache/api/StateViewCache;
+}
+
+public abstract interface class me/ahoo/wow/cocache/StateViewCaches$CacheFactory {
+	public static final field Companion Lme/ahoo/wow/cocache/StateViewCaches$CacheFactory$Companion;
+	public abstract fun create (Lme/ahoo/cocache/core/CacheSpec;)Lme/ahoo/cocache/api/Cache;
+}
+
+public final class me/ahoo/wow/cocache/StateViewCaches$CacheFactory$Companion {
+	public final fun of (Lme/ahoo/cocache/core/CacheRuntime;)Lme/ahoo/wow/cocache/StateViewCaches$CacheFactory;
+}
+
+public final class me/ahoo/wow/cocache/StateViewCaches$Companion {
+	public final fun nameOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
+	public final fun specOf (Ljava/lang/Class;Lkotlin/jvm/functions/Function0;)Lme/ahoo/cocache/core/CacheSpec;
+	public final fun typeOf (Ljava/lang/Class;)Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/cocache/WowCoCacheAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/cocache/WowCoCacheAutoConfiguration$Companion;
+	public fun <init> ()V
+	public static final fun wowStateViewCacheRegistrar ()Lme/ahoo/wow/cocache/StateViewCacheRegistrar;
+	public final fun wowStateViewCaches (Lme/ahoo/cocache/core/CacheRuntime;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/cocache/StateViewCaches;
+}
+
+public final class me/ahoo/wow/cocache/WowCoCacheAutoConfiguration$Companion {
+	public final fun wowStateViewCacheRegistrar ()Lme/ahoo/wow/cocache/StateViewCacheRegistrar;
+}
+

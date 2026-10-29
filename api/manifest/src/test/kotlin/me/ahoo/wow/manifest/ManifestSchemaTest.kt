@@ -53,6 +53,7 @@ class ManifestSchemaTest {
         }
         val aggregates = context.aggregates.map { aggregate ->
             aggregate.copyWith(
+                state = aggregate.state.copyWith(view = "sample.CartStateView"),
                 snapshot = SnapshotManifest(true, 2),
                 schedules = listOf("shop.cart.PutItem"),
                 ownership = Ownership.TENANT,

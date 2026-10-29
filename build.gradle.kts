@@ -82,7 +82,7 @@ val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-loa
 val moduleProjects = listOf(
     "annotations", "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
-    "observability", "spring-boot", "cosid",
+    "observability", "spring-boot", "cosid", "cocache-api", "cocache",
     "models", "migrate-data", "architecture",
     "test-dsl", "test-query", "test-spring-boot", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
@@ -94,7 +94,8 @@ val moduleProjects = listOf(
 // The contract modules without a third-party runtime dependency of their own (R5.C-4, G8): they import no platform
 // but the coroutines BOM :api's coroutines dependency takes its version from, and leave out the SLF4J every other
 // module logs with, so an application's domain module that depends on them keeps its own versions of everything.
-val coreContractProjects = includedProjects(":annotations", ":api", ":query-api", ":manifest")
+// wow-cocache-api, the cache of the state views a domain injects (D364), is one too.
+val coreContractProjects = includedProjects(":annotations", ":api", ":query-api", ":manifest", ":cocache-api")
 
 // The modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
@@ -104,7 +105,7 @@ val abiProjects = includedProjects(
     ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":observability", ":spring-boot",
-    ":cosid", ":models", ":test-dsl", ":test-query", ":test-spring-boot", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":cocache-api", ":cocache", ":models", ":test-dsl", ":test-query", ":test-spring-boot", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
@@ -162,6 +163,7 @@ val integrationTestProjects = includedProjects(
     ":clickhouse",
     ":elasticsearch",
     ":spring-boot",
+    ":cocache",
     ":routing-spike",
     ":lease-spike",
     ":eshop-ordering-server",
@@ -415,6 +417,7 @@ allprojects {
         buildPlatform(platform(rootProject.libs.spring.boot.dependencies))
         buildPlatform(platform(rootProject.libs.jsonschema.generator.bom))
         buildPlatform(platform(rootProject.libs.cosid.bom))
+        buildPlatform(platform(rootProject.libs.cocache.bom))
         buildPlatform(platform(rootProject.libs.opentelemetry.bom))
         buildPlatform(platform(rootProject.libs.opentelemetry.instrumentation.bom))
         buildPlatform(platform(rootProject.libs.springdoc.bom))

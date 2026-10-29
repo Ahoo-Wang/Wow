@@ -1,0 +1,16 @@
+public final class me/ahoo/wow/cocache/api/StateKey {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/cocache/api/StateViewCache {
+	public fun get (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun get (Lme/ahoo/wow/cocache/api/StateKey;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getAll (Ljava/util/Collection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getName ()Ljava/lang/String;
+}
+

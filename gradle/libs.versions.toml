@@ -2,6 +2,7 @@
 # libraries
 spring-boot = "4.1.2"
 cosid = "3.4.1"
+cocache = "6.7.0"
 cosec = "6.1.2"
 testcontainers = "2.0.5"
 opentelemetry = "1.67.0"
@@ -31,6 +32,7 @@ publish-plugin = "2.0.0"
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
+cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
 cosec-jwt = { module = "me.ahoo.cosec:cosec-jwt", version.ref = "cosec" }
 cosec-spring-boot-starter = { module = "me.ahoo.cosec:cosec-spring-boot-starter", version.ref = "cosec" }

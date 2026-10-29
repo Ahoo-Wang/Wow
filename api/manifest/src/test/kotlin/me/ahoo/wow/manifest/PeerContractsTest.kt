@@ -152,6 +152,63 @@ class PeerContractsTest {
         PeerContracts.contractOf(contexts.map { fragment(it) }),
     )
 
+    /** A context of [aggregates], each `name` with its state `shop.<State>` and its classes in `shop.api`. */
+    private fun viewed(vararg aggregates: Pair<String, String>, published: List<PublishedManifest> = emptyList()) =
+        ContextManifest(
+            "shop",
+            aggregates = aggregates.map { (name, state) ->
+                Manifests.cart("shop", name).copyWith(
+                    state = StateManifest(Manifest.schemaRef(state)),
+                    commands = emptyList(),
+                    events = listOf(
+                        EventManifest("${name}Created", schema = Manifest.schemaRef("shop.api.${name}Created"))
+                    ),
+                )
+            },
+            published = published,
+        )
+
+    private val fields = mapOf("type" to "object", "properties" to mapOf("id" to mapOf("type" to "string")))
+
+    @Test
+    fun `each state the contract publishes should be viewed as its class's name followed by View`() {
+        val defs = mapOf(
+            "shop.OrderState" to fields + (CLASS_KEYWORD to "shop.domain.Order"),
+            "shop.CartState" to fields,
+            "shop.Empty" to mapOf("type" to "object"),
+            "shop.Secret" to fields,
+        )
+        val context = viewed(
+            "order" to "shop.OrderState",
+            "cart" to "shop.CartState",
+            "empty" to "shop.Empty",
+            "secret" to "shop.Secret",
+            published = listOf(PublishedManifest("secret", "t", includeState = false)),
+        )
+        PeerContracts.viewsOf(context, defs).assert()
+            .isEqualTo(mapOf("order" to "shop.api.OrderView", "cart" to "shop.api.CartStateView"))
+        val contract = PeerContracts.withViews(Manifest(contexts = listOf(context), defs = defs))
+        contract.contexts.single().aggregates.associate { it.name to it.state.view }.assert().isEqualTo(
+            mapOf(
+                "order" to "shop.api.OrderView",
+                "cart" to "shop.api.CartStateView",
+                "empty" to null,
+                "secret" to null
+            ),
+        )
+    }
+
+    @Test
+    fun `a state two aggregates share, or two states of one view name, should have no view`() {
+        val shared = viewed("order" to "shop.OrderState", "copy" to "shop.OrderState")
+        assertThrows<IllegalStateException> { PeerContracts.viewsOf(shared, mapOf("shop.OrderState" to fields)) }
+            .message.assert().contains("share the state shop.OrderState")
+        val clash = viewed("order" to "shop.a.OrderState", "other" to "shop.b.OrderState")
+        assertThrows<IllegalStateException> {
+            PeerContracts.viewsOf(clash, mapOf("shop.a.OrderState" to fields, "shop.b.OrderState" to fields))
+        }.message.assert().contains("would both be viewed as shop.api.OrderStateView")
+    }
+
     @Test
     fun `an api module should carry the contexts whose classes are all its own`() {
         val owned = setOf("sample.CreateCart", "sample.AddItem", "sample.CartCreated", "sample.ItemAdded")

@@ -49,6 +49,10 @@ object ArchitectureRules {
     val SPRING_BOOT = WowProject("spring-boot", "host/spring-boot")
     val COSID = WowProject("cosid", "extensions/cosid")
 
+    /** CoCache's shared state views (decision D364): the cache a domain injects, and what keeps it through CoCache. */
+    val COCACHE_API = WowProject("cocache-api", "extensions/cocache-api")
+    val COCACHE = WowProject("cocache", "extensions/cocache")
+
     /** 9.x wow-models ported (decision D187): capability interfaces and the reusable Tree aggregate. */
     val MODELS = WowProject("models", "extensions/models")
     val MIGRATE_DATA = WowProject("migrate-data", "migration/migrate-data")
@@ -121,7 +125,8 @@ object ArchitectureRules {
 
     val MODULES = listOf(
         ANNOTATIONS, API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
-        OPENAPI, HTTP, CLIENT, COSEC, OBSERVABILITY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        OPENAPI, HTTP, CLIENT, COSEC, OBSERVABILITY, SPRING_BOOT, COSID, COCACHE_API, COCACHE,
+        MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -256,6 +261,12 @@ object ArchitectureRules {
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host. The host
         // only for the tests, which generate the module's configuration metadata and check the host accepts its keys.
         COSID to setOf("spi", "spring-boot"),
+        // The cache of the state views a domain injects (decision D364): no dependency, so a domain module that
+        // depends on it pulls in neither CoCache nor Redis.
+        COCACHE_API to emptySet(),
+        // The views' cache through CoCache: the misses read through the node's typed queries and the views' JSON
+        // (spi), the views found in the peer contracts (manifest).
+        COCACHE to setOf("cocache-api", "manifest", "spi"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
