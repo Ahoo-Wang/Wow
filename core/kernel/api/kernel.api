@@ -33,6 +33,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun findEventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
 	public final fun findMountedCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun getCommandTypes ()Ljava/util/List;
+	public final fun getIdSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public final fun getLifecycleCommands ()Ljava/util/Set;
 	public final fun getMountedCommandTypes ()Ljava/util/List;
 	public final fun getOwnership ()Lme/ahoo/wow/api/aggregate/Ownership;
@@ -63,6 +64,7 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun id (Lme/ahoo/wow/api/aggregate/AggregateIdSource;)V
 	public final fun initial (Lkotlin/jvm/functions/Function1;)V
 	public final fun lifecycle ([Ljava/lang/Class;)V
 	public final fun ownership (Lme/ahoo/wow/api/aggregate/Ownership;)V

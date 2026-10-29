@@ -1,9 +1,18 @@
+public final class me/ahoo/wow/manifest/AggregateIdSource : java/lang/Enum {
+	public static final field ASSIGNED Lme/ahoo/wow/manifest/AggregateIdSource;
+	public static final field OWNER Lme/ahoo/wow/manifest/AggregateIdSource;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/AggregateIdSource;
+	public static fun values ()[Lme/ahoo/wow/manifest/AggregateIdSource;
+}
+
 public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getDomainCommands ()Ljava/util/List;
 	public final fun getEvents ()Ljava/util/List;
+	public final fun getIdSource ()Lme/ahoo/wow/manifest/AggregateIdSource;
 	public final fun getLifecycle ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOwnership ()Lme/ahoo/wow/manifest/Ownership;
@@ -51,6 +60,7 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 	public final fun jobRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Z)Ljava/util/List;
 	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;ZILjava/lang/Object;)Ljava/util/List;
+	public final fun ownDeleteRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun pathOf (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;)Ljava/lang/String;
 	public final fun routeOf (Ljava/util/List;Z)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun segment (Ljava/lang/String;)Ljava/lang/String;
@@ -472,7 +482,8 @@ public final class me/ahoo/wow/manifest/SystemCommands {
 	public static final field REBUILD Ljava/lang/String;
 	public final fun getJOBS ()Ljava/util/List;
 	public final fun jobs (Ljava/lang/String;)Ljava/util/List;
-	public final fun lifecycle (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
+	public final fun lifecycle (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/manifest/CommandManifest;
+	public static synthetic fun lifecycle$default (Lme/ahoo/wow/manifest/SystemCommands;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/CommandManifest;
 	public final fun rebuild (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 
