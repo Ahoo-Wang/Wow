@@ -171,7 +171,10 @@ class HttpCommandClientTest {
             client.wait(DeliverItems(listOf("mug")))
             // A trusted caller still names the id.
             client.wait(DeliverItems(listOf("cup")), "alice")
-            peer.taken.map { it.path }.assert().containsExactly("/mail/box/deliver-items", "/mail/box/alice/deliver-items")
+            peer.taken.map { it.path }.assert().containsExactly(
+                "/mail/box/deliver-items",
+                "/mail/box/alice/deliver-items"
+            )
             val root = CallWires.decode(peer.taken.first().headers.getValue(WowHeaders.CALL))
             root.ownerId.assert().isEqualTo("alice")
         }

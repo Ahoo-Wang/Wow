@@ -198,10 +198,10 @@ describe('Manifest clients', () => {
             },
             { name: 'Clear', schema: schema('a.Clear'), routes: both('clear') },
             {
-              name: 'Import',
+              name: 'Fetch',
               schema: schema('a.Clear'),
               mounted: true,
-              routes: both('import'),
+              routes: both('fetch'),
             },
             {
               name: 'wow.lifecycle.DeleteAggregate',
@@ -231,14 +231,14 @@ describe('Manifest clients', () => {
        void [
          commands.putOwn({ n: 1 }), commands.put('u1', { n: 1 }), commands.putOwnStream({ n: 1 }),
          commands.clearOwn(), commands.clear('u1'), commands.clearStream('u1'), commands.clearOwnStream(),
-         commands.import(), commands.import({}, { id: 'u1' }),
+         commands.fetch(), commands.fetch({}, { id: 'u1' }),
          commands.deleteAggregateOwn(), commands.deleteAggregate('u1'), commands.restoreAggregate('u1'),
          states.getOwn(), states.findOwn(), states.readOwn(), states.traceOwn(), states.get('u1'), source,
        ];`,
     );
     const client = read('probe/thing/commandClient.ts');
     expect(client).toContain(
-      'clearOwn(body: AClear = {}, options?: CommandOptions): Promise<CommandResult> {',
+      'clearOwn(body: Clear = {}, options?: CommandOptions): Promise<CommandResult> {',
     );
     expect(client).toContain(
       "return this.client.wait({ ...options, command: 'probe.thing.Clear', body });",
@@ -252,15 +252,17 @@ describe('Manifest clients', () => {
     expect(client).toContain(
       "By id, for a caller with no owner; `clearOwn` sends it to the caller's own.",
     );
-    expect(client).toContain('put(id: string, body: APut, options?: CommandOptions)');
-    // A mounted command's route by no id is the transformer's, not the caller's own.
-    expect(client).not.toContain('importOwn');
     expect(client).toContain(
-      'import(body: AClear = {}, options?: CreateCommandOptions)',
+      'put(id: string, body: Put, options?: CommandOptions)',
+    );
+    // A mounted command's route by no id is the transformer's, not the caller's own.
+    expect(client).not.toContain('fetchOwn');
+    expect(client).toContain(
+      'fetch(body: Clear = {}, options?: CreateCommandOptions)',
     );
     expect(client).not.toContain('restoreAggregateOwn');
     expect(read('probe/thing/queryClient.ts')).toContain(
-      'export class ThingStateClient extends OwnStateClient<AThingState, ThingEvent> {',
+      'export class ThingStateClient extends OwnStateClient<ThingState, ThingEvent> {',
     );
     expect(read('probe/thing/aggregate.ts')).toContain("idSource: 'owner',");
   });

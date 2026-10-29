@@ -2543,6 +2543,11 @@
               "type" : "string"
             },
             "description" : "The events the aggregate no longer produces."
+          },
+          "idSource" : {
+            "type" : "string",
+            "enum" : [ "assigned", "owner" ],
+            "description" : "Where an aggregate's id comes from; assigned when absent."
           }
         }
       },

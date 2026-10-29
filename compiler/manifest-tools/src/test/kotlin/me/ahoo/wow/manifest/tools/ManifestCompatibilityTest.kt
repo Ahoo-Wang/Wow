@@ -656,7 +656,9 @@ class ManifestCompatibilityTest {
                     if (command.system) {
                         SystemCommands.lifecycle("shop", "cart", command.name, owned = true)
                     } else {
-                        command.copyWith(routes = CommandRoutes.of("shop", "cart", command.name, command.creation, true))
+                        command.copyWith(
+                            routes = CommandRoutes.of("shop", "cart", command.name, command.creation, true)
+                        )
                     }
                 },
             )
