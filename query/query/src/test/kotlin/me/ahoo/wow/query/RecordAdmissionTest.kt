@@ -111,6 +111,22 @@ class RecordAdmissionTest {
     }
 
     @Test
+    fun `one admission should read many records alike, and follow a schema it is handed anew`() {
+        val admission = QueryAdmission(
+            aggregateType,
+            policies = listOf(QueryPolicy { _, _ -> GreaterThanFilter(QueryField("state.count"), 1) }),
+        )
+        // Two reads under one schema: the second evaluates as the first did.
+        admits(admission, record(), schema).assert().isTrue()
+        admits(admission, record(), schema).assert().isTrue()
+        admits(admission, record().also { (it.get("state") as ObjectNode).put("count", 0) }, schema).assert().isFalse()
+        // A schema that no longer knows the field, as after a redeclaration: the policy then fails closed.
+        val narrowed = boundSchemaFixture(snapshotFixture(objectFixture("name" to scalarFixture())))
+        admits(admission, record(), narrowed).assert().isFalse()
+        admits(admission, record(), schema).assert().isTrue()
+    }
+
+    @Test
     fun `what cannot be evaluated here should fail closed`() {
         fun policy(filter: FilterExpression) = QueryAdmission(
             aggregateType,
