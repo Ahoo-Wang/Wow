@@ -162,11 +162,11 @@ class WowClient private constructor(
                 "Name the client's mode: service(name), as a service calls a peer, or user(credential), forwarding the " +
                     "end user's."
             }
-            val owned = if (httpClient == null) HttpCommandCaller.client(connectTimeout) else null
+            val client = httpClient ?: HttpCommandCaller.client(connectTimeout)
             val transport = HttpTransport(
                 endpoints,
                 mode,
-                httpClient ?: checkNotNull(owned),
+                client,
                 timeout,
                 retry,
                 timeouts.toMap(),
@@ -186,7 +186,8 @@ class WowClient private constructor(
                     described = manifestPeers.takeIf { it.isNotEmpty() }?.let { ManifestPeers(it, transport) },
                 ),
                 HttpQueryApi(transport, PeerModels.of(manifests), ids),
-                owned,
+                // Closed with the client when the builder made it.
+                client.takeIf { httpClient == null },
             )
         }
     }
