@@ -73,6 +73,15 @@ class KernelHistoryTest {
     private fun CachedState?.items(): Map<String, Int> = (this!!.state as CartState).items
 
     @Test
+    fun `a stream at a version is read alone, and none past the head`(): Unit = runBlocking {
+        history()
+        kernel.streamAt(ref, 3)!!.commitTime.assert().isEqualTo(3000L)
+        log.streamsRead.assert().isEqualTo(1)
+        kernel.streamAt(ref, 5).assert().isNull()
+        runCatching { kernel.streamAt(ref, 0) }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
     fun `a time before the first commit has no state`(): Unit = runBlocking {
         val snapshot = history()
         kernel.stateAt(cartModel, ref, millis(999)).assert().isNull()

@@ -56,7 +56,7 @@ class HistoryRoutesTest {
         answer.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         answer.body!!["version"].asInt().assert().isEqualTo(2)
         answer.body!!["state"]["items"].asInt().assert().isEqualTo(3)
-        answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        answer.body!!["ownerId"].asString().assert().isEqualTo("alice")
         // Exact boundaries: a commit is in the state from its millisecond on.
         at("1970-01-01T00:00:01Z").body!!["version"].asInt().assert().isEqualTo(1)
         at("1970-01-01T00:00:03Z").body!!["version"].asInt().assert().isEqualTo(3)

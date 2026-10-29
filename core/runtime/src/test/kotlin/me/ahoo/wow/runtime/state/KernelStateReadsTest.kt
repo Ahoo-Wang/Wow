@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -124,6 +125,34 @@ class KernelStateReadsTest {
             read.version.assert().isEqualTo(1)
             read.state["items"].asInt().assert().isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `a replayed state tells its first commit and its last, as a snapshot does (D348 ⑦)`(): Unit = runBlocking {
+        addItems(3)
+        // From version 1: the first stream's time and operator, and the one read's.
+        val latest = reads.latest(cart)!!
+        latest.firstEventTime.assert().isEqualTo(1000L)
+        latest.firstOperator.assert().isEqualTo(Operator.of("op-1", "t"))
+        latest.lastEventTime.assert().isEqualTo(3000L)
+        latest.operator.assert().isEqualTo(Operator.of("op-3", "t"))
+        val second = reads.at(cart, 2)!!
+        second.lastEventTime.assert().isEqualTo(2000L)
+        second.operator.assert().isEqualTo(Operator.of("op-2", "t"))
+        reads.at(cart, 1)!!.firstOperator.assert().isEqualTo(Operator.of("op-1", "t"))
+        // From a snapshot: its first commit's, whatever its version, and the stream read's.
+        val first = Operator.of("creator", "t")
+        snapshots.save(
+            EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 3 }, 2, Scope("alice"), 500L, 2000L)
+                .copyWith(firstOperator = first),
+        )
+        val replayed = reads.at(cart, 3)!!
+        replayed.firstEventTime.assert().isEqualTo(500L)
+        replayed.firstOperator.assert().isEqualTo(first)
+        replayed.lastEventTime.assert().isEqualTo(3000L)
+        replayed.operator.assert().isEqualTo(Operator.of("op-3", "t"))
+        reads.at(cart, 1)!!.firstOperator.assert().isEqualTo(first)
+        reads.latest(cart)!!.firstOperator.assert().isEqualTo(first)
     }
 
     private fun waiting(wait: Duration) = KernelStateReads(
@@ -260,6 +289,7 @@ class KernelStateReadsTest {
                     commitTime = 1000L * version,
                     events = listOf(EventCodec().encode(cartModel, ItemAdded(version))),
                     scope = Scope("alice", null),
+                    operator = Operator.of("op-$version", "t"),
                 ),
             )
         }

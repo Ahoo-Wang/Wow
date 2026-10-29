@@ -304,7 +304,7 @@ internal class OpenApiPaths(
     }
 
     private fun stateRoutes(tag: String, path: String, state: Map<String, Any?>) {
-        val view = refined(WowSchemas.STATE_VIEW, "state" to state)
+        val view = refined(WowSchemas.SNAPSHOT, "state" to state)
         val readParameters = listOf(
             OpenApiParameters.ID,
             Http.VERSION_PARAMETER,
@@ -361,8 +361,8 @@ internal class OpenApiPaths(
 
     private fun queryRoutes(tag: String, query: QueryManifest, state: Map<String, Any?>) {
         val record = when (query.model) {
-            QueryRoutes.SNAPSHOT -> refined(WowSchemas.SNAPSHOT_RECORD, "state" to state)
-            QueryRoutes.EVENTS -> schemaRef(WowSchemas.EVENT_STREAM_RECORD)
+            QueryRoutes.SNAPSHOT -> refined(WowSchemas.SNAPSHOT, "state" to state)
+            QueryRoutes.EVENTS -> schemaRef(WowSchemas.EVENT_STREAM)
             // A model the edge does not know is not served.
             else -> null
         } ?: return
