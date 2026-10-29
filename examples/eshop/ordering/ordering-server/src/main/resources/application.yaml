@@ -30,6 +30,11 @@ eshop:
 # one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
 # node does not start (decision D301).
 wow.cosec.mode: disabled
+# CoCache shares the orders on Redis in the `redis` profile below alone: without it, the node runs no cache and checks
+# no Redis health.
+cocache:
+  enabled: false
+management.health.redis.enabled: false
 ---
 # On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
 # the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
@@ -93,6 +98,27 @@ wow:
     endpoint: http://localhost:8123
     sink:
       enabled: true
+# endregion
+---
+# region redis
+# The orders shared through CoCache (wow-cocache): after each commit the node writes the order into the cache, at its
+# version, and the payment service reads it there (its `redis` profile) as `StateViewCache<OrderStateView>`.
+spring:
+  config:
+    activate:
+      on-profile: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+cocache:
+  enabled: true
+  backend: redis
+wow:
+  cocache:
+    publish:
+      - eshop-ordering.order
+management.health.redis.enabled: true
 # endregion
 ---
 # region cosec

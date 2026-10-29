@@ -13,6 +13,8 @@ description = "Wow eShop: end-to-end tests across the eShop's services"
 //   reads only one of them.
 // - EshopPaymentFlowTest runs the ordering, inventory and payment services the same way: the payment the simulated
 //   gateway approves pays the order, and the one it declines cancels it and releases its stock (work package E.5).
+//   The ordering and the payment run their `redis` profile on Redis in a container: the ordering writes its orders into
+//   CoCache, and the payment's gateway saga reads them there (decision D364).
 // - EshopFullChainTest runs all five services the same way through EshopStack, with ClickHouse for the ordering's
 //   sales dataset (work package E.6): the full chain with one Wow-Wait from the checkout to the paid order, the short
 //   stock's cancellation, the sales dataset, and an ordering node killed mid-flow and replaced.
@@ -56,6 +58,9 @@ dependencies {
     integrationTestImplementation("org.springframework.boot:spring-boot")
     // CatalogPostgresTest, EshopSharedJvmTest and EshopSyncCallTest start their services in this JVM (wowServer).
     integrationTestImplementation(project(":test-spring-boot"))
+    // EshopPaymentFlowTest reads the ordering's orders from CoCache on Redis, as a third service does.
+    integrationTestImplementation("me.ahoo.wow:wow-cocache")
+    integrationTestImplementation("me.ahoo.cocache:cocache-redis")
     // The order flow's test creates the Kafka topics and runs PostgreSQL and Kafka in containers.
     integrationTestImplementation("org.apache.kafka:kafka-clients")
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")

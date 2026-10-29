@@ -24,6 +24,9 @@ package me.ahoo.wow.cocache.api
  *   an absent one too, for a while.
  * - **Declared by no one.** A service injects `StateViewCache<OrderStateView>`: everything else (the cache's name,
  *   its keys, the view's JSON) follows from the view, on the owner and on every reader alike.
+ * - **When it cannot serve.** A state the cache does not hold, whose owner cannot be read now, is a
+ *   [StateViewUnavailableException]. A read for the reader's own use (a name, a description) may fall back on it; a
+ *   read a decision rests on must not, and fails as the owner's read fails.
  * - **A trusted read.** The cache holds the full view as this service's identity sees it, for every tenant and owner:
  *   never return it to an end user as it is, nor decide by it what the owner alone decides. A command's decision rests
  *   on its own aggregate's state; a check that must be consistent is the owner's, which rejects the command.
@@ -32,12 +35,26 @@ interface StateViewCache<V : Any> {
     /** The cache's name, as the cache metrics and the cache settings name it. */
     val name: String
 
-    /** The state of the aggregate [key] names, `null` when it does not exist or is deleted. */
+    /**
+     * The state of the aggregate [key] names, `null` when it does not exist or is deleted.
+     *
+     * @throws StateViewUnavailableException when the cache does not hold it and its owner cannot be read now, or
+     *   the cache's backend fails: a read that may fall back catches exactly this.
+     */
     suspend fun get(key: StateKey): V?
 
-    /** The state of the aggregate [id] of [tenantId], `null` when it does not exist or is deleted. */
+    /**
+     * The state of the aggregate [id] of [tenantId], `null` when it does not exist or is deleted.
+     *
+     * @throws StateViewUnavailableException as [get] of a key does.
+     */
     suspend fun get(tenantId: String, id: String): V? = get(StateKey(tenantId, id))
 
-    /** The states of the aggregates [keys] name, those that exist: one read of the cache, one of the owner. */
+    /**
+     * The states of the aggregates [keys] name, those that exist: one read of the cache, one of the owner.
+     *
+     * @throws StateViewUnavailableException when the cache does not hold some of them and their owner cannot be
+     *   read now, or the cache's backend fails.
+     */
     suspend fun getAll(keys: Collection<StateKey>): Map<StateKey, V>
 }

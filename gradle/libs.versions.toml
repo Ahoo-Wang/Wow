@@ -33,6 +33,7 @@ publish-plugin = "2.0.0"
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
+cocache-spring-boot-starter = { module = "me.ahoo.cocache:cocache-spring-boot-starter", version.ref = "cocache" }
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
 cosec-jwt = { module = "me.ahoo.cosec:cosec-jwt", version.ref = "cosec" }
 cosec-spring-boot-starter = { module = "me.ahoo.cosec:cosec-spring-boot-starter", version.ref = "cosec" }

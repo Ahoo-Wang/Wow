@@ -250,6 +250,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Host on Spring Boot', link: 'spring-boot'},
                 {text: 'Write the Domain in Java', link: 'java'},
                 {text: 'Reactor, Ids and Models', link: 'extensions'},
+                {text: 'Share State through CoCache', link: 'extensions/cocache'},
                 {text: 'Host without Spring', link: 'without-spring'},
             ],
         },

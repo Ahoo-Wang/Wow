@@ -5,7 +5,7 @@ description: Keep writing handlers in Reactor with wow-reactor, take ids from Co
 
 # Reactor, Ids and Models
 
-Three optional modules extend what a domain can use. None is needed: a service without them writes `suspend` functions, takes UUIDv7 ids and defines its own models.
+Three optional modules extend what a domain can use. None is needed: a service without them writes `suspend` functions, takes UUIDv7 ids and defines its own models. A fourth, `wow-cocache`, shares aggregate states between services: [Share State through CoCache](./extensions/cocache).
 
 ## Reactor handlers: `wow-reactor`
 

@@ -45,6 +45,10 @@ dependencies {
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
+    // The ordering's shared cache of its orders (wow-cocache), which the gateway saga reads: on CoCache's memory backend
+    // by default, on Redis in the `redis` profile, where the ordering service writes it.
+    implementation("me.ahoo.wow:wow-cocache")
+    implementation(libs.cocache.spring.boot.starter)
     // Tests refer to the ordering's orders by its generated contract.
     testImplementation(project(":eshop-ordering-api"))
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
