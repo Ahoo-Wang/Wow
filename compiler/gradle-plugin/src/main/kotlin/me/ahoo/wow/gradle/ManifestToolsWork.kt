@@ -85,6 +85,69 @@ internal object ManifestToolsWork {
         }
     }
 
+    /** Writes a domain module's peer contract (`ManifestTools.generateContract`). */
+    abstract class GenerateContract : WorkAction<GenerateContract.Parameters> {
+        interface Parameters : WorkParameters {
+            val fragments: ConfigurableFileCollection
+            val service: Property<String>
+            val module: Property<String>
+            val unpaired: MapProperty<String, String>
+            val output: RegularFileProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "generateContract",
+                parameters.fragments.files.toList<File>(),
+                parameters.service.orNull,
+                parameters.module.get(),
+                parameters.unpaired.get(),
+                parameters.output.get().asFile,
+            )
+        }
+    }
+
+    /** Assembles the contract an api module's jar carries (`ManifestTools.assembleContract`). */
+    abstract class AssembleContract : WorkAction<AssembleContract.Parameters> {
+        interface Parameters : WorkParameters {
+            val contracts: ConfigurableFileCollection
+            val owners: MapProperty<String, String>
+            val classes: ConfigurableFileCollection
+            val owner: Property<String>
+            val output: DirectoryProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "assembleContract",
+                parameters.contracts.files.toList<File>(),
+                parameters.owners.get(),
+                parameters.classes.files.toList<File>(),
+                parameters.owner.get(),
+                parameters.output.get().asFile,
+            )
+        }
+    }
+
+    /** Writes the OpenAPI document of the service's merged Manifest (`ManifestTools.generateOpenApi`). */
+    abstract class GenerateOpenApi : WorkAction<GenerateOpenApi.Parameters> {
+        interface Parameters : WorkParameters {
+            val manifest: RegularFileProperty
+            val output: RegularFileProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "generateOpenApi",
+                parameters.manifest.get().asFile,
+                parameters.output.get().asFile
+            )
+        }
+    }
+
     /** Generates the Kotlin sources of an api module's contract (`ManifestTools.generateContractSources`). */
     abstract class GenerateContractSources : WorkAction<GenerateContractSources.Parameters> {
         interface Parameters : WorkParameters {

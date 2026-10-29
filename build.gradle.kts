@@ -437,6 +437,20 @@ allprojects {
     configurations.matching { it.isCanBeResolved && it.name.isBuildClasspath() }.configureEach {
         extendsFrom(buildPlatform)
     }
+    // A project of the build declares Wow by its coordinates, as a user's build does: the examples, the platform
+    // services, the test applications, and what the Gradle plugin adds (wow-bom, wow-kernel, wow-api, wow-compiler,
+    // wow-manifest-tools). Each resolves to the project that publishes it (D363 ⑤).
+    configurations.configureEach {
+        resolutionStrategy.dependencySubstitution {
+            (releaseProjects - bomProjects).forEach { published ->
+                substitute(module("me.ahoo.wow:${published.artifactName()}")).using(project(published.path))
+            }
+            // A BOM is requested as a platform, and resolves to the project's platform variant.
+            bomProjects.forEach { bom ->
+                substitute(platform(module("me.ahoo.wow:${bom.artifactName()}"))).using(platform(project(bom.path)))
+            }
+        }
+    }
     apply<DetektPlugin>()
     configure<DetektExtension> {
         config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))

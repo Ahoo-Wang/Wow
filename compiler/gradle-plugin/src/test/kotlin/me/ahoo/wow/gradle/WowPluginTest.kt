@@ -15,8 +15,6 @@ package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspExtension
 import groovy.json.JsonSlurper
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -28,7 +26,6 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.manifest.tools.ManifestJson
-import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.ProjectConfigurationException
@@ -41,7 +38,6 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.util.GradleVersion
-import org.gradle.workers.WorkQueue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -129,15 +125,7 @@ class WowPluginTest {
         vendored.dependencies.add("ksp", vendored.files("libs/wow-compiler-10.0.0.jar"))
         vendored.configurations.getByName("ksp").incoming.dependencies.filterIsInstance<ExternalModuleDependency>()
             .assert().isEmpty()
-        // Wow's own build declares the compiler project; another processor, Wow's or not, leaves it to the plugin.
-        val root = ProjectBuilder.builder().withProjectDir(File(directory, "repo")).withName("wow").build()
-        ProjectBuilder.builder().withParent(root).withName("compiler").build().group = "me.ahoo.wow"
-        val own = ProjectBuilder.builder().withParent(root).withName("sample").build().also { sample ->
-            sample.pluginManager.apply("me.ahoo.wow")
-            sample.pluginManager.apply("org.jetbrains.kotlin.jvm")
-            sample.dependencies.add("ksp", sample.dependencies.project(mapOf("path" to ":compiler")))
-        }
-        own.configurations.getByName("ksp").incoming.dependencies.map { it.name }.assert().containsExactly("compiler")
+        // Another processor, Wow's or not, leaves it to the plugin.
         val other = project()
         other.dependencies.add("ksp", "sample:processor:1.0.0")
         other.dependencies.add("ksp", "me.ahoo.wow:wow-models:1.0.0")
@@ -320,7 +308,7 @@ class WowPluginTest {
         openApi.outputFile.get().asFile.assert().isEqualTo(output)
         ManifestJson.write(Manifest(service = ServiceInfo("shop", "1.0.0"), errors = FrameworkErrors.ALL), manifest)
 
-        openApi.generate()
+        openApi.submit(inProcessQueue(project))
 
         val document = JsonSlurper().parse(output) as Map<*, *>
         document["openapi"].assert().isEqualTo("3.1.0")
@@ -388,7 +376,7 @@ class WowPluginTest {
             unpaired.set(emptyMap())
         }
 
-        task.generate()
+        task.submit(inProcessQueue(project))
 
         val contract = ManifestJson.read(File(directory, "build/wow/contract.json"))
         contract.service.assert().isNull()
@@ -404,7 +392,7 @@ class WowPluginTest {
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
             unpaired.set(emptyMap())
-        }.generate()
+        }.submit(inProcessQueue(project))
 
         ManifestJson.read(File(directory, "build/wow/contract.json")).service.assert()
             .isEqualTo(ServiceInfo("shop-service"))
@@ -442,21 +430,7 @@ class WowPluginTest {
         check.owner.get().assert().isEqualTo("project ':'")
         val update = project.tasks.getByName(WowPlugin.UPDATE_BASELINE_TASK) as UpdateManifestBaseline
         update.tools.from.assert().contains(project.configurations.getByName(WowPlugin.TOOLS_CONFIGURATION))
-        val queue = mockk<WorkQueue>()
-        every { queue.submit(ManifestToolsWork.CheckCompatibility::class.java, any()) } answers {
-            val parameters = project.objects.newInstance(ManifestToolsWork.CheckCompatibility.Parameters::class.java)
-            secondArg<Action<ManifestToolsWork.CheckCompatibility.Parameters>>().execute(parameters)
-            object : ManifestToolsWork.CheckCompatibility() {
-                override fun getParameters() = parameters
-            }.execute()
-        }
-        every { queue.submit(ManifestToolsWork.RecordBaseline::class.java, any()) } answers {
-            val parameters = project.objects.newInstance(ManifestToolsWork.RecordBaseline.Parameters::class.java)
-            secondArg<Action<ManifestToolsWork.RecordBaseline.Parameters>>().execute(parameters)
-            object : ManifestToolsWork.RecordBaseline() {
-                override fun getParameters() = parameters
-            }.execute()
-        }
+        val queue = inProcessQueue(project)
 
         assertThrows<IllegalStateException> { check.submit(queue) }.message.assert()
             .contains("project ':' has no Manifest baseline", "run updateWowManifestBaseline of project ':'")
@@ -537,6 +511,13 @@ class WowPluginTest {
         own.pluginManager.apply(WowPlugin.ID)
         own.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
             .doesNotContain("testImplementation")
+        // A source set of that name the build creates itself, without a suite.
+        val sourceSet = ProjectBuilder.builder().withProjectDir(File(directory, "set")).withName("set").build()
+        sourceSet.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        sourceSet.extensions.getByType(SourceSetContainer::class.java).create(WowPlugin.INTEGRATION_TEST)
+        sourceSet.pluginManager.apply(WowPlugin.ID)
+        sourceSet.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+            .findByName(WowPlugin.INTEGRATION_TEST).assert().isNull()
     }
 
     @Test
@@ -579,14 +560,15 @@ class WowPluginTest {
             fragments.setFrom(fragment)
             unpaired.set(mapOf(apiClasses.path to ":shop-api", File(directory, "missing").path to ":other"))
         }
-        assertThrows<GradleException> { task.generate() }.message.assert().contains(
+        val queue = inProcessQueue(project)
+        assertThrows<IllegalStateException> { task.submit(queue) }.message.assert().contains(
             "The contract of project ':' reaches no api module",
             "context shop has its classes sample.AddItem in project ':shop-api', which does not pair with project ':'",
             "apply id(\"me.ahoo.wow.api\") and add dependencies { wowContract(project(\":\")) }",
         )
         // Paired, the api's classes are a core view, which is no unpaired entry.
         task.unpaired.set(emptyMap())
-        task.generate()
+        task.submit(queue)
         ManifestJson.read(
             File(directory, "build/wow/contract.json")
         ).contexts.map { it.name }.assert().containsExactly("shop")

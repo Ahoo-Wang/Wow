@@ -1,0 +1,472 @@
+{
+  "format" : 1,
+  "line" : 10,
+  "service" : {
+    "name" : "bank-service"
+  },
+  "contexts" : [ {
+    "name" : "bank",
+    "description" : "Accounts and their balances",
+    "aggregates" : [ {
+      "name" : "account",
+      "state" : {
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.AccountState",
+        "fingerprint" : "3e0a705c699f9262c685ade273ae9c6a3ca9ab2bd9739acc2e90f1fe1290e04e"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "Deposit",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.Deposit",
+        "creation" : "none",
+        "produces" : [ "Deposited" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/deposit"
+        } ],
+        "description" : "Deposit money"
+      }, {
+        "name" : "OpenAccount",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.OpenAccount",
+        "creation" : "required",
+        "produces" : [ "AccountOpened" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/open-account"
+        }, {
+          "method" : "POST",
+          "path" : "/bank/account/open-account"
+        } ],
+        "description" : "Open an account"
+      }, {
+        "name" : "Withdraw",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.Withdraw",
+        "creation" : "none",
+        "produces" : [ "Withdrawn" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/withdraw"
+        } ],
+        "description" : "Withdraw money"
+      }, {
+        "name" : "wow.lifecycle.ApplyTags",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/wow.lifecycle.apply-tags"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.DeleteAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "DELETE",
+          "path" : "/bank/account/{id}"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.RestoreAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/wow.lifecycle.restore-aggregate"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferOwner",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/wow.lifecycle.transfer-owner"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferSpace",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferSpace",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/wow.lifecycle.transfer-space"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/wow.snapshot.rebuild"
+        } ],
+        "system" : true
+      } ],
+      "events" : [ {
+        "name" : "AccountOpened",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.AccountOpened",
+        "description" : "An account was opened"
+      }, {
+        "name" : "Deposited",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.Deposited",
+        "description" : "Money was deposited"
+      }, {
+        "name" : "Withdrawn",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.example.quickstart.Withdrawn",
+        "description" : "Money was withdrawn"
+      } ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/snapshot/query"
+        }, {
+          "method" : "GET",
+          "path" : "/bank/account/snapshot/query"
+        } ]
+      }, {
+        "model" : "events",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/events/query"
+        }, {
+          "method" : "GET",
+          "path" : "/bank/account/events/query"
+        } ]
+      } ]
+    } ],
+    "subscriptions" : [ ],
+    "published" : [ {
+      "aggregate" : "account",
+      "topic" : "wow.bank.account.state",
+      "includeState" : true
+    } ],
+    "errors" : [ {
+      "code" : "bank.account.insufficient-balance",
+      "status" : 409,
+      "description" : "The balance does not cover the withdrawal."
+    } ]
+  } ],
+  "errors" : [ {
+    "code" : "wow.auth.unauthenticated",
+    "status" : 401,
+    "description" : "The request carries no valid credentials."
+  }, {
+    "code" : "wow.auth.forbidden",
+    "status" : 403,
+    "description" : "The caller may not send this command."
+  }, {
+    "code" : "wow.aggregate.forbidden",
+    "status" : 403,
+    "description" : "The aggregate is outside the caller's scope."
+  }, {
+    "code" : "wow.request.malformed",
+    "status" : 400,
+    "description" : "A request header or parameter does not parse, or names what Wow does not take."
+  }, {
+    "code" : "wow.command.malformed",
+    "status" : 400,
+    "description" : "The command body cannot be read as the command type."
+  }, {
+    "code" : "wow.command.invalid",
+    "status" : 400,
+    "description" : "The command failed validation; the problem lists the violations."
+  }, {
+    "code" : "wow.wait.invalid",
+    "status" : 400,
+    "description" : "The wait is not a chain the runtime can follow; the command was not run."
+  }, {
+    "code" : "wow.command.unhandled",
+    "status" : 400,
+    "description" : "The aggregate does not handle this command."
+  }, {
+    "code" : "wow.aggregate.not-found",
+    "status" : 404,
+    "description" : "The aggregate does not exist."
+  }, {
+    "code" : "wow.aggregate.exists",
+    "status" : 409,
+    "description" : "The aggregate already exists."
+  }, {
+    "code" : "wow.aggregate.version-mismatch",
+    "status" : 409,
+    "description" : "The aggregate is not at the expected version (412 when the request carried If-Match)."
+  }, {
+    "code" : "wow.command.request-id-reused",
+    "status" : 409,
+    "description" : "The request id was used by another command."
+  }, {
+    "code" : "wow.command.contended",
+    "status" : 409,
+    "description" : "Concurrent writers kept winning the version; retrying with the same request id is safe."
+  }, {
+    "code" : "wow.aggregate.deleted",
+    "status" : 410,
+    "description" : "The aggregate is deleted; only RestoreAggregate applies."
+  }, {
+    "code" : "wow.command.busy",
+    "status" : 429,
+    "description" : "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later."
+  }, {
+    "code" : "wow.command.unknown",
+    "status" : 503,
+    "description" : "Whether the command committed is unknown; retrying with the same request id is safe."
+  }, {
+    "code" : "wow.command.failed",
+    "status" : 500,
+    "description" : "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike."
+  }, {
+    "code" : "wow.command.refused",
+    "status" : 409,
+    "description" : "The aggregate's current state refuses the command (a check of its decide function); the message says why."
+  }, {
+    "code" : "wow.command.undeclared-event",
+    "status" : 500,
+    "description" : "The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing."
+  }, {
+    "code" : "wow.node.closing",
+    "status" : 503,
+    "description" : "The node is shutting down; retry on another node."
+  }, {
+    "code" : "wow.node.standby",
+    "status" : 503,
+    "description" : "The node is on standby until the cut-over: it serves reads only."
+  }, {
+    "code" : "wow.storage.unavailable",
+    "status" : 503,
+    "description" : "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+  }, {
+    "code" : "wow.schedule.not-due",
+    "status" : 503,
+    "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+  }, {
+    "code" : "wow.schedule.job-invalid",
+    "status" : 400,
+    "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
+    "code" : "wow.ledger.stale",
+    "status" : 409,
+    "description" : "The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it."
+  }, {
+    "code" : "wow.subscription.parked",
+    "status" : 500,
+    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+  }, {
+    "code" : "wow.wait.timeout",
+    "status" : 504,
+    "description" : "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+  }, {
+    "code" : "wow.route.malformed",
+    "status" : 400,
+    "description" : "A service route's parameter or body cannot be read as its type; the violation names the parameter."
+  }, {
+    "code" : "wow.query.malformed",
+    "status" : 400,
+    "description" : "The query body cannot be read as a query."
+  }, {
+    "code" : "wow.query.invalid",
+    "status" : 400,
+    "description" : "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...)."
+  }, {
+    "code" : "wow.query.failed",
+    "status" : 500,
+    "description" : "The query backend failed to run the query."
+  }, {
+    "code" : "wow.query.not-found",
+    "status" : 404,
+    "description" : "A single query matched no record: a query result, not a statement that an aggregate does not exist."
+  }, {
+    "code" : "wow.query.dataset-not-found",
+    "status" : 404,
+    "description" : "No dataset of that name is served to the caller."
+  }, {
+    "code" : "wow.query.too-many-groups",
+    "status" : 400,
+    "description" : "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit."
+  }, {
+    "code" : "wow.query.timeout",
+    "status" : 504,
+    "description" : "The query ran longer than its budget allows; narrow it rather than run it again."
+  }, {
+    "code" : "wow.query.min-version-not-reached",
+    "status" : 409,
+    "description" : "The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later."
+  }, {
+    "code" : "wow.query.busy",
+    "status" : 429,
+    "description" : "The query was not run: its store has as many queries running as it allows; retry later."
+  }, {
+    "code" : "wow.query.dataset-unavailable",
+    "status" : 409,
+    "description" : "The dataset is served but cannot be queried now, for the reason the problem names (it needs revision)."
+  }, {
+    "code" : "wow.call.command-forbidden",
+    "status" : 403,
+    "description" : "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
+  } ],
+  "$defs" : {
+    "me.ahoo.wow.example.quickstart.AccountOpened" : {
+      "type" : "object",
+      "properties" : {
+        "owner" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "owner" ],
+      "description" : "An account was opened",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.AccountOpened"
+    },
+    "me.ahoo.wow.example.quickstart.AccountState" : {
+      "type" : "object",
+      "properties" : {
+        "balance" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "owner" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "balance", "owner" ],
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.AccountState"
+    },
+    "me.ahoo.wow.example.quickstart.Deposit" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "amount" ],
+      "description" : "Deposit money",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.Deposit"
+    },
+    "me.ahoo.wow.example.quickstart.Deposited" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "amount" ],
+      "description" : "Money was deposited",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.Deposited"
+    },
+    "me.ahoo.wow.example.quickstart.OpenAccount" : {
+      "type" : "object",
+      "properties" : {
+        "owner" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "owner" ],
+      "description" : "Open an account",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.OpenAccount"
+    },
+    "me.ahoo.wow.example.quickstart.Withdraw" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "amount" ],
+      "description" : "Withdraw money",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.Withdraw"
+    },
+    "me.ahoo.wow.example.quickstart.Withdrawn" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "amount" ],
+      "description" : "Money was withdrawn",
+      "x-wow-class" : "me.ahoo.wow.example.quickstart.Withdrawn"
+    },
+    "wow.lifecycle.ApplyTags" : {
+      "type" : "object",
+      "properties" : {
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "required" : [ "tags" ],
+      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
+      "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
+    },
+    "wow.lifecycle.DeleteAggregate" : {
+      "type" : "object",
+      "description" : "Marks the aggregate deleted; its events stay in the log.",
+      "x-wow-class" : "me.ahoo.wow.api.lifecycle.DeleteAggregate"
+    },
+    "wow.lifecycle.RestoreAggregate" : {
+      "type" : "object",
+      "description" : "Takes back the deletion of a deleted aggregate.",
+      "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
+    },
+    "wow.lifecycle.TransferOwner" : {
+      "type" : "object",
+      "properties" : {
+        "ownerId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "ownerId" ],
+      "description" : "Gives the aggregate to the owner ownerId.",
+      "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferOwner"
+    },
+    "wow.lifecycle.TransferSpace" : {
+      "type" : "object",
+      "properties" : {
+        "spaceId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "spaceId" ],
+      "description" : "Moves the aggregate to the space spaceId.",
+      "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferSpace"
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ],
+      "x-wow-class" : "me.ahoo.wow.spi.snapshot.RebuildSnapshot"
+    }
+  }
+}

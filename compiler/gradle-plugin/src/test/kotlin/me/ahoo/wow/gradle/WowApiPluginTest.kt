@@ -21,7 +21,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.tools.ManifestJson
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.project.ProjectInternal
@@ -217,7 +216,7 @@ class WowApiPluginTest {
         val output = File(directory, "shop-api/build/wow/contract")
         File(output, "stale.txt").apply { parentFile.mkdirs() }.writeText("stale")
 
-        task.assemble()
+        task.submit(inProcessQueue(task.project))
 
         File(output, "stale.txt").exists().assert().isFalse()
         val contract = ManifestJson.read(File(output, PeerContracts.RESOURCE))
@@ -228,14 +227,14 @@ class WowApiPluginTest {
     @Test
     fun `assembling no context of the api module should write no contract`() {
         val task = assembleTask(contractFile("billing", "sample.Pay"))
-        task.assemble()
+        task.submit(inProcessQueue(task.project))
         File(directory, "shop-api/build/wow/contract").list().orEmpty().toList().assert().isEmpty()
     }
 
     @Test
     fun `assembling a context with classes outside the api module should fail naming them`() {
         val task = assembleTask(contractFile("shop", "sample.AddItem", "sample.RemoveItem"))
-        assertThrows<GradleException> { task.assemble() }.message.assert()
+        assertThrows<IllegalStateException> { task.submit(inProcessQueue(task.project)) }.message.assert()
             .contains(
                 "context shop of project ':",
                 "has classes that are not in project ':shop-api': sample.RemoveItem",
@@ -256,8 +255,8 @@ class WowApiPluginTest {
         val empty = File(directory, "contracts/empty/contract.json").also { ManifestJson.write(Manifest(), it) }
         val task = assembleTask(contractFile("shop", "sample.AddItem"), empty)
         task.owners.set(mapOf(empty.path to "project ':gateway'"))
-        assertThrows<GradleException> { task.assemble() }.message.assert().contains(
-            "Project ':shop-api' declares project ':gateway' in wowContract, which compiles no model",
+        assertThrows<IllegalStateException> { task.submit(inProcessQueue(task.project)) }.message.assert().contains(
+            "project ':shop-api' declares project ':gateway' in wowContract, which compiles no model",
         )
     }
 

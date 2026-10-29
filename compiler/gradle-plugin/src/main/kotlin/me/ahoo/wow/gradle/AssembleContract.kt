@@ -1,22 +1,6 @@
-/*
- * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *      http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package me.ahoo.wow.gradle
 
-import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.MapProperty
@@ -30,21 +14,23 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import java.io.File
+import org.gradle.workers.WorkQueue
+import org.gradle.workers.WorkerExecutor
+import javax.inject.Inject
 
 /**
- * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json`
- * ([PeerContracts.RESOURCE]) under [outputDirectory]: of the contracts of the domain modules the api module declares
- * in `wowContract(...)` ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes
- * are all among the api module's [classes] ([PeerContracts.assemble]). A context with none of them is another api's. A
- * declared module of no contract (it compiles no model) fails the task, naming it.
+ * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json` ([WowRoles.CONTRACT_RESOURCE])
+ * under [outputDirectory]: of the contracts of the domain modules the api module declares in `wowContract(...)`
+ * ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes are all among the api
+ * module's [classes]. A context with none of them is another api's. A declared module of no contract (it compiles no
+ * model) fails the task, naming it.
  *
  * The build fails, naming the classes, when a context has some of its classes in the api module and others outside
  * it, or when two domain modules declare one of its contexts, naming the domain modules ([owners]). With no context of
- * its own, the api module carries no contract.
+ * its own, the api module carries no contract. It runs in an isolated worker with the tools, like [MergeManifest].
  */
 @CacheableTask
-internal abstract class AssembleContract : DefaultTask() {
+internal abstract class AssembleContract @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
     /** The contracts of the domain modules paired with this api module. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
@@ -62,37 +48,26 @@ internal abstract class AssembleContract : DefaultTask() {
     @get:Input
     abstract val owner: Property<String>
 
+    /** The tools that assemble the contract: the `wowTools` configuration. */
+    @get:Classpath
+    abstract val tools: ConfigurableFileCollection
+
     /** Where `META-INF/wow/contract.json` goes, which the api module's jar includes. */
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
     @TaskAction
     fun assemble() {
-        val output = outputDirectory.get().asFile
-        output.deleteRecursively()
-        val owners = owners.get()
-        val contracts = contracts.files.sorted().map {
-            ManifestFragment(
-                owners[it.path] ?: it.name,
-                ContractJson.read(it)
-            )
+        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
+    }
+
+    internal fun submit(queue: WorkQueue) {
+        queue.submit(ManifestToolsWork.AssembleContract::class.java) { parameters ->
+            parameters.contracts.from(contracts)
+            parameters.owners.set(owners)
+            parameters.classes.from(classes)
+            parameters.owner.set(owner.map { "project '$it'" })
+            parameters.output.set(outputDirectory)
         }
-        contracts.filter { it.manifest.contexts.isEmpty() }.takeIf { it.isNotEmpty() }?.let { empty ->
-            throw GradleException(
-                "Project '${owner.get()}' declares ${empty.joinToString(" and ") { it.source }} in wowContract, " +
-                    "which compiles no model and so has no contract: remove it from wowContract, or give it the " +
-                    "aggregates whose contract this api module carries.",
-            )
-        }
-        val directories = classes.files.filter { it.isDirectory }
-        val contract = try {
-            PeerContracts.assemble("project '${owner.get()}'", contracts) { binary ->
-                val path = binary.replace('.', '/') + ".class"
-                directories.any { File(it, path).isFile }
-            }
-        } catch (failure: IllegalStateException) {
-            throw GradleException(failure.message!!, failure)
-        }
-        contract?.let { ContractJson.write(it, File(output, PeerContracts.RESOURCE)) }
     }
 }

@@ -31,12 +31,12 @@ gradlePlugin {
 }
 
 dependencies {
-    implementation(project(":manifest"))
-    // generateWowOpenApi: the OpenAPI document of the merged Manifest; plain data, like wow-manifest.
-    implementation(project(":openapi"))
+    // Nothing of Wow: every task that reads or writes a Manifest runs wow-manifest-tools in a worker (wowTools), so a
+    // build of Wow itself can include the plugin (build-logic/wow-gradle-plugin) and apply it to its own projects.
     implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
 
     // The functional test reads the Manifests it builds, and checks the fingerprint against the kernel.
+    testImplementation(project(":manifest"))
     testImplementation(project(":manifest-tools"))
     testImplementation(project(":kernel"))
     // In-process plugin tests (ProjectBuilder) apply the Kotlin plugin the Wow plugin reacts to.

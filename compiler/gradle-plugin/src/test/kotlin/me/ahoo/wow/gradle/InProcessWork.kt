@@ -17,33 +17,71 @@ import io.mockk.every
 import io.mockk.mockk
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkQueue
 
 /** A work queue that runs each item in process, as the worker would. */
 internal fun inProcessQueue(project: Project): WorkQueue {
     val queue = mockk<WorkQueue>()
-    every { queue.submit(ManifestToolsWork.CompleteFragment::class.java, any()) } answers {
-        val parameters = project.objects.newInstance(ManifestToolsWork.CompleteFragment.Parameters::class.java)
-        secondArg<Action<ManifestToolsWork.CompleteFragment.Parameters>>().execute(parameters)
+    queue.runs<ManifestToolsWork.CompleteFragment.Parameters>(project, ManifestToolsWork.CompleteFragment::class.java) {
         object : ManifestToolsWork.CompleteFragment() {
-            override fun getParameters() = parameters
-        }.execute()
+            override fun getParameters() = it
+        }
     }
-    every { queue.submit(ManifestToolsWork.GenerateContractSources::class.java, any()) } answers {
-        val parameters = project.objects.newInstance(
-            ManifestToolsWork.GenerateContractSources.Parameters::class.java,
-        )
-        secondArg<Action<ManifestToolsWork.GenerateContractSources.Parameters>>().execute(parameters)
-        object : ManifestToolsWork.GenerateContractSources() {
-            override fun getParameters() = parameters
-        }.execute()
-    }
-    every { queue.submit(ManifestToolsWork.Merge::class.java, any()) } answers {
-        val parameters = project.objects.newInstance(ManifestToolsWork.Merge.Parameters::class.java)
-        secondArg<Action<ManifestToolsWork.Merge.Parameters>>().execute(parameters)
+    queue.runs<ManifestToolsWork.Merge.Parameters>(project, ManifestToolsWork.Merge::class.java) {
         object : ManifestToolsWork.Merge() {
-            override fun getParameters() = parameters
-        }.execute()
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.GenerateContract.Parameters>(project, ManifestToolsWork.GenerateContract::class.java) {
+        object : ManifestToolsWork.GenerateContract() {
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.AssembleContract.Parameters>(project, ManifestToolsWork.AssembleContract::class.java) {
+        object : ManifestToolsWork.AssembleContract() {
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.GenerateContractSources.Parameters>(
+        project,
+        ManifestToolsWork.GenerateContractSources::class.java,
+    ) {
+        object : ManifestToolsWork.GenerateContractSources() {
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.GenerateOpenApi.Parameters>(project, ManifestToolsWork.GenerateOpenApi::class.java) {
+        object : ManifestToolsWork.GenerateOpenApi() {
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.CheckCompatibility.Parameters>(
+        project,
+        ManifestToolsWork.CheckCompatibility::class.java,
+    ) {
+        object : ManifestToolsWork.CheckCompatibility() {
+            override fun getParameters() = it
+        }
+    }
+    queue.runs<ManifestToolsWork.RecordBaseline.Parameters>(project, ManifestToolsWork.RecordBaseline::class.java) {
+        object : ManifestToolsWork.RecordBaseline() {
+            override fun getParameters() = it
+        }
     }
     return queue
+}
+
+/** Runs the work [action] makes of its parameters when [type] is submitted to this queue. */
+private inline fun <reified P : WorkParameters> WorkQueue.runs(
+    project: Project,
+    type: Class<out WorkAction<P>>,
+    crossinline action: (P) -> WorkAction<P>,
+) {
+    every { submit(type, any()) } answers {
+        val parameters = project.objects.newInstance(P::class.java)
+        secondArg<Action<P>>().execute(parameters)
+        action(parameters).execute()
+    }
 }

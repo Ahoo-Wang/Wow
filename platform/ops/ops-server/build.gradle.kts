@@ -5,16 +5,12 @@ description = "Wow ops: the ops service on the Spring Boot host (roadmap 7.1a)"
 // backend with Kafka on localhost, `postgres,kafka` on PostgreSQL. Wow modules are not published before M8 (D88).
 plugins {
     application
+    id("me.ahoo.wow.service")
 }
 
 application {
     mainClass.set("me.ahoo.wow.ops.server.OpsServerKt")
 }
-
-// The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with
-// manifest/baseline.json. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so the server
-// applies the repository's script in its place, as the eShop's servers do (DX gap G6).
-apply(from = rootProject.file("examples/eshop/wow-manifest-compatibility.gradle.kts"))
 
 // The console (roadmap 7.1b), served by the server as static resources from the distribution's ui/ folder
 // (`spring.web.resources.static-locations`): `pnpm --filter wow-ops-console... build` first, or the folder is empty.
@@ -28,9 +24,11 @@ distributions {
     }
 }
 
+// The service module (decision D363 ①): `me.ahoo.wow.service` merges the service's Manifest from its class path,
+// writes its OpenAPI document and gates `check` on manifest/baseline.json (decision D76).
 dependencies {
     implementation(project(":ops-domain"))
-    implementation(project(":spring-boot"))
+    implementation("me.ahoo.wow:wow-spring-boot")
     // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
@@ -41,27 +39,27 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The `kafka` profile: the services' ledger records come in on wow.ops.commands, and an operator's action goes out
     // to the owning context's command topic as the ledger's system command.
-    implementation(project(":kafka"))
+    implementation("me.ahoo.wow:wow-kafka")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
-    implementation(project(":mongo"))
+    implementation("me.ahoo.wow:wow-mongo")
     // The `postgres` profile: the entries' log and snapshots on PostgreSQL, their snapshot queries served there.
-    implementation(project(":postgres"))
+    implementation("me.ahoo.wow:wow-postgres")
     // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads
     // the operator from CoSec's security context; CoSec itself is the application's to bring.
-    implementation(project(":cosec"))
+    implementation("me.ahoo.wow:wow-cosec")
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
     // deployment attaches one, a no-op otherwise.
-    implementation(project(":observability"))
+    implementation("me.ahoo.wow:wow-observability")
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    testImplementation(project(":test-spring-boot"))
+    testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
-    integrationTestImplementation(project(":tck-containers"))
+    integrationTestImplementation("me.ahoo.wow:wow-tck-containers")
 }
 
 // `./gradlew :ops-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity

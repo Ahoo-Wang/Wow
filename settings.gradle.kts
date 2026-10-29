@@ -1,3 +1,9 @@
+// The Wow Gradle plugin, built from compiler/gradle-plugin's sources (build-logic/wow-gradle-plugin): the examples, the
+// platform services and the test applications apply `me.ahoo.wow`, `me.ahoo.wow.api` and `me.ahoo.wow.service` as a
+// user's build does, and declare Wow by its coordinates, which build.gradle.kts substitutes with the projects.
+pluginManagement {
+    includeBuild("build-logic/wow-gradle-plugin")
+}
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
