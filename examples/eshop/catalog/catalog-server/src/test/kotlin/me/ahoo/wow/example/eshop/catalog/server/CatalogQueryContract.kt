@@ -220,7 +220,7 @@ abstract class CatalogQueryContract {
             }
             sort { ProductStateProperties.STATE__PRICE.asc() }
         }
-        // In process, typed: the node's NodeQueryApi, as trusted code.
+        // In process, typed: the node's own queries (NodeQueryApi), as trusted code.
         val products = catalog.context.getBean(NodeQueryApi::class.java).trusted().snapshots<ProductState>()
         val rows = runBlocking { products.list(query).toList() }
         rows.map { it.ref.id }.assert().containsExactly(five, seven)
