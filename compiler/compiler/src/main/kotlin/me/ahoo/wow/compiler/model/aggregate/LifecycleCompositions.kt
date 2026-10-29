@@ -39,7 +39,7 @@ internal object LifecycleCompositions {
     fun problems(
         commands: List<CommandBinding>,
         ownership: String,
-        idSource: String = "ASSIGNED",
+        idSource: String,
     ): List<String> = commands.flatMap { command ->
         val yields = command.yields.orEmpty()
         val subject = "${command.function}(${command.command})"

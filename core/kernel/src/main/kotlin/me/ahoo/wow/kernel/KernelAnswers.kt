@@ -39,7 +39,7 @@ internal fun admissible(
     decider: DecideFunction<*>,
     command: Command<*>,
     loaded: CachedState,
-    ownsById: Boolean = false,
+    ownsById: Boolean,
 ): CommandOutcome? {
     val version = loaded.version
     return when {

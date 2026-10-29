@@ -697,23 +697,22 @@ class CommandGateway @InternalWowApi constructor(
     private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
         val owner = scope.ownerId
         return when {
-            owner == null && requested == null && caller.subject == null -> OwnId.Refused(
-                FrameworkCodes.AUTH_UNAUTHENTICATED,
-                "An unauthenticated caller has no aggregate of its own.",
-            )
-
-            owner == null && requested == null -> OwnId.Refused(
-                FrameworkCodes.COMMAND_MALFORMED,
-                "This caller has no owner; address the aggregate by its id.",
-            )
-
-            owner == null -> OwnId.Of(checkNotNull(requested))
-            requested != null && requested != owner -> OwnId.Refused(
+            owner != null && requested != null && requested != owner -> OwnId.Refused(
                 FrameworkCodes.AGGREGATE_FORBIDDEN,
                 "The aggregate's id is its owner's: the caller's is $owner, not $requested.",
             )
 
-            else -> OwnId.Of(owner)
+            owner != null -> OwnId.Of(owner)
+            requested != null -> OwnId.Of(requested)
+            caller.subject == null -> OwnId.Refused(
+                FrameworkCodes.AUTH_UNAUTHENTICATED,
+                "An unauthenticated caller has no aggregate of its own.",
+            )
+
+            else -> OwnId.Refused(
+                FrameworkCodes.COMMAND_MALFORMED,
+                "This caller has no owner; address the aggregate by its id.",
+            )
         }
     }
 

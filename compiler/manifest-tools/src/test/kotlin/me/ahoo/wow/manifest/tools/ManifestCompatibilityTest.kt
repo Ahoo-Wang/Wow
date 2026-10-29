@@ -689,6 +689,9 @@ class ManifestCompatibilityTest {
             idSource,
             "BREAKING $CART.commands[AddItem].routes: route POST /shop/cart/add-item removed",
         )
+        // Back to assigned ids, a route by no id the assigned side keeps is no part of the change either.
+        changes(owned, unaddressed).assert()
+            .containsExactly("BREAKING $CART.idSource: id source changed from OWNER to ASSIGNED")
     }
 
     @Test
