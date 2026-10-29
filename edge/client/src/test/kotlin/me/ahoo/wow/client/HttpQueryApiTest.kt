@@ -107,6 +107,14 @@ class HttpQueryApiTest {
     }
 
     @Test
+    fun `a stream should skip an event it does not know, and fail on an end that says nothing`() {
+        peer.reply(Reply.events(row("b-1"), "event: heartbeat\ndata: {}\n\n", "event: end\ndata: {}\n\n"))
+        caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
+            .message.assert().contains("ended: null")
+        peer.taken.assert().hasSize(1)
+    }
+
+    @Test
     fun `a stream that ended not resumably, short of complete, should fail`() {
         peer.reply(Reply.events(row("b-1"), "event: end\ndata: {\"reason\":\"hold-expired\",\"resumable\":false}\n\n"))
         caught<IllegalStateException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }

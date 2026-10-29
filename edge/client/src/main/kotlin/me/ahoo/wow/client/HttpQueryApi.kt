@@ -150,7 +150,7 @@ class HttpQueryApi internal constructor(
             check(query)
             val stream = Streamed(query, after)
             while (true) {
-                val asked = stream.asked() ?: return@flow
+                val asked = stream.asked()
                 val answer = transport.stream(request(KIND_LIST, asked, stream.headers()), PeerProblem::retriesQuery)
                 val events = when (answer) {
                     is Answer.Ok -> answer.value
@@ -171,16 +171,13 @@ class HttpQueryApi internal constructor(
             private var failures = 0
 
             /**
-             * The query of the next request, for what is left of the limit (the peer reads up to the limit again after
-             * the position); null once the limit is read.
+             * The query of the next request, for what is left of the limit: the peer reads up to the limit again after
+             * the position. [read] ends the stream once the limit is read.
              */
-            fun asked(): ListQuery? {
-                val left = limit?.minus(emitted) ?: return query
-                return when {
-                    left <= 0 -> null
-                    left == limit -> query
-                    else -> ListQuery.of(query.filter, query.projection, query.sort, left)
-                }
+            fun asked(): ListQuery {
+                val left = limit?.minus(emitted)
+                if (left == null || left == limit) return query
+                return ListQuery.of(query.filter, query.projection, query.sort, left)
             }
 
             fun headers(): Map<String, String> = position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()
