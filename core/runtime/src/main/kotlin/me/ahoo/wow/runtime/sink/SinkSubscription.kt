@@ -28,9 +28,9 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.sink.Sink
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.PublishedState
 
 /**
  * The subscription that writes the commits of one aggregate [type] to a [sink]:
@@ -63,7 +63,9 @@ internal class SinkSubscription(
     private val codec = reader.codec
 
     init {
-        require(reader.reader == name) { "The sink $name reads the published states as ${reader.reader}, not as itself." }
+        require(
+            reader.reader == name
+        ) { "The sink $name reads the published states as ${reader.reader}, not as itself." }
     }
 
     /** The subscription to register: of [type]'s streams only, every event of them. */

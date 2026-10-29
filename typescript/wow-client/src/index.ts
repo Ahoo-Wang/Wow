@@ -103,7 +103,7 @@ export {
 } from './state.js';
 export {
   type CommandResultStream,
-  type StreamedRow,
+  type Positioned,
   type StreamEnd,
   type StreamEndReason,
   type StreamResumeOptions,

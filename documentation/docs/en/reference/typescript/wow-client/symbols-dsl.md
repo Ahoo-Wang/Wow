@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client/dsl exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client/dsl` exports — 165 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
 
 ::: v-pre
 
@@ -116,9 +116,8 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 165 — with its kind and the
 | `NumericAggregationMetric` | interface | An `AggregationFunction` of an expression; `aggregation.sum`,`avg`, `min`, `max`, `stddev`, `variance`. | — |
 | `NumericDecimal` | interface | A number field meant as a fixed-point decimal with `scale` fraction digits: format and total it at that precision. | — |
 | `NumericMoney` | type | A number field meant as an amount of money, in exactly one of a fixed ISO 4217 `currency` or the currency held by the sibling string field`currencyField` (a property of the same object or element). | — |
-| `PagedList` | interface | One page of a `paged` query: its rows, and how many match in total. | — |
+| `PagedList` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for total `none`. | — |
 | `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
-| `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for total `none`. | — |
 | `Pagination` | interface | Interface for pagination information. | — |
 | `PagingMode` | enum | The ways a model can be read page by page, listed in `record.paging`. | — |
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |

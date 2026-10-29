@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
@@ -348,7 +347,7 @@ class HttpQueryApi internal constructor(
                     else -> throw answer.problem.exception("The state of $ref")
                 }
             }
-            // The snapshot record's shape, a snapshot query's row (decision D348 ⑦).
+            // The snapshot record's shape, a snapshot query's row.
             val snapshot = (view as ObjectNode).toSnapshot(type, stateType)
             return snapshot.takeUnless { tenantId != null && it.ref.tenantId != tenantId }
         }

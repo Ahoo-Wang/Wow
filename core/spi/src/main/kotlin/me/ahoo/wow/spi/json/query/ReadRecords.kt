@@ -49,7 +49,7 @@ fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): S
 )
 
 /**
- * This snapshot as the record a snapshot query returns and a state read answers (decision D348 ⑦): the
+ * This snapshot as the record a snapshot query returns and a state read answers: the
  * [SnapshotFields] in their order, an absent owner, space or operator as `null`, and the state tree under
  * [SnapshotFields.STATE]; [toSnapshot] reads it back.
  */

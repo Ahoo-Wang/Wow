@@ -19,9 +19,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.PublishedState
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -29,7 +29,9 @@ import java.time.Duration
 /** The owner's sink: each commit's state, as its view at its version, a deleting commit as a tombstone. */
 class PublishedStateSinkTest {
     private val runtime = runtimeOn(InMemoryBackend())
-    private val caches = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(runtime)) { error("no miss is read") }
+    private val caches = PublishedStateCaches(
+        PublishedStateCaches.CacheFactory.of(runtime)
+    ) { error("no miss is read") }
     private val sink = PublishedStateSink(OrderView::class.java, caches.writerOf(OrderView::class.java))
     private val key = StateKey("t", "o-1")
 

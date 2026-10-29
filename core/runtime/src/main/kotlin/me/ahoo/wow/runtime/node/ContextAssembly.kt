@@ -155,7 +155,11 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val reserved = reservationsOf(backends, groups)
         val kernel = kernelOf(log, backends, reserved, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
-        val views = PublishedStates(codec, stateReaders(context, models, snaps.readers, application), options.publishedStates)
+        val views = PublishedStates(
+            codec,
+            stateReaders(context, models, snaps.readers, application),
+            options.publishedStates
+        )
         val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
         val reservations = reserved?.let { ReservationSubscription(context, it, observer) }
         val firing = LateFirer()

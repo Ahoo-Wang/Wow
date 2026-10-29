@@ -78,7 +78,12 @@ class KernelHistoryTest {
         kernel.streamAt(ref, 3)!!.commitTime.assert().isEqualTo(3000L)
         log.streamsRead.assert().isEqualTo(1)
         kernel.streamAt(ref, 5).assert().isNull()
-        runCatching { kernel.streamAt(ref, 0) }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+        runCatching {
+            kernel.streamAt(
+                ref,
+                0
+            )
+        }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test

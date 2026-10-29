@@ -19,9 +19,9 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
-import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

@@ -114,7 +114,7 @@ class EshopOrderFlowTest {
         eventually("alice-1 confirmed") { orderStatus("alice-1") == "STOCK_CONFIRMED" }
         // The order belongs to its buyer (decision D189): the checkout saga's call carried the basket's scope.
         val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
-        view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        view["ownerId"].asString().assert().isEqualTo("alice")
         // Another buyer does not see it: not found, as an order that does not exist (decision D254 ④).
         val hidden = ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob"))
         hidden.status.assert().isEqualTo(NOT_FOUND)

@@ -209,7 +209,12 @@ class PublishedStateReaderTest {
     @Test
     fun `a view evicted between two commits should cost the store reads again, and only once`(): Unit = runBlocking {
         val time = TestTimeSource()
-        val aging = PublishedStates(codec, mapOf(PROJECTION to setOf(CART)), PublishedStateOptions(maxAge = 1.seconds), time)
+        val aging = PublishedStates(
+            codec,
+            mapOf(PROJECTION to setOf(CART)),
+            PublishedStateOptions(maxAge = 1.seconds),
+            time
+        )
         val elsewhere = Executor(kernel)
         add("apple", executor = elsewhere)
         add("pear", executor = elsewhere)

@@ -15,7 +15,6 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.EventManifest

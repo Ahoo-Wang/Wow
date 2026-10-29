@@ -13,7 +13,7 @@
 
 import { useState, type FormEvent } from "react";
 import { asc, filter } from "@ahoo-wang/wow-client/dsl";
-import type { SnapshotRecord } from "@ahoo-wang/wow-client";
+import type { Snapshot } from "@ahoo-wang/wow-client";
 import type {
   BrandState,
   CategoryState,
@@ -296,7 +296,7 @@ export function AdminPage() {
 }
 
 function nameOf(
-  records: readonly SnapshotRecord<BrandState | CategoryState>[],
+  records: readonly Snapshot<BrandState | CategoryState>[],
   id: string | null | undefined,
 ): string {
   if (!id) return "—";
@@ -310,9 +310,9 @@ function ProductRow({
   categories,
   act,
 }: {
-  product: SnapshotRecord<ProductState>;
-  brands: readonly SnapshotRecord<BrandState>[];
-  categories: readonly SnapshotRecord<CategoryState>[];
+  product: Snapshot<ProductState>;
+  brands: readonly Snapshot<BrandState>[];
+  categories: readonly Snapshot<CategoryState>[];
   act: (action: () => Promise<unknown>, form?: HTMLFormElement) => Promise<void>;
 }) {
   const { clients } = useSession();

@@ -39,7 +39,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 ```tsx
 import type {
   SnapshotQueryClient,
-  SnapshotRecord,
+  Snapshot,
 } from '@ahoo-wang/wow-client';
 import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
@@ -58,7 +58,7 @@ export function PaidOrders({
   page: number;
 }) {
   const { result, loading, error } = usePagedQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: pagedQuery({
@@ -97,7 +97,7 @@ export function PaidOrders({
 ```tsx
 import type {
   SnapshotQueryClient,
-  SnapshotRecord,
+  Snapshot,
 } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCursorQuery } from '@ahoo-wang/wow-react';
@@ -113,7 +113,7 @@ export function PaidOrderPages({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
@@ -152,7 +152,7 @@ export function PaidOrderPages({
 ```tsx
 import type {
   SnapshotQueryClient,
-  SnapshotRecord,
+  Snapshot,
 } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '@ahoo-wang/wow-react';
@@ -168,7 +168,7 @@ export function PaidOrderFeed({
   client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
   const { items, done, loading, error, abort } = useStreamQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderFields
   >({
     initialQuery: listQuery({

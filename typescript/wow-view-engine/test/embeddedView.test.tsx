@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -512,11 +512,11 @@ describe('EmbeddedView', () => {
    * refusal must not outlive the condition that earned it.
    */
   it('keeps up with a host that narrows while the first query is out', async () => {
-    const pending: ((page: PagedResult<object>) => void)[] = [];
+    const pending: ((page: PagedList<object>) => void)[] = [];
     const source = testSource({
       paged: vi.fn(
         () =>
-          new Promise<PagedResult<object>>(resolve => {
+          new Promise<PagedList<object>>(resolve => {
             pending.push(resolve);
           }),
       ),

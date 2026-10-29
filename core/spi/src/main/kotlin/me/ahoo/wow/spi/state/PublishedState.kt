@@ -37,7 +37,7 @@ class PublishedState @InternalWowApi constructor(val version: Int, val schemaFin
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "StateView(version=$version, schemaFingerprint=$schemaFingerprint, state=$state)"
+    override fun toString(): String = "PublishedState(version=$version, schemaFingerprint=$schemaFingerprint, state=$state)"
 
     private fun valueFields(): List<Any?> = listOf(version, schemaFingerprint, state)
 

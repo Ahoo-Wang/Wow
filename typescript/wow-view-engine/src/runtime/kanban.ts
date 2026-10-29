@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CursorPage, PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   FIRST_PAGE,
   appendLane,
@@ -150,7 +150,7 @@ async function lanePage(
     filterContext,
     target,
   );
-  const answer: PagedResult<RecordData> | CursorPage<RecordData> =
+  const answer: PagedList<RecordData> | CursorPage<RecordData> =
     'cursor' in target
       ? await source.cursor(query, { signal: controller.signal })
       : await source.paged(query, { signal: controller.signal });

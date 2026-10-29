@@ -20,8 +20,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots

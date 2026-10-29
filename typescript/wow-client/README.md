@@ -162,7 +162,7 @@ enforces on arrival, so a bad query fails where it was built.
 A development run of a Wow service reads its caller from headers
 (`DevelopmentCallerHeaders`); `developmentCaller` sends them on every request
 of a fetcher. `commandResultOf`, `problemOf`, `problemResponse` and
-`stateViewOf` build the service's answers for a fake. The entry loads no test
+`snapshotOf` build the service's answers for a fake. The entry loads no test
 runner.
 
 ```ts

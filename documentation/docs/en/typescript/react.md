@@ -23,7 +23,7 @@ React 19 or later: the package is built with the React Compiler and imports `rea
 A `use*Query` hook takes the query and an `execute` function that runs it; a generated client's method takes exactly the query and the request options, so the client supplies the route and the response handling:
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { desc, filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -40,7 +40,7 @@ export function PaidOrders({
   page: number;
 }) {
   const { result, loading, error } = usePagedQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField | 'lastEventTime'
   >({
     query: pagedQuery({
@@ -84,7 +84,7 @@ export function PaidOrders({
 `useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, and a failed `fetchNext()` keeps the rows, so calling it again retries that page:
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCursorQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -95,7 +95,7 @@ import type {
 
 export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) {
   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField
   >({
     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
@@ -125,7 +125,7 @@ export function PaidOrderFeed({ orders }: { orders: OrderSnapshotQueryClient }) 
 `useStreamQuery` reads a list as server-sent events and keeps the rows as they arrive, rendering at most about once a frame however many come. Pass the client's `streamRows`, which answers each record with its position: a stream the service cuts off is resumed where it stopped, and the hook keeps the position of the last record read as `position`:
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type { Snapshot } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '@ahoo-wang/wow-react';
 import type {
@@ -136,7 +136,7 @@ import type {
 
 export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) {
   const { items, done, loading, error, abort } = useStreamQuery<
-    SnapshotRecord<OrderState>,
+    Snapshot<OrderState>,
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),

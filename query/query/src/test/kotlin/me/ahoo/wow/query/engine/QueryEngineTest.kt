@@ -82,7 +82,14 @@ class QueryEngineTest {
     /** Only the orders' snapshots are queried; the carts' are not, as `snapshot = false` would leave them. */
     private fun builder() = QueryEngine.Builder(manifest).snapshots(InMemoryQueryStorage()) { it == order }
 
-    private fun state(type: AggregateType, region: String, ref: AggregateRef = type.ref("acme", "x-1")) = Snapshot.of<JsonNode>(
+    private fun state(
+        type: AggregateType,
+        region: String,
+        ref: AggregateRef = type.ref(
+            "acme",
+            "x-1"
+        )
+    ) = Snapshot.of<JsonNode>(
         ref = ref,
         version = 1,
         scope = Scope("alice", null),

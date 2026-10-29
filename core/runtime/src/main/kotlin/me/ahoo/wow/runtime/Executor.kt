@@ -214,11 +214,18 @@ class Executor(
         { stream, state -> expectView(views, model, stream, state) }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails, the append goes on; the consumers rebuild the state.
-    private fun expectView(views: PublishedStates, model: AggregateModel<*>, stream: EventStreamRecord, state: CachedState) {
+    private fun expectView(
+        views: PublishedStates,
+        model: AggregateModel<*>,
+        stream: EventStreamRecord,
+        state: CachedState
+    ) {
         try {
             views.expect(model, stream, state)
         } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
+            logger.warn(
+                failure
+            ) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 
@@ -230,7 +237,9 @@ class Executor(
             throw cancelled
         } catch (failure: Exception) {
             val stream = committed.stream
-            logger.warn(failure) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
+            logger.warn(
+                failure
+            ) { "Failed to take the published state of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 

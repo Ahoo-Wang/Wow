@@ -109,21 +109,33 @@ describe('queryable', () => {
 
   describe('pagedList', () => {
     it('defaults to an empty page', () => {
-      expect(pagedList()).toEqual({ total: 0, list: [] });
-      expect(pagedList({})).toEqual({ total: 0, list: [] });
+      expect(pagedList()).toEqual({ total: 0, exact: true, list: [] });
+      expect(pagedList({})).toEqual({ total: 0, exact: true, list: [] });
     });
 
     it('gives every empty page its own list', () => {
-      const first = pagedList<number>();
-      first.list.push(1);
-      expect(pagedList<number>().list).toEqual([]);
+      expect(pagedList<number>().list).not.toBe(pagedList<number>().list);
     });
 
     it('counts the list when no total is given', () => {
       const list = [{ id: 1, name: 'test' }];
-      expect(pagedList({ list })).toEqual({ total: 1, list });
-      expect(pagedList({ total: 10, list })).toEqual({ total: 10, list });
-      expect(pagedList({ total: 10 })).toEqual({ total: 10, list: [] });
+      expect(pagedList({ list })).toEqual({ total: 1, exact: true, list });
+      expect(pagedList({ total: 10, list })).toEqual({
+        total: 10,
+        exact: true,
+        list,
+      });
+      // A total of none, or a lower bound, as the server answers them.
+      expect(pagedList({ total: null, list })).toEqual({
+        total: null,
+        exact: true,
+        list,
+      });
+      expect(pagedList({ total: 5, exact: false })).toMatchObject({
+        total: 5,
+        exact: false,
+      });
+      expect(pagedList({ total: 10 })).toEqual({ total: 10, exact: true, list: [] });
     });
   });
 });

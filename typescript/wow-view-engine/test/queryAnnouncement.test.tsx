@@ -19,7 +19,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordData } from '../src/index.js';
 import { DataWorkbench, zhCN } from '../src/ui/index.js';
@@ -49,7 +49,7 @@ function announced(): string {
   return region.textContent ?? '';
 }
 
-function engineWith(paged: () => Promise<PagedResult<RecordData>>): ViewEngine {
+function engineWith(paged: () => Promise<PagedList<RecordData>>): ViewEngine {
   return new ViewEngine({
     resources: resourcesOf([ordersDefinition()], () => testSource({ paged })),
     store: new MemoryViewStore({ instances: [mine] }),
@@ -87,7 +87,7 @@ describe('what a record query says out loud', () => {
   });
 
   it('says a query is running, then what came back', async () => {
-    const first = deferred<PagedResult<RecordData>>();
+    const first = deferred<PagedList<RecordData>>();
     render(
       <DataWorkbench
         engine={engineWith(() => first.promise)}
@@ -239,11 +239,11 @@ describe('what a record query says out loud', () => {
   });
 
   it('empties the region on a failure, and says each retry again (#3603)', async () => {
-    const answers: ReturnType<typeof deferred<PagedResult<RecordData>>>[] = [];
+    const answers: ReturnType<typeof deferred<PagedList<RecordData>>>[] = [];
     render(
       <DataWorkbench
         engine={engineWith(() => {
-          const answer = deferred<PagedResult<RecordData>>();
+          const answer = deferred<PagedList<RecordData>>();
           answers.push(answer);
           return answer.promise;
         })}

@@ -46,6 +46,7 @@ import {
   WowProblemError,
 } from '../src/index.js';
 import { rememberRequestId } from '../src/problem.js';
+import { snapshotOf } from '../src/testing.js';
 import {
   BASE_URL,
   jsonResponse,
@@ -1105,17 +1106,12 @@ describe('query clients', () => {
 });
 
 describe('StateClient', () => {
-  const view = {
-    ref: { type: PRODUCT, tenantId: 't', id: 'p1' },
-    version: 2,
-    scope: {},
-    deleted: false,
-    tags: {},
-    state: { name: 'n' },
-  };
+  const ref = { type: PRODUCT, tenantId: 't', id: 'p1' };
+  // The snapshot record's shape, a snapshot query's row (decision D348 ⑦).
+  const snapshot = snapshotOf(ref, { name: 'n' }, { version: 2 });
 
   it('reads the latest state, at a version or a time, or of a minimum version', async () => {
-    const { requests } = stubFetch(() => jsonResponse(view));
+    const { requests } = stubFetch(() => jsonResponse(snapshot));
     const states = new StateClient<{ name: string }>(PRODUCT, client());
     expect((await states.get('p1')).state.name).toBe('n');
     await states.get('p1', { version: 2 });
@@ -1154,7 +1150,7 @@ describe('StateClient', () => {
   it('answers a state with its entity tag', async () => {
     stubFetch(
       () =>
-        new Response(JSON.stringify(view), {
+        new Response(JSON.stringify(snapshot), {
           headers: {
             'Content-Type': 'application/json',
             ETag: '"2-0123456789abcdef"',
@@ -1163,7 +1159,7 @@ describe('StateClient', () => {
     );
     expect(await new StateClient(PRODUCT, client()).read('p1')).toEqual({
       notModified: false,
-      view,
+      snapshot,
       etag: '2-0123456789abcdef',
     });
   });
@@ -1176,7 +1172,7 @@ describe('StateClient', () => {
   });
 
   it('finds a state, or undefined only for an aggregate that does not exist', async () => {
-    let answer: () => Response = () => jsonResponse(view);
+    let answer: () => Response = () => jsonResponse(snapshot);
     stubFetch(() => answer());
     const states = new StateClient<{ name: string }>(PRODUCT, client());
     expect((await states.find('p1'))?.state.name).toBe('n');
@@ -1191,7 +1187,7 @@ describe('StateClient', () => {
 
   it('reads a trace', async () => {
     const { requests } = stubFetch(() =>
-      jsonResponse({ ref: view.ref, commits: [] }),
+      jsonResponse({ ref, commits: [] }),
     );
     await new StateClient(PRODUCT, client()).trace('p1', {
       from: 2,
@@ -1227,7 +1223,7 @@ describe('StateClient', () => {
     });
     stubFetch(() =>
       jsonResponse({
-        ref: view.ref,
+        ref,
         commits: [
           commit(4, [
             {

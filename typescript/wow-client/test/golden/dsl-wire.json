@@ -1164,10 +1164,12 @@
     "size": 10
   },
   "pagedList": {
+    "exact": true,
     "list": [],
     "total": 0
   },
   "pagedList (rows)": {
+    "exact": true,
     "list": [
       {
         "id": "a"

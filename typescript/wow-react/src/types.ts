@@ -13,7 +13,7 @@
 
 import type {
   RequestOptions,
-  StreamedRow,
+  Positioned,
   StreamOptions,
   WowProblemError,
 } from '@ahoo-wang/wow-client';
@@ -65,7 +65,7 @@ export type QueryExecutor<Q, R, O extends RequestOptions = RequestOptions> = (
  */
 export type StreamExecutor<R, Q> = QueryExecutor<
   Q,
-  ReadableStream<StreamedRow<R>>,
+  ReadableStream<Positioned<R>>,
   StreamOptions
 >;
 

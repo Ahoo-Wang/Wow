@@ -111,7 +111,7 @@ class CatalogEndToEndTest {
         catalog.post("/eshop-catalog/product/create-product", """{"name":"Mine","price":1}""", BUYER)
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
         // The product belongs to the tenant: it records no owner, and the buyer reads it.
-        val owner = catalog.get("/eshop-catalog/product/$id/state", BUYER).assertOk().json["scope"].path("ownerId")
+        val owner = catalog.get("/eshop-catalog/product/$id/state", BUYER).assertOk().json.path("ownerId")
         (owner.isNull || owner.isMissingNode).assert().isTrue()
         catalog.post("/eshop-catalog/product/$id/change-product-price", """{"price":13}""", BUYER)
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")

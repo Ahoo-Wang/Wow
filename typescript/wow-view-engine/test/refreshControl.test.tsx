@@ -22,7 +22,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedResult } from '@ahoo-wang/wow-client/dsl';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -1036,7 +1036,7 @@ describe('every workbench offers the interval', () => {
       }),
     };
     // A source that never answers, so the panel's request stays in flight.
-    const outstanding = deferred<PagedResult<RecordData>>();
+    const outstanding = deferred<PagedList<RecordData>>();
     const engine = engineWith({
       instances: [orders, board],
       source: testSource({ paged: () => outstanding.promise }),

@@ -40,7 +40,10 @@ class WowCoCacheAutoConfigurationTest {
         )
         .withBean(QueryApi::class.java, { mockk<QueryApi>() })
 
-    private val cacheOfOrders = ResolvableType.forClassWithGenerics(PublishedStateCache::class.java, OrderView::class.java)
+    private val cacheOfOrders = ResolvableType.forClassWithGenerics(
+        PublishedStateCache::class.java,
+        OrderView::class.java
+    )
 
     @Test
     fun `a service should inject the cache of each view its contracts name, with nothing declared`() {

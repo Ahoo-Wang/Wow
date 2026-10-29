@@ -24,8 +24,8 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.StartFrom
-import me.ahoo.wow.runtime.state.SerializedState
 import me.ahoo.wow.runtime.state.PublishedStateReader
+import me.ahoo.wow.runtime.state.SerializedState
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition

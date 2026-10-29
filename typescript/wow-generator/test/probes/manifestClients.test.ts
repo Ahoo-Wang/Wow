@@ -404,7 +404,7 @@ describe('Manifest clients', () => {
        void [traced, reshaped, short, owner, body];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
-      "export type ThingEvent = EventView<'probe.thing.Shaped', Shape> | EventView<'probe.thing.Reshaped', Shape> | SystemEvent;",
+      "export type ThingEvent = CommittedEvent<'probe.thing.Shaped', Shape> | CommittedEvent<'probe.thing.Reshaped', Shape> | SystemEvent;",
     );
   });
 

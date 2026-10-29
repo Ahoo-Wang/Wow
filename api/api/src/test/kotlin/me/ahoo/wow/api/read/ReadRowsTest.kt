@@ -22,9 +22,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.schedule.ScheduleRule
 import org.junit.jupiter.api.Test
 
 /** The rows of the typed read API are plain values (decisions D59, D227), and its reified entries name their class. */
@@ -39,8 +39,19 @@ class ReadRowsTest {
             Snapshot.of(ref, 2, Scope.NONE, emptyMap(), true, null, 1, 2, "s"),
         )
         val due = mapOf("remind" to ScheduleRule.At.of(5))
-        val firstOperated = { Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", operator, due) }
-        valueSemantics(firstOperated, Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", null, due))
+        val firstOperated = {
+            Snapshot.of(
+                ref, 1,
+                Scope(
+                    "alice"
+                ),
+                emptyMap(), false, operator, 1, 2, "s", operator, due
+            )
+        }
+        valueSemantics(
+            firstOperated,
+            Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", null, due)
+        )
         valueSemantics(
             firstOperated,
             Snapshot.of(ref, 1, Scope("alice"), emptyMap(), false, operator, 1, 2, "s", operator, emptyMap()),

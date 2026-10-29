@@ -107,7 +107,10 @@ class LocalSagaStateTest {
         backends,
         LoopbackClusterChannel(),
         // Views age out between the rounds, as an account's do between two transfers in the benchmark.
-        options = fastNodeOptions().copyWith(appendQueue = queue, publishedStates = PublishedStateOptions(maxAge = MAX_AGE)),
+        options = fastNodeOptions().copyWith(
+            appendQueue = queue,
+            publishedStates = PublishedStateOptions(maxAge = MAX_AGE)
+        ),
         subscriptions = SubscriptionBindings(mapOf(SHOP to listOf(onOrderPlaced, onCartChanged))),
         observer = SlowReturns,
     ).also {

@@ -391,7 +391,17 @@ export type CommandResultStatus = (typeof CommandResultStatus)[keyof typeof Comm
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
 
 // @public
-export interface CommitView<S = unknown, E extends EventView = EventView> {
+export interface CommittedEvent<N extends string = string, B = unknown> {
+    // (undocumented)
+    readonly body: B;
+    // (undocumented)
+    readonly name: N;
+    // (undocumented)
+    readonly revision: number;
+}
+
+// @public
+export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEvent> {
     // (undocumented)
     readonly commandId: string;
     // (undocumented)
@@ -804,17 +814,14 @@ export interface EventManifest {
 }
 
 // @public
-export class EventQueryClient<E extends EventView = EventView> extends QueryModelClient<EventStreamRecord<E>, EventStreamField> {
+export class EventQueryClient<E extends CommittedEvent = CommittedEvent> extends QueryModelClient<EventStream<E>, EventStreamField> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
 }
 
 // @public
-export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'events';
-
-// @public
-export interface EventStreamRecord<E extends EventView = EventView> {
+export interface EventStream<E extends CommittedEvent = CommittedEvent> {
     // (undocumented)
     readonly aggregateId: string;
     // (undocumented)
@@ -837,14 +844,7 @@ export interface EventStreamRecord<E extends EventView = EventView> {
 }
 
 // @public
-export interface EventView<N extends string = string, B = unknown> {
-    // (undocumented)
-    readonly body: B;
-    // (undocumented)
-    readonly name: N;
-    // (undocumented)
-    readonly revision: number;
-}
+export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'events';
 
 // @public
 type ExpressionFilter<FIELDS extends string = string> = {
@@ -1378,18 +1378,18 @@ export interface OwnerTransferred {
 }
 
 // @public
-interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
-    total?: TotalMode;
-}
-
-// @public
-interface PagedResult<T> {
+interface PagedList<T> {
     // (undocumented)
     readonly exact: boolean;
     // (undocumented)
     readonly list: readonly T[];
     // (undocumented)
     readonly total: number | null;
+}
+
+// @public
+interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+    total?: TotalMode;
 }
 
 // @public
@@ -1433,6 +1433,12 @@ interface PercentileAggregationMetric<FIELDS extends string = string> {
 type PickPaths<T, P extends string> = T extends readonly (infer E)[] ? PickPaths<E, P>[] : T extends object ? {
     [K in keyof T as K extends Head<P> ? K : never]: K extends P ? T[K] : PickPaths<T[K], Tail<P, K & string>>;
 } : T;
+
+// @public
+export interface Positioned<T> {
+    readonly position?: string;
+    readonly row: T;
+}
 
 // @public
 export interface Problem {
@@ -1545,9 +1551,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
     // (undocumented)
     readonly numbers?: TextNumbers | undefined;
-    paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE>>>;
+    paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedList<Projected<R, INCLUDE>>>;
     // (undocumented)
-    paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
+    paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedList<R>>;
     // (undocumented)
     readonly path: string;
     single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE> | undefined>;
@@ -1556,9 +1562,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     stream<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<Projected<R, INCLUDE>>>;
     // (undocumented)
     stream(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<R>>;
-    streamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+    streamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<Positioned<Projected<R, INCLUDE>>>>;
     // (undocumented)
-    streamRows(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
+    streamRows(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<Positioned<R>>>;
 }
 
 // @public
@@ -1833,6 +1839,31 @@ export interface ServiceRouteManifest {
 }
 
 // @public
+export interface Snapshot<S = unknown> {
+    // (undocumented)
+    readonly aggregateId: string;
+    // (undocumented)
+    readonly deleted: boolean;
+    readonly firstEventTime: number;
+    readonly firstOperator: Operator | null;
+    readonly lastEventTime: number;
+    readonly operator: Operator | null;
+    // (undocumented)
+    readonly ownerId: string | null;
+    readonly schedules: Readonly<Record<string, ScheduleRule>>;
+    // (undocumented)
+    readonly spaceId: string | null;
+    // (undocumented)
+    readonly state: S;
+    // (undocumented)
+    readonly tags: Tags;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly version: number;
+}
+
+// @public
 export const SNAPSHOT_SUBSCRIPTION = "snapshot";
 
 // @public
@@ -1844,35 +1875,10 @@ export interface SnapshotManifest {
 }
 
 // @public
-export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`> extends QueryModelClient<SnapshotRecord<S>, SnapshotSystemField | STATE_FIELDS> {
+export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`> extends QueryModelClient<Snapshot<S>, SnapshotSystemField | STATE_FIELDS> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
-}
-
-// @public
-export interface SnapshotRecord<S = unknown> {
-    // (undocumented)
-    readonly aggregateId: string;
-    // (undocumented)
-    readonly deleted: boolean;
-    readonly firstEventTime: number;
-    readonly firstOperator: Operator | null;
-    readonly lastEventTime: number;
-    readonly operator: Operator | null;
-    // (undocumented)
-    readonly ownerId: string | null;
-    readonly schedules?: Readonly<Record<string, ScheduleRule>>;
-    // (undocumented)
-    readonly spaceId: string | null;
-    // (undocumented)
-    readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
-    // (undocumented)
-    readonly tenantId: string;
-    // (undocumented)
-    readonly version: number;
 }
 
 // @public
@@ -1923,12 +1929,12 @@ export const Stage: {
 export type Stage = (typeof Stage)[keyof typeof Stage];
 
 // @public
-export class StateClient<S = unknown, E extends EventView = EventView> {
+export class StateClient<S = unknown, E extends CommittedEvent = CommittedEvent> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly client: WowClientOptions;
-    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S> | undefined>;
-    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
+    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S> | undefined>;
+    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S>>;
     read(id: string, options?: StateReadOptions): Promise<StateReadResult<S>>;
     trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E>>;
     // (undocumented)
@@ -1955,7 +1961,7 @@ export interface StateReadOptions extends RequestOptions {
 // @public
 export type StateReadResult<S> = {
     readonly notModified: false;
-    readonly view: StateView<S>;
+    readonly snapshot: Snapshot<S>;
     readonly etag?: string;
 } | {
     readonly notModified: true;
@@ -1964,7 +1970,7 @@ export type StateReadResult<S> = {
 };
 
 // @public
-export interface StateTrace<S = unknown, E extends EventView = EventView> {
+export interface StateTrace<S = unknown, E extends CommittedEvent = CommittedEvent> {
     // (undocumented)
     readonly commits: readonly CommitView<S, E>[];
     // (undocumented)
@@ -1976,28 +1982,6 @@ export interface StateTraceOptions extends RequestOptions {
     readonly from?: number;
     readonly limit?: number;
     readonly to?: number;
-}
-
-// @public
-export interface StateView<S = unknown> {
-    // (undocumented)
-    readonly deleted: boolean;
-    // (undocumented)
-    readonly ref: AggregateRef;
-    // (undocumented)
-    readonly scope: Scope;
-    // (undocumented)
-    readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
-    // (undocumented)
-    readonly version: number;
-}
-
-// @public
-export interface StreamedRow<T> {
-    readonly position?: string;
-    readonly record: T;
 }
 
 // @public
@@ -2067,7 +2051,7 @@ export interface SubscriptionManifest {
 }
 
 // @public
-export type SystemEvent = EventView<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | EventView<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | EventView<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | EventView<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | EventView<'wow.lifecycle.TagsApplied', TagsApplied> | EventView<'wow.ScheduleSet', ScheduleSet> | EventView<'wow.ScheduleCancelled', ScheduleCancelled>;
+export type SystemEvent = CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | CommittedEvent<'wow.lifecycle.TagsApplied', TagsApplied> | CommittedEvent<'wow.ScheduleSet', ScheduleSet> | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
 
 // @public
 export type Tags = Readonly<Record<string, readonly string[]>>;

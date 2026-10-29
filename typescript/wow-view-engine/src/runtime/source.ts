@@ -17,7 +17,7 @@ import type {
   CursorQuery,
   DescriptorResult,
   PagedQuery,
-  PagedResult,
+  PagedList,
 } from '@ahoo-wang/wow-client/dsl';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisProjection } from '../analysis/index.js';
@@ -50,7 +50,7 @@ export interface ViewSource {
   paged(
     query: PagedQuery,
     options?: SourceOptions,
-  ): Promise<PagedResult<object>>;
+  ): Promise<PagedList<object>>;
   cursor(
     query: CursorQuery,
     options?: SourceOptions,
@@ -82,7 +82,7 @@ export interface RecordSource {
   paged(
     query: PagedQuery,
     options?: SourceOptions,
-  ): Promise<PagedResult<RecordData>>;
+  ): Promise<PagedList<RecordData>>;
   cursor(
     query: CursorQuery,
     options?: SourceOptions,

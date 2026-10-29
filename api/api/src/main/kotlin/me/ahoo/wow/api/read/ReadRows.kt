@@ -20,7 +20,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
- * An aggregate's latest committed state as a snapshot query and a state read answer it (decision D348 ⑦): the
+ * An aggregate's latest committed state as a snapshot query and a state read answer it: the
  * aggregate [ref] at [version], its [scope] (owner and space), its [tags], whether it is [deleted], the [operator] of
  * its last commit and the [firstOperator] of its first, the one that created it (each null for an anonymous caller),
  * the times of its first and last events (epoch milliseconds), the [schedules] it keeps, each rule by its key, and

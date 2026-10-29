@@ -34,7 +34,7 @@ export interface ViewSource {
   paged(
     query: PagedQuery,
     options?: SourceOptions,
-  ): Promise<PagedResult<object>>;
+  ): Promise<PagedList<object>>;
   cursor(
     query: CursorQuery,
     options?: SourceOptions,

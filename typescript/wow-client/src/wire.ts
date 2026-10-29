@@ -255,29 +255,14 @@ export interface RefusedResult<R = Record<string, unknown>> extends Omit<
 export type Tags = Readonly<Record<string, readonly string[]>>;
 
 /**
- * An aggregate's state at a version, as
- * `GET /{context}/{aggregate}/{id}/state` answers it.
- *
- * @typeParam S - The state's type.
- */
-export interface StateView<S = unknown> {
-  readonly ref: AggregateRef;
-  readonly version: number;
-  readonly scope: Scope;
-  readonly deleted: boolean;
-  readonly tags: Tags;
-  readonly state: S;
-}
-
-/**
- * An event as Wow reads it now: under its current name, upgraded to its latest revision. The `events` query gives
+ * An event as Wow reads it now: under its current name, upgraded to its latest revision. Kotlin's `CommittedEvent`. The `events` query gives
  * every stored event so, however old its record, and leaves out the events its aggregate retired, so a generated
  * `<Aggregate>Event` union, with {@link SystemEvent}, covers each event it returns.
  *
  * @typeParam N - The event's name.
  * @typeParam B - The event's body.
  */
-export interface EventView<N extends string = string, B = unknown> {
+export interface CommittedEvent<N extends string = string, B = unknown> {
   readonly name: N;
   readonly revision: number;
   readonly body: B;
@@ -323,16 +308,16 @@ export interface ScheduleCancelled {
  * `wow-generator` writes for an aggregate includes this one.
  */
 export type SystemEvent =
-  | EventView<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>>
-  | EventView<
+  | CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>>
+  | CommittedEvent<
       'wow.lifecycle.AggregateRestored',
       Readonly<Record<string, never>>
     >
-  | EventView<'wow.lifecycle.OwnerTransferred', OwnerTransferred>
-  | EventView<'wow.lifecycle.SpaceTransferred', SpaceTransferred>
-  | EventView<'wow.lifecycle.TagsApplied', TagsApplied>
-  | EventView<'wow.ScheduleSet', ScheduleSet>
-  | EventView<'wow.ScheduleCancelled', ScheduleCancelled>;
+  | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred>
+  | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred>
+  | CommittedEvent<'wow.lifecycle.TagsApplied', TagsApplied>
+  | CommittedEvent<'wow.ScheduleSet', ScheduleSet>
+  | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
 
 /**
  * One commit of a state trace: the events of a version and the
@@ -341,7 +326,7 @@ export type SystemEvent =
  * @typeParam S - The state's type.
  * @typeParam E - The events' type.
  */
-export interface CommitView<S = unknown, E extends EventView = EventView> {
+export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEvent> {
   readonly version: number;
   /** When it was committed, in epoch milliseconds. */
   readonly commitTime: number;
@@ -360,18 +345,19 @@ export interface CommitView<S = unknown, E extends EventView = EventView> {
  * What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate
  * and its commits in version order.
  */
-export interface StateTrace<S = unknown, E extends EventView = EventView> {
+export interface StateTrace<S = unknown, E extends CommittedEvent = CommittedEvent> {
   readonly ref: AggregateRef;
   readonly commits: readonly CommitView<S, E>[];
 }
 
 /**
- * A record of the `snapshot` query model: the
- * aggregate's system fields and its state.
+ * An aggregate's latest committed state, as a record of the `snapshot` query
+ * model and as `GET /{context}/{aggregate}/{id}/state` answer it: the
+ * aggregate's system fields and its state. Kotlin's `Snapshot`.
  *
  * @typeParam S - The state's type.
  */
-export interface SnapshotRecord<S = unknown> {
+export interface Snapshot<S = unknown> {
   readonly tenantId: string;
   readonly aggregateId: string;
   readonly version: number;
@@ -389,9 +375,9 @@ export interface SnapshotRecord<S = unknown> {
   readonly firstOperator: Operator | null;
   /**
    * The schedules the aggregate keeps (decision D198): each rule, `{type,
-   * ...}`, by its key; absent from a server before 6.8c.
+   * ...}`, by its key.
    */
-  readonly schedules?: Readonly<Record<string, ScheduleRule>>;
+  readonly schedules: Readonly<Record<string, ScheduleRule>>;
   readonly state: S;
 }
 
@@ -428,11 +414,11 @@ export interface ScheduleRule {
 
 /**
  * A record of the `events` query model: one commit of one
- * aggregate and its events.
+ * aggregate and its events. Kotlin's `EventStream`.
  *
  * @typeParam E - The events' type.
  */
-export interface EventStreamRecord<E extends EventView = EventView> {
+export interface EventStream<E extends CommittedEvent = CommittedEvent> {
   readonly aggregateId: string;
   readonly tenantId: string;
   readonly version: number;

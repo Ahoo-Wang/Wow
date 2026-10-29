@@ -43,8 +43,8 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TenantSnapshotQueries
-import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.PublishedStateUnavailableException
+import me.ahoo.wow.cocache.api.StateKey
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.ConnectException
@@ -124,7 +124,9 @@ class PublishedStateUnavailableTest {
     fun `a state that does not decode as its view should be thrown as it is`() = runBlocking<Unit> {
         caches.writerOf(OrderView::class.java).write(key, OrderView("book"), 1).assert().isTrue()
         runtimeOn(backend).use { other ->
-            val strict = PublishedStateCaches(PublishedStateCaches.CacheFactory.of(other)) { mockk() }.of<StrictOrderView>()
+            val strict = PublishedStateCaches(
+                PublishedStateCaches.CacheFactory.of(other)
+            ) { mockk() }.of<StrictOrderView>()
             val failure = readFailure { strict.get(key) }
             failure.assert().isNotNull()
             (failure is PublishedStateUnavailableException).assert().isFalse()

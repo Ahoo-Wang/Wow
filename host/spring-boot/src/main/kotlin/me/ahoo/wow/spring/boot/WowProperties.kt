@@ -626,7 +626,11 @@ class WowProperties {
         /** The most serialized state a context's views hold, counting two bytes a character (`64MB`). */
         var maxBytes: DataSize = DataSize.ofBytes(PublishedStateOptions.DEFAULT_MAX_BYTES)
 
-        fun options(): PublishedStateOptions = PublishedStateOptions(capacity, maxAge.toKotlinDuration(), maxBytes.toBytes())
+        fun options(): PublishedStateOptions = PublishedStateOptions(
+            capacity,
+            maxAge.toKotlinDuration(),
+            maxBytes.toBytes()
+        )
     }
 
     /** The cache of aggregate states each context keeps between commands. */

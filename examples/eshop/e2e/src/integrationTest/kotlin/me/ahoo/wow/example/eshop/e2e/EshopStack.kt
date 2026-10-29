@@ -168,7 +168,7 @@ class EshopStack(
 
     /** The owner of the aggregate at [path] of [service] (decision D189), or null when it has none. */
     fun ownerOf(service: EshopService, path: String): String? =
-        checkNotNull(view(service, path)) { "No state at $path." }["scope"]?.get("ownerId")?.takeUnless { it.isNull }?.asString()
+        checkNotNull(view(service, path)) { "No state at $path." }["ownerId"]?.takeUnless { it.isNull }?.asString()
 
     private fun view(service: EshopService, path: String, headers: Map<String, String> = emptyMap()): JsonNode? {
         val answer = service.get(path, headers)

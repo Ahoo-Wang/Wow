@@ -60,7 +60,7 @@ import java.time.format.DateTimeParseException
  * The state reads of the public port, over the node's [StateReads] (`:runtime`):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the snapshot [reads] give, as the
- *   record a snapshot query answers (decision D348 ⑦), with
+ *   record a snapshot query answers, with
  *   `ETag: "<version>-<digest>"` ([EntityTags]), the digest a hash of the body as the caller reads it, so a state
  *   whose version stays while what is read of it changes (a state revision rebuilt; an upcaster; the
  *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
@@ -128,7 +128,7 @@ internal class StateHandler(
                 }
             }
         }
-        // The snapshot record's shape, as a snapshot query answers it (decision D348 ⑦).
+        // The snapshot record's shape, as a snapshot query answers it.
         val body = HttpJson.write(view.toRecord().set(SnapshotFields.STATE, state))
         val tag = EntityTags.state(view.version, body)
         val notModified = request.headers().header(HttpHeaders.IF_NONE_MATCH)
