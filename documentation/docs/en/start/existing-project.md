@@ -10,7 +10,7 @@ The [Quickstart](./quickstart) fits a service in one module. A real service spli
 
 ## What you need
 
-- JDK 21.
+- JDK 21 or later; JDK 25 to run in production ([The JDK](../operate/kubernetes#the-jdk)).
 - Gradle 9 and the Kotlin JVM plugin 2.3 or later. Java sources work too: KSP reads them within the Kotlin compilation ([Write the Domain in Java](../guide/java)).
 - Spring Boot 4 for the server, and Jackson 3 (`tools.jackson`) in domain code that touches JSON.
 

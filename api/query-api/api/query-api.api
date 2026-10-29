@@ -1855,6 +1855,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field SORT_FIELD_DUPLICATE Ljava/lang/String;
 	public static final field SORT_TOO_MANY Ljava/lang/String;
 	public static final field STORAGE_UNSUPPORTED Ljava/lang/String;
+	public static final field STREAM_NOT_RESUMABLE Ljava/lang/String;
 	public static final field TEMPORAL_AGGREGATION_UNSUPPORTED Ljava/lang/String;
 	public static final field TEMPORAL_CONFIGURATION_CONFLICT Ljava/lang/String;
 	public static final field TEMPORAL_REPRESENTATION_REQUIRED Ljava/lang/String;

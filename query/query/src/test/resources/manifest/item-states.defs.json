@@ -1,0 +1,175 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListState" : {
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListState" : {
+      "type" : "object",
+      "properties" : {
+        "items" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "endDate" : {
+                "type" : [ "integer", "null" ],
+                "format" : "int64",
+                "x-wow-temporal" : {
+                  "unit" : "MILLISECONDS"
+                }
+              },
+              "startDate" : {
+                "type" : "integer",
+                "format" : "int64",
+                "x-wow-temporal" : {
+                  "unit" : "MILLISECONDS"
+                }
+              },
+              "type" : {
+                "type" : "string",
+                "enum" : [ "A", "B" ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemType"
+              }
+            },
+            "required" : [ "startDate", "type" ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        }
+      },
+      "required" : [ "items" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListState"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemMapState" : {
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item" : {
+      "type" : "object",
+      "properties" : {
+        "endDate" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "startDate" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "A", "B" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemType"
+        }
+      },
+      "required" : [ "startDate", "type" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+    },
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemMapState" : {
+      "type" : "object",
+      "properties" : {
+        "itemsById" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        }
+      },
+      "required" : [ "itemsById" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemMapState"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListAndMapState" : {
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item" : {
+      "type" : "object",
+      "properties" : {
+        "endDate" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "startDate" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "A", "B" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemType"
+        }
+      },
+      "required" : [ "startDate", "type" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+    },
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListAndMapState" : {
+      "type" : "object",
+      "properties" : {
+        "items" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        },
+        "itemsById" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        }
+      },
+      "required" : [ "items", "itemsById" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemListAndMapState"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$TwoItemListsState" : {
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item" : {
+      "type" : "object",
+      "properties" : {
+        "endDate" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "startDate" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "A", "B" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$ItemType"
+        }
+      },
+      "required" : [ "startDate", "type" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+    },
+    "me.ahoo.wow.manifest.tools.QueryKeywordsTest$TwoItemListsState" : {
+      "type" : "object",
+      "properties" : {
+        "first" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        },
+        "second" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Item"
+          }
+        }
+      },
+      "required" : [ "first", "second" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$TwoItemListsState"
+    }
+  }
+}

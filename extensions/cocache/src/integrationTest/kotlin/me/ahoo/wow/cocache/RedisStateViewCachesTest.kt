@@ -31,7 +31,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
@@ -54,7 +54,7 @@ data class RedisOrderView(val item: String)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStateViewCachesTest {
     private val redis = GenericContainer(REDIS_IMAGE).withExposedPorts(REDIS_PORT).also { it.start() }
-    private val snapshots = mockk<SnapshotQueries<RedisOrderView>>()
+    private val snapshots = mockk<TenantSnapshotQueries<RedisOrderView>>()
     private val api: TenantQueryApi = mockk {
         every { tenant(any()) } answers {
             mockk<SubscriptionQueries> { every { snapshots(RedisOrderView::class.java) } returns snapshots }

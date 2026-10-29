@@ -39,7 +39,7 @@ import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -53,7 +53,7 @@ import java.time.ZoneOffset
 class DatasetPublicationWatcherTest {
     private var rows: List<Snapshot<DatasetState>> = emptyList()
     private val queries = mutableListOf<ListQuery>()
-    private val api = mockk<QueryApi> {
+    private val api = mockk<NodeQueryApi> {
         every { trusted().unbounded().snapshots(DatasetState::class.java).list(any()) } answers {
             queries += firstArg<ListQuery>()
             flowOf(*rows.toTypedArray())

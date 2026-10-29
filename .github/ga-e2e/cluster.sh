@@ -23,7 +23,8 @@
 #                                 Elasticsearch
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
-#   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too) and the events
+#   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too), the events, and
+#                                 each JVM's threads
 #
 # GitHub Actions only: it creates a cluster on the machine it runs on (the repository runs no cluster locally).
 set -euo pipefail
@@ -191,6 +192,15 @@ diagnostics() {
       kubectl logs "$pod" -c "$container" --previous >"$out/logs/$pod.previous.log" 2>/dev/null ||
         rm -f "$out/logs/$pod.previous.log"
     done
+  done
+  # The threads of every service's JVM at the end, virtual ones included: a node wedged since some scenario still shows
+  # what it waits on. The runner dumped those that looked stuck while the scenarios ran (threads/ beside this).
+  mkdir -p "$out/threads"
+  for pod in $(kubectl get pods -o name 2>/dev/null); do
+    pod=${pod#pod/}
+    kubectl exec "$pod" -- jcmd 1 Thread.dump_to_file -overwrite -format=json /tmp/wow-threads.json >/dev/null 2>&1 &&
+      kubectl exec "$pod" -- cat /tmp/wow-threads.json >"$out/threads/$pod.json" 2>/dev/null ||
+      rm -f "$out/threads/$pod.json"
   done
 }
 

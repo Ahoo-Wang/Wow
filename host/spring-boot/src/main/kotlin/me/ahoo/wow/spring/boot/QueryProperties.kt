@@ -50,7 +50,7 @@ class QueryProperties {
     var budgets: Budgets = Budgets()
 
     /**
-     * The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for
+     * The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for
      * none.
      */
     var unboundedTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()

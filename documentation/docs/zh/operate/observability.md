@@ -28,7 +28,7 @@ outline: deep
 | `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | |
 | `subscriptions` | 从不 | 某个订阅落后了 `lag-degraded-at`（10,000）个条目，或有 `parked-degraded-at`（100）个停放条目 |
 | `executor` | | 执行器的在途量达到其上限的 `saturation`（90%） |
-| `liveness` | 节点卡住了：在每个日志都有响应的情况下，它的调度器在 `wow.health.liveness.stall-timeout`（3 分钟）内没有运转，或者在途的命令没有完成。只有这一项会让存活探针失败 | |
+| `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。只有这一项会让存活探针失败 | |
 
 降级的组件不会改变分组的状态：它的作用是让人看到并据此报警。存活探针从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。探针不能等待的东西（日志的头部、订阅的落后量、停放的条目），节点每隔 `wow.node.sample-interval`（10 秒）采样一次，所以探针能立即得到回答。同一次采样同时供健康与 gauge 使用，每个订阅按它的组和名字区分：每个上下文的 `snapshot` 订阅各自独立，有自己的停放计数，最多计到 `wow.node.max-parked`。
 

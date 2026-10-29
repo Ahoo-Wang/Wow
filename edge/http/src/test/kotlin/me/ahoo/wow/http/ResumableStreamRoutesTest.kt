@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -36,6 +37,9 @@ import kotlin.time.Duration.Companion.milliseconds
 /** Streamed lists are resumable (decision D253): ids, `Last-Event-ID`, the `end` event and the hold time. */
 class ResumableStreamRoutesTest {
     private val byItems = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"state.items","direction":"asc"}]}"""
+
+    /** [byItems] naming a limit: what a stream its store cannot resume must name. */
+    private val byItemsLimited = byItems.dropLast(1) + ""","limit":2}"""
 
     private fun QueryNode.saveFive() = (1..5).forEach { save("c-$it", items = it) }
 
@@ -172,17 +176,29 @@ class ResumableStreamRoutesTest {
     }
 
     @Test
-    fun `a list that cannot be resumed streams without ids, ends unresumable, and refuses a Last-Event-ID`() {
+    fun `a list that cannot be resumed streams its limit without ids, ends unresumable, and refuses a Last-Event-ID`() {
         val node = QueryNode(snapshots = { delegate -> Unresumable(delegate) }, defaultListSize = 2)
         node.saveFive()
-        val streamed = node.stream(byItems)
+        val streamed = node.stream(byItemsLimited)
         streamed.events.map { it.event }.assert().containsExactly("row", "row", "end")
         streamed.events.map { it.id }.assert().containsOnlyNulls()
         streamed.end!!["reason"].asString().assert().isEqualTo(QueryStreams.COMPLETE)
         streamed.end!!["resumable"].asBoolean().assert().isFalse()
-        val refused = node.stream(byItems, lastEventId = "anything")
+        val refused = node.stream(byItemsLimited, lastEventId = "anything")
         refused.status.assert().isEqualTo(400)
         QueryJson.mapper.readTree(refused.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+    }
+
+    @Test
+    fun `a list that cannot be resumed and names no limit should be refused, not cut at a default`() {
+        val node = QueryNode(snapshots = { delegate -> Unresumable(delegate) }, defaultListSize = 2)
+        node.saveFive()
+        val refused = node.stream(byItems)
+        refused.status.assert().isEqualTo(400)
+        val problem = QueryJson.mapper.readTree(refused.body)
+        problem["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        problem["violations"].first()["code"].asString().assert().isEqualTo(QueryErrorCodes.STREAM_NOT_RESUMABLE)
+        problem["violations"].first()["path"].asString().assert().isEqualTo("limit")
     }
 
     @Test
@@ -192,7 +208,7 @@ class ResumableStreamRoutesTest {
             streams = QueryStreams(maxHold = 60.milliseconds),
         )
         node.saveFive()
-        val streamed = node.stream(byItems)
+        val streamed = node.stream(byItems.dropLast(1) + ""","limit":5}""")
         streamed.rows.size.assert().isLessThan(5)
         streamed.rows.map { it.id }.assert().containsOnlyNulls()
         streamed.end!!["reason"].asString().assert().isEqualTo(QueryStreams.HOLD_EXPIRED)

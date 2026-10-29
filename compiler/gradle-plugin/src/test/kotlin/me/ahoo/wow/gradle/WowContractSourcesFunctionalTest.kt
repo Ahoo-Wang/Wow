@@ -199,12 +199,12 @@ class WowContractSourcesFunctionalTest {
             package $pkg
 
             import me.ahoo.wow.api.read.Queries
-            import me.ahoo.wow.api.read.SnapshotQueries
+            import me.ahoo.wow.api.read.TenantSnapshotQueries
             import me.ahoo.wow.api.read.snapshots
             import shopapi.CartStateView
 
             object ViewUsage {
-                fun carts(queries: Queries): SnapshotQueries<CartStateView> = queries.snapshots<CartStateView>()
+                fun carts(queries: Queries): TenantSnapshotQueries<CartStateView> = queries.snapshots<CartStateView>()
 
                 fun isOpen(cart: CartStateView): Boolean =
                     cart.status == CartStateView.CartStatus.OPEN && cart.lines.all { it.quantity > 0 } &&

@@ -47,7 +47,7 @@ fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): S
 
 /**
  * This events query record (`EventQueryGateways.kt`) of [type], each event's body decoded as the
- * class [eventType] gives its name, a `Map` when it gives none.
+ * class [eventType] gives its name, an [ObjectNode] when it gives none.
  */
 @InternalWowApi
 fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*>?): EventStream =
@@ -65,7 +65,7 @@ fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*
             CommittedEvent.of(
                 name = name,
                 revision = event.present(EventFields.REVISION).asInt(),
-                body = decode(event.present(EventFields.BODY), eventType(name) ?: Map::class.java),
+                body = decode(event.present(EventFields.BODY), eventType(name) ?: ObjectNode::class.java),
             )
         },
     )

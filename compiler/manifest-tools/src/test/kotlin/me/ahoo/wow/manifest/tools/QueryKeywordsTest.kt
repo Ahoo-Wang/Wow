@@ -116,6 +116,64 @@ class QueryKeywordsTest {
         complete(OrderState::class.java).defs.assert().isEqualTo(snapshot)
     }
 
+    enum class ItemType { A, B }
+
+    /** The item of #5166: an epoch-millisecond time, non-null and nullable, beside an enum. */
+    data class Item(
+        val type: ItemType,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val startDate: Long,
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val endDate: Long?,
+    )
+
+    data class ItemListState(val items: List<Item>)
+
+    data class ItemMapState(val itemsById: Map<String, Item>)
+
+    data class ItemListAndMapState(val items: List<Item>, val itemsById: Map<String, Item>)
+
+    data class TwoItemListsState(val first: List<Item>, val second: List<Item>)
+
+    @Test
+    fun `a temporal keyword should stay on its property in list elements and map values alike`() {
+        // Each state in a Manifest of its own: an item used once in a list is inlined, a map value or an item used
+        // twice is a $ref to its definition.
+        val defs = listOf(
+            ItemListState::class.java,
+            ItemMapState::class.java,
+            ItemListAndMapState::class.java,
+            TwoItemListsState::class.java,
+        ).associate { it.name to complete(it).defs }
+        val snapshot = javaClass.getResourceAsStream("/query-keywords/item-states.defs.json")!!.use {
+            mapper.readValue(it, Map::class.java)
+        }
+        defs.assert().isEqualTo(snapshot)
+        defs.forEach { (state, stateDefs) ->
+            ((stateDefs.getValue(state) as Map<*, *>)["properties"] as Map<*, *>).values.forEach { property ->
+                property as Map<*, *>
+                val value = (property["items"] ?: property["additionalProperties"]) as Map<*, *>
+                val item = ((value["\$ref"] as? String)?.let { stateDefs[Manifest.schemaKey(it)] } ?: value)
+                    .let { (it as Map<*, *>)["properties"] as Map<*, *> }
+                // The keyword sits on the nullable property itself, never on a branch of it.
+                item["endDate"].assert().isEqualTo(
+                    mapOf(
+                        "type" to listOf("integer", "null"),
+                        "format" to "int64",
+                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                    ),
+                )
+                item["startDate"].assert().isEqualTo(
+                    mapOf(
+                        "type" to "integer",
+                        "format" to "int64",
+                        "x-wow-temporal" to mapOf("unit" to "MILLISECONDS"),
+                    ),
+                )
+            }
+        }
+    }
+
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)
 
     @Test

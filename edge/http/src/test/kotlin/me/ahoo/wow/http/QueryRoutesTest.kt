@@ -268,7 +268,7 @@ class QueryRoutesTest {
     @Test
     fun `a streamed list that fails after its first record should end with an error event`() {
         val failing = QueryNode(snapshots = { FailingList(it) })
-        val streamed = failing.stream("""{"kind":"list","filter":{"op":"match-all"}}""")
+        val streamed = failing.stream("""{"kind":"list","filter":{"op":"match-all"},"limit":10}""")
         streamed.status.assert().isEqualTo(200)
         streamed.events.map { it.event }.assert().containsExactly("row", "error")
         // A stream that cannot be resumed carries no positions.

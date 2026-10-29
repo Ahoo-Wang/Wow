@@ -27,7 +27,7 @@ The two lists below are generated from the sources of the published modules: the
 | Declaration | Kind | Module |
 | --- | --- | --- |
 | `me.ahoo.wow.api.read.DatasetName` | class | `wow-api` |
-| `me.ahoo.wow.api.read.Queries.datasets` | fun | `wow-api` |
+| `me.ahoo.wow.api.read.QueryModels.datasets` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.RowQueries.aggregate` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.datasets` | fun | `wow-api` |
 | `me.ahoo.wow.api.read.RowQueries` | fun | `wow-api` |
@@ -71,8 +71,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
 | `me.ahoo.wow.query.policy.AbacQueryOptions` | class | `wow-query` |
 | `me.ahoo.wow.query.policy.AbacQueryPolicy` | class | `wow-query` |
-| `me.ahoo.wow.query.read.datasetTrees` | fun | `wow-query` |
-| `me.ahoo.wow.query.read.RowQueries` | fun | `wow-query` |
 | `me.ahoo.wow.query.schema.DeclarationValue` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySchemaDeclaration` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |
@@ -85,7 +83,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
-| `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
+| `me.ahoo.wow.client.java.JavaQueryModels.datasets` | fun | `wow-client` |
 
 ## SPI declarations
 
