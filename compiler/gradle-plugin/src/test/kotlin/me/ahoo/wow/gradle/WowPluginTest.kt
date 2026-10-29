@@ -24,7 +24,6 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
@@ -38,9 +37,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
-import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.util.GradleVersion
@@ -56,13 +53,14 @@ class WowPluginTest {
     @TempDir
     lateinit var directory: File
 
-    private fun project(kotlin: Boolean = true): Project = ProjectBuilder.builder()
+    /** A project of [id], the service plugin by default: the domain role on its sources, and the service's. */
+    private fun project(kotlin: Boolean = true, id: String = WowPlugin.SERVICE_ID): Project = ProjectBuilder.builder()
         .withProjectDir(directory)
         .withName("shop")
         .build()
         .also { project ->
             project.version = "1.2.3"
-            project.pluginManager.apply("me.ahoo.wow")
+            project.pluginManager.apply(id)
             if (kotlin) {
                 project.pluginManager.apply("org.jetbrains.kotlin.jvm")
             }
@@ -74,12 +72,12 @@ class WowPluginTest {
     fun `without the Kotlin plugin it should fail once the project is evaluated, naming the fix`() {
         val project = project(kotlin = false)
         project.pluginManager.apply("java")
-        project.extensions.getByType(WowExtension::class.java).serviceName.isPresent.assert().isFalse()
+        project.extensions.getByType(WowServiceExtension::class.java).serviceName.isPresent.assert().isFalse()
         project.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNull()
         project.pluginManager.hasPlugin("com.google.devtools.ksp").assert().isFalse()
         val failure = assertThrows<ProjectConfigurationException> { (project as ProjectInternal).evaluate() }
         generateSequence<Throwable>(failure) { it.cause }.map { it.message }.toList().assert()
-            .contains(WowPlugin.missingKotlinJvm(":"))
+            .contains(WowPlugin.missingKotlinJvm(":", WowPlugin.SERVICE_ID))
     }
 
     @Test
@@ -163,11 +161,21 @@ class WowPluginTest {
                 """<artifactId>billing</artifactId><version>1.0.0</version></project>""",
         )
         File(repository, "com/acme/billing/1.0.0/billing-1.0.0.jar").writeText("")
+        // The BOM and the kernel the plugin adds.
+        val version = WowPlugin.version
+        mapOf("wow-bom" to "pom", "wow-kernel" to "jar").forEach { (artifact, packaging) ->
+            val directory = File(repository, "me/ahoo/wow/$artifact/$version").apply { mkdirs() }
+            File(directory, "$artifact-$version.pom").writeText(
+                "<project><modelVersion>4.0.0</modelVersion><groupId>me.ahoo.wow</groupId><artifactId>$artifact" +
+                    "</artifactId><version>$version</version><packaging>$packaging</packaging></project>",
+            )
+            if (packaging == "jar") File(directory, "$artifact-$version.jar").writeText("")
+        }
         val vendor = File(directory, "shop/vendor/tool.jar").apply { parentFile.mkdirs() }.also { it.writeText("") }
         val shop = ProjectBuilder.builder().withParent(root).withName("shop").withProjectDir(File(directory, "shop"))
             .build()
         shop.extensions.extraProperties.set("kotlin.stdlib.default.dependency", "false")
-        shop.pluginManager.apply("me.ahoo.wow")
+        shop.pluginManager.apply(WowPlugin.SERVICE_ID)
         shop.pluginManager.apply("org.jetbrains.kotlin.jvm")
         shop.repositories.maven { it.url = repository.toURI() }
         shop.dependencies.add(
@@ -175,6 +183,7 @@ class WowPluginTest {
             shop.dependencies.project(mapOf("path" to ":lib", "configuration" to "elements"))
         )
         shop.dependencies.add("implementation", "com.acme:billing:1.0.0")
+        shop.dependencies.add("implementation", "me.ahoo.wow:wow-kernel:${WowPlugin.version}")
         shop.dependencies.add("implementation", shop.files(vendor))
         (shop as ProjectInternal).evaluate()
         val owners = (shop.tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest).owners.get()
@@ -189,15 +198,6 @@ class WowPluginTest {
     }
 
     @Test
-    fun `an api module's sources jar should hold the generated sources`() {
-        val api = paired("shop-domain")
-        api.extensions.getByType(JavaPluginExtension::class.java).withSourcesJar()
-        val sources = api.tasks.getByName("sourcesJar") as Jar
-        sources.taskDependencies.getDependencies(sources).map { it.name }.assert()
-            .contains(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK)
-    }
-
-    @Test
     fun `a declared tools dependency should replace the default`() {
         val project = project()
         project.dependencies.add(WowPlugin.TOOLS_CONFIGURATION, project.files("tools.jar"))
@@ -209,7 +209,7 @@ class WowPluginTest {
     fun `the context argument should be passed only when set`() {
         val project = project()
         val context = project.objects.property(String::class.java)
-        val argument = WowPlugin.ContextArgument(context)
+        val argument = WowRoles.ContextArgument(context)
         argument.asArguments().toList().assert().isEmpty()
         context.set("shop")
         argument.asArguments().toList().assert().containsExactly("wow.context=shop")
@@ -218,12 +218,18 @@ class WowPluginTest {
     @Test
     fun `the tasks should be wired to the extension and the main source set`() {
         val project = project()
-        val extension = project.extensions.getByType(WowExtension::class.java)
+        val extension = project.extensions.getByType(WowServiceExtension::class.java)
         extension.schemaOverrides.put("a.Money", """{"type":"string"}""")
         extension.serviceVersion.set("2.0.0")
 
         val generate = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
-        generate.group.assert().isEqualTo("wow")
+        // The wow group holds the tasks a user runs; the plumbing has none.
+        generate.group.assert().isNull()
+        project.tasks.filter { it.group == "wow" }.map { it.name }.assert().containsExactlyInAnyOrder(
+            WowPlugin.MERGE_TASK,
+            WowPlugin.OPENAPI_TASK,
+            WowPlugin.UPDATE_BASELINE_TASK,
+        )
         generate.schemaOverrides.get().assert().containsEntry("a.Money", """{"type":"string"}""")
         val fragments = File(project.projectDir, "build/wow/manifest-fragment")
         generate.outputDirectory.get().asFile.assert().isEqualTo(fragments)
@@ -239,13 +245,17 @@ class WowPluginTest {
         merge.defaultServiceName.get().assert().isEqualTo("shop")
         extension.serviceName.set("shop-service")
         merge.serviceName.get().assert().isEqualTo("shop-service")
+        // The service module's own contexts are its service's.
+        (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).service.get().assert()
+            .isEqualTo("shop-service")
         merge.serviceVersion.get().assert().isEqualTo("2.0.0")
         merge.outputFile.get().asFile.assert().isEqualTo(File(project.projectDir, "build/wow/manifest.json"))
     }
 
     @Test
     fun `the service version should default to the project's`() {
-        project().extensions.getByType(WowExtension::class.java).serviceVersion.get().assert().isEqualTo("1.2.3")
+        project().extensions.getByType(WowServiceExtension::class.java).serviceVersion.get().assert()
+            .isEqualTo("1.2.3")
     }
 
     @Test
@@ -273,35 +283,6 @@ class WowPluginTest {
                 emptyMap<String, String>()
             )
         }
-    }
-
-    /** A work queue that runs each item in process, as the worker would. */
-    private fun inProcessQueue(project: Project): WorkQueue {
-        val queue = mockk<WorkQueue>()
-        every { queue.submit(ManifestToolsWork.CompleteFragment::class.java, any()) } answers {
-            val parameters = project.objects.newInstance(ManifestToolsWork.CompleteFragment.Parameters::class.java)
-            secondArg<Action<ManifestToolsWork.CompleteFragment.Parameters>>().execute(parameters)
-            object : ManifestToolsWork.CompleteFragment() {
-                override fun getParameters() = parameters
-            }.execute()
-        }
-        every { queue.submit(ManifestToolsWork.GenerateContractSources::class.java, any()) } answers {
-            val parameters = project.objects.newInstance(
-                ManifestToolsWork.GenerateContractSources.Parameters::class.java,
-            )
-            secondArg<Action<ManifestToolsWork.GenerateContractSources.Parameters>>().execute(parameters)
-            object : ManifestToolsWork.GenerateContractSources() {
-                override fun getParameters() = parameters
-            }.execute()
-        }
-        every { queue.submit(ManifestToolsWork.Merge::class.java, any()) } answers {
-            val parameters = project.objects.newInstance(ManifestToolsWork.Merge.Parameters::class.java)
-            secondArg<Action<ManifestToolsWork.Merge.Parameters>>().execute(parameters)
-            object : ManifestToolsWork.Merge() {
-                override fun getParameters() = parameters
-            }.execute()
-        }
-        return queue
     }
 
     @Test
@@ -408,200 +389,6 @@ class WowPluginTest {
         component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS)
     }
 
-    /** A build of `:shop-api` (plain Kotlin) and the domain modules [domains], each declaring it in `api(...)`. */
-    private fun paired(vararg domains: String): Project {
-        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
-        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
-            .withProjectDir(File(directory, "shop-api")).build()
-        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
-        domains.forEach { name ->
-            val domain = ProjectBuilder.builder().withParent(root).withName(name)
-                .withProjectDir(File(directory, name)).build()
-            domain.pluginManager.apply("me.ahoo.wow")
-            domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
-            domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
-            domain.dependencies.add("implementation", "sample:library:1.0.0")
-        }
-        (api as ProjectInternal).evaluate()
-        return api
-    }
-
-    @Test
-    fun `an api project of a domain module should carry its contract`() {
-        val api = paired("shop-domain", "audit-domain")
-        val contracts = api.configurations.getByName(WowPlugin.CONTRACT_CONFIGURATION)
-        contracts.isCanBeConsumed.assert().isFalse()
-        contracts.isTransitive.assert().isFalse()
-        contracts.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name
-            .assert().isEqualTo(WowPlugin.CONTRACT_DOCS_TYPE)
-        contracts.dependencies.map { it.name }.assert().containsExactlyInAnyOrder("shop-domain", "audit-domain")
-        val assemble = api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract
-        assemble.owner.get().assert().isEqualTo(":shop-api")
-        assemble.outputDirectory.get().asFile.canonicalFile
-            .assert().isEqualTo(File(directory, "shop-api/build/wow/contract").canonicalFile)
-        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
-            .assert().contains(WowPlugin.ASSEMBLE_CONTRACT_TASK)
-        // A module dependency is no api module of the domain.
-        api.rootProject.allprojects.mapNotNull { it.configurations.findByName(WowPlugin.CONTRACT_CONFIGURATION) }
-            .assert().hasSize(1)
-    }
-
-    @Test
-    fun `an api project should compile the code generated from its contract in a source set of its own`() {
-        val api = paired("shop-domain", "audit-domain")
-        val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
-        val generated = sourceSets.getByName(WowPlugin.CONTRACT_SOURCE_SET)
-        val generate = api.tasks.getByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK) as GenerateContractSources
-        generate.contract.files.single().invariantSeparatorsPath.assert()
-            .endsWith("shop-api/build/wow/contract/${PeerContracts.RESOURCE}")
-        generate.taskDependencies.getDependencies(null).map { it.name }
-            .assert().contains(WowPlugin.ASSEMBLE_CONTRACT_TASK)
-        // It compiles against the api's main classes and dependencies.
-        generated.compileClasspath.buildDependencies.getDependencies(null).map { it.name }
-            .assert().contains("compileKotlin")
-        api.configurations.getByName(generated.implementationConfigurationName).extendsFrom.map { it.name }
-            .assert().contains("implementation")
-        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
-            .assert().contains("compileWowContractKotlin")
-        val wowContractClasses = File(directory, "shop-api/build/classes/kotlin/wowContract").canonicalFile
-        listOf("apiElements", "runtimeElements").forEach { name ->
-            val variants = api.configurations.getByName(name).outgoing.variants
-            variants.getByName("classes").artifacts.map { it.file.canonicalFile }.assert().contains(wowContractClasses)
-            // One core view per paired domain module, without the generated classes.
-            val cores = variants.filter { it.attributes.contains(WowPlugin.API_VIEW) }
-            cores.map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
-                .assert().containsExactlyInAnyOrder(
-                    WowPlugin.coreView(":shop-domain"),
-                    WowPlugin.coreView(":audit-domain")
-                )
-            cores.flatMap { it.artifacts }.map { it.file.canonicalFile }.assert().doesNotContain(wowContractClasses)
-        }
-        // The domain module compiles against its core view.
-        api.rootProject.project(":shop-domain").configurations.getByName("compileClasspath").attributes
-            .getAttribute(WowPlugin.API_VIEW).assert().isEqualTo(WowPlugin.coreView(":shop-domain"))
-    }
-
-    @Test
-    fun `generating the contract sources should write one object per context`() {
-        val api = paired("shop-domain")
-        val task = api.tasks.getByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK) as GenerateContractSources
-        val output = task.outputDirectory.get().asFile
-        File(output, "stale.kt").apply { parentFile.mkdirs() }.writeText("stale")
-        task.contract.setFrom(contractFile("shop-cart", "sample.AddItem"), File(directory, "missing.json"))
-        // The generator of the api's own tools, which compiles against the api's main classes and dependencies.
-        task.tools.from.assert().contains(api.configurations.getByName(WowPlugin.TOOLS_CONFIGURATION))
-        task.classpath.buildDependencies.getDependencies(null).map { it.name }.assert().contains("compileKotlin")
-        // Without wow-query-api on it (the builder resolves no repository): no query fields.
-        task.classpath.setFrom()
-
-        task.submit(inProcessQueue(api))
-
-        File(output, "stale.kt").exists().assert().isFalse()
-        File(output, "sample/ShopCartContract.kt").readText().assert().contains(
-            "package sample",
-            "object ShopCartContract",
-            "const val NAME: String = \"shop-cart\"",
-            "object Cart",
-            "public const val NAME: String = \"cart\"",
-            "AggregateType(CONTEXT, NAME)",
-            "fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
-        )
-    }
-
-    @Test
-    fun `an api project evaluated before its domain module should be configured at once`() {
-        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
-        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
-            .withProjectDir(File(directory, "shop-api")).build()
-        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
-        (api as ProjectInternal).evaluate()
-        val domain = ProjectBuilder.builder().withParent(root).withName("shop-domain")
-            .withProjectDir(File(directory, "shop-domain")).build()
-        domain.pluginManager.apply("me.ahoo.wow")
-        domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
-        domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
-        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNotNull()
-        val views = api.configurations.getByName("apiElements").outgoing.variants
-            .map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
-        views.assert().contains(WowPlugin.coreView(":shop-domain"))
-    }
-
-    @Test
-    fun `an api project without the Kotlin plugin should carry no generated code`() {
-        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
-        val api = ProjectBuilder.builder().withParent(root).withName("java-api")
-            .withProjectDir(File(directory, "java-api")).build()
-        api.pluginManager.apply("java")
-        val domain = ProjectBuilder.builder().withParent(root).withName("domain")
-            .withProjectDir(File(directory, "domain")).build()
-        domain.pluginManager.apply("me.ahoo.wow")
-        domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
-        domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":java-api")))
-        (api as ProjectInternal).evaluate()
-        api.tasks.findByName(WowPlugin.ASSEMBLE_CONTRACT_TASK).assert().isNotNull()
-        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNull()
-    }
-
-    private fun contractFile(name: String, vararg classes: String): File =
-        File(directory, "contracts/$name/contract.json").also { file ->
-            val aggregate = AggregateManifest(
-                name = "cart",
-                state = StateManifest(Manifest.schemaRef("sample.CartState")),
-                commands = classes.map { CommandManifest(it.substringAfterLast('.'), schema = Manifest.schemaRef(it)) },
-            )
-            ManifestJson.write(
-                Manifest(
-                    contexts = listOf(ContextManifest(name, aggregates = listOf(aggregate))),
-                    defs = mapOf("sample.CartState" to mapOf("type" to "object")),
-                ),
-                file,
-            )
-        }
-
-    private fun assembleTask(vararg contracts: File): AssembleContract {
-        val api = paired("shop-domain")
-        val classes = File(directory, "api-classes")
-        File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
-        return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
-            this.contracts.setFrom(*contracts)
-            // The domain module each contract comes from, as the build resolves it once the domain's task has run; a
-            // contract of no known owner (the second) is named by its file.
-            this.owners.set(contracts.take(1).associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })
-            this.classes.setFrom(classes, File(directory, "missing"))
-        }
-    }
-
-    @Test
-    fun `assembling should keep the contexts whose classes are the api module's`() {
-        val task = assembleTask(contractFile("shop", "sample.AddItem"), contractFile("billing", "sample.Pay"))
-        val output = File(directory, "shop-api/build/wow/contract")
-        File(output, "stale.txt").apply { parentFile.mkdirs() }.writeText("stale")
-
-        task.assemble()
-
-        File(output, "stale.txt").exists().assert().isFalse()
-        val contract = ManifestJson.read(File(output, PeerContracts.RESOURCE))
-        contract.contexts.map { it.name }.assert().containsExactly("shop")
-        contract.defs.keys.assert().containsExactly("sample.CartState")
-    }
-
-    @Test
-    fun `assembling no context of the api module should write no contract`() {
-        val task = assembleTask(contractFile("billing", "sample.Pay"))
-        task.assemble()
-        File(directory, "shop-api/build/wow/contract").list().orEmpty().toList().assert().isEmpty()
-    }
-
-    @Test
-    fun `assembling a context with classes outside the api module should fail naming them`() {
-        val task = assembleTask(contractFile("shop", "sample.AddItem", "sample.RemoveItem"))
-        assertThrows<GradleException> { task.assemble() }.message.assert()
-            .contains(
-                "context shop of project ':",
-                "has classes that are not in project ':shop-api': sample.RemoveItem",
-            )
-    }
-
     @Test
     fun `generating should filter the completed fragments down to the contract`() {
         val project = project()
@@ -609,6 +396,8 @@ class WowPluginTest {
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
+            // The projects that do not pair with the module, as the build resolves them once the classes are built.
+            unpaired.set(emptyMap())
         }
 
         task.generate()
@@ -626,6 +415,7 @@ class WowPluginTest {
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
+            unpaired.set(emptyMap())
         }.generate()
 
         ManifestJson.read(File(directory, "build/wow/contract.json")).service.assert()
@@ -635,7 +425,7 @@ class WowPluginTest {
     @Test
     fun `the compatibility gate should be part of check and read the baseline`() {
         val project = project()
-        val check = project.tasks.getByName(WowPlugin.CHECK_COMPATIBILITY_TASK) as CheckManifestCompatibility
+        val check = project.tasks.getByName(WowPlugin.CHECK_TASK) as CheckManifestCompatibility
         fun File.canonical() = canonicalFile
         check.baseline.get().asFile.canonical().assert().isEqualTo(File(directory, WowPlugin.BASELINE_FILE).canonical())
         check.manifest.get().asFile.canonical().assert().isEqualTo(
@@ -648,7 +438,8 @@ class WowPluginTest {
             File(directory, WowPlugin.BASELINE_FILE).canonical()
         )
 
-        project.extensions.getByType(WowExtension::class.java).manifestBaseline.set(File(directory, "contract.json"))
+        project.extensions.getByType(WowServiceExtension::class.java).manifestBaseline
+            .set(File(directory, "contract.json"))
         check.baseline.get().asFile.name.assert().isEqualTo("contract.json")
         update.baseline.get().asFile.name.assert().isEqualTo("contract.json")
     }
@@ -659,7 +450,7 @@ class WowPluginTest {
         val manifest = File(directory, "build/wow/manifest.json")
         val cart = ContextManifest("shop", errors = listOf(ErrorManifest("shop.cart.full", 409)))
         ManifestJson.write(Manifest(service = ServiceInfo("shop", "1.0.0"), contexts = listOf(cart)), manifest)
-        val check = project.tasks.getByName(WowPlugin.CHECK_COMPATIBILITY_TASK) as CheckManifestCompatibility
+        val check = project.tasks.getByName(WowPlugin.CHECK_TASK) as CheckManifestCompatibility
         val queue = mockk<WorkQueue>()
         every { queue.submit(ManifestToolsWork.CheckCompatibility::class.java, any()) } answers {
             val parameters = project.objects.newInstance(ManifestToolsWork.CheckCompatibility.Parameters::class.java)
@@ -712,5 +503,97 @@ class WowPluginTest {
         assertThrows<GradleException> { WowPlugin.requireKotlin(":shop", "2.2.21") }
         WowPlugin.requireKotlin(":shop", WowPlugin.minKotlin + ".0")
         WowPlugin.requireKotlin(":shop", "3.0.0-Beta1")
+    }
+
+    @Test
+    fun `each role should add the BOM of the plugin's version and its Wow module, unless declared`() {
+        fun declared(project: Project, configuration: String) =
+            project.configurations.getByName(configuration).incoming.dependencies
+                .filter { it.group == "me.ahoo.wow" }.map { "${it.group}:${it.name}:${it.version}" }
+        val bom = "me.ahoo.wow:wow-bom:${WowPlugin.version}"
+        declared(project(id = WowPlugin.ID), "implementation").assert()
+            .containsExactlyInAnyOrder("me.ahoo.wow:wow-kernel:null", bom)
+        val pinned = project(id = WowPlugin.ID)
+        pinned.dependencies.add("implementation", "me.ahoo.wow:wow-kernel:10.0.0")
+        declared(pinned, "implementation").assert().containsExactlyInAnyOrder("me.ahoo.wow:wow-kernel:10.0.0", bom)
+        // Declared in another configuration the module compiles against, the module is the module's own.
+        val implemented = project(id = WowPlugin.ID)
+        implemented.dependencies.add("compileOnly", implemented.files("libs/wow-kernel-10.0.0.jar"))
+        declared(implemented, "implementation").assert().containsExactly(bom)
+    }
+
+    @Test
+    fun `the domain and service plugins should register the integration test suite, unless the build does`() {
+        listOf(WowPlugin.ID, WowPlugin.SERVICE_ID).forEach { id ->
+            val project = project(id = id)
+            val suite = project.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+                .getByName(WowPlugin.INTEGRATION_TEST)
+            suite.assert().isInstanceOf(org.gradle.api.plugins.jvm.JvmTestSuite::class.java)
+            project.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
+                .contains("testImplementation")
+            project.tasks.getByName("check").taskDependencies.getDependencies(null).map { it.name }.assert()
+                .doesNotContain(WowPlugin.INTEGRATION_TEST)
+        }
+        val own = ProjectBuilder.builder().withProjectDir(File(directory, "own")).withName("own").build()
+        own.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        own.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+            .register(WowPlugin.INTEGRATION_TEST, org.gradle.api.plugins.jvm.JvmTestSuite::class.java) { it.useJUnit() }
+        own.pluginManager.apply(WowPlugin.ID)
+        own.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
+            .doesNotContain("testImplementation")
+    }
+
+    @Test
+    fun `a domain module should build no service Manifest, a service module both`() {
+        val domain = project(id = WowPlugin.ID)
+        domain.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNotNull()
+        domain.tasks.findByName(WowPlugin.GENERATE_CONTRACT_TASK).assert().isNotNull()
+        listOf(WowPlugin.MERGE_TASK, WowPlugin.OPENAPI_TASK, WowPlugin.CHECK_TASK, WowPlugin.UPDATE_BASELINE_TASK)
+            .forEach { domain.tasks.findByName(it).assert().describedAs(it).isNull() }
+        domain.configurations.findByName(WowPlugin.MANIFEST_ELEMENTS).assert().isNull()
+        domain.extensions.getByType(WowExtension::class.java).assert().isNotInstanceOf(WowServiceExtension::class.java)
+        val service = project()
+        listOf(
+            WowPlugin.GENERATE_FRAGMENT_TASK,
+            WowPlugin.GENERATE_CONTRACT_TASK,
+            WowPlugin.MERGE_TASK,
+            WowPlugin.CHECK_TASK
+        )
+            .forEach { service.tasks.findByName(it).assert().describedAs(it).isNotNull() }
+    }
+
+    @Test
+    fun `a context whose classes are in a project that does not pair should fail, naming the line to add`() {
+        val project = project(id = WowPlugin.ID)
+        val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
+        val aggregate = AggregateManifest(
+            name = "cart",
+            state = StateManifest(Manifest.schemaRef("sample.CartState")),
+            commands = listOf(CommandManifest("AddItem", schema = Manifest.schemaRef("sample.AddItem"))),
+        )
+        ManifestJson.write(
+            Manifest(
+                contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))),
+                defs = mapOf("sample.CartState" to mapOf("type" to "object")),
+            ),
+            fragment,
+        )
+        val apiClasses = File(directory, "shop-api/build/classes/kotlin/main")
+        File(apiClasses, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
+        val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
+            fragments.setFrom(fragment)
+            unpaired.set(mapOf(apiClasses.path to ":shop-api", File(directory, "missing").path to ":other"))
+        }
+        assertThrows<GradleException> { task.generate() }.message.assert().contains(
+            "The contract of project ':' reaches no api module",
+            "context shop has its classes sample.AddItem in project ':shop-api', which does not pair with project ':'",
+            "apply id(\"me.ahoo.wow.api\") and add dependencies { wowContract(project(\":\")) }",
+        )
+        // Paired, the api's classes are a core view, which is no unpaired entry.
+        task.unpaired.set(emptyMap())
+        task.generate()
+        ManifestJson.read(
+            File(directory, "build/wow/contract.json")
+        ).contexts.map { it.name }.assert().containsExactly("shop")
     }
 }

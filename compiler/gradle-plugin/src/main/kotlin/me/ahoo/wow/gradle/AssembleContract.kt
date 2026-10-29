@@ -34,9 +34,10 @@ import java.io.File
 
 /**
  * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json`
- * ([PeerContracts.RESOURCE]) under [outputDirectory]: of the contracts of the domain modules that declare the api
- * module in `api(...)` ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes are
- * all among the api module's [classes] ([PeerContracts.assemble]). A context with none of them is another api's.
+ * ([PeerContracts.RESOURCE]) under [outputDirectory]: of the contracts of the domain modules the api module declares
+ * in `wowContract(...)` ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes
+ * are all among the api module's [classes] ([PeerContracts.assemble]). A context with none of them is another api's. A
+ * declared module of no contract (it compiles no model) fails the task, naming it.
  *
  * The build fails, naming the classes, when a context has some of its classes in the api module and others outside
  * it, or when two domain modules declare one of its contexts, naming the domain modules ([owners]). With no context of
@@ -74,6 +75,13 @@ internal abstract class AssembleContract : DefaultTask() {
             ManifestFragment(
                 owners[it.path] ?: it.name,
                 ContractJson.read(it)
+            )
+        }
+        contracts.filter { it.manifest.contexts.isEmpty() }.takeIf { it.isNotEmpty() }?.let { empty ->
+            throw GradleException(
+                "Project '${owner.get()}' declares ${empty.joinToString(" and ") { it.source }} in wowContract, " +
+                    "which compiles no model and so has no contract: remove it from wowContract, or give it the " +
+                    "aggregates whose contract this api module carries.",
             )
         }
         val directories = classes.files.filter { it.isDirectory }

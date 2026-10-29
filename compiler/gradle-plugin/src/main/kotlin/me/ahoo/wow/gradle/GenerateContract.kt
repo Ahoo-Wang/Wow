@@ -20,24 +20,34 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.io.File
+import java.util.zip.ZipFile
 
 /**
  * Writes the peer contract of the domain module's contexts: its completed Manifest fragments
  * ([fragments], the output of [GenerateManifestFragment]) filtered down to what another service reads
- * ([PeerContracts.contractOf]), naming the service that hosts them when the module declares it ([service]). The module offers it as the variant `wowContractElements`, and the
- * api modules it declares in `api(...)` package it ([AssembleContract]).
+ * ([PeerContracts.contractOf]), naming the service that hosts them when the module declares it ([service]). The module
+ * offers it as the variant `wowContractElements`, and the api modules that declare the module in `wowContract(...)`
+ * package it ([AssembleContract]).
+ *
+ * A context whose command or event classes are in a project of the module's class path that does not pair with it
+ * ([unpaired]: no `wowContract(project("<module>"))` there, or no `me.ahoo.wow.api`) fails the task, naming the line to
+ * add: the contract would reach no api module, and no peer would see the context.
  *
  * The Manifests are plain JSON trees ([ManifestTree]), read and written with the JSON library Gradle ships (Groovy's),
  * so no worker is needed.
@@ -57,6 +67,18 @@ internal abstract class GenerateContract : DefaultTask() {
     @get:Optional
     abstract val service: Property<String>
 
+    /** The module's project path, which a failure names. */
+    @get:Input
+    abstract val module: Property<String>
+
+    /** The class path entries of projects that do not pair with the module, each to its project path. */
+    @get:Internal
+    abstract val unpaired: MapProperty<String, String>
+
+    /** The projects of [unpaired], whose pairing changes the outcome. */
+    @get:Input
+    abstract val unpairedProjects: ListProperty<String>
+
     /** The contract, a Manifest that names [service] alone; with no context when the module has no fragment. */
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
@@ -64,7 +86,35 @@ internal abstract class GenerateContract : DefaultTask() {
     @TaskAction
     fun generate() {
         val fragments = fragments.files.sortedBy { it.name }.map(ContractJson::read)
-        ContractJson.write(PeerContracts.contractOf(fragments, service.orNull), outputFile.get().asFile)
+        val contract = PeerContracts.contractOf(fragments, service.orNull)
+        val problems = contract.contexts.flatMap { context ->
+            PeerContracts.classesOf(context).mapNotNull { binary -> unpairedOwnerOf(binary)?.let { binary to it } }
+                .groupBy({ it.second }, { it.first }).map { (api, classes) ->
+                    "context ${context.name} has its classes ${classes.sorted().joinToString()} in project '$api', which " +
+                        "does not pair with project '${module.get()}': in $api's build file, apply " +
+                        "id(\"${WowPlugin.API_ID}\") and add dependencies { wowContract(project(\"${module.get()}\")) }"
+                }
+        }
+        if (problems.isNotEmpty()) {
+            throw GradleException(
+                "The contract of project '${module.get()}' reaches no api module:\n" +
+                    problems.joinToString("\n") { "- $it" },
+            )
+        }
+        ContractJson.write(contract, outputFile.get().asFile)
+    }
+
+    /** The project of [unpaired] whose classes hold the class [binary], or null. */
+    private fun unpairedOwnerOf(binary: String): String? {
+        val path = binary.replace('.', '/') + ".class"
+        return unpaired.get().entries.firstOrNull { (entry, _) ->
+            val file = File(entry)
+            when {
+                file.isDirectory -> File(file, path).isFile
+                file.isFile && file.name.endsWith(".jar") -> ZipFile(file).use { it.getEntry(path) != null }
+                else -> false
+            }
+        }?.value
     }
 }
 

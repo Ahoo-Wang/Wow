@@ -20,13 +20,12 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
 
 /**
- * The `wow { }` block of a module that applies `me.ahoo.wow`.
+ * The `wow { }` block of a module that applies `me.ahoo.wow`: a domain module's models and contract.
  *
  * ```kotlin
  * wow {
  *     context = "shop"
  *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
- *     manifestBaseline = layout.projectDirectory.file("manifest/baseline.json")
  *     contract {
  *         service = "shop-service"
  *     }
@@ -47,12 +46,31 @@ abstract class WowExtension {
      */
     abstract val schemaOverrides: MapProperty<String, String>
 
+    /** The peer contract of the module's contexts ([WowContract]); `@Nested` makes Gradle create it. */
+    @get:Nested
+    abstract val contract: WowContract
+
+    /** Configures the peer contract of the module's contexts ([WowContract]). */
+    fun contract(action: Action<in WowContract>) = action.execute(contract)
+}
+
+/**
+ * The `wow { }` block of a module that applies `me.ahoo.wow.service`: a domain module's, and the service's Manifest.
+ *
+ * ```kotlin
+ * wow {
+ *     serviceName = "shop-service"
+ *     manifestBaseline = layout.projectDirectory.file("manifest/baseline.json")
+ * }
+ * ```
+ */
+abstract class WowServiceExtension : WowExtension() {
     /**
-     * The service the merged `manifest.json` describes. Unset, it is derived when the Manifest is merged: the service
-     * the contracts of the contexts it hosts name (their domain modules' `wow { contract { service } }`, in their api
-     * modules' jars on the runtime class path), or the project's path when none does (`:shop-server` is
-     * `shop-server`). Contracts that name different
-     * services fail the merge: set it then. A peer's contract does not count.
+     * The service the merged `manifest.json` describes, and that the contract of the module's own contexts names.
+     * Unset, it is derived when the Manifest is merged: the service the contracts of the contexts it hosts name
+     * (their domain modules' `wow { contract { service } }`, in their api modules' jars on the runtime class path), or
+     * the project's path when none does (`:shop-server` is `shop-server`). Contracts that name different services fail
+     * the merge: set it then. A peer's contract does not count.
      */
     abstract val serviceName: Property<String>
 
@@ -60,18 +78,10 @@ abstract class WowExtension {
     abstract val serviceVersion: Property<String>
 
     /**
-     * The Manifest of the service's last published version, which `checkManifestCompatibility` compares the merged
-     * Manifest with and `updateManifestBaseline` rewrites; `manifest/baseline.json` of the project by
-     * default. Commit it.
+     * The committed Manifest `checkWowManifest` compares the merged Manifest with and `updateWowManifestBaseline`
+     * rewrites; `manifest/baseline.json` of the project by default. Commit it.
      */
     abstract val manifestBaseline: RegularFileProperty
-
-    /** The peer contract its api modules carry ([WowContract]); `@Nested` makes Gradle create it. */
-    @get:Nested
-    abstract val contract: WowContract
-
-    /** Configures the peer contract its api modules carry ([WowContract]). */
-    fun contract(action: Action<in WowContract>) = action.execute(contract)
 }
 
 /**
@@ -81,10 +91,11 @@ abstract class WowContract {
     /**
      * The service that hosts the module's contexts, as it names itself (`spring.application.name`): a peer that
      * depends on the api module finds the service by this name, and the service refuses to start under another.
-     * Unset, the contract names no service, and a peer reaches it at `wow.peers.<context>.url` alone.
+     * Unset, the contract names no service, and a peer reaches it at `wow.peers.<context>.url` alone. A service module
+     * names its own contexts' service by `serviceName`.
      *
-     * The service's own build derives its Manifest's service name from it ([WowExtension.serviceName]): the name is
-     * written once, beside the contexts, and not in each server module that hosts them.
+     * The service's own build derives its Manifest's service name from it ([WowServiceExtension.serviceName]): the name
+     * is written once, beside the contexts, and not in each server module that hosts them.
      */
     abstract val service: Property<String>
 }
