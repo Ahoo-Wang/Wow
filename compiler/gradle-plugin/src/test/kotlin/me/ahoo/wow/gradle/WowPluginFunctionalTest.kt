@@ -84,6 +84,8 @@ class WowPluginFunctionalTest {
                 id("$id")
             }
 
+            version = "1.0.0"
+
             repositories {
                 mavenCentral()
                 maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
@@ -188,7 +190,6 @@ class WowPluginFunctionalTest {
             "shop",
             id = WowPlugin.SERVICE_ID,
             extra = """
-                serviceVersion = "1.0.0"
                 schemaOverrides.put("sample.Money", ${"\"\"\""}{"type":"string","pattern":"^[0-9]+${'$'}"}${"\"\"\""})
             """,
             dependencies = """implementation(project(":billing"))""",
@@ -288,7 +289,7 @@ class WowPluginFunctionalTest {
     fun `the fragment should be completed in an isolated worker and replace the compiler's in the jar`() {
         result.task(":shop:${WowPlugin.GENERATE_FRAGMENT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         result.task(":billing:${WowPlugin.GENERATE_FRAGMENT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
-        val jar = File(projectDir, "shop/build/libs/shop.jar")
+        val jar = File(projectDir, "shop/build/libs/shop-1.0.0.jar")
         val fragment = ZipFile(jar).use { zip ->
             val entries = zip.entries().asSequence().map { it.name }.filter {
                 it.startsWith(
@@ -397,7 +398,7 @@ class WowPluginFunctionalTest {
 
     /** The modules' jars, as the service's class path holds them. */
     private fun <T> withJars(block: (ClassLoader) -> T): T {
-        val jars = listOf("shop", "billing").map { File(projectDir, "$it/build/libs/$it.jar").toURI().toURL() }
+        val jars = listOf("shop", "billing").map { File(projectDir, "$it/build/libs/$it-1.0.0.jar").toURI().toURL() }
         return URLClassLoader(jars.toTypedArray(), javaClass.classLoader).use(block)
     }
 

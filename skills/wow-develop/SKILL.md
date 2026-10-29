@@ -21,7 +21,7 @@ Otherwise say this Skill does not apply and stop using it.
 
 ## Recognize V10 before anything else
 
-V10 when the build or sources show: the Gradle plugin `id("me.ahoo.wow")` or `me.ahoo.wow:wow-bom` of a 10.x version; `wow-kernel`, `wow-spring-boot`, `wow-runtime`, `wow-postgres`, `wow-mongo`; imports of `me.ahoo.wow.api.decide.Decision`, `me.ahoo.wow.api.decide.DecideScope`, `me.ahoo.wow.api.subscribe.StateEvent`, `me.ahoo.wow.test.aggregateSpec`; annotations `@Saga`, `@Reactor`, `@Projection`, `@OnRejected`, `@ErrorCode`; resources `META-INF/wow/manifest/<module>.json`. Pin the exact Wow version from the build and its resolved dependencies; every symbol, default, key and route in these references is verified against that version's source, or labelled unverified. A V10 module that depends on a 9.x module is a defect.
+V10 when the build or sources show: the Gradle plugins `id("me.ahoo.wow")`, `id("me.ahoo.wow.api")` or `id("me.ahoo.wow.service")`, or `me.ahoo.wow:wow-bom`, of a 10.x version; `wow-kernel`, `wow-spring-boot`, `wow-runtime`, `wow-postgres`, `wow-mongo`; imports of `me.ahoo.wow.api.decide.Decision`, `me.ahoo.wow.api.decide.DecideScope`, `me.ahoo.wow.api.subscribe.StateEvent`, `me.ahoo.wow.test.aggregateSpec`; annotations `@Saga`, `@Reactor`, `@Projection`, `@OnRejected`, `@ErrorCode`; resources `META-INF/wow/manifest/<module>.json`. Pin the exact Wow version from the build and its resolved dependencies; every symbol, default, key and route in these references is verified against that version's source, or labelled unverified. A V10 module that depends on a 9.x module is a defect.
 
 ## Contract
 

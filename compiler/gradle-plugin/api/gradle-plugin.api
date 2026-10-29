@@ -4,17 +4,11 @@ public final class me/ahoo/wow/gradle/WowApiPlugin : org/gradle/api/Plugin {
 	public fun apply (Lorg/gradle/api/Project;)V
 }
 
-public abstract class me/ahoo/wow/gradle/WowContract {
-	public fun <init> ()V
-	public abstract fun getService ()Lorg/gradle/api/provider/Property;
-}
-
 public abstract class me/ahoo/wow/gradle/WowExtension {
 	public fun <init> ()V
-	public final fun contract (Lorg/gradle/api/Action;)V
 	public abstract fun getContext ()Lorg/gradle/api/provider/Property;
-	public abstract fun getContract ()Lme/ahoo/wow/gradle/WowContract;
 	public abstract fun getSchemaOverrides ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getService ()Lorg/gradle/api/provider/Property;
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
@@ -57,8 +51,6 @@ public final class me/ahoo/wow/gradle/WowPlugin$Companion {
 public abstract class me/ahoo/wow/gradle/WowServiceExtension : me/ahoo/wow/gradle/WowExtension {
 	public fun <init> ()V
 	public abstract fun getManifestBaseline ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getServiceName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getServiceVersion ()Lorg/gradle/api/provider/Property;
 }
 
 public final class me/ahoo/wow/gradle/WowServicePlugin : org/gradle/api/Plugin {

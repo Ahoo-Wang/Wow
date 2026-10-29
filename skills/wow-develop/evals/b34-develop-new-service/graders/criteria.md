@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Uses the V10 surface, not 9.x: an `-api` module on `wow-api`, a domain module on `wow-kernel` with the Gradle plugin `me.ahoo.wow` (or KSP with `wow-compiler` applied by hand), and a server on `wow-spring-boot` plus a backend module; it does not use `wow-spring-boot-starter`, `wow-core` or a 9.x `AggregateSpec<A, S>` subclass.
+1. Uses the V10 surface, not 9.x: an `-api` module on `wow-api` (the Gradle plugin `me.ahoo.wow.api`), a domain module on `wow-kernel` with the Gradle plugin `me.ahoo.wow` (or KSP with `wow-compiler` applied by hand), and a server on `wow-spring-boot` plus a backend module (the Gradle plugin `me.ahoo.wow.service`), or one module of `me.ahoo.wow.service` alone; it does not use `wow-spring-boot-starter`, `wow-core` or a 9.x `AggregateSpec<A, S>` subclass.
 2. Names the context with `@BoundedContext` using lower case, digits and hyphens only (no dot), such as `catalog`, and says a dot is not allowed because it separates the parts of type names.
 3. Returns the event type from a decide function and rejects with `reject(code, message)` (or returns `Decision` with `@OnCommand(produces = [...])` only where the type cannot name the events), with the code a `const val` annotated `@ErrorCode` in the domain module; the command body carries no aggregate id.
 4. Tests with `aggregateSpec` from the V10 test DSL (`me.ahoo.wow.test`, `testImplementation("me.ahoo.wow:wow-test")`), building the model with the generated factory `productModel(…)` (its context defaults to the module's), with `given`, `whenCommand` and `expectRejected` or `expectEvents`.

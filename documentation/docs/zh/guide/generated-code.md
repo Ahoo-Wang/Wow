@@ -44,19 +44,17 @@ build/generated/ksp/main/
 
 ## api 模块的契约代码 {#the-contract-code-of-the-api-module}
 
-插件从片段中挑出对端需要的内容，即每个上下文的命令、事件、状态 schema 和错误，以 `META-INF/wow/contract.json` 放进 api 模块的 jar。契约还写明承载这些上下文的服务，由域模块的构建声明：
+api 模块在插件 `me.ahoo.wow.api` 下声明它的领域模块，`wowContract(project(":ordering-domain"))`，插件从片段中挑出对端需要的内容，即每个上下文的命令、事件、状态 schema 和错误，以 `META-INF/wow/contract.json` 放进 api 模块的 jar。契约还写明承载这些上下文的服务，由域模块的构建声明：
 
 <!-- sample: fragment -->
 
 ```kotlin
 wow {
-    contract {
-        service = "eshop-ordering-service"
-    }
+    service = "eshop-ordering-service"
 }
 ```
 
-依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 也取这个名字，所以承载这些上下文的服务器模块无需重复写明（`wow { serviceName }` 可以覆盖它）。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
+依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 从它承载的上下文的契约中取得名字，所以承载这些上下文的服务器模块无需重复写明；契约写明不同服务时构建失败，都没写明时以服务器模块的项目路径命名。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
 
 api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`：
 

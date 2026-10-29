@@ -21,7 +21,7 @@ import java.net.URLClassLoader
 
 val fragmentDirectoryName = "META-INF/wow/manifest"
 
-val wowManifestTools: Configuration = configurations.create("wowManifestTools") {
+val wowTools: Configuration = configurations.create("wowTools") {
     description = "The tools generateWowManifestFragment runs: :manifest-tools and its runtime class path."
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -33,7 +33,7 @@ val wowManifestTools: Configuration = configurations.create("wowManifestTools") 
     }
 }
 dependencies {
-    add(wowManifestTools.name, project(":manifest-tools"))
+    add(wowTools.name, project(":manifest-tools"))
 }
 
 val main = the<SourceSetContainer>().named("main").get()
@@ -56,7 +56,7 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
         }
     }.files
     val classpath = files(main.output.classesDirs, runtimeClasses)
-    val tools: FileCollection = files(wowManifestTools)
+    val tools: FileCollection = files(wowTools)
     val directoryName = fragmentDirectoryName
     val output = completedDirectory
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")

@@ -51,7 +51,7 @@ internal abstract class GenerateManifestFragment @Inject constructor(
     @get:Classpath
     abstract val classpath: ConfigurableFileCollection
 
-    /** The introspection tools: the `wowManifestTools` configuration. */
+    /** The introspection tools: the `wowTools` configuration. */
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 

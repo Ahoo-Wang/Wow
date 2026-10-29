@@ -74,7 +74,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
-内存后端不提供快照查询，也不写数仓。测试这些功能，要让服务运行在存储本身上，由 Testcontainers 启动它们。eShop 把这样的测试放在单独的源集 `integrationTest` 中，这样单元测试保持快速，也不需要 Docker：
+内存后端不提供快照查询，也不写数仓。测试这些功能，要让服务运行在存储本身上，由 Testcontainers 启动它们。插件为模块注册了单独的测试套件 `integrationTest`，不属于 `check`，这样单元测试保持快速，也不需要 Docker：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
@@ -104,7 +104,7 @@ private val server = wowServer<OrderingServer>(
 
 ## 检查契约 {#check-the-contract}
 
-Gradle 插件 `me.ahoo.wow` 从服务的模块合并出它的 Manifest，并在 `checkManifestCompatibility`（`check` 的一部分）中与提交的基线 `manifest/baseline.json` 比较。在基线的主版本内破坏客户端的改变会让构建失败，并列出每个破坏性改变及其路径。有意的改变之后，`updateManifestBaseline` 记录新的基线；把它与改变一起提交，这样评审时就能看到客户端会看到什么。什么算破坏性改变，见[一份契约](../concepts/contract#compatibility)。
+Gradle 插件 `me.ahoo.wow.service` 从服务的模块合并出它的 Manifest，并在 `checkWowManifest`（`check` 的一部分）中与提交的基线 `manifest/baseline.json` 比较。在基线的主版本内破坏客户端的改变会让构建失败，并列出每个破坏性改变及其路径。有意的改变之后，`updateWowManifestBaseline` 记录新的基线；把它与改变一起提交，这样评审时就能看到客户端会看到什么。什么算破坏性改变，见[一份契约](../concepts/contract#compatibility)。
 
 ## 跨服务测试 {#test-across-services}
 

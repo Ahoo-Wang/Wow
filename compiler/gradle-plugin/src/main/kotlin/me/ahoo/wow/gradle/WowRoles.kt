@@ -170,7 +170,7 @@ internal object WowRoles {
         val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
             task.fragments.from(fragments.matching { it.include("${Manifest.FRAGMENT_DIRECTORY}/*.json") })
-            task.service.set(extension.contract.service)
+            task.service.set(extension.service)
             task.module.set(project.path)
             task.unpaired.set(unpaired)
             task.unpairedProjects.set(unpaired.map { it.values.distinct().sorted() })
@@ -257,7 +257,7 @@ internal object WowRoles {
     }
 
     /**
-     * The test suite [INTEGRATION_TEST] (DX gap G17, decision D256), unless the build declares one: JUnit Jupiter,
+     * The test suite [INTEGRATION_TEST], unless the build declares one: JUnit Jupiter,
      * against the module's classes and everything `testImplementation` gives (the test DSL, Testcontainers), for the
      * tests that run on containers. It is not part of `check`: `./gradlew integrationTest` runs it.
      */
@@ -440,10 +440,7 @@ internal object WowRoles {
      * OpenAPI document, its outgoing variant, and the compatibility gate.
      */
     fun service(project: Project, extension: WowServiceExtension) {
-        extension.serviceVersion.convention(project.provider { project.version.toString() })
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
-        // The service module's own contexts are its service's.
-        extension.contract.service.convention(extension.serviceName)
         project.pluginManager.withPlugin(KOTLIN_JVM) { configureService(project, extension) }
     }
 
@@ -464,9 +461,10 @@ internal object WowRoles {
             task.owners.putAll(fragmentDirectory.map { mapOf(it.asFile.path to owner) })
             task.owners.putAll(runtimeClasspath.flatMap(::ownersOf))
             task.tools.from(tools)
-            task.serviceName.set(extension.serviceName)
+            // The module's own contexts name their service as the contracts on the class path do.
+            task.serviceName.set(extension.service)
             task.defaultServiceName.set(moduleName(project.path, project.rootProject.name))
-            task.serviceVersion.set(extension.serviceVersion)
+            task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
         manifestElements(project, merge)

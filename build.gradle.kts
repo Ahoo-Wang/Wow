@@ -391,7 +391,7 @@ fun Project.registerJvmTestLayer(
 val BUILD_PLATFORM = "wowBuildPlatform"
 
 // The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
-// runtime classpaths, KSP's, the fixtures', `wowManifestTools`, detekt's plugins, ...) but the tools' own (the Kotlin
+// runtime classpaths, KSP's, the fixtures', `wowTools`, detekt's plugins, ...) but the tools' own (the Kotlin
 // compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath), whose versions are theirs. A
 // publication reads none of them (`apiElements` and `runtimeElements` are consumable, not resolvable).
 val TOOL_CLASSPATH = Regex("""^(kotlin|dokka|jacoco|detekt$|functionalPluginClasspath).*""")
@@ -842,13 +842,20 @@ tasks.register("publicationCheck") {
     } else {
         providers.gradleProperty("signing.password").orNull
     }
-    // The marker java-gradle-plugin publishes beside wow-gradle-plugin.
-    val pluginMarker = "me.ahoo.wow.gradle.plugin"
+    // The markers java-gradle-plugin publishes beside wow-gradle-plugin, one per plugin id (D363 ①), each under the
+    // group of its id: `me.ahoo.wow.api:me.ahoo.wow.api.gradle.plugin`, in the directory `api` of the group's.
+    val pluginIds = listOf("me.ahoo.wow", "me.ahoo.wow.api", "me.ahoo.wow.service")
+    val pluginMarkers = pluginIds.associate { id ->
+        val directory = "${id.removePrefix(groupId).replace('.', '/')}/$id.gradle.plugin".removePrefix("/")
+        directory to "$id.gradle.plugin"
+    }
     doLast {
         val problems = mutableListOf<String>()
         val groupDir = File(repository, groupId.replace('.', '/'))
+        // The directory of [artifactId] under the group's: a plugin marker's under its id's group.
+        fun dirOf(artifactId: String) = pluginMarkers.entries.firstOrNull { it.value == artifactId }?.key ?: artifactId
         fun file(artifactId: String, suffix: String) =
-            File(groupDir, "$artifactId/$releaseVersion/$artifactId-$releaseVersion$suffix")
+            File(groupDir, "${dirOf(artifactId)}/$releaseVersion/$artifactId-$releaseVersion$suffix")
         fun requireFiles(artifactId: String, suffixes: List<String>) {
             suffixes.flatMap { listOf(it, "$it.asc") }.forEach { suffix ->
                 if (!file(artifactId, suffix).isFile) problems += "$artifactId: no $artifactId-$releaseVersion$suffix"
@@ -858,7 +865,7 @@ tasks.register("publicationCheck") {
         val platformSuffixes = listOf(".pom", ".module")
         libraries.forEach { requireFiles(it, librarySuffixes) }
         platforms.forEach { requireFiles(it, platformSuffixes) }
-        requireFiles(pluginMarker, listOf(".pom"))
+        pluginMarkers.values.forEach { requireFiles(it, listOf(".pom")) }
         // Nothing else: no further classifier (a `-test-fixtures` jar), only these files, their signatures and checksums.
         val checksums = listOf("", ".md5", ".sha1", ".sha256", ".sha512")
         fun allowedFiles(artifactId: String, suffixes: List<String>) = suffixes
@@ -866,8 +873,8 @@ tasks.register("publicationCheck") {
             .flatMap { suffix -> checksums.map { "$artifactId-$releaseVersion$suffix$it" } }
         (libraries.associateWith { allowedFiles(it, librarySuffixes) } +
             platforms.associateWith { allowedFiles(it, platformSuffixes) } +
-            (pluginMarker to allowedFiles(pluginMarker, listOf(".pom")))).forEach { (artifactId, allowed) ->
-            File(groupDir, "$artifactId/$releaseVersion").listFiles().orEmpty().map { it.name }
+            pluginMarkers.values.associateWith { allowedFiles(it, listOf(".pom")) }).forEach { (artifactId, allowed) ->
+            File(groupDir, "${dirOf(artifactId)}/$releaseVersion").listFiles().orEmpty().map { it.name }
                 .filter { it !in allowed }.sorted()
                 .forEach { problems += "$artifactId: publishes $it, which a release does not ship" }
         }
@@ -925,7 +932,8 @@ tasks.register("publicationCheck") {
             verifying?.close()
         }
 
-        val expected = (libraries + platforms + pluginMarker).toSortedSet()
+        // A marker of another group is a directory of the group's, `api` or `service`.
+        val expected = (libraries + platforms + pluginMarkers.keys.map { it.substringBefore('/') }).toSortedSet()
         val published = groupDir.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSortedSet()
         (published - expected).forEach { problems += "$it: published, but not a release module" }
 

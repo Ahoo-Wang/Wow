@@ -25,14 +25,14 @@ A tool that cannot take the api jar, such as a console or a gateway, reads the p
 
 ## The compatibility check
 
-Each service commits its merged Manifest as a baseline, `manifest/baseline.json`. `checkManifestCompatibility`, part of `check`, compares every build's merged Manifest with it and sorts each difference:
+Each service commits its merged Manifest as a baseline, `manifest/baseline.json`. `checkWowManifest`, part of `check`, compares every build's merged Manifest with it and sorts each difference:
 
 | Kind | Examples | Within the baseline's major version |
 | --- | --- | --- |
 | Additive | A new command, event or aggregate; a new optional field | Allowed |
 | Breaking | A removed command or event; a new required field; a field removed or retyped; an event's schema changed without a new revision and upgrade | Fails the build, listing each change and its path |
 
-`build/wow/manifest-compatibility.txt` lists every change, additive ones too. After an intended change, `updateManifestBaseline` records the new baseline: commit it with the change, so its review shows what clients and peers will see. The eShop regenerates its TypeScript clients from the baselines, so a client and its service never drift apart unnoticed.
+`build/wow/manifest-compatibility.txt` lists every change, additive ones too. After an intended change, `updateWowManifestBaseline` records the new baseline: commit it with the change, so its review shows what clients and peers will see. The eShop regenerates its TypeScript clients from the baselines, so a client and its service never drift apart unnoticed.
 
 A breaking change needs a new major version of the service's contract, or a new command or event beside the old one, the old one retired once its last client has moved.
 

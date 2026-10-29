@@ -202,9 +202,9 @@ class WowApiPlugin : Plugin<Project> {
  * Manifest:
  *
  * - [WowPlugin.MERGE_TASK] ([MergeManifest]) merges every fragment on the runtime class path into
- *   `build/wow/manifest.json`, failing on two fragments of one name, and naming the service after the project path
- *   unless the contracts or `wow { serviceName }` name it; the outgoing variant [WowPlugin.MANIFEST_ELEMENTS] offers
- *   that file;
+ *   `build/wow/manifest.json`, failing on two fragments of one name; the service is the one the contracts of its
+ *   contexts name, its own `wow { service }` included, which must agree, else it is named after the project path; its
+ *   version is the project's; the outgoing variant [WowPlugin.MANIFEST_ELEMENTS] offers that file;
  * - [WowPlugin.OPENAPI_TASK] ([GenerateOpenApi]) writes the OpenAPI document of that Manifest's routes into
  *   `build/wow/openapi.json`;
  * - [WowPlugin.CHECK_TASK] ([CheckManifestCompatibility]), part of `check`, compares the merged Manifest with the

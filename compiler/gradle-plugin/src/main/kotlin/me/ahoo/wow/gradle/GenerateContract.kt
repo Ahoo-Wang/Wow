@@ -60,7 +60,7 @@ internal abstract class GenerateContract : DefaultTask() {
     abstract val fragments: ConfigurableFileCollection
 
     /**
-     * The service that hosts the module's contexts (`wow { contract { service = "…" } }`), which a peer
+     * The service that hosts the module's contexts (`wow { service = "…" }`), which a peer
      * finds by its name; none when the module does not declare it.
      */
     @get:Input

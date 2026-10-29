@@ -379,7 +379,7 @@ class ContractDirectory(
                     "wow.service",
                     service,
                     "Name the service $declared, or declare $service in the api module's domain module " +
-                        "(wow { contract { service } }).",
+                        "(wow { service }).",
                 ) {
                     "The contract of $contexts (${contract.source}) says the service $declared hosts them, but this " +
                         "service is $service: peers find it by the name its api module declares."

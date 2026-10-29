@@ -26,7 +26,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | --- | --- |
 | 带能力变体的 `wow-spring-boot-starter` | `wow-spring-boot`，加上每种技术一个模块：`wow-postgres`、`wow-mongo`、`wow-kafka`、`wow-http`、`wow-cosec` |
 | `wow-core`、`wow-spring`、`wow-webflux`、`wow-metadata`、`wow-schema` | `wow-kernel` 和 `wow-runtime`、`wow-http`、`wow-manifest` |
-| 手工添加的 `ksp("me.ahoo.wow:wow-compiler")` | Gradle 插件 `id("me.ahoo.wow")`，它应用 KSP 和 Manifest 任务 |
+| 手工添加的 `ksp("me.ahoo.wow:wow-compiler")` | 按角色的 Gradle 插件：领域模块用 `id("me.ahoo.wow")`（KSP），其 api 模块用 `id("me.ahoo.wow.api")`，服务器用 `id("me.ahoo.wow.service")`（Manifest 任务） |
 | 领域代码中的 `wow-query` | `wow-query-api`：查询类型、Kotlin DSL 和字段注解 |
 | `ISingleQuery`、`IListQuery`、`IPagedQuery`、`ICursorQuery`、`ICountQuery`、`IPagedList` | 类 `SingleQuery`、`ListQuery`、`PagedQuery`、`CursorQuery`、`CountQuery`、`PagedList`，用它们的 `of` 工厂或 DSL 构建；对查询泛型的代码接收 `Queryable<Q>` 或 `FilterCapable<Q>` |
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |

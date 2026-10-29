@@ -9,7 +9,7 @@ description: "Every artifact a Wow release publishes to Maven Central, and what 
 
 Every artifact a release publishes to Maven Central under the group `me.ahoo.wow`, generated from the build (`abiProjects` and `publishedLibraries` in [`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts)) and each module's own description. Import the BOM and leave the versions out:
 
-`implementation(platform("me.ahoo.wow:wow-bom:<version>"))`, then `implementation("me.ahoo.wow:wow-spring-boot")` and the rest without a version. The Gradle plugin `me.ahoo.wow` applies the compiler (KSP) and assembles the service's Manifest.
+The Gradle plugins add `platform("me.ahoo.wow:wow-bom:<their version>")`, so `implementation("me.ahoo.wow:wow-spring-boot")` and the rest take no version (a build without them imports the BOM itself): `me.ahoo.wow` applies the compiler (KSP) to a domain module, `me.ahoo.wow.api` packages the contract into an api module, and `me.ahoo.wow.service` assembles the service's Manifest.
 
 | Artifact | Directory | Holds |
 | --- | --- | --- |

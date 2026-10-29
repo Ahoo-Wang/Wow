@@ -120,6 +120,8 @@ class PluginRolesFunctionalTest {
     fun `a single module should be its domain and its service with the service plugin alone`(@TempDir root: File) {
         settings(root, "bank")
         module(root, "", WowPlugin.SERVICE_ID)
+        // One fact, one place: the module's contexts are hosted by bank-service, its contract and Manifest alike.
+        File(root, "build.gradle.kts").appendText("\nwow { service = \"bank-service\" }\n")
         bank(root, "")
         val result = runner(
             root,
@@ -132,16 +134,17 @@ class PluginRolesFunctionalTest {
         ).build()
         result.task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         val manifest = ManifestJson.read(File(root, "build/wow/manifest.json"))
-        manifest.service.assert().isEqualTo(ServiceInfo("bank", "unspecified"))
+        manifest.service.assert().isEqualTo(ServiceInfo("bank-service", "unspecified"))
         manifest.contexts.single().aggregates.single().name.assert().isEqualTo("account")
         File(root, "build/wow/openapi.json").isFile.assert().isTrue()
         ZipFile(File(root, "build/libs/bank.jar")).use { jar ->
             jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/bank.json").assert().isNotNull()
         }
         // No api module of its own: the contract of its context, for an api module to carry once it splits one out.
-        ManifestJson.read(
-            File(root, "build/wow/contract.json")
-        ).contexts.map { it.name }.assert().containsExactly("bank")
+        ManifestJson.read(File(root, "build/wow/contract.json")).let { contract ->
+            contract.contexts.map { it.name }.assert().containsExactly("bank")
+            contract.service.assert().isEqualTo(ServiceInfo("bank-service"))
+        }
     }
 
     @Test

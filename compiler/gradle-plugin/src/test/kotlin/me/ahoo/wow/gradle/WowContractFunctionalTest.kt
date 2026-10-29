@@ -158,7 +158,7 @@ class WowContractFunctionalTest {
             rootProject.name = "services"
             include("shop-api", "shop-domain", "audit-domain", "billing-api", "billing-domain", "orders")
             include("broken-api", "broken-domain")
-            include("shop-server", "mixed-server", "named-server")
+            include("shop-server", "mixed-server")
             """,
         )
         write(
@@ -191,7 +191,7 @@ class WowContractFunctionalTest {
             "billing-domain",
             WowPlugin.ID,
             dependencies = """api(project(":billing-api")); api(project(":shop-api"))""",
-            extra = """wow { contract { service = "billing-service" } }""",
+            extra = """wow { service = "billing-service" }""",
         )
         aggregate("billing-domain", "billing", "Invoice", "billingapi")
         module("orders", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":shop-api"))""")
@@ -204,7 +204,6 @@ class WowContractFunctionalTest {
             ":billing-api:jar",
             ":orders:${WowPlugin.MERGE_TASK}",
             ":shop-server:${WowPlugin.MERGE_TASK}",
-            ":named-server:${WowPlugin.MERGE_TASK}",
             ":shop-domain:jar",
             "--configuration-cache",
         ).build()
@@ -216,12 +215,6 @@ class WowContractFunctionalTest {
         module("shop-server", WowPlugin.SERVICE_ID, dependencies = shopAndAudit)
         val shopAndBilling = """implementation(project(":shop-domain")); implementation(project(":billing-domain"))"""
         module("mixed-server", WowPlugin.SERVICE_ID, dependencies = shopAndBilling)
-        module(
-            "named-server",
-            WowPlugin.SERVICE_ID,
-            dependencies = shopAndBilling,
-            extra = """wow { serviceName = "edge" }"""
-        )
     }
 
     /** `broken-domain`, whose event is not in `broken-api`. */
@@ -320,13 +313,8 @@ class WowContractFunctionalTest {
             "The contracts of the service's contexts name different services",
             "shop-service",
             "billing-service",
-            "wow { serviceName",
+            "wow { service",
         )
-    }
-
-    @Test
-    fun `a service's explicit name should win over its contexts' contracts`() {
-        serviceOf("named-server").assert().isEqualTo("edge")
     }
 
     @Test
@@ -350,6 +338,6 @@ class WowContractFunctionalTest {
 
     private companion object {
         /** The service that hosts the shop's contexts, which its contract names (decision D330). */
-        const val HOSTED = """wow { contract { service = "shop-service" } }"""
+        const val HOSTED = """wow { service = "shop-service" }"""
     }
 }

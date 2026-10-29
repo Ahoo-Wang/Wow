@@ -43,8 +43,9 @@ rootProject.name = "bank"
 ```kotlin
 plugins {
     kotlin("jvm") version "2.4.21"
-    // Applies KSP with wow-compiler of the same version, and assembles the service's Manifest.
-    id("me.ahoo.wow") version "10.0.0-alpha.6"
+    // The service in one module: KSP with wow-compiler, the BOM and the kernel of the same version, and the
+    // service's Manifest.
+    id("me.ahoo.wow.service") version "10.0.0-alpha.6"
     application
 }
 
@@ -57,10 +58,6 @@ application {
 }
 
 dependencies {
-    // The V10 BOM: one version for every Wow module.
-    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.6"))
-    // The kernel the generated models build on.
-    implementation("me.ahoo.wow:wow-kernel")
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
     implementation("me.ahoo.wow:wow-spring-boot")
     // Jakarta Bean Validation: the host checks the commands' constraints (@field:Positive) at admission.

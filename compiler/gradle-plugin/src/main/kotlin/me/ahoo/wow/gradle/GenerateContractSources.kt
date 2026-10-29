@@ -53,7 +53,7 @@ internal abstract class GenerateContractSources @Inject constructor(
     @get:CompileClasspath
     abstract val classpath: ConfigurableFileCollection
 
-    /** The generator: the `wowManifestTools` configuration of the api module. */
+    /** The generator: the `wowTools` configuration of the api module. */
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 

@@ -72,7 +72,7 @@ class WowPluginTest {
     fun `without the Kotlin plugin it should fail once the project is evaluated, naming the fix`() {
         val project = project(kotlin = false)
         project.pluginManager.apply("java")
-        project.extensions.getByType(WowServiceExtension::class.java).serviceName.isPresent.assert().isFalse()
+        project.extensions.getByType(WowServiceExtension::class.java).service.isPresent.assert().isFalse()
         project.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNull()
         project.pluginManager.hasPlugin("com.google.devtools.ksp").assert().isFalse()
         val failure = assertThrows<ProjectConfigurationException> { (project as ProjectInternal).evaluate() }
@@ -220,7 +220,7 @@ class WowPluginTest {
         val project = project()
         val extension = project.extensions.getByType(WowServiceExtension::class.java)
         extension.schemaOverrides.put("a.Money", """{"type":"string"}""")
-        extension.serviceVersion.set("2.0.0")
+        project.version = "2.0.0"
 
         val generate = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
         // The wow group holds the tasks a user runs; the plumbing has none.
@@ -240,12 +240,12 @@ class WowPluginTest {
             .contains("${Manifest.FRAGMENT_DIRECTORY}/**")
 
         val merge = project.tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest
-        // Unset, the merge derives the name, the project's when no contract names one.
+        // Unset, the merge derives the name from the contracts, the project path's when none names one.
         merge.serviceName.isPresent.assert().isFalse()
         merge.defaultServiceName.get().assert().isEqualTo("shop")
-        extension.serviceName.set("shop-service")
+        // The module's own contexts name their service once, for its contract and its Manifest alike.
+        extension.service.set("shop-service")
         merge.serviceName.get().assert().isEqualTo("shop-service")
-        // The service module's own contexts are its service's.
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).service.get().assert()
             .isEqualTo("shop-service")
         merge.serviceVersion.get().assert().isEqualTo("2.0.0")
@@ -254,7 +254,7 @@ class WowPluginTest {
 
     @Test
     fun `the service version should default to the project's`() {
-        project().extensions.getByType(WowServiceExtension::class.java).serviceVersion.get().assert()
+        (project().tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest).serviceVersion.get().assert()
             .isEqualTo("1.2.3")
     }
 
@@ -410,7 +410,7 @@ class WowPluginTest {
     @Test
     fun `a contract names the service its module declares`() {
         val project = project()
-        project.extensions.getByType(WowExtension::class.java).contract { it.service.set("shop-service") }
+        project.extensions.getByType(WowExtension::class.java).service.set("shop-service")
         val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {

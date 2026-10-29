@@ -278,11 +278,11 @@ class ManifestToolsTest {
     }
 
     /** The service a merge of the shop's fragment and the [contracts] describes, unnamed, with "fallback" by default. */
-    private fun derivedService(vararg contracts: Pair<String, Manifest>): String {
+    private fun derivedService(vararg contracts: Pair<String, Manifest>, own: String? = null): String {
         val classpath = listOf(jar("shop", shopFragment())) +
             contracts.map { (name, contract) -> contractJar(name, contract) }
         val output = File(directory, "manifest.json")
-        ManifestTools.merge(classpath, emptyMap(), null, "fallback", null, output)
+        ManifestTools.merge(classpath, emptyMap(), own, "fallback", null, output)
         return ManifestJson.read(output).service!!.name
     }
 
@@ -315,19 +315,17 @@ class ManifestToolsTest {
         val failure = assertThrows<IllegalStateException> {
             derivedService("shop-api" to contract("shop", "shop-service"), "shop-v2-api" to contract("shop", "other"))
         }
-        failure.message.assert().contains("shop-service", "other", "wow { serviceName")
+        failure.message.assert().contains("shop-service", "other", "wow { service")
     }
 
     @Test
-    fun `a named service should win over the one the contracts name`() {
-        val output = File(directory, "manifest.json")
-        val classpath = listOf(
-            jar("shop", shopFragment()),
-            contractJar("shop-api", contract("shop", "shop-service")),
-            contractJar("shop-v2-api", contract("shop", "other")),
-        )
-        ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, output)
-        ManifestJson.read(output).service!!.name.assert().isEqualTo("store")
+    fun `a service's own name should agree with its contexts' contracts`() {
+        derivedService(own = "shop-service").assert().isEqualTo("shop-service")
+        derivedService("shop-api" to contract("shop", "shop-service"), own = "shop-service").assert()
+            .isEqualTo("shop-service")
+        assertThrows<IllegalStateException> {
+            derivedService("shop-api" to contract("shop", "shop-service"), own = "edge")
+        }.message.assert().contains("shop-service", "edge (the service module's wow { service })")
     }
 
     @Test

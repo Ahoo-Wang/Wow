@@ -74,7 +74,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## Run it on real stores
 
-The memory backend serves no snapshot queries and writes no warehouse. A test of those runs the service on the stores themselves, started by Testcontainers. The eShop keeps such tests in a source set of their own, `integrationTest`, so the unit tests stay fast and need no Docker:
+The memory backend serves no snapshot queries and writes no warehouse. A test of those runs the service on the stores themselves, started by Testcontainers. The plugins give a module a test suite of its own for them, `integrationTest`, outside `check`, so the unit tests stay fast and need no Docker:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
@@ -104,7 +104,7 @@ private val server = wowServer<OrderingServer>(
 
 ## Check the contract
 
-The Gradle plugin `me.ahoo.wow` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkManifestCompatibility`, part of `check`. A change that breaks a client within the baseline's major version fails the build, listing each breaking change and its path. After an intended change, `updateManifestBaseline` records the new baseline; commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
+The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkWowManifest`, part of `check`. A change that breaks a client within the baseline's major version fails the build, listing each breaking change and its path. After an intended change, `updateWowManifestBaseline` records the new baseline; commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
 
 ## Test across services
 

@@ -44,19 +44,17 @@ The compiler writes the module's part of the service's contract to `META-INF/wow
 
 ## The contract code of the api module
 
-The plugin selects from the fragment what a peer needs, the commands, events, state schemas and errors of each context, and puts it in the api module's jar as `META-INF/wow/contract.json`. The contract also names the service that hosts the contexts, as the domain module's build declares it:
+The api module declares its domain module, `wowContract(project(":ordering-domain"))` under the plugin `me.ahoo.wow.api`, and the plugins select from the fragment what a peer needs, the commands, events, state schemas and errors of each context, and put it in the api module's jar as `META-INF/wow/contract.json`. The contract also names the service that hosts the contexts, as the domain module's build declares it:
 
 <!-- sample: fragment -->
 
 ```kotlin
 wow {
-    contract {
-        service = "eshop-ordering-service"
-    }
+    service = "eshop-ordering-service"
 }
 ```
 
-A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes the same name, so the server module that hosts the contexts does not repeat it (`wow { serviceName }` overrides it). The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugin, declare it with the build's equivalent, `extra["wowContractService"]`.
+A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes its name from the contracts of the contexts it hosts, so the server module that hosts them does not repeat it; contracts that name different services fail its build, and with none it is named after the server's project path. The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugins yet, declare it with the build's equivalent, `extra["wowContractService"]`.
 
 An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
 

@@ -25,14 +25,14 @@ outline: deep
 
 ## 兼容检查 {#the-compatibility-check}
 
-每个服务把合并后的 Manifest 作为基线 `manifest/baseline.json` 提交。`checkManifestCompatibility`（`check` 的一部分）把每次构建合并出的 Manifest 与基线比较，并为每处差异归类：
+每个服务把合并后的 Manifest 作为基线 `manifest/baseline.json` 提交。`checkWowManifest`（`check` 的一部分）把每次构建合并出的 Manifest 与基线比较，并为每处差异归类：
 
 | 类别 | 例子 | 在基线的主版本内 |
 | --- | --- | --- |
 | 增量的 | 新的命令、事件或聚合；新的可选字段 | 允许 |
 | 破坏性的 | 删除命令或事件；新的必填字段；删除字段或改变字段类型；改变了事件的 schema 却没有新的修订号和升级函数 | 构建失败，并列出每处改变及其路径 |
 
-`build/wow/manifest-compatibility.txt` 列出每处改变，包括增量的改变。有意的改变之后，`updateManifestBaseline` 记录新的基线：把它与改变一起提交，这样评审时就能看到客户端和对端会看到什么。eShop 从基线重新生成它的 TypeScript 客户端，所以客户端与它的服务永远不会在不知不觉中偏离。
+`build/wow/manifest-compatibility.txt` 列出每处改变，包括增量的改变。有意的改变之后，`updateWowManifestBaseline` 记录新的基线：把它与改变一起提交，这样评审时就能看到客户端和对端会看到什么。eShop 从基线重新生成它的 TypeScript 客户端，所以客户端与它的服务永远不会在不知不觉中偏离。
 
 破坏性改变需要服务契约的一个新主版本，或者在旧的命令或事件旁边新增一个，待最后一个客户端迁移之后再让旧的退役。
 

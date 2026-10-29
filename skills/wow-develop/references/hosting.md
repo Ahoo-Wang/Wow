@@ -8,12 +8,12 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 
 | Module | Holds | Depends on |
 | --- | --- | --- |
-| `<svc>-api` | Commands, events, value types: what other contexts compile against | `wow-api` |
-| `<svc>-domain` | Roots, states, `@ErrorCode` constants, processors | `<svc>-api`, `api("wow-kernel")`; plugin `me.ahoo.wow`; `wow-query-api` when it uses the query field annotations; tests `testImplementation("me.ahoo.wow:wow-test")` |
-| `<svc>-server` | Spring Boot application, service beans | domain, `wow-spring-boot`, a backend (`wow-postgres` or `wow-mongo`), optionally `wow-kafka`, `wow-clickhouse`, `wow-cosec` |
+| `<svc>-api` | Commands, events, value types: what other contexts compile against | plugin `me.ahoo.wow.api` (brings `wow-api`), `wowContract(project(":<svc>-domain"))` |
+| `<svc>-domain` | Roots, states, `@ErrorCode` constants, processors | `<svc>-api`; plugin `me.ahoo.wow` (brings `wow-kernel`); `wow-query-api` when it uses the query field annotations; tests `testImplementation("me.ahoo.wow:wow-test")` |
+| `<svc>-server` | Spring Boot application, service beans | plugin `me.ahoo.wow.service`; domain, `wow-spring-boot`, a backend (`wow-postgres` or `wow-mongo`), optionally `wow-kafka`, `wow-clickhouse`, `wow-cosec` |
 
-- Import the BOM `platform("me.ahoo.wow:wow-bom:<version>")` and apply the plugin `id("me.ahoo.wow")` of the same version to the domain module. The plugin applies KSP with `wow-compiler` (unless `ksp` declares it), assembles the module's Manifest fragment and the service's Manifest, checks the Manifest against `manifest/baseline.json` in `check` (`updateManifestBaseline` rewrites it), and puts the peer contract into the api jar. Its `wow { }` block: `context`, `schemaOverrides`, `serviceName`, `serviceVersion`, `manifestBaseline`.
-- The plugin fails a module without the Kotlin JVM plugin (a Java domain applies `kotlin("jvm")` too), and is not compatible with Gradle's isolated projects.
+- Apply the plugins by role, all of one version, which add `platform("me.ahoo.wow:wow-bom:<that version>")` so Wow dependencies take no version: `id("me.ahoo.wow")` on the domain module (KSP with `wow-compiler` unless `ksp` declares it, `wow-kernel`, the Manifest fragment, the `integrationTest` suite), `id("me.ahoo.wow.api")` on the api module, which declares `wowContract(project(":<svc>-domain"))` and carries its contract and generated code, and `id("me.ahoo.wow.service")` on the server (the domain role on its own sources, the service's Manifest, `checkWowManifest` against `manifest/baseline.json` in `check`, `updateWowManifestBaseline` to rewrite it). A single-module service applies `me.ahoo.wow.service` alone. The domain's `wow { }` block: `context`, `service` (the service hosting its contexts, named in its contract; the server's Manifest takes the name its contexts' contracts agree on, else the server's project path), `schemaOverrides`; the service's adds `manifestBaseline`.
+- The domain and service plugins fail a module without the Kotlin JVM plugin (a Java domain applies `kotlin("jvm")` too). No plugin configures another project, so the build may use Gradle's isolated projects.
 - A Jackson type that is not written as an object (a custom serializer, `@JsonValue`) needs its schema in `schemaOverrides`, or the build fails rather than guess.
 - Reactor return types in handlers need `wow-reactor` on the class path, or compilation fails.
 
