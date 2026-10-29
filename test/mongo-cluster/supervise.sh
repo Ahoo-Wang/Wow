@@ -68,8 +68,10 @@ initiate() {
     members+="{_id: $i, host: 'localhost:$port'},"
     i=$((i + 1))
   done
+  echo "initiating $set"
   mongosh --quiet --port "$1" --eval "rs.initiate({_id: '$set', configsvr: $configsvr, members: [${members%,}]})" >/dev/null
   until mongosh --quiet --port "$1" --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true; do sleep 1; done
+  echo "$set has a primary"
 }
 
 case $MODE in
@@ -88,6 +90,7 @@ case $MODE in
 esac
 
 for m in "${MEMBERS[@]}"; do start "$m"; done
+echo "members started"
 case $MODE in
   rs)
     initiate rs0 false 27101 27102 27103
@@ -102,6 +105,7 @@ case $MODE in
     member mongos2 27202 mongos --configdb cfg/localhost:27201
     start "${MEMBERS[-1]}"
     # A router just started may not reach the config server yet: retried for a minute, then the start fails.
+    echo "adding the shards"
     tries=0
     until mongosh --quiet --port 27200 --eval "
       sh.addShard('sh1/localhost:27211,localhost:27212,localhost:27213');

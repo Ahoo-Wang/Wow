@@ -48,9 +48,11 @@ up() {
     --entrypoint bash "$IMAGE" /supervise.sh "$mode" >/dev/null
   local waited=0
   until docker exec "$NAME" test -f /data/cluster/ready 2>/dev/null; do
-    if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ] || [ $waited -ge 180 ]; then
+    if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ] || [ $waited -ge 300 ]; then
       docker logs "$NAME" >&2
       docker inspect -f 'container {{.State.Status}}, exit code {{.State.ExitCode}}, OOM killed {{.State.OOMKilled}} {{.State.Error}}' "$NAME" >&2
+      # A container still running waits on a step: each member's last log lines say which.
+      docker exec "$NAME" sh -c 'for f in /data/cluster/*/log; do echo "== $f"; tail -n 15 "$f"; done' >&2 2>/dev/null || true
       echo "the $mode cluster did not start" >&2
       exit 1
     fi
