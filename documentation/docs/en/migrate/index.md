@@ -48,7 +48,7 @@ The data side follows two rules. **Nothing is guessed:** a 9.x event type, comma
 - **Start from the last 9.x minor version.** Migration is supported from the last minor version of 9.x to 10.0. Upgrade within 9.x first.
 - **A 9.x MongoDB event store.** The data tool reads the 9.x MongoDB store. A service on the 9.x Redis or Elasticsearch event store moves its data to the 9.x MongoDB store first.
 - **Gradle.** V10's compile-time binding runs in Gradle, through KSP and the Wow Gradle plugin. Maven builds are not supported.
-- **JDK 21.**
+- **JDK 21**, and JDK 25 to run in production ([The JDK](../operate/kubernetes#the-jdk)).
 
 ## How long the tools are supported
 

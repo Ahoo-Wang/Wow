@@ -14,7 +14,7 @@ Wow 10.0.0-alpha.6 is a pre-release. Its API, configuration and stored formats m
 
 ## What you need
 
-- JDK 21.
+- JDK 21 or later; JDK 25 to run in production ([The JDK](../operate/kubernetes#the-jdk)).
 - Gradle 9 with the Kotlin JVM plugin. The Wow Gradle plugin applies KSP and the Wow compiler.
 
 ## Set up the build

@@ -2,8 +2,9 @@
 #   ./gradlew :eshop-inventory-server:installDist
 #   docker build -f deploy/eshop-inventory/Dockerfile -t wow-eshop-inventory-server:local \
 #     examples/eshop/inventory/inventory-server
-# Any JDK 21 image on Ubuntu, such as eclipse-temurin:21-jre (--build-arg BASE_IMAGE=...).
-ARG BASE_IMAGE=dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu
+# JDK 25, as Wow recommends to run on, pinned by digest; any JDK 21+ image on Ubuntu runs it
+# (--build-arg BASE_IMAGE=...), though JDKs before 24 pin virtual threads that block in synchronized code.
+ARG BASE_IMAGE=dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:25-ubuntu@sha256:6490a55d94a6ba1dcf88f8a1de8a5d67f5cf0fac717c1d84f18933516bd27b1a
 ARG APP_NAME=eshop-inventory-server
 ARG WORK_HOME=/opt/${APP_NAME}
 

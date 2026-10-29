@@ -41,5 +41,4 @@ patches:
         path: /spec/template/spec/containers/0/env/-
         value:
           name: JAVA_TOOL_OPTIONS
-          # Every stack a virtual thread blocks on while pinned to its carrier, printed once each to the log.
-          value: -javaagent:/otel/opentelemetry-javaagent.jar -Djdk.tracePinnedThreads=full
+          value: -javaagent:/otel/opentelemetry-javaagent.jar
