@@ -33,22 +33,23 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.memory.InMemoryFilters
+import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
+import me.ahoo.wow.query.memory.RecordScope
 import me.ahoo.wow.query.observe.QueryAuditTrail
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
-import me.ahoo.wow.query.resolve.FilterNormalizer
 import me.ahoo.wow.query.resolve.QueryResolver
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
 import me.ahoo.wow.query.schema.cursorUniqueKey
 import me.ahoo.wow.query.schema.requireValid
-import me.ahoo.wow.query.schema.withCanonicalFields
 import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import kotlin.time.toJavaDuration
@@ -139,20 +140,25 @@ class QueryAdmission(
      * against [schema]'s profile (the snapshot profile without one), as a query route does. Steps 2 and 3 then run on a
      * [QueryType.SINGLE] query of [selection]: the caller's scope and every [QueryPolicy] restriction are appended,
      * then the snapshot model's default scope. There is no submitted query to budget or rewrite, so the budget and
-     * step 1 do not apply. The resulting filter is put in canonical form (aliases replaced when [schema] is given,
-     * `EQ`/`NE` of `null` lowered, logical nodes simplified) and evaluated on [record] in memory with the semantics
-     * of the filter semantics matrix; an operator the evaluation does not support fails closed.
+     * step 1 do not apply. The resulting filter is then admitted as trusted code's query of a record ([Trusted.single]
+     * against [schema]'s in-memory form, [recordSchema]): aliases replaced, validated, normalized, relative time
+     * resolved to its range, and evaluated on [record] by the same code the in-memory backend runs ([InMemoryFilters]),
+     * so a policy admits the same rows on a point read as on a query. Resolution refuses everything the evaluation
+     * cannot run (a full-text search, which the in-memory facts do not grant; a field the schema does not know; a value
+     * its type refuses; an element's field outside its `ELEMENT_MATCH`), and relative time is lowered to a range
+     * first: a refused restriction fails closed, the record hidden, and a failure past resolution is a defect, not a
+     * policy's answer.
      *
-     * Returns [record], or `null` when the caller may not read it. Policies need the schema, so a read with policies
-     * fails when [schema] is `null`. The record returned is masked by [schema]'s response masks ([maskRecord]).
+     * Returns [record], or `null` when the caller may not read it. The record returned is masked by [schema]'s response
+     * masks ([maskRecord]).
      */
     @InternalWowApi
     suspend fun admitRecord(
         selection: FilterExpression,
         record: ObjectNode,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         caller: QueryCaller,
-    ): ObjectNode? = record.takeIf(recordFilter(selection, schema, caller))?.let { schema?.maskRecord(it) ?: it }
+    ): ObjectNode? = record.takeIf(recordFilter(selection, schema, caller))?.let { schema.maskRecord(it) }
 
     /**
      * The in-memory condition [admitRecord] evaluates, built once for every record [selection] chooses: the batch of
@@ -160,24 +166,40 @@ class QueryAdmission(
      */
     internal suspend fun recordFilter(
         selection: FilterExpression,
-        schema: QueryModelSchema?,
+        schema: QueryModelSchema,
         caller: QueryCaller,
     ): (ObjectNode) -> Boolean {
         val entry = entryPolicy.admit(caller.entry)
-        val profile = schema?.profile ?: SnapshotQueryModelProfile
+        val profile = schema.profile ?: SnapshotQueryModelProfile
         entryPolicy.requireScope(entry, caller.scope.authenticated, profile)
-        fun context(current: SingleQuery): QueryContext<SingleQuery> {
-            schema ?: throw QueryExecutionException(
-                "Point-read admission needs the snapshot query schema to evaluate query policies."
-            )
-            return QueryContext(current, aggregateType, schema, QueryType.SINGLE, entry)
-        }
+        fun context(current: SingleQuery): QueryContext<SingleQuery> =
+            QueryContext(current, aggregateType, schema, QueryType.SINGLE, entry)
         val appended = mutableListOf<FilterExpression>()
         val restricted = restrict(SingleQuery(selection) as SingleQuery, caller, ::context, null, appended)
         val filter = restricted.withDefaultScope(profile, appended).filter
-        val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
-        return RecordFilter(normalizer.normalize(canonical))::admits
+        val admitted = try {
+            Trusted.single(SingleQuery(filter), recordSchema(schema), entry, appended)
+        } catch (_: QuerySchemaValidationException) {
+            return { false }
+        }
+        val evaluation = InMemoryFilters(admitted)
+        return { record -> evaluation.matches(admitted.query.filter, RecordScope(record)) }
     }
+
+    /**
+     * [schema] over the in-memory storage's facts: a record of its model as it is read, each logical path its own
+     * physical path, with every operator the in-memory backend grants. Compiled once per schema.
+     */
+    private suspend fun recordSchema(schema: QueryModelSchema): QueryModelSchema {
+        recordSchema?.takeIf { it.first === schema }?.let { return it.second }
+        val compiled = InMemoryQueryStorageAdapter.facts(schema.definition)
+            .compile(schema.model, schema.definition, schema.profile)
+        recordSchema = schema to compiled
+        return compiled
+    }
+
+    @Volatile
+    private var recordSchema: Pair<QueryModelSchema, QueryModelSchema>? = null
 
     /** Step 1: the [QueryFilter]s in order, each seeing the query the previous one produced. */
     private suspend fun <Q : RewritableFilter<Q>> rewrite(query: Q, context: (Q) -> QueryContext<Q>): Q =
@@ -354,10 +376,6 @@ class QueryAdmission(
                     cursor
                 )
             }
-    }
-
-    private companion object {
-        val normalizer = FilterNormalizer()
     }
 }
 
