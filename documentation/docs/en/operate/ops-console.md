@@ -46,13 +46,13 @@ The ops service is a Wow service on MongoDB and Kafka (or PostgreSQL), behind Co
 1. Build the image with the console in it, or use a released image.
 2. Provide MongoDB and Kafka; for PostgreSQL instead, add the manifests' `postgres` component.
 3. Create the topics the ops context owns: `wow.ops.commands`, `wow.ops.receipts` and `wow.ops.parked.state`. The command topic has exactly as many partitions as the ops context's log.
-4. Put the CoSec gateway in front, and route the console and the ops routes through it: the gateway verifies each operator's access token, and the service parses the token it forwards, with no secret of its own ([Secure a Deployment](./security#put-the-gateway-in-front)).
+4. Put the CoSec gateway in front, and route the console and the ops routes through it: the gateway verifies each operator's access token, and the service reads the identity it forwards (`CoSec-Identity`), with no secret of its own ([Secure a Deployment](./security#put-the-gateway-in-front)).
 
 Then each service on the same Kafka starts publishing its ledger by itself within `wow.kafka.topics.partition-refresh` of the ops command topic appearing, and sends the entries it parked meanwhile; a service that should not appear in the console sets `wow.ops.publish.enabled: false`. The operators' actions arrive on each owning service's own command topic, which a service that publishes its ledger reads for them by itself.
 
 ## Who may do what
 
-The operator signs in to the console with a CoSec access token. The service reads the operator's tenant, subject and roles from it:
+The operator signs in to the console with a CoSec access token. The service reads the operator's tenant, subject and roles from the identity the gateway verified:
 
 <!-- sample: platform/ops/ops-server/src/main/resources/application.yaml#roles -->
 
@@ -71,7 +71,7 @@ wow:
 - `ops.viewer` only reads them.
 - A principal with neither reads nothing. A request without a valid token is answered 401, and the console signs out.
 
-The services' ledgers publish to Wow's default tenant, `(0)`. When CoSec authorizes the service's commands (`wow.cosec.authorizer.enabled: true`), CoSec's policies decide who is an operator instead of the role, each action judged as the request of its own route: `POST /ops/parked/{id}/resume` and the other actions on the ops service. A service that serves its own operator routes (`/wow/ops/parked`, below) judges them as its `wow.ledger.*` commands. Write a policy for each route you expose. Whoever decides, no caller may send the records (`ops.parked.RecordParked`, `RecordResolved`, `RecordActionRefused`): only the services' ledgers and the ops saga produce them.
+The services' ledgers publish to Wow's default tenant, `(0)`. Where CoSec decides the ops service's requests itself, with `wow.cosec.authorizer.enabled: true` (not behind the gateway, where the service has no CoSec decision), CoSec's documents decide who is an operator instead of the role, each action by its command's action: `ops:Resume` on `parked/<id>` and the other actions on the ops service ([Action names](./security#action-names)). A service that serves its own operator routes (`/wow/ops/parked`, below) judges them as its `wow.ledger.*` commands. Write a policy for each route you expose. Whoever decides, no caller may send the records (`ops.parked.RecordParked`, `RecordResolved`, `RecordActionRefused`): only the services' ledgers and the ops saga produce them.
 
 ## Work with the console
 

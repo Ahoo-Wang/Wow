@@ -31,9 +31,9 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 | `Command-Wait-Timeout` | `Wow-Wait-Timeout`：`500ms`、`10s` 或 ISO-8601 |
 | `Command-Request-Id` | `Wow-Request-Id` |
 | `Command-Aggregate-Version` | `If-Match: "<version>"`；读取以 `ETag` 回答 |
-| `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` | 调用方和路由；被允许在别处行事的调用方发送 `Wow-Scope`；`Wow-Space` 选择调用方的某个空间 |
+| `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` | 调用方和路由；被允许在别处行事的调用方发送 `Wow-Scope`；`Wow-Space` 选择调用方的某个空间，CoSec 宿主上是 `CoSec-Space-Id` |
 | `Command-Local-First`、`Command-Type`、`Command-Header-*` | 已去掉；服务作为请求事实保留的请求头列在 `wow.http.request-facts` 中 |
-| 作为别名读取的 `CoSec-Request-Id`、`CoSec-Space-Id` | 不再读取：由网关把它们改写为 `Wow-Request-Id` 和 `Wow-Space` |
+| 作为别名读取的 `CoSec-Request-Id`、`CoSec-Space-Id` | 只在 CoSec 宿主上读取：`CoSec-Request-Id` 是没有 `Wow-Request-Id` 的命令的请求 ID，空间是 CoSec 从 `CoSec-Space-Id` 接受的那个（那里不读取 `Wow-Space`）。没有 CoSec 时，用 `Wow-Request-Id` 和 `Wow-Space` |
 
 9.x 的等待阶段按含义映射：`SENT` 是 `accepted`，`PROCESSED` 是 `committed`，`SNAPSHOT` 是 `snapshot`，`PROJECTED`、`EVENT_HANDLED` 和 `SAGA_HANDLED` 是指明订阅的 `handled` 跳。
 

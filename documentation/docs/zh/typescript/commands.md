@@ -213,4 +213,4 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 聚合的客户端还发送它的 Manifest 列出的生命周期命令：`deleteAggregate`、`restoreAggregate`、`transferOwner`、`transferSpace` 和 `applyTags`。
 
-每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。
+每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`；CoSec 服务改读 `CoSec-Space-Id`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。

@@ -31,9 +31,9 @@ Read the 9.x paths from the service's generated 9.x OpenAPI, not from its annota
 | `Command-Wait-Timeout` | `Wow-Wait-Timeout`: `500ms`, `10s` or ISO-8601 |
 | `Command-Request-Id` | `Wow-Request-Id` |
 | `Command-Aggregate-Version` | `If-Match: "<version>"`; reads answer `ETag` |
-| `Command-Tenant-Id`, `Command-Owner-Id`, `Command-Aggregate-Id` | The caller and the route; a caller allowed to act elsewhere sends `Wow-Scope`; `Wow-Space` picks one of the caller's spaces |
+| `Command-Tenant-Id`, `Command-Owner-Id`, `Command-Aggregate-Id` | The caller and the route; a caller allowed to act elsewhere sends `Wow-Scope`; `Wow-Space` picks one of the caller's spaces, `CoSec-Space-Id` on a CoSec host |
 | `Command-Local-First`, `Command-Type`, `Command-Header-*` | Gone; the headers a service keeps as request facts are listed in `wow.http.request-facts` |
-| `CoSec-Request-Id`, `CoSec-Space-Id` read as aliases | Not read: a gateway rewrites them to `Wow-Request-Id` and `Wow-Space` |
+| `CoSec-Request-Id`, `CoSec-Space-Id` read as aliases | Read only on a CoSec host: `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id`, and the space is the one CoSec accepted from `CoSec-Space-Id` (`Wow-Space` is not read there). Without CoSec, `Wow-Request-Id` and `Wow-Space` |
 
 9.x wait stages map by meaning: `SENT` is `accepted`, `PROCESSED` is `committed`, `SNAPSHOT` is `snapshot`, and `PROJECTED`, `EVENT_HANDLED` and `SAGA_HANDLED` are a `handled` hop that names the subscription.
 

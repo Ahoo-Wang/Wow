@@ -34,7 +34,7 @@ Keep every Wow package on one V10 minor (`~` or exact).
 | `Command-Tenant-Id`, `Command-Owner-Id`, `Command-Aggregate-Id` | From the caller and the route; an allowed caller acts elsewhere with `Wow-Scope`, `Wow-Space` |
 | `Command-Local-First`, `Command-Type`, `Command-Header-*` | Gone; request facts the service lists in `wow.http.request-facts` |
 
-Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list every rule that names a 9.x path and its V10 replacement. With `wow.cosec.authorizer.enabled`, CoSec evaluates each command, whatever its entry, as its V10 route in the Manifest (a routeless system command as `POST /{context}/{aggregate}/{id}/{full type name}`), and a policy matching the command by attribute reads `wow.command`, the command's full type name (`shop.cart.AddItem`, a system command qualified by its aggregate type: `shop.cart.wow.lifecycle.DeleteAggregate`).
+Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list every rule that names a 9.x path and its V10 replacement. Where CoSec decides the requests itself, the host gives it the Manifest's route map: a command route is the action `<context>:<command>` (`shop:AddItem`, `shop:wow.lifecycle.DeleteAggregate`) on `<aggregate>/<id>` (`<aggregate>` alone for a route without an id), a service route `<context>:<route>` on `route/<route>`, and query routes stay `http:<METHOD>` on their path; with `wow.cosec.authorizer.enabled`, CoSec authorizes each command of a request by the same action, whatever its entry. A CoSec gateway loads no route map, so policies there name `http:<METHOD>` on the V10 paths.
 
 ## Client code
 
