@@ -532,7 +532,9 @@ export interface DynamicFieldDescriptor {
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
     kind: QueryValueKind;
+    nullable: boolean;
     pattern: string;
+    semantic?: QuerySemanticType;
     sort: FieldSortDescriptor;
     types: QueryValueType[];
 }

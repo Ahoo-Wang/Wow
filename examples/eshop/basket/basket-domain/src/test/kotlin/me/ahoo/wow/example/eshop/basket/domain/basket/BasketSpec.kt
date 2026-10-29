@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
@@ -51,10 +52,20 @@ class BasketSpec {
     }
 
     @Test
-    fun `another buyer should not create the basket`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
-            expectRejected(Basket.Rejections.NOT_OWNER)
+    fun `a caller with no owner should create the basket for the buyer whose id it has`() = basketSpec {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2)) {
+            expectEvents(BasketItemAdded(MUG, MUG_PRICE, 2))
+            expectScope(Scope(ownerId = BUYER))
         }
+    }
+
+    @Test
+    fun `another buyer should be forbidden the basket`() = basketSpec {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
+            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        }
+        givenCommands(AddBasketItem(MUG, MUG_PRICE, 2))
+        whenCommand(ClearBasket, scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
     }
 
     @Test
@@ -125,6 +136,7 @@ class BasketSpec {
 
     private companion object {
         const val BUYER = "alice"
+
         const val MUG = "mug"
         const val CAP = "cap"
         val MUG_PRICE = BigDecimal("8.50")

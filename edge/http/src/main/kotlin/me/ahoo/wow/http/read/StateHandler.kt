@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
@@ -70,6 +71,10 @@ import java.time.format.DateTimeParseException
  *   a lagging snapshot caught up with the log ([StateReads.latest] of a version); a state the caller may see that
  *   stays below it through the read's wait is 409 `wow.query.min-version-not-reached`, the problem's `version` its
  *   current version, with `Retry-After`. It reads no version or time besides (400).
+ *
+ *   Of an aggregate whose id is its owner's, `GET /{context}/{aggregate}/state` (and `…/state/trace`) reads the
+ *   caller's own, its id the owner of the scope it reads in; a caller with no owner names the id (400
+ *   `wow.query.malformed` without; 401 `wow.auth.unauthenticated` for an unauthenticated caller).
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
  *   version `from` (default 1) up to `to` (default the last), at most `limit` of them (default [DEFAULT_TRACE_LIMIT],
  *   at most [MAX_TRACE_LIMIT]: replaying is not free), each with its events and the state after it. The
@@ -179,7 +184,18 @@ internal class StateHandler(
         val acting = checkNotNull(queryCaller.caller)
         val scope = ownerships(type).scopeOf(acting.scope)
         val tenant = acting.tenantId
-        return Reader(scope, type.ref(tenant, request.pathVariable(CommandHandler.ID)), queryCaller)
+        // By no id, the caller's own aggregate of a type whose id is its owner's.
+        val id = request.pathVariables()[CommandHandler.ID] ?: acting.scope.ownerId ?: throw ProblemException(
+            if (acting.subject == null) {
+                statuses.problemOf(FrameworkCodes.AUTH_UNAUTHENTICATED, "An unauthenticated caller has no ${type.name}.")
+            } else {
+                statuses.problemOf(
+                    FrameworkCodes.QUERY_MALFORMED,
+                    "This caller has no owner; address the ${type.name} by its id.",
+                )
+            },
+        )
+        return Reader(scope, type.ref(tenant, id), queryCaller)
     }
 
     /** Who reads which state: the [scope] it reads in, the [ref] it reads and the [caller] its queries are admitted as. */

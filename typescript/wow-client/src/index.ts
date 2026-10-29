@@ -96,6 +96,7 @@ export {
   SnapshotQueryClient,
 } from './queries.js';
 export {
+  OwnStateClient,
   StateClient,
   type StateReadOptions,
   type StateReadResult,

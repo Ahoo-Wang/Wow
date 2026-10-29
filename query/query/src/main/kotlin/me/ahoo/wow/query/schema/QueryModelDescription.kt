@@ -205,6 +205,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
             kind = value.kind,
+            nullable = value.nullable,
+            semantic = value.sharedSemantic(),
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
             sort = FieldSortDescriptor(
                 paged = effective.sortable,

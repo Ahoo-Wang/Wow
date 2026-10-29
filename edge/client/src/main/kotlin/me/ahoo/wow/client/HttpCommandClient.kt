@@ -49,7 +49,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The [CommandClient] of the peers' HTTP command routes: each command goes, as JSON, to
  * the route its contract gives it (`POST /{context}/{aggregate}/{id}/{command}`, or without the id for a request
- * that names none, a creation or an unaddressed command), named by [names] from its class and the request's type (the
+ * that names none: a creation, an unaddressed command, or any command of an aggregate whose id is its owner's, which
+ * goes to the caller's own), named by [names] from its class and the request's type (the
  * one whose contract lists the class when the request leaves it out), on the port [transport]'s mode calls, as
  * [caller]:
  *

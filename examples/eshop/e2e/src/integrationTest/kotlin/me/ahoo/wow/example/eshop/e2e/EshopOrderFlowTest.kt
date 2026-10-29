@@ -176,7 +176,7 @@ class EshopOrderFlowTest {
 
     private fun addItem(buyer: String, product: String, price: String, quantity: Int) {
         val added = basket.post(
-            "/eshop-basket/basket/$buyer/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
             buyer(buyer),
         )
@@ -184,7 +184,7 @@ class EshopOrderFlowTest {
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers + buyer(buyer))
+        val checkedOut = basket.post("/eshop-basket/basket/checkout-basket", "{}", headers + buyer(buyer))
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }

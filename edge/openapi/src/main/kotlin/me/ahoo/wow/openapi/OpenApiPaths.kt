@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
@@ -114,21 +115,30 @@ internal class OpenApiPaths(
         add(GET, path, describe("wow.dataset.describe", null, parameters, dataset = true))
     }
 
+    /**
+     * An aggregate's command routes, its state reads by id and, of one whose id is its owner's, the same reads by no
+     * id, of the caller's own aggregate, as its command routes by no id are.
+     */
     private fun aggregateRoutes(context: String, aggregate: AggregateManifest) {
         val tag = "$context.${aggregate.name}"
+        val owned = aggregate.idSource == AggregateIdSource.OWNER
         aggregate.commands.forEach { command ->
             command.routes.forEach { route ->
                 val operation = if (command.system) {
-                    system(context, tag, command, route, systemDescription(command.name))
+                    val own = owned && CommandRoutes.ID !in route.path
+                    system(context, tag, command, route, systemDescription(command.name, own))
                 } else {
-                    command(context, tag, command, route)
+                    command(context, tag, command, route, owned)
                 }
                 add(route.method, route.path, operation)
             }
         }
-        val base = "/$context/${aggregate.name}/${CommandRoutes.ID}"
+        val base = "/$context/${aggregate.name}"
         val state = schemas.ref(aggregate.state.schema)
-        stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", state)
+        stateRoutes(tag, "$base/${CommandRoutes.ID}/${Http.STATE_SEGMENT}", state, byId = true)
+        if (owned) {
+            stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", state, byId = false)
+        }
         aggregate.queries.forEach { query -> queryRoutes(tag, query, state) }
     }
 
@@ -187,12 +197,17 @@ internal class OpenApiPaths(
         }
     }
 
-    /** The description of the system command [name] of an aggregate. */
-    private fun systemDescription(name: String): String = if (name == WowSchemas.REBUILD) {
-        "Sends `$name`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the " +
-            "caller's tenant."
-    } else {
-        "Sends the lifecycle command `$name`."
+    /**
+     * The description of the system command [name] of an aggregate; by the route that names no id of one whose id is
+     * its owner's ([own]), to the caller's own aggregate.
+     */
+    private fun systemDescription(name: String, own: Boolean): String = when {
+        name == WowSchemas.REBUILD ->
+            "Sends `$name`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in " +
+                "the caller's tenant."
+
+        own -> "Sends the lifecycle command `$name`. $OWN"
+        else -> "Sends the lifecycle command `$name`."
     }
 
     /**
@@ -208,11 +223,18 @@ internal class OpenApiPaths(
     ): Map<String, Any?> {
         val byId = CommandRoutes.ID in route.path
         val key = Manifest.schemaKey(command.schema)
+        // Of a command routed both ways (a lifecycle command of an aggregate whose id is its owner's), the route by no id
+        // has an operation id of its own.
+        val operationId = "$tag.${command.name}"
         return obj(
             "tags" to listOf(tag),
             "summary" to command.name.substringAfterLast('.'),
             "description" to description,
-            "operationId" to "$tag.${command.name}",
+            "operationId" to if (byId || command.routes.none { CommandRoutes.ID in it.path }) {
+                operationId
+            } else {
+                "$operationId.$WITHOUT_ID"
+            },
             "parameters" to commandParameters(byId),
             "requestBody" to body(
                 when {
@@ -226,14 +248,20 @@ internal class OpenApiPaths(
         )
     }
 
-    private fun command(context: String, tag: String, command: CommandManifest, route: RouteManifest): Map<String, Any?> {
+    private fun command(
+        context: String,
+        tag: String,
+        command: CommandManifest,
+        route: RouteManifest,
+        owned: Boolean,
+    ): Map<String, Any?> {
         val byId = CommandRoutes.ID in route.path
         val type = "$tag.${command.name}"
         return obj(
             "tags" to listOf(tag),
             "summary" to command.name,
-            "description" to commandDescription(type, command, byId),
-            "operationId" to if (byId) type else "$type.withoutId",
+            "description" to commandDescription(type, command, byId, owned),
+            "operationId" to if (byId) type else "$type.$WITHOUT_ID",
             "parameters" to commandParameters(byId),
             "requestBody" to body(schemas.ref(command.schema)),
             "responses" to commandResponses(context, byId, domain = true),
@@ -248,7 +276,16 @@ internal class OpenApiPaths(
         )
     }
 
-    private fun commandDescription(type: String, command: CommandManifest, byId: Boolean): String = buildList {
+    /**
+     * The description of [command] by a route that names its aggregate's id ([byId]) or not: by none, of an aggregate
+     * whose id is its owner's ([owned]), it is the caller's own, which no transformer finds and no server chooses.
+     */
+    private fun commandDescription(
+        type: String,
+        command: CommandManifest,
+        byId: Boolean,
+        owned: Boolean,
+    ): String = buildList {
         // The command's own description, a sentence even when it is a one-line summary.
         command.description?.let { add(if (it.last() in SENTENCE_ENDS) it else "$it.") }
         add("Sends `$type`.")
@@ -261,7 +298,13 @@ internal class OpenApiPaths(
             },
         )
         if (!byId) {
-            add("The request names no aggregate id: the server chooses it, or the transformer finds the aggregate.")
+            add(
+                if (owned && !command.mounted) {
+                    OWN
+                } else {
+                    "The request names no aggregate id: the server chooses it, or the transformer finds the aggregate."
+                },
+            )
         }
         command.produces?.takeIf { it.isNotEmpty() }?.let { add("Produces ${it.joinToString { name -> "`$name`" }}.") }
     }.joinToString(" ")
@@ -303,10 +346,16 @@ internal class OpenApiPaths(
         )
     }
 
-    private fun stateRoutes(tag: String, path: String, state: Map<String, Any?>) {
+    /**
+     * The state read and trace at [path]: of the aggregate the path's id names ([byId]), or of the caller's own
+     * aggregate of one whose id is its owner's, by no id.
+     */
+    private fun stateRoutes(tag: String, path: String, state: Map<String, Any?>, byId: Boolean) {
         val view = refined(WowSchemas.SNAPSHOT, "state" to state)
-        val readParameters = listOf(
-            OpenApiParameters.ID,
+        val suffix = if (byId) "" else ".$WITHOUT_ID"
+        val own = if (byId) "" else " $OWN_READ"
+        val readParameters = listOfNotNull(
+            OpenApiParameters.ID.takeIf { byId },
             Http.VERSION_PARAMETER,
             Http.AT_PARAMETER,
             Http.MIN_VERSION_PARAMETER,
@@ -321,8 +370,8 @@ internal class OpenApiPaths(
                 "summary" to "The aggregate's state",
                 "description" to "The latest state, the state at `version`, the state as of `at`, or the latest " +
                     "state at `minVersion` or later (409 `wow.query.min-version-not-reached` with the current " +
-                    "`version` when it is not committed within the wait).",
-                "operationId" to "$tag.state",
+                    "`version` when it is not committed within the wait).$own",
+                "operationId" to "$tag.state$suffix",
                 "parameters" to readParameters.map(OpenApiParameters::ref),
                 "responses" to obj(
                     "200" to obj(
@@ -335,8 +384,8 @@ internal class OpenApiPaths(
             ),
         )
         val traceParameters =
-            listOf(
-                OpenApiParameters.ID,
+            listOfNotNull(
+                OpenApiParameters.ID.takeIf { byId },
                 Http.FROM_PARAMETER,
                 Http.TO_PARAMETER,
                 Http.LIMIT_PARAMETER,
@@ -350,8 +399,8 @@ internal class OpenApiPaths(
                 "tags" to listOf(tag),
                 "summary" to "The aggregate's commits",
                 "description" to "The commits from `from` to `to`, at most `limit`, each with its events and the " +
-                    "state after it; the next page starts after the last commit's version.",
-                "operationId" to "$tag.state.trace",
+                    "state after it; the next page starts after the last commit's version.$own",
+                "operationId" to "$tag.state.trace$suffix",
                 "parameters" to traceParameters.map(OpenApiParameters::ref),
                 "responses" to ok(json(trace)) +
                     errors.of("state", ErrorResponses.STATE, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
@@ -499,5 +548,18 @@ internal class OpenApiPaths(
         const val TEXT = "text/plain"
         const val EVENT_STREAM = "text/event-stream"
         val SENTENCE_ENDS = setOf('.', '!', '?')
+
+        /** The suffix of the operation id of a route that names no aggregate id, beside one that does. */
+        const val WITHOUT_ID = "withoutId"
+
+        /** What a command route by no id of an aggregate whose id is its owner's means. */
+        const val OWN = "The request names no aggregate id: it acts on the caller's own aggregate, whose id is the " +
+            "caller's owner; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner is 400 " +
+            "`wow.command.malformed`: it names the id."
+
+        /** What a state route by no id of an aggregate whose id is its owner's reads. */
+        const val OWN_READ = "The path names no aggregate id: it reads the caller's own aggregate, whose id is the " +
+            "owner the caller reads as; an unauthenticated caller is 401 `wow.auth.unauthenticated`, and one with no owner " +
+            "is 400 `wow.query.malformed`: it names the id."
     }
 }

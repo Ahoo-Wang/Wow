@@ -227,7 +227,7 @@ class GaE2eTest {
                 "cosec-gateway",
                 80,
                 "POST",
-                "/eshop-basket/basket/$basket/add-basket-item",
+                "/eshop-basket/basket/add-basket-item",
                 body,
                 *headers.toTypedArray(),
             )

@@ -109,9 +109,14 @@ class ManifestQuerySchemaSourceTest {
                             // Admitted, or admission throws.
                             QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
                         }
+                        // A list element's field and a map value's pattern describe the time alike.
                         val path = "$item.$time".replace(".k1.", ".{key}.")
-                        val operators = descriptor.fields.singleOrNull { it.path == path }?.filter?.operators
-                            ?: descriptor.dynamic.single { it.pattern == path }.filter.operators
+                        val (nullable, semantic, operators) = descriptor.fields.singleOrNull { it.path == path }
+                            ?.run { Triple(nullable, semantic, filter.operators) }
+                            ?: descriptor.dynamic.single { it.pattern == path }
+                                .run { Triple(nullable, semantic, filter.operators) }
+                        nullable.assert().isEqualTo(time == "endDate")
+                        semantic.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
                         operators.assert().contains(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
                     }
                 }

@@ -114,15 +114,6 @@ export interface RemoveBasketItem {
 
 
 /**
- * Gives the aggregate to the owner ownerId.
- * - key: `wow.lifecycle.TransferOwner`
- */
-export interface TransferOwner {
-  ownerId: string;
-}
-
-
-/**
  * Moves the aggregate to the space spaceId.
  * - key: `wow.lifecycle.TransferSpace`
  */

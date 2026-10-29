@@ -12,6 +12,7 @@ export const BasketAggregate = {
   name: 'basket',
   path: '/eshop-basket/basket',
   ownership: 'owner',
+  idSource: 'owner',
   snapshot: true,
   textNumbers: {
     state: { items: { '*': { unitPrice: true } } },
@@ -30,8 +31,6 @@ export const BasketAggregate = {
     INVALID_ITEM: 'eshop-basket.basket.invalid-item',
     /** 404: The basket does not hold the product. */
     ITEM_NOT_FOUND: 'eshop-basket.basket.item-not-found',
-    /** 403: A basket belongs to the buyer whose id it has. */
-    NOT_OWNER: 'eshop-basket.basket.not-owner',
   },
 } as const;
 

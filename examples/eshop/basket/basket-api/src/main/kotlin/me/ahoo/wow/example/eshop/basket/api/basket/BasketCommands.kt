@@ -20,8 +20,8 @@ import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
 
 /*
- * A basket's id is its buyer's user id, taken from the route (`/eshop-basket/basket/{buyer}/...`): no command carries
- * an identity field.
+ * A basket's id is its buyer's user id: the buyer's routes name none (`/eshop-basket/basket/add-basket-item`), a
+ * caller with no owner names it (`/eshop-basket/basket/{buyer}/...`), and no command carries an identity field.
  */
 
 // region add-item

@@ -51,6 +51,8 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait-for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
 
+A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
+
 ## Event search
 
 The event search sink writes each commit as one document of `[<prefix>_]wow_events__<context>__<aggregate>`: the `events` model's record, its system fields, and its events as the nested array `events`, each with its name, revision and body as committed. A document's id is the commit's identity, tenant, aggregate id and version, so a commit written again changes nothing. The body fields are mapped from the Manifest's event schemas; a field two events declare with different types is left unmapped.

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 128 names, from src/index.ts.
+# @ahoo-wang/wow-client — 129 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -51,6 +51,7 @@ value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
+value OwnStateClient
 type  OwnerTransferred
 type  Ownership
 value PROBLEM_TYPE_PREFIX

@@ -19,15 +19,15 @@ Then add an item to Alice's basket and check it out, waiting until the order the
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
+curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" \
+curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{}' \
   -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
+A buyer has one basket, whose id is the buyer's user id, so the basket's routes name no id: they mean the caller's own basket, `alice`, and the order its checkout submits is `alice-1`. In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
 
 ## 1. The basket decides
 
@@ -50,19 +50,13 @@ data class AddBasketItem(
 )
 ```
 
-The basket context's `Basket` aggregate then takes the command, looks at its state, and decides the events. Adding an item checks only what needs the state: that the basket is the caller's own:
+The basket context's `Basket` aggregate then takes the command, looks at its state, and decides the events. A basket's id is its owner's (`@AggregateRoot(idSource = AggregateIdSource.OWNER)`), so the kernel already keeps each buyer to its own basket, and adding an item has nothing left to check ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)):
 
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
-}
+fun onCommand(command: AddBasketItem): BasketItemAdded =
+    BasketItemAdded(command.productId, command.unitPrice, command.quantity)
 ```
 
 Checking out refuses an empty basket, names the order it will become, and returns that id to the caller through the command's result:
@@ -162,7 +156,7 @@ The eShop's web UI calls the services through TypeScript clients generated from 
 
 ```ts
 /**
- * Checks `basketId` out, waiting for the whole chain as server-sent events:
+ * Checks the buyer's own basket out, waiting for the whole chain as server-sent events:
  * `onProgress` gets each hop's result as it arrives. An admission refusal
  * (an empty basket, say) rejects with its problem (a `WowProblemError`); a hop that does
  * not succeed ends the progress with its result as the `failure`, and a chain
@@ -170,11 +164,9 @@ The eShop's web UI calls the services through TypeScript clients generated from 
  */
 export async function checkout(
   clients: ShopClients,
-  basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.basket.basket.commands.checkoutBasketStream(
-    basketId,
+  const stream = await clients.basket.basket.commands.checkoutBasketOwnStream(
     {},
     {
       wait: WaitPlan.of(...CHECKOUT_TO_PAID.map((step) => step.hop)),

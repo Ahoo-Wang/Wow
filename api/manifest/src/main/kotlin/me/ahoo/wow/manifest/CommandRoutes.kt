@@ -33,6 +33,11 @@ package me.ahoo.wow.manifest
  * - a context's schedule jobs: `POST /{context}/wow.schedule/{id}/<segment>`, the job's name as the id
  *   ([jobRoute]: `.../enable`, `.../reschedule`, `.../disable`).
  *
+ * An aggregate whose id is its owner's (`@AggregateRoot(idSource = OWNER)`) has, beside every route by id, the same route
+ * without `{id}`, which an owner-level caller sends for its own aggregate: `POST /{context}/{aggregate}/{segment}`
+ * for each command and lifecycle command, `DELETE /{context}/{aggregate}` for the delete ([ownDeleteRoute]). None of
+ * them generates an id; the routes by id are for the callers with no owner.
+ *
  * So that a command route never shadows a route of the framework, [ManifestMerger] refuses the context
  * [RESERVED_CONTEXT] (the framework's own endpoints, `/wow/...`), and a route whose last segment is one of
  * [RESERVED_SEGMENTS] (`POST /{context}/{aggregate}/{model}/query`, `GET .../{id}/state`) or starts with
@@ -115,6 +120,13 @@ object CommandRoutes {
     /** The route of `wow.lifecycle.DeleteAggregate` to an aggregate of [aggregate] in [context]: `DELETE` its path. */
     fun deleteRoute(context: String, aggregate: String): RouteManifest =
         RouteManifest(DELETE, "/$context/$aggregate/$ID")
+
+    /**
+     * The route of `wow.lifecycle.DeleteAggregate` to the caller's own aggregate of [aggregate] in [context], one whose
+     * id is its owner's: `DELETE /{context}/{aggregate}`.
+     */
+    fun ownDeleteRoute(context: String, aggregate: String): RouteManifest =
+        RouteManifest(DELETE, "/$context/$aggregate")
 
     /**
      * The route of the schedule job command [name] (`wow.schedule.Enable`) of [context], to the job the path's id

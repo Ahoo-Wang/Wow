@@ -78,7 +78,7 @@ internal class MongoLogCollections(
     private val partitions: Int,
     private val countersName: String,
     private val ddl: Ddl,
-    private val sharded: () -> Boolean,
+    private val sharded: Boolean,
     private val appendMillis: Long,
 ) {
     /** The aggregate collections whose creation and registration this log has made sure of, each once. */
@@ -128,7 +128,7 @@ internal class MongoLogCollections(
             streams(REQUEST_KEY, REQUEST_ID),
             ddl
         )
-        if (sharded()) {
+        if (sharded) {
             // Sharded by partition, one chunk each, spread over the shards while the collection is new.
             MongoShards.shardLog(client, database, log, partitions)
         }

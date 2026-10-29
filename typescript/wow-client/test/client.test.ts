@@ -29,6 +29,7 @@ import {
   LifecycleCommands,
   MANIFEST_FEATURES,
   newRequestId,
+  OwnStateClient,
   parseRetryAfter,
   parseWaitPlan,
   type Problem,
@@ -236,6 +237,57 @@ describe('CommandClient', () => {
       'wow-space': 's',
       'x-user': 'alice',
     });
+  });
+
+  it("sends a command by no id to the caller's own aggregate of one whose id is its owner's", async () => {
+    const BASKET = '/shop/basket';
+    const owned = manifestOf([
+      context('shop', [
+        {
+          ...aggregate('basket', [
+            {
+              name: 'Clear',
+              aliases: [],
+              schema: '#/$defs/Clear',
+              creation: 'none',
+              routes: [
+                { method: 'POST', path: `${BASKET}/{id}/clear` },
+                { method: 'POST', path: `${BASKET}/clear` },
+              ],
+            },
+            {
+              name: LifecycleCommands.DELETE_AGGREGATE,
+              aliases: [],
+              schema: `#/$defs/${LifecycleCommands.DELETE_AGGREGATE}`,
+              creation: 'none',
+              routes: [
+                { method: 'DELETE', path: `${BASKET}/{id}` },
+                { method: 'DELETE', path: BASKET },
+              ],
+              system: true,
+            },
+          ]),
+          idSource: 'owner',
+        },
+      ]),
+    ]);
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: owned });
+    const type = { context: 'shop', name: 'basket' };
+    await commands.wait({ command: 'shop.basket.Clear' });
+    await commands.wait({ command: 'shop.basket.Clear', id: 'u1' });
+    await commands.wait({ command: LifecycleCommands.DELETE_AGGREGATE, type });
+    await commands.wait({
+      command: LifecycleCommands.DELETE_AGGREGATE,
+      type,
+      id: 'u1',
+    });
+    expect(requests.map(r => [r.method, r.url])).toEqual([
+      ['POST', `${BASE_URL}/shop/basket/clear`],
+      ['POST', `${BASE_URL}/shop/basket/u1/clear`],
+      ['DELETE', `${BASE_URL}/shop/basket`],
+      ['DELETE', `${BASE_URL}/shop/basket/u1`],
+    ]);
   });
 
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
@@ -1183,6 +1235,32 @@ describe('StateClient', () => {
     await expect(states.find('p1')).rejects.toMatchObject({ status: 404 });
     answer = () => problemResponse(403, 'wow.aggregate.forbidden');
     await expect(states.find('p1')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("reads the caller's own state and trace by no id, and by id as any other", async () => {
+    let answer: () => Response = () => jsonResponse(snapshot);
+    const { requests } = stubFetch(() => answer());
+    const states = new OwnStateClient<{ name: string }>(PRODUCT, client());
+    expect((await states.getOwn()).state.name).toBe('n');
+    expect((await states.readOwn({ version: 2 })).notModified).toBe(false);
+    expect((await states.findOwn({ minVersion: 3 }))?.state.name).toBe('n');
+    await states.get('p1');
+    answer = () => jsonResponse({ ref, commits: [] });
+    await states.traceOwn({ limit: 3 });
+    expect(requests.map(r => r.url)).toEqual([
+      `${BASE_URL}/eshop-catalog/product/state`,
+      `${BASE_URL}/eshop-catalog/product/state?version=2`,
+      `${BASE_URL}/eshop-catalog/product/state?minVersion=3`,
+      `${BASE_URL}/eshop-catalog/product/p1/state`,
+      `${BASE_URL}/eshop-catalog/product/state/trace?limit=3`,
+    ]);
+    answer = () => problemResponse(404, 'wow.aggregate.not-found');
+    expect(await states.findOwn()).toBeUndefined();
+    answer = () => problemResponse(400, 'wow.query.malformed');
+    await expect(states.getOwn()).rejects.toMatchObject({
+      code: 'wow.query.malformed',
+      status: 400,
+    });
   });
 
   it('reads a trace', async () => {

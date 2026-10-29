@@ -13,14 +13,14 @@ outline: deep
 | 路由 | 提供 |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | 发往一个聚合的命令 |
-| `POST /<context>/<aggregate>/<command>` | 由服务端分配聚合 ID 的创建命令 |
-| `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.<command>` | 生命周期命令 |
-| `GET /<context>/<aggregate>/{id}/state`、`…/state/trace` | 聚合的状态和历史（[读取状态](./reading-state)） |
+| `POST /<context>/<aggregate>/<command>` | 由服务端分配聚合 ID 的创建命令；对 ID 即所有者 ID 的聚合，是发往调用方自己的聚合的任何命令 |
+| `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.<command>` | 生命周期命令；对 ID 即所有者 ID 的聚合，还有 `DELETE /<context>/<aggregate>` 和 `POST /<context>/<aggregate>/wow.lifecycle.<command>` |
+| `GET /<context>/<aggregate>/{id}/state`、`…/state/trace` | 聚合的状态和历史（[读取状态](./reading-state)）；对 ID 即所有者 ID 的聚合，还有 `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`、`…/events/query` | 查询模型（[查询快照](./queries)、[查询事件流](./event-queries)） |
 | `POST /wow/dataset/<context>/<dataset>/query` | 服务的一个数据集 |
 | `GET /wow/manifest`、`GET /wow/openapi` | Manifest，以及这些路由的 OpenAPI 3.1 文档 |
 
-这些路由在公开端口上。内部端口为集群和其他服务提供服务，从不为客户端提供。
+ID 即所有者 ID 的聚合，例如 eShop 的购物车，每个所有者一个：它不带 ID 的路由指调用方自己的聚合，没有路由会生成它的 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。这些路由在公开端口上。内部端口为集群和其他服务提供服务，从不为客户端提供。
 
 ## 调用方是谁 {#who-the-caller-is}
 

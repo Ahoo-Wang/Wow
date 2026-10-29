@@ -29,8 +29,9 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   context's name in Pascal case ([pascal]) followed by `Contract`: `eshop-ordering` is `EshopOrderingContract`.
  * - The object holds the context's `NAME` and, per aggregate, a nested object named after the aggregate in Pascal case
  *   with its `CONTEXT`, `NAME`, `QUALIFIED_NAME` (`context.aggregate`, for `@OnEvent(aggregates)`), `TYPE`
- *   (`AggregateType`), `OWNERSHIP`, `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the models a peer
- *   queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
+ *   (`AggregateType`), `OWNERSHIP`, `ID_SOURCE` (where its id comes from: an `OWNER` aggregate's is its owner's, so a
+ *   command sent without an id goes to the caller's own), `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the
+ *   models a peer queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
  *   name ([commandName]: `SubmitOrder` is `SUBMIT_ORDER`), the names a yaml file or a test refers to. The TypeScript
  *   generator's `<Aggregate>Aggregate` constant carries the same facts under the same names, in camel case.
  * - With [queryFields] (`wow-query-api` on the api module's class path, as the compiler requires for its own), each
@@ -69,6 +70,7 @@ internal object ContractSources {
         val pkg = packageOf(PeerContracts.classesOf(context))
         val name = "${pascal(context.name)}Contract"
         val imports = buildList {
+            add("me.ahoo.wow.api.aggregate.AggregateIdSource")
             add("me.ahoo.wow.api.aggregate.AggregateRef")
             add("me.ahoo.wow.api.aggregate.AggregateType")
             add("me.ahoo.wow.api.aggregate.Ownership")
@@ -147,6 +149,10 @@ internal object ContractSources {
         appendLine("        /** Who the aggregate belongs to besides its tenant. */")
         appendLine("        @JvmField")
         appendLine("        public val OWNERSHIP: Ownership = Ownership.${aggregate.ownership.name}")
+        appendLine()
+        appendLine("        /** Where the aggregate's id comes from; an `OWNER` aggregate's is its owner's. */")
+        appendLine("        @JvmField")
+        appendLine("        public val ID_SOURCE: AggregateIdSource = AggregateIdSource.${aggregate.idSource.name}")
         appendLine()
         appendLine("        /** Whether the aggregate keeps snapshots. */")
         appendLine("        public const val SNAPSHOT: Boolean = ${aggregate.snapshot.enabled}")

@@ -11,7 +11,7 @@ A service's Manifest is one JSON document (`format` 1): its bounded contexts, th
 
 What the writer leaves out:
 
-Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
+Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
 
 ## `Manifest`
 
@@ -98,6 +98,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `schedules`
 - `ownership`: left out when absent or at its default
 - `retired`: left out when absent or at its default
+- `idSource`: left out when absent or at its default
 
 ## `Route`
 

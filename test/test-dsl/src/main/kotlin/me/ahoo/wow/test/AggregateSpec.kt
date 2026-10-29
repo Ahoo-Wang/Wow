@@ -15,6 +15,7 @@ package me.ahoo.wow.test
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -344,10 +345,11 @@ class AggregateSpec<S : Any> private constructor(
     /**
      * Starts the aggregate in [state] at [version], as if its first [version] streams had left it there (9.x's
      * `givenState`), in [scope]: the commands after it are decided on that state, and their streams continue from
-     * [version]. It is the first step of a specification, before any event or command. The state is copied through
+     * [version]; an aggregate whose id is its owner's is given in that owner's scope by default. It is the first step
+     * of a specification, before any event or command. The state is copied through
      * its JSON, as a snapshot would be, so changing [state] afterwards changes nothing.
      */
-    fun givenState(state: S, version: Int = 1, scope: Scope = Scope.NONE) {
+    fun givenState(state: S, version: Int = 1, scope: Scope = unscoped) {
         require(version >= 1) { "A given state is at a version from 1." }
         check(given == null && currentVersion() == 0) { "givenState is the first step of a specification." }
         given = GivenState(codec.stateText(state), version, scope)
@@ -355,13 +357,14 @@ class AggregateSpec<S : Any> private constructor(
     }
 
     /** Starts the aggregate in its initial state changed by [build], at [version], as [givenState] does. */
-    fun givenState(version: Int = 1, scope: Scope = Scope.NONE, build: S.() -> Unit) {
+    fun givenState(version: Int = 1, scope: Scope = unscoped, build: S.() -> Unit) {
         givenState(model.initialState(ref).apply(build), version, scope)
     }
 
     /**
      * Commits [events] as one stream, as if an earlier command had produced them, leaving the aggregate in [scope]
-     * (by default the scope it already has).
+     * (by default the scope it already has, at first none, or the owner its id is of an aggregate whose id is its
+     * owner's).
      */
     fun given(vararg events: Any, scope: Scope? = null) {
         require(events.isNotEmpty()) { "given needs at least one event." }
@@ -378,6 +381,13 @@ class AggregateSpec<S : Any> private constructor(
         commitGiven(records.toList(), scope)
     }
 
+    /**
+     * The scope of a history given without one: none, but the owner its id is of an aggregate whose id is its owner's,
+     * as the kernel records it.
+     */
+    private val unscoped: Scope
+        get() = if (model.idSource == AggregateIdSource.OWNER) Scope(ownerId = ref.id) else Scope.NONE
+
     private fun commitGiven(records: List<EventRecord>, scope: Scope?) {
         runBlocking {
             val last = log.read(ref).toList().lastOrNull()
@@ -390,7 +400,7 @@ class AggregateSpec<S : Any> private constructor(
                 commandType = "${model.type}.Given",
                 commitTime = millis,
                 events = records,
-                scope = scope ?: last?.scope ?: given?.scope ?: Scope.NONE,
+                scope = scope ?: last?.scope ?: given?.scope ?: unscoped,
             )
             check(log.append(stream) is AppendOutcome.Committed) { "Could not commit the given events." }
         }
