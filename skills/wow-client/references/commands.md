@@ -1,6 +1,6 @@
 # Commands
 
-A command is sent to `POST /{context}/{aggregate}/{id}/{command}` (a command that may create its aggregate also has the route without `{id}`). The call answers when the command reaches the stage its wait plan names, with a `CommandResult`, or rejects: a rejected command with a `CommandRejectedError`, anything else with a `WowProblemError`.
+A command is sent to `POST /{context}/{aggregate}/{id}/{command}` (a command that may create its aggregate also has the route without `{id}`, where the server generates the id; every command of an aggregate whose id is its owner's, such as the eShop's basket, has it too, meaning the caller's own aggregate, and nothing is generated). The call answers when the command reaches the stage its wait plan names, with a `CommandResult`, or rejects: a rejected command with a `CommandRejectedError`, anything else with a `WowProblemError`.
 
 ## The generated client
 

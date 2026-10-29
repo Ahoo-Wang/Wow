@@ -74,7 +74,7 @@ Whether a command may create its aggregate is part of its class:
 | `@AllowCreate` | Whether or not the aggregate exists |
 | Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
 
-Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate.
+Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate. An aggregate whose id is its owner's, one per owner, serves every command without `{id}` too, as the caller's own, and generates no id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
 
 ## Write the root
 
@@ -112,20 +112,16 @@ A command function that needs what admission learned about the request takes `Co
 | `headers` | The request facts the host keeps (`wow.http.request-facts`), such as the calling application |
 | `causation`, `operator` | The chain the command belongs to, and whose name it is recorded in |
 
-The basket's id is its buyer's user id, so its first command checks the caller against it:
+A feedback form that records the application it was sent from reads the request fact:
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: fragment -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
-}
+fun onCommand(command: Command<SubmitFeedback>): FeedbackSubmitted =
+    FeedbackSubmitted(command.body.text, app = command.headers["app_id"])
 ```
+
+A function need not check that the caller may reach the aggregate: the kernel does it from the scope ([What the kernel checks](./ownership#what-the-kernel-checks)). An aggregate that exists once per owner, such as a basket, takes its owner's id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
 
 ## Take domain services
 

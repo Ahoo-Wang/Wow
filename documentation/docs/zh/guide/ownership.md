@@ -1,12 +1,12 @@
 ---
 title: 所有者、空间与标签
-description: 决定聚合除了租户之外还属于谁，在命令中核对调用方，转移所有者和空间，并为基于属性的访问给聚合打标签。
+description: 决定聚合除了租户之外还属于谁，让每个所有者拥有一个以所有者 ID 为 ID 的聚合，在命令中核对调用方，转移所有者和空间，并为基于属性的访问给聚合打标签。
 outline: deep
 ---
 
 # 所有者、空间与标签
 
-每个聚合都属于它的租户。大多数聚合还属于某个人：订单属于它的买家，保存的视图属于保存它的人。Wow 把这一点记为聚合的**作用域**，即它的所有者和空间，并把每个调用方限制在它作用域内的聚合上。本页选择聚合的归属、在作用域不够用的地方核对调用方，以及改变所有者、空间和标签。模型见[身份、租户与访问](../concepts/identity)。
+每个聚合都属于它的租户。大多数聚合还属于某个人：订单属于它的买家，保存的视图属于保存它的人。Wow 把这一点记为聚合的**作用域**，即它的所有者和空间，并把每个调用方限制在它作用域内的聚合上。本页选择聚合的归属、让每个所有者拥有某类聚合中的一个、在作用域不够用的地方核对调用方，以及改变所有者、空间和标签。模型见[身份、租户与访问](../concepts/identity)。
 
 ## 选择聚合归谁所有 {#choose-who-an-aggregate-belongs-to}
 
@@ -46,28 +46,52 @@ class Product(private val state: ProductState) {
 
 `TENANT` 聚合的写入根本不对照所有者检查：谁能修改商品由动作级授权决定。
 
-## 在命令中核对调用方 {#check-the-caller-in-a-command}
+## 每个所有者一个聚合 {#one-aggregate-per-owner}
 
-有时作用域还不够。购物车的 ID 就是买家的用户 ID，所以创建它的第一条命令要核对调用方就是这个买家。命令函数接收 `Command<X>`，把 `command.scope.ownerId` 与 ID 比较：
+有些聚合每个所有者只有一个：一个买家有一个购物车，一个用户有一套偏好设置。这样的聚合以所有者的 ID 作为自己的 ID，由 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` 声明：
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: fragment -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
+@AggregateRoot(idSource = AggregateIdSource.OWNER)
+class Basket(private val state: BasketState) {
+    fun onCommand(command: AddBasketItem): BasketItemAdded =
+        BasketItemAdded(command.productId, command.unitPrice, command.quantity)
 }
 ```
 
-条目的数量和价格是命令的形状：它的约束在函数运行之前就已检查（[编写聚合](./aggregates#check-its-shape)），所以函数只检查调用方。购物车存在之后，内核把它限定给创建它的所有者。
+于是每个所有者在它的租户中恰好有一个购物车，它的 ID 就是买家的用户 ID。这个声明要求 `ownership = OWNER`，即默认值：属于租户的聚合没有所有者可以取 ID。它的所有者永不改变，所以默认的生命周期不含 `TransferOwner`，编译器拒绝在 `lifecycle` 中列出它，也拒绝产生 `OwnerTransferred` 的命令。默认的 `AggregateIdSource.ASSIGNED` 取请求指明的 ID，或者为创建命令生成一个。
+
+### 它的路由 {#its-routes}
+
+这种聚合的每条命令，包括生命周期命令，除了按 ID 的路由之外，还有一条不带 ID 的路由。不带 ID 的路由指调用方自己的聚合：
+
+| 路由 | 提供 |
+| --- | --- |
+| `POST /<context>/<aggregate>/<command>` | 发往调用方自己的聚合的命令：`POST /eshop-basket/basket/add-basket-item` |
+| `POST /<context>/<aggregate>/wow.lifecycle.<command>`、`DELETE /<context>/<aggregate>` | 发往调用方自己的聚合的生命周期命令 |
+| `GET /<context>/<aggregate>/state`、`…/state/trace` | 调用方自己的聚合的状态和历史 |
+| 按 ID 的路由：`POST /<context>/<aggregate>/{id}/<command>`、`GET …/{id}/state` | 那个 ID 的聚合，供没有所有者的调用方使用 |
+
+没有路由会生成 ID：创建命令创建的是它的所有者的聚合。
+
+### 谁指明 ID {#who-names-the-id}
+
+准入从调用方取得 ID：
+
+- **所有者级**调用方的聚合就是它自己的：ID 是它的所有者，无论走不带 ID 的路由还是用它自己的 ID；通过 `Wow-Scope` 在另一个作用域中行事的调用方，接触的是那个作用域的所有者的聚合。指明另一个所有者的 ID 会被以 `403 wow.aggregate.forbidden` 拒绝。
+- **没有所有者**的调用方，例如租户级的员工、服务或 Saga，没有自己的聚合：它在按 ID 的路由上指明 ID。它走不带 ID 的路由时得到 `400 wow.command.malformed`（"This caller has no owner; address the aggregate by its id."），读取状态时得到 `400 wow.query.malformed`。未认证的调用方得到 `401 wow.auth.unauthenticated`。
+- Saga 派生的命令或定时命令没有指明 ID 时，取它所带作用域的所有者：跟随买家订单的 Saga 接触的是那个买家的购物车。
+
+内核把聚合的 ID 记为它的所有者，无论是谁创建它，并拒绝所有者不同的命令，创建命令也一样。因此命令函数不必核对调用方：上面的购物车不需要自己的所有权检查。
+
+## 在命令中核对调用方 {#check-the-caller-in-a-command}
+
+作用域仍不够用的地方，命令函数接收 `Command<X>`，读取 `command.scope`（调用方的所有者和空间），并用自己的错误码拒绝命令（[读取准入后的命令](./aggregates#read-the-admitted-command)）。
 
 ## Saga 发出的命令 {#commands-a-saga-sends}
 
-Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提交的作用域和操作人。所以 Saga 创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。见[编写 Saga](./sagas#build-the-commands)。
+Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提交的作用域和操作人。所以 Saga 创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。ID 即所有者 ID 的聚合则以这个 ID 作为所有者（[每个所有者一个聚合](#one-aggregate-per-owner)）。见[编写 Saga](./sagas#build-the-commands)。
 
 ## 转移所有者或空间 {#transfer-an-owner-or-a-space}
 
@@ -78,7 +102,7 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-`TENANT` 聚合不处理 `TransferOwner`。每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者。
+`TENANT` 聚合不处理 `TransferOwner`，ID 即所有者 ID 的聚合也不处理。每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者。
 
 ## 给聚合打标签 {#tag-aggregates}
 
