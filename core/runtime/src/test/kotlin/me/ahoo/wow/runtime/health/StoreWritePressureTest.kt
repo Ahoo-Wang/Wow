@@ -46,12 +46,43 @@ class StoreWritePressureTest {
         val slow = pressure.sample()
         slow.appendP90.assert().isEqualTo(59.milliseconds)
         slow.baseline.assert().isEqualTo(9.milliseconds)
-        // A slower period moves the baseline up by a fiftieth of the gap: 9 + 50 * 0.02.
-        pressure.period(*LongArray(10) { 9 })
-        val calm = pressure.sample()
-        calm.baseline.assert().isEqualTo(10.milliseconds)
-        // A faster one moves it down by a fifth: 10 - 1 * 0.2.
-        pressure.sample().baseline.assert().isEqualTo(9800.milliseconds / 1000)
+        // The median of 9 and 59: the lower middle one.
+        pressure.period(*LongArray(10) { 30 })
+        pressure.sample().baseline.assert().isEqualTo(9.milliseconds)
+        // Of 9, 30 and 59.
+        pressure.sample().baseline.assert().isEqualTo(30.milliseconds)
+    }
+
+    @Test
+    fun `the baseline should be the store's normal latency, not its quietest seconds nor a burst`() {
+        val pressure = StoreWritePressure("main")
+        // A minute at 20 ms with a quiet second (6 ms) and a slow one (100 ms) in every six.
+        repeat(StoreWritePressure.BASELINE_PERIODS) {
+            val millis = when (it % 6) {
+                0 -> 6L
+                3 -> 100L
+                else -> 20L
+            }
+            pressure.period(*LongArray(10) { millis })
+            pressure.sample()
+        }
+        pressure.sample().baseline.assert().isEqualTo(20.milliseconds)
+    }
+
+    @Test
+    fun `a prime's slow seconds should leave the baseline once the steady periods outnumber them`() {
+        val pressure = StoreWritePressure("main")
+        fun periods(count: Int, millis: Long) = repeat(count) {
+            pressure.period(*LongArray(10) { millis })
+            pressure.sample()
+        }
+        periods(20, 150)
+        pressure.sample().baseline.assert().isEqualTo(150.milliseconds)
+        periods(21, 20)
+        pressure.sample().baseline.assert().isEqualTo(20.milliseconds)
+        // The window keeps the latest periods only: a minute later the prime is gone from it.
+        periods(StoreWritePressure.BASELINE_PERIODS, 12)
+        pressure.sample().baseline.assert().isEqualTo(12.milliseconds)
     }
 
     @Test
