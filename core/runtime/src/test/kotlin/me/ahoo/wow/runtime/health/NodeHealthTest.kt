@@ -702,14 +702,14 @@ class NodeHealthTest {
             channel.bind(node.address, node.forwardHandler)
             ledgers.forEach { (context, ledger) ->
                 ledger.park(
-                    ParkedAggregate("snapshot", AggregateType(context, "account").ref("t", "a-1"), 0, 1, "x", 0)
+                    ParkedAggregate("wow.snapshot", AggregateType(context, "account").ref("t", "a-1"), 0, 1, "x", 0)
                 )
             }
             val health = health(node)
             node.start()
             health.sample()
             val groups = health.health().component(NodeHealth.SUBSCRIPTIONS)!!.components
-            val parked = groups.associate { group -> group.name to group.component("snapshot")?.details?.get("parked") }
+            val parked = groups.associate { group -> group.name to group.component("wow.snapshot")?.details?.get("parked") }
             parked.values.assert().containsOnly(1)
             parked.size.assert().isEqualTo(2)
         }

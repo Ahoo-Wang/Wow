@@ -90,7 +90,7 @@ class WaitAnswerTest {
     @Volatile
     private var snapshotGate: CompletableDeferred<Unit>? = null
 
-    private val snapshot = Subscription("snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
+    private val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
         snapshotGate?.await()
     }
     private val runtime = SubscriptionRuntime(

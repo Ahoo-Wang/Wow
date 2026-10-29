@@ -100,7 +100,7 @@ class WowCoCacheAutoConfiguration {
 
     companion object {
         /** The processor of the sink subscriptions that write the states: `cocache-sink.<aggregate>`. */
-        const val PROCESSOR: String = "cocache-sink"
+        const val PROCESSOR: String = "wow.cocache-sink"
 
         /** Registers the `StateViewCache<V>` beans before the others are created. */
         @Bean

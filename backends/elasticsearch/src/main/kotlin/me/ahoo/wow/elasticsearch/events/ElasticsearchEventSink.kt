@@ -225,7 +225,7 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
     @InternalWowApi
     companion object {
         /** The processor name of the event search Sink's subscriptions: `elasticsearch-sink.<aggregate>`. */
-        const val PROCESSOR: String = "elasticsearch-sink"
+        const val PROCESSOR: String = "wow.elasticsearch-sink"
 
         /**
          * The Sinks of the cluster [restClient] reaches, their indices named with [indexPrefix] as a store's

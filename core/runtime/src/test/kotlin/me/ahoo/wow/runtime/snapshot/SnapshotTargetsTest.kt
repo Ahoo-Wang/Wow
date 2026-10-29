@@ -67,9 +67,9 @@ class SnapshotTargetsTest {
         )
         targets.primaryOf(order).assert().isSameAs(b)
         targets.primaryOf(cart).assert().isSameAs(a)
-        targets.subscriptionOf("b").assert().isEqualTo("snapshot:b")
-        targets.primarySubscriptionOf(order).assert().isEqualTo("snapshot:b")
-        targets.primarySubscriptionOf(cart).assert().isEqualTo("snapshot")
+        targets.subscriptionOf("b").assert().isEqualTo("wow.snapshot:b")
+        targets.primarySubscriptionOf(order).assert().isEqualTo("wow.snapshot:b")
+        targets.primarySubscriptionOf(cart).assert().isEqualTo("wow.snapshot")
         targets.storesOf(listOf(order, cart)).assert().isEqualTo(mapOf("a" to setOf(order, cart), "b" to setOf(order)))
         targets.primary.save(snapshot(order, "o")).assert().isTrue()
         b.load(order.ref("tenant", "o")).assert().isNotNull()
@@ -138,7 +138,7 @@ class SnapshotTargetsTest {
         hops.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, stream(order)).assert().isTrue()
         hops.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, stream(cart)).assert().isTrue()
         hops.hasHandled("projector", stream(order)).assert().isTrue()
-        handled.assert().containsExactly("snapshot:b", Hop.SNAPSHOT_SUBSCRIPTION, "projector")
+        handled.assert().containsExactly("wow.snapshot:b", Hop.SNAPSHOT_SUBSCRIPTION, "projector")
     }
 
     private fun stream(type: AggregateType) = EventStreamRecord(

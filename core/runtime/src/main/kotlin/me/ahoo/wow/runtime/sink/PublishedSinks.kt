@@ -81,7 +81,7 @@ class PublishedSinks(
 
     companion object {
         /** The processor name of the transport sink's subscriptions: `transport-sink.<aggregate>`. */
-        const val TRANSPORT_SINK: String = "transport-sink"
+        const val TRANSPORT_SINK: String = "wow.transport-sink"
 
         /** The streams [manifest]'s contexts publish, by context; a context that publishes none is left out. */
         fun publishedOf(manifest: Manifest): Map<String, List<PublishedManifest>> =

@@ -118,7 +118,7 @@ class ProtocolSamplesTest {
             correlationId = "c-2",
             ref = ref,
             hop = Hop.snapshot("bank"),
-            function = FunctionInfo(FunctionKind.SNAPSHOT, "bank", "snapshot", "snapshot"),
+            function = FunctionInfo(FunctionKind.SNAPSHOT, "bank", "wow.snapshot", "wow.snapshot"),
             version = 2,
             signalTime = 1760950800042,
         )

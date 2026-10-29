@@ -198,7 +198,7 @@ class ReservationSubscriptionTest {
 
     @Test
     fun `is the reservation subscription of the context`() {
-        confirming.subscription.name.assert().isEqualTo("reservation")
+        confirming.subscription.name.assert().isEqualTo("wow.reservation")
         confirming.subscription.filter.context.assert().isEqualTo("shop")
         confirming.subscription.filter.aggregates.assert().isEmpty()
         confirming.subscription.kind.assert().isEqualTo(FunctionKind.RESERVATION)

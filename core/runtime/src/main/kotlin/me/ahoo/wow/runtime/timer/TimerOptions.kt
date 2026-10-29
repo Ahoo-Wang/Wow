@@ -124,6 +124,6 @@ class TimerOptions @InternalWowApi constructor(
 
     companion object {
         /** The subscription name a parked timer's target is recorded under in the failure ledger. */
-        const val PARKED_SUBSCRIPTION: String = "wow.timers"
+        const val PARKED_SUBSCRIPTION: String = "wow.timers.sends"
     }
 }

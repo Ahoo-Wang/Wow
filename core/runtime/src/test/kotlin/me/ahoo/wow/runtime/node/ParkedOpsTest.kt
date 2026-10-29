@@ -154,26 +154,26 @@ class ParkedOpsTest {
             log,
             InMemoryCheckpointStore(),
             shop,
-            listOf(Subscription("snapshot", SubscriptionFilter("shop")) { }),
+            listOf(Subscription("wow.snapshot", SubscriptionFilter("shop")) { }),
         )
         val stockRuntime = SubscriptionRuntime(
             "stock",
             log,
             InMemoryCheckpointStore(),
             stock,
-            listOf(Subscription("snapshot", SubscriptionFilter("stock")) { }),
+            listOf(Subscription("wow.snapshot", SubscriptionFilter("stock")) { }),
         )
         // Both ledgers hold an entry of the stock item, as when two contexts share one table.
         val item = stockType.ref("t", "i")
-        shop.park(ParkedAggregate("snapshot", item, 0, 1, "in the shop's", 0))
-        stock.park(ParkedAggregate("snapshot", item, 0, 1, "in the stock's", 0))
+        shop.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the shop's", 0))
+        stock.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the stock's", 0))
         val both = ParkedOps { listOf(ParkedOps.Scope.of(shopRuntime), ParkedOps.Scope.of(stockRuntime)) }
-        both.get("snapshot", item)!!.entry.reason.assert().isEqualTo("in the stock's")
-        both.list("snapshot").entries.size.assert().isEqualTo(1)
-        both.skip("snapshot", item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
-        stock.parked("snapshot", item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
-        shop.parked("snapshot", item)!!.request.assert().isNull()
-        both.subscriptions.assert().containsExactly("snapshot")
+        both.get("wow.snapshot", item)!!.entry.reason.assert().isEqualTo("in the stock's")
+        both.list("wow.snapshot").entries.size.assert().isEqualTo(1)
+        both.skip("wow.snapshot", item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        stock.parked("wow.snapshot", item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        shop.parked("wow.snapshot", item)!!.request.assert().isNull()
+        both.subscriptions.assert().containsExactly("wow.snapshot")
     }
 
     @Test
@@ -185,19 +185,19 @@ class ParkedOpsTest {
             log,
             InMemoryCheckpointStore(),
             ledger,
-            listOf(Subscription("snapshot", SubscriptionFilter(group)) { }),
+            listOf(Subscription("wow.snapshot", SubscriptionFilter(group)) { }),
         )
-        repeat(3) { shop.park(ParkedAggregate("snapshot", CART.ref("t", "c-$it"), 0, 1, "failed", 0)) }
-        stock.park(ParkedAggregate("snapshot", AggregateType("stock", "item").ref("t", "i"), 0, 1, "failed", 0))
+        repeat(3) { shop.park(ParkedAggregate("wow.snapshot", CART.ref("t", "c-$it"), 0, 1, "failed", 0)) }
+        stock.park(ParkedAggregate("wow.snapshot", AggregateType("stock", "item").ref("t", "i"), 0, 1, "failed", 0))
         val both =
             ParkedOps { listOf(ParkedOps.Scope.of(runtime("shop", shop)), ParkedOps.Scope.of(runtime("stock", stock))) }
-        val shopSnapshot = ParkedSubscription("shop", "snapshot")
-        val stockSnapshot = ParkedSubscription("stock", "snapshot")
+        val shopSnapshot = ParkedSubscription("shop", "wow.snapshot")
+        val stockSnapshot = ParkedSubscription("stock", "wow.snapshot")
         both.groupedSubscriptions.assert().containsExactly(shopSnapshot, stockSnapshot)
         both.count(shopSnapshot, 10).assert().isEqualTo(3)
         both.count(stockSnapshot, 10).assert().isEqualTo(1)
         both.count(shopSnapshot, 2).assert().isEqualTo(2)
-        both.count(ParkedSubscription("other", "snapshot"), 10).assert().isZero()
+        both.count(ParkedSubscription("other", "wow.snapshot"), 10).assert().isZero()
         assertThrownBy<IllegalArgumentException> { runBlocking { both.count(shopSnapshot, 0) } }
     }
 

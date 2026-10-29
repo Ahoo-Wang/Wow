@@ -103,6 +103,9 @@ internal object SubscriptionResolver {
     private const val DERIVES = "derives"
     private const val SCHEDULES = "schedules"
     private const val CALLS = "calls"
+
+    /** The prefix of Wow's built-in subscriptions, which no processor's name takes. */
+    private const val RESERVED_PREFIX = "wow."
     private val STATE_EVENT = StateEvent::class.java.name
     private const val ANY = "kotlin.Any"
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
@@ -144,6 +147,10 @@ internal object SubscriptionResolver {
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
         val problems = AnnotationSet.problems(processor, "processor $className", processor = true).toMutableList()
         val processorRetry = RetryResolver.read(processor, "processor $className", problems)
+        if (name == RESERVED_PREFIX.dropLast(1) || name.startsWith(RESERVED_PREFIX)) {
+            problems += "processor $className is named '$name': its subscriptions would be named $RESERVED_PREFIX…, " +
+                "the prefix of Wow's built-in subscriptions; give it a @Name of its own"
+        }
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
         problems += kindProblems(className, kinds)

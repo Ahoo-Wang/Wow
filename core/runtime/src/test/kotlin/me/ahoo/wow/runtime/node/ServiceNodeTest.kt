@@ -457,7 +457,7 @@ class ServiceNodeTest {
             )
         }
         // The application's subscriptions and the built-in ones may be configured (decision D154).
-        node("node-1", options = starts("plain", "snapshot"), subscriptions = plain)
+        node("node-1", options = starts("plain", "wow.snapshot"), subscriptions = plain)
         assertThrows<IllegalArgumentException> {
             node("node-2", options = starts("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("subscription Plain.typo", "plain")
@@ -470,8 +470,8 @@ class ServiceNodeTest {
             val parked = ParkedRetryOptions(specs = names.associateWith { ParkedRetrySpec(maxRetries = 1) })
             it.copyWith(subscription = it.subscription.copyWith(parked = parked))
         }
-        val node = node("node-1", options = specs("plain", "snapshot"), subscriptions = plain)
-        node.parked.subscriptions.assert().contains("snapshot")
+        val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
+        node.parked.subscriptions.assert().contains("wow.snapshot")
         assertThrows<IllegalArgumentException> {
             node("node-2", options = specs("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("parked retry spec", "subscription Plain.typo", "plain")
@@ -485,7 +485,7 @@ class ServiceNodeTest {
                 subscription = it.subscription.copyWith(retries = names.associateWith { HandlerRetry(maxAttempts = 1) })
             )
         }
-        node("node-1", options = retries("plain", "snapshot"), subscriptions = plain)
+        node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)
         assertThrows<IllegalArgumentException> {
             node("node-2", options = retries("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("retry budget", "subscription Plain.typo", "plain")

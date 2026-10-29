@@ -90,7 +90,7 @@ class ClickHouseSinks internal constructor(
     @InternalWowApi
     companion object {
         /** The processor name of the ClickHouse Sink's subscriptions: `clickhouse-sink.<aggregate>`. */
-        const val PROCESSOR: String = "clickhouse-sink"
+        const val PROCESSOR: String = "wow.clickhouse-sink"
 
         private val FLAT_RESERVED: Set<String> = ClickHouseSinkSchema.FLAT_SYSTEM_COLUMNS.mapTo(HashSet()) { it.name }
     }
