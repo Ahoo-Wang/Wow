@@ -17,9 +17,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.id.Ids
+import java.security.SecureRandom
 import java.util.UUID
-import java.util.concurrent.ThreadLocalRandom
 import java.util.random.RandomGenerator
+import java.util.random.RandomGeneratorFactory
 
 /**
  * Generates the message-level ids of a node: command ids, the request id of a request that names
@@ -118,13 +119,16 @@ class IdGenerators @InternalWowApi constructor(
  * Version 7 UUIDs (RFC 9562 §5.7): 48 bits of Unix epoch milliseconds from [clock], the version, 12 random bits, the
  * variant and 62 random bits.
  *
- * The random bits come from the calling thread's [ThreadLocalRandom] by default: the ids only need to be
- * unique, not unpredictable (no id is a secret; the internal port authenticates by token), and a shared
- * `SecureRandom` serialises every command's ids, some taken on the server's event loops, on one lock.
+ * The random bits come from the calling thread's own `L64X256MixRandom` by default ([SeededRandoms]), seeded once per
+ * thread from `SecureRandom`. The ids must be unique, request ids most of all: they are the idempotency key a
+ * context's log meets from every service, and two equal ones answer a command as another's retry. Uniqueness needs
+ * a seed independent of when the JVM started and more state than 64 bits, which `ThreadLocalRandom`, seeded from
+ * the start time with 64 bits of state, does not have. The ids are not secrets, so no draw takes `SecureRandom`
+ * itself: a shared one would serialise every command's ids, some taken on the server's event loops, on one lock.
  */
 internal class UuidV7Generator(
     private val clock: () -> Long,
-    private val random: () -> RandomGenerator = ThreadLocalRandom::current,
+    private val random: () -> RandomGenerator = SeededRandoms::current,
 ) : GlobalIdGenerator {
     override fun next(): String {
         val random = random()
@@ -141,4 +145,25 @@ internal class UuidV7Generator(
         const val RAND_B_MASK = 0x3FFF_FFFF_FFFF_FFFFL
         const val VARIANT = Long.MIN_VALUE
     }
+}
+
+/**
+ * One `L64X256MixRandom` per thread (320 bits of state), seeded on the thread's first draw from a shared
+ * `SecureRandom`: the one draw that takes its lock. A virtual thread is a thread, so it seeds its own on its first id.
+ */
+internal object SeededRandoms {
+    private const val ALGORITHM = "L64X256MixRandom"
+
+    /** The seed's length: the generator's state, 64 + 256 bits. */
+    private const val SEED_BYTES = 40
+
+    private val seeds = SecureRandom()
+
+    private val randoms: ThreadLocal<RandomGenerator> = ThreadLocal.withInitial {
+        val seed = ByteArray(SEED_BYTES).also(seeds::nextBytes)
+        RandomGeneratorFactory.of<RandomGenerator>(ALGORITHM).create(seed)
+    }
+
+    /** The calling thread's generator. */
+    fun current(): RandomGenerator = randoms.get()
 }

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.random.RandomGenerator
 
 class IdGeneratorsTest {
     private val order = AggregateType("shop", "order")
@@ -55,6 +56,50 @@ class IdGeneratorsTest {
     }
 
     @Test
+    fun `UUIDv7 ids taken on many virtual threads, each seeding its own random, are unique`() {
+        val generator = UuidV7Generator({ 1_700_000_000_000L })
+        val ids = ConcurrentHashMap.newKeySet<String>()
+        val threads = (1..VIRTUAL_THREADS).map {
+            Thread.ofVirtual().start {
+                repeat(PER_VIRTUAL) { ids += generator.next() }
+            }
+        }
+        threads.forEach { it.join() }
+        ids.size.assert().isEqualTo(VIRTUAL_THREADS * PER_VIRTUAL)
+    }
+
+    @Test
+    fun `the random bits should come from the injected source`() {
+        val zeros = object : RandomGenerator {
+            override fun nextLong(): Long = 0
+        }
+        val ones = object : RandomGenerator {
+            override fun nextLong(): Long = -1
+
+            override fun nextInt(): Int = -1
+        }
+        UuidV7Generator({ 1L }, { zeros }).next().assert().isEqualTo("00000000-0001-7000-8000-000000000000")
+        UuidV7Generator({ 1L }, { ones }).next().assert().isEqualTo("00000000-0001-7fff-bfff-ffffffffffff")
+    }
+
+    @Test
+    fun `each thread should draw from a seeded random of its own, the same one each time`() {
+        val here = SeededRandoms.current()
+        SeededRandoms.current().assert().isSameAs(here)
+        here.javaClass.simpleName.assert().isEqualTo("L64X256MixRandom")
+        var there: RandomGenerator? = null
+        Thread { there = SeededRandoms.current() }.apply { start() }.join()
+        there.assert().isNotNull().isNotSameAs(here)
+        // Seeded apart, from SecureRandom: no two threads start the same sequence.
+        val firsts = (1..8).map {
+            var first = 0L
+            Thread { first = SeededRandoms.current().nextLong() }.apply { start() }.join()
+            first
+        }
+        firsts.toSet().size.assert().isEqualTo(firsts.size)
+    }
+
+    @Test
     fun `the default generators should give UUIDv7 ids, global and per aggregate type`() {
         val ids = IdGenerators.DEFAULT
         ids.global.assert().isSameAs(GlobalIdGenerator.UUID_V7)
@@ -88,5 +133,7 @@ class IdGeneratorsTest {
     private companion object {
         const val THREADS = 8
         const val PER_THREAD = 5_000
+        const val VIRTUAL_THREADS = 1_000
+        const val PER_VIRTUAL = 20
     }
 }
