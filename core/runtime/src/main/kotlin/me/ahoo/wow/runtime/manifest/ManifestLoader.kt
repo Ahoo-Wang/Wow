@@ -62,10 +62,23 @@ class ManifestLoader(
     /** The Manifest of the service named [service]; see [load]. */
     fun load(service: String): Manifest = load(ServiceInfo(service))
 
-    /** The fragment at the class path resource [source]. */
+    /**
+     * The fragment at the class path resource [source]. Two entries of the class path that hold it (two modules of one
+     * project path, from different builds) fail it: reading one of them alone would drop the other's contexts.
+     */
     fun read(source: String): ManifestFragment {
+        val resources = classLoader.getResources(source).toList()
+        if (resources.size > 1) {
+            throw ManifestLoadException(
+                listOf(
+                    "fragment $source is in ${resources.joinToString(" and ") { entryOf(it.toString(), source) }}: " +
+                        "a fragment is named after its module's project path, so two modules of one path are on " +
+                        "the class path; rename one of the projects",
+                ),
+            )
+        }
         val problem = try {
-            val bytes = classLoader.getResourceAsStream(source)?.use { it.readBytes() }
+            val bytes = resources.singleOrNull()?.openStream()?.use { it.readBytes() }
             if (bytes == null) {
                 "is not on the class path"
             } else {
@@ -77,6 +90,12 @@ class ManifestLoader(
             "is not a Manifest: ${invalid.message}"
         }
         throw ManifestLoadException(listOf("fragment $source $problem"))
+    }
+
+    /** The class path entry of the resource [source] at [url]: a jar's file name, else the directory. */
+    private fun entryOf(url: String, source: String): String {
+        val entry = url.removeSuffix(source).removeSuffix("!/").removeSuffix("/")
+        return if (url.startsWith("jar:")) entry.substringAfterLast('/') else entry.removePrefix("file:")
     }
 }
 

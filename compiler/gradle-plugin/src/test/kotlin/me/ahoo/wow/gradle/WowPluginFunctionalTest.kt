@@ -107,7 +107,6 @@ class WowPluginFunctionalTest {
             }
 
             wow {
-                addCompilerDependency = false
                 $extra
             }
             """,

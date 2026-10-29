@@ -123,7 +123,7 @@ class ManifestToolsTest {
             File(directory, "classes-without-fragments").apply { mkdirs() },
         )
 
-        ManifestTools.merge(classpath, "store", "fallback", "1.0.0", output).assert().isEqualTo(2)
+        ManifestTools.merge(classpath, emptyMap(), "store", "fallback", "1.0.0", output).assert().isEqualTo(2)
 
         val manifest = ManifestJson.read(output)
         manifest.service.assert().isEqualTo(ServiceInfo("store", "1.0.0"))
@@ -136,15 +136,43 @@ class ManifestToolsTest {
             fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
         val classpath = listOf(classesDirectory("a", "shop" to shop), jar("other", shop))
         assertThrows<ManifestConflictException> {
-            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, File(directory, "manifest.json"))
         }.conflicts.single().assert().startsWith("context shop is declared by")
+    }
+
+    @Test
+    fun `merging should refuse two fragments of one name, naming their owners`() {
+        val shop =
+            fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+        val billing =
+            fragment(
+                "billing",
+                AccountState::class.java,
+                mapOf(AccountState::class.java.name to mapOf("type" to "object"))
+            )
+        // Two modules of one path in two builds: the node would read one `domain.json` alone and drop a context.
+        val local = classesDirectory("classes", "domain" to shop)
+        val published = jar("domain", billing)
+        val owners = mapOf(local.path to "project ':domain'", published.path to "com.acme:domain:1.0.0")
+        assertThrows<IllegalStateException> {
+            ManifestTools.merge(
+                listOf(local, published),
+                owners,
+                "store",
+                "fallback",
+                null,
+                File(directory, "manifest.json")
+            )
+        }.message.assert().contains(
+            "The Manifest fragment META-INF/wow/manifest/domain.json is in project ':domain' and com.acme:domain:1.0.0",
+        ).doesNotContain(directory.path)
     }
 
     @Test
     fun `merging should refuse a schema no fragment holds`() {
         val classpath = listOf(classesDirectory("classes", "shop" to fragment("shop", CartState::class.java)))
         assertThrows<IllegalStateException> {
-            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, File(directory, "manifest.json"))
         }.message.assert().contains("refers to schemas no fragment holds").contains(CartState::class.java.name)
         File(directory, "manifest.json").exists().assert().isFalse()
     }
@@ -217,7 +245,7 @@ class ManifestToolsTest {
         val shop = deriving("shop", reserve, schemaRef(TransferOwner::class.java.name), "shop.aggregate.Local")
         val classpath = listOf(classesDirectory("classes", "shop" to shop))
         assertThrows<IllegalStateException> {
-            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, File(directory, "manifest.json"))
         }.message.assert()
             .contains("- shop/CartSaga.onEvent derives ${CreateCart::class.java.name}")
             // A lifecycle command is no context's, and a full type name is the service's own.
@@ -239,7 +267,14 @@ class ManifestToolsTest {
             ),
         )
         val peers = classpath + listOf(contractJar("inventory-api", inventory), File(directory, "inventory-classes"))
-        ManifestTools.merge(peers, "store", "fallback", null, File(directory, "manifest.json")).assert().isEqualTo(1)
+        ManifestTools.merge(
+            peers,
+            emptyMap(),
+            "store",
+            "fallback",
+            null,
+            File(directory, "manifest.json")
+        ).assert().isEqualTo(1)
     }
 
     /** The service a merge of the shop's fragment and the [contracts] describes, unnamed, with "fallback" by default. */
@@ -247,7 +282,7 @@ class ManifestToolsTest {
         val classpath = listOf(jar("shop", shopFragment())) +
             contracts.map { (name, contract) -> contractJar(name, contract) }
         val output = File(directory, "manifest.json")
-        ManifestTools.merge(classpath, null, "fallback", null, output)
+        ManifestTools.merge(classpath, emptyMap(), null, "fallback", null, output)
         return ManifestJson.read(output).service!!.name
     }
 
@@ -291,7 +326,7 @@ class ManifestToolsTest {
             contractJar("shop-api", contract("shop", "shop-service")),
             contractJar("shop-v2-api", contract("shop", "other")),
         )
-        ManifestTools.merge(classpath, "store", "fallback", null, output)
+        ManifestTools.merge(classpath, emptyMap(), "store", "fallback", null, output)
         ManifestJson.read(output).service!!.name.assert().isEqualTo("store")
     }
 

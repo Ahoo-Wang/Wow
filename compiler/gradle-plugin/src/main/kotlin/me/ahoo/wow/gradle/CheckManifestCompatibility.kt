@@ -37,7 +37,9 @@ import javax.inject.Inject
  * to compare yet, and the report says so. It runs in an isolated worker with the tools, like [MergeManifest].
  */
 @CacheableTask
-abstract class CheckManifestCompatibility @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
+internal abstract class CheckManifestCompatibility @Inject constructor(
+    private val workers: WorkerExecutor
+) : DefaultTask() {
     /** The committed baseline, [WowExtension.manifestBaseline]; it may not exist yet. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)

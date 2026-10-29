@@ -157,6 +157,27 @@ class ManifestLoaderTest {
     }
 
     @Test
+    fun `a fragment two class path entries hold should fail, naming both`(@TempDir other: File) {
+        // Two modules of one project path from two builds: reading one bank.json alone would drop a context.
+        fragment("bank", accountManifest(null, "bank"))
+        File(other, "META-INF/wow/manifest/bank.json").apply { parentFile.mkdirs() }
+            .writeBytes(mapper.writeValueAsBytes(ManifestTree.write(accountManifest(null, "savings"))))
+        val jar = File(other, "savings.jar")
+        java.util.zip.ZipOutputStream(jar.outputStream()).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry("META-INF/wow/manifest/bank.json"))
+            zip.write(File(other, "META-INF/wow/manifest/bank.json").readBytes())
+            zip.closeEntry()
+        }
+        classLoader(BankModels::class.java)
+        val classLoader = URLClassLoader(arrayOf(classPath.toURI().toURL(), jar.toURI().toURL()), javaClass.classLoader)
+
+        val problem = assertThrows<ManifestLoadException> { ManifestLoader(classLoader).load(NODE_SERVICE) }
+            .problems.single()
+        problem.assert().startsWith("fragment META-INF/wow/manifest/bank.json is in ${classPath.path}")
+            .contains(" and savings.jar: ", "rename one of the projects")
+    }
+
+    @Test
     fun `models whose dependency is missing fail the start`() {
         assertThrows<MissingDependencyException> { ServiceNode.models(Dependencies.NONE, listOf(ClockedModels())) }
             .type.assert().isEqualTo(Clock::class.java)

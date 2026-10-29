@@ -41,7 +41,9 @@ import javax.inject.Inject
  * compiles against holds it. The generator runs in a worker over [tools] (`wow-manifest-tools`).
  */
 @CacheableTask
-abstract class GenerateContractSources @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
+internal abstract class GenerateContractSources @Inject constructor(
+    private val workers: WorkerExecutor
+) : DefaultTask() {
     /** The api module's assembled contract: one file, or none when no context is the api module's. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NAME_ONLY)

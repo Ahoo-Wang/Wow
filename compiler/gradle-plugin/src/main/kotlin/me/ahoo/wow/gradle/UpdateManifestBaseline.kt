@@ -28,7 +28,7 @@ import org.gradle.work.DisableCachingByDefault
  * file it writes.
  */
 @DisableCachingByDefault(because = "Copies one file into the project's sources")
-abstract class UpdateManifestBaseline : DefaultTask() {
+internal abstract class UpdateManifestBaseline : DefaultTask() {
     /** The service's merged Manifest, what [MergeManifest] writes. */
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)

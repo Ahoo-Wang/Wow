@@ -43,7 +43,7 @@ import java.io.File
  * so no worker is needed.
  */
 @CacheableTask
-abstract class GenerateContract : DefaultTask() {
+internal abstract class GenerateContract : DefaultTask() {
     /** The module's completed fragments, `META-INF/wow/manifest/<module>.json`. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NAME_ONLY)

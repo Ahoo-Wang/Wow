@@ -119,9 +119,8 @@ The `wow { }` block configures it:
 | Property | Default | Means |
 | --- | --- | --- |
 | `context` | The module's one `@BoundedContext` | The context of the module's aggregates and processors |
-| `addCompilerDependency` | `true` | Whether the plugin adds `wow-compiler` to `ksp` |
 | `schemaOverrides` | Empty | A JSON Schema per JVM class name, for a type a custom serializer writes |
-| `serviceName` | The service the contracts of its contexts name, else the project's name | The service the merged Manifest describes; set it when its contexts' contracts name different services |
+| `serviceName` | The service the contracts of its contexts name, else the project's path (`:shop-server` is `shop-server`) | The service the merged Manifest describes; set it when its contexts' contracts name different services |
 | `serviceVersion` | The project's version | The version of the service the merged Manifest describes |
 | `manifestBaseline` | `manifest/baseline.json` | The committed baseline of the compatibility check |
 

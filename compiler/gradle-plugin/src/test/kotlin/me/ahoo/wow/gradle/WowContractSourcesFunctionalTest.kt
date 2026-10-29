@@ -90,7 +90,6 @@ class WowContractSourcesFunctionalTest {
                 $tools
                 $dependencies
             }
-            ${if (wow) "wow { addCompilerDependency = false }" else ""}
             // An api module paired with a domain module runs the contract code generator of the tools too.
             configurations.matching { it.name == "wowManifestTools" }.configureEach {
                 project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
@@ -301,6 +300,20 @@ class WowContractSourcesFunctionalTest {
         javaUsage("java-client")
     }
 
+    /** `shop-api`, published with its sources into `repo`. */
+    private fun shopApi() = module(
+        "shop-api",
+        plugins = "`maven-publish`",
+        dependencies = "",
+        extra = """
+            java { withSourcesJar() }
+            publishing {
+                publications { create<MavenPublication>("api") { from(components["java"]) } }
+                repositories { maven { url = uri(rootDir.resolve("repo")) } }
+            }
+        """,
+    )
+
     @BeforeAll
     fun build(@TempDir directory: File) {
         projectDir = directory
@@ -312,17 +325,7 @@ class WowContractSourcesFunctionalTest {
             """,
         )
         write("gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
-        module(
-            "shop-api",
-            plugins = "`maven-publish`",
-            dependencies = "",
-            extra = """
-                publishing {
-                    publications { create<MavenPublication>("api") { from(components["java"]) } }
-                    repositories { maven { url = uri(rootDir.resolve("repo")) } }
-                }
-            """,
-        )
+        shopApi()
         module("shop-domain", plugins = """id("me.ahoo.wow")""", dependencies = """api(project(":shop-api"))""")
         write(
             "shop-domain/src/main/kotlin/shopdomain/ShopContext.kt",
@@ -403,24 +406,30 @@ class WowContractSourcesFunctionalTest {
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             jar.getEntry("shopapi/CartStateView.class").assert().isNotNull()
         }
+        // The sources jar holds the generated sources beside the module's own.
+        ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0-sources.jar")).use { sources ->
+            listOf("shopapi/CartStateView.kt", "shopapi/ShopContract.kt", "shopapi/Cart.kt")
+                .forEach { sources.getEntry(it).assert().describedAs(it).isNotNull() }
+        }
     }
 
     @Test
     @Order(1)
-    fun `the published api should be its one jar, contract included, without the core view`() {
+    fun `the published api should be its jar and its sources, contract included, without the core view`() {
         val published = File(projectDir, "repo/sample/shop-api/1.0.0")
         ZipFile(File(published, "shop-api-1.0.0.jar")).use { jar ->
             jar.getEntry("META-INF/wow/contract.json").assert().isNotNull()
         }
         val module = File(published, "shop-api-1.0.0.module").readText()
         module.assert().doesNotContain("wow-core", "wowCore", "me.ahoo.wow.api-view")
-        // The variants a java-library publishes, as before the core view: nothing of it is published.
+        // The variants a java-library publishes with its sources, as before the core view: nothing of it is published.
         Regex("""\{\s*"name": "([^"]+)",\s*"attributes"""").findAll(module).map { it.groupValues[1] }.toList()
-            .assert().containsExactly("apiElements", "runtimeElements")
+            .assert().containsExactly("apiElements", "runtimeElements", "sourcesElements")
+        val jars = listOf("shop-api-1.0.0.jar", "shop-api-1.0.0-sources.jar")
         Regex(""""name": "([^"]+\.jar)"""").findAll(module).map { it.groupValues[1] }.toSet()
-            .assert().containsExactly("shop-api-1.0.0.jar")
+            .assert().containsExactlyInAnyOrderElementsOf(jars)
         File(published, "shop-api-1.0.0.pom").readText().assert().doesNotContain("classifier", "wow-core")
-        published.list()!!.filter { it.endsWith(".jar") }.assert().containsExactly("shop-api-1.0.0.jar")
+        published.list()!!.filter { it.endsWith(".jar") }.assert().containsExactlyInAnyOrderElementsOf(jars)
     }
 
     @Test
