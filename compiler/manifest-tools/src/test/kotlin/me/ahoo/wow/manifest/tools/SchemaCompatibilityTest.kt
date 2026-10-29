@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.MethodSource
 class SchemaCompatibilityTest {
     companion object {
         private val STRING = mapOf("type" to "string")
+        private val NULLABLE_INTEGER = mapOf("type" to listOf("integer", "null"))
 
         private fun obj(vararg properties: Pair<String, Any?>, required: List<String> = emptyList()): Map<String, Any?> =
             mapOf("type" to "object", "properties" to mapOf(*properties), "required" to required)
@@ -229,6 +230,26 @@ class SchemaCompatibilityTest {
             mapOf("t" to obj("item" to mapOf("\$ref" to "#/\$defs/old.Item")), "old.Item" to item),
             mapOf("t" to obj("item" to mapOf("\$ref" to "#/\$defs/new.Item")), "new.Item" to item),
         ).compare("s", "#/\$defs/t", "#/\$defs/t").assert().isEmpty()
+    }
+
+    @Test
+    fun `a nullable value should be no change from one of its two forms to the other`() {
+        val map = mapOf("type" to "object", "additionalProperties" to mapOf("type" to "integer"))
+        // A null alternative beside a reference, as a nullable class is written, and a type union.
+        val alternative = obj("m" to mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/M"))))
+        val union = obj("m" to map + ("type" to listOf("object", "null")))
+        SchemaDirection.entries.forEach { direction ->
+            SchemaCompatibility(mapOf("t" to alternative, "M" to map), mapOf("t" to union))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction).assert().isEmpty()
+            SchemaCompatibility(mapOf("t" to union), mapOf("t" to alternative, "M" to map))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction).assert().isEmpty()
+        }
+        // Either form, its value is still compared: here a map's values made nullable.
+        val loosened = obj("m" to mapOf("type" to listOf("object", "null"), "additionalProperties" to NULLABLE_INTEGER))
+        SchemaCompatibility(mapOf("t" to alternative, "M" to map), mapOf("t" to loosened))
+            .compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.OUTPUT)
+            .map { it.toString() }.assert()
+            .containsExactly("BREAKING s.m{}: type widened from [integer] to [integer, null]")
     }
 
     @Test

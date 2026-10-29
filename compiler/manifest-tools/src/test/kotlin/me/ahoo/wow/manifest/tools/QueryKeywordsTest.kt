@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -196,14 +197,32 @@ class QueryKeywordsTest {
         val properties = (defs.getValue(SemanticMapsState::class.java.name) as Map<*, *>)["properties"] as Map<*, *>
         val temporal = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
         val duration = "x-wow-duration" to mapOf("unit" to "SECONDS")
-        mapOf("deadlines" to temporal, "reminders" to temporal, "timeouts" to duration, "pauses" to duration)
-            .forEach { (name, keyword) ->
-                // The keyword sits beside the reference to the map, whose values are the integers it means.
-                val property = properties[name] as Map<*, *>
-                property[keyword.first].assert().isEqualTo(keyword.second)
-                val map = defs.getValue(Manifest.schemaKey(property["\$ref"] as String)) as Map<*, *>
-                map["additionalProperties"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int64"))
-            }
+        val long = mapOf("type" to "integer", "format" to "int64")
+        val nullableLong = mapOf("type" to listOf("integer", "null"), "format" to "int64")
+        mapOf(
+            "deadlines" to (temporal to long),
+            "reminders" to (temporal to nullableLong),
+            "timeouts" to (duration to long),
+            "pauses" to (duration to nullableLong),
+        ).forEach { (name, expected) ->
+            // The keyword sits on the map, written where it is used, whose values are the integers it means.
+            val (keyword, values) = expected
+            properties[name].assert().isEqualTo(
+                mapOf("type" to "object", "additionalProperties" to values, keyword.first to keyword.second),
+            )
+        }
+    }
+
+    data class ScheduleRulesState(val at: ScheduleRule.At, val after: ScheduleRule.After)
+
+    @Test
+    fun `a schedule rule's instant and delay should carry their keywords`() {
+        val properties = state(ScheduleRulesState::class.java)["properties"] as Map<*, *>
+
+        fun part(rule: String, name: String) =
+            ((properties[rule] as Map<*, *>)["properties"] as Map<*, *>)[name] as Map<*, *>
+        part("at", "epochMillis")["x-wow-temporal"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
+        part("after", "millis")["x-wow-duration"].assert().isEqualTo(mapOf("unit" to "MILLISECONDS"))
     }
 
     data class PlaceOrder(@field:QueryAlias("state.customer") val buyer: String)

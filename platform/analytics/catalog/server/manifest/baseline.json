@@ -735,9 +735,6 @@
     "retryAfter" : 1
   } ],
   "$defs" : {
-    "java.util.Map(java.lang.String,java.lang.Object)" : {
-      "type" : "object"
-    },
     "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication" : {
       "type" : "object",
       "description" : "Approve the requested publication of a dataset",
@@ -1926,7 +1923,7 @@
               "type" : "string"
             },
             "extensions" : {
-              "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+              "type" : "object"
             },
             "message" : {
               "type" : "string"
@@ -2018,7 +2015,7 @@
           "type" : "string"
         },
         "results" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "signalTime" : {
           "type" : "integer",

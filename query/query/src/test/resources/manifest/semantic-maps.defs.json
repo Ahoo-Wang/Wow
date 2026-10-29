@@ -1,34 +1,43 @@
 {
-  "java.util.Map(java.lang.String,java.lang.Long)" : {
-    "type" : "object",
-    "additionalProperties" : {
-      "type" : "integer",
-      "format" : "int64"
-    }
-  },
   "me.ahoo.wow.manifest.tools.QueryKeywordsTest$SemanticMapsState" : {
     "type" : "object",
     "properties" : {
       "deadlines" : {
-        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Long)",
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "x-wow-temporal" : {
           "unit" : "MILLISECONDS"
         }
       },
       "pauses" : {
-        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Long)",
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "x-wow-duration" : {
           "unit" : "SECONDS"
         }
       },
       "reminders" : {
-        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Long)",
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "x-wow-temporal" : {
           "unit" : "MILLISECONDS"
         }
       },
       "timeouts" : {
-        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Long)",
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "x-wow-duration" : {
           "unit" : "SECONDS"
         }
