@@ -134,6 +134,9 @@ jobs:
       - name: Check the publications
         if: matrix.publications
         run: ./gradlew publicationCheck publicationConsumerCheck --stacktrace
+      # Codecov's reports keep no closing-brace line, whether or not Codecov adjusts the upload.
+      - name: Drop the closing-brace lines of the unit test coverage
+        run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v7
         with:
@@ -213,6 +216,8 @@ jobs:
         run: >-
           ./gradlew :integrationTest :code-coverage-report:integrationCoverageReport
           "-Pwow.integration.projects=$PROJECTS" --stacktrace
+      - name: Drop the closing-brace lines of the integration test coverage
+        run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v7
         with:

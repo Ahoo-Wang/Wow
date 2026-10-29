@@ -67,6 +67,11 @@ coverage:
 # once, naming the newest complete main commit and the first-parent merge that inherits from it; it waits as before
 # when that API cannot be read.
 #
+# ci.yml drops the closing-brace lines from the JVM reports before it uploads them (.github/scripts/jacoco-braces.mjs).
+# Kotlin gives a function that returns Unit an instruction on its `}`, so JaCoCo reports about 4,600 such lines, which
+# Codecov's processing usually strips but once kept (6c90687f34, 2026-10-29), moving every module's coverage by up to 10
+# points against a base that had none: the reports Codecov stores mean the same whether or not it adjusts them.
+#
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).
 #
