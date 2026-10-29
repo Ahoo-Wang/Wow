@@ -206,19 +206,31 @@ const INTEGRATION = [
   'integration-eshop',
   'integration-host-platform',
 ];
-const TYPESCRIPT = {
-  flags: ['typescript', 'typescript-wow-view-engine'],
-  upload_type: 'uploaded',
-  name: 'ts',
-};
+const PACKAGES = [
+  'wow-client',
+  'wow-generator',
+  'wow-react',
+  'wow-view-engine',
+  'wow-view-store',
+];
+const TYPESCRIPT = uploaded(
+  'typescript-wow-view-engine',
+  'typescript-wow-view-engine',
+);
+// The other packages, carried forward beside the one this commit tested.
+const CARRIED_PACKAGES = PACKAGES.filter(
+  name => name !== 'wow-view-engine',
+).flatMap(name => carried(`typescript-${name}`, `typescript-${name}`));
 const GAP_HEAD = [
   ...JVM_UNIT.flatMap(name => carried('jvm-unit', name, 2)),
   ...INTEGRATION.slice(0, 2).flatMap(name => carried('integration', name, 2)),
+  ...CARRIED_PACKAGES,
   TYPESCRIPT,
 ];
 const COMPLETE_MAIN = [
   ...JVM_UNIT.map(name => uploaded('jvm-unit', name)),
   ...INTEGRATION.map(name => uploaded('integration', name)),
+  ...PACKAGES.map(name => uploaded(`typescript-${name}`, `typescript-${name}`)),
 ];
 const HEAD = 'edfaa06aaf6e8f20a42df528d37ce442d48291d3';
 const TIP = 'f6d60f5815aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -247,6 +259,21 @@ test('a flag carried forward short of its after_n_builds, with no upload of its 
   );
   // Nothing carried forward yet is no report yet, not a gap.
   assert.deepEqual(incompleteFlags([TYPESCRIPT]), []);
+});
+
+test('a TypeScript package carried forward by no session is a gap', () => {
+  // ebbde37, 2026-10-29: a Kotlin-only main commit pushed before its parent's view-engine upload was in.
+  const kotlinOnly = [
+    ...JVM_UNIT.map(name => uploaded('jvm-unit', name)),
+    ...INTEGRATION.map(name => uploaded('integration', name)),
+    ...CARRIED_PACKAGES,
+  ];
+  assert.deepEqual(incompleteFlags(kotlinOnly), [
+    { flag: 'typescript-wow-view-engine', have: 0, need: 1 },
+  ]);
+  assert.equal(flagsComplete(kotlinOnly), false);
+  // A run that tests it fills the gap.
+  assert.deepEqual(incompleteFlags([...kotlinOnly, TYPESCRIPT]), []);
 });
 
 test('an incomplete carry-forward fails at once, naming the complete main commit and the merge', async () => {

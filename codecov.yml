@@ -80,8 +80,10 @@ coverage:
 # its flags has an upload of the commit's own, so a shared flag on every package's upload (the retired `typescript`)
 # dropped every package a run did not test from the commit's report: a pull request that tested only view-engine
 # reported the other packages at no coverage. The statuses above and the components below read the package flags by
-# name. The race above holds for them too: a main commit pushed before its parent's view-engine upload (the slowest)
-# is in carries none of view-engine forward (ebbde37, 2026-10-29), until the next run that tests it.
+# name, and each package flag's after_n_builds is 1, its one upload. The race above holds for them too: a main commit
+# pushed before its parent's view-engine upload (the slowest) is in carries none of view-engine forward (ebbde37,
+# 2026-10-29), and every commit built on it inherits the gap; the flag short of its after_n_builds keeps Codecov from
+# judging on it, and ci-gate fails at once with the merge that repairs it, as for the JVM flags.
 #
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).
@@ -100,6 +102,16 @@ flag_management:
       after_n_builds: 4
     - name: integration
       after_n_builds: 4
+    - name: typescript-wow-client
+      after_n_builds: 1
+    - name: typescript-wow-generator
+      after_n_builds: 1
+    - name: typescript-wow-react
+      after_n_builds: 1
+    - name: typescript-wow-view-engine
+      after_n_builds: 1
+    - name: typescript-wow-view-store
+      after_n_builds: 1
     - name: v10
       carryforward: false
     - name: local
