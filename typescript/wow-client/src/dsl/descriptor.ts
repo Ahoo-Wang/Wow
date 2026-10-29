@@ -515,6 +515,13 @@ export interface DynamicFieldDescriptor {
   types: QueryValueType[];
   /** The structural shape of their values. */
   kind: QueryValueKind;
+  /** Whether their values may be `null`, as a field's `nullable` says. */
+  nullable: boolean;
+  /**
+   * What their values mean beyond their type, as a field's `semantic`
+   * says; absent when nothing more.
+   */
+  semantic?: QuerySemanticType;
   /** The filter operators they admit. */
   filter: FieldFilterDescriptor;
   /** Where a concrete key may be sorted by. */

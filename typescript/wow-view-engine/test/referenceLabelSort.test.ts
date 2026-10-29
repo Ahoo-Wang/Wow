@@ -85,6 +85,7 @@ function descriptor(
         pattern: 'state.tags.{key}',
         types: [QueryValueTypes.INTEGER],
         kind: QueryValueKind.SCALAR,
+        nullable: false,
         filter: { operators: [FilterOperator.EQ, FilterOperator.GT] },
         ...granted,
         excludedKeys: ['color'],

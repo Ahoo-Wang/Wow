@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:9c32ad08ed154cc3e8c663c3c659e87f0a7376706d13baa2da97a7a57dcf4389",
+  "version" : "sha256:183dddfe09d472b8a553163565c868cadc4f3e099bdca5f80d4083ade9394317",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -647,6 +647,7 @@ Files from the user's project, shown inline:
     "pattern" : "tags.{key}",
     "types" : [ "string" ],
     "kind" : "array",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "in", "not-in", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
     },

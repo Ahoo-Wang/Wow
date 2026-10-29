@@ -17,6 +17,8 @@ import {
   QueryConstraintTypes,
   QueryFieldRoles,
   TimeUnit,
+  type DynamicFieldDescriptor,
+  type FieldDescriptor,
   type QuerySemanticType,
 } from '../../src/dsl.js';
 
@@ -85,6 +87,69 @@ describe('QueryFieldRoles', () => {
     expect(Object.entries(QueryFieldRoles)).toEqual(
       Object.entries(kotlinFieldRoles()),
     );
+  });
+});
+
+/** The properties of a Kotlin descriptor data class, in source order. */
+function kotlinProperties(className: string): string[] {
+  const source = kotlinSource('descriptor/QueryModelDescriptor.kt');
+  const start = source.indexOf(`data class ${className}(`);
+  const body = source.slice(start, source.indexOf('\n)', start));
+  return [...body.matchAll(/^ {4}val (\w+):/gm)].map(([, name]) => name);
+}
+
+const FIELD_MEMBERS = [
+  'path',
+  'role',
+  'types',
+  'kind',
+  'nullable',
+  'semantic',
+  'enum',
+  'description',
+  'sensitivity',
+  'project',
+  'filter',
+  'sort',
+  'aggregate',
+  'scope',
+  'deprecated',
+  'aliases',
+] as const;
+
+const DYNAMIC_FIELD_MEMBERS = [
+  'pattern',
+  'types',
+  'kind',
+  'nullable',
+  'semantic',
+  'filter',
+  'sort',
+  'aggregate',
+  'excludedKeys',
+] as const;
+
+describe('FieldDescriptor and DynamicFieldDescriptor', () => {
+  it('have the members of the Kotlin data classes', () => {
+    expectTypeOf<(typeof FIELD_MEMBERS)[number]>().toEqualTypeOf<
+      keyof FieldDescriptor
+    >();
+    expectTypeOf<(typeof DYNAMIC_FIELD_MEMBERS)[number]>().toEqualTypeOf<
+      keyof DynamicFieldDescriptor
+    >();
+    expect([...FIELD_MEMBERS]).toEqual(kotlinProperties('FieldDescriptor'));
+    expect([...DYNAMIC_FIELD_MEMBERS]).toEqual(
+      kotlinProperties('DynamicFieldDescriptor'),
+    );
+  });
+
+  it('say whether a value may be null and what it means alike', () => {
+    expectTypeOf<DynamicFieldDescriptor['nullable']>().toEqualTypeOf<
+      FieldDescriptor['nullable']
+    >();
+    expectTypeOf<DynamicFieldDescriptor['semantic']>().toEqualTypeOf<
+      FieldDescriptor['semantic']
+    >();
   });
 });
 
