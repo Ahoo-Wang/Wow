@@ -121,9 +121,10 @@ public abstract interface class me/ahoo/wow/client/UserCredential {
 public final class me/ahoo/wow/client/UserCredential$Companion {
 }
 
-public final class me/ahoo/wow/client/WowClient {
+public final class me/ahoo/wow/client/WowClient : java/lang/AutoCloseable {
 	public static final field Companion Lme/ahoo/wow/client/WowClient$Companion;
 	public static final fun builder ()Lme/ahoo/wow/client/WowClient$Builder;
+	public fun close ()V
 	public final fun getCommands ()Lme/ahoo/wow/api/client/CommandClient;
 	public final fun getQueries ()Lme/ahoo/wow/api/read/QueryApi;
 	public final fun manifestOf (Ljava/lang/String;Lme/ahoo/wow/api/caller/Caller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -228,12 +229,16 @@ public class me/ahoo/wow/client/java/JavaRowQueries {
 
 public class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {
 	public final fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/read/Snapshot;
+	public final fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/api/read/Snapshot;
 	public final fun stateAsync (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/util/concurrent/CompletableFuture;
+	public final fun stateAsync (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Ljava/util/concurrent/CompletableFuture;
 }
 
 public final class me/ahoo/wow/client/java/JavaTenantSnapshotQueries : me/ahoo/wow/client/java/JavaSnapshotQueries {
 	public final fun state (Ljava/lang/String;)Lme/ahoo/wow/api/read/Snapshot;
+	public final fun state (Ljava/lang/String;I)Lme/ahoo/wow/api/read/Snapshot;
 	public final fun stateAsync (Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+	public final fun stateAsync (Ljava/lang/String;I)Ljava/util/concurrent/CompletableFuture;
 }
 
 public final class me/ahoo/wow/client/java/JavaTrustedQueries : me/ahoo/wow/client/java/JavaQueryModels {

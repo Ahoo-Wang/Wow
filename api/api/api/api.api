@@ -1272,6 +1272,7 @@ public final class me/ahoo/wow/api/result/WaitSignal$Companion {
 public abstract interface class me/ahoo/wow/api/route/RouteCall {
 	public abstract fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
 	public abstract fun getCommands ()Lme/ahoo/wow/api/client/CommandClient;
+	public abstract fun getQueries ()Lme/ahoo/wow/api/read/Queries;
 	public abstract fun getRequestId ()Ljava/lang/String;
 	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public abstract fun getTenantId ()Ljava/lang/String;

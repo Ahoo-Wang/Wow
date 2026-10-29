@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.kernel.Dependencies
@@ -43,6 +44,7 @@ class ViewStoreRoutesTest {
         override val scope: Scope = caller.scope
         override val requestId: String = "r1"
         override val commands: CommandClient get() = error("The view store's reads send no command.")
+        override val queries: Queries get() = error("The view store's reads run no query of the node.")
     }
 
     /** Reads over [saved], by owner, and [system]: what each read was asked is kept in [asked]. */
