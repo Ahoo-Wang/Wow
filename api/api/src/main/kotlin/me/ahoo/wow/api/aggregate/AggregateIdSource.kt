@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.aggregate
 
 /**
- * Where an aggregate's id comes from, as `@AggregateRoot(id)` declares it.
+ * Where an aggregate's id comes from, as `@AggregateRoot(idSource)` declares it.
  */
 enum class AggregateIdSource {
     /**

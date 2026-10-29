@@ -43,7 +43,7 @@ import kotlin.reflect.KClass
  * product, whose owner is not recorded and whose reads are not restricted by owner. The compiler passes it to the
  * model and writes it into the Manifest, where query admission reads it.
  *
- * [id] says where the aggregate's id comes from: [AggregateIdSource.ASSIGNED] by default, the request's or one
+ * [idSource] says where the aggregate's id comes from: [AggregateIdSource.ASSIGNED] by default, the request's or one
  * admission generates; [AggregateIdSource.OWNER] for an aggregate whose id is its owner's, one per owner, such as a
  * buyer's basket. Its routes for an owner-level caller name no id and mean "mine"; the routes by id are for the callers
  * with no owner. The compiler requires [Ownership.OWNER] for it, leaves `TransferOwner` out of the default
@@ -87,7 +87,7 @@ annotation class AggregateRoot(
     val publishState: Boolean = true,
     val topic: String = "",
     val ownership: Ownership = Ownership.OWNER,
-    val id: AggregateIdSource = AggregateIdSource.ASSIGNED,
+    val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
     val snapshot: Boolean = true,
     val stateRevision: Int = 1,
     val retiredEvents: Array<String> = [],

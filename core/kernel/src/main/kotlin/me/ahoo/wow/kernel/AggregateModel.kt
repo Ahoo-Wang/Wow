@@ -325,9 +325,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         require(idSource == AggregateIdSource.ASSIGNED || ownership == Ownership.OWNER) {
             "The id of $type is its owner's (AggregateIdSource.OWNER), so it belongs to its owner, not its tenant."
         }
-        require(!ownerFixed || TransferOwner::class.java !in deciders) {
-            "$type cannot transfer its owner (it belongs to its tenant, or its id is its owner's): it decides no " +
-                "TransferOwner."
+        require(ownership == Ownership.OWNER || TransferOwner::class.java !in deciders) {
+            "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer, so it decides no TransferOwner."
+        }
+        require(idSource == AggregateIdSource.ASSIGNED || TransferOwner::class.java !in deciders) {
+            "The id of $type is its owner's (AggregateIdSource.OWNER): its owner is fixed, so it decides no TransferOwner."
         }
         require(KernelLifecycle.COMMANDS.containsAll(lifecycle)) {
             "Not lifecycle commands: ${lifecycle - KernelLifecycle.COMMANDS}"

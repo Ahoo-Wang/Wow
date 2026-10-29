@@ -29,7 +29,7 @@ internal object AggregateRootArguments {
     private val AGGREGATE_ROOT = AggregateRoot::class.java.name
     private const val LIFECYCLE = "lifecycle"
     private const val OWNERSHIP = "ownership"
-    private const val ID = "id"
+    private const val ID_SOURCE = "idSource"
     private const val PUBLISHED = "published"
     private const val PUBLISH_STATE = "publishState"
     private const val TOPIC = "topic"
@@ -84,14 +84,14 @@ internal object AggregateRootArguments {
     fun ownership(root: KSClassDeclaration): String = enumArgument(root, OWNERSHIP) ?: Ownership.OWNER.name
 
     /**
-     * Where the aggregate's id comes from as `@AggregateRoot(id)` declares it: the name of the
+     * Where the aggregate's id comes from as `@AggregateRoot(idSource)` declares it: the name of the
      * `AggregateIdSource` entry, `ASSIGNED` by default. An id that is its owner's needs an aggregate of its owner: one
      * of its tenant ([ownership] `TENANT`) is a problem.
      */
     fun idSource(root: KSClassDeclaration, ownership: String, problems: MutableList<String>): String {
-        val source = enumArgument(root, ID) ?: AggregateIdSource.ASSIGNED.name
+        val source = enumArgument(root, ID_SOURCE) ?: AggregateIdSource.ASSIGNED.name
         if (source == AggregateIdSource.OWNER.name && ownership == Ownership.TENANT.name) {
-            problems += "@AggregateRoot(id = OWNER) needs an aggregate that belongs to its owner, but it belongs to " +
+            problems += "@AggregateRoot(idSource = OWNER) needs an aggregate that belongs to its owner, but it belongs to " +
                 "its tenant (ownership = TENANT): it has no owner to take its id from"
         }
         return source
@@ -150,7 +150,7 @@ internal object AggregateRootArguments {
                     "(ownership = TENANT): it has no owner to transfer"
             } else {
                 "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's " +
-                    "(id = OWNER): its owner cannot be transferred"
+                    "(idSource = OWNER): its owner cannot be transferred"
             }
         }
         return names - TRANSFER_OWNER

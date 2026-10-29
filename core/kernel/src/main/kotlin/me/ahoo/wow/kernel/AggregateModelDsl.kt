@@ -255,7 +255,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Where the aggregate's id comes from: [AggregateIdSource.ASSIGNED] unless this is called. `@AggregateRoot(id)`
+     * Where the aggregate's id comes from: [AggregateIdSource.ASSIGNED] unless this is called. `@AggregateRoot(idSource)`
      * calls it in a generated model.
      */
     fun id(source: AggregateIdSource) {

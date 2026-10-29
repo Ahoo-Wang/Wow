@@ -58,6 +58,7 @@ class ManifestSchemaTest {
                 schedules = listOf("shop.cart.PutItem"),
                 ownership = Ownership.TENANT,
                 retired = listOf("CartDropped"),
+                idSource = AggregateIdSource.OWNER,
                 commands = aggregate.commands.mapIndexed { index, command ->
                     if (index == 0) {
                         command.copyWith(mounted = true, transformsTo = listOf("shop.cart.PutItem"), description = "d")

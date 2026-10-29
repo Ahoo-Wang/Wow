@@ -196,7 +196,7 @@ class ContextManifest @InternalWowApi constructor(
  * query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
  * not those of an [Ownership.TENANT] one.
  *
- * [idSource] is where the aggregate's id comes from, as `@AggregateRoot(id)` declares it: an
+ * [idSource] is where the aggregate's id comes from, as `@AggregateRoot(idSource)` declares it: an
  * [AggregateIdSource.OWNER] aggregate's id is its owner's, so every command also has a route that names no id and
  * means the caller's own aggregate ([CommandRoutes]), as its state read does, and no route generates an id.
  *

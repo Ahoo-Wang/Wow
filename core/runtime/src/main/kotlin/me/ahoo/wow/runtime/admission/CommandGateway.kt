@@ -30,6 +30,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
@@ -426,7 +427,7 @@ class CommandGateway @InternalWowApi constructor(
         val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
         val inputId = if (owned) {
-            when (val id = ownId(request.aggregateId, scope)) {
+            when (val id = ownId(request.aggregateId, scope, request.caller)) {
                 is OwnId.Refused -> {
                     facts.ref = facts.type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
                     return facts.refuse(id.code, id.message)
@@ -689,16 +690,21 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * The id of an aggregate whose id is its owner's, for a request naming [requested] (null for none) in [scope]: an
-     * owner-level caller's own, which it may name or not, while naming another is forbidden; a caller with no owner
-     * names it, having no aggregate of its own.
+     * The id of an aggregate whose id is its owner's, for a request of [caller] naming [requested] (null for none) in
+     * [scope]: an owner-level caller's own, which it may name or not, while naming another is forbidden; a caller with
+     * no owner names it, having no aggregate of its own: unauthenticated, it is answered as such.
      */
-    private fun ownId(requested: String?, scope: Scope): OwnId {
+    private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
         val owner = scope.ownerId
         return when {
+            owner == null && requested == null && caller.subject == null && !caller.service -> OwnId.Refused(
+                FrameworkCodes.AUTH_UNAUTHENTICATED,
+                "An unauthenticated caller has no aggregate of its own.",
+            )
+
             owner == null && requested == null -> OwnId.Refused(
                 FrameworkCodes.COMMAND_MALFORMED,
-                "The caller has no owner, so no aggregate of its own: name the aggregate's id.",
+                "This caller has no owner; address the aggregate by its id.",
             )
 
             owner == null -> OwnId.Of(checkNotNull(requested))

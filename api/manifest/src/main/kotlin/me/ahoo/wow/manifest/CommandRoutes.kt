@@ -33,7 +33,7 @@ package me.ahoo.wow.manifest
  * - a context's schedule jobs: `POST /{context}/wow.schedule/{id}/<segment>`, the job's name as the id
  *   ([jobRoute]: `.../enable`, `.../reschedule`, `.../disable`).
  *
- * An aggregate whose id is its owner's (`@AggregateRoot(id = OWNER)`) has, beside every route by id, the same route
+ * An aggregate whose id is its owner's (`@AggregateRoot(idSource = OWNER)`) has, beside every route by id, the same route
  * without `{id}`, which an owner-level caller sends for its own aggregate: `POST /{context}/{aggregate}/{segment}`
  * for each command and lifecycle command, `DELETE /{context}/{aggregate}` for the delete ([ownDeleteRoute]). None of
  * them generates an id; the routes by id are for the callers with no owner.
