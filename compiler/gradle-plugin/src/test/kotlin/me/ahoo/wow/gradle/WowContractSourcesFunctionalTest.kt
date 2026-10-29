@@ -461,10 +461,11 @@ class WowContractSourcesFunctionalTest {
             .doesNotContainKey("STATE__COMPUTED")
     }
 
-    /** The `QueryField` constants of a generated source, name to path. */
+    /** The `QueryField` constants of a generated source, name to path, whatever each is typed as. */
     private fun queryFields(source: String): Map<String, String> =
         Regex(
-            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField = (?:me\.ahoo\.wow\.api\.query\.)?QueryField\("([^"]+)"\)"""
+            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField<.+?> = """ +
+                """(?:me\.ahoo\.wow\.api\.query\.)?QueryField\.of\("([^"]+)"\)"""
         )
             .findAll(source).associate { it.groupValues[1] to it.groupValues[2] }
 
