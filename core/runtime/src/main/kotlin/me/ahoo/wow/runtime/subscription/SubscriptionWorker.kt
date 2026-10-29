@@ -581,8 +581,9 @@ internal class SubscriptionWorker(
             val notice = ParkedNotice(
                 ParkedNotice.Kind.PARKED,
                 group,
+                subscription.context,
                 entry,
-                options.parked.specOf(entry),
+                options.parked.specOf(entry, subscription.context),
                 entry.failedAt,
             )
             lanes.launch { notifier.notifyQuietly(notice) }

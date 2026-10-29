@@ -59,7 +59,7 @@ class WebhookNotifierTest {
         FAILED_AT,
         fromPosition = 42,
     )
-    private val parked = ParkedNotice(ParkedNotice.Kind.PARKED, "shop-service.shop", entry, spec, FAILED_AT)
+    private val parked = ParkedNotice(ParkedNotice.Kind.PARKED, "shop-service.shop", "shop", entry, spec, FAILED_AT)
 
     @AfterEach
     fun stop() {
@@ -77,12 +77,12 @@ class WebhookNotifierTest {
         posted["service"].asString().assert().isEqualTo("shop-service")
         posted["group"].asString().assert().isEqualTo("shop-service.shop")
         posted["at"].asString().assert().isEqualTo("2023-11-14T22:13:20Z")
-        posted["entry"]["subscription"].asString().assert().isEqualTo("CartSaga.onOrderCreated")
+        posted["entry"]["subscription"].asString().assert().isEqualTo("shop.CartSaga.onOrderCreated")
         posted["entry"]["aggregate"]["id"].asString().assert().isEqualTo("c-1")
         posted["entry"]["fromPosition"].asLong().assert().isEqualTo(42L)
         posted["entry"]["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 3.minutes.inWholeMilliseconds)
         val text = posted["text"].asString()
-        text.assert().contains("**CartSaga.onOrderCreated parked: shop.cart/t/c-1**")
+        text.assert().contains("**shop.CartSaga.onOrderCreated parked: shop.cart/t/c-1**")
         text.assert().contains("> service: shop-service")
         text.assert().contains("> from version: 2, position 42")
         text.assert().contains("> reason: java.lang.IllegalStateException: down")

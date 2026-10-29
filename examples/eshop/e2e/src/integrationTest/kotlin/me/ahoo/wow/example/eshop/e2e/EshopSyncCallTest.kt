@@ -95,7 +95,7 @@ class EshopSyncCallTest {
             checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
 
             // Retried within the subscription's budget, then parked.
-            val parked = "/wow/ops/parked/$CHECKOUT_SAGA/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
+            val parked = "/wow/ops/parked/$CHECKOUT_KEY/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
             eventually("the basket parked") { basket.get(parked).status == OK }
             down.calls.assert().isEqualTo(MAX_ATTEMPTS)
             basket.get(parked).body!!["reason"].asString().assert().contains("503")
@@ -278,6 +278,9 @@ class EshopSyncCallTest {
         const val MAX_ATTEMPTS = 3
         const val ORDERING = "eshop-ordering"
         const val CHECKOUT_SAGA = "BasketCheckoutSaga.onBasketCheckedOut"
+
+        /** The checkout saga as the configuration and the operator's routes name it: `<context>.<name>`. */
+        const val CHECKOUT_KEY = "eshop-basket.$CHECKOUT_SAGA"
         const val CHECKOUT_TO_ORDER = EshopStack.CHECKOUT_TO_ORDER
 
         /** The basket service's name, which it states on the ordering's internal port. */
@@ -312,10 +315,10 @@ class EshopSyncCallTest {
                 "wow.peers.eshop-ordering.url" to "http://127.0.0.1:$orderingPort",
                 "wow.peer.timeout" to "5s",
                 "wow.http.ops.enabled" to true,
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts" to retries,
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff" to "50ms",
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff" to "50ms",
-                "wow.subscriptions.[$CHECKOUT_SAGA].parked.max-retries" to 0,
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.max-attempts" to retries,
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.initial-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.max-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_KEY].parked.max-retries" to 0,
             ),
             // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
             OperatorActions::class.java,

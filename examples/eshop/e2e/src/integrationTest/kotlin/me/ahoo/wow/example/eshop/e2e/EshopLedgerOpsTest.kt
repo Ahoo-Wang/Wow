@@ -95,7 +95,7 @@ class EshopLedgerOpsTest {
             "--wow.ops.publish.interval=500ms",
             // A failing charge parks after two attempts, and waits for an operator.
             "--wow.subscription.retry.max-attempts=2",
-            "--wow.subscriptions.[$GATEWAY_SAGA].parked.max-retries=0",
+            "--wow.subscriptions.[eshop-payment.$GATEWAY_SAGA].parked.max-retries=0",
         ),
     )
 
@@ -120,7 +120,7 @@ class EshopLedgerOpsTest {
         submitted.status.assert().describedAs(submitted.body).isEqualTo(OK)
         val tenant = json.readTree(submitted.body)["ref"]["tenantId"].asString()
         val parked = EshopPaymentContract.Payment.ref(tenant, "carol-1")
-        val id = Ledger.parkedId("eshop-payment-service", GATEWAY_SAGA, parked)
+        val id = Ledger.parkedId("eshop-payment-service", "eshop-payment", GATEWAY_SAGA, parked)
 
         // The ops service lists the entry the payment service parked and published, as an operator queries it.
         val exhausted = """{"op":"and","operands":[

@@ -198,47 +198,47 @@
     "description" : "On postgres: the name of the DataSource bean the store's snapshot and events queries read through, so they do not take the appends' connections; the store's data-source when not set.",
     "sourceType" : "me.ahoo.wow.postgres.PostgresStoreProvider"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].parked.initial-backoff",
+    "name" : "wow.subscriptions.[<context>.<subscription>].parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first automatic retry, over `wow.subscription.parked`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].parked.max-retries",
+    "name" : "wow.subscriptions.[<context>.<subscription>].parked.max-retries",
     "type" : "java.lang.Integer",
     "description" : "How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].parked.timeout",
+    "name" : "wow.subscriptions.[<context>.<subscription>].parked.timeout",
     "type" : "java.time.Duration",
     "description" : "How long a retry may run, over `wow.subscription.parked`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].retry.initial-backoff",
+    "name" : "wow.subscriptions.[<context>.<subscription>].retry.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait after the first failure.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].retry.max-attempts",
+    "name" : "wow.subscriptions.[<context>.<subscription>].retry.max-attempts",
     "type" : "java.lang.Integer",
     "description" : "The most attempts of the handler in all, before its aggregate parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].retry.max-backoff",
+    "name" : "wow.subscriptions.[<context>.<subscription>].retry.max-backoff",
     "type" : "java.time.Duration",
     "description" : "The longest wait between two attempts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].retry.multiplier",
+    "name" : "wow.subscriptions.[<context>.<subscription>].retry.multiplier",
     "type" : "java.lang.Double",
     "description" : "How many times longer each wait is than the one before; at least 1.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].retry.timeout",
+    "name" : "wow.subscriptions.[<context>.<subscription>].retry.timeout",
     "type" : "java.time.Duration",
     "description" : "How long one attempt may run before it is cancelled and counts as failed.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
   }, {
-    "name" : "wow.subscriptions.[<subscription>].start",
+    "name" : "wow.subscriptions.[<context>.<subscription>].start",
     "type" : "java.lang.String",
     "description" : "Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SubscriptionSettings"

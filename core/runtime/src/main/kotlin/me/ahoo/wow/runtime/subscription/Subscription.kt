@@ -127,6 +127,9 @@ class Subscription private constructor(
      */
     val function: FunctionInfo = subscriptionFunction(kind, context, name)
 
+    /** The subscription by its [context] and [name]: how the host's configuration and the operator name it. */
+    val id: SubscriptionId get() = SubscriptionId(context, name)
+
     init {
         require(name.isNotBlank()) { "A subscription needs a name." }
         require(context.isNotBlank()) { "A subscription belongs to a context." }

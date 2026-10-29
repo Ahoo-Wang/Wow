@@ -1875,7 +1875,7 @@ export interface Snapshot<S = unknown> {
 }
 
 // @public
-export const SNAPSHOT_SUBSCRIPTION = "snapshot";
+export const SNAPSHOT_SUBSCRIPTION = "wow.snapshot";
 
 // @public
 export interface SnapshotManifest {

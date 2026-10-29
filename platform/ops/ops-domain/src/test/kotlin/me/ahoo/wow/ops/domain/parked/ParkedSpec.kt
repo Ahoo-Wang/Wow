@@ -222,7 +222,7 @@ class ParkedSpec {
     companion object {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
         val AGGREGATE = EntryAggregate("eshop-payment", "payment", "(0)", "alice-1")
-        const val ID = "eshop-payment-service:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
+        const val ID = "eshop-payment-service:eshop-payment:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
 
         /**
          * The fields of the entry the tests record. A [ParkedEntry] is a wire record whose constructor is Wow's own

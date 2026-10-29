@@ -103,7 +103,7 @@ class LedgerNodeTest {
 
     /** [type] with [body], as the saga of [source] derives it for [operator]. */
     private suspend fun ledgerCommand(type: String, body: Any, parked: AggregateRef, operator: String, source: String) {
-        val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked))
+        val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, parked))
         val entry = AggregateType(source, "parked").ref(TENANT, "entry-1")
         val wire = CommandWire(
             type = type,
@@ -139,7 +139,7 @@ class LedgerNodeTest {
             parked.fromPosition.assert().isEqualTo(0L)
             val target = topics.messages(OPS_COMMANDS).first()
             target.key.assert().isEqualTo(
-                "ops.parked/(0)/" + Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, broken.ref)
+                "ops.parked/(0)/" + Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, broken.ref)
             )
 
             // A ledger command another context's saga sends: the owning service refuses it, with a receipt to the
@@ -205,7 +205,7 @@ class LedgerNodeTest {
                         type = Ledger.SKIP,
                         id = "l-$asks",
                         requestId = "l-$asks",
-                        ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked)),
+                        ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, parked)),
                         body = ClusterCodec.mapper.valueToTree(
                             SkipParked.of(CommandIntake.NAME, parked, REFUSED_FAILED_AT)
                         ),

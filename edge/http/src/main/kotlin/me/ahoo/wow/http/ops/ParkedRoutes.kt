@@ -23,7 +23,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
@@ -43,6 +42,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
@@ -59,14 +59,15 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import java.util.Base64
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The operator's routes over a node's parked entries, under [OpsPaths.PARKED]:
  *
  * - `GET /wow/ops/parked?subscription=&after=&limit=`: a page of entries, by subscription and aggregate, with the
  *   cursor of the next page (`next`, passed back as `after`);
- * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry;
+ * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry, of the subscription
+ *   `{subscription}` names as the configuration keys it, `<context>.<name>` ([SubscriptionId.key]), on the aggregate
+ *   `{context}.{aggregate}`;
  * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry resolved or still
  *   parked), 202 when it was left for the owner of the entry's partition. The body `{"failedAt": <epoch ms>}` names
  *   the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and parked
@@ -74,9 +75,10 @@ import kotlin.time.Duration.Companion.seconds
  *   requires it (400 without), since it discards what was parked; a resume may leave it out and acts on the current
  *   parking, since it only handles the parked streams again;
  * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
- *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration
- *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
- *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
+ *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration written
+ *   as the ops context's `ApplyRetrySpec` and the configuration write one, `500ms`, `1h 30m` or `PT3M`; a member
+ *   left out keeps the value the entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering
+ *   the entry.
  *
  * An action's `outcome` (`resolved`, `parked` or `requested`) and the entry's `recoverable`, `request` and `status` are
  * written, and `recoverable` read, by their wire names ([WireNames]), as every Wow enumeration on the wire; the
@@ -123,7 +125,10 @@ fun parkedRoutes(
 /** The paths of the operator's routes, under the reserved context `wow`. */
 @ExperimentalWowApi
 object OpsPaths {
-    /** The parked entries; one entry is `{subscription}/{context}/{aggregate}/{tenant}/{id}` under it. */
+    /**
+     * The parked entries; one entry is `{subscription}/{context}/{aggregate}/{tenant}/{id}` under it, its subscription
+     * by its key, `<context>.<name>`.
+     */
     const val PARKED: String = "/wow/ops/parked"
     const val RESUME: String = "resume"
     const val SKIP: String = "skip"
@@ -188,6 +193,7 @@ private class ParkedHandler(
     suspend fun list(request: ServerRequest): ServerResponse {
         val caller = authenticate(request)
         val subscription = request.queryParam(OpsPaths.SUBSCRIPTION).orElse(null)?.takeIf { it.isNotBlank() }
+            ?.let(::subscriptionOf)
         val after = request.queryParam(OpsPaths.AFTER).orElse(null)?.takeIf { it.isNotBlank() }?.let(::decodeCursor)
         val limit = request.queryParam(OpsPaths.LIMIT).orElse(null)?.let { value ->
             value.toIntOrNull()?.takeIf { it in 1..ParkedOps.MAX_LIMIT }
@@ -234,7 +240,7 @@ private class ParkedHandler(
     private suspend fun act(
         request: ServerRequest,
         command: String,
-        action: suspend (String, AggregateRef, Long?) -> ParkedOps.Outcome,
+        action: suspend (SubscriptionId, AggregateRef, Long?) -> ParkedOps.Outcome,
     ): ServerResponse {
         val (subscription, ref) = authorized(request, command)
         val failedAt = failedAtOf(body(request))
@@ -306,7 +312,7 @@ private class ParkedHandler(
     }
 
     /** The entry [request] names, once [command] on its aggregate is authorized for the caller. */
-    private suspend fun authorized(request: ServerRequest, command: String): Pair<String, AggregateRef> {
+    private suspend fun authorized(request: ServerRequest, command: String): Pair<SubscriptionId, AggregateRef> {
         val caller = authenticate(request)
         val target = target(request, caller)
         authorize(caller, command, target.second)
@@ -325,9 +331,10 @@ private class ParkedHandler(
         CommandAction(OpsCommands.typeOf(command), ref, caller.scope, Creation.NONE)
 
     /** The entry [request] names: one of [caller]'s tenant, else a 404 as for an entry that is not parked. */
-    private fun target(request: ServerRequest, caller: Caller): Pair<String, AggregateRef> {
+    private fun target(request: ServerRequest, caller: Caller): Pair<SubscriptionId, AggregateRef> {
+        val subscription = subscriptionOf(request.pathVariable(SUBSCRIPTION))
         val target = try {
-            request.pathVariable(SUBSCRIPTION) to
+            subscription to
                 AggregateType(request.pathVariable(CONTEXT), request.pathVariable(AGGREGATE))
                     .ref(request.pathVariable(TENANT), request.pathVariable(ID))
         } catch (invalid: IllegalArgumentException) {
@@ -365,15 +372,17 @@ private class ParkedHandler(
         return failedAt.asLong()
     }
 
-    private fun durationOf(name: String, node: JsonNode): Duration = when {
-        node.isIntegralNumber && node.asLong() >= 0 -> node.asLong().seconds
-        node.isString -> node.asString().trim().let { text ->
-            if (ZERO.matches(text)) Duration.ZERO else runCatching { WaitHeader.parseTimeout(text) }.getOrNull()
-        }
-        else -> null
-    } ?: throw badRequest("$name is a duration (500ms, 10s, 3m, ISO-8601) or a number of seconds.")
+    /** [node] as a duration, written as the ops context's `ApplyRetrySpec` and the configuration write one. */
+    private fun durationOf(name: String, node: JsonNode): Duration =
+        node.takeIf { it.isString }?.asString()?.trim()?.let(Duration::parseOrNull)
+            ?.takeIf { it.isFinite() && !it.isNegative() }
+            ?: throw badRequest("$name is a duration, such as 500ms, 3m, 1h 30m or PT3M: '$node'.")
 
-    private fun notParked(subscription: String, ref: AggregateRef) = ProblemException(
+    /** The subscription [key] names, `<context>.<name>`. */
+    private fun subscriptionOf(key: String): SubscriptionId = SubscriptionId.parse(key)
+        ?: throw badRequest("A subscription is named <context>.<name>, as the configuration keys it: '$key'.")
+
+    private fun notParked(subscription: SubscriptionId, ref: AggregateRef) = ProblemException(
         Problem.ofStatus(HttpStatus.NOT_FOUND, "$subscription has not parked $ref."),
     )
 
@@ -392,7 +401,6 @@ private class ParkedHandler(
         const val INITIAL_BACKOFF = "initialBackoff"
         const val TIMEOUT = "timeout"
         val EMPTY: JsonNode = HttpJson.mapper.createObjectNode()
-        val ZERO = Regex("""^0+\s*(ms|s|m)?$|^PT0+(\.0+)?S$""", RegexOption.IGNORE_CASE)
     }
 }
 
@@ -400,7 +408,8 @@ private class ParkedHandler(
 internal fun viewOf(view: ParkedView): Map<String, Any?> {
     val entry = view.entry
     return linkedMapOf(
-        "subscription" to entry.subscription,
+        "subscription" to view.id.key,
+        "group" to view.group,
         "aggregate" to mapOf(
             "context" to entry.ref.type.context,
             "name" to entry.ref.type.name,
@@ -432,7 +441,8 @@ internal fun viewOf(view: ParkedView): Map<String, Any?> {
  */
 internal fun encodeCursor(key: ParkedKey): String {
     val ref = key.ref
-    val parts = listOf(key.subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id)
+    val subscription = key.subscription
+    val parts = listOf(subscription.context, subscription.name, ref.type.context, ref.type.name, ref.tenantId, ref.id)
     return Base64.getUrlEncoder().withoutPadding().encodeToString(parts.joinToString(SEPARATOR).toByteArray())
 }
 
@@ -443,13 +453,15 @@ private fun decodeCursor(cursor: String): ParkedKey {
         emptyList()
     }
     val key = parts.takeIf { it.size == CURSOR_PARTS }?.let { part ->
-        runCatching { ParkedKey(part[0], AggregateType(part[1], part[2]).ref(part[3], part[4])) }.getOrNull()
+        runCatching {
+            ParkedKey(SubscriptionId(part[0], part[1]), AggregateType(part[2], part[3]).ref(part[4], part[5]))
+        }.getOrNull()
     }
     return key ?: throw ProblemException(Problem.ofStatus(HttpStatus.BAD_REQUEST, "Not a cursor of this listing."))
 }
 
 private const val SEPARATOR = "\u0000"
-private const val CURSOR_PARTS = 5
+private const val CURSOR_PARTS = 6
 
 /**
  * [block]'s response, or the problem it was answered with, as on Wow's other routes: a store that is

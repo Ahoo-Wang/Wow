@@ -37,6 +37,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -111,7 +112,7 @@ class SubscriptionRuntime internal constructor(
     )
 
     private val lifecycle = Mutex()
-    private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier)
+    private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier) { directory[it]?.context }
     private val subscriptions = LinkedHashMap<String, Subscription>()
 
     /** The registered subscriptions by name, read by waits from any thread. */
@@ -119,6 +120,9 @@ class SubscriptionRuntime internal constructor(
 
     @Volatile
     private var running: Running? = null
+
+    /** Whether the first start told of the checkpoints no subscription of the group has. */
+    private var orphansTold = false
 
     init {
         require(group.isNotBlank()) { "A subscription group needs a name." }
@@ -151,7 +155,12 @@ class SubscriptionRuntime internal constructor(
             val parked = subscriptions.values.associate { it.name to parkedIn(it, partitions) }
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
             // beginning only when none did, whichever partition or subscription starts first.
-            run.joined = joinedSubscriptions()
+            val saved = checkpoints.list(group)
+            run.joined = saved.mapTo(HashSet()) { it.subscription }
+            if (!orphansTold) {
+                orphansTold = true
+                tellOrphans(saved)
+            }
             partitions.forEach { open(run, it, parked) }
             started = true
         } finally {
@@ -353,8 +362,36 @@ class SubscriptionRuntime internal constructor(
      * stream ending after it when a subscription of [joined] other than it read the stream before.
      */
     private fun startOf(subscription: Subscription, joined: Set<String>): SubscriptionStart =
-        options.starts[subscription.name]
+        options.starts[subscription.id]
             ?: SubscriptionStart.of(subscription.startFrom, joined = joined.any { it != subscription.name })
+
+    /**
+     * Warns of the checkpoints in [saved] of an application's subscription the group no longer has, with their
+     * positions and the entries parked under the name: what a subscription renamed, or removed, left behind. A
+     * subscription's name is its identity, so a renamed one starts again as its start says; pinning its `@Name` to the
+     * old name keeps its position. Wow's own subscriptions (`wow.…`) are left out: those it ends, such as a finished
+     * rebuild's, are its own to keep.
+     */
+    private suspend fun tellOrphans(saved: List<Checkpoint>) {
+        val orphans = saved.filter { !directory.containsKey(it.subscription) && !it.subscription.startsWith(RESERVED) }
+            .groupBy { it.subscription }
+            .toSortedMap()
+        if (orphans.isEmpty()) {
+            return
+        }
+        val described = orphans.map { (name, positions) ->
+            val at = positions.sortedBy { it.partition }.joinToString { "partition ${it.partition} at ${it.position}" }
+            val parked = ledger.count(name, ORPHAN_COUNT)
+            val held = if (parked >= ORPHAN_COUNT) "$ORPHAN_COUNT or more" else "$parked"
+            "$name ($at; $held parked)"
+        }
+        logger.warn {
+            "Subscription group $group has checkpoints of subscriptions it no longer has: " +
+                "${described.joinToString("; ")}. A renamed subscription starts again under its new name, as its " +
+                "start says; to keep its position, pin its @Name to the old one. What is left under an old name " +
+                "is not read again."
+        }
+    }
 
     /** The subscriptions of the group with a checkpoint: those that have read its stream. */
     private suspend fun joinedSubscriptions(): Set<String> =
@@ -494,3 +531,9 @@ class SubscriptionRuntime internal constructor(
 data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
 
 private val logger = KotlinLogging.logger {}
+
+/** The prefix of Wow's own subscriptions' names, which the compiler reserves. */
+private const val RESERVED = "wow."
+
+/** How many entries parked under an old name a start counts at most. */
+private const val ORPHAN_COUNT = 1_000

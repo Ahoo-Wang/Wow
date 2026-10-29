@@ -14,7 +14,7 @@
 import { type Hop, Stage } from './wire.js';
 
 /** The name of the built-in subscription that writes snapshots. */
-export const SNAPSHOT_SUBSCRIPTION = 'snapshot';
+export const SNAPSHOT_SUBSCRIPTION = 'wow.snapshot';
 
 const NAME = /^[A-Za-z0-9_.-]+$/;
 

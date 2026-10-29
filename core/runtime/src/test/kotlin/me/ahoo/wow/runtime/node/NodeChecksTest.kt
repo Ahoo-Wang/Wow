@@ -20,6 +20,7 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -29,7 +30,11 @@ import org.junit.jupiter.api.assertDoesNotThrow
 
 /** The refusals of a misconfigured node, each naming the node and what to set. */
 class NodeChecksTest {
-    private val names = setOf("saga", "projection")
+    private companion object {
+        val SAGE = SubscriptionId("shop", "sage")
+    }
+
+    private val names = setOf(SubscriptionId("shop", "saga"), SubscriptionId("shop", "projection"))
 
     @Test
     fun `a setting of a subscription the node does not have should be refused, naming the ones it has`() {
@@ -37,31 +42,31 @@ class NodeChecksTest {
             NodeChecks.subscriptionsNamed(
                 "n-1",
                 names,
-                SubscriptionOptions(starts = mapOf("sage" to SubscriptionStart.Beginning))
+                SubscriptionOptions(starts = mapOf(SAGE to SubscriptionStart.Beginning))
             )
         }.hasMessage(
-            "A start is configured for the subscription sage, which node n-1 does not have: [projection, saga]."
+            "A start is configured for the subscription shop.sage, which node n-1 does not have: [shop.projection, shop.saga]."
         )
         assertThrownBy<IllegalArgumentException> {
             NodeChecks.subscriptionsNamed(
                 "n-1",
                 names,
-                SubscriptionOptions(parked = ParkedRetryOptions(specs = mapOf("sage" to ParkedRetrySpec()))),
+                SubscriptionOptions(parked = ParkedRetryOptions(specs = mapOf(SAGE to ParkedRetrySpec()))),
             )
         }.hasMessage(
-            "A parked retry spec is configured for the subscription sage, which node n-1 does not have: " +
-                "[projection, saga].",
+            "A parked retry spec is configured for the subscription shop.sage, which node n-1 does not have: " +
+                "[shop.projection, shop.saga].",
         )
         assertThrownBy<IllegalArgumentException> {
-            NodeChecks.subscriptionsNamed("n-1", names, SubscriptionOptions(retries = mapOf("sage" to HandlerRetry())))
+            NodeChecks.subscriptionsNamed("n-1", names, SubscriptionOptions(retries = mapOf(SAGE to HandlerRetry())))
         }.hasMessage(
-            "A retry budget is configured for the subscription sage, which node n-1 does not have: [projection, saga]."
+            "A retry budget is configured for the subscription shop.sage, which node n-1 does not have: [shop.projection, shop.saga]."
         )
         assertDoesNotThrow {
             NodeChecks.subscriptionsNamed(
                 "n-1",
                 names,
-                SubscriptionOptions(starts = mapOf("saga" to SubscriptionStart.Beginning))
+                SubscriptionOptions(starts = mapOf(SubscriptionId("shop", "saga") to SubscriptionStart.Beginning))
             )
         }
     }

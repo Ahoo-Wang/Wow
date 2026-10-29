@@ -54,8 +54,13 @@ internal class ParkedRetries(
     private val options: ParkedRetryOptions,
     private val clock: Clock,
     private val notifier: ParkedNotifier,
+    /** The context of a subscription of the runtime, by its name, whose retry spec its entries take; null when none. */
+    private val contextOf: (String) -> String?,
 ) {
     private val running: MutableSet<Pair<String, AggregateRef>> = ConcurrentHashMap.newKeySet()
+
+    private fun specOf(entry: ParkedAggregate) =
+        contextOf(entry.subscription)?.let { options.specOf(entry, it) } ?: entry.retrySpec ?: options.spec
 
     /**
      * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
@@ -90,7 +95,7 @@ internal class ParkedRetries(
         now: Long,
         workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
     ) {
-        val next = entry.nextRetryAt(options.specOf(entry))
+        val next = entry.nextRetryAt(specOf(entry))
         if (entry.request != null || next != null && now >= next) {
             workerOf(entry.subscription, entry.ref)?.let { dispatch(scope, it, entry) }
             return
@@ -160,7 +165,7 @@ internal class ParkedRetries(
         ledger.amend(entry.subscription, entry.ref, ParkedAmendment.TakeRequest(request)) != null
 
     private suspend fun retry(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        val spec = options.specOf(entry)
+        val spec = specOf(entry)
         val now = clock.millis()
         val claimed = ledger.amend(entry.subscription, entry.ref, ParkedAmendment.ClaimRetry(entry.retries, now))
             ?: return
@@ -175,7 +180,8 @@ internal class ParkedRetries(
             "Subscription ${entry.subscription} spent the ${spec.maxRetries} retries of ${entry.ref}: it waits for " +
                 "an operator."
         }
-        notifier.notifyQuietly(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, exhausted, spec, clock.millis()))
+        val context = contextOf(entry.subscription) ?: return
+        notifier.notifyQuietly(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, context, exhausted, spec, clock.millis()))
     }
 }
 

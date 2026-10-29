@@ -26,6 +26,7 @@ class ParkedNotifierTest {
     private val notice = ParkedNotice(
         ParkedNotice.Kind.PARKED,
         "group",
+        "shop",
         ParkedAggregate("sub", cart("x"), 0, 1, "boom", 0),
         ParkedRetrySpec(),
         0,

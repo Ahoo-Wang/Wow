@@ -354,6 +354,7 @@ class GaE2eTest {
         flows.checkout("olga").status.assert().isEqualTo(ShopFlows.OK)
         val id = Ledger.parkedId(
             "eshop-payment-service",
+            "eshop-payment",
             GATEWAY_SAGA,
             EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "olga-1")
         )
@@ -391,6 +392,7 @@ class GaE2eTest {
         flows.checkout("gus").status.assert().isEqualTo(ShopFlows.OK)
         val id = Ledger.parkedId(
             "eshop-payment-service",
+            "eshop-payment",
             GATEWAY_SAGA,
             EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "gus-1")
         )

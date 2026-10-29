@@ -32,7 +32,8 @@ import kotlin.reflect.KClass
  * ```
  *
  * A setting left at its default is not given: it comes from the processor's annotation, else from
- * `wow.subscription.retry.*`. The host's `wow.subscriptions.[<processor.function>].retry.*` overrides the annotation.
+ * `wow.subscription.retry.*`. The host's `wow.subscriptions.[<context>.<processor.function>].retry.*` overrides the
+ * annotation.
  * Durations are written as Kotlin durations (`500ms`, `2s`, `1m 30s`) or ISO-8601 (`PT2S`).
  *
  * - [maxAttempts]: the calls in all, at least 1; 0 is not given.

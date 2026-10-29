@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -89,7 +90,7 @@ class TopicSubscriptionsTest {
     private suspend fun start(
         node: String,
         subscription: Subscription = board,
-        starts: Map<String, SubscriptionStart> = emptyMap(),
+        starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
     ): TopicSubscriptions = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
@@ -293,7 +294,7 @@ class TopicSubscriptionsTest {
     fun `a start the host overrides with an instant should read from the first record committed at or after it`():
         Unit = runBlocking {
         topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
-        start("node-1", starts = mapOf(BOARD to SubscriptionStart.At(Instant.ofEpochMilli(2_500))))
+        start("node-1", starts = mapOf(SubscriptionId(ORDER.context, BOARD) to SubscriptionStart.At(Instant.ofEpochMilli(2_500))))
         topics.publish(orderRecord("o-1", 5))
         eventually { handled.size == 3 }
         handled.versionsOf("o-1").assert().containsExactly(3, 4, 5)

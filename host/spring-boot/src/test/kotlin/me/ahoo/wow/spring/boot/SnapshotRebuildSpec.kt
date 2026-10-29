@@ -169,13 +169,13 @@ abstract class SnapshotRebuildSpec {
         // beginning but not backfilled: the next node fills it with a subscription of its own.
         val started = start("node-2", revision = 1, targets = listOf(A, B))
         started.context(context).snapshotSubscriptions.map { it.name }.assert()
-            .containsExactly("snapshot", "snapshot:$B")
+            .containsExactly("wow.snapshot", "wow.snapshot:$B")
         started.snapshotStatus.rebuilding(type).assert().isTrue()
         eventually { snapshot(B, IDS.first()) != null }
         started.stop()
         table(B).backfilled.assert().isFalse()
         val both = start("node-3", revision = 1, targets = listOf(A, B))
-        both.context(context).subscriptions.subscriptionNames.assert().contains("snapshot:$B#$COUNTER")
+        both.context(context).subscriptions.subscriptionNames.assert().contains("wow.snapshot:$B#$COUNTER")
         eventually {
             maintain(both)
             table(A).backfilled && table(B).backfilled
@@ -198,7 +198,7 @@ abstract class SnapshotRebuildSpec {
         switched.stop()
 
         val dropped = start("node-5", revision = 1, targets = listOf(B))
-        dropped.context(context).snapshotSubscriptions.map { it.name }.assert().containsExactly("snapshot:$B")
+        dropped.context(context).snapshotSubscriptions.map { it.name }.assert().containsExactly("wow.snapshot:$B")
         add(dropped, IDS.first(), 1, wait = null).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         snapshot(B, IDS.first())!!.assertCounter(revision = 1, version = 3, total = 5, adds = 0)
         snapshot(A, IDS.first())!!.version.assert().isEqualTo(2)

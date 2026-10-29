@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.subscription.BackpressureOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
@@ -132,7 +133,11 @@ class WowProperties {
     var sharedStates: SharedStates = SharedStates()
     var subscription: Subscription = Subscription()
 
-    /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
+    /**
+     * Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name
+     * (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique
+     * within its context alone.
+     */
     var subscriptions: MutableMap<String, SubscriptionSettings> = LinkedHashMap()
     var timers: Timers = Timers()
 
@@ -679,7 +684,7 @@ class WowProperties {
 
         /**
          * How a failing handler is retried in process before its aggregate is parked; a subscription's
-         * `wow.subscriptions.[<subscription>].retry.*` and its handler's `@Retry` come before it.
+         * `wow.subscriptions.[<context>.<name>].retry.*` and its handler's `@Retry` come before it.
          */
         var retry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.retry)
 
@@ -705,31 +710,34 @@ class WowProperties {
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
+            val configured = subscriptions.mapKeys { (key, _) -> subscriptionOf(key) }
             return SubscriptionOptions(
                 maxInFlight = maxInFlight,
                 retry = retry.policy(),
                 checkpointInterval = checkpointInterval.toKotlinDuration(),
                 stopTimeout = stopTimeout.toKotlinDuration(),
                 readRetry = readRetry.policy(),
-                starts = subscriptions.mapNotNull { (name, settings) ->
-                    settings.start?.takeIf { it.isNotBlank() }?.let { name to SubscriptionStart.parse(it) }
+                starts = configured.mapNotNull { (id, settings) ->
+                    settings.start?.takeIf { it.isNotBlank() }?.let { id to SubscriptionStart.parse(it) }
                 }.toMap(),
                 parked = ParkedRetryOptions(
                     spec = spec,
-                    specs = subscriptions.mapNotNull { (name, settings) ->
-                        settings.parked.specOver(
-                            spec
-                        )?.let { name to it }
-                    }
+                    specs = configured.mapNotNull { (id, settings) -> settings.parked.specOver(spec)?.let { id to it } }
                         .toMap(),
                     scanInterval = parked.scanInterval.toKotlinDuration(),
                 ),
-                retries = subscriptions.mapNotNull { (name, settings) ->
-                    settings.retry.handlerRetry()?.let { name to it }
+                retries = configured.mapNotNull { (id, settings) ->
+                    settings.retry.handlerRetry()?.let { id to it }
                 }.toMap(),
                 systemic = systemic.options(),
                 backpressure = backpressure.options(),
             )
+        }
+
+        /** The subscription `wow.subscriptions.[<key>]` configures, refused unless it reads `<context>.<name>`. */
+        private fun subscriptionOf(key: String): SubscriptionId = requireNotNull(SubscriptionId.parse(key)) {
+            "wow.subscriptions.[$key] names no subscription: a subscription is configured by its context and name, " +
+                "wow.subscriptions.[<context>.<name>], such as wow.subscriptions.[shop.CartSaga.onOrderCreated]."
         }
     }
 
@@ -797,7 +805,7 @@ class WowProperties {
 
     /**
      * The automatic retries of parked entries over minutes and hours; per subscription,
-     * `wow.subscriptions.[<subscription>].parked.*` overrides them.
+     * `wow.subscriptions.[<context>.<name>].parked.*` overrides them.
      */
     @InternalWowApi
     class Parked {

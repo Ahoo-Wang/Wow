@@ -38,13 +38,17 @@ class LedgerTest {
     }
 
     @Test
-    fun `an entry's ops id names its service, subscription and aggregate`() {
-        Ledger.parkedId("eshop-payment-service", "PaymentGatewaySaga.onPaymentRequested", ref).assert()
-            .isEqualTo("eshop-payment-service:PaymentGatewaySaga.onPaymentRequested:eshop-payment.payment:(0):alice-1")
-        Ledger.targetOf("eshop-payment", "svc:s:eshop-payment.payment:(0):alice-1").toString().assert()
-            .isEqualTo("eshop-payment.wow.ledger/(0)/svc:s:eshop-payment.payment:(0):alice-1")
-        assertThrownBy<IllegalArgumentException> { Ledger.parkedId(" ", "s", ref) }
-        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", " ", ref) }
+    fun `an entry's ops id names its service, its subscription's context and name, and its aggregate`() {
+        Ledger.parkedId("eshop-payment-service", "eshop-payment", "PaymentGatewaySaga.onPaymentRequested", ref)
+            .assert().isEqualTo(
+                "eshop-payment-service:eshop-payment:PaymentGatewaySaga.onPaymentRequested:" +
+                    "eshop-payment.payment:(0):alice-1",
+            )
+        Ledger.targetOf("eshop-payment", "svc:c:s:eshop-payment.payment:(0):alice-1").toString().assert()
+            .isEqualTo("eshop-payment.wow.ledger/(0)/svc:c:s:eshop-payment.payment:(0):alice-1")
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId(" ", "c", "s", ref) }
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", " ", "s", ref) }
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", "c", " ", ref) }
     }
 
     @Test

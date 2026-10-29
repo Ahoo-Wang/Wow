@@ -33,7 +33,7 @@ import org.springframework.context.annotation.Configuration
 /**
  * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
  * `wow.clickhouse.sink.enabled` set, every stream the Manifest publishes is written to ClickHouse by a subscription
- * `clickhouse-sink.<aggregate>`, over the application's ClickHouse client or one the Sink opens itself.
+ * `wow.clickhouse-sink.<aggregate>`, over the application's ClickHouse client or one the Sink opens itself.
  */
 class HostClickHouseSinkTest {
     private val runner = ApplicationContextRunner()
@@ -63,7 +63,7 @@ class HostClickHouseSinkTest {
     fun `a Sink switched on should write over the application's client`() {
         runner.withPropertyValues(ENABLED).withBean(Client::class.java, { client }).run { context ->
             val sinks = context.getBean(ProvidedSinks::class.java).sinks.single()
-            sinks.nameOf(PublishedManifest("account", "t")).assert().isEqualTo("clickhouse-sink.account")
+            sinks.nameOf(PublishedManifest("account", "t")).assert().isEqualTo("wow.clickhouse-sink.account")
             // The Manifest publishes nothing: no sink reads any state.
             sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
         }
@@ -74,7 +74,7 @@ class HostClickHouseSinkTest {
         runner.withPropertyValues(ENABLED, "wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
             context.getBeansOfType(Client::class.java).assert().isEmpty()
             context.getBean(ProvidedSinks::class.java).sinks.single().nameOf(PublishedManifest("account", "t"))
-                .assert().isEqualTo("clickhouse-sink.account")
+                .assert().isEqualTo("wow.clickhouse-sink.account")
         }
     }
 
@@ -129,7 +129,7 @@ class HostClickHouseSinkTest {
             "wow.clickhouse.ddl" to "none",
             sources = listOf(HostTestApp::class.java, PublishingManifest::class.java),
         ).use { host ->
-            host.node.context(BANK).views.readers.keys.assert().contains("clickhouse-sink.account")
+            host.node.context(BANK).views.readers.keys.assert().contains("wow.clickhouse-sink.account")
         }
     }
 

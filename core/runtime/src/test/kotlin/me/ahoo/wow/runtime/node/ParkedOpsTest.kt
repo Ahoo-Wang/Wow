@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.LedgerRequest
@@ -70,53 +71,53 @@ class ParkedOpsTest {
         runtime.start(setOf(0, 1))
         eventually { ledger.list(NAME).size == 2 }
 
-        val view = ops.get(NAME, cart("x1"))!!
+        val view = ops.get(ID, cart("x1"))!!
         view.spec.assert().isEqualTo(spec)
         view.status.assert().isEqualTo(ParkedView.Status.SCHEDULED)
         view.nextRetryAt.assert().isEqualTo(view.entry.failedAt + 1.hours.inWholeMilliseconds)
-        ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.PARKED)
+        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.PARKED)
         failing.set(false)
-        ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
         val x2 = ledger.parked(NAME, cart("x2"))!!.failedAt
-        ops.skip(NAME, cart("x2"), x2 + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
-        ops.skip(NAME, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        ops.skip(NAME, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.skip(ID, cart("x2"), x2 + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
+        ops.skip(ID, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.skip(ID, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
         handled.assert().containsExactly("x1@1")
-        ops.get(NAME, cart("x1")).assert().isNull()
-        ops.get("unknown", cart("x1")).assert().isNull()
+        ops.get(ID, cart("x1")).assert().isNull()
+        ops.get(SubscriptionId("shop", "unknown"), cart("x1")).assert().isNull()
         runtime.stop()
     }
 
     @Test
     fun `an entry of a partition another node runs is left as a request for it`(): Unit = runBlocking {
         park("x1")
-        ops.resume(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
-        ops.skip(NAME, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt).assert()
+        ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt).assert()
             .isEqualTo(ParkedOps.Outcome.REQUESTED)
-        ops.get(NAME, cart("x1"))!!.entry.request.assert().isEqualTo(LedgerRequest.SKIP)
-        ops.resume(NAME, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
-        ops.skip(NAME, cart("absent"), 0).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.get(ID, cart("x1"))!!.entry.request.assert().isEqualTo(LedgerRequest.SKIP)
+        ops.resume(ID, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.skip(ID, cart("absent"), 0).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
     }
 
     @Test
     fun `an operator marks an entry and applies a spec to it`(): Unit = runBlocking {
         park("x1")
-        ops.markRecoverable(NAME, cart("x1"), Recoverable.UNRECOVERABLE)!!.status
+        ops.markRecoverable(ID, cart("x1"), Recoverable.UNRECOVERABLE)!!.status
             .assert().isEqualTo(ParkedView.Status.UNRECOVERABLE)
-        ops.markRecoverable(NAME, cart("x1"), Recoverable.RECOVERABLE)!!.status
+        ops.markRecoverable(ID, cart("x1"), Recoverable.RECOVERABLE)!!.status
             .assert().isEqualTo(ParkedView.Status.SCHEDULED)
         val none = ParkedRetrySpec(maxRetries = 0)
-        val applied = ops.applyRetrySpec(NAME, cart("x1"), none)!!
+        val applied = ops.applyRetrySpec(ID, cart("x1"), none)!!
         applied.spec.assert().isEqualTo(none)
         applied.status.assert().isEqualTo(ParkedView.Status.EXHAUSTED)
         applied.nextRetryAt.assert().isNull()
-        ops.applyRetrySpec(NAME, cart("x1"), null)!!.spec.assert().isEqualTo(spec)
-        ops.markRecoverable(NAME, cart("absent"), Recoverable.RECOVERABLE).assert().isNull()
-        ops.applyRetrySpec(NAME, cart("absent"), none).assert().isNull()
+        ops.applyRetrySpec(ID, cart("x1"), null)!!.spec.assert().isEqualTo(spec)
+        ops.markRecoverable(ID, cart("absent"), Recoverable.RECOVERABLE).assert().isNull()
+        ops.applyRetrySpec(ID, cart("absent"), none).assert().isNull()
         ledger.park(ParkedAggregate(NAME, cart("gone"), 0, 1, "${ParkedAggregate.UNRECOVERABLE}: gone", 0))
-        ops.get(NAME, cart("gone"))!!.status.assert().isEqualTo(ParkedView.Status.UNRECOVERABLE)
+        ops.get(ID, cart("gone"))!!.status.assert().isEqualTo(ParkedView.Status.UNRECOVERABLE)
     }
 
     @Test
@@ -124,28 +125,27 @@ class ParkedOpsTest {
         val other = Subscription("$NAME.other", SubscriptionFilter("shop")) { }
         val runtimes = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), ledger, listOf(subscription, other))
         val listing = ParkedOps { listOf(ParkedOps.Scope.of(runtimes)) }
-        listing.subscriptions.assert().containsExactly(NAME, "$NAME.other")
+        listing.subscriptions.assert().containsExactly(ID, OTHER)
         listOf("c", "a", "b").forEach { park(it) }
         listOf("z", "y").forEach { park(it, subscription = "$NAME.other") }
 
         val first = listing.list(limit = 2)
         first.entries.map { it.entry.ref.id }.assert().containsExactly("a", "b")
-        first.next.assert().isEqualTo(ParkedKey(NAME, cart("b")))
+        first.next.assert().isEqualTo(ParkedKey(ID, cart("b")))
         val second = listing.list(after = first.next, limit = 2)
-        second.entries.map { it.entry.subscription to it.entry.ref.id }
-            .assert().containsExactly(NAME to "c", "$NAME.other" to "y")
+        second.entries.map { it.id to it.entry.ref.id }.assert().containsExactly(ID to "c", OTHER to "y")
         val third = listing.list(after = second.next, limit = 2)
         third.entries.map { it.entry.ref.id }.assert().containsExactly("z")
         third.next.assert().isNull()
-        listing.list(subscription = "$NAME.other").entries.map { it.entry.ref.id }.assert().containsExactly("y", "z")
-        listing.list(subscription = NAME, after = ParkedKey(NAME, cart("a"))).entries.map { it.entry.ref.id }
+        listing.list(subscription = OTHER).entries.map { it.entry.ref.id }.assert().containsExactly("y", "z")
+        listing.list(subscription = ID, after = ParkedKey(ID, cart("a"))).entries.map { it.entry.ref.id }
             .assert().containsExactly("b", "c")
-        listing.list(subscription = "none").entries.assert().isEmpty()
+        listing.list(subscription = SubscriptionId("shop", "none")).entries.assert().isEmpty()
         assertThrownBy<IllegalArgumentException> { runBlocking { listing.list(limit = 0) } }
     }
 
     @Test
-    fun `a built-in subscription's entry is found in the scope of its aggregate's context`(): Unit = runBlocking {
+    fun `each context's subscription of one name is found by its context`(): Unit = runBlocking {
         val shop = InMemoryFailureLedger()
         val stock = InMemoryFailureLedger()
         val stockType = AggregateType("stock", "item")
@@ -168,12 +168,17 @@ class ParkedOpsTest {
         shop.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the shop's", 0))
         stock.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the stock's", 0))
         val both = ParkedOps { listOf(ParkedOps.Scope.of(shopRuntime), ParkedOps.Scope.of(stockRuntime)) }
-        both.get("wow.snapshot", item)!!.entry.reason.assert().isEqualTo("in the stock's")
-        both.list("wow.snapshot").entries.size.assert().isEqualTo(1)
-        both.skip("wow.snapshot", item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        val shopSnapshot = SubscriptionId("shop", "wow.snapshot")
+        val stockSnapshot = SubscriptionId("stock", "wow.snapshot")
+        both.get(stockSnapshot, item)!!.entry.reason.assert().isEqualTo("in the stock's")
+        both.get(shopSnapshot, item)!!.entry.reason.assert().isEqualTo("in the shop's")
+        both.get(stockSnapshot, item)!!.context.assert().isEqualTo("stock")
+        both.list(stockSnapshot).entries.map { it.entry.reason }.assert().containsExactly("in the stock's")
+        both.skip(stockSnapshot, item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
         stock.parked("wow.snapshot", item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         shop.parked("wow.snapshot", item)!!.request.assert().isNull()
-        both.subscriptions.assert().containsExactly("wow.snapshot")
+        both.get(SubscriptionId("other", "wow.snapshot"), item).assert().isNull()
+        both.subscriptions.assert().containsExactly(shopSnapshot, stockSnapshot)
     }
 
     @Test
@@ -207,5 +212,7 @@ class ParkedOpsTest {
 
     private companion object {
         const val NAME = "ops"
+        val ID = SubscriptionId("shop", NAME)
+        val OTHER = SubscriptionId("shop", "$NAME.other")
     }
 }

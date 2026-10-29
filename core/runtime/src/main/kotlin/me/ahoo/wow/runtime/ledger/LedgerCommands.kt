@@ -28,6 +28,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
@@ -69,7 +70,10 @@ internal class LedgerCommands(
                 "The ${wire.type} ${wire.id} does not read: ${malformed.originalMessage}"
             )
         }
+        // The command topic it came through is the subscription's context's (Ledger.targetOf).
+        val subscription: SubscriptionId
         val ref = try {
+            subscription = SubscriptionId(wire.ref.type.context, command.subscription)
             command.toRef()
         } catch (invalid: IllegalArgumentException) {
             return ErrorInfo(
@@ -89,22 +93,20 @@ internal class LedgerCommands(
             )
         }
         // The scans leave the entry to the action, which publishes what came of it.
-        val publisher = publisher() ?: return run(command, ref)
-        return publisher.acting(command.subscription, ref) { run(command, ref) }
+        val publisher = publisher() ?: return run(command, subscription, ref)
+        return publisher.acting(subscription, ref) { run(command, subscription, ref) }
     }
 
-    private suspend fun run(command: LedgerCommand, ref: AggregateRef): ErrorInfo? {
-        val subscription = command.subscription
-        // The context of the entry, read before an action may resolve it.
+    private suspend fun run(command: LedgerCommand, subscription: SubscriptionId, ref: AggregateRef): ErrorInfo? {
+        // The entry, read before an action may resolve it.
         val current = parked.get(subscription, ref)
-        val context = current?.context
         when (command) {
             is ResumeParked -> {
                 val outcome = parked.resume(subscription, ref, command.failedAt)
                 if (outcome == ParkedOps.Outcome.STALE) {
                     return stale(command, command.failedAt, current)
                 }
-                settled(subscription, ref, context, outcome, LedgerResolution.RESUMED)
+                settled(subscription, ref, outcome, LedgerResolution.RESUMED)
             }
 
             is SkipParked -> {
@@ -112,7 +114,7 @@ internal class LedgerCommands(
                 if (outcome == ParkedOps.Outcome.STALE) {
                     return stale(command, command.failedAt, current)
                 }
-                settled(subscription, ref, context, outcome, LedgerResolution.SKIPPED)
+                settled(subscription, ref, outcome, LedgerResolution.SKIPPED)
             }
             is MarkParkedRecoverable -> {
                 val recoverable = WireNames.entryOf<Recoverable>(command.recoverable)
@@ -121,13 +123,12 @@ internal class LedgerCommands(
                         "Not a recoverable: '${command.recoverable}'; one of " +
                             "${WireNames.namesOf<Recoverable>().joinToString()}.",
                     )
-                amended(subscription, ref, context, parked.markRecoverable(subscription, ref, recoverable))
+                amended(subscription, ref, parked.markRecoverable(subscription, ref, recoverable))
             }
 
             is ApplyParkedRetrySpec -> {
-                val current = parked.get(subscription, ref)
                 if (current == null) {
-                    amended(subscription, ref, context, null)
+                    amended(subscription, ref, null)
                     return null
                 }
                 val spec = try {
@@ -135,7 +136,7 @@ internal class LedgerCommands(
                 } catch (invalid: IllegalArgumentException) {
                     return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Not a retry spec.")
                 }
-                amended(subscription, ref, context, parked.applyRetrySpec(subscription, ref, spec))
+                amended(subscription, ref, parked.applyRetrySpec(subscription, ref, spec))
             }
         }
         return null
@@ -157,26 +158,25 @@ internal class LedgerCommands(
     }
 
     private suspend fun settled(
-        subscription: String,
+        subscription: SubscriptionId,
         ref: AggregateRef,
-        context: String?,
         outcome: ParkedOps.Outcome,
         resolved: String,
     ) {
         logger.info { "Ledger command on $ref by $subscription: $outcome." }
         val publisher = publisher() ?: return
         when (outcome) {
-            ParkedOps.Outcome.RESOLVED -> publisher.resolved(subscription, ref, context, resolved)
-            ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, context, LedgerResolution.NOT_PARKED)
+            ParkedOps.Outcome.RESOLVED -> publisher.resolved(subscription, ref, resolved)
+            ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, LedgerResolution.NOT_PARKED)
             ParkedOps.Outcome.PARKED, ParkedOps.Outcome.REQUESTED, ParkedOps.Outcome.STALE ->
                 parked.get(subscription, ref)?.let { publisher.parked(it) }
         }
     }
 
-    private suspend fun amended(subscription: String, ref: AggregateRef, context: String?, view: ParkedView?) {
+    private suspend fun amended(subscription: SubscriptionId, ref: AggregateRef, view: ParkedView?) {
         val publisher = publisher() ?: return
         if (view == null) {
-            publisher.resolved(subscription, ref, context, LedgerResolution.NOT_PARKED)
+            publisher.resolved(subscription, ref, LedgerResolution.NOT_PARKED)
         } else {
             publisher.parked(view)
         }

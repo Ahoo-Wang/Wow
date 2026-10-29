@@ -288,7 +288,7 @@
   }, {
     "name" : "wow.subscription.retry",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
-    "description" : "How a failing handler is retried in process before its aggregate is parked; a subscription's `wow.subscriptions.[<subscription>].retry.*` and its handler's `@Retry` come before it.",
+    "description" : "How a failing handler is retried in process before its aggregate is parked; a subscription's `wow.subscriptions.[<context>.<name>].retry.*` and its handler's `@Retry` come before it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.subscription.systemic",
@@ -1483,7 +1483,7 @@
   }, {
     "name" : "wow.subscriptions",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$SubscriptionSettings>",
-    "description" : "Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`).",
+    "description" : "Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique within its context alone.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.tenant.default",

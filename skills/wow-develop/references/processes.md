@@ -140,7 +140,7 @@ A reactor calls the outside world with the context's `invocationKey` as the outs
 
 ## Start positions
 
-Without a checkpoint, projections and handlers of another context's stream start from the beginning; reactors and sagas of the own log from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
+Without a checkpoint, projections and handlers of another context's stream start from the beginning; reactors and sagas of the own log from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<context>.<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
 
 ## Failures: retry, then park
 
@@ -149,7 +149,7 @@ Without a checkpoint, projections and handlers of another context's stream start
 3. **Systemic:** when several aggregates fail within a window (`wow.subscription.systemic.*`), the subscription pauses its partition and probes until a handling succeeds, instead of parking everything.
 4. **Backpressure:** a downstream that pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) throttles the partition and retries, then parks; it never pauses the partition.
 
-Operators see parked entries with `wow.http.ops.enabled` (`/wow/ops/parked`: list, `resume`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`: `auto` by default, publishing once the ops service is deployed on the same Kafka).
+Operators see parked entries with `wow.http.ops.enabled` (`/wow/ops/parked`: list, `resume`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`; an entry is `/wow/ops/parked/{<context>.<name>}/{context}/{aggregate}/{tenant}/{id}`; `skip` requires the body `{"failedAt": …}`, the entry's `failedAt`, and `resume` takes it optionally, both refusing a parking since replaced as 409 `wow.ledger.stale`), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`: `auto` by default, publishing once the ops service is deployed on the same Kafka).
 
 ## Idempotency, summed up
 

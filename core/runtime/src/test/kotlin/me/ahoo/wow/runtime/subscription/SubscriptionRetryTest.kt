@@ -195,8 +195,8 @@ class SubscriptionRetryTest {
         val options = SubscriptionOptions(
             retry = global,
             retries = mapOf(
-                "annotated" to HandlerRetry(timeout = 30.seconds, multiplier = 3.0),
-                "plain" to HandlerRetry(maxAttempts = 1),
+                SubscriptionId("shop", "annotated") to HandlerRetry(timeout = 30.seconds, multiplier = 3.0),
+                SubscriptionId("shop", "plain") to HandlerRetry(maxAttempts = 1),
             ),
         )
 

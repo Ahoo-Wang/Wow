@@ -76,15 +76,17 @@ object Ledger {
     fun nameOf(type: Class<*>): String? = NAMES[type]
 
     /**
-     * The id of the ops aggregate recording [subscription]'s entry of [ref] in [service]:
-     * `<service>:<subscription>:<context>.<aggregate>:<tenant>:<id>`, so one service's entry of one aggregate is one
-     * ops aggregate, whichever node publishes it.
+     * The id of the ops aggregate recording the entry of [ref] that [subscription], of [context], parked in [service]:
+     * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, so one service's entry of one
+     * aggregate is one ops aggregate, whichever node publishes it, and two contexts' subscriptions of one name keep
+     * entries of their own.
      */
     @JvmStatic
-    fun parkedId(service: String, subscription: String, ref: AggregateRef): String {
+    fun parkedId(service: String, context: String, subscription: String, ref: AggregateRef): String {
         require(service.isNotBlank()) { "A ledger entry names its service." }
+        require(context.isNotBlank()) { "A ledger entry names its subscription's context." }
         require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
-        return "$service:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
+        return "$service:$context:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
     }
 
     /**
