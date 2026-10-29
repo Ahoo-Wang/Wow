@@ -26,7 +26,7 @@
 
 | 层 | 模块 | 内容 | 取代 9.x 的 |
 |---|---|---|---|
-| 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型；只依赖 `wow-annotations`、`wow-query-api` 与 kotlinx-coroutines（§2.1，D66、D282） | wow-api（重新设计，去掉查询协议） |
+| 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型；依赖 `wow-annotations`、`wow-query-api`、kotlinx-coroutines 与 `jackson-databind`（任意形状的内容是 `ObjectNode`，D362；本模块源码不 import Jackson）（§2.1，D66、D282） | wow-api（重新设计，去掉查询协议） |
 | 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口；查询字段注解（`@Sensitive` 等）；纯数据，包名仍是 `me.ahoo.wow.api.query`（D125） | wow-api 的 `api.query` 包 |
 | 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
