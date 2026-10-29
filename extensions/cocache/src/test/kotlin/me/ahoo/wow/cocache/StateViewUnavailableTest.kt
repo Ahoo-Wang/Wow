@@ -16,8 +16,26 @@ package me.ahoo.wow.cocache
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import me.ahoo.cocache.api.Cache
+import me.ahoo.cocache.api.CacheReadException
+import me.ahoo.cocache.api.spi.CoherenceBackend
+import me.ahoo.cocache.api.spi.LeaseRequest
+import me.ahoo.cocache.api.spi.RefreshRequest
+import me.ahoo.cocache.api.spi.RemoteRead
+import me.ahoo.cocache.api.spi.RemoteStore
+import me.ahoo.cocache.core.CacheRuntime
+import me.ahoo.cocache.core.CacheSpec
+import me.ahoo.cocache.core.ForeignFormatException
 import me.ahoo.cocache.core.memory.InMemoryBackend
+import me.ahoo.cocache.core.policy.CachePolicy
+import me.ahoo.cocache.core.policy.LoadPolicy
+import me.ahoo.cocache.core.policy.ReadFailureMode
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
@@ -30,6 +48,7 @@ import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.ConnectException
+import java.time.Duration
 
 /** A view of `shop.order` that needs a field the owner's state does not have: one that does not decode. */
 @StateView("shop.order")
@@ -109,6 +128,85 @@ class StateViewUnavailableTest {
             val failure = readFailure { strict.get(key) }
             failure.assert().isNotNull()
             (failure is StateViewUnavailableException).assert().isFalse()
+        }
+    }
+
+    /** The caches of [backend], each with its policy changed by [policy]: what CoCache's settings would make it. */
+    private fun cachesOf(backend: CoherenceBackend, policy: CachePolicy.Builder.() -> Unit): StateViewCaches {
+        val runtime = CacheRuntime.builder().backend(backend).build().also { opened += it }
+        val factory = object : StateViewCaches.CacheFactory {
+            override fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V> =
+                runtime.create(spec.toBuilder().updatePolicy { it.policy() }.build())
+        }
+        return StateViewCaches(factory) { queryApiOf(snapshots) }
+    }
+
+    private val opened = mutableListOf<CacheRuntime>()
+
+    @AfterEach
+    fun closeOpened() {
+        opened.forEach { it.close() }
+    }
+
+    @Test
+    fun `a read of the owner that does not answer in time should be unavailable`() {
+        coEvery { snapshots.state("o-1") } coAnswers {
+            delay(Duration.ofSeconds(5).toMillis())
+            null
+        }
+        val cache = cachesOf(backend) { load = LoadPolicy(asyncTimeout = Duration.ofMillis(100)) }.of<OrderView>()
+        (readFailure { cache.get(key) } as StateViewUnavailableException).message.assert().contains("in time")
+    }
+
+    @Test
+    fun `a read of the owner beyond the reads in flight should be unavailable`() = runBlocking<Unit> {
+        val release = CompletableDeferred<Unit>()
+        val loading = CompletableDeferred<Unit>()
+        coEvery { snapshots.state("o-1") } coAnswers {
+            loading.complete(Unit)
+            release.await()
+            null
+        }
+        val cache = cachesOf(backend) {
+            load = LoadPolicy(maxConcurrent = 1, acquireTimeout = Duration.ofMillis(10))
+        }.of<OrderView>()
+        val first = async(Dispatchers.Default) { cache.get(key) }
+        loading.await()
+        val failure = readFailure { cache.get(StateKey("t", "o-2")) } as StateViewUnavailableException
+        failure.message.assert().contains("in flight")
+        release.complete(Unit)
+        first.await().assert().isNull()
+    }
+
+    @Test
+    fun `a read of the owner that cancels itself should be unavailable`() {
+        coEvery { snapshots.state("o-1") } throws CancellationException("The owner's read gave up.")
+        val failure = readFailure { caches.of<OrderView>().get(key) } as StateViewUnavailableException
+        failure.message.assert().contains("cancelled")
+    }
+
+    @Test
+    fun `a backend whose reads fail should be unavailable, one that holds a foreign format not`() {
+        coEvery { snapshots.state(any<String>()) } returns null
+        val down = failingBackend(IllegalStateException("Redis is down."))
+        val failure = readFailure {
+            cachesOf(down) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key)
+        } as StateViewUnavailableException
+        failure.message.assert().contains("backend")
+        val foreign = failingBackend(ForeignFormatException("wow.shop.order", "t/o-1", 0, null))
+        val unreadable =
+            readFailure { cachesOf(foreign) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key) }
+        (unreadable as CacheReadException).cause.assert().isInstanceOf(ForeignFormatException::class.java)
+    }
+
+    /** A backend whose every read of a key throws [failure], as a Redis that is down does. */
+    private fun failingBackend(failure: RuntimeException): CoherenceBackend {
+        val memory = InMemoryBackend()
+        return object : CoherenceBackend by memory {
+            override fun store(namespace: String): RemoteStore = object : RemoteStore by memory.store(namespace) {
+                override fun read(key: String, lease: LeaseRequest?, refresh: RefreshRequest?): RemoteRead =
+                    throw failure
+            }
         }
     }
 
