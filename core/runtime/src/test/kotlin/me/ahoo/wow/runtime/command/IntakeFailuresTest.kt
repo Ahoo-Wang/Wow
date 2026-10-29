@@ -18,7 +18,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.runtime.subscription.FailureClassification
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.failed
@@ -38,7 +38,7 @@ class IntakeFailuresTest {
     }
 
     private fun classOf(settlement: Settlement): FailureClass =
-        FailureClassification.DEFAULT.classify(failureOf(command.id, command.ref, settlement), null)
+        RuntimeFailures.DEFAULT.classify(failureOf(command.id, command.ref, settlement), null)
 
     @Test
     fun `a store that is unavailable is systemic, whether or not the refusal carries its cause`() {

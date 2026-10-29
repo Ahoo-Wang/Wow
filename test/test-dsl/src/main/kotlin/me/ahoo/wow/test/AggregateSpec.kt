@@ -160,6 +160,7 @@ val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
 /** The id of the aggregate [AggregateSpec.givenReservation] gives a key to by default. */
 const val ANOTHER_AGGREGATE: String = "another-aggregate"
 
+@WowTestDsl
 @Suppress("TooManyFunctions") // The DSL's verbs.
 class AggregateSpec<S : Any> private constructor(
     private val model: AggregateModel<S>,

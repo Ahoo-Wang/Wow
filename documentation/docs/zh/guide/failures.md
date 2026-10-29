@@ -140,7 +140,8 @@ fun `a failed notification should be asked for again with the same key`() = reac
         // Within the notifier's own budget, the runtime asks again.
         expectRetried().assert().isInstanceOf(IllegalStateException::class.java)
     }
-    whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+    // The retry hands the same commit again: the same key, so the mail service sends it once.
+    whenRedelivered()
     sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```

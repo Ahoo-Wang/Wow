@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -30,6 +29,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
+import me.ahoo.wow.kernel.parkingCallRejections
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -320,7 +320,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
          * The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
          * derived commands and with its synchronous calls, whose ids the saga's hop reports first, in
          * the order they were made. A call's rejection the handler lets through parks the aggregate at once
-         * ([CallRejectedHandlingException]); a call that failed fails the handling, retried then parked.
+         * ([me.ahoo.wow.kernel.CallRejectedHandlingException]); a call that failed fails the handling, retried then parked.
          */
         internal suspend fun handleSaga(
             handler: ProcessorBinding<*>,
@@ -334,11 +334,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
             val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait, handler.calls, name)
             val execution = executionOf(handler, name, event, context, calls)
-            val commands = try {
-                call(handler, event, execution)
-            } catch (rejected: CommandRejectedException) {
-                throw CallRejectedHandlingException(rejected)
-            }
+            val commands = parkingCallRejections { call(handler, event, execution) }
             val replyTo = replyTo(handler, context.context, execution.executionId)
             val executed = derived.execute(commands, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)

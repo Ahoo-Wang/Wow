@@ -152,7 +152,7 @@ class ProcessorSpecTest {
             expectCommands(Reserve("order-1", 2))
             expectCommandTypes(Reserve::class)
             expectCommand(Reserve("order-1", 2), to = stock)
-            expectCommand<Reserve> {
+            expectCommandEnvelope<Reserve> {
                 ref.assert().isEqualTo(stock)
                 causation.assert().isEqualTo(Causation("command-3", "shop.order/tenant/order-1@3"))
                 id.assert().isEqualTo(
@@ -220,7 +220,11 @@ class ProcessorSpecTest {
             executionId = ExecutionId("OrderSaga.onOrder", order, 1),
         )
         whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
-        assertThrownBy<AssertionError> { whenRejected(rejected, Release::class) { } }
+        // A rejection no @OnRejected handler takes parks the aggregate at once, as the runtime does.
+        whenRejected(rejected, Release::class) {
+            expectHandledBy()
+            expectParked().message.assert().contains("was rejected: inventory.stock.insufficient")
+        }
         assertThrownBy<IllegalArgumentException> {
             whenRejected(rejected.copyWith(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
         }
@@ -236,7 +240,7 @@ class ProcessorSpecTest {
             whenCommitted(reserve, version = 4) {
                 handled.assert().containsExactly("OrderSaga.onReserved")
                 expectCommand(Confirm("apple", 4, duplicate = false), to = order)
-                expectCommand<Confirm> { causation!!.causationId.assert().isEqualTo(reserve.id) }
+                expectCommandEnvelope<Confirm> { causation!!.causationId.assert().isEqualTo(reserve.id) }
                 expectDeterministic()
                 expectNoSchedule()
             }
@@ -314,7 +318,7 @@ class ProcessorSpecTest {
             assertThrownBy<AssertionError> { expectError<IllegalStateException>() }
         }
         whenEvent(stateEvent(order, Order("order-1"), OrderCancelled("x")), handler = "onCancelled") {
-            assertThrownBy<AssertionError> { expectCommand<Release> { body.orderId.assert().isEqualTo("x") } }
+            assertThrownBy<AssertionError> { expectCommand<Release> { orderId.assert().isEqualTo("x") } }
         }
         assertThrownBy<AssertionError> { whenEvent(stateEvent(stock, "a string", OrderPlaced(1))) { } }
         assertThrownBy<IllegalArgumentException> { whenEvent(stateEvent(order, Order("o"), 1), handler = "nope") { } }
