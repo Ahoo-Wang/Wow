@@ -89,7 +89,7 @@ class StateViewSourcesTest {
         contract: Manifest,
         onClassPath: (String) -> Boolean = { it in api || it.startsWith("java.") },
     ): List<ContractSources.Source> =
-        StateViewSources(contract.defs, onClassPath).of(contract.contexts.single(), "shop.api")
+        StateViewSources(contract.defs, onClassPath).of(contract.contexts.single())
 
     @Test
     fun `a view should hold the state's fields, referencing the api's classes and copying the domain's`() {

@@ -111,6 +111,12 @@ project(":spring-boot").projectDir = file("host/spring-boot")
 // Optional extensions an application adds beside the host (decision D171: CosId's id generators).
 include(":cosid")
 project(":cosid").projectDir = file("extensions/cosid")
+// CoCache's shared state views (decision D364): the views' cache a domain injects (artifact wow-cocache-api, no
+// dependency), and what writes and reads them through CoCache (artifact wow-cocache).
+include(":cocache-api")
+project(":cocache-api").projectDir = file("extensions/cocache-api")
+include(":cocache")
+project(":cocache").projectDir = file("extensions/cocache")
 // 9.x wow-models' capabilities and reusable Tree aggregate, ported (decision D187, P.8); artifact wow-models.
 include(":models")
 project(":models").projectDir = file("extensions/models")

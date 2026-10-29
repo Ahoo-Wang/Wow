@@ -79,6 +79,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `state`: object
   - `schema`
   - `fingerprint`
+  - `view`
 - `snapshot`: object
   - `enabled`
   - `stateRevision`: left out when absent or at its default

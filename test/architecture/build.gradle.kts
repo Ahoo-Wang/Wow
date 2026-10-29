@@ -6,7 +6,7 @@ val moduleDirs = listOf(
     "api/annotations", "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "backends/elasticsearch",
-    "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/observability", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",
+    "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/observability", "host/spring-boot", "extensions/cosid", "extensions/cocache-api", "extensions/cocache", "extensions/models", "migration/migrate-data", "compiler/compiler",
     "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/test-query", "test/test-spring-boot", "test/tck", "query/query-tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "examples/eshop/$context/$context-$it" }

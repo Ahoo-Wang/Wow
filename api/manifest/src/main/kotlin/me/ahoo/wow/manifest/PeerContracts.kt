@@ -115,6 +115,71 @@ object PeerContracts {
         return reached
     }
 
+    /**
+     * The `<State>View` of each state of [context] an api module generates, by aggregate name: the binary name
+     * `<package>.<State>View`, its package the one the aggregate's command and event classes share (else the one all the
+     * context's classes share), its name the state class's simple name followed by `View` (its `x-wow-class` in
+     * [defs], else its schema key). A state the contract withholds (its stream published without it) has none, nor has
+     * a state of no field.
+     *
+     * @throws IllegalStateException when two aggregates share a state, or two states would have one view name: a
+     *   view is of one aggregate.
+     */
+    fun viewsOf(context: ContextManifest, defs: Map<String, Any?>): Map<String, String> {
+        val withheld = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
+        val viewed = context.aggregates.filter { aggregate ->
+            aggregate.name !in withheld && fieldsOf(defs[Manifest.schemaKey(aggregate.state.schema)]).isNotEmpty()
+        }
+        val contextPackage = packageOf(classesOf(context))
+        val names = mutableMapOf<String, String>()
+        return viewed.groupBy { Manifest.schemaKey(it.state.schema) }.entries.associate { (state, aggregates) ->
+            check(aggregates.size == 1) {
+                "The aggregates ${aggregates.joinToString { "${context.name}.${it.name}" }} share the state $state, " +
+                    "which a state view cannot name: give each aggregate a state class of its own."
+            }
+            val aggregate = aggregates.single()
+            val pkg = packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
+            val stateClass = (defs[state] as? Map<*, *>)?.get(CLASS_KEYWORD) as? String ?: state
+            val simple = stateClass.substringAfterLast('.').substringAfterLast('$')
+            val view = if (pkg.isEmpty()) "${simple}View" else "$pkg.${simple}View"
+            names.put(view, state)?.let { other ->
+                error(
+                    "The states $other and $state of the context ${context.name} would both be viewed as $view: " +
+                        "rename one of them."
+                )
+            }
+            aggregate.name to view
+        }
+    }
+
+    /** [contract] with each state's [StateManifest.view] set ([viewsOf]), as an api module's jar carries it. */
+    fun withViews(contract: Manifest): Manifest = contract.copyWith(
+        contexts = contract.contexts.map { context ->
+            val views = viewsOf(context, contract.defs)
+            context.copyWith(
+                aggregates = context.aggregates.map { aggregate ->
+                    aggregate.copyWith(state = aggregate.state.copyWith(view = views[aggregate.name]))
+                },
+            )
+        },
+    )
+
+    /** The package the binary names [classes] share: the longest common one, empty when they share none. */
+    fun packageOf(classes: List<String>): String {
+        val packages = classes.map { it.substringBeforeLast('.', "").split('.').filter(String::isNotEmpty) }
+        val common = packages.reduceOrNull { shared, next ->
+            shared.zip(next).takeWhile { it.first == it.second }.map { it.first }
+        }
+        return common.orEmpty().joinToString(".")
+    }
+
+    private fun classesOf(aggregate: AggregateManifest): List<String> =
+        (aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema })
+            .filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey)
+
+    private fun fieldsOf(schema: Any?): Map<*, *> =
+        (schema as? Map<*, *>)?.get("properties") as? Map<*, *> ?: emptyMap<String, Any?>()
+
     /** The binary names of the classes of [context]'s commands and events, the classes its api module holds. */
     fun classesOf(context: ContextManifest): List<String> = context.aggregates.flatMap { aggregate ->
         aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema }
@@ -178,7 +243,7 @@ object PeerContracts {
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
         )
-        return contract.copyWith(defs = referenced(contract.schemaRefs, defs))
+        return withViews(contract.copyWith(defs = referenced(contract.schemaRefs, defs)))
     }
 
     /**

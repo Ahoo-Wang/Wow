@@ -61,7 +61,7 @@ internal object ContractSources {
         val views = StateViewSources(contract.defs, onClassPath)
         return contract.contexts.flatMap { context ->
             val source = of(context, contract.defs, queryFields)
-            listOf(source) + views.of(context, packageOf(PeerContracts.classesOf(context)))
+            listOf(source) + views.of(context)
         }
     }
 
@@ -253,13 +253,7 @@ internal object ContractSources {
         .let { if (it.first().isDigit()) "_$it" else it }
 
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
-    fun packageOf(classes: List<String>): String {
-        val packages = classes.map { it.substringBeforeLast('.', "").split('.').filter(String::isNotEmpty) }
-        val common = packages.reduceOrNull { shared, next ->
-            shared.zip(next).takeWhile { it.first == it.second }.map { it.first }
-        }
-        return common.orEmpty().joinToString(".")
-    }
+    fun packageOf(classes: List<String>): String = PeerContracts.packageOf(classes)
 
     /** `eshop-inventory` → `EshopInventory`: the name's words, capitalised, without separators. */
     fun pascal(name: String): String = name.split('-', '_', '.', ' ').filter(String::isNotEmpty)

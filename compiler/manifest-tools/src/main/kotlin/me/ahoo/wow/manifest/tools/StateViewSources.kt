@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.manifest.tools
 
-import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PeerContracts
 
 /**
  * The views of a context's aggregate states generated from its contract, beside its
@@ -43,30 +43,18 @@ internal class StateViewSources(
     private val defs: Map<String, Any?>,
     private val onClassPath: (String) -> Boolean,
 ) {
-    fun of(context: ContextManifest, contextPackage: String): List<ContractSources.Source> {
-        val withheld = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
-        // A state of no field has nothing to view: one the contract withholds is an object of no structure.
-        val viewed = context.aggregates.filter { aggregate ->
-            aggregate.name !in withheld && properties(schemaOf(Manifest.schemaKey(aggregate.state.schema))).isNotEmpty()
-        }
-        val views = viewed.groupBy { Manifest.schemaKey(it.state.schema) }
-        val names = mutableMapOf<String, String>()
-        return views.map { (state, aggregates) ->
-            // A view is of one aggregate: a typed read of it, or a handler of its events, names one.
-            check(aggregates.size == 1) {
-                "The aggregates ${aggregates.joinToString { "${context.name}.${it.name}" }} share the state $state, " +
-                    "which a state view cannot name: give each aggregate a state class of its own."
-            }
-            val aggregate = aggregates.single()
-            val pkg = ContractSources.packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
-            val name = "${simpleName(classOf(state))}View"
-            names.put("$pkg.$name", state)?.let { other ->
-                error(
-                    "The states $other and $state of the context ${context.name} would both be viewed as $pkg.$name: " +
-                        "rename one of them."
-                )
-            }
-            source(pkg, name, state, "${context.name}.${aggregate.name}")
+    fun of(context: ContextManifest): List<ContractSources.Source> {
+        // The names a peer contract carries ([PeerContracts.viewsOf]): a view is of one aggregate, a typed read of it
+        // or a handler of its events names one.
+        val views = PeerContracts.viewsOf(context, defs)
+        return context.aggregates.mapNotNull { aggregate ->
+            val view = views[aggregate.name] ?: return@mapNotNull null
+            source(
+                view.substringBeforeLast('.', ""),
+                view.substringAfterLast('.'),
+                Manifest.schemaKey(aggregate.state.schema),
+                "${context.name}.${aggregate.name}",
+            )
         }
     }
 
@@ -255,10 +243,6 @@ internal class StateViewSources(
 
     /** The class of the state [key]: its `x-wow-class`, else the key, its binary name. */
     private fun classOf(key: String): String = schemaOf(key)[WireTypes.CLASS_KEYWORD] as? String ?: key
-
-    private fun classesOf(aggregate: AggregateManifest): List<String> =
-        (aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema })
-            .filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey)
 
     private companion object {
         const val REF = "\$ref"

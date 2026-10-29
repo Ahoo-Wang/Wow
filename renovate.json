@@ -117,7 +117,8 @@
         "maven"
       ],
       "matchPackageNames": [
-        "me.ahoo.cosid:cosid-bom"
+        "me.ahoo.cosid:cosid-bom",
+        "me.ahoo.cocache:cocache-bom"
       ],
       "groupName": "ahoo-platform-boms",
       "commitMessageTopic": "Ahoo platform BOMs"

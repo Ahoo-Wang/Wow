@@ -79,7 +79,8 @@ fun AggregateManifest.copyWith(
 fun StateManifest.copyWith(
     schema: String = this.schema,
     fingerprint: String? = this.fingerprint,
-): StateManifest = StateManifest(schema, fingerprint)
+    view: String? = this.view,
+): StateManifest = StateManifest(schema, fingerprint, view)
 
 @InternalWowApi
 fun SnapshotManifest.copyWith(
