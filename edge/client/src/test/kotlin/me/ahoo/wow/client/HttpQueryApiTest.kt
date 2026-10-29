@@ -341,6 +341,14 @@ class HttpQueryApiTest {
             (bodies[3] as ObjectNode)["n"].asInt().assert().isEqualTo(1)
         }
 
+    @Test
+    fun `a peer's event class should be found without a context class loader, and only where the contract names one`() {
+        val models = PeerModels(emptyMap(), mapOf(BOX to mapOf("labelled" to BoxLabelled::class.java.name))) { null }
+        models.eventClassOf(BOX, "labelled").assert().isEqualTo(BoxLabelled::class.java)
+        models.eventClassOf(BOX, "unknown").assert().isNull()
+        models.eventClassOf(AggregateType("mail", "other"), "labelled").assert().isNull()
+    }
+
     /** A peer's state as its api generates the view of it (decision D362). */
     @StateView("mail.box")
     data class BoxStateView(val items: Int, val label: String? = null)

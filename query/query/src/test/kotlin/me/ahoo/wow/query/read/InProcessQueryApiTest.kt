@@ -226,6 +226,7 @@ class InProcessQueryApiTest {
         refused.status.assert().isEqualTo(400)
         refused.cause.assert().isInstanceOf(QueryError::class.java)
         api.trusted().unbounded().snapshots<CartState>().list(tooMany).toList().assert().hasSize(2)
+        api.trusted().unbounded().unbounded().assert().isSameAs(api.trusted().unbounded())
         api.trusted().unbounded().snapshots<CartState>()
             .paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT)).exact.assert().isTrue()
     }
