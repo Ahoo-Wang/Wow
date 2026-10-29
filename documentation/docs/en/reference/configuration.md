@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 270 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 269 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -104,8 +104,7 @@ The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and doc
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.mode` | `CoSecMode` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
-| `wow.cosec.trust-injected-app` | `Boolean` | `false` | Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup. |
+| `wow.cosec.mode` | `CoSecMode` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests itself, the Manifest's routes its route map. |
 
 ## `wow.cosec.authorizer`
 
@@ -113,7 +112,7 @@ CoSec's authorization of the commands.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: authorization is then the gateway's (CoSec's inject mode). |
+| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command and service route call of a request as its caller (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes, where CoSec decides itself. A request-less command gets no objection. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: behind a CoSec gateway, authorization is the gateway's. |
 
 ## `wow.cosec.cross-scope`
 
