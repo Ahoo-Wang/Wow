@@ -532,7 +532,8 @@ class WowProperties {
 
         /**
          * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends,
-         * so the other nodes take the partitions it cannot run; longer than `drain-timeout`.
+         * so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after
+         * `wow.health.liveness.stall-timeout` fails the node's liveness.
          */
         var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
 
@@ -1527,8 +1528,9 @@ class WowProperties {
     @InternalWowApi
     class HealthLiveness {
         /**
-         * How long the node's dispatcher may not tick, or commands in flight not finish while every log answers,
-         * before the node is not live.
+         * How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or
+         * commands in flight not finish while every log answers, before the node is not live; longer than
+         * `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.
          */
         var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
     }

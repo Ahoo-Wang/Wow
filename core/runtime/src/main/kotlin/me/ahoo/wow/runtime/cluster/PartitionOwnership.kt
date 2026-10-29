@@ -84,7 +84,9 @@ data class RenewalRound(
  *   the members per interval, which this group's reconcile and routes reuse. The group's members are those listing
  *   it. A reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a partition,
  *   takes the group off the node's record until the reconcile ends, so the others take the partitions it cannot run
- *   instead of handing them back to it.
+ *   instead of handing them back to it. One still running after `wow.health.liveness.stall-timeout` fails the node's
+ *   liveness, so its orchestrator restarts it: such a reconcile waits on a call that never returns, which only a
+ *   restart ends.
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
@@ -245,6 +247,9 @@ class PartitionOwnership internal constructor(
     @Volatile
     var routes: RouteTable = RouteTable.EMPTY
         private set
+
+    /** How long the reconcile running now has run; null between reconciles. */
+    internal val reconcilingFor: Duration? get() = reconciling?.elapsedNow()
 
     /** The partitions HRW gave this node on the last reconcile. */
     @Volatile
@@ -521,7 +526,9 @@ class PartitionOwnership internal constructor(
             if (!stuck) {
                 logger.error {
                     "$node has been reconciling $group for more than ${options.reconcileTimeout}; it leaves the " +
-                        "members until the reconcile ends, so the others take the partitions it cannot run."
+                        "members until the reconcile ends, so the others take the partitions it cannot run. A " +
+                        "reconcile still running after wow.health.liveness.stall-timeout fails the node's " +
+                        "liveness, so its orchestrator restarts it."
                 }
                 membership.stuck(group.name, true)
                 stuck = true

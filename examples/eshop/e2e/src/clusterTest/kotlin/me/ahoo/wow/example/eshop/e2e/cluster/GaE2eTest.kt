@@ -70,7 +70,10 @@ class GaE2eTest {
         System.getProperty("ga.postgres", "jdbc:postgresql://localhost:30432")
     )
     private val verdict = ClusterVerdict(flows, reads) { println("[ga-e2e] $it") }
-    private val health = HealthWatch(kube, report)
+    private val dumps = ThreadDumps(kube, File(System.getProperty("ga.report", "build/ga-e2e"), "threads")) {
+        println("[ga-e2e] $it")
+    }
+    private val health = HealthWatch(kube, report, dumps)
     private val network = PodNetwork(kube, report)
     private val ops = OpsDesk(kube, report, shop)
     private val evidence = Evidence(kube, File(System.getProperty("ga.report", "build/ga-e2e"), "evidence"))
@@ -118,10 +121,12 @@ class GaE2eTest {
         } catch (timedOut: TimeoutException) {
             task.cancel(true)
             report.check(scenario, name, false, "exceeded its budget of $budget")
+            dumps.dumpAll("$scenario $name timed out")
             throw AssertionError("$scenario / $name exceeded its budget of $budget", timedOut)
         } catch (failed: ExecutionException) {
             val failure = failed.cause ?: failed
             report.check(scenario, name, false, "${failure.javaClass.simpleName}: ${failure.message}")
+            dumps.dumpAll("$scenario $name failed")
             throw failure
         }
         report.check(scenario, name, true, detail)

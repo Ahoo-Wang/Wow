@@ -513,6 +513,79 @@ class NodeHealthTest {
     }
 
     @Test
+    fun `drivers that run nothing should fail the liveness, as a wedged virtual-thread executor does`(): Unit =
+        runBlocking {
+            val node = node()
+            node.start()
+            val drivers = Executors.newSingleThreadExecutor()
+            try {
+                val options = HealthOptions(stallTimeout = 100.milliseconds)
+                val health = healthOf(node, options) {
+                    NodeHealth(node, it, options, drivers = drivers.asCoroutineDispatcher())
+                }
+                start(health)
+                delay(50)
+                health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+                // The one driver thread runs nothing else: no store call of the node would return either.
+                drivers.execute { Thread.sleep(400) }
+                eventually { health.liveness().status == HealthStatus.DOWN }
+                health.liveness().details["stalled"].assert().isEqualTo("drivers")
+                eventually { health.liveness().status == HealthStatus.UP }
+            } finally {
+                drivers.shutdownNow()
+            }
+        }
+
+    @Test
+    fun `a reconcile that does not end should fail the liveness, naming its group, until it ends`(): Unit =
+        runBlocking {
+            val node = node()
+            val health = health(node, HealthOptions(storeDownAfter = 1.minutes, stallTimeout = 300.milliseconds))
+            node.start()
+            start(health)
+            val ownership = node.context(BANK).ownership
+            eventually { ownership.owned.size == PARTITIONS }
+            // The partitions are lost, and acquiring them again never returns: a store call on wedged drivers.
+            val gate = CompletableDeferred<Unit>()
+            leases.acquiring = gate
+            leases.losing = true
+            eventually { ownership.reconcilingFor != null }
+            leases.losing = false
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+            eventually { health.liveness().status == HealthStatus.DOWN }
+            val liveness = health.liveness()
+            liveness.details["stalled"].assert().isEqualTo("reconcile")
+            liveness.details["group"].assert().isEqualTo(ownership.group.name)
+            leases.acquiring = null
+            gate.complete(Unit)
+            eventually { ownership.owned.size == PARTITIONS }
+            eventually { health.liveness().status == HealthStatus.UP }
+        }
+
+    @Test
+    fun `a reconcile waiting on a slow store that answers should leave the node live`(): Unit = runBlocking {
+        val node = node()
+        val health = health(node, HealthOptions(storeDownAfter = 1.minutes, stallTimeout = 5.seconds))
+        node.start()
+        start(health)
+        val ownership = node.context(BANK).ownership
+        eventually { ownership.owned.size == PARTITIONS }
+        // Each acquisition takes a while, as on a store under load, and answers.
+        leases.acquireDelay = 300.milliseconds
+        leases.losing = true
+        eventually { ownership.reconcilingFor != null }
+        leases.losing = false
+        var longest = Duration.ZERO
+        while (ownership.owned.size < PARTITIONS || ownership.reconcilingFor != null) {
+            ownership.reconcilingFor?.let { longest = maxOf(longest, it) }
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+            delay(20)
+        }
+        longest.assert().isGreaterThanOrEqualTo(250.milliseconds)
+        health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+    }
+
+    @Test
     fun `an ownership that keeps none of its share past the grace should be down`(): Unit = runBlocking {
         val node = node()
         val health = health(node, HealthOptions(handoverGrace = Duration.ZERO, storeDownAfter = 1.minutes))
@@ -712,10 +785,22 @@ class NodeHealthTest {
         }
     }
 
-    /** A lease store whose every call fails while [down]. */
+    /**
+     * A lease store whose every call fails while [down], whose renewals renew nothing while [losing], and whose
+     * acquisitions wait for [acquiring] and take [acquireDelay].
+     */
     class FlakyLeases(private val leases: LeaseStore) : LeaseStore {
         @Volatile
         var down = false
+
+        @Volatile
+        var losing = false
+
+        @Volatile
+        var acquiring: CompletableDeferred<Unit>? = null
+
+        @Volatile
+        var acquireDelay: Duration = Duration.ZERO
 
         private fun check() {
             if (down) {
@@ -725,12 +810,14 @@ class NodeHealthTest {
 
         override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
             check()
+            acquiring?.await()
+            delay(acquireDelay)
             return leases.acquire(group, partition, owner, ttl)
         }
 
         override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> {
             check()
-            return leases.renew(group, partitions, owner, ttl)
+            return if (losing) emptyList() else leases.renew(group, partitions, owner, ttl)
         }
 
         override suspend fun release(group: String, partition: Int, owner: String): Boolean {
