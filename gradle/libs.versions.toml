@@ -3,7 +3,7 @@
 spring-boot = "4.1.2"
 cosid = "3.4.1"
 cocache = "6.8.0"
-cosec = "8.0.0-alpha.1"
+cosec = "8.0.0-alpha.2"
 testcontainers = "2.0.5"
 opentelemetry = "1.67.0"
 opentelemetry-instrumentation = "2.33.1"

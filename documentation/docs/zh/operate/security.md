@@ -24,7 +24,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
 
-类路径上有 `wow-cosec` 以及 CoSec 的 starter 和 WebFlux 模块（`me.ahoo.cosec:cosec-spring-boot`、`me.ahoo.cosec:cosec-webflux`）时，除非应用自己定义了 `CallerResolver`，CoSec 的解析器就是宿主的解析器。CoSec 的管道认证每个请求并解析它的作用域，即决定这个请求时所在的应用和空间；解析器把 CoSec 构建的安全上下文变成调用方：
+类路径上有 `wow-cosec` 以及 CoSec 的 starter 和 WebFlux 模块（`me.ahoo.cosec:cosec-spring-boot`、`me.ahoo.cosec:cosec-webflux`）时，除非应用自己定义了 `CallerResolver`，CoSec 的解析器就是宿主的解析器。CoSec 自己生成令牌 id；使用 `wow-cosid` 并希望由 CosId 生成它们的应用，添加 `me.ahoo.cosec:cosec-cosid`。CoSec 的管道认证每个请求并解析它的作用域，即决定这个请求时所在的应用和空间；解析器把 CoSec 构建的安全上下文变成调用方：
 
 - **租户和主体标识**来自主体；CoSec 的默认租户 `(0)` 即 `wow.tenant.default`。没有已认证主体的请求，或者安全上下文不是 CoSec 的管道构建的请求，返回 401。
 - **所有者。** 主体是所有者级调用方，作用于它自己的聚合；除非它具有 `wow.cosec.tenant-level` 中的某个角色或策略，这时它是租户级调用方，作用于它租户的每个聚合，例如为每个买家发货的员工。

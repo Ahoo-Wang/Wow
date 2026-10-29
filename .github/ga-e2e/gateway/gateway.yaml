@@ -169,7 +169,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: cosec-gateway
-          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-alpha.1@sha256:2441f9f36b8a1174cfed0711f7811b1bab40779bbe14514dca3b9727aaf1e045
+          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-alpha.2@sha256:1605869a8ffe6468e05b4d4cabb636df437ff38f382deb4a08664e94180317a8
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
