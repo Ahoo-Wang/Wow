@@ -14,10 +14,10 @@
           "resource": "http:path:/eshop-catalog/product/*/state"
         },
         {
-          "name": "a basket's items and its checkout",
+          "name": "the buyer's own basket: its items and its checkout",
           "effect": "allow",
           "action": "http:POST",
-          "resource": ["http:path:/eshop-basket/basket/*/add-basket-item", "http:path:/eshop-basket/basket/*/checkout-basket"]
+          "resource": ["http:path:/eshop-basket/basket/add-basket-item", "http:path:/eshop-basket/basket/checkout-basket"]
         },
         {
           "name": "an order",
