@@ -66,15 +66,17 @@ export function ignorePatterns(codecovYaml) {
   );
   if (!block) return [];
   return [...block[1].matchAll(/^[ \t]+-\s*["']?([^"'#\s]+)["']?/gm)].map(
-    ([, glob]) =>
-      new RegExp(
-        `^${glob
-          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*\*\/?/g, '\u0000')
-          .replace(/\*/g, '[^/]*')
-          .replace(/\u0000/g, '.*')}$`,
-      ),
+    ([, glob]) => new RegExp(`^${globSource(glob)}$`),
   );
+}
+
+/** A glob as a regular expression's source: `**` (and its `/`) any path, `*` within a segment. */
+function globSource(glob) {
+  const escape = text => text.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  return glob
+    .split(/\*\*\/?/)
+    .map(part => part.split('*').map(escape).join('[^/]*'))
+    .join('.*');
 }
 
 /** The lines a unified diff (`-U0`) adds or changes, by the new file's path. */
