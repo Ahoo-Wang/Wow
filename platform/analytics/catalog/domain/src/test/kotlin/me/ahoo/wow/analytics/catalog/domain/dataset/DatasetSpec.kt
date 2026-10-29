@@ -428,7 +428,7 @@ class DatasetSpec {
                 expectEventTypes(DatasetPublicationRequested::class)
                 expectState {
                     requested.assert().isEqualTo(DEFINITION)
-                    requestReasons.single().assert().contains("approval.publications")
+                    requestReasons.single().assert().contains("require-publication-approval")
                     current.assert().isEqualTo(0)
                 }
             }
