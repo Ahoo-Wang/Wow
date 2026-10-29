@@ -29,7 +29,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `wow-apiclient` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
-| `wow-cocache` | `wow-cocache` of the V10 version in a new shape (decision D364): the owner writes, readers inject `StateViewCache<V>`; see [State caches](#state-caches-9x-wow-cocache) |
+| `wow-cocache` | `wow-cocache` of the V10 version in a new shape (decision D364): the owner writes, readers inject `PublishedStateCache<V>`; see [State caches](#state-caches-9x-wow-cocache) |
 | `wow-compensation-*` (the 9.x compensation service) | Retired: each node's failure ledger and its operator routes, see [Compensation and failed executions](#compensation-and-failed-executions) |
 | `wow-opentelemetry` (the per-component instrumenters, the `wow.operation` meters) | `wow-observability`, settings under `wow.observability.*`: every metric and span is renamed, with no alias, so rebuild dashboards and alerts from the docs page Migrate › Metrics and Spans (`/migrate/metrics`) |
 | `wow-query` (protocol, DSL and engine) | `wow-query-api` (query types, the Kotlin DSL `me.ahoo.wow.api.query.dsl`, the field annotations) for domain and client code; `wow-query` (the engine, `QueryGateway`), which `wow-http` brings to a server; see [Queries](#queries) |
@@ -619,7 +619,7 @@ A target pinned to an earlier V10 pre-release renames these host keys, with no a
 - `wow.health.sample-interval` and `wow.observability.sample-interval` are one `wow.node.sample-interval`. The node's one sampler counts parked entries up to `wow.node.max-parked` (it was `wow.observability.max-parked`), for its health and its gauges alike; `wow.health.subscriptions.parked-degraded-at` is at most it.
 - `wow.subscription.read-retry.max-attempts` is `read-retry.error-after`, and `read-retry.timeout` is gone.
 - `wow.cluster.max-in-flight-per-peer` is `max-in-flight-per-node`; `wow.query.cross-tenant.enabled` is `wow.query.allow-cross-tenant`; `wow.snapshot.interval`, `.batch` and `.pages` are `wow.snapshot.maintenance-interval`, `.rebuild.page-size` and `.rebuild.max-pages`; `wow.kafka.topic-prefix` is `wow.kafka.topics.prefix`.
-- `wow.state-views.max-bytes` is a size (`64MB`); a number is still read as bytes.
+- `wow.published-states.max-bytes` is a size (`64MB`); a number is still read as bytes.
 - `wow.query.memory.enabled` is `true` by default, and an aggregate's `clickhouse.history.enabled` is `auto`, `true` or `false`.
 - The analytics catalog service drops `wow.analytics.catalog.engine` (ClickHouse is its one engine); `approval.sources` and `approval.publications` are `require-source-approval` and `require-publication-approval`, and `datasets.serve` is `datasets.serving.enabled`.
 
@@ -830,7 +830,7 @@ Service mode, the default, calls the peer's internal port as this service (its `
 | `QueryApiCacheSource`, `QueryGatewayCacheSource`, `StateCacheSource` (load on a miss) | Nothing to write: a miss reads the owner through the node's typed queries (`snapshots<V>()`), in process or over HTTP as this service, a batch as one `IN` query per tenant |
 | `LoadCacheSourceConfiguration.timeout` | CoCache's load policy: `cocache.caches.[wow.<context>.<aggregate>].load-async-timeout` |
 | `ttl` / `ttlAmplitude` (`TtlConfiguration`) | `cocache.caches.[wow.<context>.<aggregate>].ttl` and `ttl-jitter` on each side; `wow.cocache.ttl` for what the owner writes |
-| A `@CoCache` interface or `CacheSpec` per reader, often in a `<context>-cache` module | Inject `StateViewCache<OrderStateView>` (from `wow-cocache-api`, no dependency); delete the declaration and the module |
+| A `@CoCache` interface or `CacheSpec` per reader, often in a `<context>-cache` module | Inject `PublishedStateCache<OrderStateView>` (from `wow-cocache-api`, no dependency); delete the declaration and the module |
 | A cache keyed by the aggregate id (`String`) | `StateKey(tenantId, id)`: a key holds the tenant |
 | Cache names and Redis keys of the 9.x caches | New names, `wow.<context>.<aggregate>`: the V10 caches start empty and fill from the owner's writes and the readers' misses; nothing in Redis is migrated |
 | `refreshWindow` on a state cache | None: the caches are versioned, and CoCache refuses an early refresh on them |

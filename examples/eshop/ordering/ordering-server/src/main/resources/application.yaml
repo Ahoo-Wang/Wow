@@ -102,7 +102,7 @@ wow:
 ---
 # region redis
 # The orders shared through CoCache (wow-cocache): after each commit the node writes the order into the cache, at its
-# version, and the payment service reads it there (its `redis` profile) as `StateViewCache<OrderStateView>`.
+# version, and the payment service reads it there (its `redis` profile) as `PublishedStateCache<OrderStateView>`.
 spring:
   config:
     activate:
