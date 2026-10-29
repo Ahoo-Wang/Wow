@@ -84,6 +84,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * The node's health (review R3.5-3): the readiness follows the node's state, its lease store, its event log and its
@@ -104,6 +105,9 @@ class NodeHealthTest {
     fun stop(): Unit = runBlocking {
         log.hang?.complete(Unit)
         log.hang = null
+        // A gated acquisition left waiting would hold the reconcile, and so the node's stop.
+        leases.acquiring?.complete(Unit)
+        leases.acquiring = null
         slow.complete(Unit)
         healths.forEach { it.close() }
         samplers.values.forEach { it.close() }
@@ -564,9 +568,12 @@ class NodeHealthTest {
             eventually { ownership.owned.size == PARTITIONS }
             // The partitions are lost, and acquiring them again never returns: a store call on wedged drivers.
             val gate = CompletableDeferred<Unit>()
+            val asked = CompletableDeferred<Unit>()
             leases.acquiring = gate
+            leases.asked = asked
             leases.losing = true
-            eventually { ownership.reconcilingFor != null }
+            // A reconcile is acquiring a lost partition, not merely running: one that found nothing lost yet ends.
+            asked.await()
             leases.losing = false
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
             eventually {
@@ -590,18 +597,26 @@ class NodeHealthTest {
         start(health)
         val ownership = node.context(BANK).ownership
         eventually { ownership.owned.size == PARTITIONS }
-        // Each acquisition takes a while, as on a store under load, and answers.
-        leases.acquireDelay = 300.milliseconds
+        // The partitions are lost, and a reconcile acquires them again from a store that takes a while to answer.
+        val answer = CompletableDeferred<Unit>()
+        val asked = CompletableDeferred<Unit>()
+        leases.acquiring = answer
+        leases.asked = asked
         leases.losing = true
-        eventually { ownership.reconcilingFor != null }
+        asked.await()
         leases.losing = false
-        var longest = Duration.ZERO
-        while (ownership.owned.size < PARTITIONS || ownership.reconcilingFor != null) {
-            ownership.reconcilingFor?.let { longest = maxOf(longest, it) }
+        // That reconcile waits on the store now, well inside the stall timeout: the node stays live throughout.
+        val waiting = TimeSource.Monotonic.markNow()
+        while (waiting.elapsedNow() < SLOW_STORE) {
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
-            delay(20)
+            delay(50)
         }
-        longest.assert().isGreaterThanOrEqualTo(250.milliseconds)
+        ownership.reconcilingFor.assert().isNotNull().isGreaterThanOrEqualTo(SLOW_STORE)
+        health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+        // The store answers: the reconcile ends with the partitions back, and the node is still live.
+        leases.acquiring = null
+        answer.complete(Unit)
+        eventually { ownership.owned.size == PARTITIONS && ownership.reconcilingFor == null }
         health.liveness().status.assert().isEqualTo(HealthStatus.UP)
     }
 
@@ -807,7 +822,7 @@ class NodeHealthTest {
 
     /**
      * A lease store whose every call fails while [down], whose renewals renew nothing while [losing], and whose
-     * acquisitions wait for [acquiring] and take [acquireDelay].
+     * acquisitions complete [asked], then wait for [acquiring].
      */
     class FlakyLeases(private val leases: LeaseStore) : LeaseStore {
         @Volatile
@@ -820,7 +835,7 @@ class NodeHealthTest {
         var acquiring: CompletableDeferred<Unit>? = null
 
         @Volatile
-        var acquireDelay: Duration = Duration.ZERO
+        var asked: CompletableDeferred<Unit>? = null
 
         private fun check() {
             if (down) {
@@ -830,8 +845,8 @@ class NodeHealthTest {
 
         override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
             check()
+            asked?.complete(Unit)
             acquiring?.await()
-            delay(acquireDelay)
             return leases.acquire(group, partition, owner, ttl)
         }
 
@@ -879,6 +894,9 @@ class NodeHealthTest {
 
         /** How long a test holds a dispatcher's or the drivers' only thread: four times its stall timeout. */
         const val HOLD_MILLIS = 400L
+
+        /** How long the slow store takes to answer an acquisition: above 250 ms, far inside its stall timeout. */
+        val SLOW_STORE: Duration = 1.seconds
 
         /** A store is down at its first failure, so a test need not wait. */
         val OPTIONS = HealthOptions(storeDownAfter = Duration.ZERO)
