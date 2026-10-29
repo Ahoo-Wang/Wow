@@ -1,8 +1,7 @@
 {
   "format" : 1,
   "service" : {
-    "name" : "view-store-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "view-store-service"
   },
   "contexts" : [ {
     "name" : "view-store",

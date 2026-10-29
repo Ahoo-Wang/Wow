@@ -36,7 +36,7 @@ The warehouse's flat view follows the same rule: a writer replaces it only with 
 
 ## Your code: the contract
 
-The commands, events, state and errors a service exposes are its contract with its clients and peers. The Gradle plugin compares each build's Manifest with the committed baseline and fails a change that breaks a client within the baseline's major version: a removed command or event, a new required field, a field removed or retyped. Record an intended change with `updateWowManifestBaseline` and review it with the code ([Test a Service](../guide/testing-services#check-the-contract)). A breaking change needs a new major version of the service's contract, or a new command beside the old one.
+The commands, events, state and errors a service exposes are its contract with its clients and peers. The Gradle plugin compares each build's Manifest with the committed baseline and fails a change that breaks a client: a removed command or event, a new required field, a field removed or retyped. Record an intended change with `updateWowManifestBaseline` and review it with the code ([Test a Service](../guide/testing-services#check-the-contract)). A breaking change needs a new major version of the service's contract, recorded as a new baseline, or a new command beside the old one.
 
 ## Subscriptions during a rollout
 

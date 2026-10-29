@@ -28,9 +28,6 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_SOURCES_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_FRAGMENT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.INTEGRATION_TEST
-import me.ahoo.wow.gradle.WowPlugin.Companion.MANIFEST_CLASSIFIER
-import me.ahoo.wow.gradle.WowPlugin.Companion.MANIFEST_DOCS_TYPE
-import me.ahoo.wow.gradle.WowPlugin.Companion.MANIFEST_ELEMENTS
 import me.ahoo.wow.gradle.WowPlugin.Companion.MERGE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.TOOLS_CONFIGURATION
@@ -437,7 +434,7 @@ internal object WowRoles {
 
     /**
      * The service role of [project]: the service's Manifest merged from the fragments of its runtime class path, its
-     * OpenAPI document, its outgoing variant, and the compatibility gate.
+     * OpenAPI document, and the gate against its committed baseline.
      */
     fun service(project: Project, extension: WowServiceExtension) {
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
@@ -467,7 +464,6 @@ internal object WowRoles {
             task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
-        manifestElements(project, merge)
         project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Writes the OpenAPI document of the service's routes from its manifest.json."
@@ -491,47 +487,21 @@ internal object WowRoles {
             task.group = GROUP_NAME
             task.description = "Records the merged Manifest as the baseline $CHECK_TASK compares with."
             task.manifest.set(merge.flatMap { it.outputFile })
+            task.tools.from(tools)
             task.baseline.set(extension.manifestBaseline)
         }
         val check = project.tasks.register(CHECK_TASK, CheckManifestCompatibility::class.java) { task ->
             task.group = LifecycleBasePlugin.VERIFICATION_GROUP
-            task.description = "Fails on a change of the merged Manifest that breaks its baseline within the major version."
+            task.description = "Fails when the merged Manifest breaks its baseline, or the baseline does not record it."
             task.baseline.set(extension.manifestBaseline)
             task.manifest.set(merge.flatMap { it.outputFile })
             task.tools.from(tools)
             // Recording the baseline and checking against it in one build checks the new baseline.
             task.mustRunAfter(update)
             task.report.set(project.layout.buildDirectory.file("wow/manifest-compatibility.txt"))
+            task.owner.set("project '${project.path}'")
         }
         project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { it.dependsOn(check) }
-    }
-
-    /**
-     * [MANIFEST_ELEMENTS]: the outgoing variant of the service's merged `manifest.json`, for tools that read a
-     * service's Manifest. Its attributes are those of a documentation variant (like the sources and Javadoc ones Gradle
-     * defines) of the docs type [MANIFEST_DOCS_TYPE], so no other variant matches a request for it. It is added to the
-     * `java` component as an optional variant: a publication carries the Manifest as the artifact of classifier
-     * [MANIFEST_CLASSIFIER] (`<name>-<version>-wow-manifest.json`), and Gradle Module Metadata lets a consumer select
-     * it by the same attributes.
-     */
-    private fun manifestElements(project: Project, merge: TaskProvider<MergeManifest>) {
-        val elements = project.configurations.create(MANIFEST_ELEMENTS) { configuration ->
-            configuration.description = "The service's merged Wow Manifest, for the services that take it as a peer."
-            configuration.isCanBeConsumed = true
-            configuration.isCanBeResolved = false
-            configuration.isVisible = false
-            documentationAttributes(project, configuration, MANIFEST_DOCS_TYPE)
-        }
-        project.artifacts.add(elements.name, merge.flatMap { it.outputFile }) { artifact ->
-            artifact.builtBy(merge)
-            artifact.type = MANIFEST_EXTENSION
-            artifact.extension = MANIFEST_EXTENSION
-            artifact.classifier = MANIFEST_CLASSIFIER
-        }
-        project.pluginManager.withPlugin("java") {
-            val component = project.components.getByName("java") as AdhocComponentWithVariants
-            component.addVariantsFromConfiguration(elements) { it.mapToOptional() }
-        }
     }
 
     /**
@@ -649,7 +619,6 @@ internal object WowRoles {
     private const val CORE_VARIANT = "wowCore"
     private const val CORE_CLASSIFIER = "wow-core"
     private const val CORE_UNPUBLISHED = "wowCoreUnpublished"
-    private const val MANIFEST_EXTENSION = "json"
     private const val FRAGMENT_DIRECTORY = "wow/manifest-fragment"
     private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
     private const val KOTLIN_WRAPPER = "org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapperKt"

@@ -684,27 +684,11 @@ class ManifestCompatibilityTest {
     }
 
     @Test
-    fun `a breaking change should fail only within the baseline's major version`() {
+    fun `a breaking change should fail the gate, whatever the version`() {
         val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
         ManifestCompatibility.compare(BASELINE, broken).failed.assert().isTrue()
-        ManifestCompatibility.compare(
-            BASELINE,
-            broken.copyWith(service = ServiceInfo("shop-service", "10.2.0-SNAPSHOT"))
-        )
-            .failed.assert().isTrue()
-        val nextMajor = ManifestCompatibility.compare(
-            BASELINE,
-            broken.copyWith(service = ServiceInfo("shop-service", "11.0.0"))
-        )
-        nextMajor.newMajor.assert().isTrue()
-        nextMajor.failed.assert().isFalse()
-        nextMajor.render().assert().contains("(a new major version: breaking changes are allowed)")
-        // An unknown version is the same major.
-        ManifestCompatibility.compare(
-            BASELINE,
-            broken.copyWith(service = ServiceInfo("shop-service"))
-        ).failed.assert().isTrue()
-        ManifestCompatibility.compare(BASELINE.copyWith(service = ServiceInfo("shop-service", "next")), broken)
+        // A new major version breaks on purpose by recording a new baseline, never by its number.
+        ManifestCompatibility.compare(BASELINE, broken.copyWith(service = ServiceInfo("shop-service", "11.0.0")))
             .failed.assert().isTrue()
         ManifestCompatibility.compare(BASELINE, BASELINE).failed.assert().isFalse()
     }
@@ -714,41 +698,54 @@ class ManifestCompatibilityTest {
         val current = BASELINE.cart {
             it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
         }
-        val report = ManifestCompatibility.compare(BASELINE.copyWith(service = null), current)
-        report.render().assert().isEqualTo(
-            "Manifest 10.1.0 against the baseline (no version): 1 breaking, 1 additive\n" +
+        ManifestCompatibility.compare(BASELINE, current).render().assert().isEqualTo(
+            "Manifest against its baseline: 1 breaking, 1 additive\n" +
                 "BREAKING $CART.commands[$DELETE]: command removed\n" +
                 "ADDITIVE $CART.commands[$APPLY_TAGS]: command added\n",
         )
-        ManifestCompatibility.compare(BASELINE, current.copyWith(service = null)).render()
-            .assert().startsWith("Manifest (no version) against the baseline 10.1.0")
     }
 
     @Test
-    fun `the gate should report, and fail on a breaking change within the major version`(@TempDir directory: File) {
+    fun `the gate should fail on no baseline, a breaking change and a stale baseline, naming the update`(
+        @TempDir directory: File,
+    ) {
         val baseline = File(directory, "manifest/baseline.json")
         val current = File(directory, "build/manifest.json")
         val report = File(directory, "build/report/compatibility.txt")
+        val owner = "project ':shop-server'"
+        fun gate() = ManifestTools.checkCompatibility(baseline, current, report, owner)
         ManifestJson.write(BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }, current)
 
-        ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
-        report.readText().assert().contains("No Manifest baseline at $baseline: run updateWowManifestBaseline")
+        assertThrows<IllegalStateException> { gate() }.message.assert().isEqualTo(
+            "project ':shop-server' has no Manifest baseline (baseline.json): run updateWowManifestBaseline of " +
+                "project ':shop-server' to record the Manifest this build produces, review it and commit it.",
+        )
 
         ManifestJson.write(BASELINE, baseline)
-        val failure =
-            assertThrows<IllegalStateException> { ManifestTools.checkCompatibility(baseline, current, report) }
-        failure.message.assert().contains(
-            "The Manifest has 1 breaking change(s) against its baseline $baseline:\n" +
+        assertThrows<IllegalStateException> { gate() }.message.assert().contains(
+            "The Manifest of project ':shop-server' has 1 breaking change(s) against its baseline:\n" +
                 "  - $CART.commands[AddItem]: command removed\n",
-            "run updateWowManifestBaseline",
-        )
+            "run updateWowManifestBaseline of project ':shop-server' and commit it",
+        ).doesNotContain(directory.path)
         report.readText().assert().contains("BREAKING $CART.commands[AddItem]: command removed")
 
-        ManifestJson.write(BASELINE.copyWith(service = ServiceInfo("shop-service", "9.0.0")), baseline)
-        ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(1)
+        // An additive change keeps the contract, but the baseline must record it.
+        val additive = BASELINE.cart {
+            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+        }
+        ManifestJson.write(additive, current)
+        assertThrows<IllegalStateException> { gate() }.message.assert().isEqualTo(
+            "The Manifest baseline of project ':shop-server' does not record the Manifest this build produces " +
+                "(1 additive change(s), in compatibility.txt): run updateWowManifestBaseline of project " +
+                "':shop-server', review the diff and commit it.",
+        )
 
-        ManifestJson.write(BASELINE, current)
-        ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
+        // Recorded, the baseline holds no version, and the gate passes whatever version the build has.
+        ManifestJson.write(additive.copyWith(service = ServiceInfo("shop-service", "10.2.0")), current)
+        ManifestTools.recordBaseline(current, baseline)
+        ManifestJson.read(baseline).service.assert().isEqualTo(ServiceInfo("shop-service"))
+        ManifestJson.write(additive.copyWith(service = ServiceInfo("shop-service", "10.3.0")), current)
+        gate().assert().isZero()
     }
 
     private val summary = ServiceRouteManifest(

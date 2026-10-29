@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.copyWith
 import java.io.File
 
 /**
@@ -157,31 +158,53 @@ object ManifestTools {
     }
 
     /**
-     * The Manifest compatibility gate: compares the service's [current] Manifest with its [baseline],
-     * the Manifest of its last published version ([ManifestCompatibility]), and writes the classified changes to
-     * [report]. Fails, listing each breaking change with its path, when one breaks the contract within the baseline's
-     * major version; a new major version resets the baseline. Without a baseline file there is nothing to compare,
-     * and the report says how to record one. Returns the number of breaking changes.
+     * The Manifest gate of the service [owner] (`project ':x'`, as a failure names it): compares the service's
+     * [current] Manifest with its committed [baseline] ([ManifestCompatibility]) and writes the classified changes to
+     * [report]. Fails when there is no baseline, listing each breaking change with its path when one breaks the
+     * contract, and when the baseline is not the Manifest this build produces (its service's version aside): an
+     * additive change is recorded too, so the baseline's diff in review shows what the clients will see. Each failure
+     * names [UPDATE_BASELINE_TASK]. Returns the number of additive changes.
      */
     @JvmStatic
-    fun checkCompatibility(baseline: File, current: File, report: File): Int {
+    fun checkCompatibility(baseline: File, current: File, report: File, owner: String): Int {
         report.parentFile.mkdirs()
-        if (!baseline.isFile) {
-            report.writeText("No Manifest baseline at $baseline: run $UPDATE_BASELINE_TASK to record one.\n")
-            return 0
+        val update = "$UPDATE_BASELINE_TASK of $owner"
+        check(baseline.isFile) {
+            "$owner has no Manifest baseline (${baseline.name}): run $update to record the Manifest this build " +
+                "produces, review it and commit it."
         }
-        val result = ManifestCompatibility.compare(ManifestJson.read(baseline), ManifestJson.read(current))
+        val recorded = ManifestJson.read(baseline)
+        val manifest = baselineOf(ManifestJson.read(current))
+        val result = ManifestCompatibility.compare(recorded, manifest)
         report.writeText(result.render())
         check(!result.failed) {
             buildString {
-                append("The Manifest has ${result.breaking.size} breaking change(s) against its baseline $baseline:\n")
+                append("The Manifest of $owner has ${result.breaking.size} breaking change(s) against its baseline:\n")
                 result.breaking.forEach { append("  - ${it.path}: ${it.description}\n") }
                 append("Keep the contract (keep the field optional, keep the old name as an alias, raise the event's ")
-                append("@Revision with an @Upgrade), or, for a new major version, run $UPDATE_BASELINE_TASK.")
+                append("@Revision with an @Upgrade), or, for a new major version, run $update and commit it.")
             }
         }
-        return result.breaking.size
+        check(recorded == manifest) {
+            "The Manifest baseline of $owner does not record the Manifest this build produces " +
+                "(${result.additive.size} additive change(s), in ${report.name}): run $update, review the diff and " +
+                "commit it."
+        }
+        return result.additive.size
     }
+
+    /**
+     * Records the service's [manifest] as its [baseline], what [checkCompatibility] compares with: the Manifest without
+     * its service's version, which changes with every release and is no contract.
+     */
+    @JvmStatic
+    fun recordBaseline(manifest: File, baseline: File) {
+        ManifestJson.write(baselineOf(ManifestJson.read(manifest)), baseline)
+    }
+
+    /** [manifest] as a baseline records it: without its service's version. */
+    private fun baselineOf(manifest: Manifest): Manifest =
+        manifest.copyWith(service = manifest.service?.copyWith(version = null))
 
     /**
      * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf]),

@@ -16,8 +16,10 @@ package me.ahoo.wow.gradle
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
@@ -29,18 +31,18 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * The Manifest compatibility gate: compares the service's merged Manifest with its [baseline], the
- * Manifest of its last published version, and fails when a change breaks the contract within the baseline's major
- * version, listing each breaking change with its path (`contexts[shop].aggregates[cart].commands[AddItem]`). Every
- * change, additive or breaking, goes to [report]. A new major version resets the baseline: its breaking changes are
- * reported, not failed, and `updateWowManifestBaseline` records the new one. Without a baseline file there is nothing
- * to compare yet, and the report says so. It runs in an isolated worker with the tools, like [MergeManifest].
+ * The Manifest gate, part of `check`: compares the service's merged Manifest with its committed [baseline] and fails,
+ * naming `updateWowManifestBaseline`, when there is no baseline, when a change breaks the contract (listing each
+ * breaking change with its path, `contexts[shop].aggregates[cart].commands[AddItem]`), and when the baseline is not the
+ * Manifest this build produces, its version aside: the baseline records every change, so its diff in review shows
+ * what the clients will see. Every change, additive or breaking, goes to [report]. It runs in an isolated worker with
+ * the tools, like [MergeManifest].
  */
 @CacheableTask
 internal abstract class CheckManifestCompatibility @Inject constructor(
     private val workers: WorkerExecutor
 ) : DefaultTask() {
-    /** The committed baseline, [WowExtension.manifestBaseline]; it may not exist yet. */
+    /** The committed baseline, [WowServiceExtension.manifestBaseline]; a missing one fails the gate. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val baseline: RegularFileProperty
@@ -53,6 +55,10 @@ internal abstract class CheckManifestCompatibility @Inject constructor(
     /** The tools that compare the Manifests: the `wowTools` configuration. */
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
+
+    /** The service module, as a failure names it: `project ':shop-server'`. */
+    @get:Input
+    abstract val owner: Property<String>
 
     /** The classified changes, the breaking ones first. */
     @get:OutputFile
@@ -68,6 +74,7 @@ internal abstract class CheckManifestCompatibility @Inject constructor(
             parameters.baseline.set(baseline)
             parameters.manifest.set(manifest)
             parameters.report.set(report)
+            parameters.owner.set(owner)
         }
     }
 }

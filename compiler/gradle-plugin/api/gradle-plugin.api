@@ -29,9 +29,6 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
 	public static final field INTEGRATION_TEST Ljava/lang/String;
-	public static final field MANIFEST_CLASSIFIER Ljava/lang/String;
-	public static final field MANIFEST_DOCS_TYPE Ljava/lang/String;
-	public static final field MANIFEST_ELEMENTS Ljava/lang/String;
 	public static final field MERGE_TASK Ljava/lang/String;
 	public static final field OPENAPI_TASK Ljava/lang/String;
 	public static final field SERVICE_ID Ljava/lang/String;

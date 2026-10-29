@@ -14,32 +14,50 @@
 package me.ahoo.wow.gradle
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.workers.WorkQueue
+import org.gradle.workers.WorkerExecutor
+import javax.inject.Inject
 
 /**
- * Records the service's merged Manifest as its [baseline], the one [CheckManifestCompatibility]
- * compares with: run it when a version is published, and when a new major version resets the contract. Commit the
- * file it writes.
+ * Records the service's merged Manifest as its [baseline], the one [CheckManifestCompatibility] compares with, without
+ * its service's version, which changes with every release and is no contract. Run it after an intended change to the
+ * contract, and commit the file it writes. It runs in an isolated worker with the tools, like [MergeManifest].
  */
-@DisableCachingByDefault(because = "Copies one file into the project's sources")
-internal abstract class UpdateManifestBaseline : DefaultTask() {
+@DisableCachingByDefault(because = "Writes one file into the project's sources")
+internal abstract class UpdateManifestBaseline @Inject constructor(
+    private val workers: WorkerExecutor
+) : DefaultTask() {
     /** The service's merged Manifest, what [MergeManifest] writes. */
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val manifest: RegularFileProperty
 
-    /** The committed baseline, [WowExtension.manifestBaseline]. */
+    /** The tools that write the baseline: the `wowTools` configuration. */
+    @get:Classpath
+    abstract val tools: ConfigurableFileCollection
+
+    /** The committed baseline, [WowServiceExtension.manifestBaseline]. */
     @get:OutputFile
     abstract val baseline: RegularFileProperty
 
     @TaskAction
     fun update() {
-        manifest.get().asFile.copyTo(baseline.get().asFile, overwrite = true)
+        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
+    }
+
+    internal fun submit(queue: WorkQueue) {
+        queue.submit(ManifestToolsWork.RecordBaseline::class.java) { parameters ->
+            parameters.manifest.set(manifest)
+            parameters.baseline.set(baseline)
+        }
     }
 }

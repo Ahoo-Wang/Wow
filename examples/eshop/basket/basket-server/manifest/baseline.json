@@ -1,8 +1,7 @@
 {
   "format" : 1,
   "service" : {
-    "name" : "eshop-basket-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "eshop-basket-service"
   },
   "contexts" : [ {
     "name" : "eshop-basket",

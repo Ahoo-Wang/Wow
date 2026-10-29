@@ -46,42 +46,23 @@ data class ManifestChange(val kind: ChangeKind, val path: String, val descriptio
 }
 
 /**
- * The comparison of a service's Manifest with its baseline, the Manifest of its last published version.
- * A breaking change fails the gate within a major version; a new major version ([newMajor]) resets the
- * baseline, so its breaking changes are reported but do not fail it.
+ * The comparison of a service's Manifest with its baseline, the committed Manifest of its contract. A breaking change
+ * fails the gate ([failed]); a change that breaks on purpose, for a new major version, is recorded as the new baseline
+ * instead.
  */
-data class CompatibilityReport(
-    val baselineVersion: String?,
-    val currentVersion: String?,
-    val changes: List<ManifestChange>,
-) {
+data class CompatibilityReport(val changes: List<ManifestChange>) {
     val breaking: List<ManifestChange> get() = changes.filter { it.kind == ChangeKind.BREAKING }
 
     val additive: List<ManifestChange> get() = changes.filter { it.kind == ChangeKind.ADDITIVE }
 
-    /** Whether the current version is of a later major than the baseline's; unknown versions are the same major. */
-    val newMajor: Boolean
-        get() {
-            val baseline = major(baselineVersion) ?: return false
-            val current = major(currentVersion) ?: return false
-            return current > baseline
-        }
-
-    /** Whether the gate fails: a breaking change within the baseline's major version. */
-    val failed: Boolean get() = breaking.isNotEmpty() && !newMajor
+    /** Whether the gate fails: a breaking change. */
+    val failed: Boolean get() = breaking.isNotEmpty()
 
     /** The report as text: a summary line, then each change on its own line, the breaking ones first. */
     fun render(): String = buildString {
-        append(
-            "Manifest ${currentVersion ?: "(no version)"} against the baseline ${baselineVersion ?: "(no version)"}: "
-        )
-        append("${breaking.size} breaking, ${additive.size} additive")
-        if (newMajor && breaking.isNotEmpty()) append(" (a new major version: breaking changes are allowed)")
-        append('\n')
+        append("Manifest against its baseline: ${breaking.size} breaking, ${additive.size} additive\n")
         (breaking + additive).forEach { append(it).append('\n') }
     }
-
-    private fun major(version: String?): Int? = version?.substringBefore('.')?.toIntOrNull()
 }
 
 /**
@@ -127,7 +108,7 @@ object ManifestCompatibility {
     fun compare(baseline: Manifest, current: Manifest): CompatibilityReport {
         val changes = Changes(SchemaCompatibility(baseline.defs, current.defs))
         changes.compareManifest(baseline, current)
-        return CompatibilityReport(baseline.service?.version, current.service?.version, changes.list)
+        return CompatibilityReport(changes.list)
     }
 }
 

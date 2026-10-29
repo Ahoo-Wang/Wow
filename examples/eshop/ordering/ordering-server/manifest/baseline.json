@@ -1,8 +1,7 @@
 {
   "format" : 1,
   "service" : {
-    "name" : "eshop-ordering-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "eshop-ordering-service"
   },
   "contexts" : [ {
     "name" : "eshop-ordering",

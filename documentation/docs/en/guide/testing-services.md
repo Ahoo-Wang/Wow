@@ -12,7 +12,7 @@ Domain tests check the decisions and the processors ([Test Domain Code](./testin
 | --- | --- | --- |
 | In process | The service in the test's JVM, on the memory backend, topics in memory | The assembly, the routes, the sagas, the waits, the timers |
 | On real stores | The same, on PostgreSQL and ClickHouse in containers | The schema, the queries, the sinks |
-| The contract | The build's merged Manifest against the committed baseline | No change breaks a client within its major version |
+| The contract | The build's merged Manifest against the committed baseline | No change breaks a client, and the baseline records every change |
 
 ## Run the service in the test
 
@@ -104,7 +104,7 @@ private val server = wowServer<OrderingServer>(
 
 ## Check the contract
 
-The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkWowManifest`, part of `check`. A change that breaks a client within the baseline's major version fails the build, listing each breaking change and its path. After an intended change, `updateWowManifestBaseline` records the new baseline; commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
+The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkWowManifest`, part of `check`. A change that breaks a client fails the build, listing each breaking change and its path, and so does a change the baseline does not record yet, or a missing baseline. After an intended change, `updateWowManifestBaseline` records the new baseline, without the service's version; commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
 
 ## Test across services
 

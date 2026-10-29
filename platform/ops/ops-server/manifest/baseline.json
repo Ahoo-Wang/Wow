@@ -1,8 +1,7 @@
 {
   "format" : 1,
   "service" : {
-    "name" : "ops-service",
-    "version" : "10.0.0-alpha.6"
+    "name" : "ops-service"
   },
   "contexts" : [ {
     "name" : "ops",

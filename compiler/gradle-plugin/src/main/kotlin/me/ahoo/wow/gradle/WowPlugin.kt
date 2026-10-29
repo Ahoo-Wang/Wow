@@ -83,7 +83,6 @@ class WowPlugin : Plugin<Project> {
 
         /** The resolvable configuration of the contracts of [CONTRACT_CONFIGURATION]'s domain modules. */
         const val CONTRACTS_CONFIGURATION = "wowContracts"
-        const val MANIFEST_ELEMENTS = "wowManifestElements"
         const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
         const val CONTRACT_SOURCE_SET = "wowContract"
         const val CORE_JAR_TASK = "wowCoreJar"
@@ -101,10 +100,6 @@ class WowPlugin : Plugin<Project> {
 
         /** Where the Manifest baseline lives in the project by default. */
         const val BASELINE_FILE = "manifest/baseline.json"
-
-        /** The docs type of the merged Manifest's variant, and the classifier of its published artifact. */
-        const val MANIFEST_DOCS_TYPE = "wow-manifest"
-        const val MANIFEST_CLASSIFIER = "wow-manifest"
 
         /** The docs type of the peer contract's variant. */
         const val CONTRACT_DOCS_TYPE = "wow-contract"
@@ -204,13 +199,14 @@ class WowApiPlugin : Plugin<Project> {
  * - [WowPlugin.MERGE_TASK] ([MergeManifest]) merges every fragment on the runtime class path into
  *   `build/wow/manifest.json`, failing on two fragments of one name; the service is the one the contracts of its
  *   contexts name, its own `wow { service }` included, which must agree, else it is named after the project path; its
- *   version is the project's; the outgoing variant [WowPlugin.MANIFEST_ELEMENTS] offers that file;
+ *   version is the project's;
  * - [WowPlugin.OPENAPI_TASK] ([GenerateOpenApi]) writes the OpenAPI document of that Manifest's routes into
  *   `build/wow/openapi.json`;
  * - [WowPlugin.CHECK_TASK] ([CheckManifestCompatibility]), part of `check`, compares the merged Manifest with the
- *   committed baseline (`manifest/baseline.json`, [WowServiceExtension.manifestBaseline]) and fails on a breaking
- *   change within the major version; [WowPlugin.UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]) records the merged
- *   Manifest as the baseline.
+ *   committed baseline (`manifest/baseline.json`, [WowServiceExtension.manifestBaseline]) and fails, naming
+ *   [WowPlugin.UPDATE_BASELINE_TASK], when there is none, on a breaking change, and when the baseline does not record
+ *   this build's Manifest; [WowPlugin.UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]) records the merged Manifest,
+ *   without its version, as the baseline. The service publishes no Manifest: its contract is the committed baseline.
  *
  * A single-module project, the quickstart's, applies this plugin alone: the module is its domain and its service. It
  * has no api role: a service whose peers compile against its contract splits its commands and events into an api
