@@ -489,6 +489,13 @@ internal object WowRoles {
             task.manifest.set(merge.flatMap { it.outputFile })
             task.tools.from(tools)
             task.baseline.set(extension.manifestBaseline)
+            task.allowBreaking.set(
+                project.providers.gradleProperty(
+                    WowPlugin.ALLOW_BREAKING_PROPERTY
+                ).map(String::toBoolean).orElse(false),
+            )
+            task.owner.set("project '${project.path}'")
+            task.report.set(project.layout.buildDirectory.file("wow/manifest-baseline.txt"))
         }
         val check = project.tasks.register(CHECK_TASK, CheckManifestCompatibility::class.java) { task ->
             task.group = LifecycleBasePlugin.VERIFICATION_GROUP

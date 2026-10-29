@@ -104,7 +104,7 @@ private val server = wowServer<OrderingServer>(
 
 ## Check the contract
 
-The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkWowManifest`, part of `check`. A change that breaks a client fails the build, listing each breaking change and its path, and so does a change the baseline does not record yet, or a missing baseline. After an intended change, `updateWowManifestBaseline` records the new baseline, without the service's version; commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
+The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its modules and compares it with the committed baseline, `manifest/baseline.json`, in `checkWowManifest`, part of `check`. A change that breaks a client within the baseline's compatibility line, the service's major version, fails the build, listing each breaking change and its path, and so does a change the baseline does not record yet, or a missing baseline. After an intended change, `updateWowManifestBaseline` records the new baseline, with the line instead of the version; it refuses a break within the line. Commit it with the change, so its review shows what the clients will see. [The Manifest](../concepts/contract#compatibility) explains what counts as breaking.
 
 ## Test across services
 

@@ -98,6 +98,12 @@ class WowPlugin : Plugin<Project> {
         /** The [API_VIEW] value of the core view of an api module for the domain module [domain] (its path). */
         fun coreView(domain: String): String = "core$domain"
 
+        /**
+         * The Gradle property that lets [UPDATE_BASELINE_TASK] record a breaking change within the baseline's
+         * compatibility line: `-Pwow.manifest.allowBreaking`, for pre-releases.
+         */
+        const val ALLOW_BREAKING_PROPERTY = "wow.manifest.allowBreaking"
+
         /** Where the Manifest baseline lives in the project by default. */
         const val BASELINE_FILE = "manifest/baseline.json"
 
@@ -204,9 +210,12 @@ class WowApiPlugin : Plugin<Project> {
  *   `build/wow/openapi.json`;
  * - [WowPlugin.CHECK_TASK] ([CheckManifestCompatibility]), part of `check`, compares the merged Manifest with the
  *   committed baseline (`manifest/baseline.json`, [WowServiceExtension.manifestBaseline]) and fails, naming
- *   [WowPlugin.UPDATE_BASELINE_TASK], when there is none, on a breaking change, and when the baseline does not record
- *   this build's Manifest; [WowPlugin.UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]) records the merged Manifest,
- *   without its version, as the baseline. The service publishes no Manifest: its contract is the committed baseline.
+ *   [WowPlugin.UPDATE_BASELINE_TASK], when there is none, on a breaking change within the baseline's compatibility
+ *   line (the service's major; a later major, or a pre-release of a major's first version, may break it), and when the
+ *   baseline does not record this build's Manifest; [WowPlugin.UPDATE_BASELINE_TASK] ([UpdateManifestBaseline])
+ *   records the merged Manifest, without its version, on the line of its major, refusing a break within the line
+ *   unless [WowPlugin.ALLOW_BREAKING_PROPERTY] is set. The service publishes no Manifest: its contract is the committed
+ *   baseline.
  *
  * A single-module project, the quickstart's, applies this plugin alone: the module is its domain and its service. It
  * has no api role: a service whose peers compile against its contract splits its commands and events into an api

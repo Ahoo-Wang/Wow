@@ -10,10 +10,11 @@
  *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`).
  * - `checkWowManifest`, part of `check`, compares it with the committed baseline `manifest/baseline.json`
  *   (`ManifestTools.checkCompatibility`), as the plugin's does: a missing baseline, a change that breaks the contract
- *   and a baseline that does not record this build's Manifest (an additive change, a dropped `derives`) fail it, naming
+ *   within the baseline's compatibility line, and a baseline that does not record this build's Manifest (an additive change, a dropped `derives`) fail it, naming
  *   `updateWowManifestBaseline`; `build/wow/manifest-compatibility.txt` lists every change.
- * - `updateWowManifestBaseline` records the merged Manifest, without its version, as the baseline
- *   (`ManifestTools.recordBaseline`); commit it.
+ * - `updateWowManifestBaseline` records the merged Manifest, without its version, on the compatibility line of its
+ *   major, as the baseline (`ManifestTools.recordBaseline`), refusing a break within the line unless
+ *   `-Pwow.manifest.allowBreaking`; commit it.
  *
  * As the plugin's workers do, the tools run in a class loader of their own over `:manifest-tools` and its runtime class
  * path, with the JDK's platform class loader as parent, so none of them reaches the build script's class path.
@@ -96,9 +97,23 @@ val updateWowManifestBaseline = tasks.register("updateWowManifestBaseline") {
     inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
     outputs.file(baseline)
     val tools = wowTools
+    // As the plugin's: a break within the baseline's line is recorded only with -Pwow.manifest.allowBreaking.
+    val allowBreaking = providers.gradleProperty("wow.manifest.allowBreaking").map(String::toBoolean).orElse(false)
+    val report = layout.buildDirectory.file("wow/manifest-baseline.txt")
+    val owner = "project '${project.path}'"
     inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
+    inputs.property("allowBreaking", allowBreaking)
+    outputs.file(report)
     doLast {
-        manifestTools(tools.files, "recordBaseline", manifest.get().asFile, baseline.asFile)
+        manifestTools(
+            tools.files,
+            "recordBaseline",
+            manifest.get().asFile,
+            baseline.asFile,
+            allowBreaking.get(),
+            report.get().asFile,
+            owner,
+        )
     }
 }
 

@@ -21,7 +21,6 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
-import me.ahoo.wow.manifest.copyWith
 import java.io.File
 
 /**
@@ -159,11 +158,12 @@ object ManifestTools {
 
     /**
      * The Manifest gate of the service [owner] (`project ':x'`, as a failure names it): compares the service's
-     * [current] Manifest with its committed [baseline] ([ManifestCompatibility]) and writes the classified changes to
-     * [report]. Fails when there is no baseline, listing each breaking change with its path when one breaks the
-     * contract, and when the baseline is not the Manifest this build produces (its service's version aside): an
-     * additive change is recorded too, so the baseline's diff in review shows what the clients will see. Each failure
-     * names [UPDATE_BASELINE_TASK]. Returns the number of additive changes.
+     * [current] Manifest with its committed [baseline] ([ManifestCompatibility], [Baseline]) and writes the classified
+     * changes to [report]. Fails when there is no baseline; when a change breaks the contract within the baseline's
+     * compatibility line (the service's major version is the line's, and no pre-release keeps it open,
+     * [Baseline.allowsBreaking]), listing each; and when the baseline is not the Manifest this build produces, its
+     * version aside, or not of the service's major: every change is recorded, so the baseline's diff in review shows
+     * what the clients will see. Each failure names [UPDATE_BASELINE_TASK]. Returns the number of additive changes.
      */
     @JvmStatic
     fun checkCompatibility(baseline: File, current: File, report: File, owner: String): Int {
@@ -173,38 +173,70 @@ object ManifestTools {
             "$owner has no Manifest baseline (${baseline.name}): run $update to record the Manifest this build " +
                 "produces, review it and commit it."
         }
-        val recorded = ManifestJson.read(baseline)
-        val manifest = baselineOf(ManifestJson.read(current))
-        val result = ManifestCompatibility.compare(recorded, manifest)
-        report.writeText(result.render())
-        check(!result.failed) {
-            buildString {
-                append("The Manifest of $owner has ${result.breaking.size} breaking change(s) against its baseline:\n")
-                result.breaking.forEach { append("  - ${it.path}: ${it.description}\n") }
-                append("Keep the contract (keep the field optional, keep the old name as an alias, raise the event's ")
-                append("@Revision with an @Upgrade), or, for a new major version, run $update and commit it.")
-            }
+        val recorded = Baseline.read(baseline)
+        val manifest = ManifestJson.read(current)
+        val version = manifest.service?.version
+        val built = Baseline.of(manifest, Baseline.majorOf(version) ?: recorded.line)
+        val result = ManifestCompatibility.compare(recorded.manifest, built.manifest)
+        val allowed = Baseline.allowsBreaking(recorded.line, version)
+        report.writeText(result.render() + lineOf(recorded.line, version, allowed))
+        check(!result.failed || allowed) {
+            breaks("The Manifest of $owner has", result.breaking, recorded.line, version) +
+                "Keep the contract (keep the field optional, keep the old name as an alias, raise the event's " +
+                "@Revision with an @Upgrade); a break needs the service's next major version, then run $update."
         }
-        check(recorded == manifest) {
+        check(recorded == built) {
             "The Manifest baseline of $owner does not record the Manifest this build produces " +
-                "(${result.additive.size} additive change(s), in ${report.name}): run $update, review the diff and " +
-                "commit it."
+                "(${result.additive.size} additive change(s), ${result.breaking.size} breaking one(s) a new major or an " +
+                "open pre-release allows; recorded on the line ${recorded.line ?: "(none)"}, built on " +
+                "${built.line ?: "(none)"}; see ${report.name}): run $update, review the diff and commit it."
         }
         return result.additive.size
     }
 
     /**
      * Records the service's [manifest] as its [baseline], what [checkCompatibility] compares with: the Manifest without
-     * its service's version, which changes with every release and is no contract.
+     * its service's version, on the compatibility line of its major. Refuses to record a breaking change against the
+     * existing baseline within its line ([Baseline.allowsBreaking]) unless [allowBreaking]
+     * (`-Pwow.manifest.allowBreaking`), which [report] then records with the changes.
      */
     @JvmStatic
-    fun recordBaseline(manifest: File, baseline: File) {
-        ManifestJson.write(baselineOf(ManifestJson.read(manifest)), baseline)
+    fun recordBaseline(manifest: File, baseline: File, allowBreaking: Boolean, report: File, owner: String) {
+        report.parentFile.mkdirs()
+        val current = ManifestJson.read(manifest)
+        val version = current.service?.version
+        val existing = baseline.takeIf { it.isFile }?.let(Baseline::read)
+        val recorded = Baseline.of(current, Baseline.majorOf(version) ?: existing?.line)
+        val result = existing?.let { ManifestCompatibility.compare(it.manifest, recorded.manifest) }
+        val within = result?.breaking.orEmpty().takeUnless { Baseline.allowsBreaking(existing?.line, version) }
+        check(within.isNullOrEmpty() || allowBreaking) {
+            breaks("$owner refuses to record", within.orEmpty(), existing?.line, version) +
+                "Keep the contract, raise the service's major version, or, for a pre-release, record it with " +
+                "-P$ALLOW_BREAKING."
+        }
+        recorded.write(baseline)
+        report.writeText(
+            "Recorded on the compatibility line ${recorded.line ?: "(none)"} (version ${version ?: "(none)"})\n" +
+                result?.render().orEmpty() +
+                within.orEmpty().takeIf { it.isNotEmpty() }
+                    ?.let { "With -P$ALLOW_BREAKING: recorded ${it.size} breaking change(s) within the line\n" }
+                    .orEmpty(),
+        )
     }
 
-    /** [manifest] as a baseline records it: without its service's version. */
-    private fun baselineOf(manifest: Manifest): Manifest =
-        manifest.copyWith(service = manifest.service?.copyWith(version = null))
+    /** The failure's lines of the [breaking] changes within the compatibility [line] of a service at [version]. */
+    private fun breaks(lead: String, breaking: List<ManifestChange>, line: Int?, version: String?): String =
+        "$lead ${breaking.size} breaking change(s) within its compatibility line ${line ?: "(none)"} " +
+            "(version ${version ?: "(none)"}):\n" + breaking.joinToString("") { "  - ${it.path}: ${it.description}\n" }
+
+    /** The report's line of the compatibility [line] of a service at [version], and whether it [allowed] a break. */
+    private fun lineOf(line: Int?, version: String?, allowed: Boolean): String =
+        "Compatibility line ${line ?: "(none)"}, version ${version ?: "(none)"}: " +
+            (if (allowed) "breaking changes allowed (a later major, or an open pre-release)" else "breaking changes fail") +
+            "\n"
+
+    /** The Gradle property that lets [recordBaseline] record a break within its line: for pre-releases. */
+    const val ALLOW_BREAKING = "wow.manifest.allowBreaking"
 
     /**
      * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf]),

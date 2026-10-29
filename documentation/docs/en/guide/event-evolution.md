@@ -91,7 +91,7 @@ Snapshots hold the state as it was serialized. When the stored snapshots no long
 
 ## Peers see it too
 
-The api module's events and the aggregate's state are part of the context's contract: peers read them from the published stream. The Manifest's compatibility check compares each build with the committed baseline and fails a change that breaks a reader, such as a removed or retyped field, whatever the revisions say. [The Manifest](../concepts/contract#compatibility) explains the check.
+The api module's events and the aggregate's state are part of the context's contract: peers read them from the published stream. The Manifest's compatibility check compares each build with the committed baseline and fails a change that breaks a reader, such as a removed or retyped field, whatever the revisions say, until the service's next major version. [The Manifest](../concepts/contract#compatibility) explains the check.
 
 ## Test it
 

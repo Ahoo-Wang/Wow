@@ -706,46 +706,91 @@ class ManifestCompatibilityTest {
     }
 
     @Test
-    fun `the gate should fail on no baseline, a breaking change and a stale baseline, naming the update`(
+    fun `a break should need a later major, or a pre-release of a major's first version`() {
+        Baseline.allowsBreaking(10, "10.1.0").assert().isFalse()
+        Baseline.allowsBreaking(10, "10.0.1").assert().isFalse()
+        Baseline.allowsBreaking(10, "10.1.0-rc.1").assert().isFalse()
+        Baseline.allowsBreaking(10, "11.0.0").assert().isTrue()
+        // Before a major's first release nothing is promised (decision D306): Wow's own 10.0.0 pre-releases.
+        Baseline.allowsBreaking(10, "10.0.0-alpha.6").assert().isTrue()
+        Baseline.allowsBreaking(null, "10.0.0-beta.1").assert().isTrue()
+        // No version, or none to compare with: no break.
+        Baseline.allowsBreaking(10, null).assert().isFalse()
+        Baseline.allowsBreaking(null, "11.0.0").assert().isFalse()
+        Baseline.allowsBreaking(10, "unspecified").assert().isFalse()
+    }
+
+    @Test
+    fun `the gate should fail on no baseline, a break within the line and a stale baseline, naming the update`(
         @TempDir directory: File,
     ) {
         val baseline = File(directory, "manifest/baseline.json")
         val current = File(directory, "build/manifest.json")
         val report = File(directory, "build/report/compatibility.txt")
+        val recordReport = File(directory, "build/report/baseline.txt")
         val owner = "project ':shop-server'"
         fun gate() = ManifestTools.checkCompatibility(baseline, current, report, owner)
-        ManifestJson.write(BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }, current)
+        fun record(allowBreaking: Boolean = false) =
+            ManifestTools.recordBaseline(current, baseline, allowBreaking, recordReport, owner)
+        fun build(manifest: Manifest, version: String) =
+            ManifestJson.write(manifest.copyWith(service = ServiceInfo("shop-service", version)), current)
+        val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
+        val additive = BASELINE.cart {
+            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+        }
 
+        build(BASELINE, "10.1.0")
         assertThrows<IllegalStateException> { gate() }.message.assert().isEqualTo(
             "project ':shop-server' has no Manifest baseline (baseline.json): run updateWowManifestBaseline of " +
                 "project ':shop-server' to record the Manifest this build produces, review it and commit it.",
         )
+        record()
+        Baseline.read(baseline).line.assert().isEqualTo(10)
+        Baseline.read(baseline).manifest.service.assert().isEqualTo(ServiceInfo("shop-service"))
+        gate().assert().isZero()
 
-        ManifestJson.write(BASELINE, baseline)
+        // A break within the line fails the gate, and the baseline refuses to record it.
+        build(broken, "10.2.0")
         assertThrows<IllegalStateException> { gate() }.message.assert().contains(
-            "The Manifest of project ':shop-server' has 1 breaking change(s) against its baseline:\n" +
-                "  - $CART.commands[AddItem]: command removed\n",
-            "run updateWowManifestBaseline of project ':shop-server' and commit it",
+            "The Manifest of project ':shop-server' has 1 breaking change(s) within its compatibility line 10 " +
+                "(version 10.2.0):\n  - $CART.commands[AddItem]: command removed\n",
+            "a break needs the service's next major version, then run updateWowManifestBaseline of project ':shop-server'",
         ).doesNotContain(directory.path)
-        report.readText().assert().contains("BREAKING $CART.commands[AddItem]: command removed")
-
-        // An additive change keeps the contract, but the baseline must record it.
-        val additive = BASELINE.cart {
-            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
-        }
-        ManifestJson.write(additive, current)
-        assertThrows<IllegalStateException> { gate() }.message.assert().isEqualTo(
-            "The Manifest baseline of project ':shop-server' does not record the Manifest this build produces " +
-                "(1 additive change(s), in compatibility.txt): run updateWowManifestBaseline of project " +
-                "':shop-server', review the diff and commit it.",
+        assertThrows<IllegalStateException> { record() }.message.assert().contains(
+            "project ':shop-server' refuses to record 1 breaking change(s) within its compatibility line 10",
+            "for a pre-release, record it with -Pwow.manifest.allowBreaking",
         )
 
-        // Recorded, the baseline holds no version, and the gate passes whatever version the build has.
-        ManifestJson.write(additive.copyWith(service = ServiceInfo("shop-service", "10.2.0")), current)
-        ManifestTools.recordBaseline(current, baseline)
-        ManifestJson.read(baseline).service.assert().isEqualTo(ServiceInfo("shop-service"))
-        ManifestJson.write(additive.copyWith(service = ServiceInfo("shop-service", "10.3.0")), current)
+        // An additive change keeps the contract, but the baseline must record it.
+        build(additive, "10.2.0")
+        assertThrows<IllegalStateException> { gate() }.message.assert().contains(
+            "The Manifest baseline of project ':shop-server' does not record the Manifest this build produces " +
+                "(1 additive change(s), 0 breaking one(s) a new major or an open pre-release allows; recorded on " +
+                "the line 10, built on 10;",
+            "run updateWowManifestBaseline of project ':shop-server', review the diff and commit it.",
+        )
+        record()
         gate().assert().isZero()
+
+        // The next major may break: the gate allows it, and the baseline records it on the new line.
+        build(broken, "11.0.0")
+        assertThrows<IllegalStateException> { gate() }.message.assert().contains("does not record the Manifest")
+        report.readText().assert().contains("breaking changes allowed")
+        record()
+        Baseline.read(baseline).line.assert().isEqualTo(11)
+        gate().assert().isZero()
+
+        // A pre-release of a major's first version keeps the line open: a break passes and records.
+        build(BASELINE, "11.0.0-beta.1")
+        record()
+        gate().assert().isZero()
+
+        // Within a closed line, -Pwow.manifest.allowBreaking records a break, and the report says so.
+        build(broken, "11.1.0")
+        record(allowBreaking = true)
+        recordReport.readText().assert().contains(
+            "With -Pwow.manifest.allowBreaking: recorded 1 breaking change(s) within the line",
+        )
     }
 
     private val summary = ServiceRouteManifest(

@@ -16,7 +16,9 @@ package me.ahoo.wow.gradle
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -28,9 +30,12 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * Records the service's merged Manifest as its [baseline], the one [CheckManifestCompatibility] compares with, without
- * its service's version, which changes with every release and is no contract. Run it after an intended change to the
- * contract, and commit the file it writes. It runs in an isolated worker with the tools, like [MergeManifest].
+ * Records the service's merged Manifest as its [baseline], the one [CheckManifestCompatibility] compares with: without
+ * its service's version, which changes with every release, on the compatibility line of the service's major. Run it
+ * after an intended change to the contract, and commit the file it writes. It refuses to record a breaking change
+ * within the existing baseline's line (the service's next major version may break it, as may a pre-release of a
+ * major's first version) unless [allowBreaking] (`-Pwow.manifest.allowBreaking`), which its [report] then records. It
+ * runs in an isolated worker with the tools, like [MergeManifest].
  */
 @DisableCachingByDefault(because = "Writes one file into the project's sources")
 internal abstract class UpdateManifestBaseline @Inject constructor(
@@ -49,6 +54,18 @@ internal abstract class UpdateManifestBaseline @Inject constructor(
     @get:OutputFile
     abstract val baseline: RegularFileProperty
 
+    /** Whether a breaking change within the line may be recorded: `-Pwow.manifest.allowBreaking`, for pre-releases. */
+    @get:Input
+    abstract val allowBreaking: Property<Boolean>
+
+    /** The service module, as a failure names it: `project ':shop-server'`. */
+    @get:Input
+    abstract val owner: Property<String>
+
+    /** What was recorded: the line, the changes, and the breaking ones [allowBreaking] let through. */
+    @get:OutputFile
+    abstract val report: RegularFileProperty
+
     @TaskAction
     fun update() {
         submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
@@ -58,6 +75,9 @@ internal abstract class UpdateManifestBaseline @Inject constructor(
         queue.submit(ManifestToolsWork.RecordBaseline::class.java) { parameters ->
             parameters.manifest.set(manifest)
             parameters.baseline.set(baseline)
+            parameters.allowBreaking.set(allowBreaking)
+            parameters.report.set(report)
+            parameters.owner.set(owner)
         }
     }
 }

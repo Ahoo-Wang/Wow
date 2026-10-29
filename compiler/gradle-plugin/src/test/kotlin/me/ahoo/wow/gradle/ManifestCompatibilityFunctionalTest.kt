@@ -22,8 +22,10 @@ import java.io.File
 
 /**
  * The Manifest gate on a single-module service built with the plugin (Gradle TestKit): `check` fails without a
- * baseline; the recorded baseline holds no version, so a new version alone keeps it current; an additive change fails
- * until it is recorded, and a breaking one fails with the change's path, each naming `updateWowManifestBaseline`.
+ * baseline; the recorded baseline holds the compatibility line, not the version, so a new minor alone keeps it current;
+ * an additive change fails until it is recorded, and a breaking one fails with the change's path within the line, each
+ * naming `updateWowManifestBaseline`; the next major records a break, and so does a pre-release of a major's first
+ * version.
  */
 class ManifestCompatibilityFunctionalTest {
     @TempDir
@@ -152,9 +154,25 @@ class ManifestCompatibilityFunctionalTest {
         val breaking = runner("check").buildAndFail()
         breaking.task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.FAILED)
         breaking.output.assert().contains(
-            "The Manifest of project ':' has 1 breaking change(s) against its baseline",
+            "The Manifest of project ':' has 1 breaking change(s) within its compatibility line 1 (version 1.1.0)",
             "  - contexts[shop].aggregates[cart].commands[AddItem].schema.quantity: field removed",
-            "for a new major version, run updateWowManifestBaseline of project ':' and commit it",
+            "a break needs the service's next major version, then run updateWowManifestBaseline of project ':'",
         )
+        // Nor does the baseline record it within the line.
+        runner(WowPlugin.UPDATE_BASELINE_TASK).buildAndFail().output.assert()
+            .contains("project ':' refuses to record 1 breaking change(s) within its compatibility line 1")
+
+        // The next major may break: the baseline records it on the line 2.
+        File(projectDir, "build.gradle.kts").apply { writeText(readText().replace("1.1.0", "2.0.0")) }
+        runner(WowPlugin.UPDATE_BASELINE_TASK, "check").build()
+            .task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        baseline.readText().assert().contains("\"line\" : 2")
+
+        // A pre-release of a major's first version keeps the line open: the event loses a field, and it records.
+        File(projectDir, "build.gradle.kts").apply { writeText(readText().replace("2.0.0", "3.0.0-alpha.1")) }
+        writeCart(addItem = "val productId: String, val note: String? = null", itemAdded = "val productId: String")
+        runner(WowPlugin.UPDATE_BASELINE_TASK, "check").build()
+            .task(":${WowPlugin.CHECK_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        baseline.readText().assert().contains("\"line\" : 3")
     }
 }

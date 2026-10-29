@@ -125,11 +125,14 @@ internal object ManifestToolsWork {
         }
     }
 
-    /** Records the service's Manifest as its baseline, without its version. */
+    /** Records the service's Manifest as its baseline, on its compatibility line, without its version. */
     abstract class RecordBaseline : WorkAction<RecordBaseline.Parameters> {
         interface Parameters : WorkParameters {
             val manifest: RegularFileProperty
             val baseline: RegularFileProperty
+            val allowBreaking: Property<Boolean>
+            val report: RegularFileProperty
+            val owner: Property<String>
         }
 
         override fun execute() {
@@ -137,7 +140,10 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "recordBaseline",
                 parameters.manifest.get().asFile,
-                parameters.baseline.get().asFile
+                parameters.baseline.get().asFile,
+                parameters.allowBreaking.get(),
+                parameters.report.get().asFile,
+                parameters.owner.get(),
             )
         }
     }
