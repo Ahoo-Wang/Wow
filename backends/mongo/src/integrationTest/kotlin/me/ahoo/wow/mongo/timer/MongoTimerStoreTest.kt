@@ -68,7 +68,14 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         store.put(timer).assert().isTrue()
         store.find(timer.owner, "k")?.skipped.assert().isEqualTo(3L)
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(store.collectionName("order"))
-            .updateOne(Filters.eq("owner.id", ref.id), Updates.unset("skipped"))
+            // By the owner's partition too: a single update of a sharded collection names its shard key.
+            .updateOne(
+                Filters.and(
+                    Filters.eq("partition", Partitioner.partitionOf(ref, logPartitions)),
+                    Filters.eq("owner.id", ref.id),
+                ),
+                Updates.unset("skipped"),
+            )
             .matchedCount.assert().isEqualTo(1L)
         store.find(timer.owner, "k")?.skipped.assert().isEqualTo(0L)
     }
