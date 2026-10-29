@@ -53,9 +53,8 @@ dependencies {
     implementation("me.ahoo.wow:wow-postgres")
     // The `cosec` profile (roadmap P.15): CoSec verifies each request's token, and the edge reads the caller from it.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174).
     implementation("me.ahoo.wow:wow-observability")
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).

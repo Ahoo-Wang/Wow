@@ -47,9 +47,8 @@ dependencies {
     // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads
     // the operator from CoSec's security context; CoSec itself is the application's to bring.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
     // deployment attaches one, a no-op otherwise.
     implementation("me.ahoo.wow:wow-observability")

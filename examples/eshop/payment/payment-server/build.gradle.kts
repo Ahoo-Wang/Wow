@@ -42,9 +42,8 @@ dependencies {
     // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
     // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // The ordering's shared cache of its orders (wow-cocache), which the gateway saga reads: on CoCache's memory backend
     // by default, on Redis in the `redis` profile, where the ordering service writes it.
     implementation("me.ahoo.wow:wow-cocache")

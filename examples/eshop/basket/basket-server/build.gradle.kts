@@ -42,9 +42,8 @@ dependencies {
     // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
     // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Tests refer to the ordering's orders by its generated contract.
     testImplementation(project(":eshop-ordering-api"))
     testImplementation("me.ahoo.wow:wow-test-spring-boot")

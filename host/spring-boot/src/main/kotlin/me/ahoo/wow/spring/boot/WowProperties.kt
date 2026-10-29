@@ -1387,9 +1387,10 @@ class WowProperties {
     class CoSec {
         /**
          * How CoSec runs in this service, as defaults its own `cosec.*` keys override
-         * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the
-         * principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating
-         * and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.
+         * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the
+         * caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified
+         * here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests
+         * itself, the Manifest's routes its route map.
          */
         var mode: CoSecMode? = null
 
@@ -1399,7 +1400,7 @@ class WowProperties {
         /** How CoSec runs in a service (`wow.cosec.mode`). */
         @InternalWowApi
         enum class CoSecMode {
-            /** Behind a CoSec gateway, in CoSec's inject mode. */
+            /** Behind a CoSec gateway, reading the identity it forwards. */
             GATEWAY,
 
             /** CoSec off. */
@@ -1412,20 +1413,14 @@ class WowProperties {
         /** The tenant-level callers, who read and write every aggregate of their tenant. */
         var tenantLevel: Principals = Principals()
 
-        /**
-         * Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with
-         * `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their
-         * `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by
-         * default; in any other mode it fails the startup.
-         */
-        var trustInjectedApp: Boolean = false
-
         @InternalWowApi
         class Authorizer {
             /**
-             * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
-             * routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows
-             * every command that passed its route: authorization is then the gateway's (CoSec's inject mode).
+             * Whether CoSec authorizes every command and service route call of a request as its caller
+             * (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes,
+             * where CoSec decides itself. A request-less command gets no objection. Off, and without a
+             * `CommandAuthorizer` of the application's, the command gateway allows every command that passed its
+             * route: behind a CoSec gateway, authorization is the gateway's.
              */
             var enabled: Boolean = false
         }

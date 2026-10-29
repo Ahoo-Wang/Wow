@@ -33,9 +33,8 @@ dependencies {
     // the user and the application CoSec authorized from CoSec's security context (decisions D232, D236); CoSec
     // itself is the application's to bring.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
     // deployment attaches one, a no-op otherwise.
     implementation("me.ahoo.wow:wow-observability")
