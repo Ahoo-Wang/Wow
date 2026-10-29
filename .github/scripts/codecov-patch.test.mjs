@@ -110,6 +110,47 @@ const needs = name =>
     .map(need => need.trim())
     .filter(Boolean);
 
+test('each TypeScript package uploads under its own flag alone, which the statuses read by name', () => {
+  const codecov = readFileSync(
+    new URL('../../codecov.yml', import.meta.url),
+    'utf8',
+  );
+  // A shared flag on every upload would keep Codecov from carrying the other packages forward.
+  const uploads = [...workflow.matchAll(/\n\s+flags: (.+)\n/g)].map(
+    match => match[1],
+  );
+  assert.ok(uploads.length > 0);
+  for (const flags of uploads) assert.doesNotMatch(flags, /,/, flags);
+  // Every package's flag, as its component reads it, is in the patch and project statuses' lists.
+  const packages = [...codecov.matchAll(/- "\^(typescript-[\w-]+)\$"/g)].map(
+    match => match[1],
+  );
+  assert.deepEqual(packages.sort(), [
+    'typescript-wow-client',
+    'typescript-wow-generator',
+    'typescript-wow-react',
+    'typescript-wow-view-engine',
+    'typescript-wow-view-store',
+  ]);
+  for (const status of ['patch', 'project']) {
+    const block = new RegExp(`\\n {4}${status}:\\n(?: {6,}.*\\n)+`).exec(
+      codecov,
+    )[0];
+    for (const flag of packages)
+      assert.match(
+        block,
+        new RegExp(`- ${flag}\\n`),
+        `${status} reads ${flag}`,
+      );
+    assert.doesNotMatch(
+      block,
+      /- typescript\n/,
+      `${status} reads no shared typescript flag`,
+    );
+  }
+  assert.match(codecov, /- name: typescript\n\s+carryforward: false\n/);
+});
+
 test("Codecov notifies once, when ci.yml's coverage-notify triggers it after every upload", () => {
   const codecov = readFileSync(
     new URL('../../codecov.yml', import.meta.url),

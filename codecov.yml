@@ -24,9 +24,9 @@ coverage:
   precision: 2
   status:
     # Changed and new main code must be covered by the tests that run on the pull request.
-    # `flags` names every flag (the TypeScript uploads all carry `typescript`; no flag has paths, so nothing is
-    # filtered out); it is there so these statuses, like the components', wait for the flags' after_n_builds (which
-    # carried-forward sessions satisfy, see flag_management below).
+    # `flags` names every flag, each TypeScript package's (no flag has paths, so nothing is filtered out); it is there
+    # so these statuses, like the components', wait for the flags' after_n_builds (which carried-forward sessions
+    # satisfy, see flag_management below).
     patch:
       default:
         target: 90%
@@ -34,7 +34,11 @@ coverage:
         flags:
           - jvm-unit
           - integration
-          - typescript
+          - typescript-wow-client
+          - typescript-wow-react
+          - typescript-wow-generator
+          - typescript-wow-view-engine
+          - typescript-wow-view-store
     project:
       default:
         target: 80%
@@ -42,7 +46,11 @@ coverage:
         flags:
           - jvm-unit
           - integration
-          - typescript
+          - typescript-wow-client
+          - typescript-wow-react
+          - typescript-wow-generator
+          - typescript-wow-view-engine
+          - typescript-wow-view-store
 # The JVM coverage (ci.yml): the `jvm-unit` flag is the check shards' reports (every module's unit tests), the
 # `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
 # its repository path (test/code-coverage-report).
@@ -67,14 +75,23 @@ coverage:
 # once, naming the newest complete main commit and the first-parent merge that inherits from it; it waits as before
 # when that API cannot be read.
 #
+# Each TypeScript package uploads under its own flag alone, `typescript-<package>` (ci.yml's unit matrix and
+# view-engine job), never a flag it shares with another package. Codecov carries a session forward only when none of
+# its flags has an upload of the commit's own, so a shared flag on every package's upload (the retired `typescript`)
+# dropped every package a run did not test from the commit's report: a pull request that tested only view-engine
+# reported the other packages at no coverage. The statuses above and the components below read the package flags by
+# name. The race above holds for them too: a main commit pushed before its parent's view-engine upload (the slowest)
+# is in carries none of view-engine forward (ebbde37, 2026-10-29), until the next run that tests it.
+#
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).
 #
 # The unit flag is `jvm-unit`, not `unit`: Codecov keeps a `unit` flag of this repository from 2021 that it no
 # longer counts among the repository's flags, so a component's `unit` regex matched nothing and every component
 # read the integration shards alone (`kernel`, with no container tests, had "no coverage on head"). The retired
-# flags (9.x's `local`, `contract`, `full`, and `v10`, which CI-2 split into these two) upload no more; they are not
-# carried forward, so their last sessions leave the reports instead of riding along on every commit.
+# flags (9.x's `local`, `contract`, `full`, `unit`, and `v10`, which CI-2 split into these two, and the shared
+# `typescript`) upload no more; they are not carried forward, so their last sessions leave the reports instead of
+# riding along on every commit.
 flag_management:
   default_rules:
     carryforward: true
@@ -91,9 +108,13 @@ flag_management:
       carryforward: false
     - name: full
       carryforward: false
+    - name: unit
+      carryforward: false
+    - name: typescript
+      carryforward: false
 # One Codecov component per module and per TypeScript package, so a drop in
 # one module or package isn't hidden by the others. Each component gets its own
-# project status against its own previous coverage. Each TypeScript package also
+# project status against its own previous coverage. Each TypeScript package
 # uploads under its own `typescript-<package>` flag, so a pull request that tests
 # only some packages carries the others' coverage forward. The examples have no
 # component.

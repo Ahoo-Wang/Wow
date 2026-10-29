@@ -348,14 +348,14 @@ jobs:
         env:
           PACKAGE: ${{ matrix.package }}
         run: pnpm --filter "@ahoo-wang/$PACKAGE" test
-      # A flag per package, so Codecov carries forward the coverage of the
-      # packages a scoped run left out.
+      # A flag per package and no other, so Codecov carries forward the
+      # coverage of the packages a scoped run left out (codecov.yml).
       - name: Upload coverage
         if: matrix.node-version == 24
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          flags: typescript,typescript-${{ matrix.package }}
+          flags: typescript-${{ matrix.package }}
           name: typescript-${{ matrix.package }}
           fail_ci_if_error: true
           disable_search: true
@@ -518,7 +518,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          flags: typescript,typescript-wow-view-engine
+          flags: typescript-wow-view-engine
           name: typescript-wow-view-engine
           fail_ci_if_error: true
           disable_search: true
