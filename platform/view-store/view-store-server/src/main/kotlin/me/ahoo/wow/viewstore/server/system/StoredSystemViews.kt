@@ -16,10 +16,10 @@ package me.ahoo.wow.viewstore.server.system
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.query.read.QueryNotServedException
-import me.ahoo.wow.query.read.trees
+import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
@@ -35,7 +35,7 @@ import tools.jackson.databind.node.ObjectNode
  */
 class StoredSystemViews(
     private val configured: ConfiguredSystemViews,
-    private val queries: () -> QueryApi?,
+    private val queries: () -> NodeQueryApi?,
 ) {
     /** Every system view of [tenantId] and [appId], of [definitionId] when it is given: the configured first. */
     suspend fun systemViews(tenantId: String, appId: String, definitionId: String? = null): List<SystemView> {
@@ -79,7 +79,7 @@ class StoredSystemViews(
 
     /** The views' snapshots as stored, or null when there are no queries or no backend serves them. */
     private fun views(): RowQueries<ObjectNode>? = try {
-        queries()?.trusted()?.snapshots(VIEW)?.trees()
+        queries()?.trusted()?.snapshots(VIEW)?.dynamic<ObjectNode>()
     } catch (_: QueryNotServedException) {
         null
     }

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.viewstore.server
 
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.policy.QueryPolicy

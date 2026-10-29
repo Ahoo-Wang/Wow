@@ -15,14 +15,17 @@ package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 
 /**
  * The catalog's sources as a dataset's definition reads them: each source's latest committed state, read as trusted
  * code, the catalog's own, in the catalog's tenant.
  */
-class QueriedDatasetSources(private val queries: () -> QueryApi) : DatasetSources {
+class QueriedDatasetSources(private val queries: () -> NodeQueryApi) : DatasetSources {
     override suspend fun source(id: String): SourceState? =
-        queries().trusted().snapshots<SourceState>().state(id)?.state
+        queries().trusted().snapshots<SourceState>().let {
+            it.state(it.type.ref(AnalyticsCatalogContext.TENANT_ID, id))?.state
+        }
 }

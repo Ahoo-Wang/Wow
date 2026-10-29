@@ -30,6 +30,7 @@ object QueryErrorCodes {
     const val CURSOR_SORT_DUPLICATE = "cursor-sort-duplicate"
     const val CURSOR_SORT_TOO_MANY = "cursor-sort-too-many"
     const val INVALID_CURSOR = "invalid-cursor"
+    const val STREAM_NOT_RESUMABLE = "stream-not-resumable"
 
     // The entry budget and gates (errorCode IllegalArgument); BindingError.name is the request part the rule bounds.
     const val SIZE_OUT_OF_RANGE = "size-out-of-range"

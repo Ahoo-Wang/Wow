@@ -59,6 +59,12 @@ export const QueryErrorCodes = Object.freeze({
    */
   INVALID_CURSOR: 'invalid-cursor',
   /**
+   * A stream that cannot be resumed, its sort having no keyset in its store,
+   * names no `limit`: it would stop at a default and say nothing. Name a
+   * `limit`, or sort by fields its store keeps a keyset of; `path` is `limit`.
+   */
+  STREAM_NOT_RESUMABLE: 'stream-not-resumable',
+  /**
    * The entry's budget: a list or aggregation `limit`, a page's index, size,
    * window or offset, or a cursor page's `size` is out of range; `path` names
    * which (`limit`, `pagination.size`, `size`, …).

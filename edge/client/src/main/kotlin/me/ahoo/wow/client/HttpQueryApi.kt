@@ -48,11 +48,11 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.StateView
-import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -63,6 +63,8 @@ import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
 /**
@@ -76,9 +78,11 @@ import kotlin.time.Duration
  * - in user mode, on the public routes with the end user's forwarded credential.
  *
  * A peer's rows are typed by the caller: [Queries.snapshots] of a state class decodes the state as that
- * class, found by its schema in the peer's contract ([models]); [Queries.snapshots] of a type and [Queries.events]
- * decode a state and an event body as an `ObjectNode`, which the generated field constants of the peer's api read; a
- * dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class given.
+ * class, found by its schema in the peer's contract ([models]); [Queries.snapshots] of a type decodes a state as an
+ * `ObjectNode`, which the generated field constants of the peer's api read; [Queries.events] decodes an event body as
+ * the class the contract names for it, when the class path has it (the peer's api jar), else as an `ObjectNode`, as in
+ * process; a dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class
+ * given.
  *
  * A streamed list ([RowQueries.stream]) reads the peer's server-sent events and resumes on its own:
  * when the peer ends it resumably (its hold expired, it is stopping, its store reclaimed the permit), sends a problem a
@@ -90,7 +94,8 @@ import kotlin.time.Duration
  * A query is sent again when its problem says a retry may get past it (its `retry` member); any other problem, and
  * one the retries do not get past, is a [me.ahoo.wow.api.problem.WowProblemException], as is a failure of the
  * transport (`wow.peer.unavailable`, `wow.query.timeout`). A single row or a state that is not found, or that the caller
- * may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
+ * may not see, is null. There are no trusted queries over HTTP: a peer reads for a caller ([of]); trusted code
+ * reads its own node ([me.ahoo.wow.api.read.NodeQueryApi]).
  */
 class HttpQueryApi internal constructor(
     private val transport: HttpTransport,
@@ -99,19 +104,12 @@ class HttpQueryApi internal constructor(
 ) : QueryApi {
     override fun of(caller: Caller): Queries = Scoped(caller)
 
-    /** Not served over HTTP: a peer reads for a caller, its root context's tenant and scope. */
-    override fun trusted(): TrustedQueries = throw UnsupportedOperationException(
-        "A peer's queries are scoped by a caller, the root context of the read: use of(caller).",
-    )
-
     private inner class Scoped(val caller: Caller) : Queries {
-        override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> =
+        override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> =
             Snapshots(models.typeOf(stateType), stateType, caller)
 
-        override fun snapshots(type: AggregateType): SnapshotQueries<Any> {
-            @Suppress("UNCHECKED_CAST")
-            return Snapshots(type, ObjectNode::class.java as Class<Any>, caller)
-        }
+        override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> =
+            Snapshots(type, ObjectNode::class.java, caller)
 
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
@@ -313,7 +311,7 @@ class HttpQueryApi internal constructor(
     ) : Rows<Snapshot<S>>(type.context, queryPath(type, QueryRoutes.SNAPSHOT), caller, ::wholeRecords, {
         it.toSnapshot(type, stateType)
     }),
-        SnapshotQueries<S> {
+        TenantSnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
             Rows(context, path, caller) { decode(it, rowType) }
 
@@ -368,7 +366,7 @@ class HttpQueryApi internal constructor(
 
     private inner class Events(override val type: AggregateType, caller: Caller) :
         Rows<EventStream>(type.context, queryPath(type, QueryRoutes.EVENTS), caller, ::wholeRecords, { record ->
-            record.toEventStream(type) { ObjectNode::class.java }
+            record.toEventStream(type) { models.eventClassOf(type, it) }
         }),
         EventQueries {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
@@ -448,11 +446,18 @@ class HttpQueryApi internal constructor(
 }
 
 /**
- * The aggregate types of the peers by their state classes: a [StateView] names its aggregate, the view a peer's api
- * generates; the contracts on the class path name each aggregate's state schema (`#/$defs/<binary name>`), whose class
- * a caller queries the snapshots of.
+ * The aggregate types of the peers by their state classes, and the classes of their events: a [StateView] names its
+ * aggregate, the view a peer's api generates; the contracts on the class path name each aggregate's state schema
+ * (`#/$defs/<binary name>`), whose class a caller queries the snapshots of, and each event's schema, whose class (its
+ * `x-wow-class`, else its key) an event body is decoded as when [classLoader] has it.
  */
-internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
+internal class PeerModels(
+    private val types: Map<String, List<AggregateType>>,
+    private val events: Map<AggregateType, Map<String, String>> = emptyMap(),
+    private val classLoader: () -> ClassLoader? = { Thread.currentThread().contextClassLoader },
+) {
+    private val eventClasses = ConcurrentHashMap<String, Optional<Class<*>>>()
+
     /**
      * The aggregate type whose state is of [stateType], or that the [StateView] [stateType] names.
      *
@@ -466,14 +471,40 @@ internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
         return found.single()
     }
 
+    /** The class of [type]'s event [name] the contract names, or null when it names none or the class path lacks it. */
+    fun eventClassOf(type: AggregateType, name: String): Class<*>? {
+        val className = events[type]?.get(name) ?: return null
+        return eventClasses.computeIfAbsent(className) {
+            Optional.ofNullable(
+                try {
+                    Class.forName(className, false, classLoader() ?: PeerModels::class.java.classLoader)
+                } catch (_: ClassNotFoundException) {
+                    null
+                },
+            )
+        }.orElse(null)
+    }
+
     companion object {
-        /** The aggregates of every context in [manifests], by their state schema. */
+        /** The aggregates of every context in [manifests], by their state schema, and the classes of their events. */
         fun of(manifests: List<Manifest>): PeerModels = PeerModels(
             manifests.flatMap { manifest ->
                 manifest.contexts.flatMap { context ->
                     context.aggregates.map { it.state.schema to AggregateType(context.name, it.name) }
                 }
             }.groupBy({ it.first }, { it.second }).mapValues { (_, types) -> types.distinct() },
+            manifests.flatMap { manifest ->
+                manifest.contexts.flatMap { context ->
+                    context.aggregates.map { aggregate ->
+                        AggregateType(context.name, aggregate.name) to aggregate.events
+                            .filter { Manifest.isSchemaRef(it.schema) }
+                            .associate { event ->
+                                val key = Manifest.schemaKey(event.schema)
+                                event.name to ((manifest.defs[key] as? Map<*, *>)?.get(CLASS_KEYWORD) as? String ?: key)
+                            }
+                    }
+                }
+            }.toMap(),
         )
     }
 }

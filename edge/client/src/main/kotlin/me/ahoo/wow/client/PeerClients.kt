@@ -26,12 +26,14 @@ import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
-import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.config.configCheck
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * How a peer context is reached over HTTP: [SERVICE], on its internal port as this service,
@@ -62,6 +64,11 @@ class PeerClients(
     private val defaultMode: PeerMode,
     /** The contexts of [modes] described by their Manifest alone. */
     val described: Set<String> = emptySet(),
+    /**
+     * The service's own name (`spring.application.name`): its identity on a peer's internal port, which a subscription
+     * handler reads a peer as ([RoutedQueryApi.tenant]); none, an anonymous caller of the commit's tenant.
+     */
+    val serviceName: String? = null,
 ) {
     init {
         val unknown = modes.keys.filterNot { it in described || it in contracts && it !in local }
@@ -153,13 +160,13 @@ class RoutedCommandClient(
 }
 
 /**
- * The service's [QueryApi]: the models of a peer context [peers] reach over HTTP, any other
+ * The service's [NodeQueryApi]: the models of a peer context [peers] reach over HTTP, any other
  * in process through [local]; a state class of none of the node's models ([localStates]) is a peer's, found by its
  * contract. Trusted queries are in process alone: a peer reads for a caller.
  */
 @InternalWowApi
 class RoutedQueryApi(
-    private val local: QueryApi,
+    private val local: NodeQueryApi,
     private val peers: PeerClients,
     private val localStates: Set<Class<*>>,
 ) : TenantQueryApi {
@@ -169,11 +176,13 @@ class RoutedQueryApi(
 
     /**
      * The queries of a subscription handler of a commit of [tenantId]: the local API's, which pins the tenant
-     * ([TenantQueryApi.tenant]), a peer's as a caller of that tenant.
+     * ([TenantQueryApi.tenant]), a peer's as this service's identity in that tenant ([Caller.ofService]): the handler
+     * reads for a commit of the service's own, not for whoever sent it.
      */
     override fun tenant(tenantId: String): SubscriptionQueries {
         val pinned = checkNotNull(local as? TenantQueryApi) { "The local queries pin no tenant." }.tenant(tenantId)
-        return object : SubscriptionQueries, Queries by Routed(pinned, Caller.of(tenantId = tenantId)) {
+        val service = peers.serviceName?.let { Caller.ofService(it, tenantId) } ?: Caller.of(tenantId = tenantId)
+        return object : SubscriptionQueries, Queries by Routed(pinned, service) {
             override val tenantId: String = tenantId
 
             override fun trusted(): TrustedQueries = pinned.trusted()
@@ -181,13 +190,13 @@ class RoutedQueryApi(
     }
 
     private inner class Routed(private val local: Queries, private val caller: Caller) : Queries {
-        override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> {
+        override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> {
             if (stateType in localStates || peers.contexts.isEmpty()) return local.snapshots(stateType)
             val type = peers.client.queries.of(caller).snapshots(stateType).type
             return peerOf(type.context)?.snapshots(stateType) ?: local.snapshots(stateType)
         }
 
-        override fun snapshots(type: AggregateType): SnapshotQueries<Any> =
+        override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> =
             peerOf(type.context)?.snapshots(type) ?: local.snapshots(type)
 
         override fun events(type: AggregateType): EventQueries = peerOf(type.context)?.events(type) ?: local.events(type)

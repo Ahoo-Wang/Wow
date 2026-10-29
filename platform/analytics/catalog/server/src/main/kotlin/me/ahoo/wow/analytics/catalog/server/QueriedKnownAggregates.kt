@@ -13,25 +13,26 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import tools.jackson.databind.node.ObjectNode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SourceKind
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.api.query.dsl.singleQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.query.read.QueryNotServedException
-import me.ahoo.wow.query.read.trees
+import me.ahoo.wow.api.read.dynamic
 
 /**
  * The aggregates the catalog knows, from the sources' snapshots: an aggregate some Wow source of the catalog is of,
  * read as trusted code, the catalog's own, in the catalog's tenant. A node whose backend serves no snapshot query knows
  * of none, and says so in its log.
  */
-class QueriedKnownAggregates(private val queries: () -> QueryApi) : KnownAggregates {
+class QueriedKnownAggregates(private val queries: () -> NodeQueryApi) : KnownAggregates {
     override suspend fun knows(context: String, aggregate: String): Boolean {
         val sources = try {
-            queries().trusted().snapshots(SOURCE).trees()
+            queries().trusted().snapshots(SOURCE).dynamic<ObjectNode>()
         } catch (_: QueryNotServedException) {
             return none()
         }

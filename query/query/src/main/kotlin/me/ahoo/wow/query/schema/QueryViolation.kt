@@ -1010,6 +1010,25 @@ sealed interface QueryViolation {
             get() = "Invalid cursor."
     }
 
+    /**
+     * A stream its store cannot resume (no keyset of its sort, so no positions) that names no limit: it would read a
+     * list's default number of rows and stop, which a reader takes for every match.
+     */
+    data object StreamNotResumable : QueryViolation {
+        override val kind: Kind
+            get() = Kind.REQUEST
+
+        override val location: String
+            get() = "limit"
+
+        override val code: String
+            get() = QueryErrorCodes.STREAM_NOT_RESUMABLE
+
+        override val message: String
+            get() = "This stream cannot be resumed, its sort having no keyset in its store: name a limit, or sort " +
+                "by fields its store keeps a keyset of."
+    }
+
     /** A cursor sort names [field] twice once the identity tie-breaker is appended. */
     class CursorSortDuplicate @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
         override val kind: Kind

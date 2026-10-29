@@ -437,6 +437,7 @@ class WowAutoConfiguration {
             client(ClientMode.User(UserCredential.FORWARDED)),
             peer.mode,
             described,
+            identity.service,
         )
     }
 

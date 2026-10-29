@@ -293,8 +293,9 @@ internal class QueryHandler(
 
     /**
      * [query] on [gateway] as server-sent events: a resumable stream when the gateway [resumes] it,
-     * from after [after]; else the records of a list under the HTTP list default, without positions, whose `end`
-     * events say `"resumable": false` ([after] is then `wow.query.invalid`). A node that is stopping refuses it.
+     * from after [after]; else, when the query names a limit, the records of that list without positions, whose `end`
+     * events say `"resumable": false` ([after] is then `wow.query.invalid`), and without a limit `wow.query.invalid`
+     * (`stream-not-resumable`): it would stop at a default and say nothing. A node that is stopping refuses it.
      */
     private suspend fun stream(
         gateway: QueryGateway,
@@ -313,7 +314,8 @@ internal class QueryHandler(
             return streamed(records.map { Streamed(it.record, it.position) }, true, context, rebuilding)
         }
         if (after != null) throw QueryViolation.InvalidCursor.rejection()
-        val records = gateway.list(query.withListDefault(gateway.entryPolicy.http), caller)
+        if (query.limit == null) throw QueryViolation.StreamNotResumable.rejection()
+        val records = gateway.list(query, caller)
         return streamed(records.map { Streamed(it, null) }, false, context, rebuilding)
     }
 

@@ -102,6 +102,19 @@ class Caller @InternalWowApi constructor(
         @JvmField
         val ANONYMOUS: Caller = Caller()
 
+        /** The subject of a service identity: [SERVICE_SUBJECT_PREFIX] and the service's name. */
+        const val SERVICE_SUBJECT_PREFIX: String = "service:"
+
+        /**
+         * The [service] identity of the service named [name] in [tenantId]: what a service calls and reads another
+         * service as for a commit of its own (a saga's call, a subscription handler's read of a peer), and what that
+         * peer resolves from the service's name on its internal port.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun ofService(name: String, tenantId: String = DEFAULT_TENANT): Caller =
+            Caller(tenantId = tenantId, subject = SERVICE_SUBJECT_PREFIX + name, service = true)
+
         /** A Caller of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
