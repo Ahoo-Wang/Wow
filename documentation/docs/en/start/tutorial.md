@@ -183,7 +183,8 @@ export async function checkout(
     progress = {
       results: [...results],
       orderId: progress.orderId ?? orderIdOf(value),
-      failure: value.status === "succeeded" ? undefined : value,
+      failure:
+        value.status === CommandResultStatus.SUCCEEDED ? undefined : value,
       ended: value.chainEnded ? value : undefined,
       done: false,
     };
