@@ -18,9 +18,10 @@ import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /*
  * The ops console against the ops server in its production shape, the
- * `cosec` profile (roadmap P.15): the operator signs in with a CoSec access
- * token, which the service verifies and reads the operator from. No identity
- * header is trusted there.
+ * `cosec` profile, behind the CoSec gateway (here its stand-in,
+ * `e2e/cosec-gateway.mjs`): the operator signs in with a CoSec access token,
+ * which the gateway verifies and forwards as the identity the service reads
+ * the operator from. No identity header a client sends is trusted.
  */
 
 const OPERATOR = accessToken("alice", ["ops.operator"]);
@@ -60,13 +61,16 @@ test.beforeAll(async ({ request }) => {
     await listed(request, entry, { Authorization: `Bearer ${OPERATOR}` });
 });
 
-test("the service answers a request without a token or with an expired one 401, and trusts no identity header", async ({
+test("a request without a token or with an expired one is answered 401, and no identity header is trusted", async ({
   request,
 }) => {
   const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
   expect((await request.get(state)).status()).toBe(401);
   const headers = { [DevelopmentCallerHeaders.USER]: "alice", [DevelopmentCallerHeaders.ROLES]: "ops.operator" };
   expect((await request.get(state, { headers })).status()).toBe(401);
+  // The gateway strips a client's own CoSec-Identity: the service sees an anonymous request, not a malformed one.
+  const forged = { "CoSec-Identity": "forged" };
+  expect((await request.get(state, { headers: forged })).status()).toBe(401);
   const expired = accessToken(
     "mallory",
     ["ops.operator"],
@@ -98,7 +102,7 @@ test("an operator signs in with a CoSec token and resumes an entry in its name",
     )
     .toContainEqual(["wow.ledger.Resume", exhausted.id]);
 
-  // Its history names the operator the token signed in.
+  // Its history names the operator the gateway forwarded.
   await row(page, exhausted)
     .getByText(exhausted.aggregateId, { exact: true })
     .click();
@@ -127,7 +131,7 @@ test("a viewer reads the entries, and the service refuses its actions", async ({
   ).toBeVisible();
 });
 
-test("a token the service refuses signs the console out", async ({ page }) => {
+test("a token the gateway refuses signs the console out", async ({ page }) => {
   await open(page);
   await signIn(
     page,

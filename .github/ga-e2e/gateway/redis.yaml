@@ -1,4 +1,6 @@
-# The CoSec gateway's own store of its policies (cocache); no Wow service connects to it (D317's approval).
+# The CoSec gateway's own store (cocache): its documents, which cluster.sh publishes into it before the gateway starts,
+# and its tokens' revocations. No Wow service connects to it (D317's approval). noeviction: the gateway does not start
+# on a Redis that may evict its documents.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +21,7 @@ spec:
       containers:
         - name: redis
           image: redis:7.4-alpine@sha256:d9436322172a5b482c187bf1f363d3c4fea086fcca6b9c8a94de8f0f39ed3193
+          args: ["--maxmemory-policy", "noeviction"]
           ports:
             - name: redis
               containerPort: 6379

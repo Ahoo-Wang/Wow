@@ -15,15 +15,12 @@ wow:
   # The calling application, which every view, preference and wording is kept in, is the caller's authenticated one:
   # the edge records it as each command's request fact app_id (decision D232); no request-facts entry is needed.
 ---
-# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
-# (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the
-# user from it: its tenant, its id (the owner of its views),
-# its roles (view-store.shared-writer, view-store.system-writer). CoSec's inject mode, without CoSec's own
-# authorization of each path, so no application is authorized here (decision D236): set wow.cosec.trust-injected-app
-# (WOW_COSEC_TRUSTINJECTEDAPP) behind a CoSec gateway that authorizes each request's CoSec-App-Id by the application's
-# roles, and only where nothing else reaches the service, or every query is refused for want of an application. A
-# service that authorizes its requests itself (cosec.authorization.enabled, with CoSec's policy and app role permission
-# repositories) records the application its roles were authorized in, with no switch.
+# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's credential and
+# forwards the identity it verified in CoSec-Identity, which CoSec's gateway mode here reads, with no secret, no
+# documents and no Redis; the edge reads the user from it: its tenant, its id (the owner of its views), its roles
+# (view-store.shared-writer, view-store.system-writer), and the app of its scope, the one the gateway decided the
+# request in, in which every view is kept (the request fact app_id). An identity without an app writes and reads
+# nothing. Only the gateway may reach the service, as the service believes any CoSec-Identity it receives.
 spring:
   config:
     activate:

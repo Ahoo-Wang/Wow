@@ -13,22 +13,8 @@
 
 package me.ahoo.wow.viewstore.server
 
-import com.auth0.jwt.algorithms.Algorithm
-import me.ahoo.cosec.api.policy.Policy
-import me.ahoo.cosec.authorization.AppRolePermissionRepository
-import me.ahoo.cosec.authorization.PolicyRepository
-import me.ahoo.cosec.jwt.JwtTokenConverter
-import me.ahoo.cosec.permission.AppPermissionData
-import me.ahoo.cosec.permission.AppRolePermissionData
-import me.ahoo.cosec.permission.PermissionData
-import me.ahoo.cosec.permission.PermissionGroupData
-import me.ahoo.cosec.permission.RolePermissionData
-import me.ahoo.cosec.policy.action.AllActionMatcher
-import me.ahoo.cosec.principal.SimplePrincipal
-import me.ahoo.cosec.principal.SimpleTenantPrincipal
-import me.ahoo.cosec.tenant.SimpleTenant
-import me.ahoo.cosec.token.TokenConverter
-import me.ahoo.cosid.jvm.UuidGenerator
+import me.ahoo.cosec.runtime.identity.IdentityCodec
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.test.server.Answer
@@ -37,57 +23,61 @@ import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import reactor.core.publisher.Mono
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
-import me.ahoo.cosec.api.permission.AppRolePermission as CoSecAppRolePermission
 
 /**
- * The view store in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: the token is the
- * gateway's ([tokens]), the user is its principal, and every view is kept in the application CoSec authorized the
- * request in (decisions D232, D236), never in the `CoSec-App-Id` a client merely sends.
+ * The view store in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP, as
+ * `deploy/view-store` runs it behind the CoSec gateway: the gateway verified each request's credential and decided it
+ * in an app, and forwards what it verified in `CoSec-Identity`, which CoSec's gateway mode reads. The user is its
+ * principal, and every view is kept in the app of its scope (decisions D232, D236), never in the `CoSec-App-Id` a
+ * client merely sends.
  */
-abstract class ViewStoreCoSecContract {
-    protected abstract val store: ViewStoreNode
-
-    /**
-     * The tokens a CoSec deployment issues. Behind the gateway the service holds no secret and verifies none (decision
-     * D296); a service that authorizes its requests itself verifies them with [SECRET].
-     */
-    private val tokens: TokenConverter = JwtTokenConverter(UuidGenerator.INSTANCE, Algorithm.HMAC256(SECRET))
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class ViewStoreCoSecTest {
+    private val store: ViewStoreNode = startViewStore(profiles = listOf("cosec"))
 
     @AfterAll
     fun closeStore() {
         store.close()
     }
 
-    /** [id] signed in with [roles], calling from [app]. */
-    protected fun signedIn(id: String, vararg roles: String, app: String = APP): Who {
-        val principal = SimpleTenantPrincipal(SimplePrincipal(id, roles = roles.toSet()), SimpleTenant("(0)"))
-        return Who(
-            mapOf(
-                AUTHORIZATION to "Bearer ${tokens.toToken(principal).accessToken}",
-                ViewStoreContext.APP_ID_HEADER to app,
-            ),
+    /**
+     * [id] of CoSec's default tenant with [roles], decided by the gateway in [app], as the gateway forwards it: the
+     * service holds no secret and verifies nothing, it believes the header.
+     */
+    private fun signedIn(id: String, vararg roles: String, app: String = APP): Who {
+        val now = Instant.now()
+        val identity = Identity(
+            tenant = "(0)",
+            subject = id,
+            app = app,
+            space = "",
+            roles = roles.toSet(),
+            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
+            issuedAt = now,
+            requestId = "request-of-$id",
         )
+        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
     }
 
-    protected fun definition(): String = "orders-${UUID.randomUUID()}"
+    private fun definition(): String = "orders-${UUID.randomUUID()}"
 
-    protected fun create(who: Who, definition: String): Answer =
+    private fun create(who: Who, definition: String): Answer =
         store.post(VIEWS, """{"definitionId":"$definition","title":"Orders","config":$RECORD}""", who)
 
-    protected fun list(who: Who, definition: String): Answer = store.post(
+    private fun list(who: Who, definition: String): Answer = store.post(
         VIEW_QUERY,
         """{"kind":"list","filter":{"op":"eq","field":"state.definitionId","value":"$definition"}}""",
         who,
     )
 
     @Test
-    fun `a signed-in user should keep views in the application CoSec authorized, and read only its own`() {
+    fun `a signed-in user should keep views in the app the gateway decided in, and read only its own`() {
         val definition = definition()
-        val alice = signedIn("alice", USER_ROLE)
+        // The app a client declares is not the one the gateway decided the request in.
+        val alice = signedIn("alice", USER_ROLE).with(ViewStoreContext.APP_ID_HEADER, "other-console")
         val id = create(alice, definition).assertOk().id
         val view = store.post(VIEW_QUERY, """{"kind":"single","filter":{"op":"id","value":"$id"}}""", alice)
             .assertOk().json
@@ -95,6 +85,7 @@ abstract class ViewStoreCoSecContract {
         view["ownerId"].asString().assert().isEqualTo("alice")
         list(alice, definition).assertOk().ids.assert().containsExactly(id)
         list(signedIn("bob", USER_ROLE), definition).assertOk().ids.assert().isEmpty()
+        list(signedIn("alice", USER_ROLE, app = "other-console"), definition).assertOk().ids.assert().isEmpty()
     }
 
     @Test
@@ -111,7 +102,7 @@ abstract class ViewStoreCoSecContract {
     }
 
     @Test
-    fun `a signed-in user should read the view store's own routes in the application CoSec authorized`() {
+    fun `a signed-in user should read the view store's own routes in the app the gateway decided in`() {
         val alice = signedIn("alice", USER_ROLE)
         val id = create(alice, definition()).assertOk().id
         store.get("$VIEW_BY_ID/$id", alice).assertOk().json["scope"].asString().assert().isEqualTo("personal")
@@ -119,16 +110,23 @@ abstract class ViewStoreCoSecContract {
     }
 
     @Test
-    fun `a request without a token should be answered 401`() {
+    fun `an identity without an app should write and read nothing, whatever app the client declares`() {
+        val alice = signedIn("alice", USER_ROLE, app = "").with(ViewStoreContext.APP_ID_HEADER, APP)
+        create(alice, definition()).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
+        store.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", alice)
+            .assertProblem(BAD_REQUEST, "wow.query.malformed")
+        store.get(SYSTEM_VIEWS, alice).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
+    }
+
+    @Test
+    fun `a request without an identity should be answered 401`() {
         val app = Who(mapOf(ViewStoreContext.APP_ID_HEADER to APP))
         create(app, definition()).status.assert().isEqualTo(UNAUTHORIZED)
         list(app, definition()).status.assert().isEqualTo(UNAUTHORIZED)
         store.get(SYSTEM_VIEWS, app).status.assert().isEqualTo(UNAUTHORIZED)
     }
 
-    protected companion object {
-        const val SECRET = "the-view-store-test-secret-of-32-characters"
-        const val AUTHORIZATION = "Authorization"
+    private companion object {
         const val APP = "orders-console"
         const val USER_ROLE = "orders-user"
         const val VIEWS = "/view-store/view/create-view"
@@ -139,93 +137,5 @@ abstract class ViewStoreCoSecContract {
         const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403
-    }
-}
-
-/**
- * Behind a CoSec gateway (decision D236 ②), as `deploy/view-store` runs it: the gateway authorized each request's
- * `CoSec-App-Id` by the application's roles, and the service, in CoSec's inject mode, trusts the application it
- * forwards (`wow.cosec.trust-injected-app`). Without that switch no application is authenticated at all.
- */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ViewStoreCoSecGatewayTest : ViewStoreCoSecContract() {
-    override val store: ViewStoreNode = startViewStore(
-        "wow.cosec.trust-injected-app" to true,
-        profiles = listOf("cosec"),
-    )
-
-    @Test
-    fun `without trusting the gateway no application is authenticated, and nothing is written or read`() {
-        startViewStore(profiles = listOf("cosec")).use { untrusting ->
-            val alice = Who(signedIn("alice", USER_ROLE).headers)
-            untrusting.post(VIEWS, """{"definitionId":"d","title":"Orders","config":$RECORD}""", alice)
-                .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
-            untrusting.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", alice)
-                .assertProblem(BAD_REQUEST, "wow.query.malformed")
-            untrusting.get(SYSTEM_VIEWS, alice).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
-        }
-    }
-}
-
-/**
- * The service authorizing its requests itself (decision D236 ①): CoSec's authorization with the application's role
- * permissions (here in memory, [AppRoles]; CoSec's Redis repositories in a deployment). A request allowed by a
- * permission of the application's roles keeps its views in that application; an application whose roles the user
- * lacks is refused by CoSec.
- */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ViewStoreCoSecAuthorizationTest : ViewStoreCoSecContract() {
-    override val store: ViewStoreNode = startViewStore(
-        "cosec.inject.enabled" to false,
-        "cosec.authorization.enabled" to true,
-        // Without the gateway, the service verifies each token itself, with CoSec's secret.
-        "cosec.jwt.enabled" to true,
-        "cosec.jwt.secret" to SECRET,
-        profiles = listOf("cosec"),
-        sources = listOf(AppRoles::class.java),
-    )
-
-    @Test
-    fun `an application whose roles the user lacks should be refused by CoSec`() {
-        create(signedIn("alice", USER_ROLE, app = "other-console"), definition()).status.assert()
-            .isEqualTo(FORBIDDEN)
-        create(signedIn("alice", "someone-else"), definition()).status.assert().isEqualTo(FORBIDDEN)
-        store.get(SYSTEM_VIEWS, signedIn("alice", "someone-else")).status.assert().isEqualTo(FORBIDDEN)
-        store.get(SYSTEM_VIEWS, signedIn("alice", USER_ROLE, app = "other-console")).status.assert()
-            .isEqualTo(FORBIDDEN)
-    }
-
-    /** CoSec's repositories in memory: no policy, and the role [USER_ROLE] of [APP] may do anything there. */
-    @Configuration(proxyBeanMethods = false)
-    class AppRoles {
-        @Bean
-        fun policyRepository(): PolicyRepository = object : PolicyRepository {
-            override fun getGlobalPolicy(): Mono<List<Policy>> = Mono.just(emptyList())
-
-            override fun getPolicies(policyIds: Set<String>): Mono<List<Policy>> = Mono.just(emptyList())
-
-            override fun setPolicy(policy: Policy): Mono<Void> = Mono.empty()
-        }
-
-        @Bean
-        fun appRolePermissionRepository(): AppRolePermissionRepository = object : AppRolePermissionRepository {
-            override fun getAppRolePermission(
-                appId: String,
-                spaceId: String,
-                roleIds: Set<String>,
-            ): Mono<CoSecAppRolePermission> {
-                if (appId != APP) {
-                    return Mono.empty()
-                }
-                val all = PermissionData(id = "$APP.all", name = "all", action = AllActionMatcher.INSTANCE)
-                val permission = AppPermissionData(
-                    APP,
-                    groups = listOf(PermissionGroupData("all", permissions = listOf(all)))
-                )
-                val roles = roleIds.filter { it == USER_ROLE || it == ViewStoreRoles.SHARED_WRITER }
-                    .map { RolePermissionData(it, setOf(all.id)) }
-                return Mono.just(AppRolePermissionData(permission, roles))
-            }
-        }
     }
 }

@@ -1,20 +1,17 @@
-# CoSec Gateway in front of every public port (decisions D295, D296): it verifies each request's CoSec token
-# (Authorization: Bearer, HMAC256 with COSEC_JWT_SECRET), authorizes it by its global policy (policy.json: any
-# authenticated principal), and forwards it with the token, which the services read in CoSec's inject mode without
-# verifying it again. It routes by the context prefix (decision D313). It writes the TCP peer it accepted as the one
-# X-Forwarded-For (trusted-proxies, for-append: false), never believing a client's (forward-headers-strategy: none),
-# so a service's remote_ip is the client's (D297, D303 ⑥; verified in run 10). Its pods carry
-# app.kubernetes.io/component: gateway, which every service's public NetworkPolicy admits. The gateway keeps its
-# policies in Redis (cocache), which it requires; no Wow service connects to it.
+# CoSec Gateway in front of every public port: it verifies each request's CoSec token (Authorization: Bearer, HMAC256
+# with COSEC_JWT_SECRET), decides the request with its documents in Redis (documents/, which cluster.sh publishes
+# before the gateway starts), and forwards the principal it verified in the CoSec-Identity header, without the token;
+# every service behind it reads its callers from that header in CoSec's gateway mode, with no secret, documents or
+# Redis of its own. It routes by the context prefix. It writes the TCP peer it accepted as the one X-Forwarded-For
+# (trusted-proxies, for-append: false), never believing a client's (forward-headers-strategy: none), so a service's
+# remote_ip is the client's. Its pods carry app.kubernetes.io/component: gateway, which every service's public
+# NetworkPolicy admits: a service believes any CoSec-Identity, so nothing else may reach it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cosec-gateway-config
 data:
-  bootstrap.yaml: |
-    spring:
-      application:
-        name: cosec-gateway
+  # The image reads its configuration from this directory alone (spring.config.location=file:./config/).
   application.yaml: |
     # region settings
     server:
@@ -61,33 +58,42 @@ data:
                     exceptions: java.io.IOException,java.util.concurrent.TimeoutException
               # endregion
               # region routes
-              # Each service by its context prefix.
+              # Each service by its context prefix. A route takes the CoSec-Identity of a permitted request only when
+              # it opts in (metadata cosec-identity: true) or targets lb://: these target a Kubernetes Service's URL.
               routes:
                 - id: eshop-catalog
                   uri: http://eshop-catalog-service
                   predicates: [Path=/eshop-catalog/**]
+                  metadata: { cosec-identity: true }
                 - id: eshop-basket
                   uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**]
+                  metadata: { cosec-identity: true }
                 # endregion
                 - id: eshop-ordering
                   uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
+                  metadata: { cosec-identity: true }
                 - id: eshop-inventory
                   uri: http://eshop-inventory-service
                   predicates: [Path=/eshop-inventory/**]
+                  metadata: { cosec-identity: true }
                 - id: eshop-payment
                   uri: http://eshop-payment-service
                   predicates: [Path=/eshop-payment/**]
+                  metadata: { cosec-identity: true }
                 - id: ops
                   uri: http://ops-service
                   predicates: [Path=/ops/**]
+                  metadata: { cosec-identity: true }
                 - id: view-store
                   uri: http://view-store-service
                   predicates: [Path=/view-store/**]
+                  metadata: { cosec-identity: true }
                 - id: analytics-catalog
                   uri: http://analytics-catalog-service
                   predicates: [Path=/analytics-catalog/**]
+                  metadata: { cosec-identity: true }
                 # The runner's upstream that resets each probe's first connection after reading its request
                 # (flaky.yaml): the evidence of what a retry resends. Not a service; the E2E's alone.
                 - id: ga-e2e-flaky
@@ -99,44 +105,36 @@ data:
         kafka:
           enabled: false
       authentication:
-        enabled: false
+        login:
+          enabled: false
       ip2region:
-        enabled: false
-      # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
-      # auto-configuration does: with Redis configured, the image does not start unless one of them is off (see
-      # https://github.com/Ahoo-Wang/CoSec/issues/1063).
-      limiter:
         enabled: false
       jwt:
         algorithm: hmac256
         secret: ${COSEC_JWT_SECRET}
       authorization:
-        # A principal named by the cosec.root property would bypass every policy.
-        root-enabled: false
-        local-policy:
-          enabled: true
-          init-repository: true
-          force-refresh: true
-          locations: file:./config/policy.json
+        # The gateway is the edge: environment.ip is the TCP peer, never an X-Forwarded-For entry.
+        remote-ip:
+          max-trusted-index: 0
+        snapshot:
+          # Ready once the shop's tenant document is installed too, not the platform document alone.
+          prewarm-tenants: ["(0)"]
+      # What a service behind it reads: the identity alone (tenant, principal, app, space, roles, the token's id and
+      # expiry), no token claims and no Authorization header, since no service verifies a token.
+      gateway:
+        identity:
+          forward-authorization: false
       # endregion
     logging:
       level:
         root: info
-  # region policy
-  # Any authenticated principal passes; what it may do is each service's to say (the gateway authorizes coarsely).
-  policy.json: |
-    {
-      "id": "ga-e2e",
-      "name": "GA end-to-end",
-      "category": "ga-e2e",
-      "description": "Every route for any authenticated principal",
-      "type": "global",
-      "tenantId": "(platform)",
-      "statements": [
-        { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
-      ]
-    }
-  # endregion
+    management:
+      endpoint:
+        health:
+          # /actuator/health/liveness and /readiness for the probes; readiness refuses traffic until the platform
+          # document and the prewarmed tenant's are installed.
+          probes:
+            enabled: true
 ---
 apiVersion: v1
 kind: Secret
@@ -144,8 +142,7 @@ metadata:
   name: cosec-jwt
 type: Opaque
 stringData:
-  # The services that still verify tokens themselves (ops, view store) take the same secret (COSEC_JWT_SECRET), and
-  # the runner signs its callers' tokens with it.
+  # The gateway's alone, with which the runner signs its callers' tokens: no service behind it verifies one.
   COSEC_JWT_SECRET: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
 ---
 apiVersion: apps/v1
@@ -167,23 +164,28 @@ spec:
       annotations:
         ga-e2e/config: "1"
     spec:
+      # No service environment variables: this Service would give the pod COSEC_GATEWAY_* variables, which Spring reads
+      # as cosec.gateway.* keys, and CoSec refuses keys it does not read.
+      enableServiceLinks: false
       containers:
         - name: cosec-gateway
-          image: ahoowang/cosec-gateway:6.1.2@sha256:ef6f76c93b8230bca3e31eb3e603699d7af326a6d451fe3e9268e43fa9fd007f
+          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-alpha.2@sha256:1605869a8ffe6468e05b4d4cabb636df437ff38f382deb4a08664e94180317a8
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: cosec-jwt
           env:
-            # The image's start script sets -Xms2048M -Xmx2048M; JAVA_OPTS comes after it and wins.
+            # The image's start script sets -Xms2048M -Xmx2048M and 512M of direct memory; JAVA_OPTS comes after it
+            # and wins. Heap, direct memory, metaspace and threads fit the 768Mi limit below, as main's CoSec 6
+            # gateway did: the mongo arm's single kind node has no room for more.
             - name: JAVA_OPTS
-              value: -Xms256m -Xmx384m -Djava.net.preferIPv4Stack=true
+              value: -Xms256m -Xmx384m -XX:MaxDirectMemorySize=128m -Djava.net.preferIPv4Stack=true
           ports:
             - name: http
               containerPort: 8080
           startupProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: http
             periodSeconds: 5
             failureThreshold: 60

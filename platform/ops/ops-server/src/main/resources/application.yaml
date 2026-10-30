@@ -24,11 +24,11 @@ wow:
       # context that failed park here.
       enabled: true
 ---
-# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
-# (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the
-# operator from it: its tenant, its id, its roles. CoSec's
-# inject mode, without CoSec's own authorization of each path: what an operator may do is the service's to say
-# (OpsAuthorizer), by the role ops.operator among the token's roles.
+# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's credential and
+# forwards the identity it verified in CoSec-Identity, which CoSec's gateway mode here reads, with no secret, no
+# documents and no Redis; the edge reads the operator from it: its tenant, its id, its roles. CoSec decides no path
+# here: what an operator may do is the service's to say (OpsAuthorizer), by the role ops.operator among its roles. Only
+# the gateway may reach the service, as the service believes any CoSec-Identity it receives.
 spring:
   config:
     activate:

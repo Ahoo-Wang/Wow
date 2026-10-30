@@ -12,6 +12,9 @@ patches:
   - target:
       kind: StatefulSet
       name: mongodb
+    # mongod's WiredTiger cache defaults to half of (memory − 1 GB), at least 256 MB, and its connections, index builds
+    # and replication buffers come on top. The cache is fixed at 0.25 GB so all of it stays inside the 768Mi limit;
+    # three replicas share the runner's one kind node with every service.
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/args

@@ -16,9 +16,9 @@ package me.ahoo.wow.analytics.catalog.server
 import me.ahoo.wow.api.caller.Caller
 
 /**
- * The analytics catalog's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the token the CoSec
- * gateway verified (the `cosec` profile), or, in development, from the `Wow-Roles` header (the host's development
- * callers). Its callers are of the platform's tenant, `(platform)`, and have no owner.
+ * The analytics catalog's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the identity the CoSec
+ * gateway verified and forwarded (the `cosec` profile), or, in development, from the `Wow-Roles` header (the host's
+ * development callers). Its callers are of the platform's tenant, `(platform)`, and have no owner.
  */
 object AnalyticsCatalogRoles {
     /** The caller attribute listing its roles, as CoSec's resolver names it. */
