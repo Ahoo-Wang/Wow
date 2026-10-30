@@ -185,15 +185,15 @@ public final class me/ahoo/wow/test/ProcessorSpec {
 }
 
 public final class me/ahoo/wow/test/ProcessorSpecKt {
-	public static final fun commandCommitted (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
-	public static synthetic fun commandCommitted$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
-	public static final fun commandRejected (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
-	public static synthetic fun commandRejected$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
 	public static final fun commandTypeOf (Lme/ahoo/wow/api/decide/Command;)Ljava/lang/String;
+	public static final fun committedReceipt (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
+	public static synthetic fun committedReceipt$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
 	public static final fun projectionSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
 	public static final fun projectionSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 	public static final fun reactorSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
 	public static final fun reactorSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
+	public static final fun rejectedReceipt (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
+	public static synthetic fun rejectedReceipt$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
 	public static final fun sagaSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
 	public static final fun sagaSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 }

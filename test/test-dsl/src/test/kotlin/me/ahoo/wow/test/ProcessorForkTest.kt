@@ -193,11 +193,11 @@ class ProcessorForkTest {
                 fork { }
             }
             whenRejected(
-                commandRejected(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"),
+                rejectedReceipt(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"),
                 Reserve::class
             ) { }
             whenCommitted(
-                commandCommitted(Command("c", "r", stock, Reserve("o", 1)), executionOf()),
+                committedReceipt(Command("c", "r", stock, Reserve("o", 1)), executionOf()),
                 Reserve::class
             ) { }
             whenEvent(stateEvent(order, Order("order-1"), Cancel("no"))) { }

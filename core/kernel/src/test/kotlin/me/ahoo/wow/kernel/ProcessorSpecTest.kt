@@ -32,12 +32,12 @@ import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
-import me.ahoo.wow.test.commandCommitted
-import me.ahoo.wow.test.commandRejected
 import me.ahoo.wow.test.commandTypeOf
+import me.ahoo.wow.test.committedReceipt
 import me.ahoo.wow.test.projectionSpec
 import me.ahoo.wow.test.publishedEvent
 import me.ahoo.wow.test.reactorSpec
+import me.ahoo.wow.test.rejectedReceipt
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
@@ -479,11 +479,11 @@ class ProcessorSpecTest {
     ) {
         val execution = ExecutionId("OrderSaga.onOrder", order, 1)
         val reserve = Command("derived-1", "derived-1", stock, Reserve("order-1", 1))
-        val rejected = commandRejected(reserve, execution, "inventory.stock.insufficient", "None.")
+        val rejected = rejectedReceipt(reserve, execution, "inventory.stock.insufficient", "None.")
         rejected.commandType.assert().isEqualTo("inventory.stock.Reserve")
         rejected.error.assert().isEqualTo(ErrorInfo("inventory.stock.insufficient", "None."))
         whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
-        val committed = commandCommitted(reserve, execution, version = 3, aggregateId = "pear", duplicate = true)
+        val committed = committedReceipt(reserve, execution, version = 3, aggregateId = "pear", duplicate = true)
         committed.ref.id.assert().isEqualTo("pear")
         committed.result.function.name.assert().isEqualTo("Reserve")
         whenCommitted(committed, Reserve::class) { expectCommands(Confirm("pear", 3, duplicate = true)) }

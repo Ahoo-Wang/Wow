@@ -164,7 +164,7 @@ fun commandTypeOf(command: Command<*>): String {
  * The rejection of [command] with [code] and [message], as the runtime hands it to the `@OnRejected` handler of the
  * saga whose execution [executionId] derived the command: for [ProcessorSpec.whenRejected].
  */
-fun commandRejected(
+fun rejectedReceipt(
     command: Command<*>,
     executionId: ExecutionId,
     code: String,
@@ -187,7 +187,7 @@ fun commandRejected(
  * execution [executionId] derived the command: for [ProcessorSpec.whenCommitted].
  */
 @Suppress("LongParameterList")
-fun commandCommitted(
+fun committedReceipt(
     command: Command<*>,
     executionId: ExecutionId,
     version: Int = 1,
@@ -473,11 +473,11 @@ class ProcessorSpec private constructor(
         expect: ProcessorExpectations.() -> Unit = {},
     ) = step(tree, "whenRejected(${command.body.javaClass.simpleName}, $code)") {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
-            "${command.id} is not a command this specification derived: hand over commandRejected(command, " +
+            "${command.id} is not a command this specification derived: hand over rejectedReceipt(command, " +
                 "executionId, code) instead, with the execution that derived it.",
         )
         val qualified = checkedCode(code, command.ref.type)
-        val rejected = commandRejected(command, execution, qualified, message, commandType)
+        val rejected = rejectedReceipt(command, execution, qualified, message, commandType)
         reject(rejected, command.body.javaClass.kotlin, expect)
     }
 
@@ -500,7 +500,7 @@ class ProcessorSpec private constructor(
     /**
      * Hands [rejected], the rejection of a command of [command] that the saga's handler named by its
      * [CommandReceipt.Rejected.executionId] derived, to the saga's `@OnRejected` handler of it, as the runtime does: build it
-     * with [commandRejected]. [expect] checks the compensating commands, or, when the saga has no handler of that
+     * with [rejectedReceipt]. [expect] checks the compensating commands, or, when the saga has no handler of that
      * rejection, the park ([ProcessorExpectations.expectParked]).
      */
     fun whenRejected(
@@ -565,17 +565,17 @@ class ProcessorSpec private constructor(
         expect: ProcessorExpectations.() -> Unit = {},
     ) = step(tree, "whenCommitted(${command.body.javaClass.simpleName})") {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
-            "${command.id} is not a command this specification derived: hand over commandCommitted(command, " +
+            "${command.id} is not a command this specification derived: hand over committedReceipt(command, " +
                 "executionId) instead, with the execution that derived it.",
         )
-        val committed = commandCommitted(command, execution, version, aggregateId, duplicate, commandType)
+        val committed = committedReceipt(command, execution, version, aggregateId, duplicate, commandType)
         commit(committed, command.body.javaClass.kotlin, expect)
     }
 
     /**
      * Hands [committed], the success receipt of a command of [command] that the saga's handler named by its
      * [CommandReceipt.Committed.executionId] derived, to the saga's `@OnCommitted` handler of it, as the runtime does: build
-     * it with [commandCommitted]. [expect] checks the commands the handler derives; it fails when the saga has no
+     * it with [committedReceipt]. [expect] checks the commands the handler derives; it fails when the saga has no
      * handler of that receipt.
      */
     fun whenCommitted(
