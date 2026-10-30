@@ -271,6 +271,8 @@ class HttpQueryApiTest {
         caught<IllegalArgumentException> { models.typeOf(HttpCommandClientTest.DeliverItems::class.java) }
             .message.assert().contains("share the state")
         caught<IllegalArgumentException> { models.typeOf(String::class.java) }
+            // The code's mistake, not the caller's: a command function that makes it fails its command (PA-9).
+            .assert().isInstanceOf(ReadMisuse::class.java)
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
     }

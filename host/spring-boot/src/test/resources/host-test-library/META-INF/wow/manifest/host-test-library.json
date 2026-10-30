@@ -1,0 +1,73 @@
+{
+  "format" : 1,
+  "contexts" : [ {
+    "name" : "library",
+    "description" : "The host's test context of a model that queries: books lent to bank accounts",
+    "aggregates" : [ {
+      "name" : "book",
+      "state" : {
+        "schema" : "#/$defs/me.ahoo.wow.spring.boot.Book"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "LendBook",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.spring.boot.LendBook",
+        "creation" : "required",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/library/book/{id}/lend-book"
+        } ]
+      } ],
+      "events" : [ {
+        "name" : "BookLent",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.spring.boot.BookLent"
+      } ],
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/library/book/snapshot/query"
+        } ]
+      } ]
+    } ],
+    "subscriptions" : [ ],
+    "errors" : [ {
+      "code" : "library.book.no-account",
+      "status" : 409,
+      "description" : "The book is lent to an account the borrower does not see."
+    } ]
+  } ],
+  "errors" : [ ],
+  "$defs" : {
+    "me.ahoo.wow.spring.boot.Book" : {
+      "type" : "object",
+      "properties" : {
+        "account" : {
+          "type" : "string"
+        }
+      }
+    },
+    "me.ahoo.wow.spring.boot.LendBook" : {
+      "type" : "object",
+      "properties" : {
+        "account" : {
+          "type" : "string"
+        }
+      }
+    },
+    "me.ahoo.wow.spring.boot.BookLent" : {
+      "type" : "object",
+      "properties" : {
+        "account" : {
+          "type" : "string"
+        }
+      }
+    }
+  }
+}

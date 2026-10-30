@@ -50,8 +50,10 @@ import java.util.concurrent.ConcurrentHashMap
  * tenant policies and the budgets apply, and the snapshots decode as the aggregates' state classes.
  *
  * The Manifest and the state classes come from the modules' binding index ([ModelProvider]): each module's fragment,
- * merged, and its aggregate models. A module whose models need [dependencies] it is not given keeps its types' state
- * classes from the states given to it ([snapshot]).
+ * merged, and each state class the Manifest names by its binary name (`#/$defs/<binary name>`, as the compiler writes
+ * it), so a state is read by its class whatever the model takes, the node's `QueryApi` or any other service. A state a
+ * hand-written fragment names otherwise comes from the module's models, built with the [dependencies] given, else from
+ * the states given to it ([snapshot]).
  *
  * ```kotlin
  * sagaSpec(handlers) {
@@ -158,8 +160,8 @@ class MemoryQueries @InternalWowApi constructor(
         private const val NO_FINGERPRINT = "memory"
 
         /**
-         * The read side of the modules on [classLoader]'s class path: their merged Manifest, and the state classes of
-         * the models [dependencies] build.
+         * The read side of the modules on [classLoader]'s class path: their merged Manifest, the state classes it names
+         * by their binary names, and those of the models [dependencies] build.
          */
         @JvmStatic
         @JvmOverloads
@@ -171,16 +173,27 @@ class MemoryQueries @InternalWowApi constructor(
         ): MemoryQueries {
             val providers = ModelProvider.load(classLoader)
             val fragments = providers.map { it.fragment }.distinct().map { fragment(classLoader, it) }
-            val stateTypes = providers.flatMap { provider ->
+            val manifest = ManifestMerger.merge(fragments)
+            val built = providers.flatMap { provider ->
                 try {
                     provider.models(dependencies)
                 } catch (_: MissingDependencyException) {
-                    // Its types take their state classes from the states a spec gives them.
+                    // Its types take their state classes from the Manifest, else from the states a spec gives them.
                     emptyList()
                 }
             }.associate { it.type to it.stateType }
-            return MemoryQueries(ManifestMerger.merge(fragments), stateTypes, policies, filters)
+            return MemoryQueries(manifest, declared(manifest, classLoader) + built, policies, filters)
         }
+
+        /** The state classes [manifest] names by their binary names that [classLoader] has, by aggregate type. */
+        private fun declared(manifest: Manifest, classLoader: ClassLoader): Map<AggregateType, Class<*>> =
+            manifest.contexts.flatMap { context ->
+                context.aggregates.mapNotNull { aggregate ->
+                    val name = Manifest.schemaKey(aggregate.state.schema)
+                    runCatching { Class.forName(name, false, classLoader) }.getOrNull()
+                        ?.let { AggregateType(context.name, aggregate.name) to it }
+                }
+            }.toMap()
 
         private fun fragment(classLoader: ClassLoader, source: String): ManifestFragment {
             val bytes = checkNotNull(classLoader.getResourceAsStream(source)?.use { it.readBytes() }) {

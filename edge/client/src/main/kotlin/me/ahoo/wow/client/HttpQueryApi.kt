@@ -316,7 +316,7 @@ class HttpQueryApi internal constructor(
         override suspend fun state(id: String): Snapshot<S>? = read(type.ref(caller.tenantId, id), null)
 
         override suspend fun state(ref: AggregateRef): Snapshot<S>? {
-            require(ref.type == type) { "$ref is not an aggregate of $type." }
+            requireRead(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId)
         }
 
@@ -324,7 +324,7 @@ class HttpQueryApi internal constructor(
             read(type.ref(caller.tenantId, id), null, minVersion)
 
         override suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? {
-            require(ref.type == type) { "$ref is not an aggregate of $type." }
+            requireRead(ref.type == type) { "$ref is not an aggregate of $type." }
             return read(ref, ref.tenantId, minVersion)
         }
 
@@ -334,7 +334,7 @@ class HttpQueryApi internal constructor(
          * [MinVersionNotReachedException] with the version it names.
          */
         private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): Snapshot<S>? {
-            minVersion?.let { require(it >= 1) { "A committed state has a version from 1." } }
+            minVersion?.let { requireRead(it >= 1) { "A committed state has a version from 1." } }
             val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
             val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
             val request = PeerRequest(type.context, path, caller, rootOf(caller))
@@ -421,7 +421,7 @@ class HttpQueryApi internal constructor(
         /** A typed row reads the whole record: a projection leaves out fields it needs. */
         private fun wholeRecords(query: Any) {
             val projection = (query as? ProjectionCapable<*>)?.projection ?: return
-            require(projection.include.isEmpty() && projection.exclude.isEmpty()) {
+            requireRead(projection.include.isEmpty() && projection.exclude.isEmpty()) {
                 "A typed query reads whole records: run a projection through dynamic()."
             }
         }
@@ -449,8 +449,8 @@ internal class PeerModels(
     fun typeOf(stateType: Class<*>): AggregateType {
         StateView.typeOf(stateType)?.let { return it }
         val found = types[Manifest.schemaRef(stateType.name)].orEmpty()
-        require(found.isNotEmpty()) { "No contract has an aggregate whose state is ${stateType.name}." }
-        require(found.size == 1) { "The aggregates $found share the state ${stateType.name}: query them by type." }
+        requireRead(found.isNotEmpty()) { "No contract has an aggregate whose state is ${stateType.name}." }
+        requireRead(found.size == 1) { "The aggregates $found share the state ${stateType.name}: query them by type." }
         return found.single()
     }
 
