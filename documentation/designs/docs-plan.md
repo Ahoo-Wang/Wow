@@ -574,3 +574,15 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-18 | PostgreSQL 的部署要求：`tcp_keepalives_idle/interval/count` = 30/10/3；连接预算（节点数 × 池大小，加每次崩溃一池的余量，不超过 `max_connections`）；Wow 在事务内设的服务端上限 | operate/postgresql、operate/kubernetes | D321 | G.1（清单）、F10 的修复 PR（文档） |
 | DG-19 | Saga 怎样得知成功：订阅目标的状态流；用定时设截止时间并补偿；不产生事件的成功由目标发业务事件 | guide/sagas | D323 | 文档工作包 |
 | DG-20 | 没有 Kafka 的服务：不发布流时的那一行 INFO，哪些用法要求传输 | operate/kafka、guide/spring-boot | D322 | F11 的修复 PR |
+| DG-21 | 内存查询的默认：内存存储开启时查询随之开启（不是默认关闭） | guide/testing-services:84、guide/testing:364 | D338（#5056） | 最终重写 |
+| DG-22 | 订阅另一上下文的流从哪里开始：JOIN（服务已在读该流则从 END，否则从头），不是总从头；Manifest 写 `JOIN` | guide/published-streams:54、guide/sagas:184、guide/projections:104、concepts/subscriptions:80、operate/upgrades:43 | D372 S25 | 最终重写 |
+| DG-23 | 改名与回卷：处理器改名即新订阅、从 END 开始；保留检查点就把 `@Name` 钉为旧名；启动时对无主检查点的 WARN；换一个名字是唯一的回卷 | operate/upgrades、concepts/subscriptions、operate/ops-console | D372 S6、S7 | 最终重写 |
+| DG-24 | 线上取值一律小写短横线：等待阶段 `accepted`/`committed`/`handled`；查询体的 `op`、`type`、`direction`、`total`、错误码与描述符取值（如 `"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`） | concepts/waits、migrate/capabilities:31、operate/kafka:89、reference/query-language 与所有查询样例 | D352（#5087）、D352b（#5101） | 最终重写 |
+| DG-25 | 查询描述符：`dynamic` 条目与 `fields` 一样带 `nullable`、`semantic`、`sort`、`aggregate`；数组上的 TERMS 按每个不同的元素分组，无值的记录在每个后端都进 null 组；Map 上的语义注解作用于其值 | reference/query-language（描述符样例） | #5115、#5180、#5182、D371 | 最终重写 |
+| DG-26 | 读取 API：受信读取是 `NodeQueryApi.trusted()`（客户端的 `QueryApi` 只有 `of`），受信的快照查询只按 ref；无类型读取为 `ObjectNode`；无法续读的流必须给出 `limit`（`stream-not-resumable`）；`:api` 使用 Jackson 树（`ObjectNode`） | reference/query-language:41、contribute/index:58 | D366 PR B（#5171） | 最终重写 |
+| DG-27 | TS 命令的词汇：`CommandClient`（「Gateway」只指服务端准入）；按结果的状态区分 `CommandRejectedError` 与 `WowProblemError`；`WaitPlan`；生成的 `manifest.ts` | TS 的命令页、README 与 Skill | D356（#5111） | 最终重写 |
+| DG-28 | wow-view-store 参考：`SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` 已是内部，按 `Wow-Scope`（`SHARED_SCOPE`、`SYSTEM_SCOPE`）划分；新增 `WowViewStoreErrorCode`、`WowViewStoreOptions.pageSize` | reference/typescript/wow-view-store/index | D353 PR-C1 | 最终重写 |
+| DG-29 | 失败与定时：退避按 `multiplier`（不是「每次加倍」），表格补上该列；任务发出的命令的 ref 写法与样例一致 | guide/failures:55、guide/scheduling:97 | D372 S26 | 最终重写 |
+| DG-30 | 测试页：期望的完整清单（`expectRetried`、`expectParked`、`expectCommandCount`、`fork`、`sagaSpecTests`、`whenTick`、`ticks`、`whenRedelivered` 等）；与运行时一致的跳过与停放语义；同步样例周围的说明 | guide/testing:319-334 及 testing、failures、projections、scheduling 的说明文字，migrate/source:238、:242 | D372 S19～S24（#5195） | 最终重写 |
+| DG-31 | 停放操作：跳过必须给出 `{"failedAt"}`、重试可选；扫描为条目排期；线上为小写（`requested`）；PR 3 之后用 `retry`、`activate`、`parked.claim-ttl` 的新名 | operate/ops-console:89 | D372 S3、S8（#5194、#5198） | 最终重写 |
+| DG-32 | Skill 参考（持续维护，不等最终重写）：跳过须给 `failedAt`、`retry` 一词；测试 DSL 的新期望与语义 | skills/wow-develop/references/processes.md:152、testing.md:107、:109、review-rubric.md:38，skills/wow-migrate/references/v9-to-v10.md:793 | D372 | D372 PR 3（技能的两处）与 PR 4a |

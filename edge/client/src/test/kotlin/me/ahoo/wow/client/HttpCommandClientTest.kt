@@ -391,7 +391,7 @@ class HttpCommandClientTest {
     fun `a peer that is down should be tried as often as the policy says, then be wow-peer-unavailable`() {
         withRefusingPort { closed ->
             val down = EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://127.0.0.1:$closed")))
-            val client = WowClient.builder().endpoints(down).connectTimeout(200.milliseconds)
+            val client = WowClient.builder().endpoints(down).service("basket-service").connectTimeout(200.milliseconds)
                 .retry(RetryPolicy.of(maxAttempts = 2, backoff = 1.milliseconds))
                 .contracts(contractOf(BOX, DeliverItems::class.java)).build().commands
             // Refused, or never answered, as the platform has it: either way the connection was not made.
@@ -419,14 +419,9 @@ class HttpCommandClientTest {
                     .wait(CommandRequest.to(ref, DeliverItems(emptyList())))
             }
         }.message.assert().contains("wow.peers.mail.public-url")
-        val unnamed = WowClient.builder().contracts(emptyList()).build().commands
-        assertThrownBy<IllegalArgumentException> {
-            runBlocking {
-                unnamed.wait(
-                    CommandRequest.to(ref, DeliverItems(emptyList()))
-                )
-            }
-        }
+        // A client of no identity is not built: its mode is named.
+        caught<IllegalStateException> { WowClient.builder().contracts(emptyList()).build() }
+            .message.assert().contains("service(name)", "user(credential)")
         peer.taken.assert().isEmpty()
     }
 

@@ -52,6 +52,8 @@ import java.util.stream.Stream
  * JavaTenantSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
  * List<Snapshot<OrderState>> open = orders.list(ListQuery.of(MatchAllFilter.INSTANCE));
  * Snapshot<OrderState> order = orders.state("order-1"); // null when there is none
+ * // Read your writes: at version 3, the one the command answered, or later.
+ * Snapshot<OrderState> placed = orders.state("order-1", 3);
  * ```
  */
 @JvmSuppressWildcards
@@ -178,6 +180,15 @@ open class JavaSnapshotQueries<S : Any> internal constructor(private val delegat
     fun state(ref: AggregateRef): Snapshot<S>? = JavaFlows.blocking { delegate.state(ref) }
 
     fun stateAsync(ref: AggregateRef): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(ref) }
+
+    /**
+     * The committed state of the aggregate [ref] at version [minVersion] or later, or null (read your writes,
+     * [SnapshotQueries.state]); a [me.ahoo.wow.api.read.MinVersionNotReachedException] when it stays below it.
+     */
+    fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? = JavaFlows.blocking { delegate.state(ref, minVersion) }
+
+    fun stateAsync(ref: AggregateRef, minVersion: Int): CompletableFuture<Snapshot<S>?> =
+        JavaFlows.async { delegate.state(ref, minVersion) }
 }
 
 /** [TenantSnapshotQueries] for Java callers: a state by its aggregate id too, in the queries' tenant. */
@@ -188,4 +199,10 @@ class JavaTenantSnapshotQueries<S : Any> internal constructor(private val delega
     fun state(id: String): Snapshot<S>? = JavaFlows.blocking { delegate.state(id) }
 
     fun stateAsync(id: String): CompletableFuture<Snapshot<S>?> = JavaFlows.async { delegate.state(id) }
+
+    /** The committed state of the aggregate [id] at version [minVersion] or later, as [state] of a ref reads it. */
+    fun state(id: String, minVersion: Int): Snapshot<S>? = JavaFlows.blocking { delegate.state(id, minVersion) }
+
+    fun stateAsync(id: String, minVersion: Int): CompletableFuture<Snapshot<S>?> =
+        JavaFlows.async { delegate.state(id, minVersion) }
 }

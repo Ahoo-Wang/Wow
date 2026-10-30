@@ -1,15 +1,16 @@
 public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration {
 	public static final field AUTHORIZER_ENABLED Ljava/lang/String;
-	public static final field COSEC_AUTHORIZATION_ENABLED Ljava/lang/String;
-	public static final field COSEC_INJECT_ENABLED Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion;
-	public static final field TRUST_INJECTED_APP Ljava/lang/String;
 	public fun <init> ()V
 	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
 public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion {
 	public final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/CoSecRouteMapAutoConfiguration {
+	public fun <init> ()V
 }
 
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {

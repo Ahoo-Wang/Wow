@@ -14,19 +14,12 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.context.request.Request
-import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.principal.CoSecPrincipal
-import me.ahoo.cosec.api.principal.SpacedRoleId
 import me.ahoo.cosec.api.tenant.Tenant
-import me.ahoo.cosec.authorization.RoleVerifyContext
-import me.ahoo.cosec.authorization.VerifyContext.Companion.getVerifyContext
-import me.ahoo.cosec.context.RequestSecurityContexts.getRequest
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
@@ -35,14 +28,11 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *
  * - [defaultTenant] is the tenant of a principal in CoSec's default tenant, `(0)`.
  * - A principal acts across scopes ([Caller.crossScope]) when it has one of [crossScopeRoles] or one of
- *   [crossScopePolicies], compared whole (`admin@s1`, a role in space `s1`, is not `admin`).
- * - A principal is a tenant-level caller when it has one of [tenantRoles] or one of
- *   [tenantPolicies], compared whole: its caller has no owner, so it reads and writes every aggregate of its tenant,
- *   each action still authorized by CoSec. Any other principal is an owner-level caller, its own owner.
+ *   [crossScopePolicies] in the scope CoSec resolved for its request.
+ * - A principal is a tenant-level caller when it has one of [tenantRoles] or one of [tenantPolicies]: its caller has
+ *   no owner, so it reads and writes every aggregate of its tenant, each action still authorized by CoSec. Any other
+ *   principal is an owner-level caller, its own owner.
  * - The principal's attributes whose key starts with [attributePrefix] are its ABAC attributes.
- * - [trustInjectedApp] (`wow.cosec.trust-injected-app`, off by default) takes the application of a
- *   security context CoSec's inject mode injected as the caller's ([CoSecCallerResolver]): a trust decision the host
- *   makes for a service behind a CoSec gateway, which [CoSecAutoConfiguration] allows in that mode alone.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -54,7 +44,6 @@ class CoSecCallerOptions @InternalWowApi constructor(
     val attributePrefix: String = ABAC_PREFIX,
     val tenantRoles: Set<String> = emptySet(),
     val tenantPolicies: Set<String> = emptySet(),
-    val trustInjectedApp: Boolean = false,
 ) {
     init {
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
@@ -69,7 +58,7 @@ class CoSecCallerOptions @InternalWowApi constructor(
     override fun toString(): String =
         "CoSecCallerOptions(defaultTenant=$defaultTenant, crossScopeRoles=$crossScopeRoles, " +
             "crossScopePolicies=$crossScopePolicies, attributePrefix=$attributePrefix, tenantRoles=$tenantRoles, " +
-            "tenantPolicies=$tenantPolicies, trustInjectedApp=$trustInjectedApp)"
+            "tenantPolicies=$tenantPolicies)"
 
     private fun valueFields(): List<Any?> = listOf(
         defaultTenant,
@@ -78,7 +67,6 @@ class CoSecCallerOptions @InternalWowApi constructor(
         attributePrefix,
         tenantRoles,
         tenantPolicies,
-        trustInjectedApp,
     )
 
     companion object {
@@ -88,79 +76,54 @@ class CoSecCallerOptions @InternalWowApi constructor(
 }
 
 /**
- * The caller of a request from the security context CoSec's WebFilter resolved for it: CoSec
- * authenticates and authorizes the request by path and method, this resolver turns its principal into a [Caller].
+ * The caller of a request from the security context CoSec's pipeline built for it: CoSec
+ * authenticates the request and resolves its scope, deciding it itself or, behind a CoSec gateway
+ * (`cosec.pipeline.mode=gateway`), reading what the gateway verified from `CoSec-Identity`. This resolver turns that
+ * context into a [Caller].
  *
- * - **Unauthenticated**: no security context, or an anonymous principal, is no caller: the edge answers 401.
+ * - **Unauthenticated**: no security context, one CoSec's pipeline did not build (it has no
+ *   `scope`), or an anonymous principal, is no caller: the edge answers 401.
  * - **Tenant**: the security context's; CoSec's default tenant `(0)` is [CoSecCallerOptions.defaultTenant].
  * - **Owner and subject**: the principal's id, the subject always. The owner is the principal's id for an owner-level
  *   caller, and none for a tenant-level one ([CoSecCallerOptions.tenantRoles], [CoSecCallerOptions.tenantPolicies]),
- *   such as an employee who ships every buyer's orders: the parts absent from a caller's scope are
- *   not checked.
- * - **Space**: CoSec has no list of a principal's spaces; its spaced roles (`role@space`) are the
- *   spaces it belongs to. `Wow-Space` selects one of them; without it, the principal acts in its only space, or in
- *   none when it belongs to none or to several. A `Wow-Space` the principal does not belong to leaves the caller in
- *   that default, so the edge answers 403 `wow.auth.forbidden`.
+ *   such as an employee who ships every buyer's orders: the parts absent from a caller's scope are not checked.
+ * - **Space**: the space of CoSec's scope, which CoSec validated (`CoSec-Space-Id`, a space the principal has a role
+ *   in); its default space is none. `Wow-Space` is not read: on a CoSec host the client names its space to CoSec.
+ * - **Application** ([Caller.app]): the app of CoSec's scope, the one CoSec evaluated the request in: the host's
+ *   (`cosec.authorization.scope.app-id`), or the one the request declared (`CoSec-App-Id`) and CoSec accepted, or,
+ *   behind a gateway, the one the gateway forwarded. None when the scope names no app.
  * - **Cross scope**: [CoSecCallerOptions.crossScopeRoles] and [CoSecCallerOptions.crossScopePolicies].
  * - **Never a service identity**: a service names itself on the internal port (`Wow-Service`), never
  *   through CoSec, so no principal asserts a synchronous call's root command, whatever headers its request carries.
- * - **Attributes**: the principal's roles ([ROLES]), its policies ([POLICIES]), and its ABAC attributes, keyed with
- *   their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
- * - **Application** ([Caller.app]): the request's `CoSec-App-Id` only when CoSec's authorization of
- *   this request granted it through a permission of that application's roles ([appOf]). CoSec does not authenticate
- *   the header itself: its `Request.appId` is the header (or the query parameter) as the client sent it, and its
- *   tokens carry no application. What CoSec does check is the application's role permissions, looked up by that id
- *   (`AppRolePermissionRepository`): a request it allowed by one of them comes from a principal that holds a role of
- *   the application which permits it. A request allowed otherwise (a global or principal policy, the root), or whose
- *   security context was injected without CoSec's authorization (`ReactiveInjectSecurityContextWebFilter`, the
- *   internal port), has no application, whatever header it sends: the internal port is the trust boundary.
- * - **Injected application**: behind a CoSec gateway, in CoSec's inject mode
- *   (`ReactiveInjectSecurityContextWebFilter`), the gateway authenticated and authorized the request and this service
- *   only parses the token it forwards, so no request it sees carries CoSec's authorization. With
- *   [CoSecCallerOptions.trustInjectedApp], a security context without one (no `VerifyContext`) takes the application
- *   of the request the inject filter put on it: CoSec's `Request.appId`, the `CoSec-App-Id` header the gateway
- *   forwarded (else the `CoSec-App-Id` query parameter), the very value the gateway authorized the request with. It is
- *   a trust decision of the host, off by default: the gateway's authorization checked the application
- *   only when it allowed the request by that application's roles, so the host turns it on when nothing but the gateway
- *   reaches the service and the gateway's policies hold every request to its application (or the gateway sets the
- *   header itself). A blank one is none. A context CoSec authorized here keeps the rule above, whatever the option.
+ * - **Attributes**: the principal's roles in its scope ([ROLES]), its policies ([POLICIES]), and its ABAC attributes,
+ *   keyed with their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
  */
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
-    override suspend fun resolve(request: ServerRequest): Caller? {
-        val context = request.exchange().getSecurityContext() ?: return null
-        return callerOf(context, request.headers().firstHeader(WowHeaders.SPACE))
-    }
+    override suspend fun resolve(request: ServerRequest): Caller? =
+        request.exchange().getSecurityContext()?.let(::callerOf)
 
-    /** The caller of [context], acting in [requestedSpace] when its principal belongs to it; null when anonymous. */
-    fun callerOf(context: SecurityContext, requestedSpace: String? = null): Caller? {
+    /** The caller of [context]; null when it is anonymous, or not one CoSec's pipeline built. */
+    fun callerOf(context: SecurityContext): Caller? {
+        val scope = context.scope ?: return null
         val principal = context.principal
         if (principal.anonymous || !principal.authenticated) {
             return null
         }
-        val tenant = context.tenant.tenantId.takeUnless { Tenant.isDefault(it) } ?: options.defaultTenant
         val tenantLevel = principal.roles.any { it in options.tenantRoles } ||
             principal.policies.any { it in options.tenantPolicies }
         return Caller(
-            tenantId = tenant,
+            tenantId = tenantOf(context, options.defaultTenant),
             scope = Scope(
                 ownerId = principal.id.takeUnless { tenantLevel },
-                spaceId = spaceOf(principal, requestedSpace?.trim()),
+                spaceId = scope.spaceId.trim().ifEmpty { null },
             ),
             subject = principal.id,
             crossScope = principal.roles.any { it in options.crossScopeRoles } ||
                 principal.policies.any { it in options.crossScopePolicies },
-            attributes = attributesOf(principal) + appOf(context, options.trustInjectedApp)?.let {
+            attributes = attributesOf(principal) + scope.appId.trim().ifEmpty { null }?.let {
                 mapOf(Caller.APP to listOf(it))
             }.orEmpty(),
         )
-    }
-
-    private fun spaceOf(principal: CoSecPrincipal, requested: String?): String? {
-        val spaces = spacesOf(principal)
-        if (!requested.isNullOrEmpty() && requested in spaces) {
-            return requested
-        }
-        return spaces.singleOrNull()
     }
 
     private fun attributesOf(principal: CoSecPrincipal): Map<String, List<String>> {
@@ -179,36 +142,15 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
     }
 
     companion object {
-        /**
-         * The application CoSec authorized the request of [context] in: the request's `CoSec-App-Id`
-         * when CoSec's authorization allowed it by a permission of a role of that application ([RoleVerifyContext]);
-         * null when it was allowed otherwise, or names no application. A context CoSec did not authorize here has the
-         * application of its request only when [trustInjected], none otherwise.
-         */
-        internal fun appOf(context: SecurityContext, trustInjected: Boolean = false): String? {
-            val verified = context.getVerifyContext()
-                ?: return if (trustInjected) requestAppOf(context) else null
-            if (verified !is RoleVerifyContext || verified.result != VerifyResult.ALLOW) {
-                return null
-            }
-            return requestAppOf(context)
-        }
-
-        private fun requestAppOf(context: SecurityContext): String? =
-            context.getRequest<Request>()?.appId?.trim()?.ifEmpty { null }
-
-        /** The attribute of a [Caller] listing its principal's CoSec roles. */
+        /** The attribute of a [Caller] listing its principal's CoSec roles in the scope of its request. */
         const val ROLES: String = "roles"
 
         /** The attribute of a [Caller] listing its principal's CoSec policies. */
         const val POLICIES: String = "policies"
 
-        /** The spaces [principal] belongs to: those of its spaced roles (`role@space`). */
-        @JvmStatic
-        fun spacesOf(principal: CoSecPrincipal): Set<String> = principal.roles
-            .map { with(SpacedRoleId) { it.toSpacedRoleId() }.spaceId.trim() }
-            .filter(String::isNotEmpty)
-            .toSortedSet()
+        /** The Wow tenant of [context]: its CoSec tenant, CoSec's default one being [defaultTenant]. */
+        internal fun tenantOf(context: SecurityContext, defaultTenant: String): String =
+            context.tenant.tenantId.takeUnless { Tenant.isDefault(it) } ?: defaultTenant
 
         internal fun valuesOf(value: Any?): List<String> = when (value) {
             null -> emptyList()

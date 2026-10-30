@@ -13,44 +13,36 @@
 
 package me.ahoo.wow.spring.boot
 
-import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.api.authorization.AuthorizeResult
-import me.ahoo.cosec.api.permission.AppRolePermission
-import me.ahoo.cosec.api.policy.Policy
-import me.ahoo.cosec.authorization.AppRolePermissionRepository
-import me.ahoo.cosec.authorization.PolicyRepository
-import me.ahoo.cosec.authorization.SimpleAuthorization
-import me.ahoo.cosec.permission.AppPermissionData
-import me.ahoo.cosec.permission.AppRolePermissionData
-import me.ahoo.cosec.permission.PermissionData
-import me.ahoo.cosec.permission.PermissionGroupData
-import me.ahoo.cosec.permission.RolePermissionData
-import me.ahoo.cosec.policy.action.AllActionMatcher
+import me.ahoo.cosec.engine.flat.CompiledDocument
+import me.ahoo.cosec.engine.flat.SnapshotView
+import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.cosec.runtime.Pipeline
+import me.ahoo.cosec.runtime.PipelineComponents
+import me.ahoo.cosec.runtime.route.RouteMap
+import me.ahoo.cosec.runtime.route.RouteResolution
+import me.ahoo.cosec.runtime.snapshot.SnapshotViews
+import me.ahoo.cosec.runtime.snapshot.SuspendingSnapshotSource
+import me.ahoo.cosec.runtime.snapshot.ViewKey
+import me.ahoo.cosec.spi.authn.AuthnResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Creation
-import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
+import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -60,8 +52,7 @@ import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import reactor.core.publisher.Mono
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
+import java.util.concurrent.CompletableFuture
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 class CoSecAutoConfigurationTest {
@@ -77,17 +68,38 @@ class CoSecAutoConfigurationTest {
         fun authorizer(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
     }
 
+    /** What CoSec's starter defines where it decides the requests itself: its checker; and the host's Manifest. */
     @Configuration(proxyBeanMethods = false)
     class CoSec {
         @Bean
-        fun authorization(): CoSecAuthorization = CoSecAuthorization { _, _ -> Mono.just(AuthorizeResult.ALLOW) }
+        fun checker(): AuthorizationChecker = AuthorizationChecker(
+            Pipeline(
+                PipelineComponents(
+                    authenticator = { AuthnResult.Anonymous },
+                    snapshots = SuspendingSnapshotSource(
+                        object : SnapshotViews {
+                            override fun peek(key: ViewKey): SnapshotView =
+                                SnapshotView(CompiledDocument.platform(emptyList(), emptyList()), null, null)
 
-        /** The service's Manifest, which the host always has: CoSec's authorizer reads the command routes from it. */
+                            override fun load(key: ViewKey): CompletableFuture<SnapshotView> =
+                                CompletableFuture.completedFuture(peek(key))
+                        },
+                    ),
+                ),
+            ),
+        )
+
         @Bean
-        fun manifest(): Manifest = Manifest(contexts = emptyList())
+        fun manifest(): Manifest = cartManifest()
 
         @Bean
         fun httpOptions(): WowHttpOptions = WowHttpOptions(requestFacts = setOf("X-Trace"))
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class OwnRoutes {
+        @Bean
+        fun routes(): RouteMap = RouteMap.EMPTY
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -106,10 +118,7 @@ class CoSecAutoConfigurationTest {
         ).run { context ->
             context.getBeansOfType(CallerResolver::class.java).values.single().assert()
                 .isInstanceOf(CoSecCallerResolver::class.java)
-            CoSecAutoConfiguration.callerOptions(
-                context.getBean(WowProperties::class.java),
-                context.environment
-            ).assert().isEqualTo(
+            CoSecAutoConfiguration.callerOptions(context.getBean(WowProperties::class.java)).assert().isEqualTo(
                 CoSecCallerOptions(
                     "home",
                     setOf("admin", "ops"),
@@ -119,38 +128,6 @@ class CoSecAutoConfigurationTest {
                 ),
             )
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
-        }
-    }
-
-    @Test
-    fun `the injected application is trusted only when the host turns it on, in CoSec's inject mode`() {
-        val injectMode = arrayOf("cosec.inject.enabled=true", "cosec.authorization.enabled=false")
-        runner.withPropertyValues(*injectMode).run { context ->
-            CoSecAutoConfiguration.callerOptions(
-                context.getBean(WowProperties::class.java),
-                context.environment
-            ).trustInjectedApp.assert().isFalse()
-        }
-        runner.withPropertyValues("wow.cosec.trust-injected-app=true", *injectMode).run { context ->
-            CoSecAutoConfiguration.callerOptions(
-                context.getBean(WowProperties::class.java),
-                context.environment
-            ).trustInjectedApp.assert().isTrue()
-        }
-    }
-
-    @Test
-    fun `trusting injected applications outside CoSec's inject mode fails the startup`() {
-        listOf(
-            arrayOf("wow.cosec.trust-injected-app=true"),
-            arrayOf("wow.cosec.trust-injected-app=true", "cosec.inject.enabled=true"),
-            arrayOf("wow.cosec.trust-injected-app=true", "cosec.authorization.enabled=false"),
-        ).forEach { properties ->
-            runner.withPropertyValues(*properties).run { context ->
-                context.startupFailure.assert().isNotNull()
-                generateSequence(context.startupFailure) { it.cause }
-                    .any { it.message.orEmpty().contains("wow.cosec.trust-injected-app") }.assert().isTrue()
-            }
         }
     }
 
@@ -168,10 +145,12 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `the CoSec authorizer is opt-in and needs CoSec's authorization`() {
+    fun `the CoSec authorizers are opt-in and need CoSec deciding here`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
+            context.getBeansOfType(ServiceRouteAuthorizer::class.java).assert().isEmpty()
         }
+        // Behind a CoSec gateway there is no checker: authorization is the gateway's.
         runner.withPropertyValues("wow.cosec.authorizer.enabled=true").run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
         }
@@ -179,7 +158,33 @@ class CoSecAutoConfigurationTest {
             .withPropertyValues("wow.cosec.authorizer.enabled=true")
             .run { context ->
                 context.getBean(CommandAuthorizer::class.java).assert().isInstanceOf(CoSecCommandAuthorizer::class.java)
+                context.getBean(ServiceRouteAuthorizer::class.java).assert()
+                    .isInstanceOf(CoSecServiceRouteAuthorizer::class.java)
             }
+    }
+
+    @Test
+    fun `CoSec's route map is the Manifest's routes where CoSec decides the requests itself`() {
+        val runner = ApplicationContextRunner().withConfiguration(
+            AutoConfigurations.of(CoSecAutoConfiguration::class.java, CoSecRouteMapAutoConfiguration::class.java)
+        )
+        runner.withUserConfiguration(CoSec::class.java).run { context ->
+            val mapped = context.getBean(RouteMap::class.java).resolve("POST", "/shop/cart/c-1/add-item")
+                as RouteResolution.Mapped
+            "${mapped.action.namespace}:${mapped.action.verb} ${mapped.resource.type}/${mapped.resource.id}".assert()
+                .isEqualTo("shop:AddItem cart/c-1")
+        }
+        runner.withUserConfiguration(
+            CoSec::class.java
+        ).withPropertyValues("cosec.pipeline.mode=gateway").run { context ->
+            context.getBeansOfType(RouteMap::class.java).assert().isEmpty()
+        }
+        runner.withUserConfiguration(CoSec::class.java).withPropertyValues("cosec.enabled=false").run { context ->
+            context.getBeansOfType(RouteMap::class.java).assert().isEmpty()
+        }
+        runner.withUserConfiguration(CoSec::class.java, OwnRoutes::class.java).run { context ->
+            context.getBean(RouteMap::class.java).assert().isSameAs(RouteMap.EMPTY)
+        }
     }
 
     @Test
@@ -195,12 +200,18 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `the host imports the configuration before its own, only with CoSec on the classpath`() {
+    fun `the host imports the configurations around its own and CoSec's pipeline, only with CoSec on the classpath`() {
         val loader = CoSecAutoConfiguration::class.java.classLoader
         val candidates = ImportCandidates.load(AutoConfiguration::class.java, loader).candidates
-        candidates.assert().contains(CoSecAutoConfiguration::class.java.name)
+        candidates.assert().contains(
+            CoSecAutoConfiguration::class.java.name,
+            CoSecRouteMapAutoConfiguration::class.java.name,
+        )
         val annotation = CoSecAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
         annotation.before.toList().assert().containsExactly(WowAutoConfiguration::class)
+        val routes = CoSecRouteMapAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
+        routes.after.toList().assert().containsExactly(WowAutoConfiguration::class)
+        routes.beforeName.toList().assert().containsExactly(COSEC_PIPELINE_AUTO_CONFIGURATION)
         ApplicationContextRunner().withUserConfiguration(Imported::class.java).run { context ->
             context.getBeansOfType(CoSecCallerResolver::class.java).assert().hasSize(1)
         }
@@ -209,54 +220,20 @@ class CoSecAutoConfigurationTest {
             .run { context -> context.getBeansOfType(CallerResolver::class.java).assert().isEmpty() }
     }
 
-    /**
-     * CoSec as a view store deploys it: no policies, and the application `console` whose role `editor` may do every
-     * action. The Manifest's `CreateView` creates a view.
-     */
-    @Configuration(proxyBeanMethods = false)
-    class AppRoleCoSec {
-        private val all = PermissionData(id = "console.all", name = "all", action = AllActionMatcher.INSTANCE)
-        private val permission = AppRolePermissionData(
-            AppPermissionData("console", groups = listOf(PermissionGroupData("all", permissions = listOf(all)))),
-            listOf(RolePermissionData("editor", setOf(all.id))),
-        )
-
-        @Bean
-        fun authorization(): CoSecAuthorization = SimpleAuthorization(
-            object : PolicyRepository {
-                override fun getGlobalPolicy(): Mono<List<Policy>> = Mono.just(emptyList())
-                override fun getPolicies(policyIds: Set<String>): Mono<List<Policy>> = Mono.just(emptyList())
-                override fun setPolicy(policy: Policy): Mono<Void> = Mono.empty()
-            },
-            object : AppRolePermissionRepository {
-                override fun getAppRolePermission(
-                    appId: String,
-                    spaceId: String,
-                    roleIds: Set<String>,
-                ): Mono<AppRolePermission> = if (appId == "console") Mono.just(permission) else Mono.empty()
-            },
-        )
-
-        @Bean
-        fun manifest(): Manifest = Manifest(
+    private companion object {
+        fun cartManifest(): Manifest = Manifest(
             contexts = listOf(
                 ContextManifest(
-                    name = "view-store",
+                    name = "shop",
                     aggregates = listOf(
                         AggregateManifest(
-                            name = "view",
-                            state = StateManifest(Manifest.schemaRef("View")),
+                            name = "cart",
+                            state = StateManifest(Manifest.schemaRef("Cart")),
                             commands = listOf(
                                 CommandManifest(
-                                    name = "CreateView",
-                                    schema = Manifest.schemaRef("CreateView"),
-                                    creation = ManifestCreation.REQUIRED,
-                                    routes = CommandRoutes.of(
-                                        "view-store",
-                                        "view",
-                                        "CreateView",
-                                        ManifestCreation.REQUIRED,
-                                    ),
+                                    name = "AddItem",
+                                    schema = Manifest.schemaRef("AddItem"),
+                                    routes = CommandRoutes.of("shop", "cart", "AddItem", ManifestCreation.NONE),
                                 ),
                             ),
                         ),
@@ -264,49 +241,5 @@ class CoSecAutoConfigurationTest {
                 ),
             ),
         )
-    }
-
-    @Test
-    fun `with the switch on, CoSec allows a command by the app role permission of the caller's application`() {
-        runner.withUserConfiguration(AppRoleCoSec::class.java)
-            .withPropertyValues("wow.cosec.authorizer.enabled=true")
-            .run { context ->
-                val authorizer = context.getBean(CoSecCommandAuthorizer::class.java)
-                val action = CommandAction(
-                    CommandType("view-store.view.CreateView", Any::class.java),
-                    AggregateRef(AggregateType("view-store", "view"), "acme", "v-1"),
-                    Scope("alice", "s1"),
-                    Creation.REQUIRED,
-                )
-                fun caller(app: String?) = Caller(
-                    tenantId = "acme",
-                    scope = Scope("alice", "s1"),
-                    subject = "alice",
-                    attributes = buildMap {
-                        put(CoSecCallerResolver.ROLES, listOf("editor"))
-                        app?.let { put(Caller.APP, listOf(it)) }
-                    },
-                )
-                runBlocking {
-                    authorizer.authorize(caller("console"), action).assert().isEqualTo(Authorization.Allowed)
-                    authorizer.authorize(caller(null), action).assert().isInstanceOf(Authorization.Denied::class.java)
-                }
-            }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class CallCoSec {
-        @Bean
-        fun authorization(): CoSecAuthorization = CoSecAuthorization { _, _ -> Mono.just(AuthorizeResult.ALLOW) }
-    }
-
-    @Test
-    fun `CoSec authorizes no service's call, a service names itself on the internal port (D300)`() {
-        val runner = ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
-        runner.withUserConfiguration(CallCoSec::class.java).run { context ->
-            // The host's own authorizer stays opt-in.
-            context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
-        }
     }
 }

@@ -16,7 +16,7 @@ package me.ahoo.wow.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
@@ -107,14 +107,31 @@ class StateMaskingRoutesTest {
     }
 
     @Test
-    fun `a trace whose earlier commit the policies hide should not be found, though the latest is visible`() {
-        // The policies read each commit's state as a snapshot of it: here, only a cart that holds one item.
-        val withItems = QueryPolicy { _, _ -> EqualFilter(QueryField("state.items"), 1) }
-        val node = opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(withItems)))
-        node.read("/shop/cart/c-1/state", "alice").status.assert().isEqualTo(200)
-        node.read("/shop/cart/c-1/state/trace?from=2", "alice").status.assert().isEqualTo(200)
-        // The cart was opened empty: its first commit is hidden, so the trace that holds it is not found.
-        node.read("/shop/cart/c-1/state/trace", "alice").status.assert().isEqualTo(404)
+    fun `a range policy should answer alike on the state read, its trace and the snapshot query`() {
+        val single = """{"kind":"single","filter":{"op":"id","value":"c-1"}}"""
+        listOf(
+            // On a system field: only what came after the first commit.
+            GreaterThanFilter(QueryField("version"), 1),
+            // On a state field: only a cart that holds an item.
+            GreaterThanFilter(QueryField("state.items"), 0),
+        ).forEach { range ->
+            val node =
+                opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(QueryPolicy { _, _ -> range })))
+            node.query(single).status.assert().describedAs("$range").isEqualTo(200)
+            node.read("/shop/cart/c-1/state", "alice").status.assert().describedAs("$range").isEqualTo(200)
+            node.read("/shop/cart/c-1/state/trace?from=2", "alice").status.assert().describedAs("$range").isEqualTo(200)
+            // The cart was opened empty at version 1: that commit is hidden, so a trace that holds it is not found.
+            node.read("/shop/cart/c-1/state/trace", "alice").status.assert().describedAs("$range").isEqualTo(404)
+        }
+        // Past the latest version, every read hides the cart alike.
+        val none = opened(
+            QueryNode(
+                manifest = sensitiveManifest(),
+                policies = listOf(QueryPolicy { _, _ -> GreaterThanFilter(QueryField("version"), 2) }),
+            ),
+        )
+        none.query(single).status.assert().isEqualTo(404)
+        none.read("/shop/cart/c-1/state", "alice").status.assert().isEqualTo(404)
     }
 
     @Test

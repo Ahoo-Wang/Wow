@@ -69,11 +69,11 @@ wow:
     bootstrap-servers: localhost:9092
 ---
 # region cosec
-# Behind the CoSec gateway (decisions D295, D296): the gateway verifies each request's CoSec token (Authorization:
-# Bearer) and forwards it; CoSec's inject mode here reads the principal from it, with no secret, and wow-cosec's
-# resolver makes it the caller (decision D301): its tenant, its id, its roles. Only the gateway may reach the public
-# port (the deployment's NetworkPolicy). CoSec does not authorize the paths itself: what a caller may do is the
-# service's to say.
+# Behind the CoSec gateway: the gateway verifies each request's CoSec token, decides the request with its documents and
+# forwards the principal it verified in the CoSec-Identity header; CoSec's gateway mode here reads that header, with no
+# secret, documents or Redis of its own, and wow-cosec's resolver makes it the caller: its tenant, its id, its roles. A
+# request without the header is anonymous. The service believes any CoSec-Identity, so only the gateway may reach the
+# public port (the deployment's NetworkPolicy). What a caller may do with an aggregate is the service's to say.
 spring:
   config:
     activate:
@@ -81,7 +81,7 @@ spring:
 wow:
   cosec:
     mode: gateway
-    # An employee is a tenant-level caller (decision D189): no owner, so it reaches every aggregate of the tenant. Any
+    # An employee is a tenant-level caller: no owner, so it reaches every aggregate of the tenant. Any
     # other principal is a buyer, an owner-level caller that reaches its own.
     tenant-level:
       roles: employee

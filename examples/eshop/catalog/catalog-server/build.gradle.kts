@@ -40,12 +40,11 @@ dependencies {
     // Elasticsearch support makes of `spring.elasticsearch.uris`.
     implementation("me.ahoo.wow:wow-elasticsearch")
     implementation("org.springframework.boot:spring-boot-elasticsearch")
-    // The `cosec` profile, behind the CoSec gateway: CoSec's inject mode reads the principal
-    // from the token the gateway verified, and wow-cosec's resolver makes it the caller.
+    // The `cosec` profile, behind the CoSec gateway: CoSec's gateway mode reads the principal the gateway verified
+    // from its CoSec-Identity header, and wow-cosec's resolver makes it the caller.
     implementation("me.ahoo.wow:wow-cosec")
-    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
-    implementation(libs.cosec.jwt)
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // The springdoc bridge's acceptance: the document checked against the OpenAPI 3.1 schema.
     testImplementation(libs.json.schema.validator)

@@ -16,11 +16,13 @@ package me.ahoo.wow.api.route
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.read.Queries
 
 /**
  * A call of a service route ([me.ahoo.wow.api.annotation.ServiceRoute]) as admission let it through: who calls, in
- * which tenant and scope, under which request id, and the commands the handler may send as that caller. A handler
- * sees no HTTP request, as a decide function sees none: it is tested by calling it with a call of its own.
+ * which tenant and scope, under which request id, and the commands the handler may send and the queries it may run
+ * as that caller. A handler sees no HTTP request, as a decide function sees none: it is tested by calling it with a
+ * call of its own.
  */
 interface RouteCall {
     /** The authenticated caller. */
@@ -37,4 +39,10 @@ interface RouteCall {
 
     /** The commands the handler sends as [caller], such as a relay of the caller's command to the service of it. */
     val commands: CommandClient
+
+    /**
+     * The queries the handler runs as [caller], the caller it acts for ([me.ahoo.wow.api.read.QueryApi.of]): what that
+     * caller may see, of this node's models in process and of a peer's over HTTP, never more.
+     */
+    val queries: Queries
 }

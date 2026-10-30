@@ -25,9 +25,12 @@
  *   owning services' ledgers, which the suite publishes its entries through.
  *
  * With `OPS_E2E_COSEC=true` it runs in its `cosec` profile instead, as a
- * deployment does behind the CoSec gateway (roadmap P.15, decision D296): it
- * parses each request's CoSec token, which the gateway verified, holds no
- * secret, and trusts no identity header.
+ * deployment does behind the CoSec gateway: CoSec's gateway mode, which reads
+ * the caller from the `CoSec-Identity` header the gateway forwards, holds no
+ * secret and ignores the bearer token. The server then listens on
+ * `OPS_E2E_SERVICE_PORT` (18190), and a stand-in of the gateway
+ * (`e2e/cosec-gateway.mjs`) on `OPS_E2E_PORT` in front of it, verifying the
+ * suite's tokens with `OPS_E2E_COSEC_SECRET`.
  *
  * Build them first, from the repository root, with JDK 21:
  *
@@ -38,6 +41,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { startCoSecGateway } from "./cosec-gateway.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const CONSOLE = fileURLToPath(new URL("../dist/", import.meta.url));
@@ -52,6 +56,10 @@ const BUILD =
 
 const port = process.env.OPS_E2E_PORT ?? "18188";
 const cosec = process.env.OPS_E2E_COSEC === "true";
+/** Where the server listens: behind the gateway stand-in in the `cosec` profile. */
+const servicePort = cosec
+  ? (process.env.OPS_E2E_SERVICE_PORT ?? "18190")
+  : port;
 
 function classPath() {
   const lib = join(SERVER, "install/ops-server/lib");
@@ -68,6 +76,13 @@ if (!existsSync(join(CONSOLE, "index.html")))
     "The console is not built: pnpm build, in platform/ops/console.",
   );
 
+if (cosec)
+  startCoSecGateway({
+    port,
+    upstream: servicePort,
+    secret: process.env.OPS_E2E_COSEC_SECRET,
+  });
+
 const java = process.env.JAVA_HOME
   ? join(process.env.JAVA_HOME, "bin", "java")
   : "java";
@@ -79,13 +94,13 @@ const server = spawn(
     classPath(),
     MAIN,
     "--server.address=127.0.0.1",
-    `--server.port=${port}`,
+    `--server.port=${servicePort}`,
     "--wow.internal.port=0",
     "--wow.internal.host=127.0.0.1",
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
     ...(cosec
-      ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
+      ? // A deployment's callers: the identity the CoSec gateway forwards.
         ["--spring.profiles.active=cosec"]
       : // The console names its caller in headers, which the server reads in development alone (a local run).
         ["--spring.profiles.active=dev"]),

@@ -30,6 +30,7 @@ import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.boundSchemaFixture
 import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
+import me.ahoo.wow.query.schema.snapshotFixture
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
@@ -47,9 +48,9 @@ class MaskRecordTest {
 
     @Test
     fun `maskRecord applies the schema masks and leaves an unmasked schema's record alone`() {
-        val masked = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to masked(mask))))
+        val masked = boundSchemaFixture(snapshotFixture(objectFixture("secret" to masked(mask))))
         masked.maskRecord(record())["state"]["secret"].stringValue().assert().isEqualTo("***")
-        val plain = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to scalarFixture())))
+        val plain = boundSchemaFixture(snapshotFixture(objectFixture("secret" to scalarFixture())))
         val record = record()
         plain.maskRecord(record).assert().isSameAs(record)
         record["state"]["secret"].stringValue().assert().isEqualTo("abc")
@@ -58,8 +59,8 @@ class MaskRecordTest {
     @Test
     fun `a point read resolves aliases and masks the record it admits`() {
         val schema = boundSchemaFixture(
-            objectFixture(
-                "state" to objectFixture(
+            snapshotFixture(
+                objectFixture(
                     "name" to QueryValueSchema(
                         kind = QueryValueKind.SCALAR,
                         valueTypes = setOf(QueryValueType.STRING),
@@ -75,12 +76,9 @@ class MaskRecordTest {
             this["name"].stringValue().assert().isEqualTo("*")
             this["secret"].stringValue().assert().isEqualTo("abc")
         }
-        // Without the schema the alias names a field the record does not have, and nothing is masked.
-        admitted(null, scope).assert().isNull()
-        admitted(null, QueryScope.NONE)!!["state"]["name"].stringValue().assert().isEqualTo("n")
     }
 
-    private fun admitted(schema: QueryModelSchema?, scope: QueryScope): ObjectNode? {
+    private fun admitted(schema: QueryModelSchema, scope: QueryScope): ObjectNode? {
         var admitted: ObjectNode? = null
         runTest {
             admitted = QueryAdmission(AggregateType("record", "mask"))
