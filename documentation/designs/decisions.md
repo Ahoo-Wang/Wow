@@ -16,7 +16,7 @@
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
 | T1 | eShop 单据号：订单号 `SO-YYMMDD-{seqId}` 由 cosid-server 作远端号段生成；结账如何把订单号交给买家：① 等 Saga 派生的 `SubmitOrder` 提交（等待链），② 异步 | ①：买家在结账的应答里拿到订单号，等待链已支持跨 Saga | 待用户 | 动手之前 | [01](01-programming-model.md) |
-| T2 | Wow 的 rc 与 GA 能否基于 CosId 5、CoSec 8 的预发布版 | 等两者的 RC（或 GA）再出 Wow rc | 待用户 | rc 之前 | [06](06-modules.md) |
+| T2 | Wow 的 rc 与 GA 能否基于 CoSec 8 的预发布版（CosId 5.0.0 已是正式版，#5165 已升到它，2026-10-30） | 等 CoSec 8 的 RC（或 GA）再出 Wow rc | 待用户 | rc 之前 | [06](06-modules.md) |
 | T3 | 夜间运行的失败如何及时发现：协调者每轮查看，或增加一个在失败时开或更新 issue 的工作流（需要 `issues: write`） | 先由协调者每轮查看；工作流由用户决定 | 待用户 | rc 之前 | [progress](progress.md) |
 | T4 | 是否把 Codecov 对同一上传记了两个会话（X-28 的起因）报给 Codecov 支持 | 不必：X-28 的规范化使数据与此无关；证据在批 3 的笔记 | 待用户 | — | [reviews](reviews.md) |
 | T5 | 外部依赖 PR：#5170（Actions 补丁升级 v6.4.1，只影响 CI）与 #4902（锁文件维护，14 个 TS 作业失败） | #5170 绿了即合并（已合并，2026-10-29）；#4902 不合，让 Renovate 重新生成 | #4902 待用户 | — | — |
