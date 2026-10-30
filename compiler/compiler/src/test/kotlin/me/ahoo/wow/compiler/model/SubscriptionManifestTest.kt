@@ -517,7 +517,6 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.CommandReceipt
-            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Projection
@@ -541,7 +540,7 @@ class SubscriptionManifestTest {
                 fun takesEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun wrongContext(rejected: CommandReceipt.Rejected<*>, context: SubscriptionContext) = Unit
+                fun wrongContext(rejected: CommandReceipt.Rejected<*>, context: String) = Unit
 
                 @OnRejected
                 fun returnsText(rejected: CommandReceipt.Rejected<*>): String = ""
@@ -559,7 +558,7 @@ class SubscriptionManifestTest {
             .contains("processor BadSaga has two handlers named onEvent")
             .contains("handler BadSaga.onEvent takes kotlin.String: an @OnRejected handler takes a")
             .contains("handler BadSaga.takesEvent must take a CommandReceipt.Rejected first")
-            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
+            .contains("handler BadSaga.wrongContext takes kotlin.String")
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")
     }

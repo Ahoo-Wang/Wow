@@ -167,7 +167,6 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         @Reactor
@@ -186,7 +185,7 @@ class ScheduleJobBindingTest {
             fun both(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "params", cron = "0 0 3 * * *")
-            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String) = Unit
+            fun params(event: StateEvent<*>, context: String, extra: String) = Unit
 
             @OnSchedule(name = "returns", cron = "0 0 3 * * *")
             fun returns(tick: ScheduleTick): String = ""
@@ -215,7 +214,7 @@ class ScheduleJobBindingTest {
             .contains("handler Wrong.misnamed is a sharded TENANT job: only a SYSTEM job is sharded")
             .contains("handler Wrong.both is @OnSchedule and @OnEvent or @OnRejected")
             .contains("handler Wrong.params must take a me.ahoo.wow.api.schedule.ScheduleTick first")
-            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.SubscriptionContext")
+            .contains("handler Wrong.params takes kotlin.String")
             .contains("handler Wrong.params takes 3 parameters")
             .contains("handler Wrong.returns returns kotlin.String")
             .contains("processor Wrong declares the job same twice, differently")

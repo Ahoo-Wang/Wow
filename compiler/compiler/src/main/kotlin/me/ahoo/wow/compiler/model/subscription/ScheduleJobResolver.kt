@@ -52,6 +52,7 @@ internal object ScheduleJobResolver {
     private val ON_REJECTED = OnRejected::class.java.name
     private val TICK = ScheduleTick::class.java.name
     private val SAGA_CONTEXT = SagaContext::class.java.name
+    private val SAGA_CONTEXTS = contextsOf(SagaContext::class.java)
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
@@ -147,8 +148,11 @@ internal object ScheduleJobResolver {
                 add("$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick")
             }
             val context = parameters.getOrNull(1)
-            if (context != null && context != SAGA_CONTEXT) {
-                add("$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything")
+            if (context != null && context !in SAGA_CONTEXTS) {
+                add(
+                    "$where takes $context: a job's handler takes a $SAGA_CONTEXT, or a context it extends, after " +
+                        "the tick, if anything",
+                )
             }
             if (parameters.size > 2) {
                 add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])")

@@ -28,6 +28,11 @@ internal data class SubscriptionBinding(
     val kind: String?,
     val handlers: List<HandlerBinding>,
     val problems: List<String>,
+    /**
+     * What compiles but is likely wrong, reported as warnings: `@Blocking` on a handler that returns a Reactor
+     * publisher, a receipt handler of a command the saga never sends.
+     */
+    val warnings: List<String> = emptyList(),
     /** The processor's package, where its generated handlers go. */
     val packageName: String = "",
     /** The simple names of the processor's class and of the classes it is nested in, outermost first. */
@@ -171,9 +176,13 @@ internal data class ReceiptBinding(
 
 /**
  * A command class a saga's handler sends: its [binary] name, as the Manifest fragment keys it, and its [source] name,
- * as the generated binding writes it.
+ * as the generated binding writes it. [supertypes] are the binary names of its supertypes, by which a receipt
+ * handler of a sealed type or an interface takes its receipts too.
  */
-internal data class CommandClass(val binary: String, val source: String)
+internal data class CommandClass(val binary: String, val source: String, val supertypes: Set<String> = emptySet()) {
+    /** Whether a receipt handler of the command class [command] (its binary name) takes this command's receipts. */
+    fun isA(command: String): Boolean = binary == command || command in supertypes
+}
 
 /**
  * What a saga's handler sends (`@Sends`), each a command class, a sealed type read as its concrete subclasses: the

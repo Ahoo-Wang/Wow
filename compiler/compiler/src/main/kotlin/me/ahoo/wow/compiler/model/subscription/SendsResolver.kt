@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
+import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
@@ -163,8 +164,11 @@ internal object SendsResolver {
         classes
     }.distinctBy { it.binaryName() }
 
-    private fun commandClass(declaration: KSClassDeclaration): CommandClass =
-        CommandClass(declaration.binaryName(), declaration.qualifiedName!!.asString())
+    private fun commandClass(declaration: KSClassDeclaration): CommandClass = CommandClass(
+        declaration.binaryName(),
+        declaration.qualifiedName!!.asString(),
+        declaration.getAllSuperTypes().mapTo(LinkedHashSet()) { it.declaration.binaryName() },
+    )
 
     /** The class array argument [name] of this annotation, empty without the annotation or the argument. */
     private fun KSAnnotation?.classes(name: String): List<KSType> =

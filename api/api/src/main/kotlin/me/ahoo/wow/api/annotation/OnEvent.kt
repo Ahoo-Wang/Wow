@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
  * An event handler of a [Projection], [Reactor] or [Saga]: it takes a
- * [me.ahoo.wow.api.subscribe.StateEvent] and, optionally, the processor's context. A saga's handler declares what it
- * sends with [Sends]. Each handler is its own
+ * [me.ahoo.wow.api.subscribe.StateEvent] and, optionally, the processor's context: a projection's or a reactor's
+ * `SubscriptionContext`, a saga's `SagaContext` or the `SubscriptionContext` it extends. A saga's handler declares
+ * what it sends with [Sends]. Each handler is its own
  * subscription, named `processor.function`, or `processor.name` with its [Name]. Only this annotation declares a
  * handler, whatever the function's name.
  *
@@ -36,8 +35,7 @@ import java.lang.annotation.Inherited
  *   [Start.END], so a handler added later does not act on it again. A subscription that has a checkpoint goes on
  *   from it, whatever this says.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class OnEvent(
     val aggregates: Array<String> = [],

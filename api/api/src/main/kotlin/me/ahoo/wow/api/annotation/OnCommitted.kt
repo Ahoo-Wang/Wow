@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
-
 /**
- * A handler of a [Saga] for the success receipt of a command the saga derived, the counterpart
- * of [OnRejected]: it takes a [me.ahoo.wow.api.subscribe.CommandReceipt.Committed] of the command's type (or of `*`, for every
- * command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an
- * [OnEvent] handler of a saga does.
+ * A handler of a [Saga] for the success receipt of a command the saga derived, the counterpart of [OnRejected]: it
+ * takes a [me.ahoo.wow.api.subscribe.CommandReceipt.Committed] of the command's type (or of `*`, for every command the
+ * saga derives) and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands
+ * it derives in turn, as an [OnEvent] handler of a saga does.
  *
  * Only the commands it takes ask for a receipt: the compiler writes the handler into the Manifest, and a command the
  * saga sends to another context carries the request in its `replyTo`; the target sends the receipt once the command
@@ -36,7 +34,6 @@ import java.lang.annotation.Inherited
  * A handler of both receipts of a command is annotated [OnRejected] too and takes a
  * [me.ahoo.wow.api.subscribe.CommandReceipt] of the command's type; each annotation declares its own path.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class OnCommitted
