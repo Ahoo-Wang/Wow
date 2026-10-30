@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { OpsManifest } from '../manifest.js';
-import type { ApplyRetrySpec, MarkRecoverable, RecordActionRefused, RecordParked, RecordResolved, Resume, Skip } from '../types.js';
+import type { ApplyRetrySpec, MarkRecoverable, RecordActionRefused, RecordParked, RecordResolved, Retry, Skip } from '../types.js';
 import { ParkedAggregate } from './aggregate.js';
 
 /** Sends the commands of `ops.parked` by its service's routes (`OpsManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -15,7 +15,7 @@ export class ParkedCommandClient {
       manifest: OpsManifest, bodyNumbers: {
         'ops.parked.RecordParked': ParkedAggregate.textNumbers.commands.RecordParked,
         'ops.parked.RecordResolved': ParkedAggregate.textNumbers.commands.RecordResolved,
-        'ops.parked.Resume': ParkedAggregate.textNumbers.commands.Resume,
+        'ops.parked.Retry': ParkedAggregate.textNumbers.commands.Retry,
         'ops.parked.Skip': ParkedAggregate.textNumbers.commands.Skip,
       }
     });
@@ -93,17 +93,17 @@ export class ParkedCommandClient {
   }
 
   /**
-   * Resume a parked entry
-   * `Resume`: `POST /ops/parked/{id}/resume`.
-   * Produces `ResumeRequested`.
+   * Retry a parked entry
+   * `Retry`: `POST /ops/parked/{id}/retry`.
+   * Produces `RetryRequested`.
    */
-  resume(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'ops.parked.Resume', body, id });
+  retry(id: string, body: Retry = {}, options?: CommandOptions): Promise<CommandResult> {
+    return this.client.wait({ ...options, command: 'ops.parked.Retry', body, id });
   }
 
-  /** `Resume`, answered as one result per hop of its wait (`text/event-stream`). */
-  resumeStream(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'ops.parked.Resume', body, id });
+  /** `Retry`, answered as one result per hop of its wait (`text/event-stream`). */
+  retryStream(id: string, body: Retry = {}, options?: CommandOptions): Promise<CommandResultStream> {
+    return this.client.stream({ ...options, command: 'ops.parked.Retry', body, id });
   }
 
   /**

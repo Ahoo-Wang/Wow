@@ -198,6 +198,11 @@
     "description" : "On postgres: the name of the DataSource bean the store's snapshot and events queries read through, so they do not take the appends' connections; the store's data-source when not set.",
     "sourceType" : "me.ahoo.wow.postgres.PostgresStoreProvider"
   }, {
+    "name" : "wow.subscriptions.[<context>.<name>].parked.claim-ttl",
+    "type" : "java.time.Duration",
+    "description" : "How long a retry's claim on the entry holds, over `wow.subscription.parked`'s.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
+  }, {
     "name" : "wow.subscriptions.[<context>.<name>].parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first automatic retry, over `wow.subscription.parked`'s.",
@@ -206,11 +211,6 @@
     "name" : "wow.subscriptions.[<context>.<name>].parked.max-retries",
     "type" : "java.lang.Integer",
     "description" : "How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
-  }, {
-    "name" : "wow.subscriptions.[<context>.<name>].parked.timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a retry may run, over `wow.subscription.parked`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.initial-backoff",

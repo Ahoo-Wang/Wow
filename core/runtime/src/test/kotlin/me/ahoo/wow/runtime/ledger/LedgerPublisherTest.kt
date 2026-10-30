@@ -62,7 +62,7 @@ class LedgerPublisherTest {
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
         error("${entry.ref.id} is broken")
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, claimTtl = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,
@@ -185,11 +185,11 @@ class LedgerPublisherTest {
             sent.single().record,
             LedgerEntry::class.java
         ).context.assert().isEqualTo("shop")
-        publisher.resolved(ID, cart("x1"), LedgerResolution.RESUMED)
+        publisher.resolved(ID, cart("x1"), LedgerResolution.RETRIED)
         val known = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         known.failedAt.assert().isEqualTo(entry.failedAt)
         known.context.assert().isEqualTo("shop")
-        known.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
+        known.outcome.assert().isEqualTo(LedgerResolution.RETRIED)
         // An entry it never published: its subscription's context.
         publisher.resolved(ID, cart("y1"), LedgerResolution.NOT_PARKED)
         val unknown = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)

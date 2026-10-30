@@ -549,9 +549,9 @@ abstract class TimerStoreSpec {
         settle(second, parkedSecond).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedSecond, parkedFirst)
         store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(other)
-        // Resuming puts one back.
-        val resumed = parkedSecond.copyWith(status = TimerStatus.PENDING, attempts = 0)
-        settle(parkedSecond, resumed).assert().isTrue()
+        // Retrying puts one back.
+        val retried = parkedSecond.copyWith(status = TimerStatus.PENDING, attempts = 0)
+        settle(parkedSecond, retried).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedFirst)
         // A cancel takes a parked timer too.
         store.cancel(owner, "first", 1).assert().isTrue()

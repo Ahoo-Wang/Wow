@@ -206,7 +206,7 @@ object FrameworkErrors {
         ErrorManifest(
             SUBSCRIPTION_PARKED,
             500,
-            "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+            "A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
         ),
         ErrorManifest(
             WAIT_TIMEOUT,

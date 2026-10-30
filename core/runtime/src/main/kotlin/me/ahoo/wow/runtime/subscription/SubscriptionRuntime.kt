@@ -193,7 +193,7 @@ class SubscriptionRuntime internal constructor(
     @Suppress("TooGenericExceptionCaught") // A failed read of the ledger is retried on the next scan.
     private suspend fun scanQuietly(run: Running) {
         try {
-            // A paused partition's entries wait: their resumes would fail the same way, and the ledger may be down.
+            // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down.
             retries.scan(run.scope, directory.keys.sorted(), run.partitions.keys.toSet()) { subscription, ref ->
                 run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
             }
@@ -280,23 +280,23 @@ class SubscriptionRuntime internal constructor(
 
     /**
      * Handles [subscription]'s parked aggregate [ref] again from its parked version, then resolves its ledger
-     * entry; the aggregate's new entries are handled after it, in version order (see [SubscriptionWorker.resume]).
+     * entry; the aggregate's new entries are handled after it, in version order (see [SubscriptionWorker.retry]).
      * The runtime must be running the aggregate's partition.
      *
      * @return true when the aggregate is no longer parked; false when it was not parked or failed again.
      */
-    suspend fun resume(subscription: String, ref: AggregateRef): Boolean {
+    suspend fun retry(subscription: String, ref: AggregateRef): Boolean {
         val worker = checkNotNull(workerOf(subscription, ref)) {
             "Subscription $subscription of group $group is not running the partition of $ref here."
         }
-        return worker.resume(ref)
+        return worker.retry(ref)
     }
 
     /**
      * Resolves [subscription]'s parked aggregate [ref] without handling what was skipped; its new entries are
      * handled from now on.
      *
-     * @return true when the aggregate was parked; false when it was not, or a resume of it is running.
+     * @return true when the aggregate was parked; false when it was not, or a retry of it is running.
      */
     suspend fun skip(subscription: String, ref: AggregateRef): Boolean {
         require(subscription in subscriptions) { "No subscription $subscription in group $group." }
@@ -311,7 +311,7 @@ class SubscriptionRuntime internal constructor(
     fun contextOf(subscription: String): String? = directory[subscription]?.context
 
     /**
-     * Whether the runtime runs [subscription] in [ref]'s partition here now: [resume] and [skip] act on the aggregate
+     * Whether the runtime runs [subscription] in [ref]'s partition here now: [retry] and [skip] act on the aggregate
      * at once. Otherwise its owner is another node, which takes an operator's request from the ledger.
      */
     suspend fun runsPartitionOf(subscription: String, ref: AggregateRef): Boolean = workerOf(subscription, ref) != null

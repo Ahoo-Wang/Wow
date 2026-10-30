@@ -67,8 +67,8 @@ import tools.jackson.core.JacksonException
  *
  * With [standby], the node's operator routes of a migration's cut-over, from a node of [service] only:
  * `GET` [InternalHttp.STANDBY_PATH] answers whether the node is on standby and its [StandbyControl.Status]; `POST`
- * [InternalHttp.RESUME_PATH] resumes it, the body naming who resumes it and why, `{"by": "…", "reason": "…"}` (`by`
- * required, for the audit), and answers the resumption.
+ * [InternalHttp.ACTIVATE_PATH] activates it, the body naming who activates it and why, `{"by": "…", "reason": "…"}`
+ * (`by` required, for the audit), and answers its standby after.
  */
 @InternalWowApi
 fun internalRoutes(
@@ -105,18 +105,18 @@ fun internalRoutes(
             request.refusal(service, anyService = false)?.let { return@GET it.respond() }
             ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.status())
         }
-        POST(InternalHttp.RESUME_PATH) { request ->
+        POST(InternalHttp.ACTIVATE_PATH) { request ->
             request.refusal(service, anyService = false)?.let { return@POST it.respond() }
             val body = request.decode { HttpJson.mapper.readTree(it) }
             val by = body?.get("by")?.takeIf { it.isString }?.stringValue()?.takeIf(String::isNotBlank)
                 ?: return@POST Problem(
                     HttpStatus.BAD_REQUEST.value(),
                     HttpStatus.BAD_REQUEST.reasonPhrase,
-                    "A resume names who resumes the node, for the audit: {\"by\": \"…\", \"reason\": \"…\"}.",
+                    "An activation names who activates the node, for the audit: {\"by\": \"…\", \"reason\": \"…\"}.",
                     FrameworkCodes.COMMAND_MALFORMED,
                 ).respond()
             val reason = body.get("reason")?.takeIf { it.isString }?.stringValue()
-            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.resume(by, reason))
+            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.activate(by, reason))
         }
     }
 }
@@ -124,19 +124,19 @@ fun internalRoutes(
 /** A node's standby, as its operator routes see it. */
 @InternalWowApi
 interface StandbyControl {
-    /** The node's standby now: whether it is on standby, and when and by whom it was resumed. */
+    /** The node's standby now: whether it is on standby, and when and by whom it was activated. */
     fun status(): Status
 
-    /** Resumes the node, [by] naming who and [reason] why. */
-    suspend fun resume(by: String, reason: String?): Status
+    /** Activates the node, [by] naming who and [reason] why. */
+    suspend fun activate(by: String, reason: String?): Status
 
-    /** A node's standby: [standby] now, and its last resumption ([resumedAt], [resumedBy], [reason]). */
+    /** A node's standby: [standby] now, and its last activation ([activatedAt], [activatedBy], [reason]). */
     @InternalWowApi
     data class Status(
         val node: String,
         val standby: Boolean,
-        val resumedAt: Long? = null,
-        val resumedBy: String? = null,
+        val activatedAt: Long? = null,
+        val activatedBy: String? = null,
         val reason: String? = null,
     )
 }

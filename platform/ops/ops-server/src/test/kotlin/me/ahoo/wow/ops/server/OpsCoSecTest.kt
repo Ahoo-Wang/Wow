@@ -35,7 +35,7 @@ import java.time.Instant
  * The ops service in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: behind the CoSec
  * gateway, which verified each request's credential and forwards the identity it verified in `CoSec-Identity`, CoSec's
  * gateway mode reads it and the operator is its principal. A request without an identity is answered 401; a viewer
- * reads the entries and may not act on them; an operator's resume goes to the owning context under the operator's name.
+ * reads the entries and may not act on them; an operator's retry goes to the owning context under the operator's name.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
@@ -98,18 +98,18 @@ class OpsCoSecTest {
     }
 
     @Test
-    fun `a signed-in operator should read an entry and resume it, which goes to the owning context in its name`() {
-        val id = ops.publish(entry("shop-resume", "p-1"))
+    fun `a signed-in operator should read an entry and retry it, which goes to the owning context in its name`() {
+        val id = ops.publish(entry("shop-retry", "p-1"))
         val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         ops.get("/ops/parked/$id/state", operator).assertOk().json["state"]["status"].asString().assert()
             .isEqualTo(ParkedStatus.EXHAUSTED)
 
-        ops.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", operator).assertOk()
-        eventually("the resume sent to shop-resume") { ops.ledgerCommands("shop-resume").isNotEmpty() }
-        val resume = ops.ledgerCommands("shop-resume").single()
-        resume.type.assert().isEqualTo(Ledger.RESUME)
-        resume.operator!!.id.assert().isEqualTo("alice")
+        ops.post("/ops/parked/$id/retry", """{"reason":"The gateway is back."}""", operator).assertOk()
+        eventually("the retry sent to shop-retry") { ops.ledgerCommands("shop-retry").isNotEmpty() }
+        val retry = ops.ledgerCommands("shop-retry").single()
+        retry.type.assert().isEqualTo(Ledger.RETRY)
+        retry.operator!!.id.assert().isEqualTo("alice")
     }
 
     @Test
@@ -126,9 +126,9 @@ class OpsCoSecTest {
         val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         ops.get("/ops/parked/$id/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-        ops.post("/ops/parked/$id/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+        ops.post("/ops/parked/$id/retry", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         // Nor do the identity headers of a local run name anyone here.
-        ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+        ops.post("/ops/parked/$id/retry", "{}", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         ops.ledgerCommands("shop-anonymous").assert().isEmpty()
     }
 

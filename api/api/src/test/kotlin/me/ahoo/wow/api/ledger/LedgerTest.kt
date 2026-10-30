@@ -24,13 +24,13 @@ class LedgerTest {
 
     @Test
     fun `the system commands have system names`() {
-        Ledger.nameOf(ResumeParked::class.java).assert().isEqualTo("wow.ledger.Resume")
+        Ledger.nameOf(RetryParked::class.java).assert().isEqualTo("wow.ledger.Retry")
         Ledger.nameOf(SkipParked::class.java).assert().isEqualTo("wow.ledger.Skip")
         Ledger.nameOf(MarkParkedRecoverable::class.java).assert().isEqualTo("wow.ledger.MarkRecoverable")
         Ledger.nameOf(ApplyParkedRetrySpec::class.java).assert().isEqualTo("wow.ledger.ApplyRetrySpec")
         Ledger.nameOf(String::class.java).assert().isNull()
         Ledger.COMMANDS.keys.assert().containsExactly(
-            Ledger.RESUME,
+            Ledger.RETRY,
             Ledger.SKIP,
             Ledger.MARK_RECOVERABLE,
             Ledger.APPLY_RETRY_SPEC,
@@ -54,7 +54,7 @@ class LedgerTest {
     @Test
     fun `the commands name the entry they act on, in plain fields`() {
         val commands: List<LedgerCommand> = listOf(
-            ResumeParked.of("s", ref),
+            RetryParked.of("s", ref),
             SkipParked.of("s", ref, 1),
             MarkParkedRecoverable.of("s", ref, "recoverable"),
             ApplyParkedRetrySpec.of("s", ref, maxRetries = 3),
@@ -62,7 +62,7 @@ class LedgerTest {
         commands.map { it.subscription to it.toRef() }.toSet().assert().containsExactly("s" to ref)
         commands.map { listOf(it.context, it.aggregate, it.tenantId, it.id) }.toSet().assert()
             .containsExactly(listOf("eshop-payment", "payment", "(0)", "alice-1"))
-        ResumeParked.of("s", "eshop-payment", "payment", "(0)", "alice-1").assert().isEqualTo(ResumeParked.of("s", ref))
+        RetryParked.of("s", "eshop-payment", "payment", "(0)", "alice-1").assert().isEqualTo(RetryParked.of("s", ref))
         ApplyParkedRetrySpec.of("s", ref).initialBackoff.assert().isNull()
     }
 }

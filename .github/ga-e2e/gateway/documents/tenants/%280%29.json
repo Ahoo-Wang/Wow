@@ -82,10 +82,10 @@
           "resource": "http:path:/ops/parked/*/state"
         },
         {
-          "name": "the parked entries listed, resumed and skipped (ops decides which role may)",
+          "name": "the parked entries listed, retried and skipped (ops decides which role may)",
           "effect": "allow",
           "action": "http:POST",
-          "resource": ["http:path:/ops/parked/snapshot/query", "http:path:/ops/parked/*/resume", "http:path:/ops/parked/*/skip"]
+          "resource": ["http:path:/ops/parked/snapshot/query", "http:path:/ops/parked/*/retry", "http:path:/ops/parked/*/skip"]
         }
       ]
     }

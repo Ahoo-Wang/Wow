@@ -23,23 +23,23 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 /**
- * The operator routes of a node on standby (design 07 §3): its status and its resume, from a node of its service only,
- * the resume naming who resumes it for the audit.
+ * The operator routes of a node on standby (design 07 §3): its status and its activation, from a node of its service only,
+ * the activation naming who activates it for the audit.
  */
 class StandbyRoutesTest {
     private var standby = true
-    private val resumes = mutableListOf<Pair<String, String?>>()
+    private val activations = mutableListOf<Pair<String, String?>>()
     private val control = object : StandbyControl {
         override fun status(): StandbyControl.Status = StandbyControl.Status(
             node = "node-1",
             standby = standby,
-            resumedBy = resumes.lastOrNull()?.first,
-            reason = resumes.lastOrNull()?.second,
-            resumedAt = if (resumes.isEmpty()) null else 42L,
+            activatedBy = activations.lastOrNull()?.first,
+            reason = activations.lastOrNull()?.second,
+            activatedAt = if (activations.isEmpty()) null else 42L,
         )
 
-        override suspend fun resume(by: String, reason: String?): StandbyControl.Status {
-            resumes += by to reason
+        override suspend fun activate(by: String, reason: String?): StandbyControl.Status {
+            activations += by to reason
             standby = false
             return status()
         }
@@ -72,32 +72,32 @@ class StandbyRoutesTest {
     }
 
     @Test
-    fun `the status and the resume take a node of the service, and the resume names who resumes`() {
+    fun `the status and the activation take a node of the service, and the activation names who activates`() {
         send(InternalHttp.STANDBY_PATH, service = null).statusCode().assert().isEqualTo(401)
         send(InternalHttp.STANDBY_PATH, service = "ordering-service").statusCode().assert().isEqualTo(403)
         send(InternalHttp.STANDBY_PATH).also {
             it.statusCode().assert().isEqualTo(200)
-            it.body().assert().contains("\"standby\":true").contains("\"resumedBy\":null")
+            it.body().assert().contains("\"standby\":true").contains("\"activatedBy\":null")
         }
-        send(InternalHttp.RESUME_PATH, """{"by":"op"}""", service = null).statusCode().assert().isEqualTo(401)
-        send(InternalHttp.RESUME_PATH, """{"reason":"cut-over"}""").also {
+        send(InternalHttp.ACTIVATE_PATH, """{"by":"op"}""", service = null).statusCode().assert().isEqualTo(401)
+        send(InternalHttp.ACTIVATE_PATH, """{"reason":"cut-over"}""").also {
             it.statusCode().assert().isEqualTo(400)
-            it.body().assert().contains("names who resumes the node")
+            it.body().assert().contains("names who activates the node")
         }
-        send(InternalHttp.RESUME_PATH, """{"by":" "}""").statusCode().assert().isEqualTo(400)
-        send(InternalHttp.RESUME_PATH, """{"by":7}""").statusCode().assert().isEqualTo(400)
-        send(InternalHttp.RESUME_PATH, "not json").statusCode().assert().isEqualTo(400)
-        resumes.assert().isEmpty()
+        send(InternalHttp.ACTIVATE_PATH, """{"by":" "}""").statusCode().assert().isEqualTo(400)
+        send(InternalHttp.ACTIVATE_PATH, """{"by":7}""").statusCode().assert().isEqualTo(400)
+        send(InternalHttp.ACTIVATE_PATH, "not json").statusCode().assert().isEqualTo(400)
+        activations.assert().isEmpty()
 
-        send(InternalHttp.RESUME_PATH, """{"by":"operator-1","reason":"cut-over"}""").also {
+        send(InternalHttp.ACTIVATE_PATH, """{"by":"operator-1","reason":"cut-over"}""").also {
             it.statusCode().assert().isEqualTo(200)
-            it.body().assert().contains("\"standby\":false").contains("\"resumedBy\":\"operator-1\"")
-                .contains("\"reason\":\"cut-over\"").contains("\"resumedAt\":42")
+            it.body().assert().contains("\"standby\":false").contains("\"activatedBy\":\"operator-1\"")
+                .contains("\"reason\":\"cut-over\"").contains("\"activatedAt\":42")
         }
-        send(InternalHttp.RESUME_PATH, """{"by":"operator-2"}""").statusCode().assert().isEqualTo(200)
+        send(InternalHttp.ACTIVATE_PATH, """{"by":"operator-2"}""").statusCode().assert().isEqualTo(200)
         // A reason that is not a string is none.
-        send(InternalHttp.RESUME_PATH, """{"by":"operator-3","reason":5}""").statusCode().assert().isEqualTo(200)
-        resumes.assert().containsExactly("operator-1" to "cut-over", "operator-2" to null, "operator-3" to null)
+        send(InternalHttp.ACTIVATE_PATH, """{"by":"operator-3","reason":5}""").statusCode().assert().isEqualTo(200)
+        activations.assert().containsExactly("operator-1" to "cut-over", "operator-2" to null, "operator-3" to null)
     }
 
     @Test

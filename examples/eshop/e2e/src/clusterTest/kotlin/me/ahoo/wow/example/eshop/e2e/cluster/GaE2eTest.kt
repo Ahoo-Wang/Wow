@@ -42,7 +42,7 @@ import kotlin.concurrent.thread
  *    command's request id from the gateway, kept across its retry (D328).
  * 2. Security, negative: the public and internal ports unreachable around the gateway, `Wow-Service` granting nothing
  *    on the public port and `Wow-Call` refused there.
- * 3. The ops loop: a parked payment reaches ops, an operator resumes it there, and the entry is gone.
+ * 3. The ops loop: a parked payment reaches ops, an operator retries it there, and the entry is gone.
  * 4. Cluster behaviour, each fault's unavailability window measured and bounded: the ordering scaled 2→3→2, a rolling
  *    restart, the pod owning an order's partition deleted mid-checkout, a Kafka broker restart and, on the mongo arm,
  *    the primary stepping down, and Elasticsearch, the products' search, scaled to zero and back.
@@ -347,7 +347,7 @@ class GaE2eTest {
 
     @Test
     @Order(20)
-    fun `a parked payment reaches ops and is resumed there`() = scenario("ops", "parked, resumed from ops") {
+    fun `a parked payment reaches ops and is retried there`() = scenario("ops", "parked, retried from ops") {
         val started = System.currentTimeMillis()
         ops.outage(true)
         flows.addItem("olga", "mug", flows.price("mug"), 1)
@@ -361,14 +361,14 @@ class GaE2eTest {
         flows.eventually("the parked payment listed by ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         val received = System.currentTimeMillis() - started
         flows.orderStatus("olga-1").assert().isEqualTo("STOCK_CONFIRMED")
-        shop.post("/ops/parked/$id/resume", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
+        shop.post("/ops/parked/$id/retry", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
         ops.outage(false)
         with(flows) {
             command(
-                "/ops/parked/$id/resume",
+                "/ops/parked/$id/retry",
                 """{"reason":"The gateway is back."}""",
                 Who.OPERATOR
-            ).committed("resume $id")
+            ).committed("retry $id")
         }
         flows.eventually(
             "the entry resolved in ops",
@@ -377,7 +377,7 @@ class GaE2eTest {
         flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
         ops.exhausted(started).assert().doesNotContain(id)
         reads.parked("payment").filter { it["aggregateId"] == "olga-1" }.assert().isEmpty()
-        "parked, seen in ops after $received ms, resumed by an operator, resolved and paid; the ledger entry is gone"
+        "parked, seen in ops after $received ms, retried by an operator, resolved and paid; the ledger entry is gone"
     }
 
     @Test

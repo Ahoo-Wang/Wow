@@ -344,7 +344,7 @@ data class SubscriptionFilter(
  * What a handler receives: one committed [stream] (its ref, version, scope and events), at its log [position], with
  * its [events] as the subscription's [EntryDecoder] read them and the [transport] metadata appended with it.
  *
- * [SubscriptionRuntime.resume] hands over the same [position] and [transport] as the tail: it reads the aggregate's
+ * [SubscriptionRuntime.retry] hands over the same [position] and [transport] as the tail: it reads the aggregate's
  * entries by version with [me.ahoo.wow.spi.log.EventLog.readEntries], so the `reservation` subscription confirms the
  * keys of a parked aggregate too. [position] is null only for an entry made by hand. A handler that
  * needs an idempotency key uses (`ref`, `version`).

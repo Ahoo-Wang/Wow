@@ -65,7 +65,7 @@ class ParkedRetriesTest {
         handled.record(entry)
     }
 
-    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, timeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, claimTtl = 1.seconds)
 
     private fun runtime(spec: ParkedRetrySpec = this.spec) = SubscriptionRuntime(
         "group",
@@ -206,7 +206,7 @@ class ParkedRetriesTest {
     fun `the owner runs an operator's requests once, without counting a retry`(): Unit = runBlocking {
         val runtime = runtime(spec.copyWith(maxRetries = 0))
         parkX(runtime)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RESUME))
+        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
         eventually { attempts.get() == 2 && parked()?.request == null }
         parked()!!.retries.assert().isEqualTo(0)
 

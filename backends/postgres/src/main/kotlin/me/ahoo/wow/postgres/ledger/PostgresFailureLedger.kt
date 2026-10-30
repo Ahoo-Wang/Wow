@@ -40,14 +40,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
  * ledger is of: services that share a database, and subscriptions of one name, see and resolve only
- * their own entries. The table's layout is recorded as format 2 ([PostgresFormat]), with an index answering what is
+ * their own entries. The table's layout is recorded as format 3 ([PostgresFormat]), with an index answering what is
  * due in a node's partitions and one answering a tenant's listing.
  *
  * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row, conditional on the retries, the request or the schedule read when it claims, takes or schedules. Format 2
+ * row, conditional on the retries, the request or the schedule read when it claims, takes or schedules. Format 3
  * creates the table with the source partition and position of the entry and the retry state among its columns;
  * nothing adds columns to an older table: one of another format, or without a format record, is refused
  * ([PostgresFormat]).
@@ -291,7 +291,7 @@ class PostgresFailureLedger(
         fun PreparedStatement.setSpec(first: Int, spec: ParkedRetrySpec?) {
             if (spec == null) setNull(first, Types.INTEGER) else setInt(first, spec.maxRetries)
             setNullableLong(first + 1, spec?.initialBackoff?.inWholeMilliseconds)
-            setNullableLong(first + 2, spec?.timeout?.inWholeMilliseconds)
+            setNullableLong(first + 2, spec?.claimTtl?.inWholeMilliseconds)
         }
 
         fun ResultSet.nullableLong(column: String): Long? = getLong(column).takeUnless { wasNull() }
@@ -311,7 +311,7 @@ class PostgresFailureLedger(
                 ParkedRetrySpec(
                     maxRetries = maxRetries,
                     initialBackoff = row.getLong("retry_initial_backoff_millis").milliseconds,
-                    timeout = row.getLong("retry_timeout_millis").milliseconds,
+                    claimTtl = row.getLong("retry_claim_ttl_millis").milliseconds,
                 )
             },
             recoverable = Recoverable.valueOf(row.getString("recoverable")),

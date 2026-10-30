@@ -39,7 +39,7 @@ class OpsServerTest {
             manifest["contexts"].values().map { it["name"].asString() }.assert().containsExactly(OpsContext.NAME)
             val paths = ops.get("/wow/openapi", Who.OPERATOR).assertOk().json["paths"].propertyNames().toList()
             paths.assert().contains(
-                "/ops/parked/{id}/resume",
+                "/ops/parked/{id}/retry",
                 "/ops/parked/{id}/skip",
                 "/ops/parked/{id}/mark-recoverable",
                 "/ops/parked/{id}/apply-retry-spec",
@@ -56,7 +56,7 @@ class OpsServerTest {
         // The memory backend serves its snapshot queries, as a console's local run reads them.
         startOps().use { ops ->
             // A command, a query and a route of the service's own.
-            ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.post("/ops/parked/p-1/retry", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", Who.NOBODY)
                 .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")

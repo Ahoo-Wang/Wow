@@ -20,12 +20,12 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.RecordParked
-import me.ahoo.wow.ops.api.parked.Resume
+import me.ahoo.wow.ops.api.parked.Retry
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -50,11 +50,11 @@ class OpsAuthorizerTest {
     fun `an operator's actions and the system commands should draw no objection, a record a refusal`() {
         val authorizer = OpsAuthorizer()
         listOf(
-            "ops.parked.Resume" to Resume::class.java,
+            "ops.parked.Retry" to Retry::class.java,
             "ops.parked.Skip" to Skip::class.java,
             "ops.parked.MarkRecoverable" to MarkRecoverable::class.java,
             "ops.parked.ApplyRetrySpec" to ApplyRetrySpec::class.java,
-            Ledger.RESUME to ResumeParked::class.java,
+            Ledger.RETRY to RetryParked::class.java,
         ).forEach { (name, type) ->
             // Who may act is the operators' authorizer's to say: this one objects to none of them, a viewer's either.
             runBlocking { authorizer.authorize(viewer, action(name, type)) }.assert().isEqualTo(Authorization.Allowed)
@@ -68,7 +68,7 @@ class OpsAuthorizerTest {
     @Test
     fun `the operator role should decide, and name who lacks it`() {
         val role: CommandAuthorizer = OperatorRole()
-        val skip = action(Ledger.SKIP, ResumeParked::class.java)
+        val skip = action(Ledger.SKIP, RetryParked::class.java)
         runBlocking { role.authorize(operator, skip) }.assert().isEqualTo(Authorization.Allowed)
         (runBlocking { role.authorize(viewer, skip) } as Authorization.Denied).message.assert()
             .startsWith("victor may not ${Ledger.SKIP}")

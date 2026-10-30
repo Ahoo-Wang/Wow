@@ -19,7 +19,7 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -47,8 +47,8 @@ import kotlin.time.Duration
  * read are rejections, which the intake answers as it answers any, its receipt going back to the sender, so the ops
  * entry records a refusal of its own action.
  *
- * Resume and Skip act at once when this node owns the entry's partition, else leave a request for its owner
- * ([ParkedOps.resume], [ParkedOps.skip]); marking an entry recoverable and applying a retry spec write the ledger.
+ * Retry and Skip act at once when this node owns the entry's partition, else leave a request for its owner
+ * ([ParkedOps.retry], [ParkedOps.skip]); marking an entry recoverable and applying a retry spec write the ledger.
  * Whatever came of it is published at once, by the node's [LedgerPublisher]: the entry as it now stands, or that it
  * is resolved, also when it was not parked any more, so the ops view of an entry it missed the resolution of catches
  * up.
@@ -101,12 +101,12 @@ internal class LedgerCommands(
         // The entry, read before an action may resolve it.
         val current = parked.get(subscription, ref)
         when (command) {
-            is ResumeParked -> {
-                val outcome = parked.resume(subscription, ref, command.failedAt)
+            is RetryParked -> {
+                val outcome = parked.retry(subscription, ref, command.failedAt)
                 if (outcome == ParkedOps.Outcome.STALE) {
                     return stale(command, command.failedAt, current)
                 }
-                settled(subscription, ref, outcome, LedgerResolution.RESUMED)
+                settled(subscription, ref, outcome, LedgerResolution.RETRIED)
             }
 
             is SkipParked -> {
@@ -143,7 +143,7 @@ internal class LedgerCommands(
     }
 
     /**
-     * The refusal of a resume or a skip that names a parking ([failedAt]) other than the entry's [current] one
+     * The refusal of a retry or a skip that names a parking ([failedAt]) other than the entry's [current] one
      * ([ParkedOps.Outcome.STALE]): sent for an entry that was resolved and parked again since, as a command delivered
      * again, or an operator's action on what the console showed a while ago, would skip events nobody looked at.
      */
@@ -189,8 +189,7 @@ internal class LedgerCommands(
         fun specOf(command: ApplyParkedRetrySpec, current: ParkedRetrySpec): ParkedRetrySpec = ParkedRetrySpec(
             maxRetries = command.maxRetries ?: current.maxRetries,
             initialBackoff = command.initialBackoff?.let { durationOf("initialBackoff", it) } ?: current.initialBackoff,
-            timeout = command.timeout?.let { durationOf("timeout", it) }
-                ?: current.timeout,
+            claimTtl = command.claimTtl?.let { durationOf("claimTtl", it) } ?: current.claimTtl,
         )
 
         private fun durationOf(name: String, value: String): Duration =

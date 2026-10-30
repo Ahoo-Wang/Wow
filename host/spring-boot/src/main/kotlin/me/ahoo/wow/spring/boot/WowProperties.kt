@@ -225,9 +225,9 @@ class WowProperties {
         /**
          * Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of
          * what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no
-         * subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port
-         * (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at
-         * the end of its stream starts where the stream ends at the resume.
+         * subscription, retries no parked entry and runs no job, until its operator activates it on the internal port
+         * (`POST /wow/node/activate` from a node of its service, naming who activates it). A subscription that starts
+         * at the end of its stream starts where the stream ends at the activation.
          */
         var standby: Boolean = false
 
@@ -818,14 +818,17 @@ class WowProperties {
          */
         var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
-        /** How long a retry may run before the partition's next owner may start another. */
-        var timeout: Duration = DEFAULT_PARKED.spec.timeout.toJavaDuration()
+        /**
+         * How long a retry's claim on the entry holds before another retry may start, such as on the partition's next
+         * owner: it cancels nothing.
+         */
+        var claimTtl: Duration = DEFAULT_PARKED.spec.claimTtl.toJavaDuration()
 
         /** How often each node scans its subscriptions' parked entries for retries that are due. */
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), timeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), claimTtl.toKotlinDuration())
     }
 
     /**
@@ -839,18 +842,18 @@ class WowProperties {
         /** The wait before the first automatic retry, over `wow.subscription.parked`'s. */
         var initialBackoff: Duration? = null
 
-        /** How long a retry may run, over `wow.subscription.parked`'s. */
-        var timeout: Duration? = null
+        /** How long a retry's claim on the entry holds, over `wow.subscription.parked`'s. */
+        var claimTtl: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && initialBackoff == null && timeout == null) {
+            if (maxRetries == null && initialBackoff == null && claimTtl == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
                 initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
-                timeout?.toKotlinDuration() ?: base.timeout,
+                claimTtl?.toKotlinDuration() ?: base.claimTtl,
             )
         }
     }

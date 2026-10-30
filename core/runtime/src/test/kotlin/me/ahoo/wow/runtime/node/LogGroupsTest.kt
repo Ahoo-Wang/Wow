@@ -234,7 +234,7 @@ class LogGroupsTest {
         }
 
     @Test
-    fun `a parked aggregate of a group is in its group's ledger, and resumed there`(): Unit = runBlocking {
+    fun `a parked aggregate of a group is in its group's ledger, and retried there`(): Unit = runBlocking {
         val node = node("node-1").also { it.start() }
         val poison = INVOICE.ref(TENANT, POISON)
         node.send(poison, Issue(delayMillis = 60_000))

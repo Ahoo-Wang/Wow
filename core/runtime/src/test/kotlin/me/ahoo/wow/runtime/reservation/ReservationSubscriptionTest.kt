@@ -285,7 +285,7 @@ class ReservationSubscriptionTest {
     }
 
     @Test
-    fun `a failing store parks the aggregate, and resuming it confirms from the entries' transport`(): Unit =
+    fun `a failing store parks the aggregate, and retrying it confirms from the entries' transport`(): Unit =
         runBlocking {
             store.failing = true
             val runtime = runtime()
@@ -295,7 +295,7 @@ class ReservationSubscriptionTest {
             find("ahoo")!!.confirmed.assert().isFalse()
 
             store.failing = false
-            runtime.resume(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
+            runtime.retry(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
             confirmedBy("ahoo", "u-1").assert().isTrue()
             ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
         }

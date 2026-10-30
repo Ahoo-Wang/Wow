@@ -67,7 +67,7 @@ import kotlin.time.Duration
  *   offset to read next, saved once every record before it is done with. Nothing is committed to Kafka.
  * - **One reader per (node, topic)**: one [SubscriptionRuntime] reads each held partition once and fans its records
  *   out to every subscription of the topic.
- * - **Parking**: an aggregate parked by one of them is recorded in [ledger] with the offset of its record; resuming it
+ * - **Parking**: an aggregate parked by one of them is recorded in [ledger] with the offset of its record; retrying it
  *   re-scans that partition from there for the records keyed by the aggregate ([TopicEntries]); an entry whose offset
  *   the topic no longer retains is marked unrecoverable and can only be [skip]ped.
  * - **Delivery** is at least once: a handover or a restart hands over again what is past the saved
@@ -348,12 +348,12 @@ class TopicSubscriptions internal constructor(
 
     /**
      * Handles [subscription]'s parked aggregate [ref] again by re-scanning its partition from the offset parked
-     * ([SubscriptionRuntime.resume]); this node must hold the partition. False when it was not parked, failed again,
+     * ([SubscriptionRuntime.retry]); this node must hold the partition. False when it was not parked, failed again,
      * or is unrecoverable.
      */
-    suspend fun resume(subscription: String, ref: AggregateRef): Boolean {
+    suspend fun retry(subscription: String, ref: AggregateRef): Boolean {
         val runtime = checkNotNull(runtime) { "The subscriptions of $topic on $node are not reading yet." }
-        return runtime.resume(subscription, ref)
+        return runtime.retry(subscription, ref)
     }
 
     /** Resolves [subscription]'s parked aggregate [ref] without handling what was skipped. */

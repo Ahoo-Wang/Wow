@@ -29,7 +29,7 @@
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
 #                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags; the operator
-#                resumes the V10 hosts on their internal ports, and they serve writes (the write stop ends)
+#                activates the V10 hosts on their internal ports, and they serve writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states (orders, views) equal V10's; then the cut-over again
 #   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed; every user's preferences and every
@@ -73,7 +73,7 @@ V10_URL="http://localhost:$V10_PORT"
 V10_INTERNAL_URL="http://localhost:$V10_INTERNAL_PORT"
 VIEWS_URL="http://localhost:$VIEWS_PORT"
 VIEWS_INTERNAL_URL="http://localhost:$VIEWS_INTERNAL_PORT"
-# The services of the V10 hosts: their internal ports, the resume among their routes, take a request that names the
+# The services of the V10 hosts: their internal ports, the activation among their routes, take a request that names the
 # node's own service (Wow-Service, decision D300).
 V10_SERVICE=example-service
 VIEWS_SERVICE=view-store-service
@@ -192,7 +192,7 @@ start_ninex() {
   await_http "$NINEX_URL" ninex
 }
 
-# launch_v10 [standby]: the V10 host on TARGET_DB; on standby (wow.node.standby) when asked, until resume_hosts.
+# launch_v10 [standby]: the V10 host on TARGET_DB; on standby (wow.node.standby) when asked, until activate_hosts.
 launch_v10() {
   local standby="${1:-}"
   (
@@ -237,18 +237,18 @@ internal() {
   curl -sS -f -X "$3" "$1$4" -H "Wow-Service: $2" -H "Content-Type: application/json" ${5:+-d "$5"}
 }
 
-# resume_hosts: the operator's resume of both V10 hosts at the cut-over (deployment run book), at once, as an operator
-# resumes every node of every service; prints their status.
-resume_hosts() {
+# activate_hosts: the operator's activation of both V10 hosts at the cut-over (deployment run book), at once, as an operator
+# activates every node of every service; prints their status.
+activate_hosts() {
   local body='{"by":"rehearsal","reason":"8c.1 cut-over"}' v10 views
-  internal "$V10_INTERNAL_URL" "$V10_SERVICE" POST /wow/node/resume "$body" >"$WORK/resume-v10.json" &
+  internal "$V10_INTERNAL_URL" "$V10_SERVICE" POST /wow/node/activate "$body" >"$WORK/activate-v10.json" &
   v10=$!
-  internal "$VIEWS_INTERNAL_URL" "$VIEWS_SERVICE" POST /wow/node/resume "$body" >"$WORK/resume-views.json" &
+  internal "$VIEWS_INTERNAL_URL" "$VIEWS_SERVICE" POST /wow/node/activate "$body" >"$WORK/activate-views.json" &
   views=$!
   wait "$v10" && wait "$views"
-  cat "$WORK/resume-v10.json" "$WORK/resume-views.json"
+  cat "$WORK/activate-v10.json" "$WORK/activate-views.json"
   echo
-  echo '{"resumed":2}'
+  echo '{"activated":2}'
 }
 
 # standby_refuses: a command sent to the V10 host on standby is refused with wow.node.standby (503); prints the status.
@@ -397,7 +397,7 @@ step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
 step backfill-tags 0 migrate backfill-tags
-step resume 0 resume_hosts
+step activate 0 activate_hosts
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"
 step v10-views-states 0 driver views states --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/v10-views-cutover.json"

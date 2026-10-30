@@ -32,7 +32,7 @@ import {
  * it (`state.requested`).
  */
 export interface ParkedCommands {
-  resume(id: string, reason?: string, failedAt?: string): Promise<unknown>;
+  retry(id: string, reason?: string, failedAt?: string): Promise<unknown>;
   skip(id: string, reason?: string, failedAt?: string): Promise<unknown>;
   markRecoverable(id: string, recoverable: string): Promise<unknown>;
   applyRetrySpec(id: string, spec: ApplyRetrySpec): Promise<unknown>;
@@ -48,7 +48,7 @@ function reasonOf(reason: string | undefined): { reason?: string } {
 }
 
 /**
- * The resume or skip of the parking the operator saw (`failedAt`): one parked
+ * The retry or skip of the parking the operator saw (`failedAt`): one parked
  * again since is refused as stale (`ops.parked.stale`, `wow.ledger.stale`).
  */
 function actionOf(
@@ -64,8 +64,8 @@ function actionOf(
 export function parkedCommands(fetcher: Fetcher): ParkedCommands {
   const client = new OpsClient({ fetcher }).parked.commands;
   return {
-    resume: (id, reason, failedAt) =>
-      client.resume(id, actionOf(reason, failedAt), OPTIONS),
+    retry: (id, reason, failedAt) =>
+      client.retry(id, actionOf(reason, failedAt), OPTIONS),
     skip: (id, reason, failedAt) =>
       client.skip(id, actionOf(reason, failedAt), OPTIONS),
     markRecoverable: (id, recoverable) =>

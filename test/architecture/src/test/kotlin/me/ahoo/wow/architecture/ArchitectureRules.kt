@@ -272,7 +272,7 @@ object ArchitectureRules {
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
-        // tests, which list and resume the imported parked entries as the ops routes do (roadmap 8b.4).
+        // tests, which list and retry the imported parked entries as the ops routes do (roadmap 8b.4).
         // elasticsearch only for the tags backfill's re-sink of an events index (decision D259).
         MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "elasticsearch", "runtime"),
         // kernel and reactor only for the tests, which compile the generated models.

@@ -69,7 +69,7 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 4. **Gate:** `compare` shows only the signed-off kinds, whichever pass ran; no unexplained `UNRESOLVED` key or execution. Otherwise stop here and go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target: reads and queries of migrated aggregates, the ops service's parked entries.
 6. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
-7. **Resume every V10 node:** `POST /wow/node/resume` on each node's internal port with the cluster token and a body `{"by": "<operator>", "reason": "<why>"}` (`by` is required: without it the node answers 400). The node joins its groups, starts the rest of its work and then admits commands; the resume ends the write stop. A subscription that starts at the end of its stream starts where the stream ends at the resume. Each resume is recorded (node, time, operator, reason) and returned by `GET /wow/node/standby` (also with the cluster token); check every node reports it. A resume that fails stops the node: start it again on standby, find the cause in its log, and resume it before the switch; a node that is not on standby treats a resume as a no-op.
+7. **Activate every V10 node:** `POST /wow/node/activate` on each node's internal port with the cluster token and a body `{"by": "<operator>", "reason": "<why>"}` (`by` is required: without it the node answers 400). The node joins its groups, starts the rest of its work and then admits commands; the activate ends the write stop. A subscription that starts at the end of its stream starts where the stream ends at the activate. Each activate is recorded (node, time, operator, reason) and returned by `GET /wow/node/standby` (also with the cluster token); check every node reports it. A activate that fails stops the node: start it again on standby, find the cause in its log, and activate it before the switch; a node that is not on standby treats a activate as a no-op.
 8. **Switch traffic to V10**, then scale V10 out. Keep 9.x stopped, not deleted.
 9. **Observe** as offline does.
 
@@ -77,7 +77,7 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 
 Two paths, never confused:
 
-- **V10 has not written yet** (stopped at the gate or, online, before the resume; or traffic switched back before the first V10 commit): stop V10, switch traffic back, restart 9.x on its untouched stores. Nothing to reconcile.
+- **V10 has not written yet** (stopped at the gate or, online, before the activation; or traffic switched back before the first V10 commit): stop V10, switch traffic back, restart 9.x on its untouched stores. Nothing to reconcile.
 - **V10 has written** (decision D32): 9.x does not have V10's streams, so restarting 9.x alone loses them. Stop V10's writes and keep 9.x stopped. Run `migrate-data export --dry-run`: it scans each V10 context's log up to its heads and prints per aggregate type how many streams 9.x lacks, `REFUSED` for each stream of a type with no 9.x form (as listed above) and `CONFLICT` for a stream 9.x holds otherwise; either stops the export before anything is written. Each context ends with a `VERDICT` line, which is the answer to give the user:
   - `roll back by switching back`: 9.x holds every stream V10 holds;
   - `roll back by export: N streams go back to 9.x`;

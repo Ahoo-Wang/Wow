@@ -32,12 +32,12 @@ import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * What an operator does with the parked entries of a node's subscriptions: list
- * and read them, resume or skip one, mark one recoverable or not (9.x `MarkRecoverable`), apply a retry spec to one
+ * and read them, retry or skip one, mark one recoverable or not (9.x `MarkRecoverable`), apply a retry spec to one
  * (9.x `ApplyRetrySpec`). The host serves it over HTTP; any node of the service answers for every entry.
  *
  * A subscription is named by its context and name ([SubscriptionId]): two contexts of one service may each have a
  * subscription of one name, such as their `wow.snapshot`. An entry is the subscription's in the ledger of the context
- * (or the topic) it reads. [resume] and [skip] act at once
+ * (or the topic) it reads. [retry] and [skip] act at once
  * when this node owns the entry's partition; otherwise they leave a request on the entry ([LedgerRequest]), which the
  * owner takes on its next scan of the parked entries, and answer [Outcome.REQUESTED]. Marking an entry
  * and applying a spec write the ledger directly: the owner reads them on its next scan.
@@ -125,16 +125,16 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      * Handles [subscription]'s parked [ref] again from where it is parked, whatever its retry spec says: at once when
      * this node owns its partition, else by a request to the owner. With [failedAt], only the parking at that time
      * ([ParkedAggregate.failedAt], as the operator saw it): [Outcome.STALE] when the entry was parked at another.
-     * Without, the current parking: a resume only handles the parked streams again.
+     * Without, the current parking: a retry only handles the parked streams again.
      */
-    suspend fun resume(subscription: SubscriptionId, ref: AggregateRef, failedAt: Long? = null): Outcome {
+    suspend fun retry(subscription: SubscriptionId, ref: AggregateRef, failedAt: Long? = null): Outcome {
         val (scope, entry) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
         if (failedAt != null && entry.failedAt != failedAt) {
             return Outcome.STALE
         }
         val runtime = scope.runner()?.takeIf { it.acts(subscription.name, ref) }
-            ?: return request(scope, subscription, ref, LedgerRequest.RESUME)
-        if (runtime.resume(subscription.name, ref)) {
+            ?: return request(scope, subscription, ref, LedgerRequest.RETRY)
+        if (runtime.retry(subscription.name, ref)) {
             return Outcome.RESOLVED
         }
         return if (scope.ledger.isParked(subscription.name, ref)) Outcome.PARKED else Outcome.NOT_PARKED
@@ -142,7 +142,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Resolves [subscription]'s parked [ref] without handling what was parked: at once when this node owns its
-     * partition and no resume of it runs, else by a request to the owner. Only the parking at [failedAt]
+     * partition and no retry of it runs, else by a request to the owner. Only the parking at [failedAt]
      * ([ParkedAggregate.failedAt], as the operator saw it), which a skip must name since it discards what was parked:
      * [Outcome.STALE] when the entry was parked at another time.
      */
@@ -156,7 +156,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         if (runtime.skip(subscription.name, ref)) {
             return Outcome.RESOLVED
         }
-        // A resume of it runs: the owner (this node) skips it on its next scan, unless the resume resolved it.
+        // A retry of it runs: the owner (this node) skips it on its next scan, unless the retry resolved it.
         return request(scope, subscription, ref, LedgerRequest.SKIP)
     }
 
@@ -206,13 +206,13 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         return null
     }
 
-    /** What [resume] or [skip] came to. */
+    /** What [retry] or [skip] came to. */
     @InternalWowApi
     enum class Outcome {
         /** Handled (or skipped) here: the entry is resolved. */
         RESOLVED,
 
-        /** Resumed here and failed again: the entry stays parked, from where it failed. */
+        /** Retried here and failed again: the entry stays parked, from where it failed. */
         PARKED,
 
         /** Left for the owner of the entry's partition, which runs it on its next scan. */
@@ -231,14 +231,14 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     /**
      * What acts on a scope's entries on this node: whether it [runs] an entry's partition, and so publishes the entry;
      * whether it [acts] on one at once rather than leaving a request to the owner; and how it
-     * [resume]s or [skip]s one, true when the entry is resolved.
+     * [retry]s or [skip]s one, true when the entry is resolved.
      */
     internal interface Runner {
         suspend fun runs(subscription: String, ref: AggregateRef): Boolean
 
         suspend fun acts(subscription: String, ref: AggregateRef): Boolean = runs(subscription, ref)
 
-        suspend fun resume(subscription: String, ref: AggregateRef): Boolean
+        suspend fun retry(subscription: String, ref: AggregateRef): Boolean
 
         suspend fun skip(subscription: String, ref: AggregateRef): Boolean
     }
@@ -289,7 +289,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             /**
              * The parked timers of [context]'s log [group] sent by [timers] over a log of [partitions] partitions,
              * each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
-             * Nothing retries them automatically: they wait for an operator. Resuming or skipping changes the timers
+             * Nothing retries them automatically: they wait for an operator. Retrying or skipping changes the timers
              * in their store, so any node acts at once; the node that runs the target's partition of the group
              * publishes the entry.
              */
@@ -301,8 +301,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
                     override suspend fun acts(subscription: String, ref: AggregateRef): Boolean = true
 
-                    override suspend fun resume(subscription: String, ref: AggregateRef): Boolean {
-                        timers.resume(ref)
+                    override suspend fun retry(subscription: String, ref: AggregateRef): Boolean {
+                        timers.retry(ref)
                         return true
                     }
 
@@ -326,8 +326,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                 override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
                     runtime.runsPartitionOf(subscription, ref)
 
-                override suspend fun resume(subscription: String, ref: AggregateRef): Boolean =
-                    runtime.resume(subscription, ref)
+                override suspend fun retry(subscription: String, ref: AggregateRef): Boolean =
+                    runtime.retry(subscription, ref)
 
                 override suspend fun skip(subscription: String, ref: AggregateRef): Boolean =
                     runtime.skip(subscription, ref)

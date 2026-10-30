@@ -52,7 +52,7 @@ import kotlin.time.Duration.Companion.seconds
  *   and the context's lease store. `DOWN` when the lease store is down, when the ownership does not run, or when the
  *   node has owned none of a share that is not empty for [HealthOptions.handoverGrace]; `DEGRADED` when it owns
  *   another set than its share for that long, or the lease store failed lately. On a node on standby
- *   ([ServiceNode.standby]), which joins no lease group until it is resumed, a group that does not run
+ *   ([ServiceNode.standby]), which joins no lease group until it is activated, a group that does not run
  *   is `UP`, marked `standby`: the node serves reads.
  * - `stores`: each event log (one per log group), from the node's own calls and a probe of its head
  *   every [HealthOptions.sampleInterval], and each store instance the write path needs (one holding a log, a type's

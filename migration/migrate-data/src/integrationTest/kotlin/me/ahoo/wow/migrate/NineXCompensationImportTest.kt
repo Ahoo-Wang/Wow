@@ -199,7 +199,7 @@ class NineXCompensationImportTest {
                 .isEqualTo(ParkedView.Status.SCHEDULED)
             runtime.start((0 until PARTITIONS).toSet())
             try {
-                ops.resume(SubscriptionId(NineXExample.CONTEXT, CART_SAGA), ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+                ops.retry(SubscriptionId(NineXExample.CONTEXT, CART_SAGA), ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
             } finally {
                 runtime.stop()
             }

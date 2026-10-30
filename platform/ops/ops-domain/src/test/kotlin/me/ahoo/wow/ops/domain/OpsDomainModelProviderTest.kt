@@ -49,7 +49,7 @@ class OpsDomainModelProviderTest {
         aggregate.commands.map { it.name }.assert().contains(
             Ledger.RECORD_PARKED,
             Ledger.RECORD_RESOLVED,
-            "Resume",
+            "Retry",
             "Skip"
         )
         me.ahoo.wow.ops.api.parked.RecordParked::class.java.declaredFields.map { it.name }.assert().contains(

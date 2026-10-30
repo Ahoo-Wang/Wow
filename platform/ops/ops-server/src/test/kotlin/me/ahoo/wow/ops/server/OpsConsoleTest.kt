@@ -71,19 +71,19 @@ class OpsConsoleTest {
         val entry = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",
             "aggregate":$aggregate,"fromVersion":2,"reason":"The gateway is unreachable.",
             "failedAt":${OpsContract.FAILED_AT},"retries":3,
-            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","timeout":"PT2M"},
+            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","claimTtl":"PT2M"},
             "status":"${ParkedStatus.EXHAUSTED}","recordedAt":${OpsContract.FAILED_AT + 1}}"""
         val id = simulate("parked", entry)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", Who.OPERATOR).status == OK }
 
-        ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertOk()
-        eventually("the resume sent to $context") {
+        ops.post("/ops/parked/$id/retry", "{}", Who.OPERATOR).assertOk()
+        eventually("the retry sent to $context") {
             ops.server.http.get("${LedgerSimulatorRoutes.PATH}/commands/$context").assertOk().text
-                .contains("wow.ledger.Resume")
+                .contains("wow.ledger.Retry")
         }
 
         val resolution = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",
-            "aggregate":$aggregate,"failedAt":${OpsContract.FAILED_AT},"outcome":"resumed",
+            "aggregate":$aggregate,"failedAt":${OpsContract.FAILED_AT},"outcome":"retried",
             "resolvedAt":${OpsContract.FAILED_AT + OpsContract.HOUR}}"""
         simulate("resolved", resolution).assert().isEqualTo(id)
         eventually("$id resolved") {

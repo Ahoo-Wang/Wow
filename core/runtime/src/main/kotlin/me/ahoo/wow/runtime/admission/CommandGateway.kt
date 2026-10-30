@@ -325,7 +325,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * Whether the node is on standby ([me.ahoo.wow.runtime.node.ServiceNode.start]): every request is refused with
-     * [FrameworkCodes.NODE_STANDBY], before anything of it is read, until the node is resumed.
+     * [FrameworkCodes.NODE_STANDBY], before anything of it is read, until the node is activated.
      */
     @InternalWowApi
     @Volatile

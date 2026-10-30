@@ -18,7 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.ops.api.parked.EntryAggregate
 import me.ahoo.wow.ops.api.parked.EntryRetrySpec
@@ -127,29 +127,29 @@ abstract class OpsContract {
     }
 
     @Test
-    fun `an operator's resume should go back to the owning context as the ledger's command, and the entry resolve`() {
+    fun `an operator's retry should go back to the owning context as the ledger's command, and the entry resolve`() {
         val context = context()
         val id = ops.publish(entry(context, "p-1"))
         eventually("$id recorded") { state(id) != null }
 
-        ops.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", Who.OPERATOR).assertOk()
-        state(id)!!["requested"].asString().assert().isEqualTo(ParkedState.RESUME)
-        eventually("the resume sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
-        val resume = ops.ledgerCommands(context).single()
-        resume.type.assert().isEqualTo(Ledger.RESUME)
-        resume.ref.assert().isEqualTo(Ledger.targetOf(context, id))
-        resume.operator!!.id.assert().isEqualTo("alice")
-        WowJson.mapper.treeToValue(resume.body, ResumeParked::class.java).assert()
+        ops.post("/ops/parked/$id/retry", """{"reason":"The gateway is back."}""", Who.OPERATOR).assertOk()
+        state(id)!!["requested"].asString().assert().isEqualTo(ParkedState.RETRY)
+        eventually("the retry sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
+        val retry = ops.ledgerCommands(context).single()
+        retry.type.assert().isEqualTo(Ledger.RETRY)
+        retry.ref.assert().isEqualTo(Ledger.targetOf(context, id))
+        retry.operator!!.id.assert().isEqualTo("alice")
+        WowJson.mapper.treeToValue(retry.body, RetryParked::class.java).assert()
             .isEqualTo(
                 // The parking the operator acted on, which the owning service refuses when it holds another.
-                ResumeParked.of(
+                RetryParked.of(
                     SAGA,
                     EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1").toRef(),
                     FAILED_AT
                 ),
             )
 
-        // The owning service resumed it and publishes that it is resolved.
+        // The owning service retried it and publishes that it is resolved.
         ops.resolve(
             ParkedResolution(
                 "$context-service",
@@ -157,12 +157,12 @@ abstract class OpsContract {
                 SAGA,
                 EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1"),
                 FAILED_AT,
-                ParkedResolution.RESUMED,
+                ParkedResolution.RETRIED,
                 FAILED_AT + HOUR,
             ),
         )
         eventually("$id resolved") { state(id)!!["status"].asString() == ParkedStatus.RESOLVED }
-        state(id)!!["outcome"].asString().assert().isEqualTo(ParkedResolution.RESUMED)
+        state(id)!!["outcome"].asString().assert().isEqualTo(ParkedResolution.RETRIED)
         query(and(eq("state.context", context), eq("state.status", ParkedStatus.RESOLVED))).assertOk().ids.assert()
             .containsExactly(id)
         // Nothing is parked to act on any more.
@@ -175,15 +175,15 @@ abstract class OpsContract {
         val id = ops.publish(entry(context, "p-1"))
         eventually("$id recorded") { state(id) != null }
 
-        ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertOk()
-        eventually("the resume sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
-        val resume = ops.ledgerCommands(context).single()
+        ops.post("/ops/parked/$id/retry", "{}", Who.OPERATOR).assertOk()
+        eventually("the retry sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
+        val retry = ops.ledgerCommands(context).single()
         // What the owning service takes it by: a command derived by the ops context's saga, its receipts back there.
-        resume.causation.assert().isNotNull()
-        resume.replyTo!!.context.assert().isEqualTo(Ledger.OPS_CONTEXT)
+        retry.causation.assert().isNotNull()
+        retry.replyTo!!.context.assert().isEqualTo(Ledger.OPS_CONTEXT)
 
-        ops.refuse(resume, "wow.auth.forbidden", "Taken from the ops context's saga alone.")
-        eventually("$id refused") { state(id)!!["refusedAction"]?.asString() == Ledger.RESUME }
+        ops.refuse(retry, "wow.auth.forbidden", "Taken from the ops context's saga alone.")
+        eventually("$id refused") { state(id)!!["refusedAction"]?.asString() == Ledger.RETRY }
         val refused = state(id)!!
         refused["refusalCode"].asString().assert().isEqualTo("wow.auth.forbidden")
         refused["refusalReason"].asString().assert().isEqualTo("Taken from the ops context's saga alone.")
@@ -254,13 +254,13 @@ abstract class OpsContract {
         )
 
         // The history: the entry's own event streams, oldest first.
-        ops.post("/ops/parked/$first/resume", """{"reason":"The gateway is back."}""", Who.OPERATOR).assertOk()
+        ops.post("/ops/parked/$first/retry", """{"reason":"The gateway is back."}""", Who.OPERATOR).assertOk()
         val history = ops.post(
             "/ops/parked/events/query",
             """{"kind":"list","filter":${eq("aggregateId", first)}}""",
             Who.OPERATOR,
         ).assertOk().json.values().map { stream -> stream["events"].values().single()["name"].asString() }
-        history.assert().containsExactly("ops.parked.ParkedRecorded", "ops.parked.ResumeRequested")
+        history.assert().containsExactly("ops.parked.ParkedRecorded", "ops.parked.RetryRequested")
     }
 
     @Test
@@ -271,8 +271,8 @@ abstract class OpsContract {
 
         ops.get("/ops/parked/$id/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         query(eq("state.context", context), Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-        ops.post("/ops/parked/$id/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-        ops.post("/ops/parked/$id/resume", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        ops.post("/ops/parked/$id/retry", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+        ops.post("/ops/parked/$id/retry", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         ops.post("/ops/parked/$id/skip", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         val forged = """{"resolution":{"service":"$context-service","context":"$context","subscription":"$SAGA",
             "aggregate":{"context":"$context","name":"payment","tenantId":"(0)","id":"p-1"},

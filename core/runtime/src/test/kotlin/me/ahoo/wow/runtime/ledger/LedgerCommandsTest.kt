@@ -23,7 +23,7 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -79,7 +79,7 @@ class LedgerCommandsTest {
         if (failing.get()) error("${entry.ref.id} is broken")
         handled += entry.ref.id
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, claimTtl = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,
@@ -142,8 +142,8 @@ class LedgerCommandsTest {
         SkipParked.of(NAME, ref, ledger.parked(NAME, ref)!!.failedAt)
 
     /**
-     * The flake of LedgerNodeTest and EshopLedgerOpsTest: the reconciliation scan ran after the resume resolved the
-     * entry and before the resume published its outcome, so it published the entry as RESOLVED first, and ops kept
+     * The flake of LedgerNodeTest and EshopLedgerOpsTest: the reconciliation scan ran after the retry resolved the
+     * entry and before the retry published its outcome, so it published the entry as RESOLVED first, and ops kept
      * that. Here the scan runs exactly there, every time.
      */
     @Test
@@ -153,42 +153,42 @@ class LedgerCommandsTest {
             publisher.scan()
             failing.set(false)
             scanOnResolve.set(true)
-            commands.execute(wire(ResumeParked.of(NAME, X1))).assert().isNull()
+            commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
             commands.execute(wire(skipOf(cart("x2")))).assert().isNull()
             scanOnResolve.set(false)
             publisher.scan()
             sent.filter { it.type.endsWith(Ledger.RECORD_RESOLVED) }
                 .map { it.record["aggregate"]["id"].asString() to it.record["outcome"].asString() }
-                .assert().containsExactly("x1" to LedgerResolution.RESUMED, "x2" to LedgerResolution.SKIPPED)
+                .assert().containsExactly("x1" to LedgerResolution.RETRIED, "x2" to LedgerResolution.SKIPPED)
             runtime.stop()
         }
 
     @Test
-    fun `a resume of an entry this node runs handles it again and publishes it resolved`(): Unit = runBlocking {
+    fun `a retry of an entry this node runs handles it again and publishes it resolved`(): Unit = runBlocking {
         parkAll("x1")
-        commands.execute(wire(ResumeParked.of(NAME, X1))).assert().isNull()
+        commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
         sent.last().record["outcome"].assert().isNull()
         ClusterCodec.mapper.treeToValue(lastRecord(), LedgerEntry::class.java).fromVersion.assert().isEqualTo(1)
         failing.set(false)
-        commands.execute(wire(ResumeParked.of(NAME, X1))).assert().isNull()
+        commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
         handled.assert().containsExactly("x1")
         ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java).let {
-            it.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
+            it.outcome.assert().isEqualTo(LedgerResolution.RETRIED)
             it.context.assert().isEqualTo("shop")
         }
-        commands.execute(wire(ResumeParked.of(NAME, X1))).assert().isNull()
+        commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
         lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.NOT_PARKED)
         runtime.stop()
     }
 
     @Test
-    fun `a resume or a skip of another parking than the entry's is refused as stale`(): Unit = runBlocking {
+    fun `a retry or a skip of another parking than the entry's is refused as stale`(): Unit = runBlocking {
         parkAll("x1")
         val failedAt = ledger.parked(NAME, X1)!!.failedAt
         // The parking the operator saw was resolved, and the aggregate parked again since: its time differs.
         commands.execute(wire(SkipParked.of(NAME, X1, failedAt - 1)))!!.code.assert()
             .isEqualTo(FrameworkCodes.LEDGER_STALE)
-        commands.execute(wire(ResumeParked.of(NAME, X1, failedAt + 1)))!!.code.assert()
+        commands.execute(wire(RetryParked.of(NAME, X1, failedAt + 1)))!!.code.assert()
             .isEqualTo(FrameworkCodes.LEDGER_STALE)
         ledger.isParked(NAME, X1).assert().isTrue()
         // The parking it holds is acted on.
@@ -204,9 +204,9 @@ class LedgerCommandsTest {
             commands.execute(wire(skipOf(X1))).assert().isNull()
             lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.SKIPPED)
             runtime.stop()
-            commands.execute(wire(ResumeParked.of(NAME, cart("x2")))).assert().isNull()
-            ledger.parked(NAME, cart("x2"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
-            lastRecord()["request"].asString().assert().isEqualTo("resume")
+            commands.execute(wire(RetryParked.of(NAME, cart("x2")))).assert().isNull()
+            ledger.parked(NAME, cart("x2"))!!.request.assert().isEqualTo(LedgerRequest.RETRY)
+            lastRecord()["request"].asString().assert().isEqualTo("retry")
         }
 
     @Test
@@ -219,10 +219,10 @@ class LedgerCommandsTest {
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
 
-        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, initialBackoff = "PT5M", timeout = "30s")))
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, initialBackoff = "PT5M", claimTtl = "30s")))
             .assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.retrySpec.assert()
-            .isEqualTo(ParkedRetrySpec(maxRetries = 2, initialBackoff = 5.minutes, timeout = 30.seconds))
+            .isEqualTo(ParkedRetrySpec(maxRetries = 2, initialBackoff = 5.minutes, claimTtl = 30.seconds))
         lastRecord()["retrySpec"]["applied"].asBoolean().assert().isTrue()
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.retrySpec!!.maxRetries.assert().isEqualTo(0)
@@ -270,12 +270,12 @@ class LedgerCommandsTest {
         parkAll("x1", start = false)
         commands.execute(wire(Ledger.NAMESPACE + ".Unknown", ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(Ledger.RESUME, ClusterCodec.mapper.createObjectNode()))!!.code
+        commands.execute(wire(Ledger.RETRY, ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val blank = ClusterCodec.mapper.valueToTree<JsonNode>(
-            ResumeParked.of(NAME, X1.type.context, X1.type.name, X1.tenantId, " ")
+            RetryParked.of(NAME, X1.type.context, X1.type.name, X1.tenantId, " ")
         )
-        commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        commands.execute(wire(Ledger.RETRY, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(skipOf(X1), operator = null)).assert().isNull()
         // The partition is another node's: the skip is left for it.

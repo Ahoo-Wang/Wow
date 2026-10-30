@@ -3768,7 +3768,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "eshop-inventory.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3914,7 +3914,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "wow.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
         "content" : {
           "application/problem+json" : {
             "schema" : {

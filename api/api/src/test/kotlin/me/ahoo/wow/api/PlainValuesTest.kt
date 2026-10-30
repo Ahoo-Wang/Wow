@@ -22,7 +22,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
@@ -110,7 +110,7 @@ class PlainValuesTest {
         valueSemantics({ OwnerTransferred.of("alice") }, OwnerTransferred.of("bob"))
         valueSemantics({ SpaceTransferred.of("space") }, SpaceTransferred.of("other"))
         valueSemantics({ TagsApplied.of(mapOf("tier" to listOf("gold"))) }, TagsApplied.of(emptyMap()))
-        valueSemantics({ ResumeParked.of("Saga.on", parked) }, ResumeParked.of("Saga.other", parked))
+        valueSemantics({ RetryParked.of("Saga.on", parked) }, RetryParked.of("Saga.other", parked))
         valueSemantics({ SkipParked.of("Saga.on", parked, 1) }, SkipParked.of("Saga.other", parked, 1))
         valueSemantics(
             { MarkParkedRecoverable.of("Saga.on", parked, "recoverable") },

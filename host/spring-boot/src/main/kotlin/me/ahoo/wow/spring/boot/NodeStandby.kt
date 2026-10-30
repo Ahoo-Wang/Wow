@@ -23,13 +23,13 @@ class NodeStandby(private val node: ServiceNode) : StandbyControl {
     override fun status(): StandbyControl.Status = StandbyControl.Status(
         node = node.node,
         standby = node.standby,
-        resumedAt = node.resumption?.at,
-        resumedBy = node.resumption?.by,
-        reason = node.resumption?.reason,
+        activatedAt = node.activation?.at,
+        activatedBy = node.activation?.by,
+        reason = node.activation?.reason,
     )
 
-    override suspend fun resume(by: String, reason: String?): StandbyControl.Status {
-        node.resume(by, reason)
+    override suspend fun activate(by: String, reason: String?): StandbyControl.Status {
+        node.activate(by, reason)
         return status()
     }
 }

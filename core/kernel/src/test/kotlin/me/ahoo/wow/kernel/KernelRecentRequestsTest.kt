@@ -215,7 +215,7 @@ class KernelRecentRequestsTest {
     }
 
     @Test
-    fun `a saga's command sent again after its aggregate resumes is a duplicate, not a rejection`(): Unit = runTest {
+    fun `a saga's command sent again after its parked aggregate is retried is a duplicate, not a rejection`(): Unit = runTest {
         // A rejection would reach the saga's @OnRejected, which may compensate (a refund) for what committed.
         val kernel = kernel(recentRequests = 2)
         val saga = Causation("correlation", "event")

@@ -102,7 +102,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED WHERE $MATCH RETURNING *"
 
     val applyRetrySpec = """
-        UPDATE $table SET retry_max_retries = ?, retry_initial_backoff_millis = ?, retry_timeout_millis = ?,
+        UPDATE $table SET retry_max_retries = ?, retry_initial_backoff_millis = ?, retry_claim_ttl_millis = ?,
             $UNSCHEDULED
         WHERE $MATCH RETURNING *
     """.trimIndent()
@@ -119,9 +119,10 @@ internal class PostgresFailureLedgerTables(val name: String) {
     companion object {
         /**
          * The layout version of the table: format 1 keyed entries by service; format 2 adds each entry's partition
-         * and next attempt, and the due and tenant indexes.
+         * and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
+         * `retry_claim_ttl_millis` and an operator's request to retry `RETRY`.
          */
-        const val FORMAT = 2
+        const val FORMAT = 3
 
         /**
          * The retry state: the automatic retries made and the start of the last one; the retry spec an
@@ -133,13 +134,13 @@ internal class PostgresFailureLedgerTables(val name: String) {
             retry_at bigint,
             retry_max_retries integer,
             retry_initial_backoff_millis bigint,
-            retry_timeout_millis bigint,
+            retry_claim_ttl_millis bigint,
             recoverable text NOT NULL DEFAULT 'UNKNOWN',
             request text,
             next_attempt_at bigint
         """.trimIndent()
         private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
-            "retry_timeout_millis, recoverable, request, next_attempt_at"
+            "retry_claim_ttl_millis, recoverable, request, next_attempt_at"
         private const val DUE = "partition = ANY (?) AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"
         private const val UNSCHEDULED = "next_attempt_at = NULL"
         private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")

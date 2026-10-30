@@ -57,6 +57,6 @@ describe("the console's language", () => {
   it("is the engine's too, with the definitions' words", () => {
     expect(engineMessages("en")["parked.title"]).toBe("Parked entries");
     expect(engineMessages("zh-CN")["parked.title"]).toBe("搁置条目");
-    expect(engineMessages("zh-CN")["parkedActions.resume"]).toBe("恢复");
+    expect(engineMessages("zh-CN")["parkedActions.retry"]).toBe("重试");
   });
 });

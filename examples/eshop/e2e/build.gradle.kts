@@ -20,7 +20,7 @@ description = "Wow eShop: end-to-end tests across the eShop's services"
 //   stock's cancellation, the sales dataset, and an ordering node killed mid-flow and replaced.
 // - EshopLedgerOpsTest runs the ordering, inventory and payment services the same way, and the ops service
 //   (`:ops-server`, roadmap 7.1a) in a JVM of its own beside them: a payment the gateway fails parks, the ops service
-//   shows it through its query routes, and an operator's resume there resolves it (6.3f).
+//   shows it through its query routes, and an operator's retry there resolves it (6.3f).
 // - EshopLoad, the load script, starts the same EshopStack (the task eshopLoad below; README.md holds its baseline).
 // The platform's ops service (`ops`) runs beside them as one more server.
 val servers = listOf("catalog", "basket", "ordering", "inventory", "payment", "ops").associateWith { context ->

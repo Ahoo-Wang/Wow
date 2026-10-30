@@ -28,8 +28,8 @@ import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.RecordResolved
-import me.ahoo.wow.ops.api.parked.Resume
-import me.ahoo.wow.ops.api.parked.ResumeRequested
+import me.ahoo.wow.ops.api.parked.Retry
+import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
 import kotlin.time.Duration
@@ -42,8 +42,8 @@ import kotlin.time.Duration
  *   it is resolved ([RecordResolved]). A record that says what the entry holds already changes nothing, so the scans
  *   leave the log as it is; a record of a parking older than the one resolved (one a scan sent before the resolution,
  *   delivered after it), and one published before the record the entry holds, change nothing either.
- * - **Actions**: [Resume], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
- *   ([ResumeRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
+ * - **Actions**: [Retry], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
+ *   ([RetryRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
  *   service's next record, or, when the service refuses the request, as the saga's [RecordActionRefused]
  *   ([ActionRefused]). A resolved entry takes no action: there is nothing parked to act on.
  *
@@ -79,10 +79,10 @@ class Parked(private val state: ParkedState) {
     fun onCommand(command: RecordActionRefused): ActionRefused? =
         if (state.resolved) null else ActionRefused(command.action, command.code, command.reason)
 
-    fun onCommand(command: Resume): ResumeRequested {
+    fun onCommand(command: Retry): RetryRequested {
         rejectResolved()
         rejectStale(command.failedAt)
-        return ResumeRequested(command.reason, state.failedAt)
+        return RetryRequested(command.reason, state.failedAt)
     }
 
     fun onCommand(command: Skip): SkipRequested {
@@ -93,7 +93,7 @@ class Parked(private val state: ParkedState) {
 
     /**
      * Refuses an action on the parking at [failedAt], the one the operator saw, when the entry now records
-     * another: a resume or a skip acts on the parking the operator looked at, or not at all.
+     * another: a retry or a skip acts on the parking the operator looked at, or not at all.
      */
     private fun rejectStale(failedAt: Long?) {
         if (failedAt != null && failedAt != state.failedAt) {
@@ -125,10 +125,10 @@ class Parked(private val state: ParkedState) {
                 "maxRetries is never negative: $it."
             )
         }
-        listOfNotNull(command.initialBackoff, command.timeout).firstOrNull { !isDuration(it) }?.let {
+        listOfNotNull(command.initialBackoff, command.claimTtl).firstOrNull { !isDuration(it) }?.let {
             reject(ParkedRejections.INVALID, "Not a duration (PT3M, 3m): '$it'.")
         }
-        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.timeout)
+        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.claimTtl)
     }
 
     /** Refuses an operator's action on a resolved entry. */

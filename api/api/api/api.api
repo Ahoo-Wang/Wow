@@ -562,13 +562,13 @@ public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec : me/ahoo/wow/api
 	public static final field Companion Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAggregate ()Ljava/lang/String;
+	public final fun getClaimTtl ()Ljava/lang/String;
 	public fun getContext ()Ljava/lang/String;
 	public fun getId ()Ljava/lang/String;
 	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxRetries ()Ljava/lang/Integer;
 	public fun getSubscription ()Ljava/lang/String;
 	public fun getTenantId ()Ljava/lang/String;
-	public final fun getTimeout ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
@@ -606,7 +606,7 @@ public final class me/ahoo/wow/api/ledger/Ledger {
 	public static final field RECORD_PARKED Ljava/lang/String;
 	public static final field RECORD_RESOLVED Ljava/lang/String;
 	public static final field RESOLUTION Ljava/lang/String;
-	public static final field RESUME Ljava/lang/String;
+	public static final field RETRY Ljava/lang/String;
 	public static final field SKIP Ljava/lang/String;
 	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
 	public static final fun parkedId (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
@@ -642,8 +642,8 @@ public final class me/ahoo/wow/api/ledger/MarkParkedRecoverable$Companion {
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
 }
 
-public final class me/ahoo/wow/api/ledger/ResumeParked : me/ahoo/wow/api/ledger/LedgerCommand {
-	public static final field Companion Lme/ahoo/wow/api/ledger/ResumeParked$Companion;
+public final class me/ahoo/wow/api/ledger/RetryParked : me/ahoo/wow/api/ledger/LedgerCommand {
+	public static final field Companion Lme/ahoo/wow/api/ledger/RetryParked$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAggregate ()Ljava/lang/String;
 	public fun getContext ()Ljava/lang/String;
@@ -652,20 +652,20 @@ public final class me/ahoo/wow/api/ledger/ResumeParked : me/ahoo/wow/api/ledger/
 	public fun getSubscription ()Ljava/lang/String;
 	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/ResumeParked;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/RetryParked;
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/api/ledger/ResumeParked$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/ResumeParked$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/ResumeParked;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/ResumeParked$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/ResumeParked;
+public final class me/ahoo/wow/api/ledger/RetryParked$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/RetryParked$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/RetryParked;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/RetryParked$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/RetryParked;
 }
 
 public final class me/ahoo/wow/api/ledger/SkipParked : me/ahoo/wow/api/ledger/LedgerCommand {

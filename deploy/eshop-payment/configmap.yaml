@@ -16,8 +16,8 @@ data:
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
   WOW_KAFKA_DDL: validate
-  # Execute the commands other services send to wow.eshop-payment.commands: an operator's resume of a parked payment
-  # (ops, wow.ledger.Resume) among them.
+  # Execute the commands other services send to wow.eshop-payment.commands: an operator's retry of a parked payment
+  # (ops, wow.ledger.Retry) among them.
   WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"
   # Fixed once the context's log holds entries; the command topic wow.eshop-payment.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"

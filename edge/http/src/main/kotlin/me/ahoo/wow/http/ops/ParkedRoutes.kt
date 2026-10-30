@@ -68,14 +68,14 @@ import kotlin.time.Duration
  * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry, of the subscription
  *   `{subscription}` names as the configuration keys it, `<context>.<name>` ([SubscriptionId.key]), on the aggregate
  *   `{context}.{aggregate}`;
- * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry resolved or still
+ * - `POST …/retry` and `POST …/skip`: Retry and Skip, 200 when this node ran it (the entry resolved or still
  *   parked), 202 when it was left for the owner of the entry's partition. The body `{"failedAt": <epoch ms>}` names
  *   the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and parked
- *   again, is refused as 409 `wow.ledger.stale`, as the ops context's `ResumeParked` and `SkipParked` are. A skip
- *   requires it (400 without), since it discards what was parked; a resume may leave it out and acts on the current
+ *   again, is refused as 409 `wow.ledger.stale`, as the ops context's `RetryParked` and `SkipParked` are. A skip
+ *   requires it (400 without), since it discards what was parked; a retry may leave it out and acts on the current
  *   parking, since it only handles the parked streams again;
  * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
- *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration written
+ *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "claimTtl": "2m"}`, each duration written
  *   as the ops context's `ApplyRetrySpec` and the configuration write one, `500ms`, `1h 30m` or `PT3M`; a member
  *   left out keeps the value the entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering
  *   the entry.
@@ -111,7 +111,7 @@ fun parkedRoutes(
     return coRouter {
         GET(OpsPaths.PARKED) { request -> statuses.answering { handler.list(request) } }
         GET(entry) { request -> statuses.answering { handler.get(request) } }
-        POST("$entry/${OpsPaths.RESUME}") { request -> statuses.answering { handler.resume(request) } }
+        POST("$entry/${OpsPaths.RETRY}") { request -> statuses.answering { handler.retry(request) } }
         POST("$entry/${OpsPaths.SKIP}") { request -> statuses.answering { handler.skip(request) } }
         POST("$entry/${OpsPaths.MARK_RECOVERABLE}") { request ->
             statuses.answering { handler.markRecoverable(request) }
@@ -133,7 +133,7 @@ object OpsPaths {
 
     /** The node's subscriptions, read-only ([subscriptionRoutes]). */
     const val SUBSCRIPTIONS: String = "/wow/ops/subscriptions"
-    const val RESUME: String = "resume"
+    const val RETRY: String = "retry"
     const val SKIP: String = "skip"
     const val MARK_RECOVERABLE: String = "mark-recoverable"
     const val APPLY_RETRY_SPEC: String = "apply-retry-spec"
@@ -156,7 +156,7 @@ object OpsPaths {
  */
 @ExperimentalWowApi
 internal object OpsCommands {
-    const val RESUME: String = Ledger.RESUME
+    const val RETRY: String = Ledger.RETRY
     const val SKIP: String = Ledger.SKIP
     const val MARK_RECOVERABLE: String = Ledger.MARK_RECOVERABLE
     const val APPLY_RETRY_SPEC: String = Ledger.APPLY_RETRY_SPEC
@@ -226,8 +226,8 @@ private class ParkedHandler(
     private suspend fun readable(caller: Caller, ref: AggregateRef): Boolean =
         authorizer.authorize(caller, actionOf(caller, OpsPaths.READ, ref)) is Authorization.Allowed
 
-    suspend fun resume(request: ServerRequest): ServerResponse =
-        act(request, OpsCommands.RESUME) { subscription, ref, failedAt -> ops.resume(subscription, ref, failedAt) }
+    suspend fun retry(request: ServerRequest): ServerResponse =
+        act(request, OpsCommands.RETRY) { subscription, ref, failedAt -> ops.retry(subscription, ref, failedAt) }
 
     suspend fun skip(request: ServerRequest): ServerResponse =
         act(request, OpsCommands.SKIP) { subscription, ref, failedAt ->
@@ -300,8 +300,7 @@ private class ParkedHandler(
             ParkedRetrySpec(
                 maxRetries = maxRetries ?: current.maxRetries,
                 initialBackoff = body[INITIAL_BACKOFF]?.let { durationOf(INITIAL_BACKOFF, it) } ?: current.initialBackoff,
-                timeout = body[TIMEOUT]?.let { durationOf(TIMEOUT, it) }
-                    ?: current.timeout,
+                claimTtl = body[CLAIM_TTL]?.let { durationOf(CLAIM_TTL, it) } ?: current.claimTtl,
             )
         } catch (invalid: IllegalArgumentException) {
             throw badRequest(invalid.message ?: "Not a retry spec.")
@@ -402,7 +401,7 @@ private class ParkedHandler(
         const val RECOVERABLE = "recoverable"
         const val MAX_RETRIES = "maxRetries"
         const val INITIAL_BACKOFF = "initialBackoff"
-        const val TIMEOUT = "timeout"
+        const val CLAIM_TTL = "claimTtl"
         val EMPTY: JsonNode = HttpJson.mapper.createObjectNode()
     }
 }
@@ -428,7 +427,7 @@ internal fun viewOf(view: ParkedView): Map<String, Any?> {
         "retrySpec" to mapOf(
             "maxRetries" to view.spec.maxRetries,
             "initialBackoff" to view.spec.initialBackoff.toIsoString(),
-            "timeout" to view.spec.timeout.toIsoString(),
+            "claimTtl" to view.spec.claimTtl.toIsoString(),
             "applied" to (entry.retrySpec != null),
         ),
         "recoverable" to WireNames.of(entry.recoverable),

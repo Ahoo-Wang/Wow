@@ -25,7 +25,7 @@ import {
 
 const AT = Date.parse("2026-10-01T08:00:00Z");
 
-const SPEC = { maxRetries: 3, initialBackoff: "PT1M", timeout: "PT2M" };
+const SPEC = { maxRetries: 3, initialBackoff: "PT1M", claimTtl: "PT2M" };
 
 function entry(extra: Record<string, unknown> = {}) {
   return {
@@ -90,14 +90,14 @@ const STREAMS: EventStream[] = [
     "alice",
   ),
   stream(6, "SkipRequested", {}, "bob"),
-  stream(7, "ResumeRequested", { reason: "The gateway is back." }, "alice"),
+  stream(7, "RetryRequested", { reason: "The gateway is back." }, "alice"),
   stream(8, "ParkedRecorded", {
     entry: entry({
       failedAt: AT + 1,
       reason: "java.lang.IllegalStateException: closed",
     }),
   }),
-  stream(9, "ParkedResolved", { outcome: "resumed", resolvedAt: AT + 2 }),
+  stream(9, "ParkedResolved", { outcome: "retried", resolvedAt: AT + 2 }),
   stream(10, "SomethingNew", {}),
 ];
 
@@ -116,7 +116,7 @@ describe("an entry's history", () => {
       "unknown",
       "resolved",
       "parkedAgain",
-      "resumeRequested",
+      "retryRequested",
       "skipRequested",
       "markRecoverableRequested",
       "applyRetrySpecRequested",
@@ -143,7 +143,7 @@ describe("an entry's history", () => {
     expect(byVersion[4].operator).toBe("alice");
     expect(byVersion[6].facts).toEqual({});
     expect(byVersion[7].facts.reason).toBe("The gateway is back.");
-    expect(byVersion[9].facts).toEqual({ outcome: "resumed" });
+    expect(byVersion[9].facts).toEqual({ outcome: "retried" });
     expect(byVersion[10].name).toBe("ops.parked.SomethingNew");
     expect(byVersion[1].at).toBe(AT + 60_000);
   });
@@ -151,7 +151,7 @@ describe("an entry's history", () => {
   it("reads an owning service's refusal of the last request (D226)", () => {
     const [refused] = historyOf([
       stream(8, "ActionRefused", {
-        action: "wow.ledger.Resume",
+        action: "wow.ledger.Retry",
         code: "wow.auth.forbidden",
         reason: "Taken from the ops context's saga alone.",
       }),
@@ -159,7 +159,7 @@ describe("an entry's history", () => {
     expect(refused).toMatchObject({
       kind: "actionRefused",
       facts: {
-        refusedAction: "wow.ledger.Resume",
+        refusedAction: "wow.ledger.Retry",
         refusalCode: "wow.auth.forbidden",
         reason: "Taken from the ops context's saga alone.",
       },
@@ -230,12 +230,12 @@ describe("an entry's timeline", () => {
     const steps = await within(section).findAllByRole("listitem");
     expect(steps).toHaveLength(STREAMS.length);
     expect(steps[1]).toHaveTextContent("Resolved");
-    expect(steps[1]).toHaveTextContent("Resumed");
+    expect(steps[1]).toHaveTextContent("Retried");
     expect(steps[2]).toHaveTextContent("Parked again");
     expect(steps[2]).toHaveTextContent(
       "java.lang.IllegalStateException: closed",
     );
-    expect(steps[3]).toHaveTextContent("Resume requested");
+    expect(steps[3]).toHaveTextContent("Retry requested");
     expect(steps[3]).toHaveTextContent("by alice");
     expect(steps[5]).toHaveTextContent("Unrecoverable");
     expect(steps[6]).toHaveTextContent("Max retries 5");

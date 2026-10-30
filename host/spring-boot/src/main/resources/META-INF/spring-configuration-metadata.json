@@ -803,7 +803,7 @@
   }, {
     "name" : "wow.node.standby",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume.",
+    "description" : "Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator activates it on the internal port (`POST /wow/node/activate` from a node of its service, naming who activates it). A subscription that starts at the end of its stream starts where the stream ends at the activation.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Node",
     "defaultValue" : false
   }, {
@@ -1368,6 +1368,12 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : 1024
   }, {
+    "name" : "wow.subscription.parked.claim-ttl",
+    "type" : "java.time.Duration",
+    "description" : "How long a retry's claim on the entry holds before another retry may start, such as on the partition's next owner: it cancels nothing.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
+    "defaultValue" : "PT2M"
+  }, {
     "name" : "wow.subscription.parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
@@ -1385,12 +1391,6 @@
     "description" : "How often each node scans its subscriptions' parked entries for retries that are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT10S"
-  }, {
-    "name" : "wow.subscription.parked.timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a retry may run before the partition's next owner may start another.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
-    "defaultValue" : "PT2M"
   }, {
     "name" : "wow.subscription.read-retry.error-after",
     "type" : "java.lang.Integer",

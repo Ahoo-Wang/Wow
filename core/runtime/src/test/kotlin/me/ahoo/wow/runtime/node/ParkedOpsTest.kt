@@ -50,7 +50,7 @@ class ParkedOpsTest {
         if (entry.ref.id.startsWith("x") && failing.get()) error("${entry.ref.id} is broken")
         handled += "${entry.ref.id}@${entry.version}"
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, claimTtl = 1.seconds)
     private val options = testOptions(
         maxAttempts = 1
     ).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 1.hours))
@@ -65,7 +65,7 @@ class ParkedOpsTest {
     private val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
 
     @Test
-    fun `an operator resumes and skips the entries of the partitions this node runs at once`(): Unit = runBlocking {
+    fun `an operator retries and skips the entries of the partitions this node runs at once`(): Unit = runBlocking {
         appender.append("x1")
         appender.append("x2")
         runtime.start(setOf(0, 1))
@@ -75,10 +75,10 @@ class ParkedOpsTest {
         view.spec.assert().isEqualTo(spec)
         view.status.assert().isEqualTo(ParkedView.Status.SCHEDULED)
         view.nextRetryAt.assert().isEqualTo(view.entry.failedAt + 1.hours.inWholeMilliseconds)
-        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.PARKED)
+        ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.PARKED)
         failing.set(false)
-        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
         val x2 = ledger.parked(NAME, cart("x2"))!!.failedAt
         ops.skip(ID, cart("x2"), x2 + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
         ops.skip(ID, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
@@ -92,12 +92,12 @@ class ParkedOpsTest {
     @Test
     fun `an entry of a partition another node runs is left as a request for it`(): Unit = runBlocking {
         park("x1")
-        ops.resume(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
-        ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
+        ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
+        ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RETRY)
         ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt).assert()
             .isEqualTo(ParkedOps.Outcome.REQUESTED)
         ops.get(ID, cart("x1"))!!.entry.request.assert().isEqualTo(LedgerRequest.SKIP)
-        ops.resume(ID, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
+        ops.retry(ID, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
         ops.skip(ID, cart("absent"), 0).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
     }
 

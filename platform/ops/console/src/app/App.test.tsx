@@ -49,7 +49,7 @@ const ENTRIES = [
       retrySpec: {
         maxRetries: 3,
         initialBackoff: "PT1M",
-        timeout: "PT2M",
+        claimTtl: "PT2M",
       },
       recoverable: "unknown",
       status: "exhausted",
@@ -86,7 +86,7 @@ function console_(
   const callers = new CallerStore(null, tokens);
   if (caller) callers.set(caller);
   const commands = {
-    resume: vi.fn(async () => ({})),
+    retry: vi.fn(async () => ({})),
     skip: vi.fn(async () => ({})),
     markRecoverable: vi.fn(async () => ({})),
     applyRetrySpec: vi.fn(async () => ({})),

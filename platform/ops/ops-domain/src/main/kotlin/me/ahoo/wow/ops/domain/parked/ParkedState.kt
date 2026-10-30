@@ -23,14 +23,14 @@ import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.ParkedStatus
-import me.ahoo.wow.ops.api.parked.ResumeRequested
+import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
  * One service's entry of one parked aggregate, as its ledger last published it: the ops view, whose
  * snapshot is the read model an operator queries. While parked, it is the entry's [ParkedEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
- * owning service (`resume`, `skip`, `mark-recoverable` or `apply-retry-spec`), until the service publishes the entry
+ * owning service (`retry`, `skip`, `mark-recoverable` or `apply-retry-spec`), until the service publishes the entry
  * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request,
  * until the next request or the entry's resolution. [errorType] is what [reason] says failed, which an operator
  * groups the entries by.
@@ -99,7 +99,7 @@ class ParkedState {
     var requested: String? = null
         private set
 
-    /** The ledger's system command the owning service refused (`wow.ledger.Resume`, ...), or null. */
+    /** The ledger's system command the owning service refused (`wow.ledger.Retry`, ...), or null. */
     var refusedAction: String? = null
         private set
 
@@ -167,8 +167,8 @@ class ParkedState {
         refused(event)
     }
 
-    fun onSourcing(@Suppress("UNUSED_PARAMETER") event: ResumeRequested) {
-        requested(RESUME)
+    fun onSourcing(@Suppress("UNUSED_PARAMETER") event: RetryRequested) {
+        requested(RETRY)
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: SkipRequested) {
@@ -198,7 +198,7 @@ class ParkedState {
         /** The type of the failure [reason] records; see [errorType]. */
         fun errorTypeOf(reason: String): String = reason.substringBefore(": ").trim()
 
-        const val RESUME: String = "resume"
+        const val RETRY: String = "retry"
         const val SKIP: String = "skip"
         const val MARK_RECOVERABLE: String = "mark-recoverable"
         const val APPLY_RETRY_SPEC: String = "apply-retry-spec"

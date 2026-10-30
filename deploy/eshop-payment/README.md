@@ -1,6 +1,6 @@
 # eShop payment on Kubernetes
 
-Plain manifests for the eShop payment service (`examples/eshop/payment`): the payments, through a simulated payment gateway. On MongoDB and Kafka, with two nodes, or on PostgreSQL through its `postgres` component. They follow the [eShop ordering manifests](../eshop-ordering/README.md), file for file; the choices there (internal port, probes, shutdown, node id) hold here too. `WOW_KAFKA_COMMANDINTAKE_ENABLED` executes the commands other services send to `wow.eshop-payment.commands`: an operator's resume of a parked payment, from ops, among them.
+Plain manifests for the eShop payment service (`examples/eshop/payment`): the payments, through a simulated payment gateway. On MongoDB and Kafka, with two nodes, or on PostgreSQL through its `postgres` component. They follow the [eShop ordering manifests](../eshop-ordering/README.md), file for file; the choices there (internal port, probes, shutdown, node id) hold here too. `WOW_KAFKA_COMMANDINTAKE_ENABLED` executes the commands other services send to `wow.eshop-payment.commands`: an operator's retry of a parked payment, from ops, among them.
 
 The HTTP port is `8085`, the internal port `9095`. The objects are named after the service, `eshop-payment-service`: the HTTP service `eshop-payment-service`, the headless service `eshop-payment-service-cluster`, whose SRV records the other services look up.
 

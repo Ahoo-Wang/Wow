@@ -35,7 +35,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *   and when it last failed, which also tells one parking of the aggregate from the next.
  * - [retries] made so far, the last started at [retryAt]; [retrySpec], the spec it is retried by; [nextRetryAt] the next
  *   automatic retry, null when there is none.
- * - [recoverable]: `unknown`, `recoverable` or `unrecoverable`, what an operator marked it; [request]: `resume` or
+ * - [recoverable]: `unknown`, `recoverable` or `unrecoverable`, what an operator marked it; [request]: `retry` or
  *   `skip` while an operator's request waits for the owner of its partition, else null.
  * - [status]: `scheduled` (retried automatically), `exhausted` (its retries spent) or `unrecoverable`.
  *
@@ -127,7 +127,7 @@ class LedgerEntry @InternalWowApi constructor(
 
 /**
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
- * failure, each allowed [timeout] (durations); [applied] when an operator applied it, rather than
+ * failure, each claiming the entry for [claimTtl] (durations); [applied] when an operator applied it, rather than
  * the subscription's.
  *
  * Fields may be added: construct it with [of]; the constructor is internal to Wow.
@@ -136,7 +136,7 @@ class LedgerEntry @InternalWowApi constructor(
 class LedgerRetrySpec @InternalWowApi constructor(
     val maxRetries: Int,
     val initialBackoff: String,
-    val timeout: String,
+    val claimTtl: String,
     val applied: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
@@ -145,28 +145,28 @@ class LedgerRetrySpec @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "LedgerRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, timeout=$timeout, " +
+        "LedgerRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, claimTtl=$claimTtl, " +
             "applied=$applied)"
 
-    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, timeout, applied)
+    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, claimTtl, applied)
 
     @InternalWowApi
     companion object {
-        /** At most [maxRetries] retries, the first [initialBackoff] after the failure, each allowed [timeout]. */
+        /** At most [maxRetries] retries, the first [initialBackoff] after the failure, each claiming it for [claimTtl]. */
         @JvmStatic
         @JvmOverloads
         fun of(
             maxRetries: Int,
             initialBackoff: String,
-            timeout: String,
+            claimTtl: String,
             applied: Boolean = false,
-        ): LedgerRetrySpec = LedgerRetrySpec(maxRetries, initialBackoff, timeout, applied)
+        ): LedgerRetrySpec = LedgerRetrySpec(maxRetries, initialBackoff, claimTtl, applied)
     }
 }
 
 /**
  * [subscription] of [service] no longer parks [aggregate], as of [resolvedAt] (epoch milliseconds): the parking that
- * failed at [failedAt] (null when the service did not know it) came to [outcome]: [RESUMED] (handled again),
+ * failed at [failedAt] (null when the service did not know it) came to [outcome]: [RETRIED] (handled again),
  * [SKIPPED], [RESOLVED] (gone from the ledger, by an automatic retry or another node's action) or [NOT_PARKED] (an
  * operator's action found nothing parked).
  *
@@ -196,7 +196,7 @@ class LedgerResolution @InternalWowApi constructor(
 
     @InternalWowApi
     companion object {
-        const val RESUMED: String = "resumed"
+        const val RETRIED: String = "retried"
         const val SKIPPED: String = "skipped"
         const val RESOLVED: String = "resolved"
         const val NOT_PARKED: String = "not-parked"

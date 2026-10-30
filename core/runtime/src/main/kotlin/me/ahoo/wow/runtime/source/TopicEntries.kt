@@ -43,14 +43,14 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * - A message that holds no state event this version reads (another format or kind, a malformed value) is reported
  *   to [observer] and logged. When its key names an aggregate, it is the entry of an
  *   [UndecodableMessage] there, on which the aggregate's subscriptions fail and park it, at its offset, for an
- *   operator to resume once a version reads it, or to skip; its order is after every entry of the aggregate handled
+ *   operator to retry once a version reads it, or to skip; its order is after every entry of the aggregate handled
  *   ([ordinalOf]). Otherwise no aggregate can be parked for it: it is passed over, the checkpoint moving past it.
  * - A start from the end is the partition's end offset; from an instant, a binary search over the offsets retained by
  *   the records' commit times.
  * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
- *   records the offset of the record it failed at; a resume re-scans the partition from it up to the end the
- *   partition has when the resume runs, keeping the records keyed by the ref, of its version or later. When the
- *   partition no longer retains that offset, the resume fails with an [UnrecoverableException].
+ *   records the offset of the record it failed at; a retry re-scans the partition from it up to the end the
+ *   partition has when the retry runs, keeping the records keyed by the ref, of its version or later. When the
+ *   partition no longer retains that offset, the retry fails with an [UnrecoverableException].
  * - At least once: a record may be published twice, so the subscriptions drop the copies of a version
  *   they handled ([repeats]).
  */
@@ -92,7 +92,7 @@ internal class TopicEntries(
     override fun ordinalOf(entry: SourcedEntry): Long =
         if (UndecodableMessage.isUndecodable(entry)) Long.MAX_VALUE else entry.stream.version.toLong()
 
-    override suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
+    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
         if (fromPosition == null) {
             throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
         }

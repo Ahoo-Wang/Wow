@@ -31,7 +31,7 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * `{id, tenantId, crossScope}`; the scope the command is sent in a nullable `jsonb` object
  * `{ownerId, spaceId}`, null for none. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING
  * (claimed) timers serves the due read, each table's branch of it, and one on the target of the PARKED timers serves a
- * resume.
+ * retry.
  */
 internal class PostgresTimerTables(private val context: String) {
     /** The registry's statements and the registry itself. */

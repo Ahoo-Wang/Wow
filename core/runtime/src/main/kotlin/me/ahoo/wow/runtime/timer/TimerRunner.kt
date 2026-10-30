@@ -65,13 +65,13 @@ import kotlin.time.TimeSource
  * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
  *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
  *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
- *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip];
+ *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [retry] or [skip];
  * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): backpressure, not a failure:
  *   the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
  *   attempt, so a target that stays busy parks the timer in the end, as a subscription's backpressure does.
  *
- * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
+ * A claim, a retry or a retry moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
  * time ([Timer.slotDueAt]), so its target never decides it before then. A recurring timer whose slot is
  * past due by more than one time of its rule when it is claimed is caught up first ([ScheduleSlots.caughtUp]): a
  * coalescing rule sends only the latest slot due, the others counted as skipped; an expired slot of a recurring rule
@@ -118,19 +118,19 @@ class TimerRunner(
 
     /**
      * Sends the PARKED timers of [target] again, due now with their attempts reset, and resolves its ledger entry: an
-     * operator's resume. Any node may call it; the owner of the timers' partition sends them.
+     * operator's retry. Any node may call it; the owner of the timers' partition sends them.
      *
-     * @return how many timers were resumed.
+     * @return how many timers were retried.
      */
-    suspend fun resume(target: AggregateRef): Int {
+    suspend fun retry(target: AggregateRef): Int {
         val now = loop.clock.millis()
-        val resumed = store.settle(
+        val retried = store.settle(
             store.parked(target).map {
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         )
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
-        return resumed
+        return retried
     }
 
     /**

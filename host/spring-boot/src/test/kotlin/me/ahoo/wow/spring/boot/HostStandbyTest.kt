@@ -23,30 +23,30 @@ import java.time.Duration
 
 /**
  * `wow.node.standby` (design 07 §3): the node starts serving reads only, refuses commands with `wow.node.standby` (503),
- * and its operator resumes it on the internal port, naming who resumes it.
+ * and its operator activates it on the internal port, naming who activates it.
  */
 class HostStandbyTest {
     @Test
-    fun `a host on standby should refuse commands until its operator resumes it`() {
+    fun `a host on standby should refuse commands until its operator activates it`() {
         startHost("wow.node.standby" to "true").use { host ->
             host.node.standby.assert().isTrue()
             host.post("/bank/account/open-account", """{"owner":"alice"}""").also {
                 it.status.assert().isEqualTo(503)
                 it.body!!.get("code").asString().assert().isEqualTo("wow.node.standby")
             }
-            // A node of the service resumes it (Wow-Service, decision D300).
+            // A node of the service activates it (Wow-Service, decision D300).
             val internal = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:${host.internalPort}")
                 .defaultHeader(WowHeaders.SERVICE, "bank-service")
                 .responseTimeout(Duration.ofSeconds(30)).build()
             internal.get().uri(InternalHttp.STANDBY_PATH).answer().body!!.get("standby").asBoolean().assert().isTrue()
-            internal.post().uri(InternalHttp.RESUME_PATH).contentType(MediaType.APPLICATION_JSON)
+            internal.post().uri(InternalHttp.ACTIVATE_PATH).contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"by":"operator-1","reason":"cut-over"}""").answer().also {
                     it.status.assert().isEqualTo(200)
                     it.body!!.get("standby").asBoolean().assert().isFalse()
-                    it.body.get("resumedBy").asString().assert().isEqualTo("operator-1")
+                    it.body.get("activatedBy").asString().assert().isEqualTo("operator-1")
                 }
             host.node.standby.assert().isFalse()
-            host.node.resumption!!.by.assert().isEqualTo("operator-1")
+            host.node.activation!!.by.assert().isEqualTo("operator-1")
             host.post("/bank/account/open-account", """{"owner":"alice"}""").status.assert().isEqualTo(200)
         }
     }

@@ -52,8 +52,8 @@ import kotlin.time.Duration
 
 /**
  * A node on standby through the dual-run window of a migration's cut-over (design 07 §3, decision D32): it refuses
- * every command and handles no subscription while what `migrate-data tail` imports lands in its log; once resumed, a
- * saga that starts at the end of its stream handles the commits after the resume only, never the imported history.
+ * every command and handles no subscription while what `migrate-data tail` imports lands in its log; once activated, a
+ * saga that starts at the end of its stream handles the commits after the activation only, never the imported history.
  * The case is the 9.x example's: the cart saga of an order placed from a cart.
  */
 class StandbyNodeTest {
@@ -62,7 +62,7 @@ class StandbyNodeTest {
     @Volatile
     private var leasesDown = false
 
-    /** The lease store, down once [leasesDown] is set: the node's join at the resume fails. */
+    /** The lease store, down once [leasesDown] is set: the node's join at the activation fails. */
     private val store = InMemoryLeaseStore()
     private val leases = object : LeaseStore by store {
         override suspend fun heartbeat(
@@ -139,12 +139,12 @@ class StandbyNodeTest {
     }
 
     @Test
-    fun `a node on standby refuses commands and handles nothing until it is resumed, then only what came after`(): Unit =
+    fun `a node on standby refuses commands and handles nothing until it is activated, then only what came after`(): Unit =
         runBlocking {
             val node = node()
             node.start(standby = true)
             node.standby.assert().isTrue()
-            node.resumption.assert().isNull()
+            node.activation.assert().isNull()
 
             val refused = node.gateway.send(place("o-standby", "cart-x", "pear")).toList().last()
             refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
@@ -156,63 +156,63 @@ class StandbyNodeTest {
             delay(SETTLE_MILLIS)
             handled.assert().isEmpty()
 
-            val resumed = node.resume("operator-1", "cut-over")
-            resumed.resumed.assert().isTrue()
-            resumed.by.assert().isEqualTo("operator-1")
-            resumed.reason.assert().isEqualTo("cut-over")
-            resumed.at.assert().isNotNull()
+            val activated = node.activate("operator-1", "cut-over")
+            activated.activated.assert().isTrue()
+            activated.by.assert().isEqualTo("operator-1")
+            activated.reason.assert().isEqualTo("cut-over")
+            activated.at.assert().isNotNull()
             node.standby.assert().isFalse()
-            node.resumption.assert().isEqualTo(resumed)
-            // Resuming again changes nothing, and says when it was.
-            node.resume("operator-2").assert().isEqualTo(resumed)
+            node.activation.assert().isEqualTo(activated)
+            // Activating again changes nothing, and says when it was.
+            node.activate("operator-2").assert().isEqualTo(activated)
 
             node.gateway.send(place("o-v10", "cart-v10", "plum")).toList().last().status
                 .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             eventually { "o-v10" in handled }
             delay(SETTLE_MILLIS)
-            // The saga's end of the stream was taken at the resume: the imported history is never handled again.
+            // The saga's end of the stream was taken at the activation: the imported history is never handled again.
             handled.assert().containsExactly("o-v10")
             log.read(CART.ref(TENANT, "cart-o-9x-1")).toList().assert().isEmpty()
         }
 
     @Test
-    fun `a node not on standby resumes as a no-op, and a node on standby stops`(): Unit = runBlocking {
+    fun `a node not on standby is activated as a no-op, and a node on standby stops`(): Unit = runBlocking {
         val running = node()
         running.start()
         running.standby.assert().isFalse()
-        running.resume("operator").also {
-            it.resumed.assert().isFalse()
+        running.activate("operator").also {
+            it.activated.assert().isFalse()
             it.at.assert().isNull()
         }
         running.stop()
 
         val standby = node()
-        assertThrows<IllegalStateException> { standby.resume("operator") }
+        assertThrows<IllegalStateException> { standby.activate("operator") }
         standby.start(standby = true)
         standby.stop()
-        assertThrows<IllegalStateException> { standby.resume("operator") }
+        assertThrows<IllegalStateException> { standby.activate("operator") }
 
-        // Resumed without a reason, the resumption records none.
+        // Activated without a reason, the activation records none.
         val unexplained = node()
         unexplained.start(standby = true)
-        unexplained.resume("operator").also {
-            it.resumed.assert().isTrue()
+        unexplained.activate("operator").also {
+            it.activated.assert().isTrue()
             it.reason.assert().isNull()
         }
         unexplained.stop()
     }
 
     @Test
-    fun `a resume that fails stops the node and throws`(): Unit = runBlocking {
+    fun `an activation that fails stops the node and throws`(): Unit = runBlocking {
         val node = node()
         node.start(standby = true)
         leasesDown = true
-        assertThrows<IllegalStateException> { node.resume("operator", "cut-over") }
+        assertThrows<IllegalStateException> { node.activate("operator", "cut-over") }
             .message.assert().isEqualTo("The lease store is down.")
-        node.resumption.assert().isNull()
-        // Stopped: it refuses another resume, as any node that is not running.
-        assertThrows<IllegalStateException> { node.resume("operator") }
-            .message.assert().contains("only a running node resumes")
+        node.activation.assert().isNull()
+        // Stopped: it refuses another activation, as any node that is not running.
+        assertThrows<IllegalStateException> { node.activate("operator") }
+            .message.assert().contains("only a running node is activated")
     }
 
     private companion object {

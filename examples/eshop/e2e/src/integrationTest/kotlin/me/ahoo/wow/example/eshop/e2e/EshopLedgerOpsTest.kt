@@ -39,10 +39,10 @@ import java.time.Duration
  * 2. The payment service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`: the ops service
  *    records it on the `parked` aggregate whose id is the entry's, and an operator finds it through the snapshot query
  *    route, filtered by context, status and failure time, and reads its detail.
- * 3. The gateway is back; an operator resumes the entry on the ops service, which authorizes it as `wow.ledger.Resume`.
- *    Its saga sends `wow.ledger.Resume` to `wow.eshop-payment.commands`, the payment service resumes the saga, the
+ * 3. The gateway is back; an operator retries the entry on the ops service, which authorizes it as `wow.ledger.Retry`.
+ *    Its saga sends `wow.ledger.Retry` to `wow.eshop-payment.commands`, the payment service retries the saga, the
  *    payment succeeds and pays the order, and the entry, published resolved, shows `RESOLVED` with the outcome
- *    `RESUMED` in the ops view.
+ *    `RETRIED` in the ops view.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EshopLedgerOpsTest {
@@ -110,7 +110,7 @@ class EshopLedgerOpsTest {
     private fun arguments(database: String): List<String> = backendArguments(postgres, kafka, database, PARTITIONS)
 
     @Test
-    fun `a payment the gateway failed is parked, shown in ops, and resumed from there`() {
+    fun `a payment the gateway failed is parked, shown in ops, and retried from there`() {
         val startedAt = System.currentTimeMillis()
         inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""").status.assert().isEqualTo(OK)
         val submitted = ordering.post(
@@ -136,14 +136,14 @@ class EshopLedgerOpsTest {
         orderStatus("carol-1").assert().isEqualTo("STOCK_CONFIRMED")
 
         // Only an operator acts on it.
-        ops.post("/ops/parked/$id/resume", "{}", VIEWER).status.assert().isEqualTo(FORBIDDEN)
+        ops.post("/ops/parked/$id/retry", "{}", VIEWER).status.assert().isEqualTo(FORBIDDEN)
 
-        // The gateway is back: an operator resumes the entry from ops, and the owning service resumes it.
+        // The gateway is back: an operator retries the entry from ops, and the owning service retries it.
         outage.delete()
-        val resumed = ops.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", OPERATOR)
-        resumed.status.assert().describedAs(resumed.body).isEqualTo(OK)
+        val retried = ops.post("/ops/parked/$id/retry", """{"reason":"The gateway is back."}""", OPERATOR)
+        retried.status.assert().describedAs(retried.body).isEqualTo(OK)
         eventually("the entry resolved in the ops view") { opsState(id)?.get("status")?.asString() == ParkedStatus.RESOLVED }
-        opsState(id)!!["outcome"].asString().assert().isEqualTo("resumed")
+        opsState(id)!!["outcome"].asString().assert().isEqualTo("retried")
         listed(exhausted).assert().isEmpty()
         eventually("carol-1 paid") { orderStatus("carol-1") == "PAID" }
         val paid = payment.get("/eshop-payment/payment/carol-1/state")

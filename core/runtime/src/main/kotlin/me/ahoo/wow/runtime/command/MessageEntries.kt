@@ -47,8 +47,8 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * checkpoint is the offset to read next, carrying what it holds as its [SourcedEntry.message].
  *
  * Nothing in these topics is a commit, so an entry's stream only names the aggregate whose lane it runs in, at
- * version 1, and its order among that aggregate's entries is its offset ([ordinalOf]): parking, resuming and copies go
- * by the offset. A park records it ([sourcePosition]); a resume re-scans the aggregate's partition from it, keeping
+ * version 1, and its order among that aggregate's entries is its offset ([ordinalOf]): parking, retrying and copies go
+ * by the offset. A park records it ([sourcePosition]); a retry re-scans the aggregate's partition from it, keeping
  * the messages keyed by the aggregate; an offset no longer retained is unrecoverable.
  *
  * - A message of another kind, format or shape is reported to [observer] and logged: when its key
@@ -101,7 +101,7 @@ internal class MessageEntries private constructor(
     /** The entry parked at the offset it records; one recording none was parked before every one. */
     override fun ordinalOf(parked: ParkedAggregate): Long = (parked.fromPosition ?: -1L) + 1
 
-    override suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
+    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
         if (fromPosition == null) {
             throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
         }

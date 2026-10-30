@@ -66,7 +66,7 @@ import kotlin.time.Duration
  * cluster each collection is sharded by `{partition: 1}`, one chunk per partition, spread over the shards while it is
  * new (as the log is): every filter by owner carries the owner's partition, so the reads and
  * writes by owner and the due read of a node's partitions reach the shards of those partitions alone, and the key
- * stays unique across the shards. A resume's read of a target's parked timers ([parked]) asks every shard.
+ * stays unique across the shards. A retry's read of a target's parked timers ([parked]) asks every shard.
  *
  * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
  * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a

@@ -83,7 +83,7 @@ import kotlin.time.Duration.Companion.seconds
  * 3. **Technical failures** throw: a contended or unknown outcome, an executor that is closing, a store that is down,
  *    a receipt the broker does not acknowledge. The subscription retries them, then parks the aggregate in the
  *    context's failure ledger under [NAME], at the command's offset
- *    ([me.ahoo.wow.spi.ledger.ParkedAggregate.fromPosition]); its later commands wait until it is resumed or skipped.
+ *    ([me.ahoo.wow.spi.ledger.ParkedAggregate.fromPosition]); its later commands wait until it is retried or skipped.
  *
  * An aggregate type or command type the context does not know is the sender's mistake, or a contract the sender has
  * and this service does not yet: it is not this aggregate's failure, and parking it would hold its

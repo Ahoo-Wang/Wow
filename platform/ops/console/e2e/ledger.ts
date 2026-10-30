@@ -67,7 +67,7 @@ export async function publish(
       retrySpec: {
         maxRetries: 3,
         initialBackoff: "PT1M",
-        timeout: "PT2M",
+        claimTtl: "PT2M",
       },
       status,
       nextRetryAt: status === "scheduled" ? failedAt + HOUR : null,
@@ -83,7 +83,7 @@ export async function publish(
 export async function resolve(
   request: APIRequestContext,
   entry: Parked,
-  outcome: "resumed" | "skipped",
+  outcome: "retried" | "skipped",
 ): Promise<void> {
   const answer = await request.post("/testing/ledger/resolved", {
     data: {

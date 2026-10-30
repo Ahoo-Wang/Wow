@@ -323,7 +323,7 @@ class SystemicFailureOptions @InternalWowApi constructor(
 /**
  * How a [SubscriptionRuntime] retries its parked entries over the long horizon (9.x
  * `CompensationScheduler`): every [scanInterval] it reads its subscriptions' ledger entries and, in each partition it
- * runs, resumes those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
+ * runs, retries those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
  * requests an operator left on them.
  *
  * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by

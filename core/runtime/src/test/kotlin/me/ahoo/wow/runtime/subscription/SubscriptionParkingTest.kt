@@ -114,14 +114,14 @@ class SubscriptionParkingTest {
     }
 
     @Test
-    fun `resume handles the parked aggregate from its parked version, then its new entries`(): Unit = runBlocking {
+    fun `retry handles the parked aggregate from its parked version, then its new entries`(): Unit = runBlocking {
         val runtime = runtime()
         parkX(runtime)
         failing.set(false)
-        runtime.resume("parking", cart("x")).assert().isTrue()
+        runtime.retry("parking", cart("x")).assert().isTrue()
         ledger.isParked("parking", cart("x")).assert().isFalse()
         handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4))
-        // Resuming reads the entries with their positions, as the tail hands them over.
+        // Retrying reads the entries with their positions, as the tail hands them over.
         handled.entries.filter { it.first == "x" && it.second >= 2 }
             .map { it.third }
             .assert().isEqualTo((2..4).map { log.positionOf(cart("x"), it)?.sequence })
@@ -133,7 +133,7 @@ class SubscriptionParkingTest {
     }
 
     @Test
-    fun `resume while new entries arrive handles every version once, in order`(): Unit = runBlocking {
+    fun `retry while new entries arrive handles every version once, in order`(): Unit = runBlocking {
         val runtime = runtime()
         parkX(runtime)
         failing.set(false)
@@ -144,9 +144,9 @@ class SubscriptionParkingTest {
                 yield()
             }
         }
-        val resumed = async(Dispatchers.Default) { runtime.resume("parking", cart("x")) }
+        val retried = async(Dispatchers.Default) { runtime.retry("parking", cart("x")) }
         writer.join()
-        resumed.await().assert().isTrue()
+        retried.await().assert().isTrue()
         eventually { handled.versionsOf("x").lastOrNull() == 64 }
         delay(20)
         runtime.stop()
@@ -154,10 +154,10 @@ class SubscriptionParkingTest {
     }
 
     @Test
-    fun `a resume that fails again keeps the aggregate parked`(): Unit = runBlocking {
+    fun `a retry that fails again keeps the aggregate parked`(): Unit = runBlocking {
         val runtime = runtime()
         parkX(runtime)
-        runtime.resume("parking", cart("x")).assert().isFalse()
+        runtime.retry("parking", cart("x")).assert().isFalse()
         ledger.parked("parking", cart("x"))!!.fromVersion.assert().isEqualTo(2)
         appender.append("x")
         appender.append("y")
@@ -168,23 +168,23 @@ class SubscriptionParkingTest {
     }
 
     @Test
-    fun `a resume that fails further on keeps the aggregate parked from there, with the new reason`(): Unit =
+    fun `a retry that fails further on keeps the aggregate parked from there, with the new reason`(): Unit =
         runBlocking {
             val runtime = runtime()
             parkX(runtime)
             failAt.set(3)
-            runtime.resume("parking", cart("x")).assert().isFalse()
+            runtime.retry("parking", cart("x")).assert().isFalse()
             val parked = ledger.parked("parking", cart("x"))!!
             parked.fromVersion.assert().isEqualTo(3)
             parked.reason.assert().contains("x-3 is broken")
             handled.versionsOf("x").assert().isEqualTo(listOf(1, 2))
 
-            // A new entry of x is skipped while it is parked; the next resume starts at version 3, not 2.
+            // A new entry of x is skipped while it is parked; the next retry starts at version 3, not 2.
             appender.append("x")
             appender.append("y")
             eventually { handled.versionsOf("y").size == 4 }
             failing.set(false)
-            runtime.resume("parking", cart("x")).assert().isTrue()
+            runtime.retry("parking", cart("x")).assert().isTrue()
             handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4, 5))
             runtime.stop()
         }
@@ -216,21 +216,21 @@ class SubscriptionParkingTest {
         handled.versionsOf("x").assert().isEqualTo(listOf(1))
 
         failing.set(false)
-        second.resume("parking", cart("x")).assert().isTrue()
+        second.retry("parking", cart("x")).assert().isTrue()
         handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4, 5))
         second.stop()
     }
 
     @Test
-    fun `resume of an aggregate that is not parked changes nothing`(): Unit = runBlocking {
+    fun `retry of an aggregate that is not parked changes nothing`(): Unit = runBlocking {
         val runtime = runtime()
         appender.append("x")
         runtime.start(all)
         eventually { handled.versionsOf("x") == listOf(1) }
-        runtime.resume("parking", cart("x")).assert().isFalse()
+        runtime.retry("parking", cart("x")).assert().isFalse()
         runtime.skip("parking", cart("x")).assert().isFalse()
         runtime.stop()
-        runCatching { runtime.resume("parking", cart("x")) }.exceptionOrNull()
+        runCatching { runtime.retry("parking", cart("x")) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalStateException::class.java)
         ledger.park(ParkedAggregate("parking", cart("x"), 0, 1, "manual", 0))
         runtime.skip("parking", cart("x")).assert().isTrue()

@@ -256,7 +256,7 @@ class SourcedNodeTest {
     }
 
     @Test
-    fun `a node on standby should be ready, its topics marked standby until it is resumed`(): Unit = runBlocking {
+    fun `a node on standby should be ready, its topics marked standby until it is activated`(): Unit = runBlocking {
         val node = node()
         val health = NodeHealth(node, NodeSampler(node), HealthOptions(storeDownAfter = Duration.ZERO))
         node.start(standby = true)
@@ -267,7 +267,7 @@ class SourcedNodeTest {
         topic.details["state"].assert().isEqualTo("STOPPED")
         topic.details["standby"].assert().isEqualTo(true)
 
-        node.resume("operator")
+        node.activate("operator")
         node.topicSubscriptions.getValue(TOPIC).awaitStarted()
         eventually { health.readiness().status == HealthStatus.UP }
         health.readiness().component(NodeHealth.TOPICS)!!.components.single().details.keys.assert()
@@ -342,9 +342,9 @@ class SourcedNodeTest {
         ).state
         tree.toString().assert().isEqualTo("""{"total":1}""")
         SubscriptionBindings.publishedStateEventOf(entry, any, node.context(BANK)).state.assert().isNull()
-        // A ledger entry with no offset to re-scan from cannot be resumed.
+        // A ledger entry with no offset to re-scan from cannot be retried.
         assertThrows<IllegalStateException> {
-            runBlocking { TopicEntries(TOPIC, topics, 2).resume(order("o-1"), 1, null) }
+            runBlocking { TopicEntries(TOPIC, topics, 2).retryEntries(order("o-1"), 1, null) }
         }.message.assert().contains("no offset")
     }
 

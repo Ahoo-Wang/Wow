@@ -246,7 +246,7 @@ enum class TimerStatus {
     /** Cancelled or rescheduled by its owner, its owner deleted, expired, or skipped by an operator. */
     CANCELLED,
 
-    /** Failed technically past its attempts; parked under `wow.timers` until an operator resumes or skips it. */
+    /** Failed technically past its attempts; parked under `wow.timers` until an operator retries or skips it. */
     PARKED,
 }
 

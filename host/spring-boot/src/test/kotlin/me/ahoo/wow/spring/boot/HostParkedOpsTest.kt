@@ -61,7 +61,7 @@ class HostParkedOpsTest {
         "wow.subscription.retry.max-attempts" to 1,
         "wow.subscription.parked.max-retries" to 5,
         "wow.subscription.parked.initial-backoff" to "200ms",
-        "wow.subscription.parked.timeout" to "100ms",
+        "wow.subscription.parked.claim-ttl" to "100ms",
         "wow.subscription.parked.scan-interval" to "50ms",
         "wow.subscriptions.[$BANK.$BROKEN].parked.max-retries" to 1,
         "wow.http.ops.enabled" to true,
@@ -151,9 +151,9 @@ class HostParkedOpsTest {
         exhausted["retries"].asInt().assert().isEqualTo(1)
         exhausted["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(1)
 
-        val resumed = host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null)
-        resumed.status.assert().isEqualTo(200)
-        resumed.body!!["outcome"].asString().assert().isEqualTo("parked")
+        val retried = host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null)
+        retried.status.assert().isEqualTo(200)
+        retried.body!!["outcome"].asString().assert().isEqualTo("parked")
         failing.attempts(BROKEN, id).assert().isEqualTo(3)
 
         val marked = host.post(
@@ -178,7 +178,7 @@ class HostParkedOpsTest {
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
         host.get(entry(BROKEN, id)).status.assert().isEqualTo(404)
-        host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null).status.assert().isEqualTo(404)
+        host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null).status.assert().isEqualTo(404)
     }
 
     @Test
