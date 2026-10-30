@@ -54,7 +54,7 @@ cosid:
       codec: [{ radix: { radix: 62 } }]
 ```
 
-基于时间的生成器需要一个机器槽位：来自存储（`cosid.machine.leased`），或固定指定（`cosid.machine.static.slot`）；没有时 CosId 不会启动。本地或开发环境运行时，`cosid.machine.static.slot: 0` 不需要存储。一个应用的所有实例使用相同的 `cosid.namespace`（默认为 `spring.application.name`）、`bits` 与 `tolerance`，配置不同的实例会被拒绝。CosId 5 是预发布版本：迁移 4.x 生成过的 ID 见它的[迁移指南](https://github.com/Ahoo-Wang/CosId/blob/main/documentation/docs/zh/guide/migration/from-4x.md)。
+基于时间的生成器需要一个机器槽位：来自存储（`cosid.machine.leased`），或固定指定（`cosid.machine.static.slot`）；没有时 CosId 不会启动。本地或开发环境运行时，`cosid.machine.static.slot: 0` 不需要存储。一个应用的所有实例使用相同的 `cosid.namespace`（默认为 `spring.application.name`）、`bits` 与 `tolerance`，配置不同的实例会被拒绝。迁移 CosId 4.x 生成过的 ID 见 CosId 5 的[迁移指南](https://github.com/Ahoo-Wang/CosId/blob/main/documentation/docs/zh/guide/migration/from-4x.md)。
 
 自己定义了 `wowAggregateIdGenerator` bean 的应用会保留它：模块会让步。在 decide 函数中获取的 ID，在版本冲突之后重新做决定时会再获取一次，这是安全的：冲突的那次尝试什么都没有追加，重试的请求由它首次的提交回答。
 

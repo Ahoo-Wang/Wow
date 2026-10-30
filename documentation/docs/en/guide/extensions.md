@@ -54,7 +54,7 @@ cosid:
       codec: [{ radix: { radix: 62 } }]
 ```
 
-A time-based generator needs a machine slot, from a store (`cosid.machine.leased`) or fixed (`cosid.machine.static.slot`); without one, CosId does not start. For a local or development run, `cosid.machine.static.slot: 0` needs no store. Every instance of an application uses the same `cosid.namespace` (by default `spring.application.name`), `bits` and `tolerance`, and an instance of another configuration is refused. CosId 5 is a pre-release: see its [migration guide](https://github.com/Ahoo-Wang/CosId/blob/main/documentation/docs/en/guide/migration/from-4x.md) to move ids that 4.x issued.
+A time-based generator needs a machine slot, from a store (`cosid.machine.leased`) or fixed (`cosid.machine.static.slot`); without one, CosId does not start. For a local or development run, `cosid.machine.static.slot: 0` needs no store. Every instance of an application uses the same `cosid.namespace` (by default `spring.application.name`), `bits` and `tolerance`, and an instance of another configuration is refused. To move ids that CosId 4.x issued, see CosId 5's [migration guide](https://github.com/Ahoo-Wang/CosId/blob/main/documentation/docs/en/guide/migration/from-4x.md).
 
 An application that defines its own `wowAggregateIdGenerator` bean keeps it: the module gives way. An id taken in a decide function is taken again when the decision is decided again after a version conflict, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit.
 
