@@ -16,7 +16,7 @@ package me.ahoo.wow.client
 /**
  * A read a peer's typed read API cannot serve as the code asked it: a state class no contract has, a ref of
  * another type. A mistake of the code that reads, not of the caller it reads for, so a subclass: a decide function that
- * makes it fails its command, as an unexpected exception does, rather than rejecting it as invalid (decision D314
+ * makes it fails its command, as an unexpected exception does, rather than rejecting it as invalid (the kernel
  * answers only the exact [IllegalArgumentException] as a rejection).
  */
 internal class ReadMisuse(message: String) : IllegalArgumentException(message)
