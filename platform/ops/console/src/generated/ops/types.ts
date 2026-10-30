@@ -129,6 +129,7 @@ export interface ParkedState {
   refusedAction?: string | null;
   request?: string | null;
   requested?: string | null;
+  resolved: boolean;
   resolvedAt?: string | null;
   retries: number;
   retryAt?: string | null;
