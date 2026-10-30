@@ -3,18 +3,18 @@
   "files": {
     "analytics-catalog/client.ts": "15939c3e58596ddd988cba6304648603b7830ef6e0e758e415dad0a2b66ae084",
     "analytics-catalog/contract.ts": "b105975d55f63ae1969665a669c70ee02226ce4f846a12aa1dccfb7b5b554b2b",
-    "analytics-catalog/dataset/aggregate.ts": "7a7f32afeb03a6896f4c46f757b52ce0974e5224abee1c186a47e25ff534f6df",
+    "analytics-catalog/dataset/aggregate.ts": "c7c727ccac83247006c11eb9670308234a13e82427265599188c04594e0b76b0",
     "analytics-catalog/dataset/commandClient.ts": "cc51a201056baa4aea04fb3c0e390cde95f6f96e54702b6e738898e47d73ac39",
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/dataset/queryClient.ts": "ca02a929555e3d31afd42da7d1bf15317c0554ad9d62d8dc6c45e8f991724101",
     "analytics-catalog/index.ts": "e315fabae9a569ae104f492a911ef02b48dbd643841343ae37063061723145ad",
     "analytics-catalog/manifest.ts": "4c96841104208693d96fbca24ee70b7e8ffc7b68c41c5bbe365268a025bb98b5",
     "analytics-catalog/routes.ts": "a9f0aefd15ce7baa226e0bc39fc4986e261605e79ad300b51ec6fbc566123eeb",
-    "analytics-catalog/source/aggregate.ts": "1bbcbf214f4578fc46dc5611aa4413a0ad77b565b5a9d12ff5f5ce43a63e4eb2",
+    "analytics-catalog/source/aggregate.ts": "c67c669aac49a6b9272d80fcd2205f0d911547a31d03d56ba7eb491e4f3defbb",
     "analytics-catalog/source/commandClient.ts": "414ffafdfd1bda1927ba347eb66044a4b462cc017d16d4ebc9d58f2229b4e83c",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/source/queryClient.ts": "88d8dc6c3762514204bf7e9004db0434ece5dd629b01fddff924c94749609fd4",
-    "analytics-catalog/types.ts": "ed8e4ccc5b8b5c556e0af488ff23e93b137fe275bcc0807e9be25fc6095411db",
+    "analytics-catalog/types.ts": "5ccbb73762db9ef7e7b2ad7586b9a87bfc092b08fadaebf2f61704f9cf4155e2",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }
 }

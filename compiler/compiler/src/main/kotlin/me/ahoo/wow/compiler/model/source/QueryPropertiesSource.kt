@@ -35,9 +35,10 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * `wow-query-api`'s `SnapshotProperties` (the snapshot's system fields) with a `QueryField` per path of the state
  * a snapshot query can name, `state.<path>`. Generated only when the module has `wow-query-api` on its class path.
  *
- * A path follows what Jackson writes and the state schema of the Manifest describes: each public property with a
- * backing field, under its `@JsonProperty` name, without the `@JsonIgnore`d ones and those a class's
- * `@JsonIgnoreProperties` names. It descends into a property of an application class, and into the element class of
+ * A path follows what Jackson writes and the state schema of the Manifest describes: each public property, with a
+ * backing field or computed (a getter alone, `val total: Int get() = ...`, which Jackson writes into the snapshot
+ * too), under its `@JsonProperty` name, without the `@JsonIgnore`d ones and those a class's `@JsonIgnoreProperties`
+ * names. It descends into a property of an application class, and into the element class of
  * a collection or an array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to
  * the element); a map, an enum, an interface, an abstract or sealed class, a value class and the `kotlin.` and
  * `java.` types are leaves, and so is a class already on the path. Each constant is named after its path, as
@@ -166,7 +167,7 @@ internal object QueryPropertiesSource {
     }
 
     private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>): Boolean =
-        isPublic() && hasBackingField && extensionReceiver == null &&
+        isPublic() && extensionReceiver == null &&
             simpleName.asString() !in ignored && wireName() !in ignored &&
             jacksonAnnotations().none { it.isJsonIgnore() }
 

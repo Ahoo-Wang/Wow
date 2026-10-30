@@ -13,13 +13,19 @@
 
 package me.ahoo.wow.manifest.tools
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.AggregateManifest
@@ -36,6 +42,7 @@ import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -468,5 +475,179 @@ class SchemaIntrospectorTest {
             ContainersState::class.java.name,
             Reading::class.java.name,
         )
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+    @JsonSubTypes(
+        JsonSubTypes.Type(Shape.Circle::class, name = "circle"),
+        JsonSubTypes.Type(Shape.Square::class, name = "square"),
+    )
+    sealed interface Shape {
+        data class Circle(val radius: Int) : Shape
+
+        data class Square(val side: Int) : Shape
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes(JsonSubTypes.Type(Card::class, name = "card"), JsonSubTypes.Type(Transfer::class, name = "transfer"))
+    interface Payment
+
+    data class Card(val last4: String) : Payment
+
+    data class Transfer(val iban: String) : Payment
+
+    class PlanState(val id: String) {
+        var main: Shape = Shape.Circle(1)
+        var spare: Shape? = null
+        var shapes: List<Shape> = emptyList()
+        var payment: Payment? = null
+    }
+
+    /** A fragment of the one aggregate `plan` of [state]. */
+    private fun stateFragment(state: Class<*>): Manifest = Manifest(
+        contexts = listOf(
+            ContextManifest(
+                "shop",
+                aggregates = listOf(AggregateManifest("plan", state = StateManifest(schemaRef(state.name)))),
+            ),
+        ),
+    )
+
+    @Test
+    fun `a polymorphic type should be the definition of its subtypes, named by its base class`() {
+        val completed = introspector.complete(stateFragment(PlanState::class.java))
+        val shape = defOf(completed, Shape::class.java)
+        shape["x-wow-class"].assert().isEqualTo(Shape::class.java.name)
+        // Each subtype, with the discriminator Jackson writes it under.
+        (shape["anyOf"] as List<*>).map { (it as Map<*, *>)["x-wow-class"] }.assert()
+            .containsExactly(Shape.Circle::class.java.name, Shape.Square::class.java.name)
+        (shape["anyOf"] as List<*>).map { alternative ->
+            ((alternative as Map<*, *>)["allOf"] as List<*>).firstNotNullOf { part ->
+                (((part as Map<*, *>)["properties"] as Map<*, *>)["kind"] as Map<*, *>?)?.get("const")
+            }
+        }.assert().containsExactly("circle", "square")
+        // A property of it refers to its definition, nullable or in a list as any other.
+        val properties = defOf(completed, PlanState::class.java)["properties"] as Map<*, *>
+        val ref = mapOf("\$ref" to schemaRef(Shape::class.java.name))
+        properties["main"].assert().isEqualTo(ref)
+        properties["spare"].assert().isEqualTo(mapOf("anyOf" to listOf(mapOf("type" to "null"), ref)))
+        properties["shapes"].assert().isEqualTo(mapOf("type" to "array", "items" to ref))
+        // An interface's subtypes alike; referred to once, its definition is written where it is used.
+        val payment = ((properties["payment"] as Map<*, *>)["anyOf"] as List<*>).map { it as Map<*, *> }
+        payment.first().assert().isEqualTo(mapOf("type" to "null"))
+        payment.last()["x-wow-class"].assert().isEqualTo(Payment::class.java.name)
+        (payment.last()["anyOf"] as List<*>).map { (it as Map<*, *>)["x-wow-class"] }.assert()
+            .containsExactly(Card::class.java.name, Transfer::class.java.name)
+    }
+
+    data class Entry(val sku: String, val quantity: Int, val price: Int) {
+        val subtotal: Int get() = quantity * price
+    }
+
+    class LedgerState(val id: String) {
+        var entries: List<Entry> = emptyList()
+        var owner: String? = null
+
+        /** A field's property whose getter the generator does not pair with its field (`isOpen()`): no computed one. */
+        var isOpen: Boolean = true
+
+        /** A public field and no getter: a property Jackson writes by the field alone. */
+        @JvmField
+        var note: String = ""
+        val total: Int get() = entries.sumOf { it.subtotal }
+        val empty: Boolean get() = entries.isEmpty()
+        val initial: String? get() = owner?.take(1)
+        val skus: List<String?> get() = entries.map { it.sku }
+
+        /** Computed containers of a class: the generator reads their items through scopes of their own. */
+        val multiples: List<Entry> get() = entries.filter { it.quantity > 1 }
+        val bySku: Map<String, Entry> get() = entries.associateBy { it.sku }
+
+        @get:Sensitive(SensitivityLevel.CONFIDENTIAL)
+        val contact: String get() = "owner:$owner"
+
+        @get:JsonProperty("count")
+        val entryCount: Int get() = entries.size
+
+        @get:JsonIgnore
+        val hidden: Int get() = 1
+
+        @Suppress("FunctionOnlyReturningConstant")
+        fun compute(): Int = 2
+
+        fun entryOf(sku: String): Entry? = entries.firstOrNull { it.sku == sku }
+
+        companion object {
+            /** A static field of the computed property's name, the companion's: it backs no instance property. */
+            @Suppress("unused")
+            val total: Int = 0
+        }
+    }
+
+    @Test
+    fun `a computed property Jackson writes should be a read-only property of the schema`() {
+        val completed = introspector.complete(stateFragment(LedgerState::class.java))
+        val ledger = defOf(completed, LedgerState::class.java)
+        val properties = ledger["properties"] as Map<*, *>
+        // Every property Jackson writes into the snapshot, and none other: not a function, not an ignored getter.
+        val written = StateJson.mapper.readTree(
+            StateJson.mapper.writeValueAsString(LedgerState("l").apply { entries = listOf(Entry("mug", 2, 3)) }),
+        ).propertyNames().asSequence().toSet()
+        properties.keys.assert().isEqualTo(written)
+        properties.keys.assert().doesNotContain("hidden", "compute", "entryCount", "entryOf")
+        // A field's property is the field's, written once and not read-only, with or without a getter.
+        (properties["isOpen"] as Map<*, *>).keys.assert().doesNotContain("readOnly")
+        properties["note"].assert().isEqualTo(mapOf("type" to "string"))
+        properties["total"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int32", "readOnly" to true))
+        properties["empty"].assert().isEqualTo(mapOf("type" to "boolean", "readOnly" to true))
+        properties["count"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int32", "readOnly" to true))
+        properties["initial"].assert().isEqualTo(mapOf("type" to listOf("string", "null"), "readOnly" to true))
+        properties["skus"].assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null")), "readOnly" to true),
+        )
+        // A computed container is read-only; its items are the class's, plain, not a property of their own.
+        val entryRef = mapOf("\$ref" to schemaRef(Entry::class.java.name))
+        properties["multiples"].assert()
+            .isEqualTo(mapOf("type" to "array", "items" to entryRef, "readOnly" to true))
+        properties["bySku"].assert()
+            .isEqualTo(mapOf("type" to "object", "additionalProperties" to entryRef, "readOnly" to true))
+        // Its query keywords, as a field's: a sensitive one is masked.
+        (properties["contact"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "confidential"))
+        // Written always, so required unless nullable.
+        (ledger["required"] as List<*>).assert()
+            .containsExactlyInAnyOrder(
+                "id",
+                "entries",
+                "isOpen",
+                "note",
+                "total",
+                "empty",
+                "skus",
+                "multiples",
+                "bySku",
+                "contact",
+                "count",
+            )
+        // Of a nested class too: the class, a definition, holds its own computed property, and is not read-only.
+        val entry = defOf(completed, Entry::class.java)
+        entry.keys.assert().doesNotContain("readOnly")
+        ((entry["properties"] as Map<*, *>)["subtotal"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
+        (entry["required"] as List<*>).assert().contains("subtotal")
+        // The fingerprint was the shape Jackson writes all along: computed properties included.
+        completed.contexts.single().aggregates.single().state.fingerprint.assert()
+            .isEqualTo(StateJson.fingerprint(LedgerState::class.java))
+    }
+
+    class RoutedState(val id: String) {
+        var target: AggregateRef? = null
+        var source: AggregateRef? = null
+    }
+
+    @Test
+    fun `a getter Wow's JSON does not write should be no computed property`() {
+        val completed = introspector.complete(stateFragment(RoutedState::class.java))
+        // Wow writes a ref with a serializer of its own, its derived isAssigned left out.
+        val ref = completed.defs["${AggregateRef::class.java.name}-nullable"] as Map<*, *>
+        (ref["properties"] as Map<*, *>).keys.assert().containsExactlyInAnyOrder("id", "tenantId", "type")
     }
 }

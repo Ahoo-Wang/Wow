@@ -1,0 +1,44 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.manifest.tools
+
+import com.github.victools.jsonschema.generator.FieldScope
+import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.MethodScope
+import kotlin.reflect.KProperty
+import kotlin.reflect.KType
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.javaGetter
+import kotlin.reflect.jvm.kotlinProperty
+
+/**
+ * The Kotlin property behind a schema property's member: a field's, or a getter's (a computed property, which has
+ * no field). Its type says what the JVM type does not: whether the value is nullable, and the nullability of its
+ * type arguments. Null for a member of a Java class, or one Kotlin reflection cannot read.
+ */
+internal object KotlinMembers {
+    fun typeOf(member: MemberScope<*, *>): KType? = propertyOf(member)?.returnType
+
+    /** The property behind [member], a field or a getter: the generator offers no other member. */
+    fun propertyOf(member: MemberScope<*, *>): KProperty<*>? = runCatching {
+        if (member is FieldScope) {
+            member.rawMember.takeIf { it.declaringClass.isKotlin() }?.kotlinProperty
+        } else {
+            val getter = (member as MethodScope).rawMember
+            getter.declaringClass.takeIf { it.isKotlin() }?.kotlin?.memberProperties?.firstOrNull { it.javaGetter == getter }
+        }
+    }.getOrNull()
+
+    private fun Class<*>.isKotlin(): Boolean = isAnnotationPresent(Metadata::class.java)
+}

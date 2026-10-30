@@ -189,6 +189,7 @@ export interface DatasetState {
   current: number;
   definition?: DatasetDefinitionNullable;
   dropped: boolean;
+  exists: boolean;
   name: string;
   problems: string[];
   requestReasons: string[];
@@ -428,6 +429,7 @@ export interface SourceState {
   engine: string;
   enrichment?: null | WowEnrichment;
   enrichmentLost: boolean;
+  exists: boolean;
   kind: 'ANALYST' | 'WOW';
   missing: boolean;
   ownerColumn?: string | null;

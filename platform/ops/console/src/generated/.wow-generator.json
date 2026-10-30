@@ -6,10 +6,10 @@
     "ops/contract.ts": "a8c136ecc8d16bfd1fbf511d601fe541b6928101a5ac1046f46e81f5a52f20ab",
     "ops/index.ts": "f2121f9db18076911b430dae06a60a4663089682852422c1c4d5a1fdf240497d",
     "ops/manifest.ts": "0115a56339b2536827b7cde0651187b5da573fc802032513a0e7518d34255793",
-    "ops/parked/aggregate.ts": "e308e19757e520c402a9e73622f92edc1fbfde9f0a295cbd7a6cd23ff435b8a9",
+    "ops/parked/aggregate.ts": "676396e31a9f2121c3068b4a6ca5a4808713eeee6f03100cbacfe869ca50b829",
     "ops/parked/commandClient.ts": "68cd2ed6e6755e8265369cb56d6be4d7713c40d1d0df934fc3c066265b7e76cd",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",
-    "ops/types.ts": "aa4de29ba7ff100babc8cd443f088536af04978941446531367706b83fbf2db8"
+    "ops/types.ts": "c575912a74ff080473fa0c4646ead4798e6547e7869bd8c1761760ca704b7a32"
   }
 }

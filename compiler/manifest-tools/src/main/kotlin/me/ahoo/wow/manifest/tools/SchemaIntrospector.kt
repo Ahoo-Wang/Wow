@@ -14,12 +14,14 @@
 package me.ahoo.wow.manifest.tools
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
@@ -45,13 +47,16 @@ import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.json.WowEnums
 import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
+import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.KotlinModule
 import java.lang.reflect.Modifier
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
@@ -67,6 +72,12 @@ import kotlin.reflect.jvm.kotlinProperty
  *   type is nullable, and is required when it is not and no reader can leave it out: a constructor parameter without
  *   a default, or a property of the class body (a state's `var name: String = ""`), which Jackson always writes. A
  *   nullable property, and a constructor parameter with a default, are optional.
+ * - A computed property, a getter Jackson writes with no field behind it (`val total: Int get() = ...`), is a property
+ *   of the schema too, named as Jackson writes it and `readOnly`: a snapshot holds it, so a query may name it, and
+ *   nothing reads it back. It is required unless its Kotlin type is nullable, and carries the query keywords of its
+ *   annotations and value type as a field does ([JacksonNames.computed]).
+ * - A polymorphic type (`@JsonSubTypes`) is a definition of its subtypes' alternatives (`anyOf`), each with its
+ *   discriminator, and the base class's `x-wow-class` ([Polymorphic]).
  * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
  *   description its fragment entry carries, which the compiler also reads from the KDoc (.1c).
  * - The body of each system command the fragment lists (`wow.lifecycle.TransferOwner`, `wow.snapshot.Rebuild`,
@@ -193,6 +204,11 @@ internal class SchemaIntrospector(
 
     private fun generator(queryKeywords: QueryFieldKeywords): SchemaGenerator {
         val builder = SchemaGeneratorConfigBuilder(mapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
+        // A polymorphic property is its type's definition ([Polymorphic]), not alternatives the generator writes per
+        // property, which name no base class: ahead of the Jackson module's own resolution.
+        builder.forFields().withTargetTypeOverridesResolver { Polymorphic.declared(it) }
+        builder.forMethods().withTargetTypeOverridesResolver { Polymorphic.declared(it) }
+        builder
             .with(
                 JacksonNames(
                     JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
@@ -200,20 +216,45 @@ internal class SchemaIntrospector(
                     JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
                 ),
             )
-            .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
+            // The argument-free methods are the candidates of the computed properties ([JacksonNames.computed]),
+            // which keeps those Jackson writes, each named as a property, `total` of `getTotal()`, not as a method.
+            .with(
+                Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES,
+                Option.NONSTATIC_NONVOID_NONGETTER_METHODS,
+                Option.FIELDS_DERIVED_FROM_ARGUMENTFREE_METHODS,
+            )
         builder.forTypesInGeneral()
             .withDefinitionNamingStrategy(BinaryNames)
             .withCustomDefinitionProvider(
                 Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
             )
+            .withCustomDefinitionProvider(Polymorphic)
             .withTypeAttributeOverride(queryKeywords)
             .withTypeAttributeOverride(WireFormats)
             .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
-            .withNullableCheck(::isKotlinNullable)
-            .withCustomDefinitionProvider(Containers)
-            .withInstanceAttributeOverride(queryKeywords)
+            .withNullableCheck { isKotlinNullable(it) }
+            .withCustomDefinitionProvider(Containers.of<FieldScope>())
+            .withInstanceAttributeOverride { attributes, field, _ ->
+                queryKeywords.overrideMemberAttributes(
+                    attributes,
+                    field
+                )
+            }
+        // A computed property is read-only: Jackson writes it, and nothing reads it back. It is always written, so it is
+        // required unless its Kotlin type is nullable.
+        builder.forMethods()
+            .withReadOnlyCheck { true }
+            .withRequiredCheck { KotlinMembers.typeOf(it)?.isMarkedNullable == false }
+            .withNullableCheck { isKotlinNullable(it) }
+            .withCustomDefinitionProvider(Containers.of<MethodScope>())
+            .withInstanceAttributeOverride { attributes, method, _ ->
+                queryKeywords.overrideMemberAttributes(
+                    attributes,
+                    method
+                )
+            }
         return SchemaGenerator(builder.build())
     }
 
@@ -224,15 +265,14 @@ internal class SchemaIntrospector(
      * way a nullable property does, a scalar by a type union and any other value by a `null` alternative beside its
      * schema. A Java or platform type argument is not nullable; a primitive array is left to the generator.
      */
-    private object Containers : CustomPropertyDefinitionProvider<FieldScope> {
-        override fun provideCustomSchemaDefinition(
-            field: FieldScope,
-            context: SchemaGenerationContext,
-        ): CustomPropertyDefinition? {
-            if (field.isFakeContainerItemScope) return null
-            val schema = container(field.type, kotlinProperty(field)?.returnType, context) ?: return null
-            return CustomPropertyDefinition(schema, CustomDefinition.AttributeInclusion.YES)
-        }
+    private object Containers {
+        /** The provider of the properties [M] are: fields, or the getters of computed properties. */
+        fun <M : MemberScope<*, *>> of(): CustomPropertyDefinitionProvider<M> =
+            CustomPropertyDefinitionProvider { member, context ->
+                if (member.isFakeContainerItemScope) return@CustomPropertyDefinitionProvider null
+                container(member.type, KotlinMembers.typeOf(member), context)
+                    ?.let { CustomPropertyDefinition(it, CustomDefinition.AttributeInclusion.YES) }
+            }
 
         /** The schema of [type] when it is a container, its elements typed by [kotlinType]'s arguments, else null. */
         private fun container(type: ResolvedType, kotlinType: KType?, context: SchemaGenerationContext): ObjectNode? {
@@ -289,10 +329,66 @@ internal class SchemaIntrospector(
         return node
     }
 
-    /** The Jackson module, also taking a property's name from Jackson's own view of the bean. */
+    /**
+     * The Jackson module, also taking a property's name from Jackson's own view of the bean, and keeping, of the
+     * methods, the getters of the computed properties ([computed]).
+     */
     private class JacksonNames(vararg options: JacksonOption) : JacksonSchemaModule(*options) {
+        override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
+            super.applyToConfigBuilder(builder)
+            builder.forMethods().withIgnoreCheck { computed(it) == null }
+        }
+
+        /** The names of the properties Wow's JSON writes of each class ([StateJson.mapper]), by class. */
+        private val written = ConcurrentHashMap<Class<*>, Set<String>>()
+
+        /**
+         * The property Jackson writes by [method], a getter with no field behind it: a computed property, such as a
+         * Kotlin `val total: Int get() = ...`, which a snapshot of the state holds. Null for any other method: a
+         * function, a getter Jackson ignores (`@get:JsonIgnore`), the getter of a field, and a getter Wow's JSON
+         * does not write, of a class it writes with a serializer of its own (an `AggregateRef`'s `isAssigned`).
+         */
+        fun computed(method: MethodScope): BeanPropertyDefinition? {
+            // A getter takes no argument, so a function of arguments is no property's; nor is a static method, which
+            // the generator does not offer. A computed container's items are no member of their own: [Containers]
+            // writes the container whole, its items referring to their type, so no item scope is offered.
+            val property = getBeanDescriptionForClass(method.declaringType).findProperties()
+                .firstOrNull { it.getter?.annotated == method.rawMember } ?: return null
+            val declaring = method.declaringType.erasedType
+            val backed = generateSequence(declaring) { it.superclass }.any { type ->
+                type.declaredFields.any { it.name == property.internalName && !Modifier.isStatic(it.modifiers) }
+            }
+            val writes = property.name in written.computeIfAbsent(declaring, ::writtenNames)
+            return property.takeIf { !backed && writes }
+        }
+
+        /** The names of the properties Wow's JSON writes of [type]: none when it does not write it as an object. */
+        private fun writtenNames(type: Class<*>): Set<String> {
+            val names = linkedSetOf<String>()
+            StateJson.mapper.acceptJsonFormatVisitor(
+                type,
+                object : JsonFormatVisitorWrapper.Base() {
+                    override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor =
+                        object : JsonObjectFormatVisitor.Base(context) {
+                            override fun property(prop: BeanProperty) {
+                                names += prop.name
+                            }
+
+                            override fun optionalProperty(prop: BeanProperty) {
+                                names += prop.name
+                            }
+                        }
+                },
+            )
+            return names
+        }
+
         override fun getPropertyNameOverrideBasedOnJsonPropertyAnnotation(member: MemberScope<*, *>): String? {
             super.getPropertyNameOverrideBasedOnJsonPropertyAnnotation(member)?.let { return it }
+            // A computed property is named as Jackson writes it: `total` of `getTotal()`.
+            if (member is MethodScope) {
+                return computed(member)?.name
+            }
             if (member !is FieldScope) {
                 return null
             }
@@ -329,10 +425,38 @@ internal class SchemaIntrospector(
             }
         }
 
-        private fun classOf(type: ResolvedType): String =
+        fun classOf(type: ResolvedType): String =
             WireTypes.binaryName(type.erasedType) + type.typeParameters.let { parameters ->
                 if (parameters.isEmpty()) "" else parameters.joinToString(",", "(", ")") { BinaryNames.name(it) }
             }
+    }
+
+    /**
+     * A polymorphic type (`@JsonTypeInfo` with `@JsonSubTypes`) as the generator writes it, the alternatives of its
+     * subtypes (`anyOf`), each with its discriminator, and the `x-wow-class` of the base class, which the generator
+     * leaves out of a polymorphic node: a reader of the schema names the type that holds them all, a state view the
+     * base class on the api's class path.
+     */
+    private object Polymorphic : CustomDefinitionProviderV2 {
+        /** Whether [type] declares its subtypes (`@JsonSubTypes`), which Jackson writes it as. */
+        fun isPolymorphic(type: Class<*>): Boolean = type.isAnnotationPresent(JsonSubTypes::class.java)
+
+        /** The type of [member] as its own target when it is polymorphic, so its definition is [Polymorphic]'s. */
+        fun declared(member: MemberScope<*, *>): List<ResolvedType>? =
+            listOf(member.type).takeIf { isPolymorphic(member.type.erasedType) }
+
+        override fun provideCustomSchemaDefinition(type: ResolvedType, context: SchemaGenerationContext): CustomDefinition? {
+            if (!isPolymorphic(type.erasedType)) {
+                return null
+            }
+            val definition = context.createStandardDefinition(type, this)
+            definition.put(WireTypes.CLASS_KEYWORD, WireFormats.classOf(type))
+            return CustomDefinition(
+                definition,
+                CustomDefinition.DefinitionType.STANDARD,
+                CustomDefinition.AttributeInclusion.NO
+            )
+        }
     }
 
     /** Definitions keyed by the JVM binary name of their type, so the fragment's references find them. */
@@ -435,6 +559,6 @@ internal class SchemaIntrospector(
                 type.getAnnotation(Summary::class.java)?.value,
             ).map(String::trim).firstOrNull(String::isNotEmpty)
 
-        fun isKotlinNullable(field: FieldScope): Boolean = kotlinProperty(field)?.returnType?.isMarkedNullable == true
+        fun isKotlinNullable(member: MemberScope<*, *>): Boolean = KotlinMembers.typeOf(member)?.isMarkedNullable == true
     }
 }

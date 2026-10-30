@@ -1666,6 +1666,10 @@
         "dropped" : {
           "type" : "boolean"
         },
+        "exists" : {
+          "type" : "boolean",
+          "readOnly" : true
+        },
         "name" : {
           "type" : "string"
         },
@@ -1718,7 +1722,7 @@
           }
         }
       },
-      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ],
+      "required" : [ "context", "current", "dropped", "exists", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ],
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState"
     },
     "me.ahoo.wow.analytics.catalog.domain.source.SourceState" : {
@@ -1757,6 +1761,10 @@
         },
         "enrichmentLost" : {
           "type" : "boolean"
+        },
+        "exists" : {
+          "type" : "boolean",
+          "readOnly" : true
         },
         "kind" : {
           "type" : "string",
@@ -1817,7 +1825,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ],
+      "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "exists", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ],
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.domain.source.SourceState"
     },
     "me.ahoo.wow.analytics.catalog.server.CatalogSettings" : {

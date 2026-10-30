@@ -416,7 +416,9 @@ class WowContractSourcesFunctionalTest {
             "public enum class CartStatus {",
             "val parent: CartStateView.CartLine? = null,",
             "val zip: String,",
-        ).doesNotContain("secret", "computed")
+            // A computed property Jackson writes into the published state: the view holds it too.
+            "val computed: Int,",
+        ).doesNotContain("secret")
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             jar.getEntry("shopapi/CartStateView.class").assert().isNotNull()
         }
@@ -458,7 +460,8 @@ class WowContractSourcesFunctionalTest {
             .containsEntry("STATE__LINES__PARENT", "state.lines.parent")
             .doesNotContainKey("STATE__SECRET")
             .doesNotContainKey("STATE__ATTRIBUTES__KEY")
-            .doesNotContainKey("STATE__COMPUTED")
+            // A computed property is a query field, as the compiler names it too.
+            .containsEntry("STATE__COMPUTED", "state.computed")
     }
 
     /** The `QueryField` constants of a generated source, name to path, whatever each is typed as. */

@@ -33,11 +33,15 @@ import me.ahoo.wow.manifest.PeerContracts
  * - A field's type is read from its schema ([WireTypes]): a `format` names the type a plain JSON type does not
  *   (`int64` a `Long`, `date-time` an `Instant`), `uniqueItems` a `Set`, and `x-wow-class` a class: one on the api's
  *   class path ([onClassPath]) is referenced, a domain's own object or enumeration is copied into the view as a nested
- *   class of its fields or constants. A free shape is read as Wow reads one elsewhere: any value is a Jackson
- *   `JsonNode`, an object of no class and no properties an `ObjectNode`, unless `additionalProperties` gives its
- *   values a schema, a typed `Map<String, V>`; every api module has Jackson through `wow-api`. A type the schema does
- *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized
- *   class of the domain, an enumeration constant that is not a Kotlin name) fails the generation, naming the field.
+ *   class of its fields or constants. A polymorphic class (`@JsonSubTypes`: its subtypes' alternatives under its
+ *   `x-wow-class`) is referenced, the class on the api's class path, which reads each subtype by its discriminator. A
+ *   free shape is read as Wow reads one elsewhere: any value is a Jackson `JsonNode`, an object of no class and no
+ *   properties an `ObjectNode`, unless `additionalProperties` gives its values a schema, a typed `Map<String, V>`;
+ *   every api module has Jackson through `wow-api`. A type the schema does not determine (an integer of no format, an
+ *   object of properties but no class, a polymorphic class not on the api's class path, a parameterized class of the
+ *   domain, an enumeration constant that is not a Kotlin name) fails the generation, naming the field.
+ * - A computed property of the state (a getter Jackson writes, `readOnly` in the schema) is a field of the view too:
+ *   the published state holds it.
  * - A state the contract withholds (`publishState = false`) has no view, nor has a state of no field.
  */
 internal class StateViewSources(
@@ -153,6 +157,8 @@ internal class StateViewSources(
                 return typeOf(definition, field)
             }
             alternatives(node)?.let { alternatives ->
+                // A polymorphic class: its subtypes' alternatives, under the base class that holds them all.
+                node[WireTypes.CLASS_KEYWORD]?.let { return polymorphicType(it.toString(), alternatives, field) }
                 val values = alternatives.filterNot { isNull(it) }
                 if (values.size != 1) fail(field, "it is one of several types (anyOf/oneOf)")
                 return typeOf(values.single(), field).copy(nullable = true)
@@ -162,6 +168,19 @@ internal class StateViewSources(
             val binary = node[WireTypes.CLASS_KEYWORD]?.toString()
             val name = binary?.let { classType(it, node, field) } ?: jsonType((types - NULL).singleOrNull(), node, field)
             return Type(name, nullable)
+        }
+
+        /**
+         * The type of a value of the polymorphic class [binary], one of [alternatives], its subtypes: the class on the
+         * api's class path, which Jackson reads each subtype as by its discriminator. A view cannot copy a class
+         * hierarchy, so one that is not on the class path fails.
+         */
+        private fun polymorphicType(binary: String, alternatives: List<*>, field: String): Type {
+            if ('(' in binary) fail(field, "it is of the parameterized class $binary")
+            if (!onClassPath(binary)) {
+                fail(field, "it is of the polymorphic class $binary, which is not on the api's class path")
+            }
+            return Type(binary.replace('$', '.'), nullable = alternatives.any(::isNull))
         }
 
         /** The Kotlin type of a value of the JSON [type] that [node] describes, its class unnamed. */

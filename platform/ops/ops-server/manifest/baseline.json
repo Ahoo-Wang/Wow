@@ -907,6 +907,10 @@
         "requested" : {
           "type" : [ "string", "null" ]
         },
+        "resolved" : {
+          "type" : "boolean",
+          "readOnly" : true
+        },
         "resolvedAt" : {
           "type" : [ "integer", "null" ],
           "format" : "int64",
@@ -938,7 +942,7 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "retries", "retrySpec", "service", "status", "subscription" ],
+      "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "resolved", "retries", "retrySpec", "service", "status", "subscription" ],
       "x-wow-class" : "me.ahoo.wow.ops.domain.parked.ParkedState"
     },
     "wow.snapshot.Rebuild" : {

@@ -1006,6 +1006,10 @@
         "fields" : {
           "type" : [ "object", "null" ]
         },
+        "isEmpty" : {
+          "type" : "boolean",
+          "readOnly" : true
+        },
         "recordNoun" : {
           "type" : [ "string", "null" ]
         },
@@ -1013,7 +1017,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "appId", "dataset" ],
+      "required" : [ "appId", "dataset", "isEmpty" ],
       "x-wow-class" : "me.ahoo.wow.viewstore.domain.wording.DatasetWordingState"
     },
     "wow.lifecycle.DeleteAggregate" : {

@@ -127,6 +127,8 @@ class ContractSourcesTest {
                 "STATE__ATTRIBUTES" to "state.attributes",
                 "STATE__TAGS" to "state.tags",
                 "STATE__TOTAL_URL_COUNT" to "state.totalURLCount",
+                // A computed property Jackson writes into the snapshot: read-only, and queried as any other.
+                "STATE__COMPUTED" to "state.computed",
             ),
         )
     }
