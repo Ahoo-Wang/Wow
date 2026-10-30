@@ -559,6 +559,10 @@ class SchemaIntrospectorTest {
         val initial: String? get() = owner?.take(1)
         val skus: List<String?> get() = entries.map { it.sku }
 
+        /** Computed containers of a class: the generator reads their items through scopes of their own. */
+        val multiples: List<Entry> get() = entries.filter { it.quantity > 1 }
+        val bySku: Map<String, Entry> get() = entries.associateBy { it.sku }
+
         @get:Sensitive(SensitivityLevel.CONFIDENTIAL)
         val contact: String get() = "owner:$owner"
 
@@ -601,13 +605,32 @@ class SchemaIntrospectorTest {
         properties["skus"].assert().isEqualTo(
             mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null")), "readOnly" to true),
         )
+        // A computed container is read-only; its items are the class's, plain, not a property of their own.
+        val entryRef = mapOf("\$ref" to schemaRef(Entry::class.java.name))
+        properties["multiples"].assert()
+            .isEqualTo(mapOf("type" to "array", "items" to entryRef, "readOnly" to true))
+        properties["bySku"].assert()
+            .isEqualTo(mapOf("type" to "object", "additionalProperties" to entryRef, "readOnly" to true))
         // Its query keywords, as a field's: a sensitive one is masked.
         (properties["contact"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "confidential"))
         // Written always, so required unless nullable.
         (ledger["required"] as List<*>).assert()
-            .containsExactlyInAnyOrder("id", "entries", "isOpen", "note", "total", "empty", "skus", "contact", "count")
-        // Of a nested class too.
-        val entry = ((properties["entries"] as Map<*, *>)["items"] as Map<*, *>)
+            .containsExactlyInAnyOrder(
+                "id",
+                "entries",
+                "isOpen",
+                "note",
+                "total",
+                "empty",
+                "skus",
+                "multiples",
+                "bySku",
+                "contact",
+                "count",
+            )
+        // Of a nested class too: the class, a definition, holds its own computed property, and is not read-only.
+        val entry = defOf(completed, Entry::class.java)
+        entry.keys.assert().doesNotContain("readOnly")
         ((entry["properties"] as Map<*, *>)["subtotal"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
         (entry["required"] as List<*>).assert().contains("subtotal")
         // The fingerprint was the shape Jackson writes all along: computed properties included.

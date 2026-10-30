@@ -350,7 +350,8 @@ internal class SchemaIntrospector(
          */
         fun computed(method: MethodScope): BeanPropertyDefinition? {
             // A getter takes no argument, so a function of arguments is no property's; nor is a static method, which
-            // the generator does not offer.
+            // the generator does not offer. A computed container's items are no member of their own: [Containers]
+            // writes the container whole, its items referring to their type, so no item scope is offered.
             val property = getBeanDescriptionForClass(method.declaringType).findProperties()
                 .firstOrNull { it.getter?.annotated == method.rawMember } ?: return null
             val declaring = method.declaringType.erasedType
