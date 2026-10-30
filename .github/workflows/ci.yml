@@ -136,12 +136,12 @@ jobs:
       # Codecov's reports keep no closing-brace line, whether or not Codecov adjusts the upload.
       - name: Drop the closing-brace lines of the unit test coverage
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
-      # The coverage job uploads it, once the parent commit's run has uploaded.
-      - name: Keep the unit test coverage
+      # The coverage job judges the patch from it and uploads it to Codecov.
+      - name: Stage the unit test coverage
         env:
           ARTIFACT: coverage-jvm-unit-${{ matrix.shard }}
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml "coverage-artifact/$ARTIFACT/"
-      - name: Upload keep the unit test coverage
+      - name: Keep the unit test coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-jvm-unit-${{ matrix.shard }}
@@ -218,11 +218,11 @@ jobs:
           "-Pwow.integration.projects=$PROJECTS" --stacktrace
       - name: Drop the closing-brace lines of the integration test coverage
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
-      - name: Keep the integration test coverage
+      - name: Stage the integration test coverage
         env:
           ARTIFACT: coverage-integration-${{ matrix.shard }}
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml "coverage-artifact/$ARTIFACT/"
-      - name: Upload keep the integration test coverage
+      - name: Keep the integration test coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-integration-${{ matrix.shard }}
@@ -352,12 +352,12 @@ jobs:
         env:
           PACKAGE: ${{ matrix.package }}
         run: pnpm --filter "@ahoo-wang/$PACKAGE" test
-      - name: Keep the coverage
+      - name: Stage the coverage
         if: matrix.node-version == 24
         env:
           ARTIFACT: coverage-typescript-${{ matrix.package }}
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/${{ matrix.package }}/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
-      - name: Upload keep the coverage
+      - name: Keep the coverage
         if: matrix.node-version == 24
         uses: actions/upload-artifact@v7
         with:
@@ -517,11 +517,11 @@ jobs:
       - name: Check types
         working-directory: typescript/wow-view-engine
         run: pnpm test:type
-      - name: Keep the view-engine coverage
+      - name: Stage the view-engine coverage
         env:
           ARTIFACT: coverage-typescript-wow-view-engine
         run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/wow-view-engine/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
-      - name: Upload keep the view-engine coverage
+      - name: Keep the view-engine coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-typescript-wow-view-engine
