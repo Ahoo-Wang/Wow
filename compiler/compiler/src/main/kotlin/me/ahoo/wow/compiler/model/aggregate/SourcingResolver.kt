@@ -18,6 +18,7 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.Name
@@ -112,7 +113,7 @@ internal object SourcingResolver {
             return null
         }
         val commit = function.parameters.getOrNull(1)?.type?.resolve()
-        if (commit != null && (commit.render() != EVENT_STREAM || commit.isMarkedNullable)) {
+        if (commit != null && !isCommit(commit)) {
             val rendered = commit.render() + if (commit.isMarkedNullable) "?" else ""
             problems += "sourcing function $name takes $rendered second: a sourcing function's second parameter is " +
                 "the commit of its event, a $EVENT_STREAM"
@@ -156,6 +157,9 @@ internal object SourcingResolver {
             }
         }
     }
+
+    /** Whether [type] is the commit of an event, a sourcing function's second parameter: a non-null `EventStream`. */
+    private fun isCommit(type: KSType): Boolean = type.render() == EVENT_STREAM && !type.isMarkedNullable
 
     /** The binding of [function] evolving [event], a concrete event class, reading its [commit] or not. */
     @OptIn(KspExperimental::class)

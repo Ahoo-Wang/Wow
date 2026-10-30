@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
@@ -642,23 +643,7 @@ class Kernel(
         // The decision's own time: what it read as `now` is the time its events are committed at.
         val commitTime = scope.now
         val applied = metadataAfter(loaded, command, events)
-        // An evolve function that reads its commit reads it as the log records it, so a rebuild reads the same.
-        val commit = if (model.readsCommits) {
-            model.commitOf(
-                command.ref,
-                version + 1,
-                commitTime,
-                command.id,
-                command.requestId,
-                commandType,
-                applied.scope,
-                command.operator,
-                events,
-            )
-        } else {
-            null
-        }
-        val evolved = events.fold(state) { current, event -> model.evolve(current, event, commit) }
+        val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, applied.scope)
         // The keys the state derives override the applied tags, derived again from the evolved state.
         val metadata = applied.copy(tags = model.tagsOf(evolved, applied.tags))
         val stream = EventStreamRecord(
@@ -681,6 +666,39 @@ class Kernel(
             after.first = FirstCommit.of(stream)
         }
         return Prepared.Append(stream, after)
+    }
+
+    /**
+     * [state] evolved by [events], decided on [command] and committed at [version] and [commitTime] in [scope]: an
+     * evolve function that reads its commit reads it as the log will record it, so a rebuild reads the same.
+     */
+    @Suppress("LongParameterList") // The facts of the commit.
+    private fun <S : Any> evolveDecided(
+        model: AggregateModel<S>,
+        state: S,
+        events: List<Any>,
+        command: Command<*>,
+        commandType: String,
+        version: Int,
+        commitTime: Long,
+        scope: Scope,
+    ): S {
+        val commit = if (model.readsCommits) {
+            model.commitOf(
+                command.ref,
+                version,
+                commitTime,
+                command.id,
+                command.requestId,
+                commandType,
+                scope,
+                command.operator,
+                events,
+            )
+        } else {
+            null
+        }
+        return events.fold(state) { current, event -> model.evolve(current, event, commit) }
     }
 
     /**
