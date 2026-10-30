@@ -193,6 +193,7 @@ fun RetryManifest.copyWith(
     recoverable: List<String>? = this.recoverable,
     unrecoverable: List<String>? = this.unrecoverable,
     multiplier: Double? = this.multiplier,
+    systemic: List<String>? = this.systemic,
 ): RetryManifest = RetryManifest(
     maxAttempts,
     initialBackoff,
@@ -200,7 +201,8 @@ fun RetryManifest.copyWith(
     timeout,
     recoverable,
     unrecoverable,
-    multiplier
+    multiplier,
+    systemic,
 )
 
 @InternalWowApi

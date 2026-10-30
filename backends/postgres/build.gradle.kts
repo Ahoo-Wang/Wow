@@ -7,6 +7,8 @@ dependencies {
     api("org.postgresql:postgresql")
     implementation("tools.jackson.core:jackson-databind")
     testImplementation(project(":query-tck"))
+    // The test DSL classifies with the kernel's classification, the runtime's too, which takes this module's classifier.
+    testImplementation(project(":test-dsl"))
     integrationTestImplementation(project(":tck"))
     integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation(project(":query-tck"))

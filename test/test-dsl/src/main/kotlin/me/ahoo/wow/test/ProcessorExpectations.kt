@@ -289,7 +289,8 @@ class ProcessorExpectations internal constructor(
      * What a handler threw, and whether the runtime parks the handling after [attempt], deciding as its subscriptions
      * do: a rejection the handling met ([HandlingRejectedException]: a call's rejection a saga's handler let through,
      * a rejection of a derived command no `@OnRejected` handler takes) parks at once; else [FailureClassification]
-     * classifies it, the handler's `@Retry` first, then the built-in rules. A failure it takes for unrecoverable parks
+     * classifies it, the handler's `@Retry` first, then the classifiers of the modules on the classpath, then the
+     * built-in rules. A failure it takes for unrecoverable parks
      * at once; a downstream that is down or pushes back is retried without spending the budget; any other failure is
      * retried until the attempt spends the budget ([HandlerRetry.maxAttempts], [HandlerRetry.DEFAULT_MAX_ATTEMPTS]
      * when it gives none). An application's own classifiers are the runtime's, which its own tests check.
@@ -380,7 +381,10 @@ class ProcessorExpectations internal constructor(
     private companion object {
         val CODEC = EventCodec()
 
-        /** The classification the runtime's subscriptions decide a retry by, but an application's own classifiers. */
+        /**
+         * The classification the runtime's subscriptions decide a retry by, the modules' classifiers included, but an
+         * application's own classifiers.
+         */
         val CLASSIFICATION: FailureClassification = FailureClassification.DEFAULT
     }
 }

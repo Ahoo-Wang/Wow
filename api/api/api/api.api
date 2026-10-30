@@ -183,6 +183,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Retry : ja
 	public abstract fun maxBackoff ()Ljava/lang/String;
 	public abstract fun multiplier ()D
 	public abstract fun recoverable ()[Ljava/lang/Class;
+	public abstract fun systemic ()[Ljava/lang/Class;
 	public abstract fun timeout ()Ljava/lang/String;
 	public abstract fun unrecoverable ()[Ljava/lang/Class;
 }
@@ -1766,6 +1767,11 @@ public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getInvocationKey ()Ljava/lang/String;
 	public abstract fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
+}
+
+public class me/ahoo/wow/api/subscribe/UnrecoverableHandlingException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/api/wire/ScopeHeader {

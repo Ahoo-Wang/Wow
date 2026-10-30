@@ -779,7 +779,8 @@ class WowProperties {
      * When a subscription pauses its partition on a systemic failure: at once on a failure classified systemic, or
      * when enough different aggregates failed within a window with no handling succeeding since. While paused, one
      * attempt at a time probes until a handling succeeds. A handler's failures are classified by its
-     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, then the runtime's own.
+     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, then the modules' on the classpath,
+     * then the runtime's own.
      */
     @InternalWowApi
     class Systemic {

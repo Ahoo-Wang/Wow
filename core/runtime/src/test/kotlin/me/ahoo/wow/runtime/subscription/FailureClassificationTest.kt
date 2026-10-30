@@ -48,10 +48,15 @@ class FailureClassificationTest {
     private val classification = RuntimeFailures.DEFAULT
 
     @Test
-    fun `the runtime takes connection failures for systemic and anything else for recoverable`() {
+    fun `the runtime takes a store or a broker down for systemic and anything else for recoverable`() {
         listOf(
             StorageUnavailableException("The store is unavailable; retry later."),
             TransportUnavailableException("The broker is unavailable; retry later."),
+        ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.SYSTEMIC) }
+        listOf(
+            IllegalStateException("broken"),
+            IOException("disk"),
+            // Without wow-client and wow-postgres, whose classifiers know them, the JDK's raw failures are recoverable.
             ConnectException("Connection refused"),
             SocketException("Connection reset"),
             UnknownHostException("views.internal"),
@@ -59,12 +64,6 @@ class FailureClassificationTest {
             SQLTransientConnectionException("pool timed out"),
             SQLNonTransientConnectionException("refused"),
             SQLException("connection failure", "08006"),
-        ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.SYSTEMIC) }
-        listOf(
-            IllegalStateException("broken"),
-            IOException("disk"),
-            SQLException("unique violation", "23505"),
-            SQLException("no state"),
             HandlerTimeoutException("projection", cart("x"), 1, kotlin.time.Duration.parse("1s")),
             StorageTimeoutException(java.time.Duration.ofSeconds(1)),
         ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.RECOVERABLE) }
@@ -93,7 +92,7 @@ class FailureClassificationTest {
 
     @Test
     fun `a cause is classified when the failure itself is not, through a cycle too`() {
-        val wrapped = IllegalStateException("The projection failed.", ConnectException("Connection refused"))
+        val wrapped = IllegalStateException("The projection failed.", StorageUnavailableException("The store is down."))
         classification.classify(wrapped, null).assert().isEqualTo(FailureClass.SYSTEMIC)
         val first = IllegalStateException("first")
         val second = IllegalStateException("second", first)
@@ -122,6 +121,21 @@ class FailureClassificationTest {
         ).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         FailureClassifier.NONE.classify(unavailable).assert().isNull()
         ExecutorFailures.classify(IllegalStateException()).assert().isNull()
+    }
+
+    @Test
+    fun `a module's classifier found on the classpath should take effect, after the application's`() {
+        FailureClassification.MODULES.map { it.javaClass.name }.assert().containsExactly(
+            ModuleFailures::class.java.name
+        )
+        val failure = IllegalStateException("The projection failed.", ModuleFailure("The driver gave up."))
+        classification.classify(failure, null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        // The application's classifiers come first.
+        RuntimeFailures.of(listOf(FailureClassifier { FailureClass.RECOVERABLE.takeIf { _ -> it is ModuleFailure } }))
+            .classify(failure, null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        // The runtime's own come after the modules': a busy executor stays backpressure.
+        classification.classify(CommandBusyException(cart("x"), "c-1", "busy"), null)
+            .assert().isEqualTo(FailureClass.BACKPRESSURE)
     }
 
     @Test

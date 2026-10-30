@@ -25,7 +25,8 @@ import kotlin.time.Duration
 /**
  * A subscription handler's in-process retry budget as `@Retry` declares it: each setting null when it
  * is not given. A handler's settings are its own `@Retry`'s, each one it does not give its processor's ([over]).
- * [recoverable] and [unrecoverable] are the qualified names of the exception classes it classifies itself.
+ * [recoverable], [unrecoverable] and [systemic] are the qualified names of the exception classes it classifies
+ * itself.
  */
 internal data class RetryBinding(
     val maxAttempts: Int? = null,
@@ -35,6 +36,7 @@ internal data class RetryBinding(
     val recoverable: List<String>? = null,
     val unrecoverable: List<String>? = null,
     val multiplier: Double? = null,
+    val systemic: List<String>? = null,
 ) {
     /** Whether no setting is given. */
     val isEmpty: Boolean get() = this == RetryBinding()
@@ -51,6 +53,7 @@ internal data class RetryBinding(
             recoverable ?: base.recoverable,
             unrecoverable ?: base.unrecoverable,
             multiplier ?: base.multiplier,
+            systemic ?: base.systemic,
         )
     }
 
@@ -58,12 +61,12 @@ internal data class RetryBinding(
     fun source(): String {
         val settings = "${maxAttempts ?: 0}, \"${iso(initialBackoff)}\", \"${iso(maxBackoff)}\", \"${iso(timeout)}\""
         val multiplier = multiplier?.let { ", multiplier = $it" }.orEmpty()
-        if (recoverable == null && unrecoverable == null) {
+        if (recoverable == null && unrecoverable == null && systemic == null) {
             return "me.ahoo.wow.kernel.HandlerRetry.of($settings$multiplier)"
         }
-        return "me.ahoo.wow.kernel.HandlerRetry.of($settings, ${classes(
-            recoverable
-        )}, ${classes(unrecoverable)}$multiplier)"
+        val systemic = systemic?.let { ", systemic = ${classes(it)}" }.orEmpty()
+        return "me.ahoo.wow.kernel.HandlerRetry.of($settings, ${classes(recoverable)}, ${classes(unrecoverable)}" +
+            "$multiplier$systemic)"
     }
 
     /** These settings as the Manifest's subscription entry records them, durations in ISO-8601. */
@@ -75,6 +78,7 @@ internal data class RetryBinding(
         recoverable = recoverable,
         unrecoverable = unrecoverable,
         multiplier = multiplier,
+        systemic = systemic,
     )
 
     private fun iso(duration: Duration?): String = duration?.toIsoString().orEmpty()
@@ -87,7 +91,7 @@ internal data class RetryBinding(
  * Reads `@Retry` off a processor class or a handler function, and checks it: [MAX_ATTEMPTS] is at least
  * 1, or 0 for not given; each duration is blank (not given) or a Kotlin (`500ms`, `2s`) or ISO-8601 (`PT2S`) duration,
  * a backoff not negative and a timeout positive; an attribute only 9.x's `@Retry` has is an error. The exception
- * classes of [RECOVERABLE] and [UNRECOVERABLE] are taken by their qualified names, an empty
+ * classes of [RECOVERABLE], [UNRECOVERABLE] and [SYSTEMIC] are taken by their qualified names, an empty
  * list being not given.
  */
 internal object RetryResolver {
@@ -99,8 +103,9 @@ internal object RetryResolver {
     private const val MULTIPLIER = "multiplier"
     private const val RECOVERABLE = "recoverable"
     private const val UNRECOVERABLE = "unrecoverable"
+    private const val SYSTEMIC = "systemic"
     private val SETTINGS =
-        setOf(MAX_ATTEMPTS, INITIAL_BACKOFF, MAX_BACKOFF, MULTIPLIER, TIMEOUT, RECOVERABLE, UNRECOVERABLE)
+        setOf(MAX_ATTEMPTS, INITIAL_BACKOFF, MAX_BACKOFF, MULTIPLIER, TIMEOUT, RECOVERABLE, UNRECOVERABLE, SYSTEMIC)
 
     /** The settings of the `@Retry` on [annotated], described as [where]; null without one, or when it gives none. */
     fun read(annotated: KSAnnotated, where: String, problems: MutableList<String>): RetryBinding? {
@@ -130,6 +135,7 @@ internal object RetryResolver {
             recoverable = classes(arguments[RECOVERABLE]),
             unrecoverable = classes(arguments[UNRECOVERABLE]),
             multiplier = multiplier.takeIf { it >= 1.0 },
+            systemic = classes(arguments[SYSTEMIC]),
         ).takeUnless { it.isEmpty }
     }
 

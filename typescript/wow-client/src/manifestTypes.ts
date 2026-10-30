@@ -199,6 +199,7 @@ export interface RetryManifest {
   readonly timeout?: string;
   readonly recoverable?: readonly string[];
   readonly unrecoverable?: readonly string[];
+  readonly systemic?: readonly string[];
   readonly multiplier?: number;
 }
 

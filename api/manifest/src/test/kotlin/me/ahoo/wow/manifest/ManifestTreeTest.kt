@@ -203,6 +203,7 @@ class ManifestTreeTest {
             timeout = "PT2S",
             unrecoverable = listOf("sample.InvalidAddress"),
             multiplier = 1.5,
+            systemic = listOf("sample.CarrierUnreachable"),
         )
         val subscription = SubscriptionManifest(
             "Notifier.onEvent",
@@ -232,6 +233,7 @@ class ManifestTreeTest {
                     "maxAttempts" to 3,
                     "timeout" to "PT2S",
                     "unrecoverable" to listOf("sample.InvalidAddress"),
+                    "systemic" to listOf("sample.CarrierUnreachable"),
                     "multiplier" to 1.5,
                 )
             )

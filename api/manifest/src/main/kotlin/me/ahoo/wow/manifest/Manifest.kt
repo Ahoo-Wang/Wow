@@ -658,8 +658,8 @@ class JobManifest @InternalWowApi constructor(
 
 /**
  * A subscription handler's in-process retry budget as `@Retry` declares it: each setting null when it
- * is not given. Durations are ISO-8601 (`PT2S`). [recoverable] and [unrecoverable] are the qualified names of the
- * exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable)`).
+ * is not given. Durations are ISO-8601 (`PT2S`). [recoverable], [unrecoverable] and [systemic] are the qualified
+ * names of the exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable, systemic)`).
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -672,6 +672,7 @@ class RetryManifest @InternalWowApi constructor(
     val unrecoverable: List<String>? = null,
     /** How many times longer each wait between attempts is than the one before. */
     val multiplier: Double? = null,
+    val systemic: List<String>? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is RetryManifest && valueFields() == other.valueFields()
@@ -680,10 +681,11 @@ class RetryManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "RetryManifest(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
-            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, multiplier=$multiplier)"
+            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, multiplier=$multiplier, " +
+            "systemic=$systemic)"
 
     private fun valueFields(): List<Any?> =
-        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier)
+        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier, systemic)
 }
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }

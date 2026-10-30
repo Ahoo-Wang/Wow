@@ -2847,6 +2847,12 @@
               "type" : "string"
             }
           },
+          "systemic" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
           "multiplier" : {
             "type" : "number"
           }

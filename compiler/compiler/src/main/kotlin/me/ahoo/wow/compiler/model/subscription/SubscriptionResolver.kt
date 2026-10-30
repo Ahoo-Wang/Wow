@@ -111,6 +111,11 @@ internal object SubscriptionResolver {
     private val RETRY = Retry::class.java.name
     private val REQUEST = CommandRequest::class.java.name
     private const val UNIT = "kotlin.Unit"
+    private const val MONO = "reactor.core.publisher.Mono"
+    private const val FLUX = "reactor.core.publisher.Flux"
+
+    /** What a projection's or a reactor's `Mono` emits: nothing. */
+    private val NOTHING = setOf(UNIT, "java.lang.Void")
     private const val DEPENDENCIES = "me.ahoo.wow.kernel.Dependencies"
     private val COMMAND_COLLECTIONS = setOf(
         "kotlin.collections.List",
@@ -161,13 +166,8 @@ internal object SubscriptionResolver {
             problems += AnnotationSet.problemsOfFunction(it, "processor $className", processor = true)
         }
         problems += straySends(processor, className)
-        (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
-            .filterValues { it.size > 1 }.keys.forEach {
-                problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
-            }
-        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems) {
-            returnProblem(Kind.SAGA, it)
-        }
+        problems += sameNames(className, name, functions + receiptFunctions.values.flatten() + jobFunctions)
+        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems)
         val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, events, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val (rejections, commits) = Receipt.entries.map { receipt ->
@@ -196,6 +196,12 @@ internal object SubscriptionResolver {
             internal = processor.isInternal() || !isObject && constructorOf(processor)?.isInternal() == true,
         )
     }
+
+    /** Two [handlers] of the processor [name] with one name, which would be one subscription. */
+    private fun sameNames(className: String, name: String, handlers: List<KSFunctionDeclaration>): List<String> =
+        handlers.distinct().groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.map {
+            "processor $className has two handlers named $it: each is the subscription $name.$it"
+        }
 
     /** `@Sends` on a function of [processor] that is no handler: it declares what nothing sends. */
     private fun straySends(processor: KSClassDeclaration, className: String): List<String> =
@@ -267,8 +273,10 @@ internal object SubscriptionResolver {
         }
         functions.filter { it.isHandler(RETRY) }.forEach {
             add(
-                "handler $name.${it.simpleName.asString()} is annotated @Retry: ${receipt.retryReason}; @Retry goes " +
-                    "on an @OnEvent handler or its processor",
+                "handler $name.${it.simpleName.asString()} is annotated @Retry: an ${receipt.label} handler takes " +
+                    "the budget of where its receipt arrives, the @OnEvent handler that derived the command for one " +
+                    "of the saga's own context, the host's retry of wow.receipts.<context> for one from another " +
+                    "context; @Retry goes on that @OnEvent handler or its processor",
             )
         }
         if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
@@ -278,13 +286,6 @@ internal object SubscriptionResolver {
             )
         }
     }
-
-    /** Why a handler of this kind takes no `@Retry`. */
-    private val Receipt.retryReason: String
-        get() = when (this) {
-            Receipt.REJECTED -> "an @OnRejected handler compensates a business outcome, which is not retried"
-            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
-        }
 
     /**
      * Whether [function] is an `@OnEvent` handler (or overrides one), and no receipt handler: `@OnEvent` alone declares
@@ -383,8 +384,8 @@ internal object SubscriptionResolver {
         val context = parameters.getOrNull(1)
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
-        if (kind != null && returned != null && !reactor) {
-            returnProblem(kind, returned)?.let { problems += "$where $it" }
+        if (kind != null && returned != null) {
+            returnProblem(kind, returned, reactor)?.let { problems += "$where $it" }
         }
         val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
@@ -490,8 +491,8 @@ internal object SubscriptionResolver {
         }
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
-        if (returned != null && !reactor) {
-            returnProblem(Kind.SAGA, returned)?.let { problems += "$where $it" }
+        if (returned != null) {
+            returnProblem(Kind.SAGA, returned, reactor)?.let { problems += "$where $it" }
         }
         val sends = SendsResolver.resolve(function, where, true, null, returned, reactor, problems)
         if (problems.size > count) {
@@ -592,8 +593,16 @@ internal object SubscriptionResolver {
         }
     }
 
-    private fun returnProblem(kind: Kind, returned: KSType): String? {
+    /**
+     * Why a handler of [kind] may not return [returned], a Reactor publisher when [reactor]; null when it may. A
+     * publisher is checked by what it emits: a saga's a `Mono` or a `Flux` of command requests, a projection's or a
+     * reactor's a `Mono<Void>` or a `Mono<Unit>`, which completes when the handling does.
+     */
+    private fun returnProblem(kind: Kind, returned: KSType, reactor: Boolean): String? {
         val name = returned.qualifiedName()
+        if (reactor) {
+            return publisherProblem(kind, name, returned)
+        }
         return if (kind == Kind.SAGA) {
             val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
             val commands = name == UNIT || name == REQUEST || (name in COMMAND_COLLECTIONS && element == REQUEST)
@@ -606,6 +615,26 @@ internal object SubscriptionResolver {
         } else {
             if (name == UNIT) null else "returns $name: a ${kind.label} handler returns nothing"
         }
+    }
+
+    /** Why a saga's handler may not return [returned], a Reactor publisher when [reactor]; null when it may. */
+    internal fun sagaReturnProblem(returned: KSType, reactor: Boolean): String? = returnProblem(
+        Kind.SAGA,
+        returned,
+        reactor
+    )
+
+    private fun publisherProblem(kind: Kind, name: String?, returned: KSType): String? {
+        val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
+        val (allowed, problem) = if (kind == Kind.SAGA) {
+            ((name == MONO || name == FLUX) && element == REQUEST) to
+                "a @Saga handler that returns a publisher returns a Mono or a Flux of $REQUEST, the commands it derives"
+        } else {
+            (name == MONO && element in NOTHING) to
+                "a ${kind.label} handler that returns a publisher returns Mono<Void> or Mono<Unit>, which completes " +
+                "when its handling does"
+        }
+        return if (allowed) null else "returns ${returned.render()}: $problem"
     }
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
