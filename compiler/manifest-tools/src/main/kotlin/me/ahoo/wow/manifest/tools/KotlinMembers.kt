@@ -30,12 +30,13 @@ import kotlin.reflect.jvm.kotlinProperty
 internal object KotlinMembers {
     fun typeOf(member: MemberScope<*, *>): KType? = propertyOf(member)?.returnType
 
+    /** The property behind [member], a field or a getter: the generator offers no other member. */
     fun propertyOf(member: MemberScope<*, *>): KProperty<*>? = runCatching {
-        when (member) {
-            is FieldScope -> member.rawMember.takeIf { it.declaringClass.isKotlin() }?.kotlinProperty
-            is MethodScope -> member.rawMember.declaringClass.takeIf { it.isKotlin() }?.kotlin?.memberProperties
-                ?.firstOrNull { it.javaGetter == member.rawMember }
-            else -> null
+        if (member is FieldScope) {
+            member.rawMember.takeIf { it.declaringClass.isKotlin() }?.kotlinProperty
+        } else {
+            val getter = (member as MethodScope).rawMember
+            getter.declaringClass.takeIf { it.isKotlin() }?.kotlin?.memberProperties?.firstOrNull { it.javaGetter == getter }
         }
     }.getOrNull()
 

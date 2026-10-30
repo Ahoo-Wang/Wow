@@ -349,7 +349,8 @@ internal class SchemaIntrospector(
          * does not write, of a class it writes with a serializer of its own (an `AggregateRef`'s `isAssigned`).
          */
         fun computed(method: MethodScope): BeanPropertyDefinition? {
-            if (method.isFakeContainerItemScope || method.argumentCount != 0 || method.isStatic) return null
+            // A getter takes no argument, so a function of arguments is no property's; nor is a static method, which
+            // the generator does not offer.
             val property = getBeanDescriptionForClass(method.declaringType).findProperties()
                 .firstOrNull { it.getter?.annotated == method.rawMember } ?: return null
             val declaring = method.declaringType.erasedType
@@ -357,7 +358,7 @@ internal class SchemaIntrospector(
                 type.declaredFields.any { it.name == property.internalName && !Modifier.isStatic(it.modifiers) }
             }
             val writes = property.name in written.computeIfAbsent(declaring, ::writtenNames)
-            return property.takeIf { it.couldSerialize() && !backed && writes }
+            return property.takeIf { !backed && writes }
         }
 
         /** The names of the properties Wow's JSON writes of [type]: none when it does not write it as an object. */
@@ -444,7 +445,7 @@ internal class SchemaIntrospector(
             listOf(member.type).takeIf { isPolymorphic(member.type.erasedType) }
 
         override fun provideCustomSchemaDefinition(type: ResolvedType, context: SchemaGenerationContext): CustomDefinition? {
-            if (!isPolymorphic(type.erasedType) || context.generatorConfig.resolveSubtypes(type, context).isEmpty()) {
+            if (!isPolymorphic(type.erasedType)) {
                 return null
             }
             val definition = context.createStandardDefinition(type, this)

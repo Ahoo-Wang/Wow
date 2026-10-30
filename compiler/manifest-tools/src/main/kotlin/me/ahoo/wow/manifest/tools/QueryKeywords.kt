@@ -16,6 +16,7 @@ package me.ahoo.wow.manifest.tools
 import com.fasterxml.jackson.annotation.JsonValue
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.TypeAttributeOverrideV2
 import com.github.victools.jsonschema.generator.TypeScope
@@ -111,9 +112,10 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
      */
     fun overrideMemberAttributes(attributes: ObjectNode, scope: MemberScope<*, *>) {
         if (scope.isFakeContainerItemScope) return
-        val members = when (scope) {
-            is FieldScope -> listOfNotNull<AnnotatedElement>(scope.rawMember, scope.findGetter()?.rawMember)
-            else -> listOfNotNull<AnnotatedElement>(scope.rawMember as? AnnotatedElement)
+        val members: List<AnnotatedElement> = if (scope is FieldScope) {
+            listOfNotNull(scope.rawMember, scope.findGetter()?.rawMember)
+        } else {
+            listOf((scope as MethodScope).rawMember)
         }
         val annotations = members.flatMap { it.annotations.asList() }
         val field = "${scope.declaringType.erasedType.name}.${scope.declaredName}"

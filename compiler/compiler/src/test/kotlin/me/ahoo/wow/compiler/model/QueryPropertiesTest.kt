@@ -66,6 +66,8 @@ class QueryPropertiesTest {
             private var hidden: Int = 0
             internal var local: Int = 0
             val computed: Int get() = 1
+            // A member extension property takes a receiver: Jackson writes no property of it.
+            val Int.doubled: Int get() = this * 2
 
             fun onSourcing(event: OrderPlaced) { customerId = event.customerId }
         }
