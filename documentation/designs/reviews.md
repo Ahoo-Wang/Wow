@@ -92,6 +92,8 @@
 | X-35 | P2 | Kotlin 的 ABI 转储 | 全部参数有默认值、主构造器标 `@InternalWowApi` 的类，Kotlin 生成的无参构造器在干净编译下可能丢掉该标记，转储多出一个公开的 `<init>()`；增量编译保留标记，故本地通过而 CI 失败（4c 的 `ParkedRetryOptions`，#5227） | 内部改用该类的 `@InternalWowApi copyWith`，不在别处调用其构造器；转储中出现意外的公开无参构造器时先疑此因 | 已绕开（#5227），记作已知现象 |
 | X-36 | P2 | `:runtime` 测试 | `SubscriptionOrphansTest` 偶发 `ConcurrentModificationException`：测试挂在日志上的 `ListAppender` 的列表是普通 `ArrayList`，停止中的运行时的协程仍可能在写日志，测试读取时不加锁；产品代码无问题（`QueryObserversTest` 同样的读法） | 在追加器的锁内取快照后再筛选 | 已修（#5241） |
 | X-37 | P2 | 测试工具的开关 | 重新生成快照与金样的开关借用 `wow.` 前缀（如 `-Dwow.snapshot.update=true`）；整套检查带上它时，Spring 宿主把它当作未知的 `wow.*` 键拒绝启动（D302），宿主测试全部失败 | 测试工具的开关移出 `wow.` 命名空间（如 `wow-test.snapshot.update`），或只由各测试读取而不进 Spring 环境 | 待派 |
+| X-38 | P0 | `migrate-data` 导入之后的发布流 | 导入后启用的服务，其传输 Sink（`SinkSubscription` 默认 `StartFrom.BEGINNING`）把整个日志、连同导入的 9.x 历史发布到 Kafka；对端订阅这条流的 Saga 与 Reactor 首次加入时（`JOIN`：尚未加入即从主题开头）读到全部历史，重新处理并再次发出命令，在服务群切换时造成重复的副作用。D379 的文档（#5243）暂以把对端订阅的 `start` 设为停写时刻绕开 | 协调者定：导入完成（`import --final`）后，传输 Sink 的检查点定在切换点，只发布切换之后的条目，导入的历史不再发给对端；ClickHouse、Elasticsearch 等数据 Sink 仍从头读（分析与检索需要历史）；CoCache 的视图在下一次提交或回源时建立；测试：导入后启用，对端 Saga 不收到历史；文档改回不需绕开 | 待派 |
+| X-39 | P1 | Kafka 主题名 | 9.x 的状态主题与 Wow 10 的发布流默认同名 `wow.<context>.<aggregate>.state`；在 9.x 用过的 Kafka 上不设 `wow.kafka.topics.prefix` 时，Wow 10 的订阅会读到 9.x 的记录，回滚后 9.x 也会读到 Wow 10 的记录（#5243 已在切换清单里提示） | 推荐：Wow 10 的解码器遇到不是自己格式（无格式版本）的记录即明确拒绝并指出 `wow.kafka.topics.prefix`，不按聚合停放；改主题默认名属线上契约，另议 | 待派 |
 
 ## 4. 第三轮架构审查 R3（2026-10-19，基线 `751c87569d`，只读）
 
@@ -307,5 +309,5 @@
 | PA-5 | P1 | 命令转换（D182） | 9.x 可由命令体推出聚合 ID（项目 A 有 9 个聚合、几十种命令这样做）；Wow 10 没有 `@AggregateId`，每种命令要手写一个 `CommandTransformer`，Saga 也要自己给出 ID | 编程模型的决定，待与用户讨论（推荐：声明式地由命令体给出目标 ID） | 已定 D378（用户 2026-10-30），待派 |
 | PA-6 | P1 | 决定函数的依赖、测试 DSL | 决定函数里查询很常见（项目 A 有 53 处）；`QueryApi` 在 `:api`，按命令的调用者 `of(caller)` 查询是正路，但没写进文档；测试 DSL 的 `memoryQueries()` 对模型带依赖的聚合不能按类型读 | 写进技能与指南；核实宿主可把 `QueryApi` 注入领域依赖；`memoryQueries` 能按类型读 Manifest 里的每个状态 | 待派 |
 | PA-7～PA-11 | P2 | 编译器、KSP、决定内的查询错误、`GlobalIdGenerator` 的 KDoc、查询类型 | 返回非密封接口时被当作一个事件类（PA-7）；KSP2 不认源集的 `exclude`（PA-8，写进文档）；决定函数内的查询准入错误成了命令的拒绝 `wow.command.invalid`，客户端看到 400（PA-9：应为故障）；KDoc 仍说 wow-cosid 给全局 ID，api 里的静态 ID 无替代说明（PA-10）；`PagedList` 等不能子类化（PA-11，写进技能） | 编译器提示、决定内查询错误归为故障、KDoc 与技能 | 待派 |
-| PA-12 | P1 | 9.x 与 Wow 10 的服务群 | 项目 A 与几个仍是 Wow 9 的服务互相消费事件与调用（api 模块之间还有环）；Wow 10 读不了 9.x 的主题，9.x 消费 Wow 10 的路径已放弃（G-4），api jar 不能混用：整个服务群必须一起切换 | 待与用户讨论（推荐：先写服务群级的切换顺序与环检查文档；9.x 主题桥只在真实服务群需要时再定） | 已定 D379（用户 2026-10-30），待派 |
+| PA-12 | P1 | 9.x 与 Wow 10 的服务群 | 项目 A 与几个仍是 Wow 9 的服务互相消费事件与调用（api 模块之间还有环）；Wow 10 读不了 9.x 的主题，9.x 消费 Wow 10 的路径已放弃（G-4），api jar 不能混用：整个服务群必须一起切换 | 待与用户讨论（推荐：先写服务群级的切换顺序与环检查文档；9.x 主题桥只在真实服务群需要时再定） | 已修（D379，#5243：`migrate/cutover` 的「服务群切换」一节） |
 | PA-13～PA-21 | P1～P2 | `skills/wow-migrate/references/v9-to-v10.md`、`migrate/*`、09 | 缺：外部调度到 `@OnSchedule` 的映射与不能映射的情形（逐个等待、固定速率）；持久化在事件与状态里的 9.x 类型（`Condition`、`Sort`）的升级；Kotlin 链式 `aggregateVerifier` 的映射；Gradle 9 与生成工厂的参数；`@MountedCommand` 须在领域模块；09 里 `wow-cocache` 仍写放弃（D364 已恢复）与按索引、联接的缓存；查询 schema 覆盖、读请求头的查询策略、直接聚合快照集合；带日期前缀的号段生成器与 cosid-migration；用 `DomainEventCompensator` 回填改为新订阅从头读 | 由做审查的子会话补技能与文档 | 待派 |
