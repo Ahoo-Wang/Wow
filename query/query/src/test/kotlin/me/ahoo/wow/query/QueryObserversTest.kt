@@ -239,13 +239,17 @@ class QueryObserversTest {
 
     private fun captureErrors(block: () -> Unit): List<ILoggingEvent> = capture(Level.ERROR, block)
 
+    /**
+     * The events of [level] logged while [block] runs. The root logger takes any thread's events, which may arrive
+     * while they are read, so they are read under the appender's lock, which each append takes.
+     */
     private fun capture(level: Level, block: () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         logger.addAppender(appender)
         return try {
             block()
-            appender.list.filter { it.level == level }
+            synchronized(appender) { appender.list.toList() }.filter { it.level == level }
         } finally {
             logger.detachAppender(appender)
             appender.stop()
