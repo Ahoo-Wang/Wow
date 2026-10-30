@@ -9,7 +9,7 @@ outline: deep
 In Wow you write the domain as plain Kotlin: commands, events, a state, and an aggregate that decides. The compiler turns them into models and a contract, and the Spring Boot host serves them over HTTP, with no controller or repository to write. This page builds a small bank service in one Gradle module: an `account` aggregate, its test, and a server that keeps its data in memory.
 
 ::: warning Pre-release
-Wow 10.0.0-alpha.6 is a pre-release. Its API, configuration and stored formats may still change before 10.0.0.
+Wow 10.0.0-alpha.7 is a pre-release. Its API, configuration and stored formats may still change before 10.0.0.
 :::
 
 ## What you need
@@ -45,7 +45,7 @@ plugins {
     kotlin("jvm") version "2.4.21"
     // The service in one module: KSP with wow-compiler, the BOM and the kernel of the same version, and the
     // service's Manifest.
-    id("me.ahoo.wow.service") version "10.0.0-alpha.6"
+    id("me.ahoo.wow.service") version "10.0.0-alpha.7"
     application
 }
 
@@ -75,7 +75,7 @@ tasks.test {
 }
 ```
 
-The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-alpha.6`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
+The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-alpha.7`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
 
 `./gradlew build` also checks the service's Manifest, the contract its clients see, against a baseline committed beside the build file, `manifest/baseline.json`, and fails while there is none. Once the code below is written, record it once and commit it with the code:
 

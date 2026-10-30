@@ -9,7 +9,7 @@ outline: deep
 在 Wow 中，你用普通的 Kotlin 编写领域：命令、事件、一个状态，以及一个做出决定的聚合。编译器把它们变成模型和契约，Spring Boot 宿主经 HTTP 提供它们，不需要写控制器或仓储。本页在一个 Gradle 模块中构建一个小的银行服务：一个 `account` 聚合、它的测试，以及一个把数据放在内存中的服务器。
 
 ::: warning 预发布版本
-Wow 10.0.0-alpha.6 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
+Wow 10.0.0-alpha.7 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
 :::
 
 ## 你需要什么 {#what-you-need}
@@ -45,7 +45,7 @@ plugins {
     kotlin("jvm") version "2.4.21"
     // The service in one module: KSP with wow-compiler, the BOM and the kernel of the same version, and the
     // service's Manifest.
-    id("me.ahoo.wow.service") version "10.0.0-alpha.6"
+    id("me.ahoo.wow.service") version "10.0.0-alpha.7"
     application
 }
 
@@ -75,7 +75,7 @@ tasks.test {
 }
 ```
 
-插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.6`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
+插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.7`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
 `./gradlew build` 还会把服务的 Manifest（客户端看到的契约）与提交在构建文件旁边的基线 `manifest/baseline.json` 比较，没有基线时会失败。写好下面的代码后，记录一次基线，并与代码一起提交：
 
