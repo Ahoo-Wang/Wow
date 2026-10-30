@@ -114,6 +114,8 @@ class NodeQueryDependenciesTest {
             // The peer's client is no stand-in for the node's: an unqualified QueryApi is then the only bean of it.
             dependencies.find(QueryApi::class.java, null).assert().isSameAs(context.getBean("peer"))
             dependencies.find(NodeQueryApi::class.java, null).assert().isNull()
+            // Nor is there a command client to defer: the parameter has no dependency.
+            dependencies.find(CommandClient::class.java, null).assert().isNull()
         }
     }
 }

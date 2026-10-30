@@ -175,6 +175,9 @@ class CommandClientTypesTest {
         sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.ACCEPTED))
         assertThrows<Misuse.Argument> { sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.COMMITTED)) }
             .message.assert().isEqualTo("send answers on acceptance: use wait() for the plan committed.")
+        // A chain of hops, even one that starts at acceptance, waits for more.
+        val chain = WaitPlan.of(Hop.accepted(), Hop.committed())
+        assertThrows<Misuse.Argument> { sendable(CommandRequest.of(AddItem("a"), wait = chain)) }
     }
 
     @Test

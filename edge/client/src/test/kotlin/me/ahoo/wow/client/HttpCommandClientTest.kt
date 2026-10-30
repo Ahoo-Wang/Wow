@@ -38,9 +38,16 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.manifest.AggregateIdSource
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
@@ -445,6 +452,36 @@ class HttpCommandClientTest {
             .commands
         caught<Misuse.Argument> { runBlocking { sealing.wait(Seal()) } }
             .message.assert().contains("lists no route without an aggregate id")
+        // A command its contract routes without an id alone, sent to an aggregate by its id.
+        val unaddressed = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "mail",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "box",
+                            state = StateManifest(Manifest.schemaRef("mail.boxState")),
+                            commands = listOf(
+                                CommandManifest(
+                                    "Seal",
+                                    schema = Manifest.schemaRef(Seal::class.java.name),
+                                    creation = Creation.ALLOWED,
+                                    routes = listOf(RouteManifest("POST", "/mail/box/seal")),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val bySealRoute = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service(SERVICE)
+            .contracts(listOf(ManifestFragment("mail-api.jar", unaddressed)))
+            .build()
+            .commands
+        caught<Misuse.Argument> { runBlocking { bySealRoute.wait(CommandRequest.to(ref, Seal())) } }
+            .message.assert().contains("lists no route to an aggregate by its id")
         peer.taken.assert().isEmpty()
     }
 
