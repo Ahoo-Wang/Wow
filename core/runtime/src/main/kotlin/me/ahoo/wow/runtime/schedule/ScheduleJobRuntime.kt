@@ -30,7 +30,6 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
-import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
@@ -139,11 +138,7 @@ internal object ScheduleJobRuntime {
         }
         return subscription.copyWith(
             retries = subscription.retries + retries,
-            parked = ParkedRetryOptions(
-                subscription.parked.spec,
-                subscription.parked.specs + specs,
-                subscription.parked.scanInterval,
-            ),
+            parked = subscription.parked.copyWith(specs = subscription.parked.specs + specs),
         )
     }
 
