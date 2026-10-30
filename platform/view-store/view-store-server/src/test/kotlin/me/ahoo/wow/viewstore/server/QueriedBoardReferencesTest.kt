@@ -20,7 +20,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.schema.QueryModel
@@ -40,7 +40,7 @@ class QueriedBoardReferencesTest {
     private val view = ViewStoreContract.View.TYPE
 
     /** [total] dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time. */
-    private fun dashboards(total: Int): QueryApi {
+    private fun dashboards(total: Int): NodeQueryApi {
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { cursor(any()) } answers {
                 val query = firstArg<CursorQuery>()
@@ -79,7 +79,7 @@ class QueriedBoardReferencesTest {
 
     @Test
     fun `a node without snapshot queries should know of no reference`(): Unit = runBlocking {
-        val unserved = mockk<QueryApi> {
+        val unserved = mockk<NodeQueryApi> {
             every { trusted().snapshots(view) } throws QueryNotServedException(view, QueryModel.SNAPSHOT)
         }
         QueriedBoardReferences { unserved }.referencingBoards("t", "app", "v-1").assert().isEmpty()
@@ -87,7 +87,7 @@ class QueriedBoardReferencesTest {
 
     @Test
     fun `a query the node got wrong should fail, not pass for a node without queries`(): Unit = runBlocking {
-        val wrong = mockk<QueryApi> { every { trusted().snapshots(view) } throws IllegalArgumentException("wrong") }
+        val wrong = mockk<NodeQueryApi> { every { trusted().snapshots(view) } throws IllegalArgumentException("wrong") }
         assertThrows<IllegalArgumentException> { QueriedBoardReferences { wrong }.referencingBoards("t", "app", "v-1") }
     }
 }

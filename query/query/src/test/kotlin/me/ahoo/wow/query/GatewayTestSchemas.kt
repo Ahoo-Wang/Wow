@@ -28,7 +28,7 @@ import me.ahoo.wow.query.schema.QueryValueType
 internal fun gatewaySchema(
     model: QueryModel = QueryModel.SNAPSHOT,
     capabilities: Set<QueryCapability> = emptySet(),
-    fields: Map<QueryField, QueryValueSchema> = emptyMap(),
+    fields: Map<QueryField<*>, QueryValueSchema> = emptyMap(),
 ): QueryModelSchema {
     val values = buildMap {
         listOf("id", "aggregateId", "tenantId", "ownerId", "spaceId").forEach { name ->

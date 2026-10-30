@@ -46,13 +46,13 @@ ops 服务是一个运行在 MongoDB 和 Kafka（或 PostgreSQL）上、位于 C
 1. 构建包含控制台的镜像，或使用已发布的镜像。
 2. 准备 MongoDB 和 Kafka；改用 PostgreSQL 时，加上清单的 `postgres` 组件。
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
-4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务解析网关转发的令牌，自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
+4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务读取网关转发的身份（`CoSec-Identity`），自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
 
 然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。运维人员的操作从每个所属服务自己的命令主题到达，发布台账的服务会自行为它们读取这个主题。
 
 ## 谁能做什么 {#who-may-do-what}
 
-运维人员用 CoSec 访问令牌登录控制台。服务从令牌中读取运维人员的租户、主体标识和角色：
+运维人员用 CoSec 访问令牌登录控制台。服务从网关校验过的身份中读取运维人员的租户、主体标识和角色：
 
 <!-- sample: platform/ops/ops-server/src/main/resources/application.yaml#roles -->
 
@@ -71,7 +71,7 @@ wow:
 - `ops.viewer` 只读取条目。
 - 两个角色都没有的主体什么都读不到。没有有效令牌的请求返回 401，控制台随即退出登录。
 
-各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 为服务的命令授权时（`wow.cosec.authorizer.enabled: true`），改由 CoSec 的策略而不是角色来决定谁是运维人员，每个操作按它自己路由的请求判定：ops 服务上的 `POST /ops/parked/{id}/resume` 及其他操作。自己提供运维路由的服务（`/wow/ops/parked`，见下文）按它的 `wow.ledger.*` 命令判定这些路由。为你暴露的每条路由编写策略。无论由谁决定，任何调用方都不能发送记录命令（`ops.parked.RecordParked`、`RecordResolved`、`RecordActionRefused`）：只有各服务的台账和 ops 的 Saga 会产生它们。
+各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 自己决定 ops 服务的请求、并设置 `wow.cosec.authorizer.enabled: true` 时（不是在网关之后，那里服务没有 CoSec 的决定），改由 CoSec 的文档而不是角色来决定谁是运维人员，每个操作按它命令的动作判定：ops 服务上 `parked/<id>` 的 `ops:Resume` 及其他操作（[动作名称](./security#action-names)）。自己提供运维路由的服务（`/wow/ops/parked`，见下文）按它的 `wow.ledger.*` 命令判定这些路由。为你暴露的每条路由编写策略。无论由谁决定，任何调用方都不能发送记录命令（`ops.parked.RecordParked`、`RecordResolved`、`RecordActionRefused`）：只有各服务的台账和 ops 的 Saga 会产生它们。
 
 ## 使用控制台 {#work-with-the-console}
 

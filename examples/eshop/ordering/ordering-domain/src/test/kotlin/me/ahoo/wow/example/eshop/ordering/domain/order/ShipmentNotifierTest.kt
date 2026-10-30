@@ -50,10 +50,7 @@ class ShipmentNotifierTest {
     @Test
     fun `a shipped order should notify its buyer with the commit's key`() = reactorSpec(handlers) {
         val order = paid()
-        whenEvent(OrderShipped, by = ShipOrder::class) {
-            expectHandledBy("onOrderShipped")
-            expectNoError()
-        }
+        whenEvent(OrderShipped, by = ShipOrder::class) { expectHandledBy("onOrderShipped") }
         sent.single().assert().isEqualTo(
             Triple("alice", "alice-1", "ShipmentNotifier.onOrderShipped:${order.ref}@3:0"),
         )
@@ -62,7 +59,7 @@ class ShipmentNotifierTest {
     @Test
     fun `an order without a buyer should notify no one`() = reactorSpec(handlers) {
         paid(Scope.NONE)
-        whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+        whenEvent(OrderShipped, by = ShipOrder::class)
         sent.assert().isEmpty()
     }
 
@@ -75,7 +72,8 @@ class ShipmentNotifierTest {
             // Within the notifier's own budget, the runtime asks again.
             expectRetried().assert().isInstanceOf(IllegalStateException::class.java)
         }
-        whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+        // The retry hands the same commit again: the same key, so the mail service sends it once.
+        whenRedelivered()
         sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
     }
     // endregion

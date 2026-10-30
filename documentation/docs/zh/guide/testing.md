@@ -299,15 +299,13 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 ```kotlin
 @Test
-fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
+fun `an order the ordering context refuses should park the checkout`() = sagaSpec(handlers) {
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
     basket()
     whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
-        expectError<CommandRejectedException> {
-            code.assert().isEqualTo(
-                EshopOrderingContract.Order.Errors.WRONG_STATUS
-            )
-        }
+        // The saga lets the call's rejection through: a business outcome, so the runtime parks the basket at once.
+        val rejected = expectParked().cause as CommandRejectedException
+        rejected.code.assert().isEqualTo(EshopOrderingContract.Order.Errors.WRONG_STATUS)
     }
 }
 ```

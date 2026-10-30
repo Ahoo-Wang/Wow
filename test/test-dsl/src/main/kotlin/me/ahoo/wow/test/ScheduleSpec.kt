@@ -16,6 +16,9 @@ package me.ahoo.wow.test
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
@@ -31,14 +34,18 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import org.junit.jupiter.api.DynamicNode
 import java.time.Instant
+import java.util.stream.Stream
 import kotlin.time.Duration
 
 /**
  * Specifies a saga's `@OnSchedule` handlers against the real job aggregate: enable an instance of a
  * job, move the time on, and check the ticks the handlers got and the commands they derived. [handlers] are the
- * saga's, from the function the compiler generated for it (`<processor>Handlers`); their jobs run in [context], whose
- * log has [partitions] partitions (for a sharded job's instances).
+ * saga's, from the function the compiler generated for it (`<processor>Handlers`), which names the bounded context
+ * their jobs run in; its log has [partitions] partitions (for a sharded job's instances). Their calls are answered
+ * ([ScheduleSpec.answerCalls]) and their reads served ([ScheduleSpec.givenQueries]) as a saga specification's are, and
+ * a failing handling is retried or parked by its job's `@Retry`.
  *
  * ```kotlin
  * scheduleSpec(billingSagaHandlers(), start = Instant.parse("2026-01-31T12:00:00Z")) {
@@ -58,23 +65,52 @@ import kotlin.time.Duration
  */
 fun scheduleSpec(
     handlers: List<ProcessorBinding<*>>,
-    context: String = "context",
     start: Instant = DEFAULT_START,
     partitions: Int = 1,
     block: ScheduleSpec.() -> Unit,
 ) {
-    ScheduleSpec(handlers, context, start, partitions).block()
+    ScheduleSpec(handlers, start, partitions).block()
+}
+
+/**
+ * The specification [scheduleSpec] runs, as a tree of tests for a JUnit `@TestFactory`: each [ScheduleSpec.advanceTime]
+ * that checks what the handlers did, and each [ScheduleSpec.whenTick], is a test of its own, as [sagaSpecTests] does.
+ */
+fun scheduleSpecTests(
+    handlers: List<ProcessorBinding<*>>,
+    start: Instant = DEFAULT_START,
+    partitions: Int = 1,
+    block: ScheduleSpec.() -> Unit,
+): Stream<DynamicNode> {
+    val tree = TestTree()
+    tree.run { ScheduleSpec(handlers, start, partitions, tree).block() }
+    return tree.nodes.stream()
 }
 
 /** The job instances of a [scheduleSpec] and the handlers of their jobs. */
-class ScheduleSpec(
+@WowTestDsl
+class ScheduleSpec internal constructor(
     val handlers: List<ProcessorBinding<*>>,
-    private val context: String,
     private val start: Instant,
     private val partitions: Int,
+    /** Where the steps report when the specification is a tree of tests ([scheduleSpecTests]); null otherwise. */
+    private val tree: TestTree?,
 ) {
+    constructor(handlers: List<ProcessorBinding<*>>, start: Instant = DEFAULT_START, partitions: Int = 1) :
+        this(handlers, start, partitions, null)
+
     private val jobs: Map<String, ScheduleJob> = handlers.mapNotNull { it.job }.associateBy { it.name }
-    private val processor = ProcessorSpec(handlers, FunctionKind.SAGA)
+    private val processor = ProcessorSpec(handlers, FunctionKind.SAGA, tree)
+
+    /** The bounded context the handlers' jobs run in, as the compiler that generated their bindings named it. */
+    private val context: String = handlers.mapNotNull { it.context }.distinct().let { contexts ->
+        require(contexts.size <= 1) { "The handlers' jobs run in several contexts: $contexts." }
+        contexts.singleOrNull() ?: throw IllegalArgumentException(
+            "The handlers name no bounded context of their jobs: their module's compiler knew none, so set wow.context " +
+                "(or one @BoundedContext) for it.",
+        )
+    }
+
     private val model = ScheduleJobModel.model(context, jobs.values)
     private val instances = LinkedHashMap<AggregateRef, AggregateSpec<JobState>>()
     private var elapsed = Duration.ZERO
@@ -83,6 +119,12 @@ class ScheduleSpec(
     init {
         require(jobs.isNotEmpty()) { "A schedule specification needs the handlers of a saga's @OnSchedule jobs." }
     }
+
+    /** Answers each synchronous call a handler makes with what [answer] returns, as [ProcessorSpec.answerCalls] does. */
+    fun answerCalls(answer: (Command<*>) -> CommandResult) = processor.answerCalls(answer)
+
+    /** Serves the handlers' reads from [queries], as [ProcessorSpec.givenQueries] does. */
+    fun givenQueries(queries: NodeQueryApi) = processor.givenQueries(queries)
 
     /** The ticks the handlers got so far, in order. */
     val ticks: List<ScheduleTick> get() = handed.toList()
@@ -130,6 +172,14 @@ class ScheduleSpec(
      * due; without it, nothing is checked.
      */
     fun advanceTime(duration: Duration, expect: (ProcessorExpectations.() -> Unit)? = null) {
+        if (expect == null) {
+            advance(duration, null)
+        } else {
+            step(tree, "advanceTime($duration)") { advance(duration, expect) }
+        }
+    }
+
+    private fun advance(duration: Duration, expect: (ProcessorExpectations.() -> Unit)?) {
         require(!duration.isNegative()) { "Time only moves on." }
         elapsed += duration
         val events = instances.values.flatMap { spec ->
@@ -160,7 +210,10 @@ class ScheduleSpec(
      * Hands [tick] to the handlers of its job directly, as the runtime would after its instance committed it, and
      * checks what they did in [expect].
      */
-    fun whenTick(tick: ScheduleTick, expect: ProcessorExpectations.() -> Unit) {
+    fun whenTick(tick: ScheduleTick, expect: ProcessorExpectations.() -> Unit = {}) =
+        step(tree, "whenTick(${tick.job}, slot ${tick.slot})") { tick(tick, expect) }
+
+    private fun tick(tick: ScheduleTick, expect: ProcessorExpectations.() -> Unit) {
         val job = requireNotNull(jobs[tick.job]) { "No handler runs the job ${tick.job}: the jobs are ${jobs.keys}." }
         val ref = refOf(job.name, tick.tenantId, tick.partition)
         val state = JobState().apply {

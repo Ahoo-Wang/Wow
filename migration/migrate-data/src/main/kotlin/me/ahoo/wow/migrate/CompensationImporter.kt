@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.Partitioner
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -90,15 +91,20 @@ internal class CompensationPlan(
         }
     }
 
-    /** The V10 parked entry of the unresolved 9.x [execution], or why there is none. */
-    fun parkedOf(execution: NineXExecutionFailed): ParkedTarget {
+    /**
+     * The V10 parked entry of the unresolved 9.x [execution], in the log partition [partitionOf] gives its
+     * aggregate, or why there is none.
+     */
+    fun parkedOf(execution: NineXExecutionFailed, partitionOf: (AggregateRef) -> Int): ParkedTarget {
         val subscription = subscriptionOf(execution.function)
             ?: return ParkedTarget.Unresolved("the 9.x processor ${execution.function.owner} has no subscription mapping")
         problemOf(subscription, execution.aggregate)?.let { return ParkedTarget.Unresolved(it) }
         val target = aggregates.getValue(execution.aggregate).target
+        val ref = target.ref(execution.aggregateId.tenantId, execution.aggregateId.id)
         val entry = ParkedAggregate.of(
             subscription = subscription,
-            ref = target.ref(execution.aggregateId.tenantId, execution.aggregateId.id),
+            ref = ref,
+            partition = partitionOf(ref),
             fromVersion = execution.version,
             reason = reasonOf(execution),
             failedAt = execution.executeAt,
@@ -124,7 +130,7 @@ internal class CompensationPlan(
         if (execution == null || !execution.unresolved || !covers(execution.function)) {
             return false
         }
-        val target = (parkedOf(execution) as? ParkedTarget.Parked)?.entry ?: return false
+        val target = (parkedOf(execution) { entry.partition } as? ParkedTarget.Parked)?.entry ?: return false
         return target.subscription == entry.subscription && target.ref == entry.ref &&
             target.fromVersion == entry.fromVersion
     }
@@ -280,12 +286,15 @@ internal class CompensationImporter(
         return resolved
     }
 
+    /** The partition of [ref] in its context's V10 log, as the runtime places it. */
+    private fun partitionOf(ref: AggregateRef): Int = Partitioner.partitionOf(ref, logOf(ref.type.context).partitions)
+
     private suspend fun import(execution: NineXExecutionFailed): Outcome {
         val compensation = plan.compensation
         if (!compensation.covers(execution.function)) {
             return Outcome.OTHER
         }
-        val target = compensation.parkedOf(execution)
+        val target = compensation.parkedOf(execution, ::partitionOf)
         if (target is ParkedTarget.Unresolved) {
             return unresolved(execution, target.reason)
         }
@@ -368,8 +377,8 @@ internal class CompensationComparison(
         execution: NineXExecutionFailed,
         result: CompensationComparisonResult,
     ): CompensationComparisonResult {
-        val target = plan.compensation.parkedOf(execution) as? ParkedTarget.Parked
-            ?: return result.copy(unresolved = result.unresolved + 1)
+        val target = plan.compensation.parkedOf(execution) { Partitioner.partitionOf(it, logOf(it.type.context).partitions) }
+            as? ParkedTarget.Parked ?: return result.copy(unresolved = result.unresolved + 1)
         val entry = target.entry
         if (logOf(entry.ref.type.context).positionOf(entry.ref, entry.fromVersion) == null) {
             return result.copy(unresolved = result.unresolved + 1)

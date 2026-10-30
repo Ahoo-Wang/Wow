@@ -532,7 +532,9 @@ export interface DynamicFieldDescriptor {
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
     kind: QueryValueKind;
+    nullable: boolean;
     pattern: string;
+    semantic?: QuerySemanticType;
     sort: FieldSortDescriptor;
     types: QueryValueType[];
 }
@@ -1039,9 +1041,11 @@ function orFilter<FIELDS extends string>(operands: readonly FilterExpression<FIE
 // @public
 export interface PagedList<T> {
     // (undocumented)
-    list: T[];
+    readonly exact: boolean;
     // (undocumented)
-    total: number;
+    readonly list: readonly T[];
+    // (undocumented)
+    readonly total: number | null;
 }
 
 // @public
@@ -1056,16 +1060,6 @@ export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQ
 export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     pagination?: Pagination;
 }): FilterPagedQuery<FIELDS>;
-
-// @public
-export interface PagedResult<T> {
-    // (undocumented)
-    readonly exact: boolean;
-    // (undocumented)
-    readonly list: readonly T[];
-    // (undocumented)
-    readonly total: number | null;
-}
 
 // @public
 export interface Pagination {
@@ -1159,6 +1153,7 @@ export const QueryErrorCodes: Readonly<{
     readonly CURSOR_SORT_DUPLICATE: "cursor-sort-duplicate";
     readonly CURSOR_SORT_TOO_MANY: "cursor-sort-too-many";
     readonly INVALID_CURSOR: "invalid-cursor";
+    readonly STREAM_NOT_RESUMABLE: "stream-not-resumable";
     readonly SIZE_OUT_OF_RANGE: "size-out-of-range";
     readonly FILTER_TOO_LARGE: "filter-too-large";
     readonly EXPENSIVE_OPERATOR_DISABLED: "expensive-operator-disabled";

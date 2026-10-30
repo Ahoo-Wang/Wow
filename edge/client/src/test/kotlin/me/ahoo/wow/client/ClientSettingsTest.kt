@@ -33,6 +33,15 @@ import kotlin.time.Duration.Companion.seconds
 /** The settings of the clients: endpoints, credentials, modes, retries and the names of the peers' commands. */
 class ClientSettingsTest {
     @Test
+    fun `a client should close the JDK client it built, and leave one it was given open`() {
+        val given = HttpCommandCaller.client()
+        WowClient.builder().service("basket-service").httpClient(given).contracts(emptyList()).build().close()
+        given.isTerminated.assert().isFalse()
+        given.close()
+        WowClient.builder().service("basket-service").contracts(emptyList()).build().close()
+    }
+
+    @Test
     fun `fixed endpoints should be http or https, by port`(): Unit = runBlocking {
         val public = URI.create("http://mail:8080")
         val internal = URI.create("https://mail:9090")
@@ -87,7 +96,8 @@ class ClientSettingsTest {
             )
         }
         assertThrownBy<IllegalArgumentException> { WowClient.builder().timeout("mail", Duration.ZERO) }
-        WowClient.builder().timeout("mail", 5.seconds).contracts(emptyList()).build().assert().isNotNull()
+        WowClient.builder().timeout("mail", 5.seconds).service("basket-service").contracts(emptyList()).build()
+            .use { it.assert().isNotNull() }
         HttpCommandCaller(EndpointResolver.NONE, "basket-service", HttpCommandCaller.client(), 10.seconds)
             .reaches("mail").assert().isFalse()
         HttpCommandCaller(

@@ -171,15 +171,15 @@ class ConfigurationKeysTest {
     @Test
     fun `a WOW_ variable in Spring's legacy form, dashes as underscores, should be known as Spring binds it`() {
         val environment = variables(
-            "WOW_COSEC_TRUST_INJECTED_APP" to "true",
+            "WOW_COSEC_TENANT_LEVEL_ROLES" to "employee",
             "WOW_LOG_MAX_POLL_INTERVAL" to "5s",
             "WOW_STATE_CACHE_CAPACITY" to "100",
             "WOW_PEERS_ESHOP_ORDERING_PUBLIC_URL" to "http://ordering",
             "WOW_CALLERS_BASKET_COMMANDS_0" to "shop.cart.Add",
         )
         keys.unknown(environment).assert().isEmpty()
-        ConfigurationKeys.namesOf("WOW_COSEC_TRUST_INJECTED_APP").map { it.toString() }
-            .assert().contains("wow.cosec.trust.injected.app", "wow.cosec.trust-injected-app")
+        ConfigurationKeys.namesOf("WOW_COSEC_TENANT_LEVEL_ROLES").map { it.toString() }
+            .assert().contains("wow.cosec.tenant.level.roles", "wow.cosec.tenant-level.roles")
         // An index ends a word, and the next element is a property of the indexed value.
         ConfigurationKeys.namesOf("WOW_VIEW_STORE_SYSTEM_VIEWS_0_ID").map { it.toString() }
             .assert().contains("wow.view-store.system-views[0].id")
@@ -199,7 +199,11 @@ class ConfigurationKeysTest {
         val variables = deploy.walkTopDown().filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
             manifest.readLines().mapNotNull { manifestVariable.find(it)?.groupValues?.get(1) }
         }.toSet()
-        variables.assert().contains("WOW_COSEC_TRUSTINJECTEDAPP", "WOW_KAFKA_BOOTSTRAPSERVERS", "WOW_INTERNAL_HOST")
+        variables.assert().contains(
+            "WOW_KAFKA_COMMANDINTAKE_ENABLED",
+            "WOW_KAFKA_BOOTSTRAPSERVERS",
+            "WOW_INTERNAL_HOST"
+        )
         keys.unknown(variables(*variables.map { it to "x" }.toTypedArray())).assert().isEmpty()
         // The shipped files teach one form, the canonical one, dashes dropped: the legacy one reads two ways
         // (WOW_LOG_MAX_POLL_INTERVAL could be max.poll.interval).

@@ -35,7 +35,7 @@ sealed interface QueryViolation {
     val code: String
 
     /** The logical field the violation is about, or `null` for model-level violations. */
-    val field: QueryField?
+    val field: QueryField<*>?
         get() = null
 
     /** What the binding error names: the absolute logical field (or `""`) for a model rule, a request part otherwise. */
@@ -60,7 +60,7 @@ sealed interface QueryViolation {
         Kind.MODEL -> QuerySchemaValidationException(this)
     }
 
-    class UnknownField @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class UnknownField @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.UNKNOWN_FIELD
 
@@ -79,13 +79,13 @@ sealed interface QueryViolation {
         companion object {
             /** A [UnknownField] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): UnknownField = UnknownField(field)
+            fun of(field: QueryField<*>): UnknownField = UnknownField(field)
         }
     }
 
     /** The field grants none of [capabilities]. */
     class UnsupportedCapability @InternalWowApi constructor(
-        override val field: QueryField,
+        override val field: QueryField<*>,
         val capabilities: Set<QueryCapability>
     ) : QueryViolation {
         override val code: String
@@ -107,13 +107,13 @@ sealed interface QueryViolation {
             /** A [UnsupportedCapability] of the given values. */
             @JvmStatic
             fun of(
-                field: QueryField,
+                field: QueryField<*>,
                 capabilities: Set<QueryCapability>,
             ): UnsupportedCapability = UnsupportedCapability(field, capabilities)
         }
     }
 
-    class ElementScopeRequired @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class ElementScopeRequired @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.ELEMENT_SCOPE_REQUIRED
 
@@ -134,12 +134,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [ElementScopeRequired] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): ElementScopeRequired = ElementScopeRequired(field)
+            fun of(field: QueryField<*>): ElementScopeRequired = ElementScopeRequired(field)
         }
     }
 
     /** A filter value falls outside the field's declared domain; [field] is the name as the request wrote it. */
-    class ValueMismatch @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class ValueMismatch @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.VALUE_MISMATCH
 
@@ -158,11 +158,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [ValueMismatch] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): ValueMismatch = ValueMismatch(field)
+            fun of(field: QueryField<*>): ValueMismatch = ValueMismatch(field)
         }
     }
 
-    class NotCollection @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class NotCollection @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.NOT_COLLECTION
 
@@ -181,11 +181,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [NotCollection] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): NotCollection = NotCollection(field)
+            fun of(field: QueryField<*>): NotCollection = NotCollection(field)
         }
     }
 
-    class NotSingleString @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class NotSingleString @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.NOT_SINGLE_STRING
 
@@ -204,7 +204,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [NotSingleString] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): NotSingleString = NotSingleString(field)
+            fun of(field: QueryField<*>): NotSingleString = NotSingleString(field)
         }
     }
 
@@ -216,7 +216,7 @@ sealed interface QueryViolation {
             get() = "Model search is unsupported."
     }
 
-    class CursorNotAllowed @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class CursorNotAllowed @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.CURSOR_NOT_ALLOWED
 
@@ -235,11 +235,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [CursorNotAllowed] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): CursorNotAllowed = CursorNotAllowed(field)
+            fun of(field: QueryField<*>): CursorNotAllowed = CursorNotAllowed(field)
         }
     }
 
-    class ProtectedAggregation @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class ProtectedAggregation @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.PROTECTED_AGGREGATION
 
@@ -258,12 +258,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [ProtectedAggregation] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): ProtectedAggregation = ProtectedAggregation(field)
+            fun of(field: QueryField<*>): ProtectedAggregation = ProtectedAggregation(field)
         }
     }
 
     /** A filter or sort compares a sensitive field whose raw value must not be compared. */
-    class ProtectedComparison @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class ProtectedComparison @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.PROTECTED_COMPARISON
 
@@ -282,11 +282,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [ProtectedComparison] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): ProtectedComparison = ProtectedComparison(field)
+            fun of(field: QueryField<*>): ProtectedComparison = ProtectedComparison(field)
         }
     }
 
-    class MissingKeyRequiresString @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class MissingKeyRequiresString @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.MISSING_KEY_REQUIRES_STRING
 
@@ -305,7 +305,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [MissingKeyRequiresString] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): MissingKeyRequiresString = MissingKeyRequiresString(field)
+            fun of(field: QueryField<*>): MissingKeyRequiresString = MissingKeyRequiresString(field)
         }
     }
 
@@ -341,7 +341,7 @@ sealed interface QueryViolation {
             get() = "Aggregation metric filters do not support [ELEMENT_MATCH]."
     }
 
-    class MetricFilterArrayField @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class MetricFilterArrayField @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD
 
@@ -361,11 +361,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [MetricFilterArrayField] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): MetricFilterArrayField = MetricFilterArrayField(field)
+            fun of(field: QueryField<*>): MetricFilterArrayField = MetricFilterArrayField(field)
         }
     }
 
-    class NotProjectable @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class NotProjectable @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.NOT_PROJECTABLE
 
@@ -384,12 +384,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [NotProjectable] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): NotProjectable = NotProjectable(field)
+            fun of(field: QueryField<*>): NotProjectable = NotProjectable(field)
         }
     }
 
     /** An event projection that keeps payloads must keep their type, so each payload can be read. */
-    class EventProjectionTypeRequired @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class EventProjectionTypeRequired @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED
 
@@ -408,11 +408,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [EventProjectionTypeRequired] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): EventProjectionTypeRequired = EventProjectionTypeRequired(field)
+            fun of(field: QueryField<*>): EventProjectionTypeRequired = EventProjectionTypeRequired(field)
         }
     }
 
-    class TemporalRepresentationRequired @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class TemporalRepresentationRequired @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED
 
@@ -431,11 +431,11 @@ sealed interface QueryViolation {
         companion object {
             /** A [TemporalRepresentationRequired] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): TemporalRepresentationRequired = TemporalRepresentationRequired(field)
+            fun of(field: QueryField<*>): TemporalRepresentationRequired = TemporalRepresentationRequired(field)
         }
     }
 
-    class TemporalConfigurationConflict @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class TemporalConfigurationConflict @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT
 
@@ -454,7 +454,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [TemporalConfigurationConflict] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): TemporalConfigurationConflict = TemporalConfigurationConflict(field)
+            fun of(field: QueryField<*>): TemporalConfigurationConflict = TemporalConfigurationConflict(field)
         }
     }
 
@@ -462,7 +462,9 @@ sealed interface QueryViolation {
      * A date group or date difference names a field whose values do not store instants as a date or an epoch, so
      * no backend can read them as instants.
      */
-    class TemporalAggregationUnsupported @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class TemporalAggregationUnsupported @InternalWowApi constructor(
+        override val field: QueryField<*>
+    ) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED
 
@@ -481,12 +483,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [TemporalAggregationUnsupported] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): TemporalAggregationUnsupported = TemporalAggregationUnsupported(field)
+            fun of(field: QueryField<*>): TemporalAggregationUnsupported = TemporalAggregationUnsupported(field)
         }
     }
 
     /** FIRST / LAST need a single value per record, both for the value and for its ordering field. */
-    class FirstLastRequiresSingleValue @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class FirstLastRequiresSingleValue @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE
 
@@ -505,12 +507,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [FirstLastRequiresSingleValue] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): FirstLastRequiresSingleValue = FirstLastRequiresSingleValue(field)
+            fun of(field: QueryField<*>): FirstLastRequiresSingleValue = FirstLastRequiresSingleValue(field)
         }
     }
 
     /** A FIRST / LAST metric inside an element, or on a model without an event time, names no `orderBy`. */
-    class FirstLastRequiresOrderBy @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class FirstLastRequiresOrderBy @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY
 
@@ -529,14 +531,14 @@ sealed interface QueryViolation {
         companion object {
             /** A [FirstLastRequiresOrderBy] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): FirstLastRequiresOrderBy = FirstLastRequiresOrderBy(field)
+            fun of(field: QueryField<*>): FirstLastRequiresOrderBy = FirstLastRequiresOrderBy(field)
         }
     }
 
     /** [field] and [other] are independent arrays, and the storage cannot sort by both. */
     class ParallelArraySort @InternalWowApi constructor(
-        override val field: QueryField,
-        val other: QueryField
+        override val field: QueryField<*>,
+        val other: QueryField<*>
     ) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.PARALLEL_ARRAY_SORT
@@ -556,12 +558,12 @@ sealed interface QueryViolation {
         companion object {
             /** A [ParallelArraySort] of the given values. */
             @JvmStatic
-            fun of(field: QueryField, other: QueryField): ParallelArraySort = ParallelArraySort(field, other)
+            fun of(field: QueryField<*>, other: QueryField<*>): ParallelArraySort = ParallelArraySort(field, other)
         }
     }
 
     /** `EQ` / `NE` on [field] names an array operand, and the storage cannot compare a whole array. */
-    class ArrayEquality @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class ArrayEquality @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.ARRAY_EQUALITY
 
@@ -580,7 +582,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [ArrayEquality] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): ArrayEquality = ArrayEquality(field)
+            fun of(field: QueryField<*>): ArrayEquality = ArrayEquality(field)
         }
     }
 
@@ -609,7 +611,7 @@ sealed interface QueryViolation {
     }
 
     /** Two sort fields ([field] is the later one) are bound to the same physical field, so one of them sorts nothing. */
-    class DuplicateSortField @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class DuplicateSortField @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.SORT_FIELD_DUPLICATE
 
@@ -628,7 +630,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [DuplicateSortField] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): DuplicateSortField = DuplicateSortField(field)
+            fun of(field: QueryField<*>): DuplicateSortField = DuplicateSortField(field)
         }
     }
 
@@ -662,7 +664,7 @@ sealed interface QueryViolation {
      */
     class StorageUnsupported @InternalWowApi constructor(
         val feature: String,
-        override val field: QueryField? = null
+        override val field: QueryField<*>? = null
     ) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.STORAGE_UNSUPPORTED
@@ -683,7 +685,10 @@ sealed interface QueryViolation {
             /** A [StorageUnsupported] of the given values. */
             @JvmStatic
             @JvmOverloads
-            fun of(feature: String, field: QueryField? = null): StorageUnsupported = StorageUnsupported(feature, field)
+            fun of(
+                feature: String,
+                field: QueryField<*>? = null
+            ): StorageUnsupported = StorageUnsupported(feature, field)
         }
     }
 
@@ -691,7 +696,7 @@ sealed interface QueryViolation {
      * A PREVIOUS window steps along the date group on [field], but the filter conditions the field where its range
      * cannot be shifted: outside the top-level AND, or with a value that is not an instant.
      */
-    class PreviousUnshiftable @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class PreviousUnshiftable @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.PREVIOUS_UNSHIFTABLE
 
@@ -711,7 +716,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [PreviousUnshiftable] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): PreviousUnshiftable = PreviousUnshiftable(field)
+            fun of(field: QueryField<*>): PreviousUnshiftable = PreviousUnshiftable(field)
         }
     }
 
@@ -1010,8 +1015,27 @@ sealed interface QueryViolation {
             get() = "Invalid cursor."
     }
 
+    /**
+     * A stream its store cannot resume (no keyset of its sort, so no positions) that names no limit: it would read a
+     * list's default number of rows and stop, which a reader takes for every match.
+     */
+    data object StreamNotResumable : QueryViolation {
+        override val kind: Kind
+            get() = Kind.REQUEST
+
+        override val location: String
+            get() = "limit"
+
+        override val code: String
+            get() = QueryErrorCodes.STREAM_NOT_RESUMABLE
+
+        override val message: String
+            get() = "This stream cannot be resumed, its sort having no keyset in its store: name a limit, or sort " +
+                "by fields its store keeps a keyset of."
+    }
+
     /** A cursor sort names [field] twice once the identity tie-breaker is appended. */
-    class CursorSortDuplicate @InternalWowApi constructor(override val field: QueryField) : QueryViolation {
+    class CursorSortDuplicate @InternalWowApi constructor(override val field: QueryField<*>) : QueryViolation {
         override val kind: Kind
             get() = Kind.REQUEST
 
@@ -1033,7 +1057,7 @@ sealed interface QueryViolation {
         companion object {
             /** A [CursorSortDuplicate] of the given values. */
             @JvmStatic
-            fun of(field: QueryField): CursorSortDuplicate = CursorSortDuplicate(field)
+            fun of(field: QueryField<*>): CursorSortDuplicate = CursorSortDuplicate(field)
         }
     }
 

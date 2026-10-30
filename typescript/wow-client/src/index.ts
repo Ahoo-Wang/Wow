@@ -96,6 +96,7 @@ export {
   SnapshotQueryClient,
 } from './queries.js';
 export {
+  OwnStateClient,
   StateClient,
   type StateReadOptions,
   type StateReadResult,
@@ -103,7 +104,7 @@ export {
 } from './state.js';
 export {
   type CommandResultStream,
-  type StreamedRow,
+  type Positioned,
   type StreamEnd,
   type StreamEndReason,
   type StreamResumeOptions,

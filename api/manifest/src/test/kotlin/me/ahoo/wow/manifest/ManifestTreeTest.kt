@@ -244,6 +244,39 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `an aggregate whose id is its owner's should come back, and an assigned id source be left out`() {
+        val basket = Manifests.cart(aggregate = "basket").copyWith(idSource = AggregateIdSource.OWNER)
+        val manifest = Manifests.fragment(aggregates = listOf(Manifests.cart(), basket))
+        val tree = ManifestTree.write(manifest)
+        val aggregates = (((tree["contexts"] as List<*>).single() as Map<*, *>)["aggregates"] as List<*>)
+            .map { it as Map<*, *> }
+        aggregates[0].containsKey("idSource").assert().isFalse()
+        aggregates[1]["idSource"].assert().isEqualTo("owner")
+        val read = ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java))
+        read.assert().isEqualTo(manifest)
+        read.contexts.single().aggregates.map { it.idSource }.assert()
+            .containsExactly(AggregateIdSource.ASSIGNED, AggregateIdSource.OWNER)
+    }
+
+    @Test
+    fun `an aggregate of an id source a newer writer added is left out, and is told`() {
+        val warnings = mutableListOf<String>()
+        val cart = manifest.contexts.single().aggregates.single()
+        val unknown = ManifestTree.write(manifest).let { tree ->
+            val contexts = (tree["contexts"] as List<*>).map { context ->
+                val map = context as Map<*, *>
+                map + ("aggregates" to (map["aggregates"] as List<*>).map { (it as Map<*, *>) + ("idSource" to "LEASED") })
+            }
+            tree + ("contexts" to contexts)
+        }
+        val read = ManifestTree.read(unknown) { warnings += it }.contexts.single()
+        read.aggregates.assert().isEmpty()
+        read.subscriptions.assert().isEqualTo(manifest.contexts.single().subscriptions)
+        warnings.assert().anyMatch { it.contains("idSource: LEASED is unknown to this reader") }
+        warnings.assert().anyMatch { it.contains("(${cart.name}) is left out") }
+    }
+
+    @Test
     fun `a raised state revision should come back, and revision 1 be left out`() {
         val aggregate = AggregateManifest(
             "cart",

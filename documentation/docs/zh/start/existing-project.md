@@ -10,7 +10,7 @@ outline: deep
 
 ## 你需要什么 {#what-you-need}
 
-- JDK 21。
+- JDK 21 或更高版本；生产环境在 JDK 25 上运行（[JDK](../operate/kubernetes#the-jdk)）。
 - Gradle 9 和 Kotlin JVM 插件 2.3 或更高版本。Java 源码也可以：KSP 在 Kotlin 编译中读取它们（[用 Java 编写领域](../guide/java)）。
 - 服务器需要 Spring Boot 4，处理 JSON 的领域代码需要 Jackson 3（`tools.jackson`）。
 
@@ -36,9 +36,9 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-alpha.6"
-        id("me.ahoo.wow.api") version "10.0.0-alpha.6"
-        id("me.ahoo.wow.service") version "10.0.0-alpha.6"
+        id("me.ahoo.wow") version "10.0.0-alpha.7"
+        id("me.ahoo.wow.api") version "10.0.0-alpha.7"
+        id("me.ahoo.wow.service") version "10.0.0-alpha.7"
     }
 }
 

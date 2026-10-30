@@ -30,7 +30,7 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.query.dataset.QueryDataset
@@ -60,7 +60,7 @@ import java.time.Duration
  */
 @OptIn(ExperimentalWowApi::class)
 class DatasetPublicationWatcher(
-    private val queries: () -> QueryApi,
+    private val queries: () -> NodeQueryApi,
     private val datasets: QueryDatasets,
     private val interval: Duration,
     private val reconcileInterval: Duration,

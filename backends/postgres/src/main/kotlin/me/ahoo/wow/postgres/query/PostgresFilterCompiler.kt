@@ -86,11 +86,11 @@ internal class PostgresFilterCompiler(
     /** The expressions of the table the statement reads: the snapshot table's by default. */
     private val expressions: PostgresQueryExpressions = PostgresSnapshotQueryExpressions,
 ) {
-    private val scopes = HashMap<QueryField, String>()
+    private val scopes = HashMap<QueryField<*>, String>()
     private var aliases = 0
 
     /** The resolution of [reference], a field node of the admitted query. */
-    fun field(reference: QueryField): ResolvedField = query.field(reference)
+    fun field(reference: QueryField<*>): ResolvedField = query.field(reference)
 
     /** A fresh alias for an element row. */
     fun nextAlias(): String = "e${++aliases}"
@@ -99,7 +99,7 @@ internal class PostgresFilterCompiler(
      * Reads the fields inside [container] from [element], a `jsonb` element expression, while [block] runs. Element
      * scopes nest by path, so a container is never its own descendant and no outer scope of it is hidden.
      */
-    fun <T> within(container: QueryField, element: String, block: () -> T): T {
+    fun <T> within(container: QueryField<*>, element: String, block: () -> T): T {
         scopes[container] = element
         return try {
             block()
@@ -109,7 +109,7 @@ internal class PostgresFilterCompiler(
     }
 
     /** Reads the fields inside [container] from [element] from now on: an aggregation's expanded element. */
-    fun enter(container: QueryField, element: String) {
+    fun enter(container: QueryField<*>, element: String) {
         scopes[container] = element
     }
 
@@ -310,7 +310,7 @@ internal class PostgresFilterCompiler(
     }
 
     /** The instant [reference] holds, in epoch milliseconds; admission granted it a temporal capability, an epoch. */
-    fun epochMillis(reference: QueryField): String {
+    fun epochMillis(reference: QueryField<*>): String {
         val field = query.field(reference)
         val value = typed(field).first
         // Admission grants temporal operations only to an epoch: this storage does not support date strings.

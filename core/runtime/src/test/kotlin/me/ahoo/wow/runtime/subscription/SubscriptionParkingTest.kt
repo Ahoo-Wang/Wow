@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -231,7 +232,7 @@ class SubscriptionParkingTest {
         runtime.stop()
         runCatching { runtime.resume("parking", cart("x")) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalStateException::class.java)
-        ledger.park(ParkedAggregate("parking", cart("x"), 1, "manual", 0))
+        ledger.park(ParkedAggregate("parking", cart("x"), 0, 1, "manual", 0))
         runtime.skip("parking", cart("x")).assert().isTrue()
         ledger.isParked("parking", cart("x")).assert().isFalse()
     }

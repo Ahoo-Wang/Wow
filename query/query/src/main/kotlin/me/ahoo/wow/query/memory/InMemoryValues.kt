@@ -47,7 +47,7 @@ internal fun Any?.operandNode(): JsonNode = when (this) {
  * field is missing. An array on the way contributes each element's child, and a numeric segment on an array its
  * element at that index.
  */
-internal fun JsonNode.valuesAt(field: QueryField): List<JsonNode> =
+internal fun JsonNode.valuesAt(field: QueryField<*>): List<JsonNode> =
     field.path.split('.').fold(listOf(this)) { found, name -> found.flatMap { it.child(name) } }
 
 private fun JsonNode.child(name: String): List<JsonNode> = when {

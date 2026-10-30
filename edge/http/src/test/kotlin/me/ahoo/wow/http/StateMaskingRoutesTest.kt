@@ -16,8 +16,10 @@ package me.ahoo.wow.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
@@ -102,6 +104,34 @@ class StateMaskingRoutesTest {
         // A field the event's schema does not protect is left as it is.
         commits[1]["events"][0]["body"]["sku"].asString().assert().isEqualTo("apple")
         node.read("/shop/cart/c-1/state/trace", "bob").status.assert().isEqualTo(404)
+    }
+
+    @Test
+    fun `a range policy should answer alike on the state read, its trace and the snapshot query`() {
+        val single = """{"kind":"single","filter":{"op":"id","value":"c-1"}}"""
+        listOf(
+            // On a system field: only what came after the first commit.
+            GreaterThanFilter(QueryField("version"), 1),
+            // On a state field: only a cart that holds an item.
+            GreaterThanFilter(QueryField("state.items"), 0),
+        ).forEach { range ->
+            val node =
+                opened(QueryNode(manifest = sensitiveManifest(), policies = listOf(QueryPolicy { _, _ -> range })))
+            node.query(single).status.assert().describedAs("$range").isEqualTo(200)
+            node.read("/shop/cart/c-1/state", "alice").status.assert().describedAs("$range").isEqualTo(200)
+            node.read("/shop/cart/c-1/state/trace?from=2", "alice").status.assert().describedAs("$range").isEqualTo(200)
+            // The cart was opened empty at version 1: that commit is hidden, so a trace that holds it is not found.
+            node.read("/shop/cart/c-1/state/trace", "alice").status.assert().describedAs("$range").isEqualTo(404)
+        }
+        // Past the latest version, every read hides the cart alike.
+        val none = opened(
+            QueryNode(
+                manifest = sensitiveManifest(),
+                policies = listOf(QueryPolicy { _, _ -> GreaterThanFilter(QueryField("version"), 2) }),
+            ),
+        )
+        none.query(single).status.assert().isEqualTo(404)
+        none.read("/shop/cart/c-1/state", "alice").status.assert().isEqualTo(404)
     }
 
     @Test

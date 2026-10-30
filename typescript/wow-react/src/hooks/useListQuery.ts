@@ -63,12 +63,12 @@ export interface UseListQueryReturn<
  *
  * @example
  * ```tsx
- * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
  * import { desc, filter, listQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useListQuery } from '@ahoo-wang/wow-react';
  *
  * function LatestOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { result, loading, error } = useListQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { result, loading, error } = useListQuery<Snapshot<OrderState>, OrderFields>({
  *     initialQuery: listQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       sort: [desc('createTime')],

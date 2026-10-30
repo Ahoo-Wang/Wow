@@ -1056,6 +1056,7 @@ public abstract interface class me/ahoo/wow/api/query/FilterExpression : me/ahoo
 }
 
 public final class me/ahoo/wow/api/query/FilterExpressionKt {
+	public static final fun QueryField (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
 	public static final fun childFilters (Lme/ahoo/wow/api/query/FilterExpression;)Ljava/util/List;
 }
 
@@ -1855,6 +1856,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field SORT_FIELD_DUPLICATE Ljava/lang/String;
 	public static final field SORT_TOO_MANY Ljava/lang/String;
 	public static final field STORAGE_UNSUPPORTED Ljava/lang/String;
+	public static final field STREAM_NOT_RESUMABLE Ljava/lang/String;
 	public static final field TEMPORAL_AGGREGATION_UNSUPPORTED Ljava/lang/String;
 	public static final field TEMPORAL_CONFIGURATION_CONFLICT Ljava/lang/String;
 	public static final field TEMPORAL_REPRESENTATION_REQUIRED Ljava/lang/String;
@@ -1867,23 +1869,21 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field VALUE_MISMATCH Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/api/query/QueryField {
+public abstract interface class me/ahoo/wow/api/query/QueryField {
 	public static final field Companion Lme/ahoo/wow/api/query/QueryField$Companion;
 	public static final field PATTERN Ljava/lang/String;
-	public fun <init> (Ljava/lang/String;)V
-	public final fun absoluteTo (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
-	public final fun append (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
-	public final fun component1 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
-	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/query/QueryField;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getPath ()Ljava/lang/String;
-	public fun hashCode ()I
-	public final fun relativeTo (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
-	public fun toString ()Ljava/lang/String;
+	public fun absoluteTo (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
+	public fun append (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
+	public abstract fun getPath ()Ljava/lang/String;
+	public static fun isPath (Ljava/lang/String;)Z
+	public static fun of (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+	public fun relativeTo (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/QueryField;
 }
 
 public final class me/ahoo/wow/api/query/QueryField$Companion {
+	public static final field PATTERN Ljava/lang/String;
+	public final fun isPath (Ljava/lang/String;)Z
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
 }
 
 public final class me/ahoo/wow/api/query/QueryValueKind : java/lang/Enum {

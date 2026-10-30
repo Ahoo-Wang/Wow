@@ -58,7 +58,7 @@ sealed interface QueryPathSegment {
  * `Property(state), Property(lines), Item, Property(sku)`. A storage adapter reports its bindings by the logical
  * template ([LogicalQuerySchema.values]) and gives each binding's physical template ([of]).
  */
-class QueryPathTemplate private constructor(input: List<QueryPathSegment>, validatedField: QueryField?) {
+class QueryPathTemplate private constructor(input: List<QueryPathSegment>, validatedField: QueryField<*>?) {
     @InternalWowApi
     constructor(segments: List<QueryPathSegment>) : this(segments, null)
 
@@ -66,7 +66,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
     internal val keyCount: Int = this.segments.count { it is QueryPathSegment.Key }
     internal val hasOrderedKeys: Boolean
     private val hash = this.segments.hashCode()
-    private val fixedField: QueryField?
+    private val fixedField: QueryField<*>?
 
     init {
         val seen = if (keyCount == 0) null else BooleanArray(keyCount)
@@ -99,7 +99,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
     }
 
     /** Native field paths omit array traversal while retaining each captured key's position. */
-    fun field(keys: List<String>): QueryField {
+    fun field(keys: List<String>): QueryField<*> {
         require(keys.size == keyCount) { "Dynamic path key count does not match its template." }
         fixedField?.let { return it }
         keys.forEach(::requireQueryPathSegment)
@@ -133,7 +133,7 @@ class QueryPathTemplate private constructor(input: List<QueryPathSegment>, valid
         @JvmStatic
         fun of(vararg segments: QueryPathSegment): QueryPathTemplate = QueryPathTemplate(segments.toList())
 
-        internal fun fromField(field: QueryField): QueryPathTemplate =
+        internal fun fromField(field: QueryField<*>): QueryPathTemplate =
             QueryPathTemplate(field.path.split('.').map(QueryPathSegment::Property), field)
     }
 }
@@ -157,4 +157,4 @@ internal fun String.isValidQueryPathSegment(): Boolean {
 
 private fun Char.isQueryLetter(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this == '_'
 
-internal fun QueryField.toPathTemplate(): QueryPathTemplate = QueryPathTemplate.fromField(this)
+internal fun QueryField<*>.toPathTemplate(): QueryPathTemplate = QueryPathTemplate.fromField(this)

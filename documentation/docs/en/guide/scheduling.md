@@ -122,7 +122,6 @@ A test of a decision that schedules expects the schedule with the aggregate's ev
 @Test
 fun `the morning job should receive yesterday's deliveries`() = scheduleSpec(
     handlers,
-    context = "eshop-inventory",
     start = Instant.parse("2026-10-20T00:00:00Z"),
 ) {
     enable("receive-deliveries")

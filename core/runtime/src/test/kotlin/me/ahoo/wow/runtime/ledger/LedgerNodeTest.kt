@@ -146,7 +146,7 @@ class LedgerNodeTest {
             // sender, whoever its operator (decision D226).
             ledgerCommand(
                 Ledger.SKIP,
-                SkipParked.of(CommandIntake.NAME, broken.ref),
+                SkipParked.of(CommandIntake.NAME, broken.ref, REFUSED_FAILED_AT),
                 broken.ref,
                 "mallory",
                 source = "sales",
@@ -206,7 +206,9 @@ class LedgerNodeTest {
                         id = "l-$asks",
                         requestId = "l-$asks",
                         ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked)),
-                        body = ClusterCodec.mapper.valueToTree(SkipParked.of(CommandIntake.NAME, parked)),
+                        body = ClusterCodec.mapper.valueToTree(
+                            SkipParked.of(CommandIntake.NAME, parked, REFUSED_FAILED_AT)
+                        ),
                         causation = Causation("root-$asks", "sales.parked/(0)/entry@2"),
                         operator = Operator("mallory", TENANT),
                         replyTo = ReplyTo(
@@ -317,6 +319,9 @@ class LedgerNodeTest {
 
     private companion object {
         const val PARTITIONS = 4
+
+        /** The parking a refused skip names: refused by its sender before any parking is read. */
+        const val REFUSED_FAILED_AT = 1L
         const val COMMANDS = PREFIX + "wow.stock.commands"
         const val OPS_COMMANDS = PREFIX + "wow.ops.commands"
         const val RECEIPTS = PREFIX + "wow.sales.receipts"

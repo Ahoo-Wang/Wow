@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import me.ahoo.cosec.runtime.identity.IdentityCodec
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.wow.example.eshop.e2e.Answer
 import me.ahoo.wow.example.eshop.e2e.json
 import java.io.IOException
@@ -22,14 +24,16 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
 import java.time.Duration
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Who sends a request: a CoSec principal ([id], [roles]) whose token the gateway verifies and forwards. Behind it, each
- * eShop service reads the caller from the token in CoSec's inject mode: a principal with the role `employee` is an
+ * Who sends a request: a CoSec principal ([id], [roles]) of the default tenant, whose token the gateway verifies,
+ * decides with its documents (.github/ga-e2e/gateway/documents) and forwards as a CoSec-Identity header. Behind it, each
+ * eShop service reads the caller from that header in CoSec's gateway mode: a principal with the role `employee` is an
  * employee (`wow.cosec.tenant-level.roles`), any other a buyer; ops reads its operators' roles the same way.
  */
 data class Who(val id: String, val roles: List<String> = emptyList()) {
@@ -41,7 +45,10 @@ data class Who(val id: String, val roles: List<String> = emptyList()) {
     }
 }
 
-/** The CoSec access tokens of the run's principals: HMAC256 with the gateway's secret, as CoSec's JWT module reads them. */
+/**
+ * The CoSec access tokens of the run's principals: HMAC256 with the gateway's secret, with the claims CoSec's JWT
+ * verifier reads (`jti`, `sub`, `tenantId`, `roles`, an `exp` it requires).
+ */
 class Tokens(private val secret: String) {
     fun of(who: Who, ttl: Duration = Duration.ofHours(2)): String {
         val now = System.currentTimeMillis() / MILLIS
@@ -49,6 +56,7 @@ class Tokens(private val secret: String) {
         val claims = linkedMapOf<String, Any>(
             "jti" to UUID.randomUUID().toString(),
             "sub" to who.id,
+            "tenantId" to TENANT,
             "iat" to now,
             "exp" to now + ttl.seconds,
         )
@@ -61,6 +69,26 @@ class Tokens(private val secret: String) {
         return "$header.$payload.$signature"
     }
 
+    /**
+     * The CoSec-Identity header the gateway forwards for [who] once it has verified a token and permitted the request:
+     * what a service behind it believes, unsigned, which is why only the gateway's pods reach a service's public port.
+     */
+    fun identity(who: Who, ttl: Duration = Duration.ofHours(2)): String {
+        val now = Instant.now()
+        return IdentityCodec.encode(
+            Identity(
+                tenant = TENANT,
+                subject = who.id,
+                app = "",
+                space = "",
+                roles = who.roles.toSet(),
+                credential = Identity.Credential(Identity.Method.JWT, UUID.randomUUID().toString(), now.plus(ttl)),
+                issuedAt = now,
+                requestId = UUID.randomUUID().toString(),
+            )
+        )
+    }
+
     private fun encode(text: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(
         text.toByteArray()
     )
@@ -68,6 +96,9 @@ class Tokens(private val secret: String) {
     private companion object {
         const val ALGORITHM = "HmacSHA256"
         const val MILLIS = 1000
+
+        /** CoSec's default tenant, Wow's default tenant behind it, whose document holds the shop's rules. */
+        const val TENANT = "(0)"
     }
 }
 

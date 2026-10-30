@@ -1,0 +1,49 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$SemanticMapsState" : {
+    "type" : "object",
+    "properties" : {
+      "deadlines" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "x-wow-temporal" : {
+          "unit" : "MILLISECONDS"
+        }
+      },
+      "pauses" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "x-wow-duration" : {
+          "unit" : "SECONDS"
+        }
+      },
+      "reminders" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "x-wow-temporal" : {
+          "unit" : "MILLISECONDS"
+        }
+      },
+      "timeouts" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "x-wow-duration" : {
+          "unit" : "SECONDS"
+        }
+      }
+    },
+    "required" : [ "deadlines", "pauses", "reminders", "timeouts" ],
+    "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$SemanticMapsState"
+  }
+}

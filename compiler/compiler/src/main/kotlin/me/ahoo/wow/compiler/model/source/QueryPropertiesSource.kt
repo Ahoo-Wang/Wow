@@ -23,7 +23,10 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
+import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.Nullability
+import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.manifest.QueryFieldNames
 
@@ -45,6 +48,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
 internal object QueryPropertiesSource {
     const val SNAPSHOT_PROPERTIES = "me.ahoo.wow.api.query.SnapshotProperties"
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
+    private const val ANY = "kotlin.Any?"
     private const val STATE = QueryFieldNames.STATE
     private const val JSON_PROPERTY = "com.fasterxml.jackson.annotation.JsonProperty"
     private const val JSON_IGNORE = "com.fasterxml.jackson.annotation.JsonIgnore"
@@ -64,8 +68,8 @@ internal object QueryPropertiesSource {
         "java.util.Collection",
     )
 
-    /** One generated constant: its [name] and the logical [path] it holds. */
-    data class Property(val name: String, val path: String)
+    /** One generated constant: its [name], the logical [path] it holds and the Kotlin [type] of its values. */
+    data class Property(val name: String, val path: String, val type: String = ANY)
 
     /** Whether the module has `wow-query-api` on its class path. */
     fun available(resolver: Resolver): Boolean =
@@ -108,7 +112,7 @@ internal object QueryPropertiesSource {
         appendLine(" */")
         appendLine("public object ${className(state)} : $SNAPSHOT_PROPERTIES() {")
         properties.forEach {
-            appendLine("    public val ${it.name}: $QUERY_FIELD = $QUERY_FIELD(\"${it.path}\")")
+            appendLine("    public val ${it.name}: $QUERY_FIELD<${it.type}> = $QUERY_FIELD.of(\"${it.path}\")")
         }
         appendLine("}")
     }
@@ -125,13 +129,40 @@ internal object QueryPropertiesSource {
             if (!QueryFieldNames.isSegment(wireName)) return@forEach
             val childPath = "$path.$wireName"
             val childName = QueryFieldNames.constantOf(childPath)
-            if (properties.putIfAbsent(childName, Property(childName, childPath)) != null) return@forEach
-            val nested = property.type.resolve().nestedClass() ?: return@forEach
+            val type = property.type.resolve()
+            if (properties.putIfAbsent(childName, Property(childName, childPath, type.kotlinType())) != null) {
+                return@forEach
+            }
+            val nested = type.nestedClass() ?: return@forEach
             val qualified = nested.qualifiedName!!.asString()
             if (qualified !in visited) {
                 collect(nested, childPath, visited + qualified, properties)
             }
         }
+    }
+
+    /**
+     * This type as Kotlin code, the values a constant of it holds: its qualified name, its type arguments and its
+     * nullability; a platform type of a Java state is nullable, and a type parameter is [ANY].
+     */
+    private fun KSType.kotlinType(): String {
+        val name = declaration.qualifiedName?.asString()
+            ?.takeUnless { declaration is KSTypeParameter }
+            ?: return ANY
+        val arguments = if (arguments.isEmpty()) {
+            ""
+        } else {
+            arguments.joinToString(", ", "<", ">") { argument ->
+                val type = argument.type?.resolve() ?: return@joinToString "*"
+                when (argument.variance) {
+                    Variance.STAR -> "*"
+                    Variance.COVARIANT -> "out ${type.kotlinType()}"
+                    Variance.CONTRAVARIANT -> "in ${type.kotlinType()}"
+                    Variance.INVARIANT -> type.kotlinType()
+                }
+            }
+        }
+        return name + arguments + if (nullability == Nullability.NOT_NULL) "" else "?"
     }
 
     private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>): Boolean =

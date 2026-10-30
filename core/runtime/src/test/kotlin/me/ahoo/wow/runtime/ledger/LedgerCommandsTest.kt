@@ -137,6 +137,10 @@ class LedgerCommandsTest {
 
     private fun lastRecord(): JsonNode = sent.last().record
 
+    /** A skip of [ref]'s entry, naming the parking the ledger holds, as the ops saga sends one. */
+    private suspend fun skipOf(ref: AggregateRef): SkipParked =
+        SkipParked.of(NAME, ref, ledger.parked(NAME, ref)!!.failedAt)
+
     /**
      * The flake of LedgerNodeTest and EshopLedgerOpsTest: the reconciliation scan ran after the resume resolved the
      * entry and before the resume published its outcome, so it published the entry as RESOLVED first, and ops kept
@@ -150,7 +154,7 @@ class LedgerCommandsTest {
             failing.set(false)
             scanOnResolve.set(true)
             commands.execute(wire(ResumeParked.of(NAME, X1))).assert().isNull()
-            commands.execute(wire(SkipParked.of(NAME, cart("x2")))).assert().isNull()
+            commands.execute(wire(skipOf(cart("x2")))).assert().isNull()
             scanOnResolve.set(false)
             publisher.scan()
             sent.filter { it.type.endsWith(Ledger.RECORD_RESOLVED) }
@@ -197,7 +201,7 @@ class LedgerCommandsTest {
     fun `a skip resolves the entry, and one of a partition another node runs is left as a request`(): Unit =
         runBlocking {
             parkAll("x1", "x2")
-            commands.execute(wire(SkipParked.of(NAME, X1))).assert().isNull()
+            commands.execute(wire(skipOf(X1))).assert().isNull()
             lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.SKIPPED)
             runtime.stop()
             commands.execute(wire(ResumeParked.of(NAME, cart("x2")))).assert().isNull()
@@ -243,9 +247,9 @@ class LedgerCommandsTest {
             parkAll("x1", start = false)
             // From another context's saga, or from no saga at all (a command written to the topic by hand).
             listOf(
-                wire(SkipParked.of(NAME, X1), source = "shop"),
-                wire(SkipParked.of(NAME, X1), source = null),
-                wire(SkipParked.of(NAME, X1), source = Ledger.OPS_CONTEXT, causation = null),
+                wire(skipOf(X1), source = "shop"),
+                wire(skipOf(X1), source = null),
+                wire(skipOf(X1), source = Ledger.OPS_CONTEXT, causation = null),
             ).forEach { refused ->
                 val error = commands.execute(refused)!!
                 error.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
@@ -255,9 +259,9 @@ class LedgerCommandsTest {
             sent.assert().isEmpty()
             // Another ops context, as wow.ops.publish.context names it.
             val elsewhere = LedgerCommands(ops, "platform-ops") { publisher }
-            elsewhere.execute(wire(SkipParked.of(NAME, X1), source = Ledger.OPS_CONTEXT))!!.code.assert()
+            elsewhere.execute(wire(skipOf(X1), source = Ledger.OPS_CONTEXT))!!.code.assert()
                 .isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-            elsewhere.execute(wire(SkipParked.of(NAME, X1), source = "platform-ops")).assert().isNull()
+            elsewhere.execute(wire(skipOf(X1), source = "platform-ops")).assert().isNull()
             ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         }
 
@@ -273,7 +277,7 @@ class LedgerCommandsTest {
         )
         commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
-        commands.execute(wire(SkipParked.of(NAME, X1), operator = null)).assert().isNull()
+        commands.execute(wire(skipOf(X1), operator = null)).assert().isNull()
         // The partition is another node's: the skip is left for it.
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
     }
@@ -283,7 +287,7 @@ class LedgerCommandsTest {
         parkAll("x1", "x2", start = false)
         val quiet = LedgerCommands(ops)
         quiet.execute(wire(MarkParkedRecoverable.of(NAME, X1, "recoverable"))).assert().isNull()
-        quiet.execute(wire(SkipParked.of(NAME, X1))).assert().isNull()
+        quiet.execute(wire(skipOf(X1))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
         sent.assert().isEmpty()
     }

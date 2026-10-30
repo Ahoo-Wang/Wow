@@ -26,17 +26,25 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 // its answers to a request already committed.
 
 /**
- * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: it does
- * not exist and the command does not create it; it exists in another scope than the command's; it is
+ * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: its id is
+ * its owner's ([ownsById]) and the command's owner is another; it does not exist and the command does not create it; it exists in another scope than the command's; it is
  * deleted and the command neither restores it nor is decided on a deleted aggregate ([DecideFunction.onDeleted]); it
  * exists and the command must create it; it is not at the expected version.
  *
  * The scope comes right after existence, so a caller outside the aggregate's scope learns only that it exists,
  * which a colliding creation would tell it anyway: not whether it is deleted, nor its version.
  */
-internal fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded: CachedState): CommandOutcome? {
+@Suppress("CyclomaticComplexMethod") // One branch per refusal, in their order.
+internal fun admissible(
+    decider: DecideFunction<*>,
+    command: Command<*>,
+    loaded: CachedState,
+    ownsById: Boolean,
+): CommandOutcome? {
     val version = loaded.version
     return when {
+        ownsById && command.scope.ownerId != command.ref.id -> forbidden(command)
+
         version == 0 && decider.creation == Creation.NONE ->
             rejected(FrameworkCodes.AGGREGATE_NOT_FOUND, "${command.ref} does not exist.")
 

@@ -31,14 +31,17 @@ import java.util.concurrent.ConcurrentHashMap
  * The long-horizon retries of one [SubscriptionRuntime]'s parked entries (9.x `CompensationScheduler`),
  * run by the node that owns each entry's partition, where the entry's aggregate lane is.
  *
- * Each [scan] reads every entry of the runtime's subscriptions from the ledger and, for each one in a partition the
- * runtime runs here:
+ * Each [scan] reads, for each of the runtime's subscriptions, only the entries due in the partitions it runs here
+ * ([FailureLedger.due]): those the ledger holds no next attempt for, and those whose next attempt has come. For each:
  *
  * - an operator's request is taken from the ledger ([ParkedAmendment.TakeRequest]) and run: a skip,
  *   or a resume, which runs whatever the retry spec says and counts no retry;
  * - otherwise, once its next retry is due ([ParkedAggregate.nextRetryAt]), the retry is claimed in the ledger
  *   ([ParkedAmendment.ClaimRetry]) and the aggregate resumed. A resume that fails again leaves the entry parked from
- *   where it failed; when that was the last retry the spec allows, the entry is exhausted, and the notifier hears it.
+ *   where it failed; when that was the last retry the spec allows, the entry is exhausted, and the notifier hears it;
+ * - an entry whose retry is not due yet, or that is not retried automatically, is scheduled
+ *   ([ParkedAmendment.Schedule]): its next retry, or [ParkedAggregate.NEVER], so the next scans pass it over until
+ *   then, or until it is claimed or an operator changes it.
  *
  * Claims and takes are conditional on what was read, so when an owner hands a partition off while it retries, the
  * next owner neither claims the same retry again nor runs a request twice; it starts the next retry once its backoff
@@ -55,31 +58,55 @@ internal class ParkedRetries(
     private val running: MutableSet<Pair<String, AggregateRef>> = ConcurrentHashMap.newKeySet()
 
     /**
-     * Reads [subscriptions]' entries and, in [scope], runs those due here: each one of a partition whose worker
-     * [workerOf] finds.
+     * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
+     * whose worker [workerOf] finds; schedules the others.
      */
     suspend fun scan(
         scope: CoroutineScope,
         subscriptions: Collection<String>,
+        partitions: Set<Int>,
         workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
     ) {
+        if (partitions.isEmpty()) {
+            return
+        }
         for (subscription in subscriptions) {
+            val now = clock.millis()
             var after: AggregateRef? = null
             do {
-                val page = ledger.list(subscription, after)
+                val page = ledger.due(subscription, partitions, now, after)
                 for (entry in page) {
-                    if (entry.request != null || due(entry)) {
-                        workerOf(subscription, entry.ref)?.let { dispatch(scope, it, entry) }
-                    }
+                    look(scope, entry, now, workerOf)
                 }
                 after = page.lastOrNull()?.ref
             } while (page.size == FailureLedger.DEFAULT_PAGE)
         }
     }
 
-    private fun due(entry: ParkedAggregate): Boolean {
-        val next = entry.nextRetryAt(options.specOf(entry)) ?: return false
-        return clock.millis() >= next
+    /** Runs [entry] when an operator asked for it or its retry is due at [now]; schedules it otherwise. */
+    private suspend fun look(
+        scope: CoroutineScope,
+        entry: ParkedAggregate,
+        now: Long,
+        workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
+    ) {
+        val next = entry.nextRetryAt(options.specOf(entry))
+        if (entry.request != null || next != null && now >= next) {
+            workerOf(entry.subscription, entry.ref)?.let { dispatch(scope, it, entry) }
+            return
+        }
+        if (entry.subscription to entry.ref in running) {
+            // A retry of it runs: the ledger schedules it once that retry has claimed its own.
+            return
+        }
+        val at = next ?: ParkedAggregate.NEVER
+        if (entry.nextAttemptAt != at) {
+            ledger.amend(
+                entry.subscription,
+                entry.ref,
+                ParkedAmendment.Schedule(entry.retries, entry.nextAttemptAt, at)
+            )
+        }
     }
 
     private fun dispatch(scope: CoroutineScope, worker: SubscriptionWorker, entry: ParkedAggregate) {

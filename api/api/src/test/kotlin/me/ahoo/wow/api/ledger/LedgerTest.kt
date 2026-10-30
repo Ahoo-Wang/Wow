@@ -51,7 +51,7 @@ class LedgerTest {
     fun `the commands name the entry they act on, in plain fields`() {
         val commands: List<LedgerCommand> = listOf(
             ResumeParked.of("s", ref),
-            SkipParked.of("s", ref),
+            SkipParked.of("s", ref, 1),
             MarkParkedRecoverable.of("s", ref, "recoverable"),
             ApplyParkedRetrySpec.of("s", ref, maxRetries = 3),
         )

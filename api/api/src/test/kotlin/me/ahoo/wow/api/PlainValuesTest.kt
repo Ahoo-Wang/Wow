@@ -111,7 +111,7 @@ class PlainValuesTest {
         valueSemantics({ SpaceTransferred.of("space") }, SpaceTransferred.of("other"))
         valueSemantics({ TagsApplied.of(mapOf("tier" to listOf("gold"))) }, TagsApplied.of(emptyMap()))
         valueSemantics({ ResumeParked.of("Saga.on", parked) }, ResumeParked.of("Saga.other", parked))
-        valueSemantics({ SkipParked.of("Saga.on", parked) }, SkipParked.of("Saga.other", parked))
+        valueSemantics({ SkipParked.of("Saga.on", parked, 1) }, SkipParked.of("Saga.other", parked, 1))
         valueSemantics(
             { MarkParkedRecoverable.of("Saga.on", parked, "recoverable") },
             MarkParkedRecoverable.of("Saga.on", parked, "unrecoverable"),

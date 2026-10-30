@@ -38,7 +38,7 @@ function basket(
   return fakeServices([
     [
       "GET",
-      /^\/eshop-basket\/basket\/alice\/state$/,
+      /^\/eshop-basket\/basket\/state$/,
       () => ({
         json: stateView("eshop-basket", "basket", "alice", { checkouts: 0, items }, "alice"),
       }),
@@ -83,9 +83,9 @@ describe("the basket", () => {
       expect(received.filter((r) => r.method === "POST")).toHaveLength(2),
     );
     const [change, remove] = received.filter((r) => r.method === "POST");
-    expect(change.path).toBe("/eshop-basket/basket/alice/change-basket-item-quantity");
+    expect(change.path).toBe("/eshop-basket/basket/change-basket-item-quantity");
     expect(change.body).toEqual({ productId: "mug", quantity: 3 });
-    expect(remove.path).toBe("/eshop-basket/basket/alice/remove-basket-item");
+    expect(remove.path).toBe("/eshop-basket/basket/remove-basket-item");
     expect(remove.body).toEqual({ productId: "cap" });
   });
 
@@ -93,7 +93,7 @@ describe("the basket", () => {
     const { transport } = fakeServices([
       [
         "GET",
-        /^\/eshop-basket\/basket\/alice\/state$/,
+        /^\/eshop-basket\/basket\/state$/,
         () => problemAnswer(404, "Not Found", "wow.aggregate.not-found"),
       ],
     ]);

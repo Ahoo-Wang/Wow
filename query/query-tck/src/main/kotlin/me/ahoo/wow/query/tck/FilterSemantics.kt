@@ -122,14 +122,14 @@ class SemanticCase(
     val id: String,
     val shape: SemanticShape,
     val matches: Set<String>,
-    private val filter: (QueryField) -> FilterExpression,
+    private val filter: (QueryField<*>) -> FilterExpression,
 ) {
     init {
         val names = checkNotNull(SemanticProbe.ALL[shape]).map { it.name }.toSet()
         require(names.containsAll(matches)) { "Case [$id] names probes outside $shape: ${matches - names}." }
     }
 
-    fun filter(field: QueryField): FilterExpression = filter.invoke(field)
+    fun filter(field: QueryField<*>): FilterExpression = filter.invoke(field)
 
     /** The operator this case covers, as the request names it before normalization. */
     val operator: FilterOperator = filter(QueryField("probe")).operator
@@ -157,13 +157,13 @@ object FilterSemantics {
     private const val VALUE_AND_OTHER = SemanticProbe.VALUE_AND_OTHER
     private const val TRAILING_NEWLINE = SemanticProbe.TRAILING_NEWLINE
 
-    private fun string(id: String, vararg matches: String, filter: (QueryField) -> FilterExpression) =
+    private fun string(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("string.$id", SemanticShape.STRING, matches.toSet(), filter)
 
-    private fun number(id: String, vararg matches: String, filter: (QueryField) -> FilterExpression) =
+    private fun number(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("number.$id", SemanticShape.NUMBER, matches.toSet(), filter)
 
-    private fun array(id: String, vararg matches: String, filter: (QueryField) -> FilterExpression) =
+    private fun array(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("array.$id", SemanticShape.STRING_ARRAY, matches.toSet(), filter)
 
     val CASES: List<SemanticCase> = listOf(

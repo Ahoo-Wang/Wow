@@ -39,6 +39,7 @@ import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.http.route.ServiceRouteHandling
 import me.ahoo.wow.http.route.ServiceRoutes
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
@@ -82,7 +83,8 @@ import reactor.core.publisher.Mono
  *   transformer finds the aggregate of (`@Unaddressed`, or mounted) has its route without an id there, as the
  *   compiler writes it. The system commands are among them, routed as the Manifest says ([systemTarget]): the
  *   lifecycle commands an aggregate lists, its snapshot rebuild, and the job commands of its context;
- * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads],
+ * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads], and
+ *   `GET /{context}/{aggregate}/state` and `…/state/trace` the caller's own aggregate of one whose id is its owner's,
  * in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command;
  * each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
  *   gateway of [queries] or, without one, by [masks];
@@ -157,6 +159,12 @@ fun wowRoutes(
             val state = "/$context/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
             GET(state) { request -> statuses.answering { states.handle(request, type) } }
             GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
+            if (aggregate.idSource == AggregateIdSource.OWNER) {
+                // The caller's own aggregate, whose id is its owner's: the same reads by no id.
+                val own = "/$context/${aggregate.name}/${WowPaths.STATE}"
+                GET(own) { request -> statuses.answering { states.handle(request, type) } }
+                GET("$own/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
+            }
             queryRoutes(type, aggregate, queries, queryHandler)
         }
         manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
@@ -369,7 +377,8 @@ private fun CoRouterFunctionDsl.commandRoutes(
     aggregate.commands.forEach { command ->
         command.routes.forEach { route ->
             val target = if (command.system) {
-                systemTarget(context, aggregate.name, command.name)
+                // A lifecycle command of an aggregate whose id is its owner's has a route by no id, the caller's own.
+                systemTarget(context, aggregate.name, command.name, route.path.contains(CommandRoutes.ID))
             } else {
                 CommandTarget(
                     context,
@@ -419,7 +428,12 @@ private fun CoRouterFunctionDsl.route(
  * built-in job aggregate the path's id names. Each is sent through the gateway like any command, so its authorizer
  * (CoSec's, by the action of the route) decides who may send it in their tenant.
  */
-private fun systemTarget(context: String, aggregate: String?, name: String): CommandTarget = when {
+private fun systemTarget(
+    context: String,
+    aggregate: String?,
+    name: String,
+    byId: Boolean = true
+): CommandTarget = when {
     name == SnapshotRebuilds.REBUILD ->
         CommandTarget(context, SnapshotRebuilds.AGGREGATE, name, byId = false, id = checkNotNull(aggregate))
 
@@ -428,7 +442,7 @@ private fun systemTarget(context: String, aggregate: String?, name: String): Com
         context,
         checkNotNull(aggregate) { "The system command $name has no aggregate." },
         name,
-        byId = true
+        byId = byId,
     )
 }
 

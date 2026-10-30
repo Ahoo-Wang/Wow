@@ -17,7 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.client.ClientMode
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerClients
@@ -406,7 +406,9 @@ class WowAutoConfiguration {
         val peer = properties.peer
         val described = properties.peers
             .filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
-        fun client(mode: ClientMode) = lazy {
+
+        /** A client of the peers, its mode named by [mode]: as the node's service, or forwarding the end user's. */
+        fun client(mode: WowClient.Builder.() -> Unit) = lazy {
             val builder = WowClient.builder()
                 .endpoints(endpoints)
                 .httpClient(httpClient)
@@ -422,20 +424,18 @@ class WowAutoConfiguration {
                 .ids(globalIds)
                 .manifestPeers(described)
             properties.peerTimeouts().forEach { (context, timeout) -> builder.timeout(context, timeout) }
-            when (mode) {
-                is ClientMode.Service -> mode.service?.let(builder::service)
-                is ClientMode.User -> builder.user(mode.credential)
-            }
-            builder.build()
+            builder.apply(mode).build()
         }
         return PeerClients(
             properties.peers.filterKeys { it !in contracts.localContexts }
                 .mapValues { (_, target) -> target.mode ?: peer.mode },
             contracts.localContexts,
             contracts.peerContexts,
-            client(ClientMode.Service(identity.service)),
-            client(ClientMode.User(UserCredential.FORWARDED)),
+            client { service(identity.service) },
+            client { user(UserCredential.FORWARDED) },
             peer.mode,
+            // The node's service as its Manifest names it, which a subscription reads a peer as.
+            checkNotNull(contracts.local.service) { "The node's Manifest names no service." }.name,
             described,
         )
     }
@@ -831,6 +831,7 @@ class WowAutoConfiguration {
         dependencies: Dependencies,
         routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
         commands: ObjectProvider<CommandClient>,
+        queryApi: ObjectProvider<NodeQueryApi>,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -844,6 +845,7 @@ class WowAutoConfiguration {
             handlers = models.providers.flatMap { it.routes(dependencies) },
             authorizers = routeAuthorizers.orderedStream().toList(),
             commands = commands.getIfAvailable(),
+            queries = queryApi.getIfAvailable(),
         ),
     )
 

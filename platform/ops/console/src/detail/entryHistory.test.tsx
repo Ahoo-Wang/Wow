@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import type { EventStreamRecord } from "@ahoo-wang/wow-client";
+import type { EventStream } from "@ahoo-wang/wow-client";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
@@ -50,7 +50,7 @@ function stream(
   name: string,
   body: unknown,
   operator?: string,
-): EventStreamRecord {
+): EventStream {
   return {
     aggregateId: "id",
     tenantId: "(0)",
@@ -67,7 +67,7 @@ function stream(
 }
 
 /** One entry's life: parked, retried, an operator's requests, parked again, resolved. */
-const STREAMS: EventStreamRecord[] = [
+const STREAMS: EventStream[] = [
   stream(1, "ParkedRecorded", { entry: entry() }),
   stream(2, "ParkedRecorded", { entry: entry({ retries: 1 }) }),
   stream(3, "ParkedRecorded", {
@@ -102,7 +102,7 @@ const STREAMS: EventStreamRecord[] = [
 ];
 
 /** A system event the kernel commits beside the entry's own (wow-client's SystemEvent). */
-const TAGGED: EventStreamRecord = {
+const TAGGED: EventStream = {
   ...stream(11, "unused", {}),
   events: [
     { name: "wow.lifecycle.TagsApplied", revision: 1, body: { tags: {} } },
@@ -212,7 +212,7 @@ describe("an entry's history", () => {
 });
 
 function timeline(
-  source: (id: string) => Promise<EventStreamRecord[]>,
+  source: (id: string) => Promise<EventStream[]>,
   locale: Locale = "en",
 ) {
   render(

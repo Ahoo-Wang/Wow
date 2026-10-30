@@ -54,7 +54,8 @@ abstract class FailureLedgerSpec {
         fromVersion: Int,
         reason: String = "failed at $fromVersion",
         subscription: String = this.subscription,
-    ) = ParkedAggregate(subscription, ref, fromVersion, reason, FAILED_AT + fromVersion)
+        partition: Int = 0,
+    ) = ParkedAggregate(subscription, ref, partition, fromVersion, reason, FAILED_AT + fromVersion)
 
     @Test
     fun `a parked aggregate reads back for its subscription only`(): Unit = runBlocking {
@@ -159,6 +160,90 @@ abstract class FailureLedgerSpec {
     }
 
     @Test
+    fun `a tenant's parked aggregates are listed alone, in pages, in aggregate order`(): Unit = runBlocking {
+        val refs = listOf(ref("b"), ref("a", tenant = "u2"), ref("a"), ref("c", tenant = "u2"), ref("a", tenant = "u1"))
+        refs.forEach { ledger.park(entry(it, 1)) }
+        ledger.park(entry(ref("z", tenant = "u2"), 1, subscription = another))
+        val first = ledger.list(subscription, limit = 1, tenantId = "u2")
+        first.map { it.ref }.assert().containsExactly(ref("a", tenant = "u2"))
+        ledger.list(subscription, after = first.last().ref, limit = 1, tenantId = "u2").map { it.ref }
+            .assert().containsExactly(ref("c", tenant = "u2"))
+        ledger.list(subscription, after = ref("c", tenant = "u2"), tenantId = "u2").assert().isEmpty()
+        ledger.list(subscription, tenantId = "tenant").map { it.ref }.assert().containsExactly(ref("a"), ref("b"))
+        ledger.list(subscription, tenantId = "nobody").assert().isEmpty()
+    }
+
+    @Test
+    fun `a subscription's parked aggregates are counted up to the bound`(): Unit = runBlocking {
+        (1..5).forEach { ledger.park(entry(ref("a$it"), 1)) }
+        ledger.park(entry(ref("z"), 1, subscription = another))
+        ledger.count(subscription, 10).assert().isEqualTo(5)
+        ledger.count(subscription, 5).assert().isEqualTo(5)
+        ledger.count(subscription, 3).assert().isEqualTo(3)
+        ledger.count(another, 10).assert().isEqualTo(1)
+        ledger.count("$subscription-none", 10).assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `the due entries are those of the partitions not scheduled yet or scheduled by now, in pages`(): Unit =
+        runBlocking {
+            ledger.park(entry(ref("a"), 1, partition = 0))
+            ledger.park(entry(ref("b"), 1, partition = 1))
+            ledger.park(entry(ref("c"), 1, partition = 0))
+            ledger.park(entry(ref("d"), 1, partition = 0))
+            ledger.park(entry(ref("e"), 1, partition = 0, subscription = another))
+            ledger.amend(subscription, ref("c"), ParkedAmendment.Schedule(0, null, FAILED_AT + 100))!!
+            ledger.amend(subscription, ref("d"), ParkedAmendment.Schedule(0, null, ParkedAggregate.NEVER))!!
+            fun refs(page: List<ParkedAggregate>) = page.map { it.ref }
+
+            refs(ledger.due(subscription, listOf(0), FAILED_AT + 99)).assert().containsExactly(ref("a"))
+            refs(ledger.due(subscription, listOf(0), FAILED_AT + 100)).assert().containsExactly(ref("a"), ref("c"))
+            refs(ledger.due(subscription, listOf(0, 1), FAILED_AT + 100)).assert()
+                .containsExactly(ref("a"), ref("b"), ref("c"))
+            refs(ledger.due(subscription, listOf(1, 2), FAILED_AT)).assert().containsExactly(ref("b"))
+            // At NEVER, every entry of the partitions: what a node reads as it acquires them.
+            refs(ledger.due(subscription, listOf(0), ParkedAggregate.NEVER)).assert()
+                .containsExactly(ref("a"), ref("c"), ref("d"))
+            val first = ledger.due(subscription, listOf(0, 1), FAILED_AT + 100, limit = 2)
+            refs(first).assert().containsExactly(ref("a"), ref("b"))
+            refs(ledger.due(subscription, listOf(0, 1), FAILED_AT + 100, after = first.last().ref, limit = 2))
+                .assert().containsExactly(ref("c"))
+            ledger.due(subscription, emptyList(), ParkedAggregate.NEVER).assert().isEmpty()
+            ledger.due(subscription, listOf(7), ParkedAggregate.NEVER).assert().isEmpty()
+        }
+
+    @Test
+    fun `a schedule holds only on the retries and schedule read, and a claim or an operator's change clears it`(): Unit =
+        runBlocking {
+            ledger.park(entry(ref("a"), 1))
+            val at = FAILED_AT + 100
+            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, null, at))!!.nextAttemptAt
+                .assert().isEqualTo(at)
+            // Read before it was scheduled, or before another retry: written over nothing.
+            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, null, at + 1)).assert().isNull()
+            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, at, at + 1)).assert().isNull()
+            ledger.parked(subscription, ref("a"))!!.nextAttemptAt.assert().isEqualTo(at)
+            ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, at))!!.nextAttemptAt.assert().isNull()
+            listOf(
+                ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
+                ParkedAmendment.ApplyRetrySpec(SPEC),
+                ParkedAmendment.Request(LedgerRequest.RESUME),
+            ).forEachIndexed { index, change ->
+                val scheduled = at + 10 + index
+                ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, scheduled))!!.nextAttemptAt
+                    .assert().isEqualTo(scheduled)
+                ledger.amend(subscription, ref("a"), change)!!.nextAttemptAt.assert().isNull()
+            }
+            // Taking the request keeps the entry unscheduled, for the owner to look at again.
+            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RESUME))!!.nextAttemptAt
+                .assert().isNull()
+            val reparked = entry(ref("a"), 4)
+            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, at + 50))
+            ledger.repark(reparked).assert().isTrue()
+            ledger.parked(subscription, ref("a"))!!.nextAttemptAt.assert().isEqualTo(at + 50)
+        }
+
+    @Test
     fun `resolving removes the entry, after which the aggregate may be parked anew`(): Unit = runBlocking {
         val parked = entry(ref("a"), 4)
         ledger.park(parked)
@@ -174,12 +259,13 @@ abstract class FailureLedgerSpec {
 
     @Test
     fun `a new entry's retry state reads back with it, in its page and when resolved`(): Unit = runBlocking {
-        val parked = entry(ref("a"), 3).copyWith(
+        val parked = entry(ref("a"), 3, partition = 5).copyWith(
             retries = 2,
             retryAt = FAILED_AT + 100,
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
             request = LedgerRequest.RESUME,
+            nextAttemptAt = FAILED_AT + 500,
         )
         ledger.park(parked).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
@@ -278,6 +364,7 @@ abstract class FailureLedgerSpec {
             ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
             ParkedAmendment.ApplyRetrySpec(SPEC),
             ParkedAmendment.Request(LedgerRequest.RESUME),
+            ParkedAmendment.Schedule(0, null, FAILED_AT),
             ParkedAmendment.TakeRequest(LedgerRequest.RESUME),
         ).forEach { amendment ->
             ledger.amend(subscription, ref("a"), amendment).assert().isNull()

@@ -19,11 +19,11 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -138,11 +138,11 @@ class ProcessorForkTest {
         sagaSpec(calling) {
             answerCalls { rejectedResult(it, "stock.closed") }
             fork {
-                whenEvent(placed(1)) { expectError<CommandRejectedException>() }
+                whenEvent(placed(1)) { expectError<CallRejectedHandlingException>() }
                 answerCalls { committedResult(it) }
                 whenEvent(placed(1)) { expectCalls(Check("order-1")) }
             }
-            whenEvent(placed(1)) { expectError<CommandRejectedException>() }
+            whenEvent(placed(1)) { expectError<CallRejectedHandlingException>() }
         }
     }
 
@@ -231,7 +231,8 @@ class ProcessorForkTest {
     fun `a saga as a tree of tests`() = sagaSpecTests(sagaHandlers { it * 2 }) {
         whenEvent(placed(2)) {
             expectCommands(Reserve("order-1", 4))
-            fork("reserved") { whenCommitted(commands.single(), version = 2) { expectCommand(Confirm(2)) } }
+            val reserve = commands.single()
+            fork("reserved") { whenCommitted(reserve, version = 2) { expectCommand(Confirm(2)) } }
         }
     }
 }

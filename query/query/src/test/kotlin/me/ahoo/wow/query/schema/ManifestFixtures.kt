@@ -25,8 +25,9 @@ import me.ahoo.wow.spi.json.WowJson
 
 /**
  * The Manifest of a `shop.order` aggregate whose state is the `manifest-tools` snapshot of every query keyword
- * (`compiler/manifest-tools/src/test/resources/query-keywords/order-state.schema.json`, #4332), copied byte for byte
- * to `manifest/order-state.defs.json`.
+ * (`compiler/manifest-tools/src/test/resources/query-keywords/order-state.defs.json`, #4332), copied byte for byte
+ * to `manifest/order-state.defs.json`. Every fixture of `manifest/` is such a copy, under its snapshot's name, and
+ * [ManifestFixturesTest] holds it to the snapshot.
  */
 internal object ManifestFixtures {
     val ORDER = AggregateType("shop", "order")
@@ -42,6 +43,26 @@ internal object ManifestFixtures {
         val text = checkNotNull(javaClass.classLoader.getResource("manifest/order-state.defs.json")).readText()
         WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
     }
+
+    /**
+     * The `$defs` `manifest-tools` writes for each state of #5166's item (`QueryKeywordsTest.Item` in a list, in a map,
+     * in both and in two lists), keyed by the state's `$defs` key: the snapshot
+     * `compiler/manifest-tools/src/test/resources/query-keywords/item-states.defs.json`, copied byte for byte to
+     * `manifest/item-states.defs.json`.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val ITEM_STATE_DEFS: Map<String, Map<String, Any?>> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/item-states.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Map<String, Any?>>
+    }
+
+    /** The `$defs` of `QueryKeywordsTest.SemanticMapsState`, semantic types declared on maps: `manifest/semantic-maps.defs.json`. */
+    @Suppress("UNCHECKED_CAST")
+    val SEMANTIC_MAPS_DEFS: Map<String, Any?> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/semantic-maps.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
+    }
+    const val SEMANTIC_MAPS_STATE = "me.ahoo.wow.manifest.tools.QueryKeywordsTest\$SemanticMapsState"
 
     /** A Manifest of one aggregate `shop.order` with the state [state] (a `$defs` key) among [defs]. */
     fun manifest(

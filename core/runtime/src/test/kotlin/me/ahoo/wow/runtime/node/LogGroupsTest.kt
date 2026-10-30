@@ -241,7 +241,8 @@ class LogGroupsTest {
         stores.default.ledger.isParked(PROJECTOR, poison).assert().isFalse()
         node.parked.get(PROJECTOR, poison)?.entry?.ref.assert().isEqualTo(poison)
         node.parked.list(PROJECTOR).entries.map { it.entry.ref }.assert().containsExactly(poison)
-        node.parked.skip(PROJECTOR, poison).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        val failedAt = node.parked.get(PROJECTOR, poison)!!.entry.failedAt
+        node.parked.skip(PROJECTOR, poison, failedAt).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         stores.invoices.ledger.isParked(PROJECTOR, poison).assert().isFalse()
     }
 

@@ -2386,6 +2386,7 @@
         "object"
       ],
       "kind": "object",
+      "nullable": false,
       "filter": {
         "operators": [
           "is-null",
@@ -2393,6 +2394,10 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
       }
     },
     {
@@ -2401,6 +2406,11 @@
         "integer"
       ],
       "kind": "scalar",
+      "nullable": false,
+      "semantic": {
+        "type": "temporal-epoch",
+        "timeUnit": "MILLISECONDS"
+      },
       "filter": {
         "operators": [
           "eq",
@@ -2415,8 +2425,52 @@
           "is-null",
           "is-not-null",
           "exists",
-          "not-exists"
+          "not-exists",
+          "today",
+          "before-today",
+          "tomorrow",
+          "this-week",
+          "next-week",
+          "last-week",
+          "this-month",
+          "last-month",
+          "recent-days",
+          "earlier-days",
+          "yesterday",
+          "next-month",
+          "last-year",
+          "this-year",
+          "next-year",
+          "before-now",
+          "after-now"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms",
+          "histogram",
+          "date-histogram",
+          "date-part"
+        ],
+        "missingKey": false,
+        "functions": [
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
+        ],
+        "distinctCount": true,
+        "percentile": true,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": true,
+        "inMetricFilter": true
       }
     },
     {
@@ -2425,6 +2479,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2446,6 +2501,23 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
       }
     },
     {
@@ -2454,6 +2526,11 @@
         "integer"
       ],
       "kind": "scalar",
+      "nullable": false,
+      "semantic": {
+        "type": "duration",
+        "timeUnit": "MILLISECONDS"
+      },
       "filter": {
         "operators": [
           "eq",
@@ -2470,6 +2547,31 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms",
+          "histogram"
+        ],
+        "missingKey": false,
+        "functions": [
+          "sum",
+          "avg",
+          "min",
+          "max",
+          "stddev",
+          "variance"
+        ],
+        "distinctCount": true,
+        "percentile": true,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": true,
+        "inMetricFilter": true
       }
     },
     {
@@ -2478,6 +2580,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2499,6 +2602,23 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
       }
     },
     {
@@ -2507,6 +2627,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2528,6 +2649,23 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
       }
     },
     {
@@ -2536,6 +2674,7 @@
         "string"
       ],
       "kind": "scalar",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2557,6 +2696,23 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
       }
     },
     {
@@ -2565,6 +2721,7 @@
         "string"
       ],
       "kind": "array",
+      "nullable": false,
       "filter": {
         "operators": [
           "eq",
@@ -2586,6 +2743,23 @@
           "exists",
           "not-exists"
         ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "terms"
+        ],
+        "missingKey": false,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": false,
+        "firstLast": false,
+        "expressionInput": false,
+        "inMetricFilter": false
       }
     }
   ],

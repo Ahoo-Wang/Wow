@@ -162,7 +162,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         )
     }
 
-    private val aliasesByField: Map<QueryField, List<String>> by lazy {
+    private val aliasesByField: Map<QueryField<*>, List<String>> by lazy {
         schema.definition.aliases.entries.groupBy({ it.value }, { it.key.path }).mapValues { it.value.sorted() }
     }
 
@@ -205,6 +205,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
             kind = value.kind,
+            nullable = value.nullable,
+            semantic = value.sharedSemantic(),
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
             sort = FieldSortDescriptor(
                 paged = effective.sortable,
@@ -386,7 +388,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             ConstraintDescriptor(
                 ConstraintDescriptor.CURSOR_UNIQUE_SORT,
                 appended = it,
-                fields = schema.cursorUniqueKey().map(QueryField::path),
+                fields = schema.cursorUniqueKey().map(QueryField<*>::path),
             )
         },
         ConstraintDescriptor(ConstraintDescriptor.COUNT_REQUIRES_FILTER).takeUnless { allowExpensive },

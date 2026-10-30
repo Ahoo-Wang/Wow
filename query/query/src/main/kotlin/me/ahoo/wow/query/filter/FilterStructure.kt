@@ -24,7 +24,7 @@ import me.ahoo.wow.query.spec.spec
  * search filters, whose fields are a set). Pairs with [me.ahoo.wow.query.spec.FilterOperatorSpec]: the spec
  * says what the operator needs, [FieldPredicate] says where the node keeps its field.
  */
-fun FilterExpression.predicateField(): QueryField? = (this as? FieldPredicate)?.field
+fun FilterExpression.predicateField(): QueryField<*>? = (this as? FieldPredicate)?.field
 
 /** The field capability this node's operator requires, per its [me.ahoo.wow.query.spec.FilterOperatorSpec]. */
 internal fun FilterExpression.requiredCapability(): QueryCapability =
@@ -34,5 +34,5 @@ internal fun FilterExpression.requiredCapability(): QueryCapability =
  * This predicate naming [field] instead of its [predicateField]; filters that name no field are returned unchanged.
  * The inverse of [predicateField], used to rewrite a query's field references.
  */
-internal fun FilterExpression.withPredicateField(field: QueryField): FilterExpression =
+internal fun FilterExpression.withPredicateField(field: QueryField<*>): FilterExpression =
     (this as? FieldPredicate)?.withField(field) ?: this

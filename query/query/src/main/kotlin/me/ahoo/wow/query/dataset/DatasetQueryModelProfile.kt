@@ -29,24 +29,24 @@ import me.ahoo.wow.query.spec.SystemField
 @ExperimentalWowApi
 @InternalWowApi
 class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) : QueryModelProfile(QueryModel.DATASET) {
-    override val identityField: QueryField?
+    override val identityField: QueryField<*>?
         get() = dataset.identity
 
-    override val payloadField: QueryField?
+    override val payloadField: QueryField<*>?
         get() = null
 
-    override val eventTimeField: QueryField?
+    override val eventTimeField: QueryField<*>?
         get() = dataset.eventTime
 
     /** The tenant column, or, for a platform-level dataset, the tenant it pins through [fixedTenantId]. */
-    override val requiredScope: QueryField
+    override val requiredScope: QueryField<*>
         get() = dataset.scope.tenant ?: PLATFORM_SCOPE
 
     override val fixedTenantId: String?
         get() = dataset.scope.fixedTenantId
 
     /** The column each ABAC tag key is bound to; empty when the dataset takes no part in ABAC. */
-    val tags: Map<String, QueryField>
+    val tags: Map<String, QueryField<*>>
         get() = dataset.scope.tags
 
     /** None: a dataset's fields are its declaration, supplied by [QueryDatasets.schemaSource]. */
@@ -54,7 +54,7 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
         get() = EMPTY_DECLARATION
 
     @InternalWowApi
-    override fun systemField(field: SystemField): QueryField? = when (field) {
+    override fun systemField(field: SystemField): QueryField<*>? = when (field) {
         SystemField.IDENTITY -> dataset.identity
         SystemField.TENANT_ID -> dataset.scope.tenant
         SystemField.OWNER_ID -> dataset.scope.owner

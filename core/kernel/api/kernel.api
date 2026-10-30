@@ -33,6 +33,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun findEventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
 	public final fun findMountedCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun getCommandTypes ()Ljava/util/List;
+	public final fun getIdSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public final fun getLifecycleCommands ()Ljava/util/Set;
 	public final fun getMountedCommandTypes ()Ljava/util/List;
 	public final fun getOwnership ()Lme/ahoo/wow/api/aggregate/Ownership;
@@ -63,6 +64,7 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun id (Lme/ahoo/wow/api/aggregate/AggregateIdSource;)V
 	public final fun initial (Lkotlin/jvm/functions/Function1;)V
 	public final fun lifecycle ([Ljava/lang/Class;)V
 	public final fun ownership (Lme/ahoo/wow/api/aggregate/Ownership;)V
@@ -315,6 +317,7 @@ public final class me/ahoo/wow/kernel/ProcessorBinding {
 	public final fun getBlocking ()Z
 	public final fun getCalls ()Ljava/util/List;
 	public final fun getCommits ()Ljava/util/List;
+	public final fun getContext ()Ljava/lang/String;
 	public final fun getEventType ()Ljava/lang/Class;
 	public final fun getFunction ()Ljava/lang/String;
 	public final fun getJob ()Lme/ahoo/wow/kernel/schedule/ScheduleJob;
@@ -333,7 +336,7 @@ public final class me/ahoo/wow/kernel/ProcessorBinding {
 	public static final fun react (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
 	public final fun rejectionHandlerOf (Ljava/lang/Class;)Lme/ahoo/wow/kernel/RejectionBinding;
 	public static final fun saga (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/util/List;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
-	public static final fun schedule (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
+	public static final fun schedule (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/lang/String;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
 	public final fun skips (Ljava/util/List;)Z
 	public final fun startIn (Ljava/lang/String;)Lme/ahoo/wow/kernel/StartFrom;
 	public fun toString ()Ljava/lang/String;
@@ -346,8 +349,8 @@ public final class me/ahoo/wow/kernel/ProcessorBinding$Companion {
 	public static synthetic fun react$default (Lme/ahoo/wow/kernel/ProcessorBinding$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ProcessorBinding;
 	public final fun saga (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/util/List;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
 	public static synthetic fun saga$default (Lme/ahoo/wow/kernel/ProcessorBinding$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/util/List;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ProcessorBinding;
-	public final fun schedule (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
-	public static synthetic fun schedule$default (Lme/ahoo/wow/kernel/ProcessorBinding$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ProcessorBinding;
+	public final fun schedule (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/lang/String;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;
+	public static synthetic fun schedule$default (Lme/ahoo/wow/kernel/ProcessorBinding$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/schedule/ScheduleJob;ZLjava/util/List;Lme/ahoo/wow/kernel/HandlerRetry;Ljava/util/List;Ljava/lang/String;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ProcessorBinding;
 }
 
 public final class me/ahoo/wow/kernel/RejectionBinding {

@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:292a9b128d41647b3132a10b56b0695b08e8b34029fa62f8f7c3d92f2acc96be",
+  "version" : "sha256:531fcd7057a954e6af8e0b932b0d1fa0646bc6910a1f723b2381c38a024a04db",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -1136,6 +1136,7 @@
     "pattern" : "schedules.{key}",
     "types" : [ "object" ],
     "kind" : "object",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1147,15 +1148,20 @@
     "pattern" : "schedules.{key}.epochMillis",
     "types" : [ "integer" ],
     "kind" : "scalar",
+    "nullable" : false,
+    "semantic" : {
+      "type" : "temporal-epoch",
+      "timeUnit" : "MILLISECONDS"
+    },
     "filter" : {
-      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
+      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists", "today", "before-today", "tomorrow", "this-week", "next-week", "last-week", "this-month", "last-month", "recent-days", "earlier-days", "yesterday", "next-month", "last-year", "this-year", "next-year", "before-now", "after-now" ]
     },
     "sort" : {
       "paged" : true,
       "cursor" : true
     },
     "aggregate" : {
-      "groups" : [ "terms", "histogram" ],
+      "groups" : [ "terms", "histogram", "date-histogram", "date-part" ],
       "missingKey" : false,
       "functions" : [ "sum", "avg", "min", "max", "stddev", "variance" ],
       "distinctCount" : true,
@@ -1169,6 +1175,7 @@
     "pattern" : "schedules.{key}.expression",
     "types" : [ "string" ],
     "kind" : "scalar",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1191,6 +1198,11 @@
     "pattern" : "schedules.{key}.millis",
     "types" : [ "integer" ],
     "kind" : "scalar",
+    "nullable" : false,
+    "semantic" : {
+      "type" : "duration",
+      "timeUnit" : "MILLISECONDS"
+    },
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "between", "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1213,6 +1225,7 @@
     "pattern" : "schedules.{key}.misfire",
     "types" : [ "string" ],
     "kind" : "scalar",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1235,6 +1248,7 @@
     "pattern" : "schedules.{key}.type",
     "types" : [ "string" ],
     "kind" : "scalar",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1257,6 +1271,7 @@
     "pattern" : "schedules.{key}.zone",
     "types" : [ "string" ],
     "kind" : "scalar",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists" ]
     },
@@ -1279,6 +1294,7 @@
     "pattern" : "tags.{key}",
     "types" : [ "string" ],
     "kind" : "array",
+    "nullable" : false,
     "filter" : {
       "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
     },

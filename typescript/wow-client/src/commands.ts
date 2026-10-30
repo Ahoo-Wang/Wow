@@ -53,8 +53,10 @@ import { formatWaitPlan, formatWaitTimeout, WaitPlan } from './wait.js';
  *   the aggregate type too; or a system command (`wow.*`, a lifecycle command
  *   of {@link LifecycleCommands} among them), which needs `type`.
  * - `id`: the aggregate's id. Absent when the command names no aggregate id:
- *   a creation, whose id the server assigns, or an `@Unaddressed` command; the
- *   route without `{id}` then sends it.
+ *   a creation, whose id the server assigns, an `@Unaddressed` command, or
+ *   any command of an aggregate whose id is its owner's (the Manifest's
+ *   `idSource: "owner"`), which goes to the caller's own; the route without
+ *   `{id}` then sends it.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
  * - `wait` (`Wow-Wait`), a {@link WaitPlan}, and `timeout` in milliseconds
@@ -68,7 +70,10 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
   readonly command: string;
   /** The command's body; `{}` when absent. */
   readonly body?: object;
-  /** The aggregate's id; absent for a creation or an unaddressed command. */
+  /**
+   * The aggregate's id; absent for a creation, an unaddressed command or the
+   * caller's own aggregate of one whose id is its owner's.
+   */
   readonly id?: string;
   /**
    * The aggregate type, which `command` names unless it is a system command:

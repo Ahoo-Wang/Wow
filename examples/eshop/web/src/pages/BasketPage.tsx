@@ -53,7 +53,7 @@ export function BasketPage() {
   const [basket, reload] = useLoad(
     // A basket nobody has added to yet does not exist: it reads as empty.
     async (signal): Promise<BasketItem[]> =>
-      (await clients.basket.basket.state.find(user.id, { signal }))?.state.items ?? [],
+      (await clients.basket.basket.state.findOwn({ signal }))?.state.items ?? [],
     `basket:${user.id}`,
   );
   const [problem, setProblem] = useState<unknown>();
@@ -76,10 +76,10 @@ export function BasketPage() {
   function changeQuantity(item: BasketItem, quantity: number) {
     return act(() =>
       quantity === 0
-        ? clients.basket.basket.commands.removeBasketItem(user.id, {
+        ? clients.basket.basket.commands.removeBasketItemOwn({
             productId: item.productId,
           })
-        : clients.basket.basket.commands.changeBasketItemQuantity(user.id, {
+        : clients.basket.basket.commands.changeBasketItemQuantityOwn({
             productId: item.productId,
             quantity,
           }),
@@ -90,7 +90,7 @@ export function BasketPage() {
     setProgress({ results: [], done: false });
     return act(async () => {
       try {
-        await checkout(clients, user.id, setProgress);
+        await checkout(clients, setProgress);
       } catch (error) {
         // Refused at admission: no hop was reached.
         setProgress(undefined);

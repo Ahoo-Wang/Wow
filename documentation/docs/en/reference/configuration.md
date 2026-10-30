@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 270 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 269 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -85,7 +85,7 @@ How the nodes of a service share the partitions of each context's log, and forwa
 | `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more runs here instead. |
 | `wow.cluster.member-ttl` | `Duration` | `PT10S` | How long a node stays a member of the cluster after its last heartbeat. |
 | `wow.cluster.reconcile-interval` | `Duration` | `PT1S` | How often a node compares the partitions it holds with those it should hold; a change of the members it notices reconciles at once. |
-| `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`. |
+| `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after `wow.health.liveness.stall-timeout` fails the node's liveness. |
 | `wow.cluster.renew-interval` | `Duration` | `PT3S` | How often a node renews its leases; less than half of `lease-ttl`, or every lease is lost between rounds. |
 | `wow.cluster.route-refresh-interval` | `Duration` | `PT1S` | How often the route table is read from the leases and members; a failed forward refreshes it at once. |
 
@@ -104,8 +104,7 @@ The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and doc
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.mode` | `CoSecMode` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
-| `wow.cosec.trust-injected-app` | `Boolean` | `false` | Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup. |
+| `wow.cosec.mode` | `CoSecMode` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests itself, the Manifest's routes its route map. |
 
 ## `wow.cosec.authorizer`
 
@@ -113,7 +112,7 @@ CoSec's authorization of the commands.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: authorization is then the gateway's (CoSec's inject mode). |
+| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command and service route call of a request as its caller (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes, where CoSec decides itself. A request-less command gets no objection. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: behind a CoSec gateway, authorization is the gateway's. |
 
 ## `wow.cosec.cross-scope`
 
@@ -174,7 +173,7 @@ Whether the node is stuck, so a restart helps; a storage outage never fails it.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.health.liveness.stall-timeout` | `Duration` | `PT3M` | How long the node's dispatcher may not tick, or commands in flight not finish while every log answers, before the node is not live. |
+| `wow.health.liveness.stall-timeout` | `Duration` | `PT3M` | How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or commands in flight not finish while every log answers, before the node is not live; longer than `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts. |
 
 ## `wow.health.ownership`
 
@@ -433,7 +432,7 @@ The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: 
 | `wow.query.max-wait` | `Duration` | `PT0.2S` | How long a query beyond `max-concurrent` waits in a FIFO queue for a permit before it is refused; `wow.stores.<name>.query.max-wait` overrides it for one store. |
 | `wow.query.require-authenticated-scope` | `Boolean` | `false` | Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted. |
 | `wow.query.require-explicit-entry` | `Boolean` | `false` | Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process. |
-| `wow.query.unbounded-timeout` | `Duration` | `PT30S` | The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for none. |
+| `wow.query.unbounded-timeout` | `Duration` | `PT30S` | The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none. |
 
 ## `wow.query.abac`
 
@@ -576,6 +575,16 @@ Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's 
 | `wow.schedules.<name>.misfire` | `Misfire` |  | What a firing missed while no node ran it does, over its annotation's. |
 | `wow.schedules.<name>.zone` | `String` |  | The time zone its expression is read in, over its annotation's. |
 
+## `wow.shared-states`
+
+The bounds of each context's shared states: `wow.shared-states.*`.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.shared-states.capacity` | `Integer` | `4096` | The most shared states a context keeps. |
+| `wow.shared-states.max-age` | `Duration` | `PT1M` | How long a shared state is kept at most. |
+| `wow.shared-states.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
+
 ## `wow.snapshot`
 
 Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.
@@ -604,16 +613,6 @@ The cache of aggregate states each context keeps between commands.
 | --- | --- | --- | --- |
 | `wow.state-cache.capacity` | `Integer` |  | The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit. |
 | `wow.state-cache.recent-requests` | `Integer` | `32` | The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up. |
-
-## `wow.state-views`
-
-The bounds of each context's state views: `wow.state-views.*`.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.state-views.capacity` | `Integer` | `4096` | The most state views a context keeps. |
-| `wow.state-views.max-age` | `Duration` | `PT1M` | How long a state view is kept at most. |
-| `wow.state-views.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
 
 ## `wow.stores.<name>`
 

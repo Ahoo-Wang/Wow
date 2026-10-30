@@ -192,17 +192,17 @@ class OpenApiRouteTest {
         document.validate("wow.Problem", rejected.body!!)
         val state = node.http.get("/shop/cart/c-1/state?version=1")
         state.status.assert().isEqualTo(200)
-        document.validate("wow.StateView", state.body!!)
+        document.validate("wow.Snapshot", state.body!!)
         document.validate("wow.StateTrace", node.http.get("/shop/cart/c-1/state/trace").body!!)
         node.save("c-1")
         val rows = node.query("""{"kind":"list","filter":{"op":"match-all"}}""").body!!
         rows.size().assert().isEqualTo(1)
-        document.validate("wow.SnapshotRecord", rows[0])
+        document.validate("wow.Snapshot", rows[0])
         val streams = node.query(
             """{"kind":"list","filter":{"op":"aggregate-id","value":"c-1"}}""",
             model = QueryRoutes.EVENTS,
         ).body!!
-        document.validate("wow.EventStreamRecord", streams[0])
+        document.validate("wow.EventStream", streams[0])
         val paged = node.query("""{"kind":"paged","filter":{"op":"match-all"}}""").body!!
         document.validate("wow.PagedList", paged)
         document.validate("wow.CountResult", node.query("""{"kind":"count","filter":{"op":"match-all"}}""").body!!)

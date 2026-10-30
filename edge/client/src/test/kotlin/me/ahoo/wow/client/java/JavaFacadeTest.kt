@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -32,14 +33,18 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.client.caught
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -89,14 +94,14 @@ class JavaFacadeTest {
             every { type } returns parcel
             every { dynamic(String::class.java) } returns rows
         }
-        val unbounded = mockk<Queries>(relaxed = true)
+        val unbounded = mockk<TrustedQueries>(relaxed = true)
         val trusted = mockk<TrustedQueries> {
             every { events(type) } returns events
             every { unbounded() } returns unbounded
             @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
             every { datasets(DatasetName.of("shop", "sales"), String::class.java) } returns rows
         }
-        val api = JavaQueryApi.of(mockk<QueryApi> { every { trusted() } returns trusted })
+        val api = JavaQueryApi.of(mockk<NodeQueryApi> { every { trusted() } returns trusted })
         val queries = api.trusted()
         queries.events(type).type.assert().isEqualTo(type)
         queries.events(type).dynamic(String::class.java).list(ListQuery(all)).assert().containsExactly("a", "b")
@@ -106,6 +111,45 @@ class JavaFacadeTest {
             String::class.java
         ).single(SingleQuery(all)).assert().isEqualTo("one")
         queries.unbounded().assert().isNotNull()
+    }
+
+    @Test
+    fun `a caller's snapshots should read by id and ref, and trusted ones by ref alone`() {
+        val state = mockk<Snapshot<ObjectNode>>()
+        val ref = type.ref("t1", "p-1")
+        val tenantSnapshots = mockk<TenantSnapshotQueries<ObjectNode>> {
+            every { type } returns this@JavaFacadeTest.type
+            coEvery { state("p-1") } returns state
+            coEvery { state(ref) } returns state
+            coEvery { state("p-1", 3) } returns state
+            coEvery { state(ref, 3) } returns state
+        }
+        val snapshots = mockk<SnapshotQueries<ObjectNode>> {
+            every { type } returns this@JavaFacadeTest.type
+            coEvery { state(ref) } returns state
+            coEvery { state(ref, 3) } returns state
+        }
+        val caller = Caller.of(tenantId = "t1")
+        val api = JavaQueryApi.of(
+            mockk<NodeQueryApi> {
+                every { of(caller) } returns mockk<Queries> { every { snapshots(type) } returns tenantSnapshots }
+                every { trusted() } returns mockk<TrustedQueries> { every { snapshots(type) } returns snapshots }
+            },
+        )
+        val byCaller = api.of(caller).snapshots(type)
+        byCaller.type.assert().isEqualTo(type)
+        byCaller.state("p-1").assert().isSameAs(state)
+        byCaller.stateAsync("p-1").join().assert().isSameAs(state)
+        byCaller.state(ref).assert().isSameAs(state)
+        // Read your writes: at a minimum version, by id or by ref, blocking or asynchronously.
+        byCaller.state("p-1", 3).assert().isSameAs(state)
+        byCaller.stateAsync("p-1", 3).join().assert().isSameAs(state)
+        byCaller.state(ref, 3).assert().isSameAs(state)
+        val trusted = api.trusted().snapshots(type)
+        trusted.state(ref).assert().isSameAs(state)
+        trusted.stateAsync(ref).join().assert().isSameAs(state)
+        trusted.state(ref, 3).assert().isSameAs(state)
+        trusted.stateAsync(ref, 3).join().assert().isSameAs(state)
     }
 
     @Test

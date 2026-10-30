@@ -66,7 +66,7 @@ class OrderLifecycleTest {
         lifecycle(id, "transfer-owner", second, """{"ownerId":"${main[USER]}"}""").status.assert().isEqualTo(OK)
         read(id, main).let { answer ->
             answer.status.assert().isEqualTo(OK)
-            answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo(main[USER])
+            answer.body!!["ownerId"].asString().assert().isEqualTo(main[USER])
         }
 
         // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
@@ -87,9 +87,9 @@ class OrderLifecycleTest {
         lifecycle(id, "transfer-space", EMPLOYEE, """{"spaceId":"warehouse-east"}""").status.assert().isEqualTo(OK)
         val view = read(id, EMPLOYEE).body!!
         view["tags"]["channel"][0].asString().assert().isEqualTo("web")
-        view["scope"]["spaceId"].asString().assert().isEqualTo("warehouse-east")
+        view["spaceId"].asString().assert().isEqualTo("warehouse-east")
         // The order is still its buyer's.
-        view["scope"]["ownerId"].asString().assert().isEqualTo(alice[USER])
+        view["ownerId"].asString().assert().isEqualTo(alice[USER])
     }
 
     /** A buyer of this test only. */

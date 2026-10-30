@@ -42,10 +42,10 @@ private fun List<Any?>.requireFilterLiterals(operator: FilterOperator) {
     }
 }
 
-class EqualFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class EqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.EQ
 
-    override fun withField(field: QueryField): EqualFilter = EqualFilter(field, value)
+    override fun withField(field: QueryField<*>): EqualFilter = EqualFilter(field, value)
 
     init {
         value.requireEqualityFilterValue()
@@ -54,7 +54,7 @@ class EqualFilter @InternalWowApi constructor(override val field: QueryField, va
     /** This EqualFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): EqualFilter = EqualFilter(field, value)
 
@@ -70,14 +70,14 @@ class EqualFilter @InternalWowApi constructor(override val field: QueryField, va
     companion object {
         /** A [EqualFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): EqualFilter = EqualFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): EqualFilter = EqualFilter(field, value)
     }
 }
 
-class NotEqualFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class NotEqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.NE
 
-    override fun withField(field: QueryField): NotEqualFilter = NotEqualFilter(field, value)
+    override fun withField(field: QueryField<*>): NotEqualFilter = NotEqualFilter(field, value)
 
     init {
         value.requireEqualityFilterValue()
@@ -86,7 +86,7 @@ class NotEqualFilter @InternalWowApi constructor(override val field: QueryField,
     /** This NotEqualFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): NotEqualFilter = NotEqualFilter(field, value)
 
@@ -102,14 +102,14 @@ class NotEqualFilter @InternalWowApi constructor(override val field: QueryField,
     companion object {
         /** A [NotEqualFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): NotEqualFilter = NotEqualFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): NotEqualFilter = NotEqualFilter(field, value)
     }
 }
 
-class GreaterThanFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class GreaterThanFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.GT
 
-    override fun withField(field: QueryField): GreaterThanFilter = GreaterThanFilter(field, value)
+    override fun withField(field: QueryField<*>): GreaterThanFilter = GreaterThanFilter(field, value)
 
     init {
         value.requireComparableFilterLiteral()
@@ -118,7 +118,7 @@ class GreaterThanFilter @InternalWowApi constructor(override val field: QueryFie
     /** This GreaterThanFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): GreaterThanFilter = GreaterThanFilter(field, value)
 
@@ -134,14 +134,14 @@ class GreaterThanFilter @InternalWowApi constructor(override val field: QueryFie
     companion object {
         /** A [GreaterThanFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): GreaterThanFilter = GreaterThanFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): GreaterThanFilter = GreaterThanFilter(field, value)
     }
 }
 
-class GreaterThanOrEqualFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class GreaterThanOrEqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.GTE
 
-    override fun withField(field: QueryField): GreaterThanOrEqualFilter = GreaterThanOrEqualFilter(field, value)
+    override fun withField(field: QueryField<*>): GreaterThanOrEqualFilter = GreaterThanOrEqualFilter(field, value)
 
     init {
         value.requireComparableFilterLiteral()
@@ -150,7 +150,7 @@ class GreaterThanOrEqualFilter @InternalWowApi constructor(override val field: Q
     /** This GreaterThanOrEqualFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): GreaterThanOrEqualFilter = GreaterThanOrEqualFilter(field, value)
 
@@ -166,14 +166,14 @@ class GreaterThanOrEqualFilter @InternalWowApi constructor(override val field: Q
     companion object {
         /** A [GreaterThanOrEqualFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): GreaterThanOrEqualFilter = GreaterThanOrEqualFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): GreaterThanOrEqualFilter = GreaterThanOrEqualFilter(field, value)
     }
 }
 
-class LessThanFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class LessThanFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.LT
 
-    override fun withField(field: QueryField): LessThanFilter = LessThanFilter(field, value)
+    override fun withField(field: QueryField<*>): LessThanFilter = LessThanFilter(field, value)
 
     init {
         value.requireComparableFilterLiteral()
@@ -182,7 +182,7 @@ class LessThanFilter @InternalWowApi constructor(override val field: QueryField,
     /** This LessThanFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): LessThanFilter = LessThanFilter(field, value)
 
@@ -198,14 +198,14 @@ class LessThanFilter @InternalWowApi constructor(override val field: QueryField,
     companion object {
         /** A [LessThanFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): LessThanFilter = LessThanFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): LessThanFilter = LessThanFilter(field, value)
     }
 }
 
-class LessThanOrEqualFilter @InternalWowApi constructor(override val field: QueryField, val value: Any?) : FieldPredicate {
+class LessThanOrEqualFilter @InternalWowApi constructor(override val field: QueryField<*>, val value: Any?) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.LTE
 
-    override fun withField(field: QueryField): LessThanOrEqualFilter = LessThanOrEqualFilter(field, value)
+    override fun withField(field: QueryField<*>): LessThanOrEqualFilter = LessThanOrEqualFilter(field, value)
 
     init {
         value.requireComparableFilterLiteral()
@@ -214,7 +214,7 @@ class LessThanOrEqualFilter @InternalWowApi constructor(override val field: Quer
     /** This LessThanOrEqualFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         value: Any? = this.value,
     ): LessThanOrEqualFilter = LessThanOrEqualFilter(field, value)
 
@@ -230,18 +230,18 @@ class LessThanOrEqualFilter @InternalWowApi constructor(override val field: Quer
     companion object {
         /** A [LessThanOrEqualFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, value: Any?): LessThanOrEqualFilter = LessThanOrEqualFilter(field, value)
+        fun of(field: QueryField<*>, value: Any?): LessThanOrEqualFilter = LessThanOrEqualFilter(field, value)
     }
 }
 
 class ContainsFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.CONTAINS
 
-    override fun withField(field: QueryField): ContainsFilter = ContainsFilter(field, value, stringComparison)
+    override fun withField(field: QueryField<*>): ContainsFilter = ContainsFilter(field, value, stringComparison)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ContainsFilter && valueFields() == other.valueFields()
@@ -257,7 +257,7 @@ class ContainsFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             value: String,
             stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
         ): ContainsFilter = ContainsFilter(field, value, stringComparison)
@@ -265,13 +265,13 @@ class ContainsFilter @InternalWowApi constructor(
 }
 
 class StartsWithFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.STARTS_WITH
 
-    override fun withField(field: QueryField): StartsWithFilter = StartsWithFilter(field, value, stringComparison)
+    override fun withField(field: QueryField<*>): StartsWithFilter = StartsWithFilter(field, value, stringComparison)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is StartsWithFilter && valueFields() == other.valueFields()
@@ -287,7 +287,7 @@ class StartsWithFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             value: String,
             stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
         ): StartsWithFilter = StartsWithFilter(field, value, stringComparison)
@@ -295,13 +295,13 @@ class StartsWithFilter @InternalWowApi constructor(
 }
 
 class EndsWithFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val value: String,
     val stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.ENDS_WITH
 
-    override fun withField(field: QueryField): EndsWithFilter = EndsWithFilter(field, value, stringComparison)
+    override fun withField(field: QueryField<*>): EndsWithFilter = EndsWithFilter(field, value, stringComparison)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is EndsWithFilter && valueFields() == other.valueFields()
@@ -317,17 +317,17 @@ class EndsWithFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             value: String,
             stringComparison: StringComparison = StringComparison.CASE_SENSITIVE,
         ): EndsWithFilter = EndsWithFilter(field, value, stringComparison)
     }
 }
 
-class InFilter @InternalWowApi constructor(override val field: QueryField, val values: List<Any?>) : FieldPredicate {
+class InFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IN
 
-    override fun withField(field: QueryField): InFilter = InFilter(field, values)
+    override fun withField(field: QueryField<*>): InFilter = InFilter(field, values)
 
     init {
         values.requireFilterLiterals(operator)
@@ -336,7 +336,7 @@ class InFilter @InternalWowApi constructor(override val field: QueryField, val v
     /** This InFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         values: List<Any?> = this.values,
     ): InFilter = InFilter(field, values)
 
@@ -352,14 +352,14 @@ class InFilter @InternalWowApi constructor(override val field: QueryField, val v
     companion object {
         /** A [InFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, values: List<Any?>): InFilter = InFilter(field, values)
+        fun of(field: QueryField<*>, values: List<Any?>): InFilter = InFilter(field, values)
     }
 }
 
-class NotInFilter @InternalWowApi constructor(override val field: QueryField, val values: List<Any?>) : FieldPredicate {
+class NotInFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.NOT_IN
 
-    override fun withField(field: QueryField): NotInFilter = NotInFilter(field, values)
+    override fun withField(field: QueryField<*>): NotInFilter = NotInFilter(field, values)
 
     init {
         values.requireFilterLiterals(operator)
@@ -368,7 +368,7 @@ class NotInFilter @InternalWowApi constructor(override val field: QueryField, va
     /** This NotInFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         values: List<Any?> = this.values,
     ): NotInFilter = NotInFilter(field, values)
 
@@ -384,18 +384,18 @@ class NotInFilter @InternalWowApi constructor(override val field: QueryField, va
     companion object {
         /** A [NotInFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, values: List<Any?>): NotInFilter = NotInFilter(field, values)
+        fun of(field: QueryField<*>, values: List<Any?>): NotInFilter = NotInFilter(field, values)
     }
 }
 
 class BetweenFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val lowerBound: Any?,
     val upperBound: Any?,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.BETWEEN
 
-    override fun withField(field: QueryField): BetweenFilter = BetweenFilter(field, lowerBound, upperBound)
+    override fun withField(field: QueryField<*>): BetweenFilter = BetweenFilter(field, lowerBound, upperBound)
 
     init {
         lowerBound.requireComparableFilterLiteral()
@@ -405,7 +405,7 @@ class BetweenFilter @InternalWowApi constructor(
     /** This BetweenFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         lowerBound: Any? = this.lowerBound,
         upperBound: Any? = this.upperBound,
     ): BetweenFilter = BetweenFilter(field, lowerBound, upperBound)
@@ -423,17 +423,17 @@ class BetweenFilter @InternalWowApi constructor(
         /** A [BetweenFilter] of the given values. */
         @JvmStatic
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             lowerBound: Any?,
             upperBound: Any?,
         ): BetweenFilter = BetweenFilter(field, lowerBound, upperBound)
     }
 }
 
-class ContainsAllFilter @InternalWowApi constructor(override val field: QueryField, val values: List<Any?>) : FieldPredicate {
+class ContainsAllFilter @InternalWowApi constructor(override val field: QueryField<*>, val values: List<Any?>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.CONTAINS_ALL
 
-    override fun withField(field: QueryField): ContainsAllFilter = ContainsAllFilter(field, values)
+    override fun withField(field: QueryField<*>): ContainsAllFilter = ContainsAllFilter(field, values)
 
     init {
         values.requireFilterLiterals(operator)
@@ -451,14 +451,14 @@ class ContainsAllFilter @InternalWowApi constructor(override val field: QueryFie
     companion object {
         /** A [ContainsAllFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, values: List<Any?>): ContainsAllFilter = ContainsAllFilter(field, values)
+        fun of(field: QueryField<*>, values: List<Any?>): ContainsAllFilter = ContainsAllFilter(field, values)
     }
 }
 
-class IsEmptyFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class IsEmptyFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IS_EMPTY
 
-    override fun withField(field: QueryField): IsEmptyFilter = IsEmptyFilter(field)
+    override fun withField(field: QueryField<*>): IsEmptyFilter = IsEmptyFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is IsEmptyFilter && valueFields() == other.valueFields()
@@ -472,14 +472,14 @@ class IsEmptyFilter @InternalWowApi constructor(override val field: QueryField) 
     companion object {
         /** A [IsEmptyFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): IsEmptyFilter = IsEmptyFilter(field)
+        fun of(field: QueryField<*>): IsEmptyFilter = IsEmptyFilter(field)
     }
 }
 
-class IsEmptyStringFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class IsEmptyStringFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IS_EMPTY_STRING
 
-    override fun withField(field: QueryField): IsEmptyStringFilter = IsEmptyStringFilter(field)
+    override fun withField(field: QueryField<*>): IsEmptyStringFilter = IsEmptyStringFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is IsEmptyStringFilter && valueFields() == other.valueFields()
@@ -493,14 +493,14 @@ class IsEmptyStringFilter @InternalWowApi constructor(override val field: QueryF
     companion object {
         /** A [IsEmptyStringFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): IsEmptyStringFilter = IsEmptyStringFilter(field)
+        fun of(field: QueryField<*>): IsEmptyStringFilter = IsEmptyStringFilter(field)
     }
 }
 
-class IsNotEmptyStringFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class IsNotEmptyStringFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IS_NOT_EMPTY_STRING
 
-    override fun withField(field: QueryField): IsNotEmptyStringFilter = IsNotEmptyStringFilter(field)
+    override fun withField(field: QueryField<*>): IsNotEmptyStringFilter = IsNotEmptyStringFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is IsNotEmptyStringFilter && valueFields() == other.valueFields()
@@ -514,14 +514,14 @@ class IsNotEmptyStringFilter @InternalWowApi constructor(override val field: Que
     companion object {
         /** A [IsNotEmptyStringFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): IsNotEmptyStringFilter = IsNotEmptyStringFilter(field)
+        fun of(field: QueryField<*>): IsNotEmptyStringFilter = IsNotEmptyStringFilter(field)
     }
 }
 
-class IsNullFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class IsNullFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IS_NULL
 
-    override fun withField(field: QueryField): IsNullFilter = IsNullFilter(field)
+    override fun withField(field: QueryField<*>): IsNullFilter = IsNullFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is IsNullFilter && valueFields() == other.valueFields()
@@ -535,14 +535,14 @@ class IsNullFilter @InternalWowApi constructor(override val field: QueryField) :
     companion object {
         /** A [IsNullFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): IsNullFilter = IsNullFilter(field)
+        fun of(field: QueryField<*>): IsNullFilter = IsNullFilter(field)
     }
 }
 
-class IsNotNullFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class IsNotNullFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.IS_NOT_NULL
 
-    override fun withField(field: QueryField): IsNotNullFilter = IsNotNullFilter(field)
+    override fun withField(field: QueryField<*>): IsNotNullFilter = IsNotNullFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is IsNotNullFilter && valueFields() == other.valueFields()
@@ -556,14 +556,14 @@ class IsNotNullFilter @InternalWowApi constructor(override val field: QueryField
     companion object {
         /** A [IsNotNullFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): IsNotNullFilter = IsNotNullFilter(field)
+        fun of(field: QueryField<*>): IsNotNullFilter = IsNotNullFilter(field)
     }
 }
 
-class ExistsFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class ExistsFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.EXISTS
 
-    override fun withField(field: QueryField): ExistsFilter = ExistsFilter(field)
+    override fun withField(field: QueryField<*>): ExistsFilter = ExistsFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ExistsFilter && valueFields() == other.valueFields()
@@ -577,14 +577,14 @@ class ExistsFilter @InternalWowApi constructor(override val field: QueryField) :
     companion object {
         /** A [ExistsFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): ExistsFilter = ExistsFilter(field)
+        fun of(field: QueryField<*>): ExistsFilter = ExistsFilter(field)
     }
 }
 
-class NotExistsFilter @InternalWowApi constructor(override val field: QueryField) : FieldPredicate {
+class NotExistsFilter @InternalWowApi constructor(override val field: QueryField<*>) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.NOT_EXISTS
 
-    override fun withField(field: QueryField): NotExistsFilter = NotExistsFilter(field)
+    override fun withField(field: QueryField<*>): NotExistsFilter = NotExistsFilter(field)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is NotExistsFilter && valueFields() == other.valueFields()
@@ -598,6 +598,6 @@ class NotExistsFilter @InternalWowApi constructor(override val field: QueryField
     companion object {
         /** A [NotExistsFilter] of the given values. */
         @JvmStatic
-        fun of(field: QueryField): NotExistsFilter = NotExistsFilter(field)
+        fun of(field: QueryField<*>): NotExistsFilter = NotExistsFilter(field)
     }
 }

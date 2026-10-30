@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
@@ -27,7 +28,7 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
@@ -55,12 +56,14 @@ import kotlin.time.toKotlinDuration
 /**
  * The analytics catalog's beans: who calls it and what each caller may send or read, and the catalog's ports.
  *
- * - Who calls it: CoSec's callers, from the token the gateway verified and forwarded (the `cosec` profile, CoSec's
- *   inject mode); in development without CoSec, the host's, from the `Wow-*` identity headers any client sets
- *   (`DevelopmentCallerResolver`), of which a request without a user is no caller here ([requireSignedInCaller]): it is
- *   answered 401, as behind the gateway. A node outside development without CoSec does not start.
- * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
- *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
+ * - Who calls it: CoSec's callers, from the identity the CoSec gateway verified and forwarded (the `cosec` profile,
+ *   CoSec's gateway mode reading `CoSec-Identity`); in development without CoSec, the host's, from the `Wow-*`
+ *   identity headers any client sets (`DevelopmentCallerResolver`), of which a request without a user is no caller
+ *   here ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without
+ *   CoSec does not start.
+ * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec decides the requests
+ *   itself (its `AuthorizationChecker`) and `wow.cosec.authorizer.enabled` is on; what each may read:
+ *   [AnalyticsCatalogQueryPolicy].
  * - The ClickHouse client: one client of `wow.clickhouse.endpoint` and its credentials ([ClickHouseClients]) the
  *   catalog, its datasets' warehouse, and the host's Sink and dataset backend share, closed with the context.
  * - The catalog: the [WarehouseCatalog] of the ClickHouse server that client reaches, over
@@ -128,11 +131,11 @@ class AnalyticsCatalogConfiguration {
         TrustedWriters.of(properties.trustedWriters)
 
     @Bean
-    fun knownAggregates(queries: ObjectProvider<QueryApi>): KnownAggregates =
+    fun knownAggregates(queries: ObjectProvider<NodeQueryApi>): KnownAggregates =
         QueriedKnownAggregates { queries.getObject() }
 
     @Bean
-    fun datasetSources(queries: ObjectProvider<QueryApi>): DatasetSources =
+    fun datasetSources(queries: ObjectProvider<NodeQueryApi>): DatasetSources =
         QueriedDatasetSources { queries.getObject() }
 
     /**
@@ -144,11 +147,15 @@ class AnalyticsCatalogConfiguration {
     @Bean
     @OptIn(InternalWowApi::class)
     fun datasetReferenceActions(
-        queries: ObjectProvider<QueryApi>,
+        queries: ObjectProvider<NodeQueryApi>,
         client: ObjectProvider<WowClient>,
         wow: WowProperties,
     ): DatasetReferenceActions = DatasetReferenceActions(
-        datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
+        datasets = { id ->
+            queries.getObject().trusted().snapshots<DatasetState>().let {
+                it.state(it.type.ref(AnalyticsCatalogContext.TENANT_ID, id))?.state
+            }
+        },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
         described = manifestPeers(wow),
     )
@@ -175,7 +182,7 @@ class AnalyticsCatalogConfiguration {
     @OptIn(ExperimentalWowApi::class)
     @ConditionalOnProperty(prefix = DATASETS, name = ["serving.enabled"], matchIfMissing = true)
     fun datasetPublicationWatcher(
-        queries: ObjectProvider<QueryApi>,
+        queries: ObjectProvider<NodeQueryApi>,
         datasets: QueryDatasets,
         properties: AnalyticsCatalogProperties,
         meters: ObjectProvider<MeterRegistry>,

@@ -27,7 +27,10 @@ object ViewStoreRejections {
     )
     const val INVALID = "view-store.invalid"
 
-    @ErrorCode(description = "The request carries no CoSec-App-Id.", status = 400)
+    @ErrorCode(
+        description = "The request's CoSec scope has no application (behind the CoSec gateway, the one it forwarded).",
+        status = 400
+    )
     const val APP_REQUIRED = "view-store.app-required"
 
     @ErrorCode(

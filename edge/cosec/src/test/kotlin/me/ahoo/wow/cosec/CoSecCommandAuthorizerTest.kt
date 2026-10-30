@@ -13,13 +13,14 @@
 
 package me.ahoo.wow.cosec
 
+import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.test.runTest
-import me.ahoo.cosec.api.authorization.AuthorizeResult
+import kotlinx.coroutines.withContext
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.context.request.AppIdCapable
-import me.ahoo.cosec.api.context.request.Request
-import me.ahoo.cosec.api.context.request.SpaceIdCapable
-import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.api.principal.SimplePrincipal
+import me.ahoo.cosec.api.principal.SimpleTenantPrincipal
+import me.ahoo.cosec.api.tenant.SimpleTenant
+import me.ahoo.cosec.runtime.http.CoSecParameters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -27,164 +28,121 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Mono
-import java.net.URI
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
+import reactor.util.context.Context
+import java.util.concurrent.ConcurrentHashMap
 
+/** [CoSecCommandAuthorizer]: CoSec's decision on a command as the caller of its request (decision D367). */
 class CoSecCommandAuthorizerTest {
+    private val cosec = CoSecPipeline()
+    private val authorizer = CoSecCommandAuthorizer(cosec.checker)
     private val action = CommandAction(
         type = CommandType("$CONTEXT.cart.AddItem", AddItem::class.java),
         ref = AggregateRef(AggregateType(CONTEXT, "cart"), "acme", "c-1"),
         scope = Scope("alice", "s1"),
-        creation = Creation.ALLOWED,
-    )
-    private val caller = Caller(
-        tenantId = "acme",
-        scope = Scope("alice", "s1"),
-        subject = "alice",
-        attributes = mapOf(
-            CoSecCallerResolver.ROLES to listOf("user"),
-            CoSecCallerResolver.POLICIES to listOf("shop"),
-            "abac.dept" to listOf("sales"),
-        ),
+        creation = Creation.NONE,
     )
 
-    /** A CoSec authorization answering [answer], recording what it was asked. */
-    private class Recording(private val answer: Mono<AuthorizeResult>) : CoSecAuthorization {
-        lateinit var request: Request
-        lateinit var context: SecurityContext
+    /** [block] as the request [security] was permitted in: CoSec's filter writes it into the Reactor context. */
+    private suspend fun <T> inRequest(security: SecurityContext, block: suspend () -> T): T =
+        withContext(ReactorContext(Context.of(SecurityContext.KEY, security))) { block() }
 
-        override fun authorize(request: Request, context: SecurityContext): Mono<AuthorizeResult> {
-            this.request = request
-            this.context = context
-            return answer
-        }
-    }
+    private suspend fun alice(): SecurityContext =
+        cosec.security("alice;acme;editor@s1", mapOf(CoSecParameters.SPACE_ID to "s1")).also { cosec.asked.clear() }
 
-    private fun result(authorized: Boolean, reason: String) = object : AuthorizeResult {
-        override val authorized: Boolean = authorized
-        override val reason: String = reason
+    @Test
+    fun `a command is the action of its context and name on its aggregate, in the request's scope`() = runTest {
+        val security = alice()
+        inRequest(security) { authorizer.authorize(editor(), action) }.assert().isEqualTo(Authorization.Allowed)
+        val asked = cosec.asked.single()
+        asked.toString().assert().isEqualTo("shop:AddItem cart/c-1")
+        asked.principal.assert().isEqualTo("alice")
+        asked.space.assert().isEqualTo("s1")
     }
 
     @Test
-    fun `the action is evaluated as the request of its command route`() = runTest {
-        val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(
-            cosec,
-            cartManifest()
-        ).authorize(caller, action).assert().isEqualTo(Authorization.Allowed)
-        val request = cosec.request
-        request.path.assert().isEqualTo("/shop/cart/c-1/add-item")
-        request.method.assert().isEqualTo("POST")
-        request.attributes.assert().isEqualTo(
-            mapOf(
-                CoSecCommandAuthorizer.COMMAND to "shop.cart.AddItem",
-                CoSecCommandAuthorizer.AGGREGATE_ID to "c-1",
-                CoSecCommandAuthorizer.TENANT to "acme",
-                CoSecCommandAuthorizer.OWNER to "alice",
-                CoSecCommandAuthorizer.SPACE to "s1",
-                CoSecCommandAuthorizer.CREATION to "allowed",
-            ),
-        )
-        // The caller calls from no application.
-        request.getHeader(AppIdCapable.APP_ID_KEY).assert().isEmpty()
-        request.getHeader(SpaceIdCapable.SPACE_ID_KEY).assert().isEqualTo("s1")
-        request.getHeader("Authorization").assert().isEmpty()
-        request.getQuery("q").assert().isEmpty()
-        request.getCookieValue("c").assert().isEmpty()
-        request.remoteIp.assert().isEmpty()
-        request.origin.assert().isEqualTo(URI.create(""))
-        request.referer.assert().isEqualTo(URI.create(""))
-        request.withAttributes(mapOf("k" to "v")).attributes.assert().isEqualTo(mapOf("k" to "v"))
+    fun `a command CoSec does not permit is denied`() = runTest {
+        val security = alice()
+        cosec.permits = { it.action != "shop:AddItem" }
+        val denied = inRequest(security) { authorizer.authorize(editor(), action) }
+        denied.assert().isInstanceOf(Authorization.Denied::class.java)
+        (denied as Authorization.Denied).message.assert().isEqualTo("CoSec does not permit shop:AddItem on cart/c-1.")
     }
 
     @Test
-    fun `a system command is evaluated as its route, a routeless one by its full name`() = runTest {
-        val cosec = Recording(Mono.just(result(true, "")))
-        val authorizer = CoSecCommandAuthorizer(cosec, cartManifest())
+    fun `a system command is its name as the Manifest lists it, on the aggregate it runs on`() = runTest {
+        val security = alice()
         suspend fun asked(name: String, type: AggregateType, id: String): String {
-            authorizer.authorize(
-                caller,
-                CommandAction(CommandType(name, Any::class.java), type.ref("acme", id), Scope("alice"), Creation.NONE)
-            )
-            return "${cosec.request.method} ${cosec.request.path} ${cosec.request.attributes[CoSecCommandAuthorizer.COMMAND]}"
+            inRequest(security) {
+                authorizer.authorize(
+                    editor(),
+                    CommandAction(
+                        CommandType(name, Any::class.java),
+                        type.ref("acme", id),
+                        Scope("alice"),
+                        Creation.NONE
+                    )
+                )
+            }
+            return cosec.asked.last().toString()
         }
-        val cart = AggregateType(CONTEXT, "cart")
-        asked(Lifecycle.DELETE_AGGREGATE, cart, "c-1")
-            .assert().isEqualTo("DELETE /shop/cart/c-1 shop.cart.wow.lifecycle.DeleteAggregate")
-        // A rebuild runs on the context's rebuild aggregate, the instance named by the aggregate type it rebuilds.
-        val rebuilds = AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE)
-        asked(SnapshotRebuilds.REBUILD, rebuilds, "cart")
-            .assert().isEqualTo("POST /shop/cart/wow.snapshot.rebuild shop.snapshot.wow.snapshot.Rebuild")
-        val jobs = AggregateType(CONTEXT, ScheduleJobs.AGGREGATE)
-        asked(ScheduleJobs.ENABLE, jobs, "report")
-            .assert().isEqualTo("POST /shop/wow.schedule/report/enable shop.schedule.wow.schedule.Enable")
-        asked(ScheduleJobs.TICK, jobs, "report")
-            .assert().isEqualTo("POST /shop/schedule/report/wow.schedule.Tick shop.schedule.wow.schedule.Tick")
-        // A rebuild of an aggregate type the Manifest does not list has no route either.
-        asked(SnapshotRebuilds.REBUILD, rebuilds, "order")
-            .assert().isEqualTo("POST /shop/snapshot/order/wow.snapshot.Rebuild shop.snapshot.wow.snapshot.Rebuild")
+        asked(Lifecycle.DELETE_AGGREGATE, AggregateType(CONTEXT, "cart"), "c-1")
+            .assert().isEqualTo("shop:wow.lifecycle.DeleteAggregate cart/c-1")
+        asked(SnapshotRebuilds.REBUILD, AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE), "cart")
+            .assert().isEqualTo("shop:wow.snapshot.Rebuild snapshot/cart")
+        asked(ScheduleJobs.ENABLE, AggregateType(CONTEXT, ScheduleJobs.AGGREGATE), "report")
+            .assert().isEqualTo("shop:wow.schedule.Enable schedule/report")
     }
 
     @Test
-    fun `CoSec allows by the app role permission of the caller's application, in the caller's space`() = runTest {
-        val cosec = AppRoleAuthorization()
-        CoSecCommandAuthorizer(cosec.authorization, cartManifest())
-            .authorize(editor(), action).assert().isEqualTo(Authorization.Allowed)
-        cosec.asked.assert().containsExactly("console" to "s1")
+    fun `a request-less caller gets no objection, and CoSec is not asked (D298)`() = runTest {
+        // A saga's, a timer's, a compensation's or a scheduled job's command: no request, so no security context.
+        cosec.permits = { false }
+        authorizer.authorize(editor(), action).assert().isEqualTo(Authorization.Allowed)
+        cosec.asked.assert().isEmpty()
     }
 
     @Test
-    fun `a caller from no application, or from another, has no app role permission`() = runTest {
-        val cosec = AppRoleAuthorization()
-        val authorizer = CoSecCommandAuthorizer(cosec.authorization, cartManifest())
-        authorizer.authorize(editor(app = null), action).assert()
-            .isEqualTo(Authorization.Denied(AuthorizeResult.IMPLICIT_DENY.reason, FrameworkCodes.AUTH_FORBIDDEN))
-        authorizer.authorize(editor(app = "shop-app"), action).assert()
-            .isEqualTo(Authorization.Denied(AuthorizeResult.IMPLICIT_DENY.reason, FrameworkCodes.AUTH_FORBIDDEN))
-        cosec.asked.assert().containsExactly("" to "s1", "shop-app" to "s1")
+    fun `a caller that is not the request's principal is request-less`() = runTest {
+        val security = alice()
+        cosec.permits = { false }
+        val others = listOf(
+            editor().copyWith(subject = "bob"),
+            editor().copyWith(tenantId = "other"),
+            Caller(subject = "alice", service = true),
+            Caller.ANONYMOUS,
+        )
+        others.forEach { caller ->
+            inRequest(security) { authorizer.authorize(caller, action) }.assert().isEqualTo(Authorization.Allowed)
+        }
+        cosec.asked.assert().isEmpty()
     }
 
     @Test
-    fun `the principal is rebuilt from the caller`() = runTest {
-        val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(cosec, cartManifest()).authorize(caller, action)
-        val principal = cosec.context.principal
-        principal.id.assert().isEqualTo("alice")
-        principal.authenticated.assert().isTrue()
-        principal.roles.assert().containsExactly("user")
-        principal.policies.assert().containsExactly("shop")
-        principal.attributes.assert().isEqualTo(mapOf("abac.dept" to listOf("sales")))
-        cosec.context.tenant.tenantId.assert().isEqualTo("acme")
+    fun `a security context CoSec's pipeline did not build is no request of the caller's`() = runTest {
+        val acme = SimpleTenant("acme")
+        val forged = object : SecurityContext {
+            override val tenant = acme
+            override val principal = SimpleTenantPrincipal(SimplePrincipal("alice", emptySet(), setOf("editor")), acme)
+            override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+        }
+        cosec.permits = { false }
+        inRequest(forged) { authorizer.authorize(editor(), action) }.assert().isEqualTo(Authorization.Allowed)
+        cosec.asked.assert().isEmpty()
     }
 
     @Test
-    fun `the host's default tenant is CoSec's, and a caller without a subject is anonymous`() = runTest {
-        val cosec = Recording(Mono.just(result(true, "")))
-        CoSecCommandAuthorizer(
-            cosec,
-            cartManifest(),
-            defaultTenant = "home"
-        ).authorize(Caller(tenantId = "home"), action)
-        cosec.context.tenant.tenantId.assert().isEqualTo(Tenant.DEFAULT_TENANT_ID)
-        cosec.context.principal.anonymous.assert().isTrue()
-    }
-
-    @Test
-    fun `a denial keeps CoSec's reason, and no decision is a denial`() = runTest {
-        val authorizer = { answer: Mono<AuthorizeResult> -> CoSecCommandAuthorizer(Recording(answer), cartManifest()) }
-        val denied = authorizer(Mono.just(result(false, "Explicit Deny"))).authorize(caller, action)
-        denied.assert().isEqualTo(Authorization.Denied("Explicit Deny", FrameworkCodes.AUTH_FORBIDDEN))
-        val blank = authorizer(Mono.just(result(false, ""))).authorize(caller, action) as Authorization.Denied
-        blank.message.assert().isEqualTo("CoSec denies shop.cart.AddItem.")
-        val none = authorizer(Mono.empty()).authorize(caller, action) as Authorization.Denied
-        none.message.assert().isEqualTo("CoSec gave no decision on shop.cart.AddItem.")
+    fun `the host's default tenant is CoSec's default tenant`() = runTest {
+        val security = cosec.security("alice").also { cosec.asked.clear() }
+        cosec.permits = { false }
+        val home = CoSecCommandAuthorizer(cosec.checker, defaultTenant = "home")
+        val caller = Caller("home", Scope("alice"), subject = "alice")
+        inRequest(security) { home.authorize(caller, action) }.assert().isInstanceOf(Authorization.Denied::class.java)
+        cosec.asked.single().toString().assert().isEqualTo("shop:AddItem cart/c-1")
     }
 }

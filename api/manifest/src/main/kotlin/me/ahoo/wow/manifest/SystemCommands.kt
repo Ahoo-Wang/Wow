@@ -34,15 +34,26 @@ object SystemCommands {
     /** The commands of a context's schedule jobs, each to the job its route's id names. */
     val JOBS: List<String> = listOf("wow.schedule.Enable", "wow.schedule.Reschedule", "wow.schedule.Disable")
 
-    /** The lifecycle command [name] (`wow.lifecycle.RestoreAggregate`) of [aggregate] in [context]. */
-    fun lifecycle(context: String, aggregate: String, name: String): CommandManifest = system(
-        name,
-        if (name == DELETE_AGGREGATE) {
+    /**
+     * The lifecycle command [name] (`wow.lifecycle.RestoreAggregate`) of [aggregate] in [context]; of an aggregate
+     * whose id is its owner's ([owned]), also by no id, the caller's own.
+     */
+    fun lifecycle(context: String, aggregate: String, name: String, owned: Boolean = false): CommandManifest {
+        val byId = if (name == DELETE_AGGREGATE) {
             CommandRoutes.deleteRoute(context, aggregate)
         } else {
             RouteManifest(CommandRoutes.POST, CommandRoutes.byIdPath(context, aggregate, name))
-        },
-    )
+        }
+        if (!owned) {
+            return system(name, byId)
+        }
+        val own = if (name == DELETE_AGGREGATE) {
+            CommandRoutes.ownDeleteRoute(context, aggregate)
+        } else {
+            CommandRoutes.unaddressed(context, aggregate, name)
+        }
+        return system(name, byId, own)
+    }
 
     /** The snapshot rebuild of [aggregate] in [context]: `POST /{context}/{aggregate}/wow.snapshot.rebuild`. */
     fun rebuild(context: String, aggregate: String): CommandManifest =
@@ -51,6 +62,6 @@ object SystemCommands {
     /** The schedule job commands of [context]: `POST /{context}/wow.schedule/{id}/enable`, ... */
     fun jobs(context: String): List<CommandManifest> = JOBS.map { system(it, CommandRoutes.jobRoute(context, it)) }
 
-    private fun system(name: String, route: RouteManifest): CommandManifest =
-        CommandManifest(name = name, schema = Manifest.schemaRef(name), routes = listOf(route), system = true)
+    private fun system(name: String, vararg routes: RouteManifest): CommandManifest =
+        CommandManifest(name = name, schema = Manifest.schemaRef(name), routes = routes.toList(), system = true)
 }

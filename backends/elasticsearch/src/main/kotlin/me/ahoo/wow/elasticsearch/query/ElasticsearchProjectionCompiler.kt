@@ -32,7 +32,7 @@ internal object ElasticsearchProjectionCompiler {
             }
         }
 
-    private fun List<QueryField>.toSourceFields(admitted: AdmittedQuery<*>): List<String> =
+    private fun List<QueryField<*>>.toSourceFields(admitted: AdmittedQuery<*>): List<String> =
         flatMap { field ->
             val path = admitted.physicalPath(field)
             listOf(path, "$path.*")

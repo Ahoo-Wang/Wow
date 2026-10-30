@@ -65,8 +65,9 @@ class ShopFlows(val shop: Shop) {
         received.merge(product, quantity, Int::plus)
     }
 
+    /** Adds to [buyer]'s own basket, by the route that names none. */
     fun addItem(buyer: String, product: String, price: String, quantity: Int): Answer = shop.post(
-        "/eshop-basket/basket/$buyer/add-basket-item",
+        "/eshop-basket/basket/add-basket-item",
         """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
         Who.buyer(buyer),
     )
@@ -74,7 +75,7 @@ class ShopFlows(val shop: Shop) {
     /** Checks [buyer]'s basket out with [headers] (a Wow-Wait); the answer, whatever it is. */
     fun checkout(buyer: String, headers: Map<String, String> = emptyMap(), timeout: Duration = Shop.TIMEOUT): Answer {
         checkouts.computeIfAbsent(buyer) { AtomicInteger() }.incrementAndGet()
-        return shop.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", Who.buyer(buyer), headers, timeout)
+        return shop.post("/eshop-basket/basket/checkout-basket", "{}", Who.buyer(buyer), headers, timeout)
     }
 
     /** Checks out with the wait [chain] and its [waitTimeout]: the final result, failing unless it was answered 200. */

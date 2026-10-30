@@ -16,11 +16,24 @@ package me.ahoo.wow.query.schema
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.api.query.RecentDaysFilter
+import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.annotation.QueryDuration
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.schema.ManifestFixtures.ITEM_STATE_DEFS
 import me.ahoo.wow.query.schema.ManifestFixtures.ORDER
 import me.ahoo.wow.query.schema.ManifestFixtures.REDACT
+import me.ahoo.wow.query.schema.ManifestFixtures.SEMANTIC_MAPS_DEFS
+import me.ahoo.wow.query.schema.ManifestFixtures.SEMANTIC_MAPS_STATE
 import me.ahoo.wow.query.schema.ManifestFixtures.STRATEGIES
 import me.ahoo.wow.query.schema.ManifestFixtures.manifest
 import me.ahoo.wow.query.schema.ManifestFixtures.orderSchema
@@ -56,12 +69,128 @@ class ManifestQuerySchemaSourceTest {
     }
 
     @Test
+    fun `a schedule rule's instant and delay mean what ScheduleRule declares them to`() {
+        runTest {
+            val schema = orderSchema()
+            // The profile declares the schedules field by hand: it holds the semantics ScheduleRule's annotations say.
+            val at = checkNotNull(
+                ScheduleRule.At::class.java.getMethod("getEpochMillis").getAnnotation(QueryTemporal::class.java),
+            ) { "ScheduleRule.At.epochMillis declares no @QueryTemporal." }
+            val after = checkNotNull(
+                ScheduleRule.After::class.java.getMethod("getMillis").getAnnotation(QueryDuration::class.java),
+            ) { "ScheduleRule.After.millis declares no @QueryDuration." }
+            at.pattern.assert().isEmpty()
+            schema.value("schedules.k1.epochMillis").semanticType.assert().isEqualTo(Temporal.Epoch(at.unit))
+            schema.value("schedules.k1.millis").semanticType.assert().isEqualTo(TimeSpan(after.unit))
+            val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+            val relative = listOf(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+            descriptor.dynamic.single { it.pattern == "schedules.{key}.epochMillis" }.run {
+                semantic.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                filter.operators.assert().containsAll(relative)
+            }
+            descriptor.dynamic.single { it.pattern == "schedules.{key}.millis" }.run {
+                semantic.assert().isEqualTo(TimeSpan(TimeUnit.MILLISECONDS))
+                filter.operators.assert().doesNotContainAnyElementsOf(relative)
+            }
+            val due = QueryField("schedules.k1.epochMillis")
+            listOf(TodayFilter(due), RecentDaysFilter(due, 7)).forEach { filter ->
+                // Admitted, or admission throws.
+                QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+            }
+        }
+    }
+
+    @Test
     fun `x-wow-temporal maps to an epoch or a formatted temporal`() {
         runTest {
             val schema = orderSchema()
             schema.value("state.createdAt").semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.SECONDS))
             schema.value("state.shippedAt").semanticType.assert().isEqualTo(Temporal.Formatted("yyyy-MM-dd HH:mm:ss"))
             schema.value("state.shippedAt").nullable.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `x-wow-temporal holds on a nullable time in list elements and map values alike`() {
+        runTest {
+            // A map value is addressed by a concrete key; the descriptor lists the key's fields as `{key}` patterns.
+            val items = mapOf(
+                "ItemListState" to listOf("state.items"),
+                "ItemMapState" to listOf("state.itemsById.k1"),
+                "ItemListAndMapState" to listOf("state.items", "state.itemsById.k1"),
+                "TwoItemListsState" to listOf("state.first", "state.second"),
+            )
+            ITEM_STATE_DEFS.keys.map { it.substringAfterLast('$') }.assert()
+                .containsExactlyInAnyOrderElementsOf(items.keys)
+            ITEM_STATE_DEFS.forEach { (state, defs) ->
+                val schema = schemaOf(ManifestQuerySchemaSource(manifest(defs, state)))
+                val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+                items.getValue(state.substringAfterLast('$')).forEach { item ->
+                    schema.value("$item.endDate").run {
+                        kind.assert().isEqualTo(QueryValueKind.SCALAR)
+                        valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+                        nullable.assert().isTrue()
+                        semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                    }
+                    schema.value("$item.startDate").run {
+                        nullable.assert().isFalse()
+                        semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                    }
+                    schema.value("$item.type").enumValues?.map { it.stringValue() }.assert().containsExactly("A", "B")
+                    listOf("endDate", "startDate").forEach { time ->
+                        // A list element's field is reached through its element scope, a map value's directly.
+                        val scope = schema.field(QueryField("$item.$time"))?.elementAncestors?.lastOrNull()?.path
+                        val field = QueryField(if (scope == null) "$item.$time" else time)
+                        listOf(TodayFilter(field), RecentDaysFilter(field, 7)).forEach { predicate ->
+                            val filter = scope?.let { ElementMatchFilter(QueryField(it), predicate) } ?: predicate
+                            // Admitted, or admission throws.
+                            QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+                        }
+                        // A list element's field and a map value's pattern describe the time alike.
+                        val path = "$item.$time".replace(".k1.", ".{key}.")
+                        val (nullable, semantic, operators) = descriptor.fields.singleOrNull { it.path == path }
+                            ?.run { Triple(nullable, semantic, filter.operators) }
+                            ?: descriptor.dynamic.single { it.pattern == path }
+                                .run { Triple(nullable, semantic, filter.operators) }
+                        nullable.assert().isEqualTo(time == "endDate")
+                        semantic.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                        operators.assert().contains(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a semantic type declared on a map reaches its values`() {
+        runTest {
+            val schema = schemaOf(ManifestQuerySchemaSource(manifest(SEMANTIC_MAPS_DEFS, SEMANTIC_MAPS_STATE)))
+            val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+            val epoch = Temporal.Epoch(TimeUnit.MILLISECONDS)
+            val seconds = TimeSpan(TimeUnit.SECONDS)
+            mapOf("deadlines" to epoch, "reminders" to epoch, "timeouts" to seconds, "pauses" to seconds)
+                .forEach { (map, semantic) ->
+                    schema.value("state.$map").semanticType.assert().isNull()
+                    schema.value("state.$map.k1").semanticType.assert().isEqualTo(semantic)
+                    val pattern = descriptor.dynamic.single { it.pattern == "state.$map.{key}" }
+                    pattern.semantic.assert().isEqualTo(semantic)
+                    // A Map<String, Long?> holds null values, and its pattern says so.
+                    val nullable = map in setOf("reminders", "pauses")
+                    schema.value("state.$map.k1").nullable.assert().isEqualTo(nullable)
+                    pattern.nullable.assert().isEqualTo(nullable)
+                    // Relative time takes a time, never a duration.
+                    val relative = listOf(FilterOperator.TODAY, FilterOperator.RECENT_DAYS)
+                    if (semantic is Temporal) {
+                        pattern.filter.operators.assert().containsAll(relative)
+                        val field = QueryField("state.$map.k1")
+                        listOf(TodayFilter(field), RecentDaysFilter(field, 7)).forEach { filter ->
+                            // Admitted, or admission throws.
+                            QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema)
+                        }
+                    } else {
+                        pattern.filter.operators.assert().doesNotContainAnyElementsOf(relative)
+                    }
+                }
         }
     }
 

@@ -13,14 +13,14 @@ A service serves an HTTP API derived from its Manifest: a route per command, the
 | Route | Serves |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | A command to an aggregate |
-| `POST /<context>/<aggregate>/<command>` | A creating command whose aggregate id the server gives |
-| `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.<command>` | The lifecycle commands |
-| `GET /<context>/<aggregate>/{id}/state`, `…/state/trace` | An aggregate's state and history ([Read State](./reading-state)) |
+| `POST /<context>/<aggregate>/<command>` | A creating command whose aggregate id the server gives; of an aggregate whose id is its owner's, any command to the caller's own |
+| `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.<command>` | The lifecycle commands; of an aggregate whose id is its owner's, also `DELETE /<context>/<aggregate>` and `POST /<context>/<aggregate>/wow.lifecycle.<command>` |
+| `GET /<context>/<aggregate>/{id}/state`, `…/state/trace` | An aggregate's state and history ([Read State](./reading-state)); of an aggregate whose id is its owner's, also `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`, `…/events/query` | The query models ([Query Snapshots](./queries), [Query Event Streams](./event-queries)) |
 | `POST /wow/dataset/<context>/<dataset>/query` | A dataset of the service |
 | `GET /wow/manifest`, `GET /wow/openapi` | The Manifest and the OpenAPI 3.1 document of these routes |
 
-The routes are on the public port. The internal port serves the cluster and other services, never a client.
+An aggregate whose id is its owner's, such as the eShop's basket, has one per owner: its routes without an id mean the caller's own aggregate, and no route generates its id ([One aggregate per owner](./ownership#one-aggregate-per-owner)). The routes are on the public port. The internal port serves the cluster and other services, never a client.
 
 ## Who the caller is
 
@@ -36,7 +36,7 @@ curl localhost:8083/eshop-ordering/order/order-1/state "${BUYER[@]}"
 - An employee is a **tenant-level** caller: no owner, so it reaches every aggregate of its tenant, and action-level authorization decides what it may do.
 - A request without `Wow-User` is the anonymous caller of the default tenant. A resolver that returns `null` answers `401 wow.auth.unauthenticated`. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
 
-With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the development headers above step aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
+With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile reads the identity the gateway forwards (`wow.cosec.mode: gateway`), the development headers above step aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body (on a CoSec host the space is the one CoSec accepted from `CoSec-Space-Id`); a caller allowed to act across scopes names another in `Wow-Scope`.
 
 ## Send a command
 

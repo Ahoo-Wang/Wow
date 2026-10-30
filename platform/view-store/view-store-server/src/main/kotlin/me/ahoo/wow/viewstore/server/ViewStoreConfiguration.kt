@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.viewstore.server
 
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -36,9 +36,10 @@ import org.springframework.context.annotation.Configuration
  * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup, the
  * system views and the handlers of its own routes.
  *
- * Its callers: CoSec's, the user, its roles and the application CoSec authorized the request in, which the edge's
- * resolver reads from the security context CoSec put on the request, which the `cosec` profile has CoSec's inject mode
- * parse from the token the gateway verified and forwarded. In development without CoSec, the host's, from the `Wow-*`
+ * Its callers: CoSec's, the user, its roles and the app of its scope, which the edge's resolver reads from the
+ * security context CoSec put on the request, which the `cosec` profile has CoSec's gateway mode read from the identity
+ * the CoSec gateway verified and forwarded (`CoSec-Identity`, the app the gateway decided the request in). In
+ * development without CoSec, the host's, from the `Wow-*`
  * identity headers any client sets (`DevelopmentCallerResolver`; a user acts as an owner with `Wow-Owner`, in the
  * application `Wow-App` names); a request without a user is the anonymous caller, which reads the reserved owners'
  * views. Either is behind the view store's reserved owners ([ReservedScopeCallers]). A node
@@ -64,7 +65,7 @@ class ViewStoreConfiguration {
 
     /** Looks the queries up on use: they are built with the node, which this binding is part of. */
     @Bean
-    fun sharedBoardReferences(queries: ObjectProvider<QueryApi>): SharedBoardReferences =
+    fun sharedBoardReferences(queries: ObjectProvider<NodeQueryApi>): SharedBoardReferences =
         QueriedBoardReferences { queries.getObject() }
 
     /** `wow.view-store.system-views`, checked at startup. */
@@ -73,11 +74,11 @@ class ViewStoreConfiguration {
         ConfiguredSystemViews(properties.systemViews)
 
     @Bean
-    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<QueryApi>): StoredSystemViews =
+    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<NodeQueryApi>): StoredSystemViews =
         StoredSystemViews(configured) { queries.ifAvailable }
 
     @Bean
-    fun viewReads(systemViews: StoredSystemViews, queries: ObjectProvider<QueryApi>): ViewReads =
+    fun viewReads(systemViews: StoredSystemViews, queries: ObjectProvider<NodeQueryApi>): ViewReads =
         QueriedViewReads(systemViews) { queries.ifAvailable }
 
     /** The handlers of the view store's service routes, which Wow's routes mount from the Manifest. */

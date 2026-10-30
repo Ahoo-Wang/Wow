@@ -31,6 +31,7 @@ import me.ahoo.wow.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.query.json.QueryJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -95,6 +96,40 @@ class QueryModelDescriptionTest {
         labels.single().filter.operators.assert().contains(FilterOperator.CONTAINS_ALL, FilterOperator.EQ)
         descriptor.dynamic.map { it.pattern }.assert().doesNotHaveDuplicates()
         descriptor.timeZone.assert().isEqualTo("UTC")
+    }
+
+    @Test
+    fun `a dynamic pattern says what its values mean and whether they may be null, as a field does`() {
+        val endDate = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.INTEGER),
+            nullable = true,
+            semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+        )
+        val descriptor = boundSchemaFixture(
+            objectFixture(
+                "aggregateId" to scalarFixture(),
+                "tenantId" to scalarFixture(),
+                "state" to objectFixture(
+                    "items" to arrayFixture(objectFixture("endDate" to endDate)),
+                    "itemsById" to mapFixture(objectFixture("endDate" to endDate)),
+                    "labels" to mapFixture(scalarFixture()),
+                ),
+            ),
+        ).describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null)
+        val listed = descriptor.fields.single { it.path == "state.items.endDate" }
+        val field = QueryJson.mapper.valueToTree<JsonNode>(listed)
+        descriptor.dynamic.single { it.pattern == "state.itemsById.{key}.endDate" }.run {
+            nullable.assert().isTrue()
+            semantic.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+            // On the wire as the same value in a list element says it.
+            val wire = QueryJson.mapper.valueToTree<JsonNode>(this)
+            listOf("nullable", "semantic").forEach { wire[it].assert().isEqualTo(field[it]) }
+        }
+        descriptor.dynamic.single { it.pattern == "state.labels.{key}" }.run {
+            nullable.assert().isFalse()
+            semantic.assert().isNull()
+        }
     }
 
     @Test

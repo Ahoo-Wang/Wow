@@ -15,7 +15,10 @@ package me.ahoo.wow.api.schedule
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.annotation.QueryDuration
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
@@ -34,7 +37,10 @@ sealed interface ScheduleRule {
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class At @InternalWowApi constructor(val epochMillis: Long) : ScheduleRule {
+    class At @InternalWowApi constructor(
+        @get:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+        val epochMillis: Long,
+    ) : ScheduleRule {
         override fun firstDue(commitTime: Long): Long = epochMillis
 
         override fun equals(other: Any?): Boolean =
@@ -58,7 +64,10 @@ sealed interface ScheduleRule {
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class After @InternalWowApi constructor(val millis: Long) : ScheduleRule {
+    class After @InternalWowApi constructor(
+        @get:QueryDuration(TimeUnit.MILLISECONDS)
+        val millis: Long,
+    ) : ScheduleRule {
         init {
             require(millis >= 0) { "A schedule is not due before the commit that sets it." }
         }

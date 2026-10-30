@@ -339,7 +339,7 @@
     "errors" : [ {
       "code" : "view-store.app-required",
       "status" : 400,
-      "description" : "The request carries no CoSec-App-Id."
+      "description" : "The request's CoSec scope has no application (behind the CoSec gateway, the one it forwarded)."
     }, {
       "code" : "view-store.invalid",
       "status" : 400,
@@ -588,22 +588,6 @@
     "retryAfter" : 1
   } ],
   "$defs" : {
-    "java.util.Map(java.lang.String,java.lang.Object)" : {
-      "type" : "object"
-    },
-    "java.util.Map(java.lang.String,java.lang.Object)-nullable" : {
-      "anyOf" : [ {
-        "type" : "null"
-      }, {
-        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
-      } ]
-    },
-    "java.util.Map(java.lang.String,java.lang.String)-nullable" : {
-      "type" : [ "object", "null" ],
-      "additionalProperties" : {
-        "type" : "string"
-      }
-    },
     "me.ahoo.wow.api.lifecycle.TransferOwner" : {
       "type" : "object",
       "properties" : {
@@ -619,7 +603,7 @@
       "type" : "object",
       "properties" : {
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "definitionId" : {
           "type" : "string"
@@ -664,7 +648,7 @@
       "type" : "object",
       "properties" : {
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "definitionId" : {
           "type" : "string"
@@ -717,7 +701,10 @@
           "type" : "string"
         },
         "lastTabs" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+          "type" : [ "object", "null" ],
+          "additionalProperties" : {
+            "type" : "string"
+          }
         },
         "order" : {
           "type" : "array",
@@ -746,7 +733,10 @@
           "type" : "string"
         },
         "lastTabs" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+          "type" : [ "object", "null" ],
+          "additionalProperties" : {
+            "type" : "string"
+          }
         },
         "order" : {
           "type" : "array",
@@ -768,7 +758,7 @@
       "type" : "object",
       "properties" : {
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "definitionId" : {
           "type" : "string"
@@ -796,7 +786,7 @@
       "type" : "object",
       "properties" : {
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         }
       },
       "required" : [ "config" ],
@@ -843,7 +833,7 @@
           "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
         },
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "definitionId" : {
           "type" : "string"
@@ -874,7 +864,7 @@
       "type" : "object",
       "properties" : {
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "kind" : {
           "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
@@ -915,7 +905,7 @@
           "type" : "string"
         },
         "fields" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+          "type" : [ "object", "null" ]
         },
         "recordNoun" : {
           "type" : [ "string", "null" ]
@@ -935,7 +925,7 @@
           "type" : "string"
         },
         "fields" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+          "type" : [ "object", "null" ]
         },
         "recordNoun" : {
           "type" : [ "string", "null" ]
@@ -964,7 +954,10 @@
           "type" : "string"
         },
         "lastTabs" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+          "type" : [ "object", "null" ],
+          "additionalProperties" : {
+            "type" : "string"
+          }
         },
         "order" : {
           "type" : "array",
@@ -986,7 +979,7 @@
           "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
         },
         "config" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+          "type" : "object"
         },
         "definitionId" : {
           "type" : "string"
@@ -1011,7 +1004,7 @@
           "type" : "string"
         },
         "fields" : {
-          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+          "type" : [ "object", "null" ]
         },
         "recordNoun" : {
           "type" : [ "string", "null" ]

@@ -13,14 +13,14 @@ outline: deep
 | 路由 | 提供 |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | 发往一个聚合的命令 |
-| `POST /<context>/<aggregate>/<command>` | 由服务端分配聚合 ID 的创建命令 |
-| `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.<command>` | 生命周期命令 |
-| `GET /<context>/<aggregate>/{id}/state`、`…/state/trace` | 聚合的状态和历史（[读取状态](./reading-state)） |
+| `POST /<context>/<aggregate>/<command>` | 由服务端分配聚合 ID 的创建命令；对 ID 即所有者 ID 的聚合，是发往调用方自己的聚合的任何命令 |
+| `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.<command>` | 生命周期命令；对 ID 即所有者 ID 的聚合，还有 `DELETE /<context>/<aggregate>` 和 `POST /<context>/<aggregate>/wow.lifecycle.<command>` |
+| `GET /<context>/<aggregate>/{id}/state`、`…/state/trace` | 聚合的状态和历史（[读取状态](./reading-state)）；对 ID 即所有者 ID 的聚合，还有 `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`、`…/events/query` | 查询模型（[查询快照](./queries)、[查询事件流](./event-queries)） |
 | `POST /wow/dataset/<context>/<dataset>/query` | 服务的一个数据集 |
 | `GET /wow/manifest`、`GET /wow/openapi` | Manifest，以及这些路由的 OpenAPI 3.1 文档 |
 
-这些路由在公开端口上。内部端口为集群和其他服务提供服务，从不为客户端提供。
+ID 即所有者 ID 的聚合，例如 eShop 的购物车，每个所有者一个：它不带 ID 的路由指调用方自己的聚合，没有路由会生成它的 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。这些路由在公开端口上。内部端口为集群和其他服务提供服务，从不为客户端提供。
 
 ## 调用方是谁 {#who-the-caller-is}
 
@@ -36,7 +36,7 @@ curl localhost:8083/eshop-ordering/order/order-1/state "${BUYER[@]}"
 - 员工是**租户级**调用方：没有所有者，所以能接触它租户的每个聚合，由动作级授权决定它能做什么。
 - 没有 `Wow-User` 的请求是默认租户的匿名调用方。返回 `null` 的解析器对应 `401 wow.auth.unauthenticated`。有意匿名的服务声明一个返回 `CallerResolver.ANONYMOUS` 的解析器 Bean。
 
-有 `wow-cosec` 时，CoSec 的解析器从已认证的主体及其角色完成这件事（[保护部署](../operate/security#authenticate-callers)）。eShop 的服务在 CoSec 网关之后就是这样运行的：它们的 `cosec` profile 打开 CoSec，上面的开发请求头让开，员工是带 `employee` 角色的主体（`wow.cosec.tenant-level.roles`）。租户、所有者和空间总是来自调用方，从不来自路径或请求体；被允许跨作用域行事的调用方，在 `Wow-Scope` 中指明另一个作用域。
+有 `wow-cosec` 时，CoSec 的解析器从已认证的主体及其角色完成这件事（[保护部署](../operate/security#authenticate-callers)）。eShop 的服务在 CoSec 网关之后就是这样运行的：它们的 `cosec` profile 读取网关转发的身份（`wow.cosec.mode: gateway`），上面的开发请求头让开，员工是带 `employee` 角色的主体（`wow.cosec.tenant-level.roles`）。租户、所有者和空间总是来自调用方，从不来自路径或请求体（在 CoSec 宿主上，空间是 CoSec 从 `CoSec-Space-Id` 接受的那个）；被允许跨作用域行事的调用方，在 `Wow-Scope` 中指明另一个作用域。
 
 ## 发送命令 {#send-a-command}
 

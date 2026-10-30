@@ -196,6 +196,10 @@ class ContextManifest @InternalWowApi constructor(
  * query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
  * not those of an [Ownership.TENANT] one.
  *
+ * [idSource] is where the aggregate's id comes from, as `@AggregateRoot(idSource)` declares it: an
+ * [AggregateIdSource.OWNER] aggregate's id is its owner's, so every command also has a route that names no id and
+ * means the caller's own aggregate ([CommandRoutes]), as its state read does, and no route generates an id.
+ *
  * [retired] lists the events the aggregate retired, as `@AggregateRoot(retiredEvents)` declares them:
  * the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
  * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
@@ -214,6 +218,7 @@ class AggregateManifest @InternalWowApi constructor(
     val schedules: List<String>? = null,
     val ownership: Ownership = Ownership.OWNER,
     val retired: List<String> = emptyList(),
+    val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is AggregateManifest && valueFields() == other.valueFields()
@@ -223,7 +228,7 @@ class AggregateManifest @InternalWowApi constructor(
     override fun toString(): String =
         "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
             "commands=$commands, events=$events, queries=$queries, schedules=$schedules, " +
-            "ownership=$ownership, retired=$retired)"
+            "ownership=$ownership, retired=$retired, idSource=$idSource)"
 
     /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
     val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
@@ -243,7 +248,17 @@ class AggregateManifest @InternalWowApi constructor(
         schedules,
         ownership,
         retired,
+        idSource,
     )
+}
+
+/** Where an aggregate's id comes from (`me.ahoo.wow.api.aggregate.AggregateIdSource`). */
+enum class AggregateIdSource {
+    /** The request's, or one admission generates for a command that creates its aggregate. */
+    ASSIGNED,
+
+    /** Its owner's: one per owner, addressed by an owner-level caller as its own. */
+    OWNER,
 }
 
 /** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`). */

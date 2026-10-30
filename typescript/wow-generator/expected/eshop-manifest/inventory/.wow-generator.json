@@ -5,7 +5,7 @@
     "eshop-inventory/contract.ts": "6800b5069215ca1bbd3d6298f3ccc370a8eb60e1e8ab3e2b472a966650b2f0b7",
     "eshop-inventory/index.ts": "b86d41b4803f9e3ff69948756965cab666c3c2c55b039b3787f3ac807a7055ca",
     "eshop-inventory/manifest.ts": "13aa1774eb6aac4739037c4016e3fbf83c40d8c29f190460887d135efe6d295d",
-    "eshop-inventory/stock/aggregate.ts": "3543d5a7d7d2375631d0ef09d5f88003f17356558c11fd4b7ae124d38cbdee8c",
+    "eshop-inventory/stock/aggregate.ts": "5f538e8c1d017aeee73c0a60e2a46e5783ea00b51719fe26bb3198d1581a579e",
     "eshop-inventory/stock/commandClient.ts": "588454d4e1bc0b17ce686c04b0310d5f11c574fac185b19c85b8b786ae736205",
     "eshop-inventory/stock/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-inventory/stock/queryClient.ts": "5127f875b413a793b7e69a7f813452ba658f36cf96420e22d6102b6a3ee6afeb",

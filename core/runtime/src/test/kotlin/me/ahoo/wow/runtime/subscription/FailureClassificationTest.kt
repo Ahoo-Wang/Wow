@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -39,9 +40,12 @@ import java.sql.SQLNonTransientConnectionException
 import java.sql.SQLTransientConnectionException
 import kotlin.time.Duration.Companion.seconds
 
-/** How a handler's failure is classified (decisions D229 G-6, D243): its `@Retry`, the classifiers, the default. */
+/**
+ * How the runtime classifies a handler's failure (decisions D229 G-6, D243): its `@Retry`, the application's
+ * classifiers, the runtime's own (a busy executor) and the kernel's built-in rules, the default.
+ */
 class FailureClassificationTest {
-    private val classification = FailureClassification.DEFAULT
+    private val classification = RuntimeFailures.DEFAULT
 
     @Test
     fun `the runtime takes connection failures for systemic and anything else for recoverable`() {
@@ -104,7 +108,7 @@ class FailureClassificationTest {
             unavailable,
             HandlerRetry(recoverable = listOf(StorageUnavailableException::class.java)),
         ).assert().isEqualTo(FailureClass.RECOVERABLE)
-        val application = FailureClassification.of(
+        val application = RuntimeFailures.of(
             listOf(
                 FailureClassifier { if (it is IllegalArgumentException) FailureClass.UNRECOVERABLE else null },
                 FailureClassifier { FailureClass.RECOVERABLE.takeIf { _ -> it is StorageUnavailableException } },
@@ -117,7 +121,7 @@ class FailureClassificationTest {
             HandlerRetry(maxAttempts = 2),
         ).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         FailureClassifier.NONE.classify(unavailable).assert().isNull()
-        BuiltInFailures.classify(IllegalStateException()).assert().isNull()
+        ExecutorFailures.classify(IllegalStateException()).assert().isNull()
     }
 
     @Test

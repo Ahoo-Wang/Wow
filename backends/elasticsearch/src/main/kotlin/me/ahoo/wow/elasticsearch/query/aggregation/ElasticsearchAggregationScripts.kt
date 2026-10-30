@@ -198,7 +198,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
      * ([epochMillisScript]), and as MongoDB does: floored to whole milliseconds, and `null` when it is fractional
      * or overflows.
      */
-    private fun appendInstant(field: QueryField): String {
+    private fun appendInstant(field: QueryField<*>): String {
         val resolved = admitted.field(field)
         val id = nextId++
         val value = "v$id"
@@ -229,7 +229,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         return value
     }
 
-    private fun appendField(field: QueryField): String {
+    private fun appendField(field: QueryField<*>): String {
         val id = nextId++
         val value = "v$id"
         val fieldVariable = "f$id"

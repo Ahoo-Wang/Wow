@@ -65,9 +65,9 @@ internal fun FilterExpression.withCanonicalFields(schema: QueryModelSchema): Fil
     if (!schema.hasAliases) this else QueryFieldAliases(schema.definition).filter(this, null)
 
 private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
-    private fun field(field: QueryField, parent: QueryField?): QueryField = definition.canonical(field, parent)
+    private fun field(field: QueryField<*>, parent: QueryField<*>?): QueryField<*> = definition.canonical(field, parent)
 
-    fun filter(expression: FilterExpression, parent: QueryField?): FilterExpression = when (expression) {
+    fun filter(expression: FilterExpression, parent: QueryField<*>?): FilterExpression = when (expression) {
         is AndFilter -> AndFilter(expression.operands.map { filter(it, parent) })
         is OrFilter -> OrFilter(expression.operands.map { filter(it, parent) })
         is NorFilter -> NorFilter(expression.operands.map { filter(it, parent) })
@@ -89,7 +89,7 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
         -> expression.withPredicateField(field(checkNotNull(expression.predicateField()), parent))
     }
 
-    private fun expression(expression: AggregationExpression, parent: QueryField?): AggregationExpression =
+    private fun expression(expression: AggregationExpression, parent: QueryField<*>?): AggregationExpression =
         when (expression) {
             is AggregationExpression.Field -> AggregationExpression.Field(field(expression.field, parent))
             is AggregationExpression.Constant -> expression
@@ -103,5 +103,5 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
             )
         }
 
-    private fun absolute(field: QueryField, parent: QueryField?): QueryField = parent?.append(field) ?: field
+    private fun absolute(field: QueryField<*>, parent: QueryField<*>?): QueryField<*> = parent?.append(field) ?: field
 }

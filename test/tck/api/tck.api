@@ -80,8 +80,11 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun a parked aggregate reads back for its subscription only ()V
 	public final fun a request is left for the owner and taken once ()V
 	public final fun a retry is claimed only from the retries read, once among concurrent claims ()V
+	public final fun a schedule holds only on the retries and schedule read, and a claim or an operator's change clears it ()V
 	public final fun a source position reads back with its entry, and moves with the earlier version or a repark ()V
+	public final fun a subscription's parked aggregates are counted up to the bound ()V
 	public final fun a subscription's parked aggregates are listed in pages, in aggregate order ()V
+	public final fun a tenant's parked aggregates are listed alone, in pages, in aggregate order ()V
 	public final fun amending an aggregate that is not parked writes nothing ()V
 	public final fun an operator's retry spec and recoverability are applied and cleared ()V
 	public final fun concurrent parks of one aggregate keep the earliest from version ()V
@@ -91,6 +94,7 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun reparking an aggregate that is not parked writes nothing ()V
 	public final fun reparking replaces a parked entry, later or earlier, with its reason ()V
 	public final fun resolving removes the entry, after which the aggregate may be parked anew ()V
+	public final fun the due entries are those of the partitions not scheduled yet or scheduled by now, in pages ()V
 }
 
 protected final class me/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion {

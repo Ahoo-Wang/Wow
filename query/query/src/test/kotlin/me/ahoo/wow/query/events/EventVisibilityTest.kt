@@ -21,13 +21,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.AdmittedAggregates
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.observe.QueryObserver
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -49,12 +50,15 @@ class EventVisibilityTest {
         }
     }
 
-    private fun state(items: Int, id: String = ref.id) = CommittedState(
+    private fun state(items: Int, id: String = ref.id) = Snapshot.of<JsonNode>(
         ref = type.ref("acme", id),
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
         tags = mapOf("region" to listOf("east")),
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", items),
     )
 
@@ -62,7 +66,7 @@ class EventVisibilityTest {
     private fun pointReads(
         gateway: QueryGateway? = snapshots,
         hides: Boolean = true,
-        latest: suspend (me.ahoo.wow.api.aggregate.AggregateRef) -> CommittedState?,
+        latest: suspend (me.ahoo.wow.api.aggregate.AggregateRef) -> Snapshot<JsonNode>?,
     ) = EventVisibility.of({ gateway }, hides, batched = { false }, latest = latest)
 
     private suspend fun EventVisibility.visible(id: String, caller: QueryCaller): Boolean =

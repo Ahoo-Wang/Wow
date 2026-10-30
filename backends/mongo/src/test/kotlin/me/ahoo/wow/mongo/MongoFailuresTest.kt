@@ -113,7 +113,14 @@ class MongoFailuresTest {
 
     @Test
     fun `the request id lookup on an unreachable server should throw the retryable error (C1 F2)`() {
-        val log = MongoEventLog(unreachable, "wow", "shop", partitions = 1, dispatcher = Dispatchers.IO)
+        val log = MongoEventLog(
+            unreachable,
+            "wow",
+            "shop",
+            partitions = 1,
+            dispatcher = Dispatchers.IO,
+            sharding = UNSHARDED
+        )
         assertThrows<StorageUnavailableException> {
             runBlocking { log.findByRequestId(cart, "tenant", "request-1") }
         }.causes().filterIsInstance<MongoTimeoutException>().assert().isNotEmpty()
@@ -121,7 +128,7 @@ class MongoFailuresTest {
 
     @Test
     fun `a snapshot load on an unreachable server should throw the retryable error`() {
-        val store = MongoSnapshotStore(unreachable, "wow", "shop", dispatcher = Dispatchers.IO)
+        val store = MongoSnapshotStore(unreachable, "wow", "shop", dispatcher = Dispatchers.IO, sharding = UNSHARDED)
         assertThrows<StorageUnavailableException> {
             runBlocking { store.load(cart.ref("tenant", "cart-1")) }
         }.causes().filterIsInstance<MongoTimeoutException>().assert().isNotEmpty()
@@ -149,7 +156,16 @@ class MongoFailuresTest {
                 MongoFailureLedger(unreachable, "wow", dispatcher = Dispatchers.IO)
                     .parked("projection", cart.ref("t", "c"))
             },
-            { MongoTimerStore(unreachable, "wow", "shop", 4, Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
+            {
+                MongoTimerStore(
+                    unreachable,
+                    "wow",
+                    "shop",
+                    4,
+                    Dispatchers.IO,
+                    sharding = UNSHARDED
+                ).find(cart.ref("t", "c"), "remind")
+            },
         )
         calls.forEach { call ->
             assertThrows<StorageUnavailableException> { runBlocking { call() } }
@@ -189,7 +205,7 @@ class MongoFailuresTest {
     @Test
     fun `an append to an unreachable server should throw the retryable error, never append`() {
         // Nothing reached the store: the command is answered as unavailable, not unknown (finding A2-6).
-        val log = MongoEventLog(unreachable, "wow", "shop", 1, Dispatchers.IO)
+        val log = MongoEventLog(unreachable, "wow", "shop", 1, Dispatchers.IO, sharding = UNSHARDED)
         assertThrows<StorageUnavailableException> { runBlocking { log.append(stream()) } }
     }
 
@@ -205,6 +221,9 @@ class MongoFailuresTest {
     )
 
     private companion object {
+        /** Not sharded: a store that may shard asks the server as it is built, which fails on this one. */
+        val UNSHARDED = MongoSharding.NONE
+
         const val MAX_TIME_EXPIRED = 50
         const val INTERRUPTED_DUE_TO_REPL_STATE_CHANGE = 11602
         const val WRITE_CONFLICT = 112

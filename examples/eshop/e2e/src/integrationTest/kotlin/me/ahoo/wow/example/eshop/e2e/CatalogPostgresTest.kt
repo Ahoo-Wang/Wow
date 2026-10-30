@@ -18,7 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
@@ -120,7 +120,7 @@ class CatalogPostgresTest {
             }
             sort { EshopCatalogContract.Product.STATE__PRICE.desc() }
         }
-        val products = server.bean<QueryApi>().trusted().snapshots<ProductState>()
+        val products = server.bean<NodeQueryApi>().trusted().snapshots<ProductState>()
         runBlocking { products.list(query).toList() }.map { it.ref.id }
             .assert().containsExactly(byPrice.getValue("6.00"), byPrice.getValue("4.00"))
         val inCategory = countQuery { filter { EshopCatalogContract.Product.STATE__CATEGORY_ID eq category } }

@@ -52,18 +52,15 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         get() = scopes().flatMapTo(sortedSetOf()) { scope -> scope.names().map { ParkedSubscription(scope.group, it) } }
             .toList()
 
-    /** How many entries [subscription] has parked, up to [max]. */
+    /**
+     * How many entries [subscription] has parked, up to [max]: counted by the ledger ([FailureLedger.count]), which
+     * reads none of them.
+     */
     suspend fun count(subscription: ParkedSubscription, max: Int): Int {
         require(max >= 1) { "At least one parked entry is counted." }
         var count = 0
         for (scope in scopes().filter { it.group == subscription.group && subscription.name in it.names() }) {
-            var after: AggregateRef? = null
-            do {
-                val limit = minOf(MAX_LIMIT, max - count)
-                val page = scope.ledger.list(subscription.name, after, limit)
-                count += page.size
-                after = page.lastOrNull()?.ref
-            } while (page.size == limit && count < max)
+            count += scope.ledger.count(subscription.name, max - count)
             if (count >= max) {
                 break
             }
@@ -73,36 +70,23 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Up to [limit] entries, ordered by subscription name and then by aggregate as [FailureLedger.list] orders them:
-     * [subscription]'s only when given, after [after] (exclusive) when given, and only those whose aggregate [visible]
-     * admits (a caller's own tenant's, for one that may not act across tenants). [ParkedPage.next] is where the next
-     * page starts, null when there is none.
+     * [subscription]'s only when given, after [after] (exclusive) when given, and only [tenantId]'s when given (a
+     * caller's own tenant, for one that may not act across tenants), which the ledger filters. Each subscription's
+     * ledgers are read once, for at most [limit] entries each. [ParkedPage.next] is where the next page starts, null
+     * when there is none.
      */
     suspend fun list(
         subscription: String? = null,
         after: ParkedKey? = null,
         limit: Int = DEFAULT_LIMIT,
-        visible: (AggregateRef) -> Boolean = { true },
+        tenantId: String? = null,
     ): ParkedPage {
         require(limit in 1..MAX_LIMIT) { "A page holds 1 to $MAX_LIMIT entries." }
         val names = (subscription?.let(::listOf) ?: subscriptions).filter { after == null || it >= after.subscription }
         val entries = ArrayList<ParkedView>(limit)
         for (name in names) {
-            var refAfter = after?.takeIf { it.subscription == name }?.ref
-            while (entries.size < limit) {
-                val page = page(name, refAfter, limit)
-                for (view in page) {
-                    if (visible(view.entry.ref)) {
-                        entries += view
-                        if (entries.size == limit) {
-                            break
-                        }
-                    }
-                }
-                if (page.size < limit) {
-                    break
-                }
-                refAfter = page.last().entry.ref
-            }
+            val refAfter = after?.takeIf { it.subscription == name }?.ref
+            entries += page(name, refAfter, limit - entries.size, tenantId)
             if (entries.size >= limit) {
                 break
             }
@@ -111,12 +95,25 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         return ParkedPage(entries, next)
     }
 
-    /** [subscription]'s entries after [after], at most [limit], from every ledger that holds the subscription's. */
-    private suspend fun page(subscription: String, after: AggregateRef?, limit: Int): List<ParkedView> {
+    /**
+     * [subscription]'s entries after [after], [tenantId]'s only when given, at most [limit], from every ledger that
+     * holds the subscription's.
+     */
+    private suspend fun page(
+        subscription: String,
+        after: AggregateRef?,
+        limit: Int,
+        tenantId: String?
+    ): List<ParkedView> {
         val holders = scopes().filter { subscription in it.names() }
         val byRef = LinkedHashMap<AggregateRef, ParkedView>()
         holders.forEach { scope ->
-            scope.ledger.list(subscription, after, limit).forEach { byRef.putIfAbsent(it.ref, scope.view(it)) }
+            scope.ledger.list(
+                subscription,
+                after,
+                limit,
+                tenantId
+            ).forEach { byRef.putIfAbsent(it.ref, scope.view(it)) }
         }
         return byRef.values.sortedWith(compareBy(REF_ORDER) { it.entry.ref }).take(limit)
     }
@@ -127,10 +124,15 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Handles [subscription]'s parked [ref] again from where it is parked, whatever its retry spec says: at once when
-     * this node owns its partition, else by a request to the owner.
+     * this node owns its partition, else by a request to the owner. With [failedAt], only the parking at that time
+     * ([ParkedAggregate.failedAt], as the operator saw it): [Outcome.STALE] when the entry was parked at another.
+     * Without, the current parking: a resume only handles the parked streams again.
      */
-    suspend fun resume(subscription: String, ref: AggregateRef): Outcome {
-        val (scope, _) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
+    suspend fun resume(subscription: String, ref: AggregateRef, failedAt: Long? = null): Outcome {
+        val (scope, entry) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
+        if (failedAt != null && entry.failedAt != failedAt) {
+            return Outcome.STALE
+        }
         val runtime = scope.runner()?.takeIf { it.acts(subscription, ref) }
             ?: return request(scope, subscription, ref, LedgerRequest.RESUME)
         if (runtime.resume(subscription, ref)) {
@@ -141,10 +143,15 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Resolves [subscription]'s parked [ref] without handling what was parked: at once when this node owns its
-     * partition and no resume of it runs, else by a request to the owner.
+     * partition and no resume of it runs, else by a request to the owner. Only the parking at [failedAt]
+     * ([ParkedAggregate.failedAt], as the operator saw it), which a skip must name since it discards what was parked:
+     * [Outcome.STALE] when the entry was parked at another time.
      */
-    suspend fun skip(subscription: String, ref: AggregateRef): Outcome {
-        val (scope, _) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
+    suspend fun skip(subscription: String, ref: AggregateRef, failedAt: Long): Outcome {
+        val (scope, entry) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
+        if (entry.failedAt != failedAt) {
+            return Outcome.STALE
+        }
         val runtime = scope.runner()?.takeIf { it.acts(subscription, ref) }
             ?: return request(scope, subscription, ref, LedgerRequest.SKIP)
         if (runtime.skip(subscription, ref)) {
@@ -210,6 +217,12 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
         /** The aggregate is not parked by the subscription. */
         NOT_PARKED,
+
+        /**
+         * Refused: the entry was parked at another time than the action named, resolved and parked again since, so
+         * acting on it would act on a failure nobody looked at.
+         */
+        STALE,
     }
 
     /**

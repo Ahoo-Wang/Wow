@@ -101,6 +101,7 @@ object ManifestSchema {
                 "schedules" to strings("The commands the aggregate schedules."),
                 "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; owner when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
+                "idSource" to enumOf(AggregateIdSource.entries, "Where an aggregate's id comes from; assigned when absent."),
             ),
             STATE to objectOf(
                 "An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view.",

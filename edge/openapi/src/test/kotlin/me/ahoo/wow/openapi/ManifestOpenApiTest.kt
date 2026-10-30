@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
@@ -304,7 +305,7 @@ class ManifestOpenApiTest {
         val ok = responses(state)["200"] as Map<String, Any?>
         schema(ok).assert().isEqualTo(
             mapOf(
-                "\$ref" to "#/components/schemas/wow.StateView",
+                "\$ref" to "#/components/schemas/wow.Snapshot",
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
@@ -317,6 +318,46 @@ class ManifestOpenApiTest {
     }
 
     @Test
+    fun `an aggregate whose id is its owner's should have its routes by no id, of the caller's own`() {
+        val owned = ManifestOpenApi.write(OWNED)
+        OpenApiChecks.check(owned)
+        @Suppress("UNCHECKED_CAST")
+        val paths = owned["paths"] as Map<String, Map<String, Map<String, Any?>>>
+        val create = paths.getValue("/shop/cart/create-cart").getValue("post")
+        create["operationId"].assert().isEqualTo("shop.cart.CreateCart.withoutId")
+        parameters(create).assert().doesNotContain("id", "If-Match")
+        create["description"].toString().assert().contains("the caller's own aggregate")
+            .doesNotContain("the server chooses it")
+        responses(create).keys.assert().contains("400", "401", "403").doesNotContain("412")
+        val put = paths.getValue("/shop/cart/put-item").getValue("post")
+        put["description"].toString().assert().contains("Acts on an aggregate that exists.")
+            .contains("the caller's own aggregate")
+        paths.getValue("/shop/cart/{id}/put-item").getValue("post")["description"].toString().assert()
+            .doesNotContain("the caller's own aggregate")
+        val delete = paths.getValue("/shop/cart").getValue("delete")
+        delete["operationId"].assert().isEqualTo("shop.cart.wow.lifecycle.DeleteAggregate.withoutId")
+        delete["description"].toString().assert().contains("the caller's own aggregate")
+        parameters(delete).assert().doesNotContain("id")
+        paths.getValue("/shop/cart/{id}").getValue("delete")["operationId"].assert()
+            .isEqualTo("shop.cart.wow.lifecycle.DeleteAggregate")
+        paths.getValue("/shop/cart/wow.lifecycle.archive").getValue("post")["operationId"].assert()
+            .isEqualTo("shop.cart.wow.lifecycle.Archive.withoutId")
+
+        val state = paths.getValue("/shop/cart/state").getValue("get")
+        state["operationId"].assert().isEqualTo("shop.cart.state.withoutId")
+        parameters(state).assert().containsExactly("version", "at", "minVersion", "Wow-Scope", "If-None-Match")
+        state["description"].toString().assert().contains("the caller's own aggregate").contains("wow.query.malformed")
+        responses(state).assert().isEqualTo(responses(paths.getValue("/shop/cart/{id}/state").getValue("get")))
+        val trace = paths.getValue("/shop/cart/state/trace").getValue("get")
+        trace["operationId"].assert().isEqualTo("shop.cart.state.trace.withoutId")
+        parameters(trace).assert().containsExactly("from", "to", "limit", "Wow-Scope")
+
+        val operationIds = paths.values.flatMap { it.values }.map { it["operationId"] }
+        operationIds.assert().doesNotHaveDuplicates()
+        paths().keys.assert().doesNotContain("/shop/cart/state", "/shop/cart")
+    }
+
+    @Test
     fun `query routes should be documented for the models the edge serves`() {
         val snapshot = operation("post", "/shop/cart/snapshot/query")
         snapshot["operationId"].assert().isEqualTo("shop.cart.snapshot.query")
@@ -326,7 +367,7 @@ class ManifestOpenApiTest {
         kinds.assert().hasSize(6)
         kinds[3].assert().isEqualTo(
             mapOf(
-                "\$ref" to "#/components/schemas/wow.SnapshotRecord",
+                "\$ref" to "#/components/schemas/wow.Snapshot",
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
@@ -480,7 +521,7 @@ class ManifestOpenApiTest {
     @Test
     fun `the framework schemas should hold what the edge writes`() {
         OpenApiChecks.validate(document, WowSchemas.PROBLEM, PROBLEM).assert().isEmpty()
-        OpenApiChecks.validate(document, WowSchemas.STATE_VIEW, STATE).assert().isEmpty()
+        OpenApiChecks.validate(document, WowSchemas.SNAPSHOT, STATE).assert().isEmpty()
         OpenApiChecks.validate(document, WowSchemas.STATE_TRACE, TRACE).assert().isEmpty()
         OpenApiChecks.validate(document, "wow.lifecycle.TransferOwner", "{}").assert().isNotEmpty()
     }
@@ -583,11 +624,38 @@ class ManifestOpenApiTest {
             ),
         )
 
+        /** [MANIFEST] with its cart's id its owner's: every command, lifecycle ones too, also routed by no id. */
+        val OWNED = MANIFEST.copyWith(
+            contexts = MANIFEST.contexts.map { context ->
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        if (aggregate.name != "cart") return@map aggregate
+                        aggregate.copyWith(
+                            idSource = AggregateIdSource.OWNER,
+                            commands = aggregate.commands.map { command ->
+                                when {
+                                    command.name.startsWith("wow.lifecycle.") ->
+                                        SystemCommands.lifecycle("shop", "cart", command.name, owned = true)
+
+                                    command.system -> command
+                                    else -> command.copyWith(
+                                        routes = CommandRoutes.of("shop", "cart", command.name, command.creation, true),
+                                    )
+                                }
+                            },
+                        )
+                    },
+                )
+            },
+        )
+
         private const val PROBLEM = """{"type":"urn:wow:error:wow.command.invalid","title":"Invalid","status":400,"retry":"none",
             "detail":"d","code":"wow.command.invalid","violations":[{"path":"p","code":"c","message":"m"}]}"""
         private const val REF = """{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"}"""
-        private const val STATE = """{"ref":$REF,"version":1,"scope":{"ownerId":"o","spaceId":"s"},"deleted":false,
-            "tags":{"k":["v"]},"state":{}}"""
+        private const val STATE = """{"tenantId":"t","aggregateId":"i","version":1,"ownerId":"o","spaceId":"s",
+            "deleted":false,"tags":{"k":["v"]},"firstEventTime":1,"lastEventTime":2,
+            "operator":{"id":"o","tenantId":"t","crossScope":false},"firstOperator":null,
+            "schedules":{"remind":{"type":"at","epochMillis":5}},"state":{}}"""
         private const val TRACE = """{"ref":$REF,"commits":[{"version":1,"commitTime":2,"commandId":"c",
             "requestId":"r","commandType":"t","events":[{"name":"e","revision":1,"body":{}}],
             "scope":{"ownerId":null,"spaceId":null},"deleted":false,"tags":{},"state":{},

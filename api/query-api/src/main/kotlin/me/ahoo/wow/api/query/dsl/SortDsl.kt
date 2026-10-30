@@ -38,9 +38,9 @@ class SortDsl : NestedFieldDsl() {
 
     fun String.desc() = sort(Sort(QueryField(withNestedField()), Sort.Direction.DESC))
 
-    fun QueryField.asc() = path.asc()
+    fun QueryField<*>.asc() = path.asc()
 
-    fun QueryField.desc() = path.desc()
+    fun QueryField<*>.desc() = path.desc()
 
     fun build(): List<Sort> = sorts.toList()
 }

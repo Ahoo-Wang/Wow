@@ -18,9 +18,10 @@ import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /*
  * The console against the catalog server in its production shape, the
- * `cosec` profile (roadmap P.15): the data owner signs in with a CoSec access
- * token, which the service verifies and reads the caller from. No identity
- * header is trusted there.
+ * `cosec` profile, behind the CoSec gateway (here its stand-in,
+ * `e2e/cosec-gateway.mjs`): the data owner signs in with a CoSec access
+ * token, which the gateway verifies and forwards as the identity the service
+ * reads the caller from. No identity header a client sends is trusted.
  */
 
 const EDITOR = accessToken("eve", ["analytics.catalog.editor"]);
@@ -41,7 +42,7 @@ async function signIn(page: Page, token: string) {
 
 test.describe.configure({ mode: "serial" });
 
-test("the service answers a request without a token 401, and trusts no identity header", async ({
+test("a request without a token is answered 401, and no identity header is trusted", async ({
   request,
 }) => {
   const query = "/analytics-catalog/source/snapshot/query";
@@ -49,6 +50,11 @@ test("the service answers a request without a token 401, and trusts no identity 
   expect((await request.post(query, { data })).status()).toBe(401);
   const headers = { [DevelopmentCallerHeaders.USER]: "eve", [DevelopmentCallerHeaders.ROLES]: "analytics.catalog.admin" };
   expect((await request.post(query, { data, headers })).status()).toBe(401);
+  // The gateway strips a client's own CoSec-Identity: the service sees an anonymous request, not a malformed one.
+  const forged = { "CoSec-Identity": "forged" };
+  expect((await request.post(query, { data, headers: forged })).status()).toBe(
+    401,
+  );
 });
 
 test("an analyst signs in with a CoSec token and drafts a source in its name", async ({
@@ -70,7 +76,7 @@ test("an analyst signs in with a CoSec token and drafts a source in its name", a
   await expect(form.getByText(`Drafted ${source}.`)).toBeVisible();
 });
 
-test("a token the service refuses signs the console out", async ({ page }) => {
+test("a token the gateway refuses signs the console out", async ({ page }) => {
   await open(page);
   await signIn(
     page,

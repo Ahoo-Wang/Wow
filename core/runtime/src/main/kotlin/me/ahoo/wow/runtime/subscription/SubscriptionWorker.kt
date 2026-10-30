@@ -32,6 +32,8 @@ import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.wait.ResultCodes
@@ -106,7 +108,7 @@ internal class SubscriptionWorker(
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     private val observer: Observer = Observer.NONE,
     /** How the handler's failures are classified. */
-    private val classification: FailureClassification = FailureClassification.DEFAULT,
+    private val classification: FailureClassification = RuntimeFailures.DEFAULT,
     /** The jitter of the backpressure backoff. */
     private val random: Random = Random.Default,
 ) {
@@ -552,6 +554,7 @@ internal class SubscriptionWorker(
         val entry = ParkedAggregate(
             subscription.name,
             stream.ref,
+            partition,
             stream.version,
             reason(failure),
             clock.millis(),
@@ -702,6 +705,7 @@ internal class SubscriptionWorker(
         return ParkedAggregate(
             subscription.name,
             stream.ref,
+            partition,
             stream.version,
             reason(failure),
             clock.millis(),

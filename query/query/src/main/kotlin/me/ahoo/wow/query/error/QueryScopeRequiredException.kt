@@ -23,7 +23,7 @@ import me.ahoo.wow.query.schema.QueryModel
  */
 internal class QueryScopeRequiredException(
     val model: QueryModel,
-    val field: QueryField,
+    val field: QueryField<*>,
 ) : RuntimeException("Query on [$model] requires an authenticated [${field.path}] scope."), QueryError {
     override val errorCode: String
         get() = QueryErrors.FORBIDDEN

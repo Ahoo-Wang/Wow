@@ -17,11 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
- * One row of a snapshot query: the aggregate [ref] at [version], its [scope] (owner and space), its
- * [tags], whether it is [deleted], the [operator] of its last commit, the times of its first and last events (epoch
- * milliseconds) and its [state], masked as the schema says.
+ * An aggregate's latest committed state as a snapshot query and a state read answer it: the
+ * aggregate [ref] at [version], its [scope] (owner and space), its [tags], whether it is [deleted], the [operator] of
+ * its last commit and the [firstOperator] of its first, the one that created it (each null for an anonymous caller),
+ * the times of its first and last events (epoch milliseconds), the [schedules] it keeps, each rule by its key, and
+ * its [state], masked as the schema says.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -35,6 +38,8 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
     val firstEventTime: Long,
     val lastEventTime: Long,
     val state: S,
+    val firstOperator: Operator? = null,
+    val schedules: Map<String, ScheduleRule> = emptyMap(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is Snapshot<*> && valueFields() == other.valueFields()
@@ -43,14 +48,28 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
 
     override fun toString(): String =
         "Snapshot(ref=$ref, version=$version, scope=$scope, tags=$tags, deleted=$deleted, operator=$operator, " +
-            "firstEventTime=$firstEventTime, lastEventTime=$lastEventTime, state=$state)"
+            "firstEventTime=$firstEventTime, lastEventTime=$lastEventTime, state=$state, " +
+            "firstOperator=$firstOperator, schedules=$schedules)"
 
     private fun valueFields(): List<Any?> =
-        listOf(ref, version, scope, tags, deleted, operator, firstEventTime, lastEventTime, state)
+        listOf(
+            ref,
+            version,
+            scope,
+            tags,
+            deleted,
+            operator,
+            firstEventTime,
+            lastEventTime,
+            state,
+            firstOperator,
+            schedules,
+        )
 
     companion object {
         /** A Snapshot of the given fields; parameters added later come last, with a default. */
         @JvmStatic
+        @JvmOverloads
         @Suppress("LongParameterList") // One parameter per field of the record.
         fun <S : Any> of(
             ref: AggregateRef,
@@ -62,45 +81,21 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
             firstEventTime: Long,
             lastEventTime: Long,
             state: S,
-        ): Snapshot<S> = Snapshot(ref, version, scope, tags, deleted, operator, firstEventTime, lastEventTime, state)
-    }
-}
-
-/**
- * The latest committed state of one aggregate, as a state read answers it: [ref] at [version], its [scope], whether
- * it is [deleted], its [tags] and its [state], masked as the snapshot queries mask it.
- *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
- */
-class AggregateState<out S : Any> @InternalWowApi constructor(
-    val ref: AggregateRef,
-    val version: Int,
-    val scope: Scope,
-    val deleted: Boolean,
-    val tags: Map<String, List<String>>,
-    val state: S,
-) {
-    override fun equals(other: Any?): Boolean =
-        this === other || other is AggregateState<*> && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String =
-        "AggregateState(ref=$ref, version=$version, scope=$scope, deleted=$deleted, tags=$tags, state=$state)"
-
-    private fun valueFields(): List<Any?> = listOf(ref, version, scope, deleted, tags, state)
-
-    companion object {
-        /** An AggregateState of the given fields; parameters added later come last, with a default. */
-        @JvmStatic
-        fun <S : Any> of(
-            ref: AggregateRef,
-            version: Int,
-            scope: Scope,
-            deleted: Boolean,
-            tags: Map<String, List<String>>,
-            state: S,
-        ): AggregateState<S> = AggregateState(ref, version, scope, deleted, tags, state)
+            firstOperator: Operator? = null,
+            schedules: Map<String, ScheduleRule> = emptyMap(),
+        ): Snapshot<S> = Snapshot(
+            ref,
+            version,
+            scope,
+            tags,
+            deleted,
+            operator,
+            firstEventTime,
+            lastEventTime,
+            state,
+            firstOperator,
+            schedules,
+        )
     }
 }
 

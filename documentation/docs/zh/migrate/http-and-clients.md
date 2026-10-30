@@ -11,7 +11,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 | 9.x | V10 |
 | --- | --- |
-| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`。租户和所有者来自调用方，从不来自路径 |
+| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`，ID 即所有者 ID 的聚合（9.x `OwnerPolicy.AGGREGATE_ID`）的每条命令也可以，指调用方自己的聚合。租户和所有者来自调用方，从不来自路径 |
 | `DELETE …/{id}`、`PUT …/{id}/recover`、`PUT …/{id}/tags` | `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.restore-aggregate`、`POST …/{id}/wow.lifecycle.apply-tags` |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`、它们的 `/state` 形式、`…/event/…` | `POST /<context>/<aggregate>/snapshot/query` 和 `…/events/query`，操作写在请求体的 `kind` 中 |
 | `GET …/snapshot/schema` | 对同一个查询路由发 `GET`：能力描述符，带着它的 `ETag` |
@@ -31,9 +31,9 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 | `Command-Wait-Timeout` | `Wow-Wait-Timeout`：`500ms`、`10s` 或 ISO-8601 |
 | `Command-Request-Id` | `Wow-Request-Id` |
 | `Command-Aggregate-Version` | `If-Match: "<version>"`；读取以 `ETag` 回答 |
-| `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` | 调用方和路由；被允许在别处行事的调用方发送 `Wow-Scope`；`Wow-Space` 选择调用方的某个空间 |
+| `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` | 调用方和路由；被允许在别处行事的调用方发送 `Wow-Scope`；`Wow-Space` 选择调用方的某个空间，CoSec 宿主上是 `CoSec-Space-Id` |
 | `Command-Local-First`、`Command-Type`、`Command-Header-*` | 已去掉；服务作为请求事实保留的请求头列在 `wow.http.request-facts` 中 |
-| 作为别名读取的 `CoSec-Request-Id`、`CoSec-Space-Id` | 不再读取：由网关把它们改写为 `Wow-Request-Id` 和 `Wow-Space` |
+| 作为别名读取的 `CoSec-Request-Id`、`CoSec-Space-Id` | 只在 CoSec 宿主上读取：`CoSec-Request-Id` 是没有 `Wow-Request-Id` 的命令的请求 ID，空间是 CoSec 从 `CoSec-Space-Id` 接受的那个（那里不读取 `Wow-Space`）。没有 CoSec 时，用 `Wow-Request-Id` 和 `Wow-Space` |
 
 9.x 的等待阶段按含义映射：`SENT` 是 `accepted`，`PROCESSED` 是 `committed`，`SNAPSHOT` 是 `snapshot`，`PROJECTED`、`EVENT_HANDLED` 和 `SAGA_HANDLED` 是指明订阅的 `handled` 跳。
 

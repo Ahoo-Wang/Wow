@@ -62,5 +62,8 @@ class CallerTest {
         Caller.ANONYMOUS.service.assert().isFalse()
         Caller(subject = "service:basket", service = true).service.assert().isTrue()
         assertThrownBy<IllegalArgumentException> { Caller(service = true) }
+        val basket = Caller.ofService("basket", "t1")
+        basket.assert().isEqualTo(Caller(tenantId = "t1", subject = "service:basket", service = true))
+        Caller.ofService("basket").tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
     }
 }

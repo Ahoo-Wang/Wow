@@ -22,11 +22,11 @@ import me.ahoo.wow.api.query.Sort
  * [me.ahoo.wow.api.query.Sort.MAX_FIELDS] fields, no field twice) are [QueryResolver]'s, which checks the effective
  * sort.
  */
-internal fun List<Sort>.withUniqueSort(uniqueKey: List<QueryField>): List<Sort> {
+internal fun List<Sort>.withUniqueSort(uniqueKey: List<QueryField<*>>): List<Sort> {
     val named = mapTo(hashSetOf()) { it.field }
     val missing = uniqueKey.filter { it !in named }
     return if (missing.isEmpty()) this else this + missing.map { Sort(it, Sort.Direction.ASC) }
 }
 
 /** [withUniqueSort] with a single [uniqueField]. */
-internal fun List<Sort>.withUniqueSort(uniqueField: QueryField): List<Sort> = withUniqueSort(listOf(uniqueField))
+internal fun List<Sort>.withUniqueSort(uniqueField: QueryField<*>): List<Sort> = withUniqueSort(listOf(uniqueField))

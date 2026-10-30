@@ -30,7 +30,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * ```
  */
 class Sort @InternalWowApi constructor(
-    val field: QueryField,
+    val field: QueryField<*>,
     val direction: Direction
 ) {
     /**
@@ -57,13 +57,13 @@ class Sort @InternalWowApi constructor(
 
         /** A [Sort] of the given values. */
         @JvmStatic
-        fun of(field: QueryField, direction: Direction): Sort = Sort(field, direction)
+        fun of(field: QueryField<*>, direction: Direction): Sort = Sort(field, direction)
     }
 
     /** This Sort with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         direction: Direction = this.direction,
     ): Sort = Sort(field, direction)
 
@@ -163,8 +163,8 @@ class Pagination @InternalWowApi constructor(
  * ```
  */
 class Projection @InternalWowApi constructor(
-    val include: List<QueryField> = emptyList(),
-    val exclude: List<QueryField> = emptyList()
+    val include: List<QueryField<*>> = emptyList(),
+    val exclude: List<QueryField<*>> = emptyList()
 ) {
     companion object {
         /**
@@ -176,8 +176,8 @@ class Projection @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            include: List<QueryField> = emptyList(),
-            exclude: List<QueryField> = emptyList(),
+            include: List<QueryField<*>> = emptyList(),
+            exclude: List<QueryField<*>> = emptyList(),
         ): Projection = Projection(include, exclude)
     }
 

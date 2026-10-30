@@ -74,7 +74,7 @@ data class AddBasketItem(
 | `@AllowCreate` | 无论聚合是否存在 |
 | 两者都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
 
-每条命令的路由是 `POST /<context>/<aggregate>/{id}/<command>`，命令名采用 kebab case，与 Manifest 列出的路由一致：`POST /eshop-ordering/order/{id}/submit-order`。创建命令还提供不带 `{id}` 的路由，由服务端为聚合分配 ID。准入会先查找同一个请求 ID 已经创建过的聚合并复用它的 ID，所以同一个创建发两次只会创建一个聚合。
+每条命令的路由是 `POST /<context>/<aggregate>/{id}/<command>`，命令名采用 kebab case，与 Manifest 列出的路由一致：`POST /eshop-ordering/order/{id}/submit-order`。创建命令还提供不带 `{id}` 的路由，由服务端为聚合分配 ID。准入会先查找同一个请求 ID 已经创建过的聚合并复用它的 ID，所以同一个创建发两次只会创建一个聚合。ID 即所有者 ID 的聚合（每个所有者一个）的每条命令也都提供不带 `{id}` 的路由，指调用方自己的聚合，并且不生成 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
 
 ## 编写根 {#write-the-root}
 
@@ -112,20 +112,16 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 | `headers` | 宿主保留的请求事实（`wow.http.request-facts`），例如调用的应用 |
 | `causation`、`operator` | 命令所属的链，以及它以谁的名义记录 |
 
-购物车的 ID 就是买家的用户 ID，所以它的第一条命令用它来核对调用方：
+记录提交来源应用的反馈表单读取请求事实：
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: fragment -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
-}
+fun onCommand(command: Command<SubmitFeedback>): FeedbackSubmitted =
+    FeedbackSubmitted(command.body.text, app = command.headers["app_id"])
 ```
+
+函数不必检查调用方能否接触这个聚合：内核根据作用域检查它（[内核检查什么](./ownership#what-the-kernel-checks)）。每个所有者只有一个的聚合，例如购物车，以所有者的 ID 为 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
 
 ## 使用领域服务 {#take-domain-services}
 

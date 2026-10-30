@@ -65,7 +65,7 @@ class EshopSyncCallTest {
             basket(ordering.internalPort).use { basket ->
                 basket.addItem("alice")
                 val checkedOut = basket.post(
-                    "/eshop-basket/basket/alice/checkout-basket",
+                    "/eshop-basket/basket/checkout-basket",
                     "{}",
                     buyer("alice") + mapOf(WowHeaders.WAIT to CHECKOUT_TO_ORDER, WowHeaders.WAIT_TIMEOUT to "20s"),
                 )
@@ -91,7 +91,7 @@ class EshopSyncCallTest {
         val port = down.port
         basket(port, retries = MAX_ATTEMPTS).use { basket ->
             basket.addItem("bob")
-            val checkedOut = basket.post("/eshop-basket/basket/bob/checkout-basket", "{}", buyer("bob"))
+            val checkedOut = basket.post("/eshop-basket/basket/checkout-basket", "{}", buyer("bob"))
             checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
 
             // Retried within the subscription's budget, then parked.
@@ -191,7 +191,7 @@ class EshopSyncCallTest {
 
         fun addItem(buyer: String) {
             val added = post(
-                "/eshop-basket/basket/$buyer/add-basket-item",
+                "/eshop-basket/basket/add-basket-item",
                 """{"productId":"mug","unitPrice":8.50,"quantity":2}""",
                 buyer(buyer),
             )
@@ -203,7 +203,7 @@ class EshopSyncCallTest {
             val view = get("/eshop-ordering/order/$id/state", EshopStack.EMPLOYEE)
             if (view.status == NOT_FOUND) return null
             check(view.status == OK) { "The state of $id answered $view" }
-            return view.body!!["scope"]["ownerId"]?.takeUnless { it.isNull }?.asString()
+            return view.body!!["ownerId"]?.takeUnless { it.isNull }?.asString()
         }
 
         /** The commits of the order [id] that submitted it. */

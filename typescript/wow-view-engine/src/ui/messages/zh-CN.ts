@@ -823,6 +823,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '「{field}」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
   [wireKey('runtime.query.failed', QueryErrorCodes.INVALID_CURSOR)]:
     '这一页没法接着往下翻了，请从第一页重新开始。',
+  [wireKey('runtime.query.failed', QueryErrorCodes.STREAM_NOT_RESUMABLE)]:
+    '按这个顺序没法一直读到底；换一种排序，或者少读一些记录。',
   [wireKey('runtime.query.failed', QueryErrorCodes.SIZE_OUT_OF_RANGE)]:
     '服务端限制了一次能读多少行：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.FILTER_TOO_LARGE)]:

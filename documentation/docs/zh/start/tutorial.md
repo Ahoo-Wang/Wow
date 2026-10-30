@@ -19,15 +19,15 @@ description: 跟随一次购物篮结账在 eShop 的两个限界上下文之间
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
+curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" \
+curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{}' \
   -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-为了让示例简短，开发中的服务从 `Wow-User` 和 `Wow-Owner` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
+一个买家有一个购物篮，它的 ID 就是买家的用户 ID，所以购物篮的路由不带 ID：它们指调用方自己的购物篮 `alice`，它结账所提交的订单是 `alice-1`。为了让示例简短，开发中的服务从 `Wow-User` 和 `Wow-Owner` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
 
 ## 1. 购物篮做出决定 {#_1-the-basket-decides}
 
@@ -50,19 +50,13 @@ data class AddBasketItem(
 )
 ```
 
-然后 basket 上下文的 `Basket` 聚合接收这条命令，查看它的状态，并决定事件。添加商品时只检查需要状态的东西：购物篮属于调用方本人：
+然后 basket 上下文的 `Basket` 聚合接收这条命令，查看它的状态，并决定事件。购物篮的 ID 就是它的所有者的 ID（`@AggregateRoot(idSource = AggregateIdSource.OWNER)`），所以内核已经把每个买家限定在自己的购物篮上，添加商品时没有什么需要再检查（[每个所有者一个聚合](../guide/ownership#one-aggregate-per-owner)）：
 
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
-    val owner = command.scope.ownerId
-    if (owner != null && owner != command.ref.id) {
-        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
-    }
-    val adding = command.body
-    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
-}
+fun onCommand(command: AddBasketItem): BasketItemAdded =
+    BasketItemAdded(command.productId, command.unitPrice, command.quantity)
 ```
 
 结账拒绝空的购物篮，为它将要变成的订单命名，并通过命令的结果把这个 ID 返回给调用方：
@@ -162,7 +156,7 @@ eShop 的 Web 界面通过从各服务的 Manifest 生成的 TypeScript 客户�
 
 ```ts
 /**
- * Checks `basketId` out, waiting for the whole chain as server-sent events:
+ * Checks the buyer's own basket out, waiting for the whole chain as server-sent events:
  * `onProgress` gets each hop's result as it arrives. An admission refusal
  * (an empty basket, say) rejects with its problem (a `WowProblemError`); a hop that does
  * not succeed ends the progress with its result as the `failure`, and a chain
@@ -170,11 +164,9 @@ eShop 的 Web 界面通过从各服务的 Manifest 生成的 TypeScript 客户�
  */
 export async function checkout(
   clients: ShopClients,
-  basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.basket.basket.commands.checkoutBasketStream(
-    basketId,
+  const stream = await clients.basket.basket.commands.checkoutBasketOwnStream(
     {},
     {
       wait: WaitPlan.of(...CHECKOUT_TO_PAID.map((step) => step.hop)),

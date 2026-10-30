@@ -80,7 +80,7 @@ class QueryModelSchemaTest {
         code.value.kind.assert().isEqualTo(QueryValueKind.UNION)
         code.binding(QueryCapability.EXACT_MATCH)!!.physicalField.assert().isEqualTo(QueryField("code"))
         code.binding(QueryCapability.EXACT_MATCH)!!.storageTypes.assert().containsExactly(keyword)
-        code.elementAncestors.assert().isEqualTo(emptyList<QueryField>())
+        code.elementAncestors.assert().isEqualTo(emptyList<QueryField<*>>())
         code.projectionField.assert().isEqualTo(QueryField("code"))
         code.responseField.assert().isNull()
 

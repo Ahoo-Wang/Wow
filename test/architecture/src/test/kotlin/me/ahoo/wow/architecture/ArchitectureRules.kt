@@ -472,7 +472,7 @@ object ArchitectureRules {
         "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
         "dataset.QueryDatasetProvider", "dataset.QueryDatasetConfig",
         // The read paths it hands out.
-        "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
+        "read.InProcessQueryApi", "read.ReadModels", "mask.PayloadMasks",
     ).map { "me.ahoo.wow.query.$it" }
 
     val HOST_ASSEMBLES_THE_READ_SIDE = DependencyRule(
@@ -555,17 +555,19 @@ object ArchitectureRules {
     ).map { "me.ahoo.wow.api.$it" } + PositiveRules.NINE_X_TYPES
 
     /**
-     * wow-api depends only on the query protocol and the coroutines' `Flow` (06 §3, decisions D66, D260: the `QueryApi`
-     * of D259 streams its rows) and does not build on the 9.x parts of 9.x wow-api, which go with 9.x. The query
-     * protocol keeps 9.x's package name, `me.ahoo.wow.api.query`: only wow-query-api can supply it, the one module
-     * wow-api depends on.
+     * wow-api depends only on the query protocol, the coroutines' `Flow` (06 §3, decisions D66, D260: the `QueryApi`
+     * of D259 streams its rows) and Jackson's trees, the one shape of free-form content (D362, D366 ④: an untyped read
+     * is an `ObjectNode`), and does not build on the 9.x parts of 9.x wow-api, which go with 9.x. The query protocol
+     * keeps 9.x's package name, `me.ahoo.wow.api.query`: only wow-query-api can supply it, the one module wow-api
+     * depends on.
      */
     val API_STANDS_ALONE = DependencyRule(
-        name = "wow-api imports no framework, no JSON library, no kotlinx but its Flow and no 9.x part of wow-api",
+        name = "wow-api imports no framework, no JSON library but its trees, no kotlinx but its Flow and no 9.x part " +
+            "of wow-api",
         modules = listOf(API.dir),
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("tools.jackson", "com.fasterxml", "kotlinx") +
             API_9X,
-        allowed = listOf("kotlinx.coroutines.flow", "me.ahoo.wow.api.query"),
+        allowed = listOf("kotlinx.coroutines.flow", "me.ahoo.wow.api.query", PositiveRules.JACKSON_TREES),
     )
 
     /**

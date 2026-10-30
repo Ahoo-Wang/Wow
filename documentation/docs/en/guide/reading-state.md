@@ -13,10 +13,13 @@ Every aggregate's state can be read by its id, with nothing to configure: the la
 | Request | Answers |
 | --- | --- |
 | `GET /<context>/<aggregate>/{id}/state` | The latest state |
+| `GET /<context>/<aggregate>/state` | The latest state of the caller's own aggregate, of one whose id is its owner's |
 | `GET …/state?version=n` | The state at version `n` |
 | `GET …/state?at=<instant>` | The state after the last commit at or before an ISO-8601 instant (write `+` as `%2B`) |
 | `GET …/state?minVersion=n` | The latest state at version `n` or later: read your own write |
 | `GET …/state/trace?from=&to=&limit=` | The commits from version `from` (1) to `to` (the last), at most `limit` of them, each with its events and the state after it |
+
+Every read of an aggregate whose id is its owner's, `?version=`, `?at=`, `?minVersion=` and `/state/trace` included, is also served without the id: its id is the owner of the scope the caller reads in. A caller with no owner names the id; without one it is answered `400 wow.query.malformed`, and an unauthenticated caller `401 wow.auth.unauthenticated` ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
 
 A state answers its aggregate's `ref` and `version`, its `scope` (owner and space), its `deleted` mark, its `tags`, and the `state` itself. A trace answers `{"ref", "commits"}`: each commit's version, commit time, command and request ids, command type, events, and the aggregate after it. The next page of a trace starts after the last commit's version.
 

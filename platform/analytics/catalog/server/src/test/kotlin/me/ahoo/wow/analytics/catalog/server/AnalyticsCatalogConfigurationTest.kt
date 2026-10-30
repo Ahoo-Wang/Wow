@@ -25,7 +25,7 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -103,7 +103,7 @@ class AnalyticsCatalogConfigurationTest {
         policy.approveSources.assert().isTrue()
         val registry = SimpleMeterRegistry()
         val watcher = configuration.datasetPublicationWatcher(
-            provider(mockk<QueryApi>()),
+            provider(mockk<NodeQueryApi>()),
             QueryDatasets(),
             properties,
             provider(registry),
@@ -113,7 +113,7 @@ class AnalyticsCatalogConfigurationTest {
         configuration.datasetPublicationsHealthIndicator(watcher).health(false)!!.status.assert()
             .isEqualTo(Status.OUT_OF_SERVICE)
         configuration.datasetPublicationWatcher(
-            provider(mockk<QueryApi>()),
+            provider(mockk<NodeQueryApi>()),
             QueryDatasets(),
             properties,
             provider<io.micrometer.core.instrument.MeterRegistry>(null),

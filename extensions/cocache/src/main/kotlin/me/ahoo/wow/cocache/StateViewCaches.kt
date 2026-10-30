@@ -36,9 +36,9 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewCache
 import me.ahoo.wow.cocache.api.StateViewUnavailableException
@@ -218,7 +218,7 @@ internal class StateViewLoader<V : Any>(
      * [StateViewUnavailableException] naming [keys] when the node has no route to their owner, whose type no model of
      * the node nor any peer it reaches has.
      */
-    private fun snapshots(tenantId: String, keys: Collection<StateKey>): SnapshotQueries<V> = try {
+    private fun snapshots(tenantId: String, keys: Collection<StateKey>): TenantSnapshotQueries<V> = try {
         queriesOf(tenantId).snapshots(viewType)
     } catch (noRoute: IllegalArgumentException) {
         throw unavailable(keys, "the node has no route to their owner", noRoute)

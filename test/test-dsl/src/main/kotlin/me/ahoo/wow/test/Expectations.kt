@@ -55,6 +55,7 @@ import kotlin.reflect.KClass
  * What the decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]) is checked by
  * [expectResult], or read from [results].
  */
+@WowTestDsl
 @Suppress("TooManyFunctions") // The DSL's expectations.
 class Expectations<S : Any> @InternalWowApi constructor(
     private val model: AggregateModel<S>,

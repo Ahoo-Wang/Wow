@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
@@ -20,6 +21,8 @@ import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
@@ -62,6 +65,12 @@ class ServiceRoutesTest {
         override fun toString(): String = "the node's commands"
     }
 
+    /** The callers a reading handler runs its queries as. */
+    private val readers = mutableListOf<Caller>()
+    private val queryApi = object : QueryApi {
+        override fun of(caller: Caller): Queries = mockk<Queries>(relaxed = true).also { readers += caller }
+    }
+
     private val manifest: Manifest = cartManifest().let { manifest ->
         val context = manifest.contexts.single()
         manifest.copyWith(
@@ -90,6 +99,7 @@ class ServiceRoutesTest {
                         ),
                         ServiceRouteManifest(name = "kinds", route = RouteManifest("GET", "/$CONTEXT/kinds/{n}")),
                         ServiceRouteManifest(name = "relay", route = RouteManifest("POST", "/$CONTEXT/relay")),
+                        ServiceRouteManifest(name = "read", route = RouteManifest("GET", "/$CONTEXT/read")),
                         ServiceRouteManifest(name = "peer", route = RouteManifest("POST", "/$CONTEXT/peer/{answer}")),
                         ServiceRouteManifest(
                             name = "addNote",
@@ -124,6 +134,7 @@ class ServiceRoutesTest {
             )
         },
         handler("relay") { call, _ -> call.commands.of(call.caller).toString() },
+        handler("read") { call, _ -> call.queries.let { "read" } },
         handler("peer") { _, request ->
             when (request.path("answer", String::class)) {
                 "gone" -> throw WowProblemException("crm.member.gone", 410, Retry.NONE, null, "Gone.")
@@ -152,7 +163,10 @@ class ServiceRoutesTest {
         }
     }
 
-    private val node = HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers, listOf(denyBob), client))
+    private val node = HttpNode(
+        manifest = manifest,
+        serviceRoutes = ServiceRoutes(handlers, listOf(denyBob), client, queryApi),
+    )
 
     @Test
     fun `a route answers its handler's JSON, as the caller in its tenant and scope`() {
@@ -241,6 +255,19 @@ class ServiceRoutesTest {
         node.post("/$CONTEXT/relay", null).body.toString().assert().contains("the node's commands")
         // Without a command client, a handler that sends one fails.
         HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers)).post("/$CONTEXT/relay", null)
+            .status.assert().isEqualTo(500)
+    }
+
+    @Test
+    fun `a handler should read as the caller it acts for, in the scope it names`() {
+        node.get(
+            "/$CONTEXT/read",
+            headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to "tenant=\"other\", owner=\"bob\""),
+        ).status.assert().isEqualTo(200)
+        readers.single().tenantId.assert().isEqualTo("other")
+        readers.single().scope.ownerId.assert().isEqualTo("bob")
+        // Without a query API, a handler that reads fails.
+        HttpNode(manifest = manifest, serviceRoutes = ServiceRoutes(handlers, commands = client)).get("/$CONTEXT/read")
             .status.assert().isEqualTo(500)
     }
 

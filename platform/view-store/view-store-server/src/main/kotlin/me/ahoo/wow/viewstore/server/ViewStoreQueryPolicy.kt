@@ -21,7 +21,6 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
  * Keeps a caller's queries of the view store's snapshots in its application (the 9.x `ViewStoreQueryPolicy`): a
@@ -41,7 +40,7 @@ class ViewStoreQueryPolicy : QueryPolicy {
             return MatchAllFilter
         }
         val app = caller.caller?.app ?: throw QueryRequestException(
-            "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+            "The request's CoSec scope has no application.",
             APP_REQUIRED,
         )
         return filter { APP_ID eq app }

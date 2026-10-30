@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class ParkedRetryTest {
     private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 10.seconds, timeout = 30.seconds)
-    private val entry = ParkedAggregate("sub", AggregateType("shop", "cart").ref("t", "x"), 1, "boom", FAILED_AT)
+    private val entry = ParkedAggregate("sub", AggregateType("shop", "cart").ref("t", "x"), 0, 1, "boom", FAILED_AT)
 
     @Test
     fun `the backoff doubles per retry from the minimum, saturating`() {

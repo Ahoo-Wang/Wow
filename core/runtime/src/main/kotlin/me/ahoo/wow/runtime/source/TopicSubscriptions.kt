@@ -29,14 +29,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.subscription.EntrySource
-import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.PausedPartition
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
@@ -106,7 +107,7 @@ class TopicSubscriptions internal constructor(
     /** Sees each message its subscriptions consume. */
     private val observer: Observer = Observer.NONE,
     /** How its subscriptions classify their handlers' failures. */
-    private val classification: FailureClassification = FailureClassification.DEFAULT,
+    private val classification: FailureClassification = RuntimeFailures.DEFAULT,
     /** The node's membership in its service on [leases], shared with its other lease groups. */
     private val membership: ServiceMembership? = null,
 ) : SubscriptionPauses {
@@ -129,7 +130,7 @@ class TopicSubscriptions internal constructor(
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         partitionRefresh: Duration = Duration.INFINITE,
         observer: Observer = Observer.NONE,
-        classification: FailureClassification = FailureClassification.DEFAULT,
+        classification: FailureClassification = RuntimeFailures.DEFAULT,
         membership: ServiceMembership? = null,
     ) : this(
         service,

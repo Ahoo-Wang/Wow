@@ -13,13 +13,17 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * Compares a computed [expression], for example the hours from `paidAt` to `shippedAt`, with [value]. A record whose
  * expression has no value (an operand is absent, or a division by zero) does not match, whatever the [comparison].
  * The expression is evaluated per record and cannot use an index, so the operator is expensive.
+ *
+ * Experimental with the aggregation expressions it computes: the operator may change shape before it is stable.
  */
+@ExperimentalWowApi
 class ExpressionFilter @InternalWowApi constructor(
     val expression: AggregationExpression,
     val comparison: ComparisonOperator,

@@ -94,7 +94,7 @@ class QueryPlainValuesTest {
                 is Int -> value + 1
                 is Long -> value + 1
                 is Boolean -> !value
-                is QueryField -> QueryField("${value.path}x")
+                is QueryField<*> -> QueryField("${value.path}x")
                 else -> return@firstNotNullOfOrNull null
             }
             runCatching { build(factory, values.copyOf().also { copy -> copy[it] = changed }) }.getOrNull()

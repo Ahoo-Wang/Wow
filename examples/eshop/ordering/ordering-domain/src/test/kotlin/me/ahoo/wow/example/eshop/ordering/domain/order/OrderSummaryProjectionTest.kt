@@ -16,7 +16,9 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
+import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
@@ -48,10 +50,7 @@ class OrderSummaryProjectionTest {
     @Test
     fun `a commit should save the order's summary at its version`() = projectionSpec(handlers) {
         submitted()
-        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
-            expectHandledBy("onEvent")
-            expectNoError()
-        }
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectHandledBy("onEvent") }
         saved.single().assert().isEqualTo(
             OrderSummary(
                 tenantId = DEFAULT_TENANT,
@@ -69,9 +68,21 @@ class OrderSummaryProjectionTest {
     @Test
     fun `the same commit handled again should save the same summary`() = projectionSpec(handlers) {
         submitted()
-        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
-        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class)
+        // A subscription hands a commit at least once: the same commit again saves the same summary, at its version.
+        whenRedelivered()
         saved.distinct().size.assert().isEqualTo(1)
     }
     // endregion
+
+    @Test
+    fun `an older commit delivered late should be saved at its own version`() = projectionSpec(handlers) {
+        submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class)
+        whenEvent(OrderCancelled("The customer changed their mind."), by = CancelOrder::class)
+        // Version 2 arrives after version 3: the summary says its version, and the summaries keep the newest one.
+        whenDeliveredLate(2)
+        saved.map { it.second }.assert().containsExactly(2, 3, 2)
+        saved.last().first.status.assert().isEqualTo(OrderStatus.AWAITING_VALIDATION)
+    }
 }

@@ -287,14 +287,27 @@ internal class SchemaCompatibility(
     private fun refKey(schema: Any?): String? =
         ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
 
-    /** The schema as a map: `$ref` replaced by its definition (with the reference's siblings), `true` by `{}`. */
+    /**
+     * The schema as a map: `$ref` replaced by its definition (with the reference's siblings), `true` by `{}`, and a
+     * nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a nullable
+     * class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two forms
+     * accept the same values.
+     */
     private fun resolve(schema: Any?, defs: Map<String, Any?>): Map<String, Any?> {
         if (schema == false) return FALSE
         @Suppress("UNCHECKED_CAST")
         val map = schema as? Map<String, Any?> ?: return emptyMap()
-        val key = refKey(map) ?: return map
+        val key = refKey(map) ?: return nullable(map, defs)
         val definition = resolve(defs[key] ?: true, defs)
         return if (definition === FALSE) FALSE else definition + (map - REF)
+    }
+
+    private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
+        val alternatives = schema[ANY_OF] as? List<*> ?: return schema
+        val value = alternatives.singleOrNull { it != NULL_SCHEMA }?.takeIf { alternatives.size == 2 } ?: return schema
+        val resolved = resolve(value, defs)
+        val types = types(resolved) ?: return schema
+        return resolved + (schema - ANY_OF) + (TYPE to (types + NULL).sorted())
     }
 
     private fun types(schema: Map<String, Any?>): Set<String>? = when (val type = schema[TYPE]) {
@@ -330,6 +343,9 @@ internal class SchemaCompatibility(
         const val INTEGER = "integer"
         const val NUMBER = "number"
         const val FORMAT = "format"
+        const val ANY_OF = "anyOf"
+        const val NULL = "null"
+        val NULL_SCHEMA: Map<String, Any?> = mapOf(TYPE to NULL)
 
         /** The formats of numbers a client reads from their text: no validation of the value. */
         val WIRE_FORMATS = setOf("int32", "int64", "float", "bigint", "decimal")

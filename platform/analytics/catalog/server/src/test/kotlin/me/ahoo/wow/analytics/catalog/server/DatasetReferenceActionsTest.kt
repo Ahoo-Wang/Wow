@@ -33,6 +33,7 @@ import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.route.RouteCall
@@ -53,6 +54,7 @@ class DatasetReferenceActionsTest {
         override val scope: Scope = Scope.NONE
         override val requestId: String = "r-1"
         override val commands: CommandClient = mockk()
+        override val queries: Queries = mockk()
     }
     private val reference = DatasetReference("crm", "member")
 

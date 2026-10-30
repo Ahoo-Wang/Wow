@@ -207,7 +207,7 @@ internal suspend fun <T> awaitShared(running: Deferred<T>): T? = try {
 suspend fun QuerySchemaContext.declaredFields(
     sources: List<QuerySchemaSource>,
     sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
-): Set<QueryField> {
+): Set<QueryField<*>> {
     val declarations = sources.flatMap { source ->
         source.load(this).map { PrioritizedQuerySchemaDeclaration(source.priority, it) }
     }

@@ -199,7 +199,9 @@ class MongoShardingTest {
             .createCollection("order")
         keyOf("${MongoLogFixture.DATABASE}.${MongoNames.of("wow_log", context, "order")}").assert().isNull()
         keyOf("${MongoLogFixture.DATABASE}.${MongoSnapshotStore.collectionName(context, "order")}").assert().isNull()
+        // Its schema first, as the host makes sure of it: the shared registry is created with its format record.
         val timers = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.NONE)
+            .also { it.createSchema() }
         timers.put(timer(AggregateType(context, "order").ref("tenant", "o-1"))).assert().isTrue()
         keyOf("${MongoLogFixture.DATABASE}.${timers.collectionName("order")}").assert().isNull()
     }

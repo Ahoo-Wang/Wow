@@ -23,9 +23,9 @@ import { eventNumbers, type TextNumbers } from './exactJson.js';
 import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   AggregateType,
-  EventView,
+  CommittedEvent,
   StateTrace,
-  StateView,
+  Snapshot,
 } from './wire.js';
 
 /** Which state a read asks for: the latest, at a version or as of a time. */
@@ -52,13 +52,13 @@ export interface StateReadOptions extends RequestOptions {
 }
 
 /**
- * A state read: the view and its entity tag, or `notModified` when the state
- * held is current, with its tag and the version the tag names.
+ * A state read: the snapshot and its entity tag, or `notModified` when the
+ * state held is current, with its tag and the version the tag names.
  */
 export type StateReadResult<S> =
   | {
       readonly notModified: false;
-      readonly view: StateView<S>;
+      readonly snapshot: Snapshot<S>;
       readonly etag?: string;
     }
   | {
@@ -80,14 +80,18 @@ export interface StateTraceOptions extends RequestOptions {
 /**
  * Reads an aggregate type's states:
  * `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and
- * its trace, `…/state/trace`. A state that does not exist rejects with 404
+ * its trace, `…/state/trace`; {@link OwnStateClient} reads the caller's own
+ * of a type whose id is its owner's. A state that does not exist rejects with 404
  * `wow.aggregate.not-found`, except through {@link StateClient.find}, which
  * answers `undefined`.
  *
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
  */
-export class StateClient<S = unknown, E extends EventView = EventView> {
+export class StateClient<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached
@@ -98,9 +102,49 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
   ) {}
 
   /** The state the options ask for. */
-  async read(
+  read(
     id: string,
     options: StateReadOptions = {},
+  ): Promise<StateReadResult<S>> {
+    return this.readAt(id, options);
+  }
+
+  /** The latest state, or the one the options ask for, without a cache. */
+  get(
+    id: string,
+    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+  ): Promise<Snapshot<S>> {
+    return this.getAt(id, options);
+  }
+
+  /**
+   * The latest state, or the one the options ask for, or `undefined` when the
+   * aggregate does not exist (404 `wow.aggregate.not-found`), as Kotlin's
+   * `SnapshotQueries.state` answers null. Any other 404, such as a route that
+   * does not exist, rejects.
+   */
+  find(
+    id: string,
+    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+  ): Promise<Snapshot<S> | undefined> {
+    return this.findAt(id, options);
+  }
+
+  /** The commits from `from` to `to`, each with its events and the state after it. */
+  trace(
+    id: string,
+    options: StateTraceOptions = {},
+  ): Promise<StateTrace<S, E>> {
+    return this.traceAt(id, options);
+  }
+
+  /**
+   * {@link StateClient.read} of the aggregate `id`, or by no id of the
+   * caller's own ({@link OwnStateClient}).
+   */
+  protected async readAt(
+    id: string | undefined,
+    options: StateReadOptions,
   ): Promise<StateReadResult<S>> {
     const at =
       options.at instanceof Date ? options.at.toISOString() : options.at;
@@ -127,35 +171,30 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     }
     return {
       notModified: false,
-      view: await json<StateView<S>>(response, this.stateNumbers),
+      snapshot: await json<Snapshot<S>>(response, this.stateNumbers),
       etag: entityTag(response),
     };
   }
 
-  /** The latest state, or the one the options ask for, without a cache. */
-  async get(
-    id: string,
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S>> {
-    const result = await this.read(id, options);
+  /** {@link StateClient.get} of the aggregate `id`, or of the caller's own. */
+  protected async getAt(
+    id: string | undefined,
+    options: Omit<StateReadOptions, 'ifNoneMatch'>,
+  ): Promise<Snapshot<S>> {
+    const result = await this.readAt(id, options);
     if (result.notModified) {
       throw new Error('A read without If-None-Match was answered 304.');
     }
-    return result.view;
+    return result.snapshot;
   }
 
-  /**
-   * The latest state, or the one the options ask for, or `undefined` when the
-   * aggregate does not exist (404 `wow.aggregate.not-found`), as Kotlin's
-   * `SnapshotQueries.state` answers null. Any other 404, such as a route that
-   * does not exist, rejects.
-   */
-  async find(
-    id: string,
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<StateView<S> | undefined> {
+  /** {@link StateClient.find} of the aggregate `id`, or of the caller's own. */
+  protected async findAt(
+    id: string | undefined,
+    options: Omit<StateReadOptions, 'ifNoneMatch'>,
+  ): Promise<Snapshot<S> | undefined> {
     try {
-      return await this.get(id, options);
+      return await this.getAt(id, options);
     } catch (error) {
       if (
         error instanceof WowProblemError &&
@@ -168,10 +207,10 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     }
   }
 
-  /** The commits from `from` to `to`, each with its events and the state after it. */
-  async trace(
-    id: string,
-    options: StateTraceOptions = {},
+  /** {@link StateClient.trace} of the aggregate `id`, or of the caller's own. */
+  protected async traceAt(
+    id: string | undefined,
+    options: StateTraceOptions,
   ): Promise<StateTrace<S, E>> {
     return json<StateTrace<S, E>>(
       await send(this.client, {
@@ -184,7 +223,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     );
   }
 
-  /** The exact numbers of a state view: its state's. */
+  /** The exact numbers of a state read: its state's. */
   private get stateNumbers(): TextNumbers | undefined {
     const state = this.type.textNumbers?.state;
     return state === undefined ? undefined : { state };
@@ -205,7 +244,54 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     };
   }
 
-  private statePath(id: string): string {
-    return `/${this.type.context}/${this.type.name}/${encodeURIComponent(id)}/state`;
+  private statePath(id: string | undefined): string {
+    const base = `/${this.type.context}/${this.type.name}`;
+    return id === undefined
+      ? `${base}/state`
+      : `${base}/${encodeURIComponent(id)}/state`;
+  }
+}
+
+/**
+ * Reads the states of an aggregate type whose id is its owner's
+ * (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`):
+ * by id as {@link StateClient} does, for a caller with no owner, and the
+ * caller's own by no id, `GET /{context}/{aggregate}/state` and
+ * `…/state/trace`, its id the owner the caller reads as. An unauthenticated
+ * caller is refused with 401 `wow.auth.unauthenticated`, one with no owner
+ * with 400 `wow.query.malformed`.
+ *
+ * @typeParam S - The state's type.
+ * @typeParam E - The events' type of a trace.
+ */
+export class OwnStateClient<
+  S = unknown,
+  E extends CommittedEvent = CommittedEvent,
+> extends StateClient<S, E> {
+  /** {@link StateClient.read} of the caller's own aggregate. */
+  readOwn(options: StateReadOptions = {}): Promise<StateReadResult<S>> {
+    return this.readAt(undefined, options);
+  }
+
+  /** {@link StateClient.get} of the caller's own aggregate. */
+  getOwn(
+    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+  ): Promise<Snapshot<S>> {
+    return this.getAt(undefined, options);
+  }
+
+  /**
+   * {@link StateClient.find} of the caller's own aggregate: `undefined` until
+   * the caller's first command creates it.
+   */
+  findOwn(
+    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+  ): Promise<Snapshot<S> | undefined> {
+    return this.findAt(undefined, options);
+  }
+
+  /** {@link StateClient.trace} of the caller's own aggregate. */
+  traceOwn(options: StateTraceOptions = {}): Promise<StateTrace<S, E>> {
+    return this.traceAt(undefined, options);
   }
 }

@@ -99,7 +99,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -117,7 +116,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Check the modules with coverage
@@ -134,16 +133,21 @@ jobs:
       - name: Check the publications
         if: matrix.publications
         run: ./gradlew publicationCheck publicationConsumerCheck --stacktrace
-      - name: Upload unit test coverage
-        uses: codecov/codecov-action@v7
+      # Codecov's reports keep no closing-brace line, whether or not Codecov adjusts the upload.
+      - name: Drop the closing-brace lines of the unit test coverage
+        run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
+      # The coverage job judges the patch from it and uploads it to Codecov.
+      - name: Stage the unit test coverage
+        env:
+          ARTIFACT: coverage-jvm-unit-${{ matrix.shard }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml "coverage-artifact/$ARTIFACT/"
+      - name: Keep the unit test coverage
+        uses: actions/upload-artifact@v7
         with:
-          use_oidc: true
-          flags: jvm-unit
-          name: jvm-unit-${{ matrix.shard }}
-          fail_ci_if_error: true
-          verbose: true
-          disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
+          name: coverage-jvm-unit-${{ matrix.shard }}
+          path: coverage-artifact/
+          retention-days: 1
+          if-no-files-found: error
 
   # The container-backed tests of the modules, in shards that run in parallel, each on a runner and a Docker of
   # its own; the H2 and H6 spikes' suites skip themselves unless their flags are set. Each project of
@@ -169,7 +173,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: true
       - name: Check the architecture rules
@@ -183,7 +187,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -204,7 +207,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Run the integration tests with coverage
@@ -213,16 +216,19 @@ jobs:
         run: >-
           ./gradlew :integrationTest :code-coverage-report:integrationCoverageReport
           "-Pwow.integration.projects=$PROJECTS" --stacktrace
-      - name: Upload integration test coverage
-        uses: codecov/codecov-action@v7
+      - name: Drop the closing-brace lines of the integration test coverage
+        run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+      - name: Stage the integration test coverage
+        env:
+          ARTIFACT: coverage-integration-${{ matrix.shard }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml "coverage-artifact/$ARTIFACT/"
+      - name: Keep the integration test coverage
+        uses: actions/upload-artifact@v7
         with:
-          use_oidc: true
-          flags: integration
-          name: integration-${{ matrix.shard }}
-          fail_ci_if_error: true
-          verbose: true
-          disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+          name: coverage-integration-${{ matrix.shard }}
+          path: coverage-artifact/
+          retention-days: 1
+          if-no-files-found: error
       # A failed or cancelled shard keeps its evidence: the test reports and, for a test that hung, the jstacks the
       # build wrote (build.gradle.kts, HangWatch) before the job's timeout.
       - name: Upload the reports of a failed or hung shard
@@ -320,8 +326,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Codecov upload through OIDC.
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -348,18 +352,19 @@ jobs:
         env:
           PACKAGE: ${{ matrix.package }}
         run: pnpm --filter "@ahoo-wang/$PACKAGE" test
-      # A flag per package, so Codecov carries forward the coverage of the
-      # packages a scoped run left out.
-      - name: Upload coverage
+      - name: Stage the coverage
         if: matrix.node-version == 24
-        uses: codecov/codecov-action@v7
+        env:
+          ARTIFACT: coverage-typescript-${{ matrix.package }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/${{ matrix.package }}/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
+      - name: Keep the coverage
+        if: matrix.node-version == 24
+        uses: actions/upload-artifact@v7
         with:
-          use_oidc: true
-          flags: typescript,typescript-${{ matrix.package }}
-          name: typescript-${{ matrix.package }}
-          fail_ci_if_error: true
-          disable_search: true
-          files: ./typescript/${{ matrix.package }}/coverage/coverage-final.json
+          name: coverage-typescript-${{ matrix.package }}
+          path: coverage-artifact/
+          retention-days: 1
+          if-no-files-found: error
 
   # The npm packages as a consumer gets them: publint on the tarballs, types
   # under node16, nodenext and bundler resolution, and a fresh npm project that
@@ -488,8 +493,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Codecov upload through OIDC.
-      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -514,15 +517,17 @@ jobs:
       - name: Check types
         working-directory: typescript/wow-view-engine
         run: pnpm test:type
-      - name: Upload view-engine coverage
-        uses: codecov/codecov-action@v7
+      - name: Stage the view-engine coverage
+        env:
+          ARTIFACT: coverage-typescript-wow-view-engine
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/wow-view-engine/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
+      - name: Keep the view-engine coverage
+        uses: actions/upload-artifact@v7
         with:
-          use_oidc: true
-          flags: typescript,typescript-wow-view-engine
-          name: typescript-wow-view-engine
-          fail_ci_if_error: true
-          disable_search: true
-          files: ./typescript/wow-view-engine/coverage/coverage-final.json
+          name: coverage-typescript-wow-view-engine
+          path: coverage-artifact/
+          retention-days: 1
+          if-no-files-found: error
 
   # Node 22 formats dates and numbers with its own ICU; the same assertions,
   # without coverage, in three shards that finish before Node 24's shards and
@@ -661,7 +666,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The service with the in-memory query backend of its own tests (its test
@@ -857,7 +862,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Build the eShop services
@@ -935,7 +940,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The server's distribution and test classes: the suite starts it with
@@ -1020,7 +1025,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The server's distribution and test classes: the suite starts it with
@@ -1052,38 +1057,243 @@ jobs:
           path: platform/analytics/catalog/console/test-results/
           retention-days: 7
 
-  # Codecov holds every notification of a commit, its statuses and its pull
-  # request comment, until this job triggers them (codecov.yml:
-  # codecov.notify.manual_trigger), once every job that uploads coverage has
-  # finished: Codecov judges the run on all of its uploads, never on a partial
-  # report. It runs when any of those jobs ran, after a failed one too (its
-  # flags then fall short of after_n_builds, and Codecov posts nothing that
-  # reads them), and is skipped when none ran or the run was cancelled.
-  coverage-notify:
-    name: Coverage notify
+  # Judges a pull request's patch coverage from the run's own reports, then
+  # hands every report to Codecov. The test jobs keep their reports as
+  # artifacts. It runs when any of them ran, after a failed one too (its
+  # report is missing, and ci-gate fails on the failed job), and is skipped
+  # when none ran or the run was cancelled.
+  #
+  # The patch verdict (.github/scripts/patch-coverage.mjs): the main-source
+  # lines the pull request adds or changes against its merge base with main,
+  # covered ÷ the ones some report instruments, at least 89% (codecov.yml's
+  # target, 90%, less its threshold, 1%). Its outputs `patch` (pass, fail,
+  # none) and `patch-message` are what ci-gate reads; the job summary lists
+  # the uncovered lines. A push to main judges no patch.
+  #
+  # Codecov is informational (codecov.yml): its uploads and its one trigger
+  # cannot fail this job, and none of its statuses blocks a pull request.
+  # Codecov holds every notification until the trigger (codecov.yml:
+  # codecov.notify.manual_trigger), sent once after every upload, so its
+  # comment and statuses read the whole run, never a partial report.
+  coverage:
+    name: Coverage
     needs: [check, integration, unit, view-engine]
     if: >-
       !cancelled() &&
       (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
       needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Codecov through OIDC, as the uploads.
+      # Codecov through OIDC.
       id-token: write
+    outputs:
+      patch: ${{ steps.patch.outputs.patch }}
+      patch-message: ${{ steps.patch.outputs.patch-message }}
     steps:
+      # The whole history: the patch is the diff from the merge base with main,
+      # and Codecov matches the reports' paths to the repository's files.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
-          sparse-checkout: codecov.yml
+      # Each artifact holds its report under a directory of its own name, and they
+      # merge into `coverage/<artifact>/`: a run with a single artifact gets the
+      # same layout as one with many, which download-artifact otherwise
+      # unpacks into the path itself.
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-*
+          path: coverage
+          merge-multiple: true
+      - name: Judge the patch coverage
+        id: patch
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE=$(git merge-base origin/main "$HEAD_SHA")
+          export BASE
+          node .github/scripts/patch-coverage.mjs coverage
+      - name: Upload jvm-unit-host
+        if: hashFiles('coverage/coverage-jvm-unit-host/coverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: jvm-unit
+          name: jvm-unit-host
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-jvm-unit-host/coverageReport.xml
+      - name: Upload jvm-unit-apps
+        if: hashFiles('coverage/coverage-jvm-unit-apps/coverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: jvm-unit
+          name: jvm-unit-apps
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-jvm-unit-apps/coverageReport.xml
+      - name: Upload jvm-unit-tooling
+        if: hashFiles('coverage/coverage-jvm-unit-tooling/coverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: jvm-unit
+          name: jvm-unit-tooling
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-jvm-unit-tooling/coverageReport.xml
+      - name: Upload jvm-unit-rest
+        if: hashFiles('coverage/coverage-jvm-unit-rest/coverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: jvm-unit
+          name: jvm-unit-rest
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-jvm-unit-rest/coverageReport.xml
+      - name: Upload integration-eshop
+        if: hashFiles('coverage/coverage-integration-eshop/integrationCoverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-eshop
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-integration-eshop/integrationCoverageReport.xml
+      - name: Upload integration-host-platform
+        if: hashFiles('coverage/coverage-integration-host-platform/integrationCoverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-host-platform
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-integration-host-platform/integrationCoverageReport.xml
+      - name: Upload integration-kafka-elasticsearch-clickhouse
+        if: hashFiles('coverage/coverage-integration-kafka-elasticsearch-clickhouse/integrationCoverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-kafka-elasticsearch-clickhouse
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-integration-kafka-elasticsearch-clickhouse/integrationCoverageReport.xml
+      - name: Upload integration-mongo-postgres
+        if: hashFiles('coverage/coverage-integration-mongo-postgres/integrationCoverageReport.xml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-mongo-postgres
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-integration-mongo-postgres/integrationCoverageReport.xml
+      - name: Upload typescript-wow-client
+        if: hashFiles('coverage/coverage-typescript-wow-client/coverage-final.json') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript-wow-client
+          name: typescript-wow-client
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-typescript-wow-client/coverage-final.json
+      - name: Upload typescript-wow-react
+        if: hashFiles('coverage/coverage-typescript-wow-react/coverage-final.json') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript-wow-react
+          name: typescript-wow-react
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-typescript-wow-react/coverage-final.json
+      - name: Upload typescript-wow-generator
+        if: hashFiles('coverage/coverage-typescript-wow-generator/coverage-final.json') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript-wow-generator
+          name: typescript-wow-generator
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-typescript-wow-generator/coverage-final.json
+      - name: Upload typescript-wow-view-store
+        if: hashFiles('coverage/coverage-typescript-wow-view-store/coverage-final.json') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript-wow-view-store
+          name: typescript-wow-view-store
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-typescript-wow-view-store/coverage-final.json
+      - name: Upload typescript-wow-view-engine
+        if: hashFiles('coverage/coverage-typescript-wow-view-engine/coverage-final.json') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript-wow-view-engine
+          name: typescript-wow-view-engine
+          fail_ci_if_error: false
+          verbose: true
+          disable_search: true
+          files: ./coverage/coverage-typescript-wow-view-engine/coverage-final.json
       - name: Send Codecov's notifications
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
           run_command: send-notifications
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
+
+  # Coverage must not drift down over time. On the nightly's full run on main
+  # (nightly.yml dispatches it), the commit's coverage, overall and per flag,
+  # is compared with the nightly of a week earlier, from Codecov's reports:
+  # more than half a point down overall, or a point on any flag, fails it
+  # (.github/scripts/coverage-trend.mjs). Pull requests judge only their own
+  # lines, so a slow loss across many of them shows here.
+  coverage-trend:
+    name: Coverage trend
+    needs: coverage
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.coverage.result == 'success'
+    # Codecov's report of the commit (at most 20 minutes) and two reads.
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The nightly runs of a week earlier.
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Compare the coverage with a week earlier
+        env:
+          HEAD_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/scripts/coverage-trend.mjs
 
   # The merge signal: every job above passed, or the scope skipped it.
   ci-gate:
@@ -1115,16 +1325,13 @@ jobs:
         ops-console-e2e,
         catalog-console,
         catalog-console-e2e,
-        coverage-notify,
+        coverage,
       ]
     if: always()
-    # The patch coverage wait below is bounded at 15 minutes.
-    timeout-minutes: 20
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Codecov's check runs on the pull request's head commit.
-      checks: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1138,29 +1345,17 @@ jobs:
             esac
           done
       # Patch coverage is part of the merge signal: on a pull request whose run
-      # uploaded coverage and triggered Codecov's notifications
-      # (coverage-notify), Codecov's codecov/patch on the head commit must pass
-      # (codecov.yml: 90%, threshold 1%). Codecov posts it only after that
-      # trigger, judged on every upload of the run, and the newest one decides.
-      # A run without coverage leaves it out, so a required codecov/patch never
-      # blocks a change Codecov does not see. A head that carried forward fewer
-      # JVM sessions than codecov.yml's after_n_builds (its main commit was
-      # pushed while the parent's shards were uploading) is never judged; the
-      # script reads Codecov's uploads API and fails at once with the
-      # first-parent merge that repairs it, and waits as before when that API
-      # cannot be read.
-      - name: Check out the gate script
-        if: github.event_name == 'pull_request' && needs.coverage-notify.result == 'success'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/scripts
-      - name: Require Codecov's patch status to pass
-        if: github.event_name == 'pull_request' && needs.coverage-notify.result == 'success'
+      # has coverage, the coverage job's verdict over the changed lines must
+      # not fail (.github/scripts/patch-coverage.mjs). A run without coverage
+      # leaves it out. Codecov blocks nothing.
+      - name: Require the patch coverage
+        if: github.event_name == 'pull_request' && needs.coverage.result == 'success'
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          # Which pull request Codecov compared, for the stale-base diagnosis.
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/codecov-patch.mjs
+          PATCH: ${{ needs.coverage.outputs.patch }}
+          PATCH_MESSAGE: ${{ needs.coverage.outputs.patch-message }}
+        run: |
+          echo "Patch coverage: $PATCH: $PATCH_MESSAGE"
+          if [ "$PATCH" = fail ]; then
+            echo "::error::$PATCH_MESSAGE (the Coverage job's summary lists every uncovered line)"
+            exit 1
+          fi

@@ -34,7 +34,12 @@ import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SortCapable
 import me.ahoo.wow.spi.json.WowJson
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonToken
+import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.JacksonModule
+import tools.jackson.databind.ValueDeserializer
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 
@@ -68,6 +73,7 @@ private const val MODULE_NAME = "wow-query-protocol-json"
 private class QueryJsonModule : SimpleModule(MODULE_NAME) {
     init {
         setMixInAnnotation(QueryField::class.java, QueryFieldMixin::class.java)
+        addDeserializer(QueryField::class.java, QueryFieldReader())
         setMixInAnnotation(FilterExpression::class.java, FilterExpressionMixin::class.java)
         setMixInAnnotation(DeletionFilter::class.java, DeletionFilterMixin::class.java)
         setMixInAnnotation(RelativeTimeFilter::class.java, RelativeTimeFilterMixin::class.java)
@@ -111,10 +117,10 @@ internal interface SortCapableMixin {
 
 internal interface ProjectionMixin {
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
-    val include: List<QueryField>
+    val include: List<QueryField<*>>
 
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
-    val exclude: List<QueryField>
+    val exclude: List<QueryField<*>>
 }
 
 internal interface CursorQueryMixin {
@@ -125,3 +131,17 @@ internal interface CursorQueryMixin {
 /** `total` first, as 9.x wrote it, then `exact` beside it. */
 @JsonPropertyOrder("total", "exact", "list")
 internal interface PagedListMixin
+
+/** Reads a field from its path, a JSON string; any other value, or a path that names no field, fails. */
+private class QueryFieldReader : ValueDeserializer<QueryField<*>>() {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): QueryField<*> {
+        if (!p.hasToken(JsonToken.VALUE_STRING)) {
+            throw MismatchedInputException.from(p, QueryField::class.java, "A query field is its path, a JSON string.")
+        }
+        return try {
+            QueryField(p.valueAsString)
+        } catch (invalid: IllegalArgumentException) {
+            throw MismatchedInputException.from(p, QueryField::class.java, invalid.message)
+        }
+    }
+}

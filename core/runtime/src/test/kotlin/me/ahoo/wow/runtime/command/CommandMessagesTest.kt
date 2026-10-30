@@ -360,8 +360,8 @@ class CommandMessagesTest {
         resumed.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
         resumed.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
         resumed.first().stream.version.assert().isEqualTo(1)
-        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 1, "r", 0, 1)).assert().isEqualTo(2L)
-        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 1, "r", 0)).assert().isEqualTo(0L)
+        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0, 1)).assert().isEqualTo(2L)
+        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0)).assert().isEqualTo(0L)
         entries.positionOf(ref, 1).assert().isNull()
         assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, null) } }
         topics.retain(COMMANDS, partition, 2)

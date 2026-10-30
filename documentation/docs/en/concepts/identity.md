@@ -30,6 +30,8 @@ An aggregate type declares its **ownership**:
 | Owner (default) | its tenant, and the owner and space of the command that created it | data that belongs to a person or an account: an order, a cart, a saved view |
 | Tenant | its tenant, and a space if it has one | data every caller of the tenant reads: a product, a price list |
 
+An owner's aggregate may also take its owner's id as its own, one per owner, such as a basket: its routes without an id mean the caller's own, and its owner never changes ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)).
+
 ## Who the caller is
 
 For each request, the host's caller resolver turns the authenticated principal into a **caller**:
@@ -55,7 +57,7 @@ Commands that a saga sends, compensations and scheduled commands are not sent by
 
 Admission copies a few facts about the request into the command, and the commit records them:
 
-- the **application** the request came from, `app_id`: recorded only when the caller resolver authenticated it, for example when CoSec authorized the request with that application's roles. A header the client sets itself is never trusted;
+- the **application** the request came from, `app_id`: recorded only when the caller resolver authenticated it, for example the app of the scope CoSec decided the request in. A header the client sets itself is never trusted;
 - on the public port, the client's **remote address** and **user agent**;
 - any further headers the host lists.
 

@@ -19,12 +19,14 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
-import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
+import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * The queries a subscription handler reads with ([me.ahoo.wow.api.subscribe.SubscriptionContext.queries]),
@@ -49,10 +51,10 @@ fun interface ContextQueries {
          * The queries of [api] by tenant, as a node and a test alike build them: those of a [TenantQueryApi], the
          * node's, which pins the tenant as trusted code ([TenantQueryApi.tenant]); for any other API, a test's fake
          * say, [QueryApi.of] a caller of that tenant with no owner, space, subject or attribute, the rest
-         * [QueryApi.trusted].
+         * [NodeQueryApi.trusted].
          */
         @JvmStatic
-        fun of(api: QueryApi): ContextQueries = if (api is TenantQueryApi) {
+        fun of(api: NodeQueryApi): ContextQueries = if (api is TenantQueryApi) {
             ContextQueries(api::tenant)
         } else {
             ContextQueries { tenantId -> TenantQueries(api, tenantId) }
@@ -61,12 +63,12 @@ fun interface ContextQueries {
 }
 
 /** [api]'s queries in [tenantId], as a caller of that tenant; see [ContextQueries.of]. */
-private class TenantQueries(private val api: QueryApi, override val tenantId: String) : SubscriptionQueries {
+private class TenantQueries(private val api: NodeQueryApi, override val tenantId: String) : SubscriptionQueries {
     private val queries by lazy { api.of(Caller.of(tenantId = tenantId)) }
 
-    override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> = queries.snapshots(stateType)
+    override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> = queries.snapshots(stateType)
 
-    override fun snapshots(type: AggregateType): SnapshotQueries<Any> = queries.snapshots(type)
+    override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> = queries.snapshots(type)
 
     override fun events(type: AggregateType): EventQueries = queries.events(type)
 

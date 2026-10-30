@@ -167,7 +167,10 @@ class HostParkedOpsTest {
             hooks.count { it["event"].asString() == "exhausted" && it["entry"]["aggregate"]["id"].asString() == id } == 2
         }
 
-        val skipped = host.post("${entry(BROKEN, id)}/${OpsPaths.SKIP}", null)
+        // A skip names the parking it discards, as the operator reads it from the listing.
+        val failedAt = host.get("${OpsPaths.PARKED}?subscription=$BROKEN").body!!["entries"].toList()
+            .single { it["aggregate"]["id"].asString() == id }["failedAt"].asLong()
+        val skipped = host.post("${entry(BROKEN, id)}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
         host.get(entry(BROKEN, id)).status.assert().isEqualTo(404)

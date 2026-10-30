@@ -102,12 +102,12 @@ interface Pages<R> {
  *
  * @example
  * ```tsx
- * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, Snapshot } from '@ahoo-wang/wow-client';
  * import { filter } from '@ahoo-wang/wow-client/dsl';
  * import { useCursorQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { items, hasMore, loading, error, fetchNext } = useCursorQuery<Snapshot<OrderState>, OrderFields>({
  *     query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
  *     execute: (query, options) =>
  *       client.cursor(query, options),

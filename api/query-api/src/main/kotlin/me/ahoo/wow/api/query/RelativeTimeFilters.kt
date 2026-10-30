@@ -96,7 +96,7 @@ private fun RelativeTimeFilter.validateConfiguration() {
 }
 
 class TodayFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -104,7 +104,7 @@ class TodayFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
-    override fun withField(field: QueryField): TodayFilter = TodayFilter(
+    override fun withField(field: QueryField<*>): TodayFilter = TodayFilter(
         field,
         zoneId,
         datePattern,
@@ -119,7 +119,7 @@ class TodayFilter @InternalWowApi constructor(
     /** This TodayFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -140,7 +140,7 @@ class TodayFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -150,7 +150,7 @@ class TodayFilter @InternalWowApi constructor(
 }
 
 class BeforeTodayFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val time: String,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
@@ -159,7 +159,7 @@ class BeforeTodayFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
-    override fun withField(field: QueryField): BeforeTodayFilter = BeforeTodayFilter(
+    override fun withField(field: QueryField<*>): BeforeTodayFilter = BeforeTodayFilter(
         field,
         time,
         zoneId,
@@ -180,7 +180,7 @@ class BeforeTodayFilter @InternalWowApi constructor(
     /** This BeforeTodayFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         time: String = this.time,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
@@ -202,7 +202,7 @@ class BeforeTodayFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             time: String,
             zoneId: String? = null,
             datePattern: String? = null,
@@ -213,7 +213,7 @@ class BeforeTodayFilter @InternalWowApi constructor(
 }
 
 class TomorrowFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -221,7 +221,7 @@ class TomorrowFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
-    override fun withField(field: QueryField): TomorrowFilter = TomorrowFilter(
+    override fun withField(field: QueryField<*>): TomorrowFilter = TomorrowFilter(
         field,
         zoneId,
         datePattern,
@@ -236,7 +236,7 @@ class TomorrowFilter @InternalWowApi constructor(
     /** This TomorrowFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -257,7 +257,7 @@ class TomorrowFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -267,7 +267,7 @@ class TomorrowFilter @InternalWowApi constructor(
 }
 
 class ThisWeekFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -275,7 +275,7 @@ class ThisWeekFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
 
-    override fun withField(field: QueryField): ThisWeekFilter = ThisWeekFilter(
+    override fun withField(field: QueryField<*>): ThisWeekFilter = ThisWeekFilter(
         field,
         zoneId,
         datePattern,
@@ -290,7 +290,7 @@ class ThisWeekFilter @InternalWowApi constructor(
     /** This ThisWeekFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -311,7 +311,7 @@ class ThisWeekFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -321,7 +321,7 @@ class ThisWeekFilter @InternalWowApi constructor(
 }
 
 class NextWeekFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -329,7 +329,7 @@ class NextWeekFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
-    override fun withField(field: QueryField): NextWeekFilter = NextWeekFilter(
+    override fun withField(field: QueryField<*>): NextWeekFilter = NextWeekFilter(
         field,
         zoneId,
         datePattern,
@@ -344,7 +344,7 @@ class NextWeekFilter @InternalWowApi constructor(
     /** This NextWeekFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -365,7 +365,7 @@ class NextWeekFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -375,7 +375,7 @@ class NextWeekFilter @InternalWowApi constructor(
 }
 
 class LastWeekFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -383,7 +383,7 @@ class LastWeekFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
 
-    override fun withField(field: QueryField): LastWeekFilter = LastWeekFilter(
+    override fun withField(field: QueryField<*>): LastWeekFilter = LastWeekFilter(
         field,
         zoneId,
         datePattern,
@@ -398,7 +398,7 @@ class LastWeekFilter @InternalWowApi constructor(
     /** This LastWeekFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -419,7 +419,7 @@ class LastWeekFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -429,7 +429,7 @@ class LastWeekFilter @InternalWowApi constructor(
 }
 
 class ThisMonthFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -437,7 +437,7 @@ class ThisMonthFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_MONTH
 
-    override fun withField(field: QueryField): ThisMonthFilter = ThisMonthFilter(
+    override fun withField(field: QueryField<*>): ThisMonthFilter = ThisMonthFilter(
         field,
         zoneId,
         datePattern,
@@ -452,7 +452,7 @@ class ThisMonthFilter @InternalWowApi constructor(
     /** This ThisMonthFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -473,7 +473,7 @@ class ThisMonthFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -483,7 +483,7 @@ class ThisMonthFilter @InternalWowApi constructor(
 }
 
 class LastMonthFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -491,7 +491,7 @@ class LastMonthFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_MONTH
 
-    override fun withField(field: QueryField): LastMonthFilter = LastMonthFilter(
+    override fun withField(field: QueryField<*>): LastMonthFilter = LastMonthFilter(
         field,
         zoneId,
         datePattern,
@@ -506,7 +506,7 @@ class LastMonthFilter @InternalWowApi constructor(
     /** This LastMonthFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -527,7 +527,7 @@ class LastMonthFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -537,7 +537,7 @@ class LastMonthFilter @InternalWowApi constructor(
 }
 
 class RecentDaysFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val days: Int,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
@@ -546,7 +546,7 @@ class RecentDaysFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.RECENT_DAYS
 
-    override fun withField(field: QueryField): RecentDaysFilter = RecentDaysFilter(
+    override fun withField(field: QueryField<*>): RecentDaysFilter = RecentDaysFilter(
         field,
         days,
         zoneId,
@@ -563,7 +563,7 @@ class RecentDaysFilter @InternalWowApi constructor(
     /** This RecentDaysFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         days: Int = this.days,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
@@ -585,7 +585,7 @@ class RecentDaysFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             days: Int,
             zoneId: String? = null,
             datePattern: String? = null,
@@ -596,7 +596,7 @@ class RecentDaysFilter @InternalWowApi constructor(
 }
 
 class EarlierDaysFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val days: Int,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
@@ -605,7 +605,7 @@ class EarlierDaysFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.EARLIER_DAYS
 
-    override fun withField(field: QueryField): EarlierDaysFilter = EarlierDaysFilter(
+    override fun withField(field: QueryField<*>): EarlierDaysFilter = EarlierDaysFilter(
         field,
         days,
         zoneId,
@@ -622,7 +622,7 @@ class EarlierDaysFilter @InternalWowApi constructor(
     /** This EarlierDaysFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         days: Int = this.days,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
@@ -644,7 +644,7 @@ class EarlierDaysFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             days: Int,
             zoneId: String? = null,
             datePattern: String? = null,
@@ -655,7 +655,7 @@ class EarlierDaysFilter @InternalWowApi constructor(
 }
 
 class YesterdayFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -663,7 +663,7 @@ class YesterdayFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
-    override fun withField(field: QueryField): YesterdayFilter = YesterdayFilter(
+    override fun withField(field: QueryField<*>): YesterdayFilter = YesterdayFilter(
         field,
         zoneId,
         datePattern,
@@ -676,7 +676,7 @@ class YesterdayFilter @InternalWowApi constructor(
     /** This YesterdayFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -697,7 +697,7 @@ class YesterdayFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -707,7 +707,7 @@ class YesterdayFilter @InternalWowApi constructor(
 }
 
 class NextMonthFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -715,7 +715,7 @@ class NextMonthFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_MONTH
 
-    override fun withField(field: QueryField): NextMonthFilter = NextMonthFilter(
+    override fun withField(field: QueryField<*>): NextMonthFilter = NextMonthFilter(
         field,
         zoneId,
         datePattern,
@@ -728,7 +728,7 @@ class NextMonthFilter @InternalWowApi constructor(
     /** This NextMonthFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -749,7 +749,7 @@ class NextMonthFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -759,7 +759,7 @@ class NextMonthFilter @InternalWowApi constructor(
 }
 
 class LastYearFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -767,7 +767,7 @@ class LastYearFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_YEAR
 
-    override fun withField(field: QueryField): LastYearFilter = LastYearFilter(
+    override fun withField(field: QueryField<*>): LastYearFilter = LastYearFilter(
         field,
         zoneId,
         datePattern,
@@ -780,7 +780,7 @@ class LastYearFilter @InternalWowApi constructor(
     /** This LastYearFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -801,7 +801,7 @@ class LastYearFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -811,7 +811,7 @@ class LastYearFilter @InternalWowApi constructor(
 }
 
 class ThisYearFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -819,7 +819,7 @@ class ThisYearFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_YEAR
 
-    override fun withField(field: QueryField): ThisYearFilter = ThisYearFilter(
+    override fun withField(field: QueryField<*>): ThisYearFilter = ThisYearFilter(
         field,
         zoneId,
         datePattern,
@@ -832,7 +832,7 @@ class ThisYearFilter @InternalWowApi constructor(
     /** This ThisYearFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -853,7 +853,7 @@ class ThisYearFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -863,7 +863,7 @@ class ThisYearFilter @InternalWowApi constructor(
 }
 
 class NextYearFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     override val dateFormatter: DateTimeFormatter? = null,
@@ -871,7 +871,7 @@ class NextYearFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_YEAR
 
-    override fun withField(field: QueryField): NextYearFilter = NextYearFilter(
+    override fun withField(field: QueryField<*>): NextYearFilter = NextYearFilter(
         field,
         zoneId,
         datePattern,
@@ -884,7 +884,7 @@ class NextYearFilter @InternalWowApi constructor(
     /** This NextYearFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
         dateFormatter: DateTimeFormatter? = this.dateFormatter,
@@ -905,7 +905,7 @@ class NextYearFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             zoneId: String? = null,
             datePattern: String? = null,
             dateFormatter: DateTimeFormatter? = null,
@@ -925,7 +925,7 @@ private fun String.requireOffset(operator: FilterOperator): Duration = runCatchi
  * The offset is an ISO-8601 duration added to `now`: `PT0S` (the default) is now itself, `-PT30M` is 30 minutes ago.
  */
 class BeforeNowFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val offset: String = ZERO_OFFSET,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
@@ -934,7 +934,7 @@ class BeforeNowFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_NOW
 
-    override fun withField(field: QueryField): BeforeNowFilter = BeforeNowFilter(
+    override fun withField(field: QueryField<*>): BeforeNowFilter = BeforeNowFilter(
         field,
         offset,
         zoneId,
@@ -952,7 +952,7 @@ class BeforeNowFilter @InternalWowApi constructor(
     /** This BeforeNowFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         offset: String = this.offset,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
@@ -974,7 +974,7 @@ class BeforeNowFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             offset: String = ZERO_OFFSET,
             zoneId: String? = null,
             datePattern: String? = null,
@@ -986,7 +986,7 @@ class BeforeNowFilter @InternalWowApi constructor(
 
 /** The field is after `now + offset`; see [BeforeNowFilter]. */
 class AfterNowFilter @InternalWowApi constructor(
-    override val field: QueryField,
+    override val field: QueryField<*>,
     val offset: String = ZERO_OFFSET,
     override val zoneId: String? = null,
     override val datePattern: String? = null,
@@ -995,7 +995,7 @@ class AfterNowFilter @InternalWowApi constructor(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.AFTER_NOW
 
-    override fun withField(field: QueryField): AfterNowFilter = AfterNowFilter(
+    override fun withField(field: QueryField<*>): AfterNowFilter = AfterNowFilter(
         field,
         offset,
         zoneId,
@@ -1013,7 +1013,7 @@ class AfterNowFilter @InternalWowApi constructor(
     /** This AfterNowFilter with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
     fun copy(
-        field: QueryField = this.field,
+        field: QueryField<*> = this.field,
         offset: String = this.offset,
         zoneId: String? = this.zoneId,
         datePattern: String? = this.datePattern,
@@ -1035,7 +1035,7 @@ class AfterNowFilter @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            field: QueryField,
+            field: QueryField<*>,
             offset: String = ZERO_OFFSET,
             zoneId: String? = null,
             datePattern: String? = null,

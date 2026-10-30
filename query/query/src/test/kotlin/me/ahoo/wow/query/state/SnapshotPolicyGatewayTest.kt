@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.error.QueryErrors
@@ -40,6 +41,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 
 /** [SnapshotPolicyGateway]: the snapshot query policies of a type whose snapshots are not queried (review R3.3-3). */
 class SnapshotPolicyGatewayTest {
@@ -50,12 +52,17 @@ class SnapshotPolicyGatewayTest {
         catalog.policyProvider(type),
         listOf(AbacQueryPolicy(AbacQueryOptions(enabled = true, matchMissingTagKey = false))),
     )
-    private val state = CommittedState(
+    private val state = stateTagged(mapOf("region" to listOf("east")))
+
+    private fun stateTagged(tags: Map<String, List<String>>) = Snapshot.of<JsonNode>(
         ref = type.ref("acme", "c-1"),
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
-        tags = mapOf("region" to listOf("east")),
+        tags = tags,
+        operator = null,
+        firstEventTime = 0,
+        lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 2),
     )
 
@@ -81,8 +88,8 @@ class SnapshotPolicyGatewayTest {
 
     @Test
     fun `a state without the caller's tag, or with another value, is hidden`(): Unit = runBlocking {
-        StateVisibility.visible(gateway, tagged("west"), state.copy(tags = emptyMap())).assert().isFalse()
-        StateVisibility.visible(gateway, tagged("east"), state.copy(tags = mapOf("region" to listOf("north"))))
+        StateVisibility.visible(gateway, tagged("west"), stateTagged(emptyMap())).assert().isFalse()
+        StateVisibility.visible(gateway, tagged("east"), stateTagged(mapOf("region" to listOf("north"))))
             .assert().isFalse()
     }
 

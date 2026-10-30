@@ -183,13 +183,13 @@ internal class QueryAuditTrail(
      * Whether including this field reads some of [masked], a masked path whose `{key}` segments stand for any map
      * key: the field is an ancestor of it, or a path inside it.
      */
-    private fun QueryField.reads(masked: List<String>): Boolean {
+    private fun QueryField<*>.reads(masked: List<String>): Boolean {
         val segments = path.split('.')
         return segments.zip(masked).all { (field, template) -> template == KEY_SEGMENT || field == template }
     }
 
     /** Whether excluding this field removes all of [masked]: it is [masked] or an ancestor, a `{key}` matched literally. */
-    private fun QueryField.removes(masked: List<String>): Boolean {
+    private fun QueryField<*>.removes(masked: List<String>): Boolean {
         val segments = path.split('.')
         return segments.size <= masked.size && segments.indices.all { segments[it] == masked[it] }
     }
@@ -218,7 +218,7 @@ private fun scopeFieldsOf(scope: FilterExpression, profile: QueryModelProfile?):
     return fields.toList()
 }
 
-private fun SystemField.scopeField(profile: QueryModelProfile?): QueryField? =
+private fun SystemField.scopeField(profile: QueryModelProfile?): QueryField<*>? =
     profile?.systemField(this) ?: takeIf { it != SystemField.IDENTITY }?.let(QueryModelProfile::metadataField)
 
 private fun errorCodeOf(error: Throwable): String {

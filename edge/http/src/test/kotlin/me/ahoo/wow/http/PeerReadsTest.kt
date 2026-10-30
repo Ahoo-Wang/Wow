@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -293,18 +294,26 @@ class PeerReadsTest {
     }
 
     @Test
-    fun `a refused service-mode read should be a problem, and trusted queries are not served`() {
-        val client = WowClient.builder()
-            .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${internal.address}"))))
-            .contracts(contracts.fragments)
-            .build()
-            .queries
-        val problem = runCatching { runBlocking { client.of(alice).snapshots<Cart>().list(ListQuery(all)).toList() } }
-            .exceptionOrNull() as WowProblemException
-        problem.status.assert().isEqualTo(403)
-        runCatching { client.trusted() }.exceptionOrNull().assert().isInstanceOf(
-            UnsupportedOperationException::class.java
-        )
+    fun `a refused service-mode read should be a problem, and a client should have no trusted queries`() {
+        // The peer lets the service read the events alone: its snapshot query is refused.
+        val permitted =
+            InternalServer(peerRoutes(CallPermits(emptyMap(), mapOf(SERVICE to listOf("shop.cart.events")))))
+        permitted.use { server ->
+            WowClient.builder()
+                .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${server.address}"))))
+                .service(SERVICE)
+                .contracts(contracts.fragments)
+                .build()
+                .use { wow ->
+                    val client = wow.queries
+                    val problem = runCatching {
+                        runBlocking { client.of(alice).snapshots<Cart>().list(ListQuery(all)).toList() }
+                    }.exceptionOrNull() as WowProblemException
+                    problem.status.assert().isEqualTo(403)
+                    // Trusted code reads its own node: a client's queries are a caller's alone, with no trusted().
+                    client.assert().isNotInstanceOf(NodeQueryApi::class.java)
+                }
+        }
     }
 
     private fun Answer.problemCode(): String? = body?.get("code")?.asString()

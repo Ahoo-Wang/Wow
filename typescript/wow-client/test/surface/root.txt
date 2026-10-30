@@ -17,6 +17,7 @@ type  CommandResult
 value CommandResultStatus
 type  CommandResultStream
 type  CommitView
+type  CommittedEvent
 type  ContextManifest
 type  CountQuery
 type  CountResult
@@ -31,9 +32,8 @@ type  ErrorInfo
 type  ErrorManifest
 type  EventManifest
 value EventQueryClient
+type  EventStream
 type  EventStreamField
-type  EventStreamRecord
-type  EventView
 value FRAMEWORK_ERROR_PREFIX
 value FRAMEWORK_RETRIES
 type  FrameworkErrorCode
@@ -51,9 +51,11 @@ value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
+value OwnStateClient
 type  OwnerTransferred
 type  Ownership
 value PROBLEM_TYPE_PREFIX
+type  Positioned
 type  Problem
 type  PublishedManifest
 type  QueryManifest
@@ -74,9 +76,9 @@ type  ScheduleSet
 type  Scope
 type  ServiceManifest
 type  ServiceRouteManifest
+type  Snapshot
 type  SnapshotManifest
 value SnapshotQueryClient
-type  SnapshotRecord
 type  SnapshotSystemField
 type  SourceManifest
 type  SpaceTransferred
@@ -87,12 +89,10 @@ type  StateReadOptions
 type  StateReadResult
 type  StateTrace
 type  StateTraceOptions
-type  StateView
 type  StreamEnd
 type  StreamEndReason
 type  StreamOptions
 type  StreamResumeOptions
-type  StreamedRow
 type  SubscriptionManifest
 type  SystemEvent
 type  Tags

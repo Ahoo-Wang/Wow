@@ -46,8 +46,8 @@ import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.source.TopicSubscriptions
-import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -112,7 +112,7 @@ internal class NodeAssembly(
     val queries: ContextQueries = ContextQueries.NONE,
 ) {
     /** How every subscription of the node classifies its handler's failures. */
-    private val classification = FailureClassification.of(failureClassifiers)
+    private val classification = RuntimeFailures.of(failureClassifiers)
 
     init {
         require(service.isNotBlank()) { "A node names its service." }

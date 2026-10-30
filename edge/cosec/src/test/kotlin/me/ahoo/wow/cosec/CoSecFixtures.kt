@@ -14,36 +14,40 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.context.request.Request
-import me.ahoo.cosec.api.permission.AppRolePermission
-import me.ahoo.cosec.api.policy.Policy
-import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.tenant.Tenant
-import me.ahoo.cosec.authorization.AppRolePermissionRepository
-import me.ahoo.cosec.authorization.PolicyRepository
-import me.ahoo.cosec.authorization.RoleVerifyContext
-import me.ahoo.cosec.authorization.RootVerifyContext
-import me.ahoo.cosec.authorization.SimpleAuthorization
-import me.ahoo.cosec.authorization.VerifyContext
-import me.ahoo.cosec.authorization.VerifyContext.Companion.setVerifyContext
-import me.ahoo.cosec.context.RequestSecurityContexts.setRequest
-import me.ahoo.cosec.context.SimpleSecurityContext
-import me.ahoo.cosec.permission.AppPermissionData
-import me.ahoo.cosec.permission.AppRolePermissionData
-import me.ahoo.cosec.permission.PermissionData
-import me.ahoo.cosec.permission.PermissionGroupData
-import me.ahoo.cosec.permission.RolePermissionData
-import me.ahoo.cosec.policy.action.AllActionMatcher
-import me.ahoo.cosec.principal.SimplePrincipal
-import me.ahoo.cosec.principal.SimpleTenantPrincipal
-import me.ahoo.cosec.tenant.SimpleTenant
-import me.ahoo.cosec.webflux.ReactiveRemoteIpResolver
-import me.ahoo.cosec.webflux.ReactiveRequestParser
-import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
+import me.ahoo.cosec.engine.TraceLevel
+import me.ahoo.cosec.engine.flat.CompiledDocument
+import me.ahoo.cosec.engine.flat.FlatEngine
+import me.ahoo.cosec.engine.flat.FlatEvaluation
+import me.ahoo.cosec.engine.flat.FlatRequest
+import me.ahoo.cosec.engine.flat.SnapshotView
+import me.ahoo.cosec.model.AppId
+import me.ahoo.cosec.model.Memberships
+import me.ahoo.cosec.model.PolicyId
+import me.ahoo.cosec.model.PrincipalId
+import me.ahoo.cosec.model.RoleId
+import me.ahoo.cosec.model.SpaceId
+import me.ahoo.cosec.model.TenantId
+import me.ahoo.cosec.model.decision.BindingRef
+import me.ahoo.cosec.model.decision.Decision
+import me.ahoo.cosec.model.decision.StatementRef
+import me.ahoo.cosec.model.scope.HostScope
+import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.cosec.runtime.Pipeline
+import me.ahoo.cosec.runtime.PipelineComponents
+import me.ahoo.cosec.runtime.http.Cookies
+import me.ahoo.cosec.runtime.http.Headers
+import me.ahoo.cosec.runtime.http.HttpFacts
+import me.ahoo.cosec.runtime.route.RouteMap
+import me.ahoo.cosec.runtime.snapshot.SnapshotViews
+import me.ahoo.cosec.runtime.snapshot.SuspendingSnapshotSource
+import me.ahoo.cosec.runtime.snapshot.ViewKey
+import me.ahoo.cosec.spi.authn.AuthenticatedPrincipal
+import me.ahoo.cosec.spi.authn.AuthnResult
+import me.ahoo.cosec.webflux.PipelineWebFilter
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -72,13 +76,14 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.test.web.reactive.server.WebTestClient
-import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
-import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.api.decide.Decision as WowDecision
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 const val CONTEXT = "shop"
@@ -95,8 +100,8 @@ data class ItemAdded(val sku: String)
 
 val cartModel = aggregate<Cart>(CONTEXT, "cart") {
     initial { Cart() }
-    decide<OpenCart>(Creation.REQUIRED) { _, body -> Decision.events(CartOpened(body.note)) }
-    decide<AddItem> { _, body -> Decision.events(ItemAdded(body.sku)) }
+    decide<OpenCart>(Creation.REQUIRED) { _, body -> WowDecision.events(CartOpened(body.note)) }
+    decide<AddItem> { _, body -> WowDecision.events(ItemAdded(body.sku)) }
     evolve<CartOpened> { }
     evolve<ItemAdded> { items++ }
 }
@@ -133,103 +138,138 @@ fun cartManifest(): Manifest {
     )
 }
 
-/** A security context as CoSec resolves it: the principal [id] in [tenant], with its roles, policies, attributes. */
-fun securityContext(
-    id: String,
-    tenant: String = Tenant.DEFAULT_TENANT_ID,
-    roles: Set<String> = emptySet(),
-    policies: Set<String> = emptySet(),
-    attributes: Map<String, Any> = emptyMap(),
-): SecurityContext {
-    val simpleTenant = SimpleTenant(tenant)
-    val principal = SimpleTenantPrincipal(SimplePrincipal(id, policies, roles, attributes), simpleTenant)
-    return SimpleSecurityContext(principal, simpleTenant)
+/** What the pipeline's engine is asked: the action (`service:verb`) and the resource (`type/id`) of each request. */
+class Asked(val action: String, val resource: String, val principal: String?, val app: String, val space: String) {
+    override fun toString(): String = "$action $resource"
 }
-
-/** A permission of an application's role that grants every action, as CoSec's app role permissions are. */
-val appRolePermission: RoleVerifyContext = RoleVerifyContext(
-    roleId = "editor",
-    permission = PermissionData(id = "app.all", name = "all", action = AllActionMatcher.INSTANCE),
-    result = VerifyResult.ALLOW,
-)
 
 /**
- * CoSec's own authorization with no policies and one application, [app], whose role `editor` holds
- * [appRolePermission]: it allows only by that app role permission, as CoSec does for the request the WebFilter sees.
- * [asked] records the application and space of every app role permission lookup.
+ * CoSec's pipeline with a stand-in for its documents: the principal of the bearer token
+ * `<id>;<tenant>;<roles>;<policies>` (roles comma-separated, `role@space` in a space; empty parts left out), the
+ * route map of [cartManifest], and an engine that records what it is [asked] and permits what [permits] says.
  */
-class AppRoleAuthorization(private val app: String = "console") {
-    val asked = mutableListOf<Pair<String, String>>()
-    private val permission = AppRolePermissionData(
-        appPermission = AppPermissionData(
-            id = app,
-            groups = listOf(PermissionGroupData(name = "all", permissions = listOf(appRolePermission.permission))),
-        ),
-        rolePermissions = listOf(RolePermissionData(appRolePermission.roleId, setOf(appRolePermission.permission.id))),
-    )
-    private val policies = object : PolicyRepository {
-        override fun getGlobalPolicy(): Mono<List<Policy>> = Mono.just(emptyList())
-        override fun getPolicies(policyIds: Set<String>): Mono<List<Policy>> = Mono.just(emptyList())
-        override fun setPolicy(policy: Policy): Mono<Void> = Mono.empty()
-    }
-    private val permissions = object : AppRolePermissionRepository {
-        override fun getAppRolePermission(
-            appId: String,
-            spaceId: String,
-            roleIds: Set<String>,
-        ): Mono<AppRolePermission> {
-            asked += appId to spaceId
-            return if (appId == app) Mono.just(permission) else Mono.empty()
+class CoSecPipeline(
+    private val host: String? = null,
+    var permits: (Asked) -> Boolean = { true },
+) {
+    val asked = CopyOnWriteArrayList<Asked>()
+
+    private val engine = object : FlatEngine {
+        override fun evaluate(request: FlatRequest, snapshot: SnapshotView, trace: TraceLevel): FlatEvaluation {
+            val authz = request.request
+            val resource = authz.resource.let { if (it.id.isEmpty()) it.type else "${it.type}/${it.id}" }
+            val asked = Asked(
+                "${authz.action.namespace}:${authz.action.verb}",
+                resource,
+                authz.subject.id.takeIf { authz.subject.authenticated },
+                request.scope.app.value,
+                request.scope.space.value,
+            )
+            this@CoSecPipeline.asked += asked
+            return FlatEvaluation(if (permits(asked)) PERMIT else Decision.Deny(null), null)
         }
     }
-    val authorization: SimpleAuthorization = SimpleAuthorization(policies, permissions)
+
+    val pipeline: Pipeline = Pipeline(
+        PipelineComponents(
+            authenticator = { credentials -> authenticate(credentials.token) },
+            snapshots = SuspendingSnapshotSource(InstalledViews),
+            engine = engine,
+            idGenerator = { "request-1" },
+            routes = RouteMap.of(
+                CoSecActions.routes(cartManifest()).routes.map { RouteMap.Located(it, "cosec-routes.json") }
+            ),
+        )
+    )
+
+    val checker: AuthorizationChecker = AuthorizationChecker(pipeline)
+
+    val filter: WebFilter = PipelineWebFilter(pipeline, host = HostScope(host?.let(::AppId)))
+
+    /** The security context the pipeline permits a `POST [path]` with [token] and [headers] in, whatever [permits] says. */
+    suspend fun security(
+        token: String?,
+        headers: Map<String, String> = emptyMap(),
+        path: String = "/shop/cart/c-1/add-item",
+    ): SecurityContext {
+        val all = headers + (token?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty())
+        val permits = this.permits
+        this.permits = { true }
+        val outcome = try {
+            pipeline.evaluate(
+                HttpFacts(
+                    method = "POST",
+                    rawPath = path,
+                    rawQuery = null,
+                    headers = Headers.of(all.mapValues { listOf(it.value) }),
+                    cookies = Cookies.of(emptyMap()),
+                    remoteAddress = "10.0.0.1",
+                    host = HostScope(host?.let(::AppId)),
+                )
+            )
+        } finally {
+            this.permits = permits
+        }
+        asked.clear()
+        return checkNotNull(outcome.security) { "The pipeline refused the request: ${outcome.status}" }
+            .securityContext
+    }
+
+    private fun authenticate(token: String?): AuthnResult {
+        token ?: return AuthnResult.Anonymous
+        val parts = token.removePrefix("Bearer ").split(';') + List(4) { "" }
+        val roles = parts[2].split(',').filter(String::isNotBlank).map {
+            val role = it.substringBefore('@')
+            val space = it.substringAfter('@', "")
+            SpaceId(space) to RoleId(role)
+        }
+        val memberships = Memberships(
+            Memberships.Source.CLAIMS,
+            roles.groupBy({ it.first }, { it.second }).mapValues { it.value.toSet() },
+            parts[3].split(',').filter(String::isNotBlank).map(::PolicyId),
+        )
+        val tenant = parts[1].ifBlank { Tenant.DEFAULT_TENANT_ID }
+        val attributes = parts.getOrNull(4)?.split(',')?.filter { '=' in it }
+            ?.associate { it.substringBefore('=') to it.substringAfter('=') }.orEmpty()
+        return AuthnResult.Authenticated(
+            AuthenticatedPrincipal(PrincipalId(parts[0]), TenantId(tenant), memberships, attributes),
+            "test",
+        )
+    }
+
+    private object InstalledViews : SnapshotViews {
+        override fun peek(key: ViewKey): SnapshotView = viewOf(key)
+
+        override fun load(key: ViewKey): CompletableFuture<SnapshotView> = CompletableFuture.completedFuture(
+            viewOf(key)
+        )
+
+        private fun viewOf(key: ViewKey) = SnapshotView(
+            CompiledDocument.platform(emptyList(), emptyList()),
+            key.app?.let { CompiledDocument.app(it, emptyList(), emptyList()) },
+            key.tenant?.let { CompiledDocument.tenant(it, emptyList(), emptyList()) },
+        )
+    }
+
+    private companion object {
+        val PERMIT: Decision = Decision.Permit(
+            StatementRef.Policy(PolicyId("test"), 0, "permit", BindingRef.Attached(PolicyId("test")))
+        )
+    }
 }
 
-/** The caller `alice` of tenant `acme` in space `s1`, as an editor calling from [app] (none when null). */
-fun editor(app: String? = "console"): Caller = Caller(
+/** The caller `alice` of tenant `acme` in space `s1`, as the resolver makes it of `alice;acme;editor@s1`. */
+fun editor(): Caller = Caller(
     tenantId = "acme",
     scope = Scope("alice", "s1"),
     subject = "alice",
-    attributes = buildMap {
-        put(CoSecCallerResolver.ROLES, listOf(appRolePermission.roleId))
-        app?.let { put(Caller.APP, listOf(it)) }
-    },
+    attributes = mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
 )
 
-/** [this] as CoSec's authorization leaves it: the [request] it authorized, allowed by [verified]. */
-fun SecurityContext.authorized(request: Request, verified: VerifyContext): SecurityContext {
-    setRequest(request)
-    setVerifyContext(verified)
-    return this
-}
-
-/** CoSec's request of [exchange], as its WebFilter parses it. */
-fun coSecRequest(exchange: ServerWebExchange): Request = ReactiveRequestParser(ReactiveRemoteIpResolver).parse(exchange)
-
-/**
- * Stands in for CoSec's WebFilter: puts the security context [contexts] gives the request's `X-User` (and `X-Roles`,
- * comma-separated) on the exchange, as CoSec does once it has authenticated and authorized a request: by a permission
- * of its application's roles ([appRolePermission]) when `X-Granted` is `app-role`, by the root otherwise. With
- * `X-Granted: injected` it stands in for CoSec's inject filter instead: the request is on the context, unauthorized.
- */
-fun coSecFilter(tenant: String = "acme"): WebFilter = WebFilter { exchange, chain ->
-    val headers = exchange.request.headers
-    headers.getFirst("X-User")?.let { user ->
-        val roles = headers.getFirst("X-Roles")?.split(',')?.toSet().orEmpty()
-        val context = securityContext(user, tenant, roles)
-        when (headers.getFirst("X-Granted")) {
-            "injected" -> context.setRequest(coSecRequest(exchange))
-            "app-role" -> context.authorized(coSecRequest(exchange), appRolePermission)
-            else -> context.authorized(coSecRequest(exchange), RootVerifyContext)
-        }
-        exchange.setSecurityContext(context)
-    }
-    chain.filter(exchange)
-}
-
-/** An in-memory node serving [cartModel] behind [wowRoutes], authenticated by [callers] behind [coSecFilter]. */
+/** An in-memory node serving [cartModel] behind [wowRoutes], authenticated by [callers] behind CoSec's [cosec]. */
 class CoSecNode(
     callers: CallerResolver,
+    val cosec: CoSecPipeline = CoSecPipeline(),
     options: WowHttpOptions = WowHttpOptions(),
     transformers: List<CommandTransformer> = emptyList(),
     authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
@@ -255,7 +295,7 @@ class CoSecNode(
         WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, internalCallers)).build()
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(wowRoutes(cartManifest(), gateway, callerResolver = callers, options = options))
-        .webFilter<WebTestClient.RouterFunctionSpec>(coSecFilter())
+        .webFilter<WebTestClient.RouterFunctionSpec>(cosec.filter)
         .build()
         .mutate()
         .responseTimeout(Duration.ofSeconds(10))

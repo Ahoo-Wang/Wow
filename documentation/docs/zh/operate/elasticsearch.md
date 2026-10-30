@@ -51,6 +51,8 @@ wow:
 
 `query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。使用默认的 `refresh: wait-for` 时，快照在写入返回时就可以检索。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
 
+状态或事件 body 里的 map（键不固定的对象，如 `Map<String, Item>` 属性）映射为一个 `flattened` 字段，所以它某个键下的值只能做存在性与精确匹配的过滤：没有范围、相对时间、排序和聚合。描述符的 `dynamic` 模式列出的正是这些算子。
+
 ## 事件检索 {#event-search}
 
 事件检索 Sink 把每次提交写成 `[<prefix>_]wow_events__<context>__<aggregate>` 中的一个文档：`events` 模型的记录、它的系统字段，以及作为嵌套数组 `events` 的事件，每个事件带着提交时的名字、修订号和 body。文档的 ID 是提交的标识，即租户、聚合 ID 和版本，所以再次写入同一次提交不会改变任何东西。body 字段根据 Manifest 的事件 schema 建立映射；两个事件以不同类型声明的字段不建立映射。

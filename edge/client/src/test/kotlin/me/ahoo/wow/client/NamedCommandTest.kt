@@ -178,7 +178,7 @@ class NamedCommandTest {
         ).operator?.id.assert().isEqualTo("alice")
         assertThrownBy<IllegalArgumentException> { runBlocking { client.manifestOf("other", alice) } }
             .hasMessageContaining("not described by its Manifest")
-        val plain = WowClient.builder().endpoints(EndpointResolver.NONE).build()
+        val plain = WowClient.builder().endpoints(EndpointResolver.NONE).service("console").build()
         assertThrownBy<IllegalArgumentException> { runBlocking { plain.manifestOf("mail", alice) } }
             .hasMessageContaining("not described by its Manifest")
     }

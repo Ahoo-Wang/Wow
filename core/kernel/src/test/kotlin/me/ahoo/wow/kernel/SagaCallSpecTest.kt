@@ -16,7 +16,6 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -78,7 +77,9 @@ class SagaCallSpecTest {
         whenEvent(event(Placed(3))) { expectCommand(Confirm("SO-1")) }
         answerCalls { rejectedResult(it, "ordering.order.closed") }
         whenEvent(event(Placed(3))) {
-            expectError<CommandRejectedException> { code.assert().isEqualTo("ordering.order.closed") }
+            // A call's rejection the handler lets through parks the aggregate at once, as the runtime does.
+            expectParked()
+            expectError<CallRejectedHandlingException> { rejected.code.assert().isEqualTo("ordering.order.closed") }
         }
         answerCalls { failedResult(it, "wow.storage.unavailable") }
         whenEvent(event(Placed(3))) {

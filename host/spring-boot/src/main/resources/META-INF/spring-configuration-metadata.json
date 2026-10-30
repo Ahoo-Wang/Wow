@@ -246,6 +246,11 @@
     "description" : "How a `list` streamed as server-sent events reads its chunks and how long it runs.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
+    "name" : "wow.shared-states",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "description" : "The bounds of each context's shared states: `wow.shared-states.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
     "name" : "wow.snapshot",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "description" : "Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.",
@@ -259,11 +264,6 @@
     "name" : "wow.state-cache",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
     "description" : "The cache of aggregate states each context keeps between commands.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
-    "name" : "wow.state-views",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "description" : "The bounds of each context's state views: `wow.state-views.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.subscription",
@@ -440,7 +440,7 @@
   }, {
     "name" : "wow.cluster.reconcile-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`.",
+    "description" : "How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`. One still running after `wow.health.liveness.stall-timeout` fails the node's liveness.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT1M"
   }, {
@@ -468,7 +468,7 @@
   }, {
     "name" : "wow.cosec.authorizer.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: authorization is then the gateway's (CoSec's inject mode).",
+    "description" : "Whether CoSec authorizes every command and service route call of a request as its caller (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes, where CoSec decides itself. A request-less command gets no objection. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: behind a CoSec gateway, authorization is the gateway's.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Authorizer",
     "defaultValue" : false
   }, {
@@ -484,7 +484,7 @@
   }, {
     "name" : "wow.cosec.mode",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$CoSecMode",
-    "description" : "How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.",
+    "description" : "How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests itself, the Manifest's routes its route map.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
     "name" : "wow.cosec.tenant-level.policies",
@@ -496,12 +496,6 @@
     "type" : "java.util.Set<java.lang.String>",
     "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
-  }, {
-    "name" : "wow.cosec.trust-injected-app",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
-    "defaultValue" : false
   }, {
     "name" : "wow.ddl",
     "type" : "me.ahoo.wow.spi.Ddl",
@@ -558,7 +552,7 @@
   }, {
     "name" : "wow.health.liveness.stall-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long the node's dispatcher may not tick, or commands in flight not finish while every log answers, before the node is not live.",
+    "description" : "How long the node's dispatcher or its backends' driver threads may not tick, one reconcile not end, or commands in flight not finish while every log answers, before the node is not live; longer than `wow.cluster.reconcile-timeout`, so a stuck node leaves the members before it restarts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$HealthLiveness",
     "defaultValue" : "PT3M"
   }, {
@@ -1245,7 +1239,7 @@
   }, {
     "name" : "wow.query.unbounded-timeout",
     "type" : "java.time.Duration",
-    "description" : "The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for none.",
+    "description" : "The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : "PT30S"
   }, {
@@ -1264,6 +1258,23 @@
     "type" : "java.lang.String",
     "description" : "The service's name; `spring.application.name` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
+    "name" : "wow.shared-states.capacity",
+    "type" : "java.lang.Integer",
+    "description" : "The most shared states a context keeps.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : 4096
+  }, {
+    "name" : "wow.shared-states.max-age",
+    "type" : "java.time.Duration",
+    "description" : "How long a shared state is kept at most.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates",
+    "defaultValue" : "PT1M"
+  }, {
+    "name" : "wow.shared-states.max-bytes",
+    "type" : "org.springframework.util.unit.DataSize",
+    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SharedStates"
   }, {
     "name" : "wow.snapshot.maintenance-interval",
     "type" : "java.time.Duration",
@@ -1309,23 +1320,6 @@
     "description" : "The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
     "defaultValue" : 32
-  }, {
-    "name" : "wow.state-views.capacity",
-    "type" : "java.lang.Integer",
-    "description" : "The most state views a context keeps.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "defaultValue" : 4096
-  }, {
-    "name" : "wow.state-views.max-age",
-    "type" : "java.time.Duration",
-    "description" : "How long a state view is kept at most.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "defaultValue" : "PT1M"
-  }, {
-    "name" : "wow.state-views.max-bytes",
-    "type" : "org.springframework.util.unit.DataSize",
-    "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews"
   }, {
     "name" : "wow.stores",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Store>",

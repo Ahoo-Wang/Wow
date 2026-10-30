@@ -17,7 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
@@ -45,12 +46,10 @@ import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
-import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.store.facet
@@ -65,6 +64,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 /**
@@ -85,7 +85,8 @@ import java.nio.file.Path
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
  *   of the types whose snapshots are not queried, the events' visibility and the state reads'
  *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
- * - the node's typed [QueryApi], in process over the same engine, under `wow.query.budgets.in-process.*`;
+ * - the node's typed [NodeQueryApi], in process over the same engine, under `wow.query.budgets.in-process.*`, a
+ *   caller's queries and trusted code's;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as each store's `ddl` says.
@@ -271,11 +272,7 @@ class QueryAutoConfiguration {
                     )
                 },
             )
-            .committedStates { ref ->
-                reads.ifAvailable?.committed(ref)?.let {
-                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                }
-            }
+            .committedStates { ref -> reads.ifAvailable?.committed(ref) }
             .reading { type ->
                 val context = node.contexts[type.context]
                 // Events read as the model reads them now: current names and revisions, as typed.
@@ -424,10 +421,10 @@ class QueryAutoConfiguration {
             )
 
         /**
-         * The node's typed [QueryApi]: the [engine]'s gateways and read facade, each aggregate
+         * The node's typed [NodeQueryApi]: the [engine]'s gateways and read facade, each aggregate
          * type found by its model's state class, its states read as the public port's state reads, its lists defaulted
          * by `wow.query.budgets.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
-         * An application replaces it by declaring a [QueryApi] bean, not by calling this method.
+         * An application replaces it by declaring a [NodeQueryApi] bean, not by calling this method.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -438,7 +435,7 @@ class QueryAutoConfiguration {
             properties: QueryProperties,
             reads: ObjectProvider<StateReads>,
             peers: PeerClients,
-        ): QueryApi {
+        ): NodeQueryApi {
             val models = node.contexts.values.flatMap { it.models }
             val local = InProcessQueryApi(
                 engine,
@@ -448,13 +445,11 @@ class QueryAutoConfiguration {
                     },
                 ),
                 latest = object : CommittedStates {
-                    override suspend fun committed(ref: AggregateRef): CommittedState? =
-                        reads.ifAvailable?.latest(ref)?.committed()
+                    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
+                        reads.ifAvailable?.latest(ref)
 
-                    override suspend fun committed(ref: AggregateRef, minVersion: Int): CommittedState? =
-                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)?.committed()
-
-                    private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
+                    override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
+                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
                 },
                 defaultListSize = properties.budgets.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,
@@ -468,13 +463,13 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The queries of the subscription handlers ([ContextQueries.of]): the node's [QueryApi] pinned to the tenant of
-         * each commit, as trusted code; an application's own [QueryApi] bean as a caller of that tenant.
+         * The queries of the subscription handlers ([ContextQueries.of]): the node's [NodeQueryApi] pinned to the tenant
+         * of each commit, as trusted code; an application's own [NodeQueryApi] bean as a caller of that tenant.
          */
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
-        fun wowContextQueries(api: QueryApi): ContextQueries = ContextQueries.of(api)
+        fun wowContextQueries(api: NodeQueryApi): ContextQueries = ContextQueries.of(api)
 
         /** Ends the open query streams before the public server's graceful shutdown waits for them. */
         @Bean

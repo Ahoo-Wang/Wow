@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryTargets
@@ -28,7 +29,6 @@ import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.query.state.StateVisibility
 import me.ahoo.wow.spi.observation.observe
@@ -41,7 +41,7 @@ import tools.jackson.databind.JsonNode
 @InternalWowApi
 fun interface CommittedStates {
     /** [ref]'s latest committed state, or null when it has none. */
-    suspend fun committed(ref: AggregateRef): CommittedState?
+    suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>?
 
     /**
      * [ref]'s latest committed state at version [minVersion] or later; by default the latest one
@@ -49,7 +49,7 @@ fun interface CommittedStates {
      *
      * @throws MinVersionNotReachedException when it stays below [minVersion].
      */
-    suspend fun committed(ref: AggregateRef, minVersion: Int): CommittedState? {
+    suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? {
         val state = committed(ref)
         if (state == null || state.version < minVersion) {
             throw MinVersionNotReachedException(ref, minVersion, state?.version ?: 0)
@@ -108,7 +108,7 @@ class ReadFacade(
     suspend fun <V : Any> read(
         caller: QueryCaller,
         load: suspend () -> V?,
-        committed: (V) -> CommittedState,
+        committed: (V) -> Snapshot<JsonNode>,
         check: (V) -> Unit = {},
     ): Read<V> {
         val view = load() ?: return Read.Missing
@@ -121,7 +121,7 @@ class ReadFacade(
      * The tree of [state] as [caller] may see it, masked, or null when its policies hide it from the caller. An HTTP
      * caller naming a scope or tenants it may not is refused first ([QueryTargets.recheck]).
      */
-    suspend fun admitted(caller: QueryCaller, state: CommittedState): JsonNode? {
+    suspend fun admitted(caller: QueryCaller, state: Snapshot<JsonNode>): JsonNode? {
         // Whoever built the caller, an HTTP one reaches no further than the read side's rules.
         targets.recheck(state.ref.type, caller)
         return StateVisibility.admitted(visibility(state.ref.type), caller, state, masks)

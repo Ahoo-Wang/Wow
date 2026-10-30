@@ -34,6 +34,17 @@ internal fun mapFixture(
     values: QueryValueSchema
 ) = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = values)
 
+/** A snapshot record's schema: the system fields a point read's scope names, and [state] under `state`. */
+internal fun snapshotFixture(state: QueryValueSchema) = objectFixture(
+    "tenantId" to scalarFixture(),
+    "aggregateId" to scalarFixture(),
+    "version" to scalarFixture(QueryValueType.INTEGER),
+    "ownerId" to scalarFixture(),
+    "spaceId" to scalarFixture(),
+    "deleted" to scalarFixture(QueryValueType.BOOLEAN),
+    "state" to state,
+)
+
 internal fun boundSchemaFixture(
     root: QueryValueSchema,
     model: QueryModel = QueryModel.SNAPSHOT,
@@ -66,10 +77,10 @@ internal fun boundSchemaFixture(
  * field up: admission resolves every reference once and hands them [me.ahoo.wow.query.resolve.ResolvedField]s.
  */
 internal fun QueryModelSchema.physicalField(
-    field: QueryField,
+    field: QueryField<*>,
     capability: QueryCapability,
-    logicalParent: QueryField? = null,
-): QueryField {
+    logicalParent: QueryField<*>? = null,
+): QueryField<*> {
     val logical = absoluteLogicalField(field, logicalParent)
     val definition = this.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
     val ancestors = definition.elementAncestors
@@ -80,5 +91,5 @@ internal fun QueryModelSchema.physicalField(
         ?: throw QueryViolation.UnsupportedCapability(logical, setOf(capability)).rejection()
 }
 
-private fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
+private fun QueryModelSchema.requiredElementAncestors(parent: QueryField<*>?): List<QueryField<*>>? =
     if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)

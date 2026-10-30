@@ -53,6 +53,7 @@ class WebhookNotifierTest {
     private val entry = ParkedAggregate(
         "CartSaga.onOrderCreated",
         AggregateType("shop", "cart").ref("t", "c-1"),
+        0,
         2,
         "java.lang.IllegalStateException: down",
         FAILED_AT,

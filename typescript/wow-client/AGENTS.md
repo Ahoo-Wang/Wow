@@ -50,8 +50,8 @@ src/
   dsl.ts          — `/dsl` entry: the query DSL without HTTP code
   testing.ts      — `/testing` entry: the development caller and the wire builders for a test's fake; loads no test runner
   developmentCaller.ts — DevelopmentCallerHeaders, developmentCaller(Headers): the caller a development run reads (root and /testing)
-  testing/wire.ts — commandResultOf, problemOf, problemResponse, stateViewOf
-  wire.ts         — The wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
+  testing/wire.ts — commandResultOf, problemOf, problemResponse, snapshotOf
+  wire.ts         — The wire model: CommandResult, Hop, Snapshot, EventStream, …
   problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion

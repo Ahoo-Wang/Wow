@@ -38,7 +38,8 @@ class ClusterProbes(
 
     /**
      * The service's side of remote_ip alone, as evidence: from a gateway pod (the only pods the public port admits)
-     * straight to the basket, with an X-Forwarded-For the service takes as the client's address.
+     * straight to the basket, with the CoSec-Identity the gateway would forward and an X-Forwarded-For the service
+     * takes as the client's address.
      */
     fun serviceSideEvidence(body: String, tokens: Tokens) {
         val gateway = kube.pods("cosec-gateway").first { it.ready }.name
@@ -47,10 +48,10 @@ class ClusterProbes(
             "eshop-basket-service",
             80,
             "POST",
-            "/eshop-basket/basket/ivy-direct/add-basket-item",
+            "/eshop-basket/basket/add-basket-item",
             body,
             "Content-Type" to "application/json",
-            "Authorization" to "Bearer ${tokens.of(Who.buyer("ivy-direct"))}",
+            "CoSec-Identity" to tokens.identity(Who.buyer("ivy-direct")),
             "X-Forwarded-For" to "198.51.100.7",
         )
         report.note(

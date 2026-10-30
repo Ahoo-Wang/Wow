@@ -1,4 +1,4 @@
-# Issue codes — 527.
+# Issue codes — 528.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -447,6 +447,7 @@ runtime.query.failed.size-out-of-range
 runtime.query.failed.sort-field-duplicate
 runtime.query.failed.sort-too-many
 runtime.query.failed.storage-unsupported
+runtime.query.failed.stream-not-resumable
 runtime.query.failed.temporal-aggregation-unsupported
 runtime.query.failed.temporal-configuration-conflict
 runtime.query.failed.temporal-representation-required
