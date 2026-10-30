@@ -1,0 +1,27 @@
+{
+  "source": "api TypeScriptWireNamesTest: WireNames.of each constant a writer writes",
+  "enumerations": {
+    "CommandResult.Status": ["succeeded", "rejected", "failed"],
+    "Stage": ["accepted", "committed", "handled"],
+    "FunctionKind": ["command", "project", "react", "saga", "snapshot", "reservation", "timers"],
+    "Ownership": ["owner", "tenant"],
+    "FilterOperator": ["match-all", "match-none", "id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "and", "or", "nor", "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-empty-string", "is-not-empty-string", "is-null", "is-not-null", "exists", "not-exists", "deletion", "element-match", "search", "today", "before-today", "tomorrow", "this-week", "next-week", "last-week", "this-month", "last-month", "recent-days", "earlier-days", "yesterday", "next-month", "last-year", "this-year", "next-year", "before-now", "after-now", "expression"],
+    "StringComparison": ["case-sensitive", "case-insensitive"],
+    "SearchMode": ["terms", "phrase"],
+    "DeletionState": ["active", "deleted", "all"],
+    "Sort.Direction": ["asc", "desc"],
+    "TotalMode": ["exact", "bounded", "none"],
+    "PagingMode": ["list", "paged", "cursor"],
+    "QueryValueKind": ["unknown", "null", "scalar", "object", "array", "union"],
+    "AggregationDatePart": ["day-of-week", "day-of-month", "hour-of-day", "month-of-year"],
+    "AggregationDateUnit": ["year", "quarter", "month", "week", "day", "hour", "minute", "second"],
+    "DateDiffUnit": ["second", "minute", "hour", "day"],
+    "AggregationExpressionOperator": ["add", "subtract", "multiply", "divide"],
+    "WindowFunction": ["total", "running", "previous", "rank"],
+    "RunningFunction": ["sum", "avg"],
+    "ComparisonOperator": ["eq", "ne", "gt", "gte", "lt", "lte"],
+    "AggregationFunction": ["sum", "avg", "min", "max", "stddev", "variance"],
+    "AggregationGroupScope": ["element", "root"],
+    "SensitivityLevel": ["display", "confidential"]
+  }
+}

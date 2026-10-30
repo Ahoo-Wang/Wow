@@ -34,6 +34,14 @@ name; `test/dsl/descriptor.test.ts` holds the capability descriptor's types
 to `QueryModelDescriptor.kt` and `FilterOperatorSpec.kt` of `query/query`;
 `test/frameworkErrors.test.ts` holds `FrameworkErrorCodes` to the server's.
 
+**Wire names.** `test/wireNames.test.ts` holds the values of every Wow
+enumeration this package declares by hand (a result's status, stage,
+function kind and ownership, and the query protocol's enumerations) to
+`test/fixtures/wire-names.json`, which `TypeScriptWireNamesTest` of `:api`
+writes from `WireNames`. An enumeration declared here goes in both tests'
+lists. Regenerate the fixture from the repository root, never edit it:
+`./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow.snapshot.update=true`.
+
 **Date patterns.** `datePattern` is checked against `java.time`'s pattern
 grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
 3,700 patterns to the server's entry and writes which the JVM accepts to
@@ -73,6 +81,7 @@ test/
   surface/, publicSurface.test.ts — The public surface of each entry, one name a line
   api/                — API Extractor reports: the signatures of each entry
   layerBoundaries.test.ts — Each layer rule of eslint.config.js fires on a violation, and src/ has none
+  wireNames.test.ts, fixtures/wire-names.json — Each Wow enumeration declared here, held to what the JVM writes
   golden/dsl-wire.json, dslWire.test.ts — Every DSL builder's JSON
   client.test.ts, edges.test.ts, resumableStreams.test.ts — The clients against a stubbed fetch (fixtures/fetchStub.ts)
   dsl/                — The DSL, its conformance register and its codes

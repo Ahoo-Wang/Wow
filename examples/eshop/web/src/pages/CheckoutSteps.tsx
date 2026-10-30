@@ -12,7 +12,13 @@
  */
 
 import { Link } from "react-router";
-import { CircleCheckIcon, CircleDashedIcon, CircleXIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  CircleDashedIcon,
+  CircleHelpIcon,
+  CircleXIcon,
+} from "lucide-react";
+import { CommandResultStatus } from "@ahoo-wang/wow-client";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -30,12 +36,27 @@ import {
 } from "@/shop/checkout";
 import { ProblemAlert } from "@/shop/problems";
 
-type StepState = "reached" | "failed" | "current" | "pending" | "not-reached";
+type StepState =
+  | "reached"
+  | "failed"
+  | "unknown"
+  | "current"
+  | "pending"
+  | "not-reached";
 
+const KNOWN_STATUSES: readonly string[] = Object.values(CommandResultStatus);
+
+/**
+ * A hop's state. The hop that stopped the chain failed when its status says
+ * so; a status this client does not know is not a failure it can show.
+ */
 function stateOf(index: number, progress: CheckoutProgress): StepState {
   const reached = progress.results.length;
-  if (index < reached)
-    return progress.failure && index === reached - 1 ? "failed" : "reached";
+  const { failure } = progress;
+  if (index < reached) {
+    if (!failure || index !== reached - 1) return "reached";
+    return KNOWN_STATUSES.includes(failure.status) ? "failed" : "unknown";
+  }
   if (progress.done) return "not-reached";
   return index === reached ? "current" : "pending";
 }
@@ -43,6 +64,7 @@ function stateOf(index: number, progress: CheckoutProgress): StepState {
 const ICONS = {
   reached: <CircleCheckIcon aria-hidden className="text-primary" />,
   failed: <CircleXIcon aria-hidden className="text-destructive" />,
+  unknown: <CircleHelpIcon aria-hidden className="text-destructive" />,
   current: <Spinner aria-hidden />,
   pending: <CircleDashedIcon aria-hidden className="text-muted-foreground" />,
   "not-reached": (

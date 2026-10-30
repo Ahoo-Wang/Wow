@@ -16,6 +16,7 @@ import userEvent from "@testing-library/user-event";
 import { CommandResultStatus, FunctionKind } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { CHECKOUT_TO_PAID } from "@/shop/checkout";
+import checkoutToPaid from "@/test/checkout-to-paid.sse?raw";
 import {
   ALICE,
   ERIN,
@@ -121,6 +122,39 @@ describe("the basket", () => {
     expect(steps.every((step) => step.dataset.state === "reached")).toBe(true);
     expect(within(steps[14]).getByText("Step14")).toBeInTheDocument();
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
+  });
+
+  it("checks out on the stream as the services wrote it, every hop reached", async () => {
+    // The 15 results the services streamed for alice's checkout in an
+    // end-to-end run, byte for byte, each `succeeded` as Wow spells it on the
+    // wire. The results of `hops` come from the client's own constants, so they
+    // cannot tell when the page and the server spell a status apart.
+    const { transport } = basket(() => ({ stream: checkoutToPaid }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps.map((step) => step.dataset.state)).toEqual(Array(15).fill("reached"));
+    expect(within(steps[14]).getByText("PayOrder")).toBeInTheDocument();
+    expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
+  });
+
+  it("shows a status the client does not know as itself, never as a failure", async () => {
+    // The same stream from a server that spells its statuses otherwise: the
+    // page stops at the first hop, which it cannot read as success, and says
+    // what the server sent.
+    const stream = checkoutToPaid.replaceAll('"status":"succeeded"', '"status":"SUCCEEDED"');
+    const { transport } = basket(() => ({ stream }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent('Unknown status "SUCCEEDED"');
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paid:/)).not.toBeInTheDocument();
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps[0].dataset.state).toBe("unknown");
+    expect(steps[1].dataset.state).toBe("not-reached");
+    expect(screen.getByText(/1 of 15 hops/)).toBeInTheDocument();
   });
 
   it("says when the chain ends short of the paid order, as the server says", async () => {

@@ -14,6 +14,7 @@
 import { CircleAlertIcon } from "lucide-react";
 import {
   CommandRejectedError,
+  CommandResultStatus,
   WowProblemError,
   type CommandResult,
   type Violation,
@@ -61,11 +62,29 @@ export function problemOf(error: unknown): ShownProblem {
 /** A command result that did not succeed, as a problem. */
 export function problemOfResult(result: CommandResult): ShownProblem {
   return {
-    title: result.status === "rejected" ? "Rejected" : "Failed",
+    title: titleOf(result.status),
     code: result.error?.code,
     detail: result.error?.message,
     violations: result.error?.violations ?? [],
   };
+}
+
+/**
+ * A result's status as a title. A status this client does not know (a server
+ * that spells it otherwise, or a newer one) is shown as itself: the client
+ * cannot read it as success, but nor does it know the command failed.
+ */
+function titleOf(status: CommandResult["status"]): string {
+  switch (status) {
+    case CommandResultStatus.SUCCEEDED:
+      return "Succeeded";
+    case CommandResultStatus.REJECTED:
+      return "Rejected";
+    case CommandResultStatus.FAILED:
+      return "Failed";
+    default:
+      return `Unknown status "${status}"`;
+  }
 }
 
 function isRejectedResult(value: unknown): value is CommandResult {
@@ -74,7 +93,7 @@ function isRejectedResult(value: unknown): value is CommandResult {
     value !== null &&
     "status" in value &&
     "ref" in value &&
-    (value as CommandResult).status !== "succeeded"
+    (value as CommandResult).status !== CommandResultStatus.SUCCEEDED
   );
 }
 
