@@ -169,6 +169,7 @@ class CrossContextWaitTest {
         OrderView::class.java,
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
+        derives = listOf(Reserve::class.java),
     ) { event, context ->
         if (event.state.quantity == 0) {
             emptyList()

@@ -116,7 +116,8 @@ interface SagaContext : SubscriptionContext {
     /**
      * Schedules [request]'s command on its target under [key] as [rule] says: the execution derives the system
      * command `wow.schedule.Set` to that target with the commands the handler returns, after them, keyed as a
-     * returned request is, so handling the commit again derives the same request. The target must exist: otherwise
+     * returned request is, so handling the commit again derives the same request. The handler declares the class of
+     * the command in its `@Sends(schedules)`. The target must exist: otherwise
      * it rejects the command, which the saga's `@OnRejected` handler for [SetSchedule] gets.
      * [key] names the schedule among the target's: setting it again replaces it, and [cancel] cancels it. An `after`
      * rule counts from the commit that sets it on the target.
@@ -142,8 +143,8 @@ interface SagaContext : SubscriptionContext {
      * The default is to derive the command (return it), which its context's command topic delivers. Call only
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
      * host's configuration (`wow.peers.<context>.url`). The handler declares the class of the command in its
-     * `@OnEvent(calls)`, which puts it in the Manifest; a command of a class it does not declare is
-     * refused with an [IllegalArgumentException].
+     * `@Sends(calls)`, which puts it in the Manifest; a command of a class it does not declare fails the handling,
+     * which no retry changes, as every send it does not declare does ([me.ahoo.wow.api.annotation.Sends]).
      *
      * It is a `suspend` function, so a Java saga cannot call it (a blocking bridge is planned for
      * 10.x): a Java saga derives its commands instead.

@@ -127,12 +127,23 @@ class DomainIdsTest {
     private fun shipmentSagaHandlers(): List<ProcessorBinding<*>> {
         val saga = ShipmentSaga()
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("ShipmentSaga", "onCreateRejected", CreateShipment::class.java) { rejected, context ->
+            RejectionBinding.of(
+                "ShipmentSaga",
+                "onCreateRejected",
+                CreateShipment::class.java,
+                derives = listOf(CreateShipment::class.java),
+            ) { rejected, context ->
                 requestsOf(saga.onCreateRejected(rejected, context))
             },
         )
         return listOf(
-            ProcessorBinding.saga("ShipmentSaga", "onPlaced", Order::class.java, rejections = rejections) { e, c ->
+            ProcessorBinding.saga(
+                "ShipmentSaga",
+                "onPlaced",
+                Order::class.java,
+                rejections = rejections,
+                derives = listOf(CreateShipment::class.java),
+            ) { e, c ->
                 requestsOf(saga.onPlaced(e, c))
             },
         )

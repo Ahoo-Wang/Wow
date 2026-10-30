@@ -104,6 +104,7 @@ class SourcedNodeTest {
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
         nullableState = true,
+        derives = listOf(Deposit::class.java),
     ) { event, context -> listOf(CommandRequest.to(ACCOUNT.ref(event.ref.tenantId, event.ref.id), Deposit(1))) }
 
     private fun subscription(name: String, kind: SubscriptionKind, nullable: Boolean = true) = SubscriptionManifest(

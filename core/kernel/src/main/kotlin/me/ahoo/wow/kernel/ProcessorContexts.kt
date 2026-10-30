@@ -81,6 +81,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
     private val contextQueries: ContextQueries = ContextQueries.NONE,
+    /** What the handler declares it sends; null for a context built outside its binding. */
+    private val sends: SagaSends? = null,
 ) : SagaContext {
     /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
     constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
@@ -105,6 +107,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
         RequestFacts.propagatedOf(event.headers),
         Causation(event.correlationId, event.id),
         event.operator,
+        sends,
     ) { ref, type, key -> derivedIdOf(executionId, ref, type, key) }
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
@@ -158,7 +161,9 @@ class ExecutionSagaContext @InternalWowApi constructor(
  * Its schedules are commands too: [schedule] and [cancel] record the system commands `wow.schedule.Set` and
  * `wow.schedule.Cancel` to their target, keyed with the other commands, the command they schedule named by
  * [commandTypes] and written by [codec]; [commandsOf] puts them after the returned ones. Its synchronous [call]s go
- * through [calls].
+ * through [calls]. With [sends], the handler's declarations ([SagaSends]), each command it returns, schedules or calls
+ * is one of them, or the handling fails ([UndeclaredSendException]); a context built outside a handler's binding, as a
+ * domain module's test builds one, has none.
  */
 internal class SagaDerivation(
     private val executionId: ExecutionId,
@@ -169,6 +174,7 @@ internal class SagaDerivation(
     private val headers: Map<String, String>,
     private val causation: Causation,
     private val operator: Operator?,
+    private val sends: SagaSends?,
     private val idOf: (AggregateRef, Class<*>, String) -> String,
 ) {
     private val derived = DerivedRequests()
@@ -178,8 +184,10 @@ internal class SagaDerivation(
     private val tenantId: String get() = executionId.ref.tenantId
 
     /** The commands of [requests], in order, then those [schedule] and [cancel] recorded, in the order of the calls. */
-    fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> =
-        requests.map(::commandOf) + synchronized(recorded) { recorded.toList() }
+    fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> {
+        requests.forEach { sends?.checkDerives(executionId.subscription, it.command.javaClass) }
+        return requests.map(::commandOf) + synchronized(recorded) { recorded.toList() }
+    }
 
     private fun commandOf(request: CommandRequest<*>): Command<*> = derive(
         request.derivedTarget(executionId.subscription, tenantId, commandTypes),
@@ -212,6 +220,7 @@ internal class SagaDerivation(
 
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>) {
         val command = request.command
+        sends?.checkSchedules(executionId.subscription, command.javaClass)
         require(request.expectedVersion == null) {
             "${executionId.subscription} schedules ${command.javaClass.name} with an expected version: the " +
                 "target runs a scheduled command at its due time, against its version then."
@@ -240,6 +249,7 @@ internal class SagaDerivation(
      * result.
      */
     suspend fun call(request: CommandRequest<*>): CommandResult {
+        sends?.checkCalls(executionId.subscription, request.command.javaClass)
         val command = commandOf(request)
         val result = calls.call(command)
         throw when (result.status) {
@@ -261,8 +271,8 @@ internal class SagaDerivation(
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
  * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
- * schedules by [commandTypes] and makes its synchronous calls through [calls]; every handler reads
- * through [queries].
+ * schedules by [commandTypes], makes its synchronous calls through [calls] and sends what [sends] declares; every
+ * handler reads through [queries].
  */
 @InternalWowApi
 fun contextOf(
@@ -273,11 +283,13 @@ fun contextOf(
     commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
     calls: CommandCalls = CommandCalls.NONE,
     queries: ContextQueries = ContextQueries.NONE,
+    sends: SagaSends? = null,
 ): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT, FunctionKind.REACT -> ExecutionContext(execution, queries)
-        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes, EventCodec(), calls, queries)
+        FunctionKind.SAGA ->
+            ExecutionSagaContext(execution, event, ids, commandTypes, EventCodec(), calls, queries, sends)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }

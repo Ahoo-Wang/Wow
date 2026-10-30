@@ -44,7 +44,12 @@ class DerivedCommandScopeTest {
     private val decided = CopyOnWriteArrayList<String>()
 
     /** Takes the ordered items out of bob's cart, whoever ordered. */
-    private val saga = ProcessorBinding.saga("Restock", "onOrderPlaced", OrderState::class.java) { event, _ ->
+    private val saga = ProcessorBinding.saga(
+        "Restock",
+        "onOrderPlaced",
+        OrderState::class.java,
+        derives = listOf(RemoveItems::class.java),
+    ) { event, _ ->
         event.events.filterIsInstance<Placed>().map {
             CommandRequest.to(CART.ref(event.ref.tenantId, BOB), RemoveItems(it.items))
         }

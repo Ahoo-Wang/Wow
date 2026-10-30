@@ -115,7 +115,7 @@ class OmittedRefsTest {
     }
 
     @Test
-    fun `a receipt's handler should leave the ref out in the tenant of the commit that derived the command`() {
+    fun `a rejection's handler should leave the ref out in the tenant of the commit that derived the command`() {
         val rejected = CommandReceipt.Rejected<Reserve>(
             "c-1",
             "inventory.stock.Reserve",
@@ -126,7 +126,12 @@ class OmittedRefsTest {
             Operator("alice", "acme"),
             Scope("alice", "space-a"),
         )
-        val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { _, _ ->
+        val onRejected = RejectionBinding.of(
+            "OrderSaga",
+            "onReserveRejected",
+            Reserve::class.java,
+            derives = listOf(Reserve::class.java),
+        ) { _, _ ->
             listOf(CommandRequest.of(Reserve("o-1"), "product-2"), CommandRequest.of(Reserve("o-1")))
         }
         val compensations = runBlocking {
@@ -137,7 +142,10 @@ class OmittedRefsTest {
         assertThrownBy<IllegalArgumentException> {
             runBlocking { onRejected.invoke(rejected, rejectionContextOf(onRejected, rejected)) }
         }.hasMessageContaining("OrderSaga.onReserveRejected sends")
+    }
 
+    @Test
+    fun `a commit's handler should leave the ref out in the tenant of the commit that derived the command`() {
         val committed = CommandReceipt.Committed<Reserve>(
             commandId = "c-1",
             commandType = "inventory.stock.Reserve",
@@ -164,7 +172,12 @@ class OmittedRefsTest {
             operator = Operator("alice", "acme"),
             scope = Scope("alice", "space-a"),
         )
-        val onCommitted = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { _, _ ->
+        val onCommitted = CommittedBinding.of(
+            "OrderSaga",
+            "onReserved",
+            Reserve::class.java,
+            derives = listOf(Reserve::class.java),
+        ) { _, _ ->
             listOf(CommandRequest.of(Reserve("o-1"), "product-3"))
         }
         val confirmations = runBlocking {

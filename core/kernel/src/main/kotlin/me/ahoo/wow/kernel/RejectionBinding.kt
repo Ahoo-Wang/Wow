@@ -38,6 +38,8 @@ import me.ahoo.wow.spi.id.IdGenerators
  * - [commandType] is the `C` of the `CommandReceipt.Rejected<C>` it takes: it handles the rejections of the commands of that
  *   class (or a subclass); null for `CommandReceipt.Rejected<*>`, every command the saga derives ([handles]).
  * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
+ * - [sends] are the commands it declares it derives, schedules and calls (`@Sends`, its return type for what it
+ *   derives): its context holds it to them.
  * - [invoke] calls the handler directly and returns the commands that compensate, of the requests it returns
  *   ([requestsOf]), as a saga's handler derives its commands.
  *
@@ -50,6 +52,9 @@ class RejectionBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
+    /** What the handler declares it sends (`@Sends`, else its return type for what it derives). */
+    @property:InternalWowApi
+    val sends: SagaSends,
     private val call: suspend (CommandReceipt.Rejected<C>, SagaContext) -> List<CommandRequest<*>>,
 ) {
     init {
@@ -81,8 +86,12 @@ class RejectionBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
+            derives: List<Class<*>> = emptyList(),
+            schedules: List<Class<*>> = emptyList(),
+            calls: List<Class<*>> = emptyList(),
             handle: suspend (CommandReceipt.Rejected<C>, SagaContext) -> List<CommandRequest<*>>,
-        ): RejectionBinding<C> = RejectionBinding(processor, function, commandType, blocking, handle)
+        ): RejectionBinding<C> =
+            RejectionBinding(processor, function, commandType, blocking, SagaSends(derives, schedules, calls), handle)
 
         /**
          * The handler among [handlers] of the rejection of a command of [command]: the one whose [commandType] is
@@ -129,6 +138,7 @@ fun rejectionContextOf(
     commandTypes,
     queries,
     calls = calls,
+    sends = handler.sends,
 )
 
 /**
@@ -172,6 +182,8 @@ class ExecutionReceiptContext(
     private val contextQueries: ContextQueries = ContextQueries.NONE,
     codec: EventCodec = EventCodec(),
     calls: CommandCalls = CommandCalls.NONE,
+    /** What the handler declares it sends; null for a context built outside its binding. */
+    sends: SagaSends? = null,
 ) : SagaContext, Derivation {
     /**
      * The commands go to the tenant of the commit whose saga execution derived the receipt's command unless they name
@@ -186,6 +198,7 @@ class ExecutionReceiptContext(
         headers,
         Causation(causation.correlationId, receiptOf),
         operator,
+        sends,
     ) { ref, type, key -> compensationIdOf(executionId, receiptOf, ref, type, key) }
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)

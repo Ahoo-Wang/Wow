@@ -21,7 +21,10 @@ import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
 import me.ahoo.wow.compiler.model.route.RouteArgument
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
+import me.ahoo.wow.compiler.model.subscription.CommandClass
 import me.ahoo.wow.compiler.model.subscription.HandlerBinding
+import me.ahoo.wow.compiler.model.subscription.Receipt
+import me.ahoo.wow.compiler.model.subscription.SendsBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
@@ -71,13 +74,14 @@ import me.ahoo.wow.manifest.SystemCommands
  *   on `wow.<context>.<aggregate>.state`;
  * - a subscription's `start`: what `@OnEvent(start)` declares, else the beginning for a
  *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
- * - a saga's `derives`: the classes `@OnEvent(derives)` declares, else the commands its return
+ * - a saga's `derives`, of any of its handlers: the classes `@Sends(derives)` declares, else the commands its return
  *   type names (the subclasses of a sealed one; none for `Unit`), a command a module's aggregate decides by its full
  *   type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another;
  * - a saga's `@OnRejected` handlers as subscriptions with `rejected`, and its `@OnCommitted`
- *   handlers as subscriptions with `committed`;
- * - a saga's `calls`: the classes `@OnEvent(calls)` declares, by the same references as `derives`;
+ *   handlers as subscriptions with `committed`; a handler of both receipts as one subscription with both;
+ * - a saga's `schedules` and `calls`: the classes `@Sends(schedules)` and `@Sends(calls)` declare, by the same
+ *   references as `derives`;
  *   a command of the module's context is derived, never called;
  * - a saga's `@OnSchedule` handlers as subscriptions of the context's job aggregate with their `job`.
  *
@@ -155,8 +159,7 @@ internal object ManifestFragmentBuilder {
 
     /**
      * What the fragment of [context] cannot say of [subscriptions]: an `@OnEvent(aggregates)` of [context] that is not
-     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives that its
-     * `@OnEvent(derives)` does not list.
+     * an aggregate of the module whose state the handler takes, and a command of [context] a saga's handler calls.
      */
     fun problems(
         context: String,
@@ -179,23 +182,16 @@ internal object ManifestFragmentBuilder {
 
                         else -> null
                     }
-                } + undeclaredDerives(where, handler, commands) + ownCalls(where, handler, commands)
-            }
+                } + ownCalls(where, handler.sends, commands)
+            } + (binding.rejections + binding.commits).flatMap { handler ->
+                ownCalls("handler ${handler.subscription} of ${binding.processor}", handler.sends, commands)
+            }.distinct()
         }
     }
 
-    private fun undeclaredDerives(where: String, handler: HandlerBinding, commands: CommandNames): List<String> {
-        if (handler.derives.isEmpty()) {
-            return emptyList()
-        }
-        return handler.derived.orEmpty().filterNot { it in handler.derives }.map {
-            "$where returns ${commands.nameOf(it) ?: it}, which its @OnEvent(derives) does not list"
-        }
-    }
-
-    /** A command of this context `@OnEvent(calls)` names: the saga derives it instead. */
-    private fun ownCalls(where: String, handler: HandlerBinding, commands: CommandNames): List<String> =
-        handler.calls.mapNotNull { commands.nameOf(it) }.map {
+    /** A command of this context a handler's `@Sends(calls)` names: the saga derives it instead. */
+    private fun ownCalls(where: String, sends: SendsBinding, commands: CommandNames): List<String> =
+        sends.calls.mapNotNull { commands.nameOf(it.binary) }.map {
             "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
         }
 
@@ -291,41 +287,37 @@ internal object ManifestFragmentBuilder {
         // A processor without exactly one kind is a problem, and a model with problems gets no fragment.
         val (kind, functionKind) = KINDS.getValue(requireNotNull(binding.kind))
         val handlers = binding.handlers.map { handler ->
-            val derives = derives(handler.derives, handler.derived, commands)
             SubscriptionManifest(
                 name = handler.subscription,
                 kind = kind,
                 source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
-                derives = derives.takeIf { kind == SubscriptionKind.SAGA },
+                derives = references(handler.sends.derives, commands).takeIf { kind == SubscriptionKind.SAGA },
                 start = handler.startIn(context, binding.kind)?.let(SubscriptionStart::valueOf),
-                schedules = handler.schedules.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
-                calls = handler.calls.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
+                schedules = references(handler.sends.schedules, commands).ifEmpty { null },
+                calls = references(handler.sends.calls, commands).ifEmpty { null },
                 retry = handler.retry?.manifest(),
                 job = handler.job?.manifest(),
             )
         }
-        val rejections = binding.rejections.map { rejection ->
+        // A handler of both receipts, bound on both paths, is one subscription that takes both.
+        val receipts = (binding.rejections + binding.commits).groupBy { it.subscription }.map { (name, paths) ->
+            val handler = paths.first()
+            val rejected = paths.firstOrNull { it.receipt == Receipt.REJECTED }
+            val committed = paths.firstOrNull { it.receipt == Receipt.COMMITTED }
             SubscriptionManifest(
-                name = rejection.subscription,
+                name = name,
                 kind = kind,
                 source = SubscriptionSource(),
-                function = FunctionManifest(functionKind, context, binding.name, rejection.function),
-                derives = derives(emptyList(), rejection.derived, commands),
-                rejected = listOfNotNull(rejection.command?.let(commands::referenceOf)),
+                function = FunctionManifest(functionKind, context, binding.name, handler.function),
+                derives = references(handler.sends.derives, commands),
+                rejected = rejected?.let { listOfNotNull(it.command?.let(commands::referenceOf)) },
+                schedules = references(handler.sends.schedules, commands).ifEmpty { null },
+                committed = committed?.let { listOfNotNull(it.command?.let(commands::referenceOf)) },
+                calls = references(handler.sends.calls, commands).ifEmpty { null },
             )
         }
-        val commits = binding.commits.map { committed ->
-            SubscriptionManifest(
-                name = committed.subscription,
-                kind = kind,
-                source = SubscriptionSource(),
-                function = FunctionManifest(functionKind, context, binding.name, committed.function),
-                derives = derives(emptyList(), committed.derived, commands),
-                committed = listOfNotNull(committed.command?.let(commands::referenceOf)),
-            )
-        }
-        return handlers + rejections + commits
+        return handlers + receipts
     }
 
     /**
@@ -366,11 +358,9 @@ internal object ManifestFragmentBuilder {
         return SubscriptionSource(context, listOf(aggregate.aggregateName), events = events, nullableState = nullable)
     }
 
-    /**
-     * The declared [derives] classes, else the [derived] ones, by [commands]' references; null when neither says.
-     */
-    private fun derives(derives: List<String>, derived: List<String>?, commands: CommandNames): List<String>? =
-        derives.ifEmpty { derived }?.map(commands::referenceOf)?.distinct()?.sorted()
+    /** How the Manifest refers to each command of [classes], once each, in order. */
+    private fun references(classes: List<CommandClass>, commands: CommandNames): List<String> =
+        classes.map { commands.referenceOf(it.binary) }.distinct().sorted()
 
     /**
      * The full type names of the commands the module's aggregates decide, by their classes' binary names: a class two

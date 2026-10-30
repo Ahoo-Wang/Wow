@@ -97,7 +97,9 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   `wow.wait.timeout` or `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]). The runtime adds the
  *   commands its own executors refused as busy.
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
- *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once.
+ *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
+ *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
+ *   same way every time.
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -120,7 +122,7 @@ internal object BuiltInFailures : FailureClassifier {
             failure.code == FrameworkCodes.PEER_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
-        is StorageRefusedException, is TransportRefusedException -> FailureClass.UNRECOVERABLE
+        is StorageRefusedException, is TransportRefusedException, is UndeclaredSendException -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException,
         is TransportUnavailableException,
         is SocketException,

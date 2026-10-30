@@ -101,6 +101,7 @@ internal object ScheduleJobResolver {
         if (returned != null && !reactor) {
             returnProblem(returned)?.let { problems += "$where $it" }
         }
+        val sends = SendsResolver.resolve(function, where, kind == SAGA, null, returned, reactor, problems)
         val annotation = function.annotatedIn(ON_SCHEDULE)!!.getAnnotationsByType(OnSchedule::class).first()
         val job = JobBinding(
             name = annotation.name,
@@ -127,6 +128,7 @@ internal object ScheduleJobResolver {
             blocking = function.annotatedIn(BLOCKING) != null,
             retry = retry,
             job = job,
+            sends = sends,
         )
     }
 

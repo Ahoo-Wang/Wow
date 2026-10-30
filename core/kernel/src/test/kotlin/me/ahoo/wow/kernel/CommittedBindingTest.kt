@@ -124,7 +124,12 @@ class CommittedBindingTest {
     @Test
     fun `invoking a binding should call its handler with the receipt and a context that derives deterministically`(): Unit =
         runBlocking {
-            val handler = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
+            val handler = CommittedBinding.of(
+                "OrderSaga",
+                "onReserved",
+                Reserve::class.java,
+                derives = listOf(String::class.java),
+            ) { receipt, context ->
                 listOf(CommandRequest.to(execution.ref, "confirm ${receipt.ref.id}"))
             }
             val context = committedContextOf(handler, committed)

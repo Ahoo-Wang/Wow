@@ -144,9 +144,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommitte
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnEvent : java/lang/annotation/Annotation {
 	public abstract fun aggregates ()[Ljava/lang/String;
-	public abstract fun calls ()[Ljava/lang/Class;
-	public abstract fun derives ()[Ljava/lang/Class;
-	public abstract fun schedules ()[Ljava/lang/Class;
 	public abstract fun start ()Lme/ahoo/wow/api/annotation/OnEvent$Start;
 }
 
@@ -211,6 +208,12 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/RouteQuery
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Saga : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Sends : java/lang/annotation/Annotation {
+	public abstract fun calls ()[Ljava/lang/Class;
+	public abstract fun derives ()[Ljava/lang/Class;
+	public abstract fun schedules ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/ServiceRoute : java/lang/annotation/Annotation {

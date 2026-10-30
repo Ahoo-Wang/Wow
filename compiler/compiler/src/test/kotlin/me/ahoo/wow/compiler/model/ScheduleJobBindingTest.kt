@@ -81,16 +81,16 @@ class ScheduleJobBindingTest {
                 CommandRequest.to(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
 
             @OnSchedule(name = "sweep", cron = "0 */5 * * * *", sharded = true, misfire = Misfire.CATCH_UP)
-            suspend fun sweep(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            suspend fun sweep(tick: ScheduleTick): List<CommandRequest<IssueInvoices>> = emptyList()
 
             @OnEvent
-            fun onEvent(event: StateEvent<*>): List<CommandRequest<*>> = emptyList()
+            fun onEvent(event: StateEvent<*>): List<CommandRequest<IssueInvoices>> = emptyList()
         }
 
         @Saga
         object Nightly {
             @OnSchedule(name = "nightly", cron = "@daily")
-            fun nightly(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            fun nightly(tick: ScheduleTick): List<CommandRequest<IssueInvoices>> = emptyList()
         }
         """.trimIndent(),
     )
@@ -179,26 +179,26 @@ class ScheduleJobBindingTest {
         @Saga
         object Wrong {
             @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT, sharded = true)
-            fun misnamed(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            fun misnamed(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "twice", cron = "0 0 3 * * *")
             @OnEvent
-            fun both(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            fun both(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "params", cron = "0 0 3 * * *")
-            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String): List<CommandRequest<*>> = emptyList()
+            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String) = Unit
 
             @OnSchedule(name = "returns", cron = "0 0 3 * * *")
             fun returns(tick: ScheduleTick): String = ""
 
             @OnSchedule(name = "same", cron = "0 0 3 * * *")
-            fun first(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            fun first(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "same", cron = "0 0 4 * * *")
-            fun second(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            fun second(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "hidden", cron = "0 0 3 * * *")
-            private fun hidden(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            private fun hidden(tick: ScheduleTick) = Unit
         }
         """.trimIndent(),
     )
@@ -231,14 +231,18 @@ class ScheduleJobBindingTest {
 
             import me.ahoo.wow.api.annotation.OnSchedule
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.schedule.ScheduleTick
             import reactor.core.publisher.Flux
 
+            data class Sweep(val slot: Long)
+
             @Saga
             object Jobs {
                 @OnSchedule(name = "reactive", cron = "0 0 3 * * *")
+                @Sends(derives = [Sweep::class])
                 fun reactive(tick: ScheduleTick): Flux<CommandRequest<*>> = Flux.empty()
             }
             """.trimIndent(),

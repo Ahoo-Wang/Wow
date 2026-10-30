@@ -268,6 +268,7 @@ class ScheduledCommandsTest {
                     emptyList()
                 },
             ),
+            schedules = listOf(CancelOrder::class.java),
         ) { event, context ->
             if (event.events.any { it is OrderPlaced }) {
                 context.schedule(

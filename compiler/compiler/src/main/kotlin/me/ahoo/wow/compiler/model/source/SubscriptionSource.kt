@@ -19,6 +19,7 @@ import me.ahoo.wow.compiler.model.subscription.HandlerBinding
 import me.ahoo.wow.compiler.model.subscription.JobBinding
 import me.ahoo.wow.compiler.model.subscription.Receipt
 import me.ahoo.wow.compiler.model.subscription.ReceiptBinding
+import me.ahoo.wow.compiler.model.subscription.SendsBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.compiler.model.symbol.blocking
 
@@ -178,8 +179,8 @@ internal object SubscriptionSource {
     /**
      * The arguments of [handler]'s binding that it gives only when it has them: the aggregates of its
      * `@OnEvent(aggregates)`, whether its state is [nullable], its `@Retry` budget, and the start its `@OnEvent(start)`
-     * declares (the runtime gives one that declares none its kind's and source's), and the classes of
-     * its `@OnEvent(calls)`, the only ones its `SagaContext.call` takes.
+     * declares (the runtime gives one that declares none its kind's and source's), and what a saga's handler sends
+     * ([sendsArguments]).
      */
     private fun optionalArguments(handler: HandlerBinding, nullable: Boolean): String = buildString {
         if (handler.aggregates.isNotEmpty()) {
@@ -191,9 +192,19 @@ internal object SubscriptionSource {
         handler.retry?.let { append(", retry = ${it.source()}") }
         handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
         handler.event?.let { append(", eventType = ${it.source}::class.java") }
-        if (handler.callSources.isNotEmpty()) {
-            append(", calls = listOf(${handler.callSources.joinToString(", ") { "$it::class.java" }})")
-        }
+        append(sendsArguments(handler.sends))
+    }
+
+    /**
+     * The arguments of a saga's handler's binding that say what it sends ([SendsBinding]), each list when it is not
+     * empty: the only commands its context lets it derive, schedule and call.
+     */
+    private fun sendsArguments(sends: SendsBinding): String = buildString {
+        listOf("derives" to sends.derives, "schedules" to sends.schedules, "calls" to sends.calls)
+            .filter { (_, classes) -> classes.isNotEmpty() }
+            .forEach { (member, classes) ->
+                append(", $member = listOf(${classes.joinToString(", ") { "${it.source}::class.java" }})")
+            }
     }
 
     /**
@@ -222,7 +233,7 @@ internal object SubscriptionSource {
         val bounded = context?.let { ", context = \"${escape(it)}\"" }.orEmpty()
         appendLine(
             "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${handler.function}\", $definition, " +
-                "${handler.blocking}$receipts$retry$bounded) {",
+                "${handler.blocking}$receipts$retry$bounded${sendsArguments(handler.sends)}) {",
         )
         appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
         appendLine("            $KERNEL.requestsOf($awaited)")
@@ -242,7 +253,7 @@ internal object SubscriptionSource {
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         appendLine(
             "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${handler.function}\", " +
-                "$commandType, ${handler.blocking}) {",
+                "$commandType, ${handler.blocking}${sendsArguments(handler.sends)}) {",
         )
         appendLine(
             "                $parameter: ${handler.receipt.parameter}<$command>, ${if (handler.context) "context" else "_"} ->",

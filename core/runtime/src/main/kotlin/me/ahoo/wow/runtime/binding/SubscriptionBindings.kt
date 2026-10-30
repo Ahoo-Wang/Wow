@@ -243,6 +243,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         commandTypes = context.commandTypes,
         queries = context.queries,
         clock = context.coordinator.clock,
+        caller = context.caller,
+        served = context.served,
     )
 
     /**
@@ -314,7 +316,16 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             context: ContextNode,
             calls: CommandCalls = CommandCalls.NONE,
         ): SubscriptionContext =
-            contextOf(handler.kind, name, event, context.ids, context.commandTypes, calls, context.queries)
+            contextOf(
+                handler.kind,
+                name,
+                event,
+                context.ids,
+                context.commandTypes,
+                calls,
+                context.queries,
+                handler.sends
+            )
 
         /**
          * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived].
@@ -334,7 +345,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): HandledEntry {
             val name = handler.name
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
-            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait, handler.calls, name)
+            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait)
             val execution = executionOf(handler, name, event, context, calls)
             val commands = try {
                 call(handler, event, execution)

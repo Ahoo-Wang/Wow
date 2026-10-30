@@ -32,8 +32,13 @@ import me.ahoo.wow.api.result.ErrorInfo
  * [ref] the receipt answers; a rejection may have none.
  *
  * A receipt carries the outcome only: neither the command's body nor the target's state. [C] says which commands'
- * receipts a handler takes; `*` takes every command the saga derives. The runtime hands each receipt over once per
+ * receipts a handler takes; `*` takes every command the saga sends. The runtime hands each receipt over once per
  * [commandId].
+ *
+ * A handler of both receipts of a command takes a `CommandReceipt<C>` and carries both `@OnRejected` and
+ * `@OnCommitted`: each annotation declares its own path, with that path's rule. A rejection is a business outcome,
+ * not retried: a rejection the handler fails on parks the aggregate. A commit's receipt is handled in the receipts
+ * subscription of the saga's context, retried as the host retries it.
  *
  * Fields may be added: the runtime builds a receipt, and a test hands one to a saga with the test DSL's
  * `whenRejected` or `whenCommitted`; the constructors are internal to Wow.
@@ -60,7 +65,8 @@ sealed interface CommandReceipt<C : Any> {
      * its events reached when it was committed with events, else the one the decision saw; null when the command was
      * refused before any decision, a creation's. A rejection is a business outcome: the runtime hands it to the saga
      * instead of parking the aggregate, whether the command was rejected in the saga's own context or in another,
-     * whose receipt comes back.
+     * whose receipt comes back, and whether the saga derived it or called it (`SagaContext.call`) and let the
+     * rejection through.
      */
     @Suppress("unused") // C selects the handler by the command's type.
     class Rejected<C : Any> @InternalWowApi constructor(

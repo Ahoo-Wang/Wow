@@ -89,7 +89,12 @@ class StandbyNodeTest {
     private val handled = CopyOnWriteArrayList<String>()
 
     /** An order placed from a cart: the saga empties the cart named by its first item, as the 9.x CartSaga does. */
-    private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
+    private val onOrderPlaced = ProcessorBinding.saga(
+        "CartSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        derives = listOf(AddItems::class.java),
+    ) { event, c ->
         handled += event.ref.id
         event.events.filterIsInstance<Placed>().map {
             CommandRequest.to(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))

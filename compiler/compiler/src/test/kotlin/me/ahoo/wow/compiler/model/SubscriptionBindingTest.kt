@@ -61,6 +61,7 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.annotation.Projection
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.annotation.Sends
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
@@ -109,7 +110,7 @@ class SubscriptionBindingTest {
         @Saga
         class CartSaga {
             @OnEvent
-            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<*>> =
+            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<Remove>> =
                 listOf(CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
                     CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
 
@@ -118,7 +119,7 @@ class SubscriptionBindingTest {
                 CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-3"))
 
             @OnEvent
-            suspend fun none(event: StateEvent<OrderState>): List<CommandRequest<*>>? = null
+            suspend fun none(event: StateEvent<OrderState>): List<CommandRequest<Remove>>? = null
 
             @OnEvent
             fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<CommandRequest<Remove>> =
@@ -130,6 +131,7 @@ class SubscriptionBindingTest {
 
             @Blocking
             @OnRejected
+            @Sends(derives = [Restore::class])
             suspend fun onAnyRejected(rejected: CommandReceipt.Rejected<*>): Flux<CommandRequest<*>> = Flux.empty()
         }
 
@@ -278,9 +280,10 @@ class SubscriptionBindingTest {
         generated(compilation, "CartSagaSubscriptions.kt")!!.readText().assert().contains(
             "val rejections = listOf<me.ahoo.wow.kernel.RejectionBinding<*>>(",
             "me.ahoo.wow.kernel.RejectionBinding.of<sample.shop.Remove>(\"CartSaga\", \"onRemoveRejected\", " +
-                "sample.shop.Remove::class.java, false)",
-            "me.ahoo.wow.kernel.RejectionBinding.of<Any>(\"CartSaga\", \"onAnyRejected\", null, true)",
-            "rejections = rejections) {",
+                "sample.shop.Remove::class.java, false, derives = listOf(sample.shop.Restore::class.java))",
+            "me.ahoo.wow.kernel.RejectionBinding.of<Any>(\"CartSaga\", \"onAnyRejected\", null, true, " +
+                "derives = listOf(sample.shop.Restore::class.java))",
+            "rejections = rejections, derives = listOf(sample.shop.Remove::class.java)) {",
         )
         val handlers = provider(compilation, result)
             .processors(Dependencies.of(mapOf("audit" to rows(result, Rows())), rows(result, Rows())))

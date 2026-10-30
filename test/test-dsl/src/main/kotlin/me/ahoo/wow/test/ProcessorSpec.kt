@@ -634,11 +634,7 @@ class ProcessorSpec private constructor(
         called.forEach { handler ->
             failing = handler
             val rejectedCalls = LinkedHashMap<String, Command<*>>()
-            // As the runtime does: a call of a class the handler does not declare is refused.
             val answering = CommandCalls { command ->
-                require(command.body.javaClass in handler.calls) {
-                    "${handler.name} calls ${command.body.javaClass.name}, which its @OnEvent(calls) does not declare."
-                }
                 calls += command
                 answer(command).also { result ->
                     if (result.status == CommandResult.Status.REJECTED) {
@@ -646,6 +642,7 @@ class ProcessorSpec private constructor(
                     }
                 }
             }
+            // As the runtime does: the handler sends only what it declares (@Sends).
             val context = contextOf(
                 handler.kind,
                 handler.name,
@@ -654,6 +651,7 @@ class ProcessorSpec private constructor(
                 commandTypes,
                 answering,
                 queries,
+                handler.sends,
             )
             val derived = try {
                 runBlocking { handler.invoke(event, context) }
@@ -698,21 +696,31 @@ class ProcessorSpec private constructor(
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandReceipt.Rejected<*>): Result<Handled> =
         runCatchingAll {
-            val context = rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries)
+            val calls = ArrayList<Command<*>>()
+            val context =
+                rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries, answering(calls))
             val derived = runBlocking { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
-            Handled(derived)
+            Handled(derived, calls)
         }
 
     private fun commit(handler: CommittedBinding<*>, committed: CommandReceipt.Committed<*>): Result<Handled> =
         runCatchingAll {
-            val context = committedContextOf(handler, committed, SequentialIds(), commandTypes, queries)
+            val calls = ArrayList<Command<*>>()
+            val context =
+                committedContextOf(handler, committed, SequentialIds(), commandTypes, queries, answering(calls))
             val derived = runBlocking { handler.invoke(committed, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
-            Handled(derived)
+            Handled(derived, calls)
         }
 
-    /** The commands of one handling, the schedules it set or cancelled among them, extensions = and the commands it [calls]. */
+    /** The calls of a receipt's handler: answered by [answer], each recorded into [calls]. */
+    private fun answering(calls: MutableList<Command<*>>): CommandCalls = CommandCalls { command ->
+        calls += command
+        answer(command)
+    }
+
+    /** The commands of one handling, the schedules it set or cancelled among them, and the commands it [calls]. */
     internal data class Handled(val commands: List<Command<*>>, val calls: List<Command<*>> = emptyList())
 
     private companion object {

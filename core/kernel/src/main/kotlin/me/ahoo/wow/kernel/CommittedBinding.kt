@@ -31,6 +31,8 @@ import me.ahoo.wow.spi.id.IdGenerators
  * - [commandType] is the `C` of the `CommandReceipt.Committed<C>` it takes: it handles the receipts of the commands of that
  *   class (or a subclass); null for `CommandReceipt.Committed<*>`, every command the saga derives ([handles]).
  * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
+ * - [sends] are the commands it declares it derives, schedules and calls (`@Sends`, its return type for what it
+ *   derives): its context holds it to them.
  * - [invoke] calls the handler directly and returns the commands of the requests it returns
  *   ([requestsOf]), as a saga's handler does.
  *
@@ -43,6 +45,9 @@ class CommittedBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
+    /** What the handler declares it sends (`@Sends`, else its return type for what it derives). */
+    @property:InternalWowApi
+    val sends: SagaSends,
     private val call: suspend (CommandReceipt.Committed<C>, SagaContext) -> List<CommandRequest<*>>,
 ) {
     init {
@@ -74,8 +79,12 @@ class CommittedBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
+            derives: List<Class<*>> = emptyList(),
+            schedules: List<Class<*>> = emptyList(),
+            calls: List<Class<*>> = emptyList(),
             handle: suspend (CommandReceipt.Committed<C>, SagaContext) -> List<CommandRequest<*>>,
-        ): CommittedBinding<C> = CommittedBinding(processor, function, commandType, blocking, handle)
+        ): CommittedBinding<C> =
+            CommittedBinding(processor, function, commandType, blocking, SagaSends(derives, schedules, calls), handle)
 
         /**
          * The handler among [handlers] of the receipt of a command of [command], chosen as
@@ -121,4 +130,5 @@ fun committedContextOf(
     commandTypes,
     queries,
     calls = calls,
+    sends = handler.sends,
 )

@@ -132,6 +132,7 @@ fun orderSaga(
         "OrderSaga",
         "onReserveRejected",
         Reserve::class.java,
+        derives = listOf(CancelOrder::class.java),
     ) { rejected, context ->
         rejections += rejected
         listOf(CommandRequest.to(rejected.source, CancelOrder()))
@@ -141,6 +142,7 @@ fun orderSaga(
         "onOrderPlaced",
         OrderState::class.java,
         rejections = listOf(onReserveRejected),
+        derives = listOf(Reserve::class.java),
     ) { event, context ->
         event.events.filterIsInstance<OrderPlaced>().map {
             CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))

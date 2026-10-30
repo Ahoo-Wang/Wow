@@ -56,6 +56,7 @@ internal object AnnotationSet {
         "Summary",
         "ErrorCode",
         "Retry",
+        "Sends",
         "WowSpi",
         "Tags",
         // Not a domain annotation: it marks the framework's own internals.
@@ -84,9 +85,10 @@ internal object AnnotationSet {
     )
 
     /**
-     * The annotations only a subscription processor or its handler takes: `@Retry` and `@OnSchedule`.
+     * The annotations only a subscription processor or its handler takes: `@Retry`, `@OnSchedule` and `@Sends`, which
+     * the processor's resolver holds to a saga's handlers.
      */
-    private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule")
+    private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule", "Sends")
 
     /** The annotations only a member of an aggregate's state takes: `@Tags`. */
     private val STATE_NAMES = setOf("Tags")

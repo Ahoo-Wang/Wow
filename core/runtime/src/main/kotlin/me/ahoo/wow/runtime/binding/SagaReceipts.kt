@@ -25,8 +25,10 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
+import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.wait.subscriptionFunction
+import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Clock
@@ -72,6 +74,10 @@ internal class SagaReceipts(
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     /** The handlers' queries, by the commit's tenant. */
     private val queries: ContextQueries = ContextQueries.NONE,
+    /** The client of the other contexts' command gateways the handlers' synchronous calls go through. */
+    private val caller: CommandCaller? = null,
+    /** The contexts of the node, which a handler derives its commands to rather than call. */
+    private val served: Set<String> = setOfNotNull(context.takeIf { it.isNotEmpty() }),
 ) : ReceiptHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
@@ -88,10 +94,11 @@ internal class SagaReceipts(
      */
     override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
-        val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries)
+        val calls = SagaCalls(caller, served, commandTypes, wait = null)
+        val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls)
         val executed = derived.execute(call(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
         executed.rejected.parking()?.let { throw it }
-        return executed.executed
+        return calls.called + executed.executed
     }
 
     /**
@@ -106,12 +113,15 @@ internal class SagaReceipts(
         wait: WaitContext?,
     ): List<String>? {
         val handler = sagas[committed.executionId.subscription]?.committedHandlerOf(command) ?: return null
-        val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries)
+        val next = DerivedCommands.waitOf(wait, context, handler.name)
+        val calls = SagaCalls(caller, served, commandTypes, next)
+        val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries, calls)
         val commands = call(handler.blocking) { handler.invoke(committed, sagaContext) }
-        val executed = derived.execute(commands, DerivedCommands.waitOf(wait, context, handler.name))
-        signalHop(wait, handler.name, committed, executed.executed, executed.rejected.firstOrNull()?.error)
+        val executed = derived.execute(commands, next)
+        val sent = calls.called + executed.executed
+        signalHop(wait, handler.name, committed, sent, executed.rejected.firstOrNull()?.error)
         executed.rejected.parking()?.let { throw it }
-        return executed.executed
+        return sent
     }
 
     /**

@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.annotation.Sends
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
@@ -35,13 +36,14 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * own services reach, from the basket service, which names itself. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
  * then the basket parks until an operator retries it.
  *
- * `@OnEvent(calls)` declares the call: the Manifest lists it, so a wait chain may follow the saga into
+ * `@Sends(calls)` declares the call: the Manifest lists it, so a wait chain may follow the saga into
  * the ordering context, and the node does not start without the ordering's URL. The saga derives nothing (`Unit`).
  */
 @Saga
 class BasketCheckoutSaga {
     // region call
-    @OnEvent(calls = [SubmitOrder::class])
+    @OnEvent
+    @Sends(calls = [SubmitOrder::class])
     suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
         val checkedOut = event.event
         context.call(

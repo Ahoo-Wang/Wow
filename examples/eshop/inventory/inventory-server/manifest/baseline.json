@@ -175,6 +175,7 @@
         "processor" : "SupplierDeliverySaga",
         "name" : "onSchedule"
       },
+      "derives" : [ "eshop-inventory.stock.ReceiveStock" ],
       "start" : "end",
       "job" : {
         "name" : "receive-deliveries",

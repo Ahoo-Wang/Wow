@@ -115,7 +115,8 @@ class RejectionBindingTest {
             val handler = RejectionBinding.of(
                 "CartSaga",
                 "onRemoveRejected",
-                Remove::class.java
+                Remove::class.java,
+                derives = listOf(String::class.java),
             ) { rejection, context ->
                 listOf(
                     CommandRequest.to(rejection.ref, "restore"),
