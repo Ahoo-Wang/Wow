@@ -20,16 +20,17 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
 
 /**
  * How the subscriptions of a runtime classify their handlers' failures: the kernel's classification
- * ([FailureClassification], the one the test DSL classifies with too), the application's classifiers first, then what
- * only the runtime throws ([ExecutorFailures]), then the built-in rules.
+ * ([FailureClassification], the one the test DSL classifies with too), the application's classifiers first, then the
+ * modules' on the classpath ([FailureClassification.MODULES]), then what only the runtime throws ([ExecutorFailures]),
+ * then the built-in rules.
  */
 internal object RuntimeFailures {
     /** The runtime's own classification, with no application classifier. */
-    val DEFAULT: FailureClassification = FailureClassification.of(listOf(ExecutorFailures))
+    val DEFAULT: FailureClassification by lazy { of() }
 
-    /** The [application]'s classifiers, then the runtime's own. */
+    /** The [application]'s classifiers, then the modules', then the runtime's own. */
     fun of(application: List<FailureClassifier> = emptyList()): FailureClassification =
-        if (application.isEmpty()) DEFAULT else FailureClassification.of(application + ExecutorFailures)
+        FailureClassification.of(application, own = listOf(ExecutorFailures))
 }
 
 /**

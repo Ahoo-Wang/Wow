@@ -285,6 +285,18 @@ class ProcessorDslTest {
     }
 
     @Test
+    fun `a module's classifier found on the classpath should classify a failure as the runtime's does`() {
+        // ModuleFailures, found as wow-postgres's and wow-client's are, takes a ModuleFailure for unrecoverable.
+        sagaSpec(sagaHandlers { throw ModuleFailure("The driver gave up.") }) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("is unrecoverable")
+                expectParked()
+            }
+        }
+    }
+
+    @Test
     fun `a rejection no OnRejected handler takes should park at once`() = sagaSpec(sagaHandlers()) {
         givenAggregate(orderModel, "order-1", OrderPlaced(10))
         whenEvent(OrderPaid(1)) {

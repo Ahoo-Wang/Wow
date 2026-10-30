@@ -28,6 +28,8 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.test.rejectedResult
 import org.junit.jupiter.api.Test
 import java.net.ConnectException
+import java.sql.SQLException
+import java.sql.SQLTransientConnectionException
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -40,7 +42,7 @@ class FailureClassificationTest {
     @Test
     fun `the built-in rules know a downstream that is down, one that pushes back and a value refused for good`() {
         classification.classify(StorageUnavailableException("down"), null).assert().isEqualTo(FailureClass.SYSTEMIC)
-        classification.classify(IllegalStateException("wrapped", ConnectException("refused")), null).assert()
+        classification.classify(IllegalStateException("wrapped", StorageUnavailableException("down")), null).assert()
             .isEqualTo(FailureClass.SYSTEMIC)
         classification.classify(StorageBusyException("busy"), null).assert().isEqualTo(FailureClass.BACKPRESSURE)
         val busy = WowProblemException(FrameworkCodes.COMMAND_BUSY, 429, Retry.SAME_REQUEST, 1.seconds, "busy")
@@ -60,7 +62,39 @@ class FailureClassificationTest {
         )
         given.classify(IllegalArgumentException("bad"), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         given.classify(down, null).assert().isEqualTo(FailureClass.SYSTEMIC)
-        FailureClassification.of().assert().isSameAs(FailureClassification.DEFAULT)
+    }
+
+    @Test
+    fun `the application's classifiers come before the modules', the modules' before the caller's own and the built-in`() {
+        val down = StorageUnavailableException("down")
+        val module = FailureClassifier {
+            when (it) {
+                is StorageUnavailableException -> FailureClass.RECOVERABLE
+                is IllegalArgumentException -> FailureClass.SYSTEMIC
+                else -> null
+            }
+        }
+        val own = FailureClassifier { FailureClass.BACKPRESSURE.takeIf { _ -> it is IllegalArgumentException } }
+        val modules = FailureClassification.of(own = listOf(own), modules = listOf(module))
+        // A module's rule overrides the built-in one, and the caller's own.
+        modules.classify(down, null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        modules.classify(IllegalArgumentException("bad"), null).assert().isEqualTo(FailureClass.SYSTEMIC)
+        // The application's overrides a module's.
+        val application =
+            FailureClassifier { FailureClass.UNRECOVERABLE.takeIf { _ -> it is IllegalArgumentException } }
+        FailureClassification.of(listOf(application), listOf(own), listOf(module))
+            .classify(IllegalArgumentException("bad"), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+    }
+
+    @Test
+    fun `without the modules that own them, raw JDBC and network failures are recoverable`() {
+        // Neither wow-postgres nor wow-client is on this classpath: no module classifies their technologies' failures.
+        FailureClassification.MODULES.assert().isEmpty()
+        listOf(
+            ConnectException("refused"),
+            SQLTransientConnectionException("pool timed out"),
+            SQLException("connection failure", "08006"),
+        ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.RECOVERABLE) }
     }
 
     @Test
