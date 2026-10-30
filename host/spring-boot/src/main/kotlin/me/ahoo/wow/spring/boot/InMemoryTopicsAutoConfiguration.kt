@@ -36,8 +36,8 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 /**
  * The node's topics in its JVM, for trying a service out without Kafka (DX gap G27), when `wow.transport` selects them
  * ([TransportSelection.MEMORY]: `memory`, or `auto` in development without a configured transport): one
- * [InMemoryTopics] of `wow.log.partitions` partitions, unless the application has one of its own, as wow-kafka's beans
- * give them on Kafka:
+ * [InMemoryTopics] of `wow.log.partitions` partitions, each keeping its last `wow.memory.topic-retention` messages,
+ * unless the application has one of its own, as wow-kafka's beans give them on Kafka:
  *
  * - the [SourceTopics] with the producer and the intake, so each context the node hosts executes its command topic,
  *   whose topics the node creates at its start ([Ddl.AUTO]);
@@ -61,7 +61,8 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowInMemoryTopics(properties: WowProperties): InMemoryTopics = InMemoryTopics(properties.log.partitions)
+    fun wowInMemoryTopics(properties: WowProperties): InMemoryTopics =
+        InMemoryTopics(properties.log.partitions).apply { retention = properties.memory.topicRetention }
 
     @Bean
     @ConditionalOnMissingBean

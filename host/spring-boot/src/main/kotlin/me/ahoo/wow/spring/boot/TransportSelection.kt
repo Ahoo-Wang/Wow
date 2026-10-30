@@ -31,8 +31,9 @@ import org.springframework.core.env.Environment
  *   the application; `kafka` or another provider's type names it.
  * - [MEMORY]: `memory`, or `auto` without a configured transport in development ([DevelopmentMode]): the topics are in
  *   the node's JVM ([InMemoryTopicsAutoConfiguration]).
- * - [NONE]: `auto` without a configured transport outside development. A node whose Manifest needs topics refuses to
- *   start then ([TransportNeeds]).
+ * - [NONE]: `none`, or `auto` without a configured transport outside development: no topics, whatever is configured
+ *   (a blank `wow.kafka.bootstrap-servers` in development is no `none`: it falls back to the topics in the JVM). A node
+ *   whose Manifest needs topics refuses to start then ([TransportNeeds]).
  */
 @InternalWowApi
 enum class TransportSelection {
@@ -49,6 +50,9 @@ enum class TransportSelection {
         /** The value of `wow.transport` that keeps the topics in the JVM. */
         const val MEMORY_TYPE: String = "memory"
 
+        /** The value of `wow.transport` that gives the node no topics at all. */
+        const val NONE_TYPE: String = "none"
+
         /** The selection of [context], a condition's: the environment, the classpath's providers and the beans. */
         fun of(context: ConditionContext): TransportSelection {
             val beans = context.beanFactory?.getBeanNamesForType(TransportProvider::class.java, true, false).orEmpty()
@@ -60,6 +64,7 @@ enum class TransportSelection {
             val properties = WowProperties.of(environment)
             return when (properties.transport.trim().lowercase()) {
                 MEMORY_TYPE -> MEMORY
+                NONE_TYPE -> NONE
                 AUTO, "" -> when {
                     beans || configured(environment, providers).isNotEmpty() -> PROVIDER
                     DevelopmentMode.of(properties, environment).active -> MEMORY
@@ -139,12 +144,21 @@ object TransportNeeds {
             }
             return
         }
+        val none = transport.trim().equals(TransportSelection.NONE_TYPE, ignoreCase = true)
         throw WowConfigurationException(
             "wow.transport",
             transport,
-            "The service needs a topic transport, but none is configured: ${needs.joinToString("; ")}.",
-            "Configure Kafka (wow.kafka.bootstrap-servers) or another transport provider, or drop what needs it. " +
-                "A node in development keeps its topics in its JVM instead (wow.dev-profiles).",
+            if (none) {
+                "wow.transport is none, but the service needs a topic transport: ${needs.joinToString("; ")}."
+            } else {
+                "The service needs a topic transport, but none is configured: ${needs.joinToString("; ")}."
+            },
+            if (none) {
+                "Set wow.transport to auto, memory (development) or a transport provider's type, or drop what needs it."
+            } else {
+                "Configure Kafka (wow.kafka.bootstrap-servers) or another transport provider, or drop what needs it. " +
+                    "A node in development keeps its topics in its JVM instead (wow.dev-profiles)."
+            },
         )
     }
 }

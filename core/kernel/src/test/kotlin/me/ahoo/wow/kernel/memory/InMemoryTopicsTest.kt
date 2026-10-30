@@ -64,6 +64,35 @@ class InMemoryTopicsTest : TopicTransportSpec() {
     }
 
     @Test
+    fun `a partition should keep its last messages alone, however long the stream (X-33)`(): Unit = runBlocking {
+        val topics = InMemoryTopics(2)
+        topics.retention = 100
+        val value = ByteArray(1024)
+        // A long stream, 200 batches of 500 messages over two partitions: each keeps its last 100, all along.
+        repeat(200) { batch ->
+            topics.send("t", (0 until 500).map { TopicMessage.of("k-${batch * 500 + it}", value) })
+            topics.messages("t").size.assert().isLessThanOrEqualTo(200)
+        }
+        (0..1).forEach { partition ->
+            val offsets = topics.offsets("t", partition)
+            (offsets.end - offsets.start).assert().isEqualTo(100L)
+            // A reader behind the messages kept reads on from the oldest kept.
+            topics.read("t", partition, 0, offsets.end).toList().map { it.offset }.assert()
+                .isEqualTo((offsets.start until offsets.end).toList())
+        }
+        (topics.offsets("t", 0).end + topics.offsets("t", 1).end).assert().isEqualTo(100_000L)
+    }
+
+    @Test
+    fun `a partition should keep the default retention unless set, and at least one message`(): Unit = runBlocking {
+        val topics = InMemoryTopics(1)
+        topics.retention.assert().isEqualTo(InMemoryTopics.DEFAULT_RETENTION)
+        topics.send("t", (0..InMemoryTopics.DEFAULT_RETENTION).map { TopicMessage.of("k", byteArrayOf(1)) })
+        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets.of(1, InMemoryTopics.DEFAULT_RETENTION + 1L))
+        assertThrows<IllegalArgumentException> { topics.retention = 0 }
+    }
+
+    @Test
     fun `a message should describe itself without its bytes`() {
         TopicMessage.of("k", byteArrayOf(1, 2), mapOf("h" to "v")).toString()
             .assert().isEqualTo("TopicMessage(key=k, headers={h=v}, 2 bytes)")
